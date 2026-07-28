@@ -89,6 +89,18 @@ export const RAG_AGENT_DEFAULTS = {
   structureAwareChunking: true,
   /** P2：Markdown/TSV 表格按行分组切分，保留表头 */
   enableTableAwareChunking: true,
+  /** H2：子块检索 + parent_text 扩展 */
+  enableParentChildChunking: true,
+  enableParentExpand: true,
+  parentTextMaxChars: 6000,
+  /** H3：MMR 去冗余 */
+  enableMmr: true,
+  mmrLambda: 0.7,
+  /** H4：Top1/Top2 分差过小且分数偏低 → Corrective */
+  correctiveMinScoreGap: 0.015,
+  correctiveAmbiguousTopMax: 0.22,
+  /** H5：答案数字/条款须出现在证据原文 */
+  enableCitationGuard: true,
   /** P2：复合问句按子问句并行检索 lane */
   enableSubQueryParallelRetrieval: true,
   subQueryLaneTopK: 3,
@@ -272,6 +284,20 @@ export function getRagAgentEnv(opts?: { docCount?: number }): RagAgentEnv {
     chunkOverlap: envNum(process.env.RAG_CHUNK_OVERLAP, d.chunkOverlap),
     structureAwareChunking: envBool(process.env.RAG_STRUCTURE_AWARE_CHUNKING, d.structureAwareChunking),
     enableTableAwareChunking: envBool(process.env.RAG_ENABLE_TABLE_AWARE_CHUNKING, d.enableTableAwareChunking),
+    enableParentChildChunking: envBool(process.env.RAG_ENABLE_PARENT_CHILD, d.enableParentChildChunking),
+    enableParentExpand: envBool(process.env.RAG_PARENT_EXPAND, d.enableParentExpand),
+    parentTextMaxChars: Math.max(
+      800,
+      Math.floor(envNum(process.env.RAG_PARENT_TEXT_MAX_CHARS, d.parentTextMaxChars))
+    ),
+    enableMmr: envBool(process.env.RAG_ENABLE_MMR, d.enableMmr),
+    mmrLambda: Math.max(0, Math.min(1, envNum(process.env.RAG_MMR_LAMBDA, d.mmrLambda))),
+    correctiveMinScoreGap: Math.max(0, envNum(process.env.RAG_CORRECTIVE_MIN_SCORE_GAP, d.correctiveMinScoreGap)),
+    correctiveAmbiguousTopMax: Math.max(
+      0,
+      envNum(process.env.RAG_CORRECTIVE_AMBIGUOUS_TOP_MAX, d.correctiveAmbiguousTopMax)
+    ),
+    enableCitationGuard: envBool(process.env.RAG_ENABLE_CITATION_GUARD, d.enableCitationGuard),
     enableSubQueryParallelRetrieval: envBool(
       process.env.RAG_ENABLE_SUB_QUERY_PARALLEL,
       d.enableSubQueryParallelRetrieval

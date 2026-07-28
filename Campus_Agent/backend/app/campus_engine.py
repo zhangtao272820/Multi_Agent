@@ -7,6 +7,8 @@ from typing import Any
 
 from . import catalog
 from . import charm as charm_mod
+from . import endings as endings_mod
+from . import npc_greeting
 from . import npc_intent
 from . import npc_minds
 from . import relationship as rel
@@ -14,9 +16,13 @@ from . import scores as scores_mod
 from . import seating as seating_mod
 from . import sprites as sprites_mod
 from . import weather as weather_mod
+from . import weekly_events as weekly_mod
 from .campus_store import CampusSave, clone_students, new_save_id, store
 from .llm_chat import run_character, run_date_decision, run_judge
 from .config import llm_api_key
+
+ACTIONABLE_KINDS = frozenset({"free", "free_day", "meal", "dorm"})
+MAX_SKIP_STEPS = 12
 
 
 def _rng_for(save: CampusSave) -> random.Random:
@@ -178,6 +184,15 @@ def hub_public(save: CampusSave) -> dict[str, Any]:
             }
         )
     bg = sprites_mod.resolve_bg(save.location_id, save.weather_id)
+    active_event = save.active_event
+    if active_event and active_event.get("talk_npc_id"):
+        tid = str(active_event["talk_npc_id"])
+        other = _student_by_id(save, tid)
+        active_event = {
+            **active_event,
+            "talk_npc_name": (other or {}).get("name") or tid,
+            "talk_npc_q": sprites_mod.resolve_q_sprite(tid),
+        }
     return {
         "save_id": save.save_id,
         "calendar": {
@@ -202,7 +217,7 @@ def hub_public(save: CampusSave) -> dict[str, Any]:
         "note_actions_left": save.note_actions_left,
         "club_action_used": bool(save.club_action_used),
         "spot_action_used": bool(save.spot_action_used),
-        "active_event": save.active_event,
+        "active_event": active_event,
         "pending_intents": save.pending_intents,
         "event_reactions": npc_minds.event_reactions_public(save),
         "pc_scores": scores_mod.public_scores(save.scores.get("pc", scores_mod.empty_scores())),
@@ -226,7 +241,7 @@ _STAGE_LABEL_CN = {
 
 
 def compute_gaokao_ending(save: CampusSave) -> dict[str, Any]:
-    """D-0 高考结算：成绩排名 + 最高亲和恋爱线（零 LLM）。"""
+    """D-0 高考结算：成绩排名 × 感情阶段矩阵（零 LLM）。"""
     ranking = scores_mod.mock_exam_snapshot(save.scores)
     name_by_id = {s["id"]: s["name"] for s in save.students}
     pc_row = next((r for r in ranking if r["student_id"] == "pc"), None)
@@ -263,29 +278,16 @@ def compute_gaokao_ending(save: CampusSave) -> dict[str, Any]:
             "q_sprite": sprites_mod.resolve_q_sprite(other_id),
         }
 
-    if pc_rank <= 3:
-        tone = "金榜题名"
-        blurb = f"班级第 {pc_rank} 名，总分 {pc_total:.0f}。百日冲刺收官，你站在了最前列。"
-    elif pc_rank <= 10:
-        tone = "稳中有进"
-        blurb = f"班级第 {pc_rank} 名，总分 {pc_total:.0f}。成绩扎实，前路可期。"
-    elif pc_rank <= 20:
-        tone = "普通发挥"
-        blurb = f"班级第 {pc_rank} 名，总分 {pc_total:.0f}。不算惊艳，但你撑过了这 100 天。"
-    else:
-        tone = "仍在路上"
-        blurb = f"班级第 {pc_rank} 名，总分 {pc_total:.0f}。分数之外，还有人记得你的夏天。"
-
-    if romance:
-        blurb += f" 与{romance['name']}的关系停在「{romance['stage_label']}」。"
-    else:
-        blurb += " 感情线尚浅，故事仍可重开。"
+    resolved = endings_mod.resolve_ending(pc_rank=pc_rank, pc_total=pc_total, romance=romance)
 
     return {
         "kind": "gaokao",
-        "title": "高考日 · 百日终章",
-        "tone": tone,
-        "blurb": blurb,
+        "ending_id": resolved["ending_id"],
+        "title": resolved["title"],
+        "tone": resolved["tone"],
+        "blurb": resolved["blurb"],
+        "grade_band": resolved["grade_band"],
+        "romance_bucket": resolved["romance_bucket"],
         "pc_rank": pc_rank,
         "pc_total": round(pc_total, 1),
         "pc_scores": scores_mod.public_scores(save.scores.get("pc", scores_mod.empty_scores())),
@@ -355,6 +357,7 @@ def create_new(*, name: str, grade_tier: str, mbti: str) -> dict[str, Any]:
         note_actions_left=int(cmap.get("note_actions_per_free", 2)),
         title=f"{display_name} · 入学",
     )
+    _roll_day_event(save)
     _refresh_locations(save)
     store.set_active(save)
     store.persist(save, kind="auto")
@@ -427,7 +430,15 @@ def _apply_class_period(save: CampusSave, period: dict[str, Any]) -> dict[str, A
 
 
 def _roll_day_event(save: CampusSave) -> None:
-    ev = weather_mod.pick_event(save.weather_id, _rng_for(save))
+    rng = _rng_for(save)
+    weekly = weekly_mod.pick_weekly_event(save, rng)
+    if weekly:
+        save.active_event = weekly
+        save.events.append({"day_index": save.day_index, **weekly})
+        return
+    ev = weather_mod.pick_event(save.weather_id, rng)
+    if ev:
+        ev = {**ev, "source": "weather", "talk_npc_id": None}
     save.active_event = ev
     if ev:
         save.events.append({"day_index": save.day_index, **ev})
@@ -460,12 +471,95 @@ def _start_new_day(save: CampusSave) -> None:
         run_mock_exam(persist=False)
 
 
+def _build_period_recap(
+    *,
+    from_period: dict[str, Any],
+    hub: dict[str, Any],
+    class_summary: dict[str, Any] | None,
+    mind_meta: dict[str, Any],
+    day_ended: bool,
+    skipped: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    intents = hub.get("pending_intents") or []
+    reactions = mind_meta.get("event_reactions") or []
+    event = hub.get("active_event")
+    neighbors = (class_summary or {}).get("neighbors") or []
+    summary_bits: list[str] = []
+    if class_summary:
+        summary_bits.append(f"{class_summary['subject_label']} +{class_summary['pc_gain']}")
+        if neighbors:
+            names = "、".join(f"{n['name']}(+{n['delta']})" for n in neighbors[:3])
+            summary_bits.append(f"邻座好感 {names}")
+    elif day_ended:
+        summary_bits.append(f"{from_period.get('label')}结束，进入新的一天")
+        if event:
+            summary_bits.append(str(event.get("label") or "突发"))
+    else:
+        summary_bits.append(f"{from_period.get('label')} → {hub['calendar'].get('period_label')}")
+    if skipped:
+        summary_bits.insert(0, f"跳过 {len(skipped)} 个时段")
+    if intents:
+        summary_bits.append(str(intents[0].get("blurb") or "有人想找你"))
+    if reactions:
+        summary_bits.append(f"{reactions[0].get('name')}：{reactions[0].get('event_take')}")
+
+    return {
+        "from_period": {
+            "id": from_period.get("id"),
+            "label": from_period.get("label"),
+            "kind": from_period.get("kind"),
+        },
+        "to_period": {
+            "id": hub["calendar"].get("period_id"),
+            "label": hub["calendar"].get("period_label"),
+            "kind": hub["calendar"].get("period_kind"),
+        },
+        "day_index": hub["calendar"].get("day_index"),
+        "days_left": hub["calendar"].get("days_left"),
+        "class_gain": (
+            {
+                "subject_id": class_summary["subject_id"],
+                "subject_label": class_summary["subject_label"],
+                "pc_gain": class_summary["pc_gain"],
+            }
+            if class_summary
+            else None
+        ),
+        "neighbors": neighbors,
+        "intents": [
+            {
+                "from_id": i.get("from_id"),
+                "from_name": i.get("from_name"),
+                "blurb": i.get("blurb"),
+                "type": i.get("type"),
+            }
+            for i in intents[:3]
+        ],
+        "event": (
+            {
+                "id": event.get("id"),
+                "label": event.get("label"),
+                "blurb": event.get("blurb"),
+                "talk_npc_id": event.get("talk_npc_id"),
+                "location_id": event.get("location_id"),
+                "source": event.get("source"),
+            }
+            if event
+            else None
+        ),
+        "reactions": reactions[:3],
+        "skipped_periods": skipped or [],
+        "summary": " · ".join(summary_bits),
+    }
+
+
 def advance_period() -> dict[str, Any]:
     save = store.require_active()
     if save.ended:
         hub = hub_public(save)
         hub["last_action"] = {"type": "ended"}
         hub["period_summary"] = "百日已终，请查看高考结算。"
+        hub["period_recap"] = None
         return hub
 
     period = _period_meta(save)
@@ -489,6 +583,20 @@ def advance_period() -> dict[str, Any]:
         hub["last_action"] = {"type": "gaokao"}
         hub["period_summary"] = "高考日到了，百日冲刺结束。"
         hub["mind_tick"] = {"used_llm": False, "sampled": [], "intent_count": 0}
+        hub["period_recap"] = {
+            "from_period": {"id": period.get("id"), "label": period_label, "kind": kind},
+            "to_period": None,
+            "day_index": save.day_index,
+            "days_left": 0,
+            "class_gain": None,
+            "neighbors": [],
+            "intents": [],
+            "event": None,
+            "reactions": [],
+            "skipped_periods": [],
+            "summary": hub["period_summary"],
+            "ended": True,
+        }
         return hub
 
     if day_ended:
@@ -509,7 +617,6 @@ def advance_period() -> dict[str, Any]:
     store.persist(save, kind="auto")
     hub = hub_public(save)
 
-    summary_bits: list[str] = []
     last_action: dict[str, Any]
     if class_summary:
         last_action = {
@@ -518,30 +625,21 @@ def advance_period() -> dict[str, Any]:
             "gain": class_summary["pc_gain"],
             "neighbors": class_summary["neighbors"],
         }
-        summary_bits.append(f"{class_summary['subject_label']} +{class_summary['pc_gain']}")
-        if class_summary["neighbors"]:
-            names = "、".join(
-                f"{n['name']}(+{n['delta']})" for n in class_summary["neighbors"][:3]
-            )
-            summary_bits.append(f"邻座好感 {names}")
     elif day_ended:
         last_action = {"type": "day_end"}
-        summary_bits.append(f"{period_label}结束，进入新的一天")
-        if hub.get("active_event"):
-            summary_bits.append(str((hub["active_event"] or {}).get("label") or "突发"))
     else:
         last_action = {"type": "advance", "from_period": period.get("id")}
-        summary_bits.append(f"{period_label} → {hub['calendar'].get('period_label')}")
 
-    intents = hub.get("pending_intents") or []
-    if intents:
-        summary_bits.append(str(intents[0].get("blurb") or "有人想找你"))
-    reactions = mind_meta.get("event_reactions") or []
-    if reactions:
-        summary_bits.append(f"{reactions[0].get('name')}：{reactions[0].get('event_take')}")
-
+    recap = _build_period_recap(
+        from_period=period,
+        hub=hub,
+        class_summary=class_summary,
+        mind_meta=mind_meta,
+        day_ended=day_ended,
+    )
     hub["last_action"] = last_action
-    hub["period_summary"] = " · ".join(summary_bits)
+    hub["period_summary"] = recap["summary"]
+    hub["period_recap"] = recap
     hub["mind_tick"] = {
         "used_llm": mind_meta.get("used_llm"),
         "sampled": mind_meta.get("sampled"),
@@ -550,6 +648,87 @@ def advance_period() -> dict[str, Any]:
     if gaokao:
         hub["ending"] = save.ending
     return hub
+
+
+def _is_actionable_hub(hub: dict[str, Any]) -> bool:
+    if hub.get("ended"):
+        return True
+    kind = (hub.get("calendar") or {}).get("period_kind")
+    if kind in ACTIONABLE_KINDS:
+        return True
+    if hub.get("pending_intents"):
+        return True
+    ev = hub.get("active_event") or {}
+    if ev.get("talk_npc_id"):
+        return True
+    return False
+
+
+def advance_until_actionable(*, max_steps: int | None = None) -> dict[str, Any]:
+    """Skip class/end grind until free/meal/dorm (or social hooks / ending)."""
+    save = store.require_active()
+    if save.ended:
+        return advance_period()
+
+    limit = max(1, min(int(max_steps or MAX_SKIP_STEPS), MAX_SKIP_STEPS))
+    skipped: list[dict[str, Any]] = []
+    class_agg: dict[str, Any] | None = None
+    neighbors_acc: list[dict[str, Any]] = []
+    last_hub: dict[str, Any] | None = None
+
+    for _ in range(limit):
+        before = _period_meta(save)
+        before_kind = before.get("kind")
+        hub = advance_period()
+        last_hub = hub
+        recap = hub.get("period_recap") or {}
+        if before_kind not in ACTIONABLE_KINDS:
+            skipped.append(
+                {
+                    "id": before.get("id"),
+                    "label": before.get("label"),
+                    "kind": before_kind,
+                }
+            )
+        if recap.get("class_gain"):
+            cg = recap["class_gain"]
+            if class_agg is None:
+                class_agg = {
+                    "subject_id": cg["subject_id"],
+                    "subject_label": cg["subject_label"],
+                    "pc_gain": float(cg["pc_gain"]),
+                }
+            else:
+                class_agg["pc_gain"] = round(float(class_agg["pc_gain"]) + float(cg["pc_gain"]), 2)
+                class_agg["subject_label"] = f"{class_agg['subject_label']}+{cg['subject_label']}"
+        for n in recap.get("neighbors") or []:
+            neighbors_acc.append(n)
+        if hub.get("ended") or _is_actionable_hub(hub):
+            break
+        save = store.require_active()
+
+    assert last_hub is not None
+    base_recap = dict(last_hub.get("period_recap") or {})
+    if class_agg:
+        base_recap["class_gain"] = class_agg
+    if neighbors_acc:
+        by_id: dict[str, dict[str, Any]] = {}
+        for n in neighbors_acc:
+            by_id[str(n.get("id"))] = n
+        base_recap["neighbors"] = list(by_id.values())[:6]
+    base_recap["skipped_periods"] = skipped
+    if skipped:
+        summary = str(base_recap.get("summary") or "")
+        base_recap["summary"] = f"跳过 {len(skipped)} 个时段" + (f" · {summary}" if summary else "")
+    last_hub["period_recap"] = base_recap
+    last_hub["period_summary"] = base_recap.get("summary") or last_hub.get("period_summary")
+    last_hub["last_action"] = {
+        "type": "advance_skip",
+        "skipped": len(skipped),
+        "gain": (class_agg or {}).get("pc_gain"),
+        "neighbors": base_recap.get("neighbors"),
+    }
+    return last_hub
 
 
 def study(*, subject_id: str) -> dict[str, Any]:
@@ -614,6 +793,29 @@ def prepare_talk(target_id: str) -> dict[str, Any]:
     soft_date = (
         ["随便走走吧", "聊聊最近心里的事", "时间不早了，我送你回去"] if is_date else []
     )
+    loc_name = next(
+        (l["name"] for l in catalog.campus_map()["locations"] if l["id"] == save.location_id),
+        save.location_id,
+    )
+    opening = None
+    if not is_date:
+        opening = npc_greeting.build_opening_line(
+            save=save,
+            target=target,
+            edge=edge,
+            period_label=str(period.get("label") or save.period_id),
+            location_name=str(loc_name),
+            seat_relation=seat_rel if isinstance(seat_rel, str) else None,
+            is_date=False,
+            active_event=save.active_event,
+        )
+        npc_greeting.consume_intent_for(save, target_id)
+        if opening:
+            save.talk_log.append({"role": "assistant", "text": opening, "target": target_id})
+            if len(save.talk_log) > 40:
+                save.talk_log = save.talk_log[-40:]
+            store.persist(save, kind="auto")
+
     return {
         "target": target_pub,
         "edge": rel.public_edge(edge),
@@ -629,7 +831,8 @@ def prepare_talk(target_id: str) -> dict[str, Any]:
         "q_sprite": target_pub.get("q_sprite"),
         "scene": "date" if is_date else "talk",
         "soft_options": soft_date,
-        "opening_line": None,
+        "opening_line": opening,
+        "memory_hooks": list((edge.get("memories") or [])[-2:]),
     }
 
 

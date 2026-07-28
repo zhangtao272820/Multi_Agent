@@ -11,13 +11,14 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const root = path.resolve(__dirname, '..')
 const evalDir = path.join(root, 'eval')
 
-const ROUTE_FILES = ['golden-gui-route.json', 'golden-route-media.json']
+const ROUTE_FILES = ['golden-gui-route.json', 'golden-route-media.json', 'golden-route-composite.json']
+const COMPOSITE_MIN = Number(process.env.ROUTE_COMPOSITE_MIN ?? '10')
 
 function assert(cond, msg) {
   if (!cond) throw new Error(msg)
 }
 
-function validateRouteCase(c, file) {
+function validateRouteCase(c, file, opts = {}) {
   assert(c && typeof c === 'object', `${file}: case must be object`)
   assert(String(c.id || '').trim(), `${file}: case.id required`)
   assert(String(c.query || '').trim(), `${file}: case.query required for ${c.id}`)
@@ -28,7 +29,9 @@ function validateRouteCase(c, file) {
   if (c.expectAllowedExcludes != null) {
     assert(Array.isArray(c.expectAllowedExcludes), `${file}:${c.id} expectAllowedExcludes must be array`)
   }
-  assertRouteCaseStructural(c)
+  if (!opts.skipStructuralHints) {
+    assertRouteCaseStructural(c)
+  }
 }
 
 async function validateFile(name) {
@@ -43,14 +46,18 @@ async function validateFile(name) {
   }
   assert(obj && typeof obj === 'object', `${name}: root must be object`)
   assert(Array.isArray(obj.cases) && obj.cases.length >= 1, `${name}: cases must be non-empty array`)
-  for (const c of obj.cases) validateRouteCase(c, name)
+  const skipStructuralHints = obj.skipStructuralHints === true
+  for (const c of obj.cases) validateRouteCase(c, name, { skipStructuralHints })
   return obj.cases.length
 }
 
 let total = 0
+let compositeCount = 0
 for (const f of ROUTE_FILES) {
   const n = await validateFile(f)
   console.log(`${f} OK: ${n} cases (structural)`)
   total += n
+  if (f === 'golden-route-composite.json') compositeCount = n
 }
-console.log(`eval:route OK — ${total} cases across ${ROUTE_FILES.length} files`)
+assert(compositeCount >= COMPOSITE_MIN, `golden-route-composite.json need >=${COMPOSITE_MIN} cases, got ${compositeCount}`)
+console.log(`eval:route OK — ${total} cases across ${ROUTE_FILES.length} files (composite=${compositeCount})`)

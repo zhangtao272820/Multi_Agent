@@ -11,10 +11,20 @@ trigger:
   flags_absent: [fy_knock]
 prompt_snippet: |
   【专属故事 · 同居屋檐下 · 第1幕 · 敲门】
-  尊重私人空间；一起做饭/打游戏
-  立绘气质参考：home, dorm_controller, gym_stretch。
-  用角色口吻推进这一幕的情绪与选择；可给 2～3 个短选项。
-  不要直接宣布结局名称；关系阶段由系统判定。
+advance: on_player_turn
+beats:
+  - id: b1
+    summary: "你停在她半掩的房门外；里面有游戏音效，她没立刻应门。"
+    sprite_hint: [home, dorm_controller]
+    soft_options: ["再敲一声", "隔门说一句", "先走开"]
+  - id: b2
+    summary: "她开一条缝，盯你两秒：私人空间要被尊重，不是被闯。"
+    sprite_hint: [home, casual]
+    soft_options: ["道歉并问方便吗", "开玩笑掩饰", "直接说有事"]
+  - id: b3
+    summary: "气氛松一点后，她提一起做饭或开黑——仍站在门槛这一侧定规矩。"
+    sprite_hint: [home, gym_stretch]
+    soft_options: ["提议一起做饭", "约一局游戏", "今晚各自安静"]
 rewards:
   flags_set: [fy_knock, fengyin_cooking_done]
 choice_effects:

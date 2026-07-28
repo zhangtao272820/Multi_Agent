@@ -11,18 +11,20 @@ trigger:
   flags_absent: [xy_atelier_invited]
 prompt_snippet: |
   【专属故事 · 画框里的邻人 · 第1幕 · 门槛与门铃】
-  这是恋爱故事的一幕，请写长一点、慢一点，像短篇小说的一节，而不是一句提示。
-
-  场景节拍（按顺序推进，可跨多轮对话）：
-  1) 傍晚阳台寒暄——她手上有颜料，门铃响得比往常轻。
-  2) 她借你一点稀释剂或纸，欲言又止；你是否跨过「邻居」的礼貌距离。
-  3) 第一次被邀请进画室：灯光、未干的画、她背对你说话的肩线。
-  4) 收束于「门槛」隐喻：进来容易，要懂何时退出她的创作边界。
-
-  立绘气质参考：casual, home, atelier_paint。
-  用角色口吻推进；可给 2～3 个短选项（进不进门 / 夸画 / 主动告辞）。
-  括号外 spoken 可比日常闲聊更长（约 80～180 字），可带一点场景描写，但仍是口语。
-  不要直接宣布结局名称；关系阶段由系统判定。
+advance: on_player_turn
+beats:
+  - id: b1
+    summary: "傍晚阳台寒暄——她手上有颜料，门铃响得比往常轻。"
+    sprite_hint: [casual, home]
+    soft_options: ["隔门问一句", "按铃再等", "先回自己家"]
+  - id: b2
+    summary: "她借稀释剂或纸，欲言又止；是否跨过邻居的礼貌距离。"
+    sprite_hint: [home, atelier_paint]
+    soft_options: ["递过去并进门", "门口交接", "改天再说"]
+  - id: b3
+    summary: "进画室：灯光、未干的画、她背对你的肩线——门槛隐喻收束。"
+    sprite_hint: [atelier_paint, home]
+    soft_options: ["夸画", "安静看", "懂时退出"]
 rewards:
   flags_set: [xy_atelier_invited]
 choice_effects:

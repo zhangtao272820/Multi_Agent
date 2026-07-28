@@ -11,11 +11,21 @@ trigger:
   flags_absent: [xn_album]
   flags_present: [xn_bento]
 prompt_snippet: |
-  【专属故事 · 旧相册的缺口 · 第2幕 · 相册】
-  翻旧照片；承认曾喜欢却没说
-  立绘气质参考：old_photo_album, bike_after_school, date。
-  用角色口吻推进这一幕的情绪与选择；可给 2～3 个短选项。
-  不要直接宣布结局名称；关系阶段由系统判定。
+  【专属故事 · 青梅的缺口 · 第2幕 · 相册】
+advance: on_player_turn
+beats:
+  - id: b1
+    summary: "旧相册摊开：放学自行车、合影；她指着一张却没说完整。"
+    sprite_hint: [old_photo_album, bike_after_school]
+    soft_options: ["问缺的是什么", "先一起翻完", "收起别翻了"]
+  - id: b2
+    summary: "她承认一直喜欢，却从没说出口——怕毁掉青梅这层壳。"
+    sprite_hint: [old_photo_album, casual]
+    soft_options: ["认真回应", "说需要时间", "抱住她的犹豫"]
+  - id: b3
+    summary: "收束于是否把「缺口」补成恋人，或继续当最懂彼此的旧友。"
+    sprite_hint: [date, casual]
+    soft_options: ["告白接住", "先当最好的朋友", "问她敢不敢试"]
 rewards:
   flags_set: [xn_album, confessed]
 choice_effects:

@@ -464,6 +464,38 @@
   box-sizing: border-box !important;
 }
 
+/* 主要回复分区：突出结论，与图表/附录区分 */
+.spring-root.cursor-workbench.cosmic-theme .reply-primary-section {
+  margin: 0 0 14px !important;
+  padding: 12px 14px 14px !important;
+  border-radius: 14px !important;
+  border: 1px solid rgba(56, 189, 248, 0.2) !important;
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.68), rgba(8, 12, 28, 0.5)) !important;
+}
+
+.spring-root.cursor-workbench.cosmic-theme .reply-primary-title {
+  color: #7dd3fc !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+}
+
+.spring-root.cursor-workbench.cosmic-theme .reply-primary-section .reply-chat .md-p,
+.spring-root.cursor-workbench.cosmic-theme .reply-primary-section .md-body.reply-chat .md-p {
+  color: #f1f5f9 !important;
+  font-size: 16px !important;
+  line-height: 1.82 !important;
+}
+
+.spring-root.cursor-workbench.cosmic-theme .chart-details.reply-inline-analytics {
+  margin: 10px 0 12px !important;
+}
+
+.spring-root.cursor-workbench.cosmic-theme .report-details .report-card-body .md-p,
+.spring-root.cursor-workbench.cosmic-theme .report-details .report-card-body .md-ul li {
+  color: #94a3b8 !important;
+  font-size: 13.5px !important;
+}
+
 .spring-root.cursor-workbench.cosmic-theme .report-card-body {
   writing-mode: horizontal-tb !important;
   white-space: normal !important;
@@ -493,8 +525,31 @@
 .spring-root.cursor-workbench.cosmic-theme .report-card-head {
   display: flex !important;
   align-items: center !important;
-  gap: 8px !important;
-  margin-bottom: 10px !important;
+  gap: 10px !important;
+  margin-bottom: 12px !important;
+}
+
+/* summary 作折叠头时不要底部大间距 */
+.spring-root.cursor-workbench.cosmic-theme .report-details > .report-card-head,
+.spring-root.cursor-workbench.cosmic-theme .report-details > .report-label {
+  margin-bottom: 0 !important;
+  padding: 12px 14px !important;
+}
+
+.spring-root.cursor-workbench.cosmic-theme .report-details > .report-card {
+  border: none !important;
+  background: transparent !important;
+  padding: 0 14px 14px !important;
+}
+
+.spring-root.cursor-workbench.cosmic-theme .report-card {
+  border-color: rgba(100, 116, 139, 0.24) !important;
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.5), rgba(8, 12, 28, 0.42)) !important;
+}
+
+.spring-root.cursor-workbench.cosmic-theme .report-card-title {
+  color: #e2e8f0 !important;
+  font-size: 14px !important;
 }
 
 .spring-root.cursor-workbench.cosmic-theme .chat-messenger .chat-agent-stack,
@@ -510,16 +565,25 @@
 }
 
 .spring-root.cursor-workbench.cosmic-theme .reply-inline-analytics .chart-card {
-  padding: 8px 10px 10px !important;
-  border-radius: 8px !important;
-  background: rgba(15, 23, 42, 0.2) !important;
-  border: 1px solid rgba(148, 163, 184, 0.1) !important;
+  padding: 14px 16px 16px !important;
+  border-radius: 14px !important;
+  background: rgba(2, 6, 23, 0.35) !important;
+  border: 1px solid rgba(100, 116, 139, 0.2) !important;
   box-shadow: none !important;
 }
 
+/* 折叠外层已有卡片壳，内层 chart-card 去重边框/内边距 */
+.spring-root.cursor-workbench.cosmic-theme .chart-details.reply-inline-analytics .chart-card {
+  padding: 0 !important;
+  margin: 10px 0 0 !important;
+  border: none !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+}
+
 .spring-root.cursor-workbench.cosmic-theme .chart-card-head {
-  font-size: 11px !important;
-  margin-bottom: 6px !important;
+  font-size: 14px !important;
+  margin-bottom: 10px !important;
 }
 
 .spring-root.cursor-workbench.cosmic-theme .spring-search-sources-panel {

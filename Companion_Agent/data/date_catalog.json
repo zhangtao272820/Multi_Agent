@@ -8,6 +8,7 @@
   "scene_talk_turns": 4,
   "scene_date_turns": 7,
   "scene_ping_turns": 3,
+  "scene_story_turns": 8,
   "daily_scene_limit": 2,
   "scene_settle_affinity_cap": 8,
   "scene_settle_trust_cap": 6,

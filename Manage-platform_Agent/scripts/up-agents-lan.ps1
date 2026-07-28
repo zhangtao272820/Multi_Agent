@@ -11,12 +11,13 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 $composeFile = Join-Path $root "docker-compose.agents-lan.yml"
 $envFile = Join-Path $root ".env.agents-lan"
+. (Join-Path $PSScriptRoot "_agents-lan-common.ps1")
 $lanHost = "192.168.88.51"
 $backendPort = "18000"
 if (Test-Path $envFile) {
-    $line = (Get-Content $envFile | Where-Object { $_ -match "^LAN_HOST=" } | Select-Object -First 1)
-    if ($line) { $lanHost = $line.Split("=", 2)[1].Trim() }
-    $bp = (Get-Content $envFile | Where-Object { $_ -match "^CLAWHIVE_BACKEND_PORT=" } | Select-Object -First 1)
+    $line = (Read-EnvFileUtf8 $envFile | Where-Object { $_ -match "^LAN_HOST=" } | Select-Object -First 1)
+    if ($line) { $lanHost = ($line.Split("=", 2)[1].Trim() -split "\s+")[0].Trim() }
+    $bp = (Read-EnvFileUtf8 $envFile | Where-Object { $_ -match "^CLAWHIVE_BACKEND_PORT=" } | Select-Object -First 1)
     if ($bp) { $backendPort = $bp.Split("=", 2)[1].Trim() }
 }
 
@@ -29,12 +30,12 @@ if (Test-Path $tagScript) {
     try { $sha = (git -C (Split-Path $root -Parent) rev-parse --short HEAD).Trim() } catch {}
     $tag = "0.1.0-$sha"
     if (Test-Path $envFile) {
-        $content = Get-Content $envFile
+        $content = @(Read-EnvFileUtf8 $envFile)
         if ($content -match "^CLAWHIVE_IMAGE_TAG=") {
-            $content = $content -replace "^CLAWHIVE_IMAGE_TAG=.*", "CLAWHIVE_IMAGE_TAG=$tag"
-            Set-Content -Path $envFile -Value $content
+            $content = $content | ForEach-Object { if ($_ -match "^CLAWHIVE_IMAGE_TAG=") { "CLAWHIVE_IMAGE_TAG=$tag" } else { $_ } }
+            Write-EnvFileUtf8 -Path $envFile -Lines $content
         } else {
-            Add-Content -Path $envFile -Value "CLAWHIVE_IMAGE_TAG=$tag"
+            Write-EnvFileUtf8 -Path $envFile -Lines (@($content) + @("CLAWHIVE_IMAGE_TAG=$tag"))
         }
     }
 }

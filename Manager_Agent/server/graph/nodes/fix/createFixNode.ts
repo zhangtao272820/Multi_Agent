@@ -27,6 +27,7 @@ import { extractStructuredPayload } from '../../core/shared'
 import { tryCodeAuthorityDownstreamOutput } from '../../../utils/code/managerCodeDownstream'
 import { createCodeAuthorityLlmModel } from '../../../utils/code/managerCodeAuthorityLlm'
 import { criticRetryContradictsRunEvidence } from '../../core/output/criticEvidence'
+import { isFixIntentBlockedByHardDown } from '../../core/output/criticPolicy'
 import { detectGuiSemanticBlockFromState } from '../../../utils/gui/guiHumanConfirm'
 
 import type { CreateFixNodeDeps, FixStrategy } from './types'
@@ -125,6 +126,14 @@ export function createFixNode(deps: CreateFixNodeDeps) {
 
     const intent = strategy.intent
     const q = strategy.query
+    if (isFixIntentBlockedByHardDown(intent, state.meta)) {
+      opts.sendEvent({
+        event: 'thinking',
+        data: `自愈：专家 ${intent} 本轮已硬失败，跳过重复调用，仅重汇总`,
+        from: 'manager'
+      })
+      return { meta: mergeMeta(state, { synthOnlyRepair: true }) }
+    }
     if (criticRetryContradictsRunEvidence({ evaluation: state.evaluation })) {
       opts.sendEvent({
         event: 'thinking',

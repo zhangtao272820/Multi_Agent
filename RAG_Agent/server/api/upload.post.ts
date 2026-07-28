@@ -44,13 +44,20 @@ export default defineEventHandler(async (event) => {
   };
 
   const fileName = normalizeUploadFilename(file.filename || "unknown");
+  const versionField = formData.find((f) => f.name === "source_version" || f.name === "version");
+  const sourceVersion = versionField?.data
+    ? Buffer.from(versionField.data).toString("utf8").trim()
+    : undefined;
 
   try {
-    const chunkCount = await processDocument(buffer, fileName);
+    const chunkCount = await processDocument(buffer, fileName, undefined, {
+      ...(sourceVersion ? { source_version: sourceVersion } : {}),
+    });
     return {
       message: "Document processed successfully",
       chunks: chunkCount,
       fileName: fileName,
+      ...(sourceVersion ? { source_version: sourceVersion } : {}),
     };
   } catch (error: any) {
     console.error(`[Upload Error] File: ${fileName}, Error:`, error.message);

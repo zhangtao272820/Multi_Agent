@@ -71,7 +71,9 @@ const {
   adminUiCardsFromTurn,
   replyMarkdownBody,
   replyExecutionSummaryMarkdown,
+  replyUserOutcomeBanner,
   replyExecSummaryTone,
+  turnExpertFailureCards,
   replyHasInlineAnalytics,
   buildTurnAgentResults,
   extractEchartsOption,
@@ -90,6 +92,7 @@ const {
   respondActionCardCancel,
   humanConfirmSending,
   resolveReportBody,
+  replyUserDetailAppendix,
   downloadMarkdown,
   replyHasCollapsibleSources,
   replySourceCount,
@@ -120,6 +123,24 @@ function resolveScrollTarget(el: unknown): HTMLElement | null {
     return null
   }
   return null
+}
+
+/** 图表 details 展开后触发 echarts resize，避免收起再展开高度塌成 0 */
+function onChartDetailsToggle(ev: Event) {
+  const root = ev.currentTarget as HTMLDetailsElement | null
+  if (!root?.open) return
+  nextTick(() => {
+    requestAnimationFrame(() => {
+      root.querySelectorAll('.echarts-container').forEach((node) => {
+        const inst = (node as HTMLElement & { __chart_inst__?: { resize?: () => void } }).__chart_inst__
+        try {
+          inst?.resize?.()
+        } catch {
+          /* ignore */
+        }
+      })
+    })
+  })
 }
 
 function bindStreamingReplyEl(el: Element | ComponentPublicInstance | null) {
@@ -556,11 +577,17 @@ watch(streamingSynthText, async () => {
 
               <AmapReplyCards v-if="adminUiCardsFromTurn(t).length" :cards="adminUiCardsFromTurn(t) as any" />
 
-              <div
-                v-if="replyMarkdownBody(r.text, t)"
-                class="reply-summary md-body reply-chat"
-                v-html="renderAssistantMarkdown(replyMarkdownBody(r.text, t), turnSearchSources(t))"
-              ></div>
+              <!-- 主要回复：常显分区，与图表/详细说明拉开层次 -->
+              <section v-if="replyMarkdownBody(r.text, t)" class="reply-primary-section" aria-label="主要回复">
+                <header class="reply-primary-head">
+                  <span class="reply-primary-mark" aria-hidden="true"></span>
+                  <span class="reply-primary-title">主要回复</span>
+                </header>
+                <div
+                  class="reply-summary md-body reply-chat"
+                  v-html="renderAssistantMarkdown(replyMarkdownBody(r.text, t), turnSearchSources(t))"
+                ></div>
+              </section>
 
               <ul v-if="t.userFacing?.metrics?.length" class="reply-metrics">
                 <li v-for="(m, mi) in t.userFacing.metrics" :key="`metric-${mi}`">
@@ -569,75 +596,81 @@ watch(streamingSynthText, async () => {
                 </li>
               </ul>
 
-              <div
+              <!-- 图表/表格：可折叠，默认展开 -->
+              <details
                 v-if="replyHasInlineAnalytics(r.text, buildTurnAgentResults(t), t)"
-                class="reply-inline-analytics"
+                class="chart-details reply-inline-analytics"
+                open
+                @toggle="onChartDetailsToggle"
               >
-                <div
-                  v-if="userFacingChartOption(t) || extractEchartsOption(r.text, buildTurnAgentResults(t))"
-                  class="chart-card"
-                >
-                  <div class="chart-card-head">
-                    <span class="chart-card-icon" aria-hidden="true">📊</span>
-                    <span class="chart-card-title">{{
-                      userFacingChartTitle(t) ||
-                      chartTitleFromText(r.text, buildTurnAgentResults(t)) ||
-                      '数据图表'
-                    }}</span>
-                    <button
-                      type="button"
-                      class="reply-tool-btn reply-tool-btn-inline"
-                      @click="
-                        downloadEchartsPng(
-                          `chart_${t.id}_${idx}.png`,
-                          userFacingChartOption(t) || extractEchartsOption(r.text, buildTurnAgentResults(t))
-                        )
-                      "
-                    >
-                      下载 .png
-                    </button>
+                <summary class="chart-details-summary">
+                  <span class="chart-card-mark" aria-hidden="true"></span>
+                  <span class="chart-card-title">{{
+                    userFacingChartTitle(t) ||
+                    chartTitleFromText(r.text, buildTurnAgentResults(t)) ||
+                    (userFacingTableHtml(t) || extractTableData(r.text) ? '数据看板' : '数据图表')
+                  }}</span>
+                  <button
+                    v-if="userFacingChartOption(t) || extractEchartsOption(r.text, buildTurnAgentResults(t))"
+                    type="button"
+                    class="reply-tool-btn reply-tool-btn-inline"
+                    @click.stop="
+                      downloadEchartsPng(
+                        `chart_${t.id}_${idx}.png`,
+                        userFacingChartOption(t) || extractEchartsOption(r.text, buildTurnAgentResults(t))
+                      )
+                    "
+                  >
+                    下载 .png
+                  </button>
+                </summary>
+                <div class="chart-details-body">
+                  <div
+                    v-if="userFacingChartOption(t) || extractEchartsOption(r.text, buildTurnAgentResults(t))"
+                    class="chart-card"
+                  >
+                    <div class="chart-wrap">
+                      <div
+                        :ref="
+                          (el) => {
+                            if (el)
+                              initChartEl(
+                                el as HTMLElement,
+                                userFacingChartOption(t) || extractEchartsOption(r.text, buildTurnAgentResults(t))
+                              )
+                          }
+                        "
+                        :data-option="
+                          JSON.stringify(
+                            userFacingChartOption(t) || extractEchartsOption(r.text, buildTurnAgentResults(t))
+                          )
+                        "
+                        class="echarts-container"
+                        :class="
+                          chartContainerClass(
+                            userFacingChartOption(t) || extractEchartsOption(r.text, buildTurnAgentResults(t))
+                          )
+                        "
+                        :style="
+                          chartContainerStyle(
+                            userFacingChartOption(t) || extractEchartsOption(r.text, buildTurnAgentResults(t))
+                          )
+                        "
+                      ></div>
+                    </div>
                   </div>
-                  <div class="chart-wrap">
-                    <div
-                      :ref="
-                        (el) => {
-                          if (el)
-                            initChartEl(
-                              el as HTMLElement,
-                              userFacingChartOption(t) || extractEchartsOption(r.text, buildTurnAgentResults(t))
-                            )
-                        }
-                      "
-                      :data-option="
-                        JSON.stringify(
-                          userFacingChartOption(t) || extractEchartsOption(r.text, buildTurnAgentResults(t))
-                        )
-                      "
-                      class="echarts-container"
-                      :class="
-                        chartContainerClass(
-                          userFacingChartOption(t) || extractEchartsOption(r.text, buildTurnAgentResults(t))
-                        )
-                      "
-                      :style="
-                        chartContainerStyle(
-                          userFacingChartOption(t) || extractEchartsOption(r.text, buildTurnAgentResults(t))
-                        )
-                      "
-                    ></div>
-                  </div>
+                  <div
+                    v-if="userFacingTableHtml(t)"
+                    class="data-table-wrap md-body reply-rich"
+                    v-html="userFacingTableHtml(t)"
+                  ></div>
+                  <div
+                    v-else-if="extractTableData(r.text)"
+                    class="data-table-wrap md-body reply-rich"
+                    v-html="renderTableDataHtml(r.text)"
+                  ></div>
                 </div>
-                <div
-                  v-if="userFacingTableHtml(t)"
-                  class="data-table-wrap md-body reply-rich"
-                  v-html="userFacingTableHtml(t)"
-                ></div>
-                <div
-                  v-else-if="extractTableData(r.text)"
-                  class="data-table-wrap md-body reply-rich"
-                  v-html="renderTableDataHtml(r.text)"
-                ></div>
-              </div>
+              </details>
 
               <div v-if="t.userFacing?.actions?.length" class="reply-action-cards">
                 <div
@@ -692,8 +725,79 @@ watch(streamingSynthText, async () => {
                 </div>
               </div>
 
+              <!-- U2：专家失败可解释卡片（超时/熔断/5xx/业务） -->
+              <div
+                v-if="turnExpertFailureCards(t).length"
+                class="reply-fail-cards"
+                role="status"
+              >
+                <div
+                  v-for="card in turnExpertFailureCards(t)"
+                  :key="`${t.id}-${card.agent}-${card.code}`"
+                  class="reply-fail-card"
+                  :data-error-code="card.code"
+                >
+                  <span class="reply-fail-card-badge">{{ card.codeLabel }}</span>
+                  <div class="reply-fail-card-body">
+                    <div class="reply-fail-card-title">{{ card.label }}</div>
+                    <p class="reply-fail-card-msg">{{ card.message }}</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- U3：无证据拒答 / 需补充 — 显著徽章 -->
+              <div
+                v-if="t.userFacing?.badge"
+                class="reply-evidence-badge"
+                :class="{
+                  'is-rejected': t.userFacing.badge === 'evidence_rejected',
+                  'is-clarify': t.userFacing.badge === 'needs_clarify'
+                }"
+                role="status"
+              >
+                {{ t.userFacing.badgeLabel || (t.userFacing.badge === 'evidence_rejected' ? '无证据拒答' : '需补充信息') }}
+              </div>
+
+              <!-- U3：有引用时证据上移（正文前默认展开） -->
               <details
-                v-if="replyExecutionSummaryMarkdown(r.text, t)"
+                v-if="t.ragEvidence.length || t.userFacing?.sources?.length"
+                class="reply-evidence-first"
+                open
+              >
+                <summary>
+                  依据与引用
+                  <span class="reply-attachments-badge">
+                    {{ t.ragEvidence.length || t.userFacing?.sources?.length || 0 }}
+                  </span>
+                </summary>
+                <ul v-if="t.ragEvidence.length" class="spring-search-sources-list">
+                  <li v-for="(hit, ri) in t.ragEvidence" :key="'rag-' + ri">
+                    <strong>{{ hit.source || '文档' }}</strong>
+                    <span v-if="hit.excerpt" class="rag-evidence-excerpt">{{ hit.excerpt.slice(0, 160) }}</span>
+                  </li>
+                </ul>
+                <ul v-else-if="t.userFacing?.sources?.length" class="spring-search-sources-list">
+                  <li v-for="(s, si) in t.userFacing.sources" :key="'src-' + si">
+                    <a v-if="s.url" :href="s.url" target="_blank" rel="noopener">{{ s.title }}</a>
+                    <span v-else>{{ s.title }}</span>
+                  </li>
+                </ul>
+              </details>
+
+              <!-- 用户视图：完成态不展示执行摘要；失败/待确认仅短状态条 -->
+              <div
+                v-if="thoughtViewMode === 'user' && replyUserOutcomeBanner(t)"
+                class="reply-outcome-banner"
+                :class="{
+                  'is-outcome-fail': replyUserOutcomeBanner(t)?.tone === 'fail',
+                  'is-outcome-human': replyUserOutcomeBanner(t)?.tone === 'human'
+                }"
+                role="status"
+              >
+                {{ replyUserOutcomeBanner(t)?.label }}
+              </div>
+              <details
+                v-else-if="thoughtViewMode === 'developer' && replyExecutionSummaryMarkdown(r.text, t)"
                 class="reply-exec-summary"
                 :class="{
                   'is-outcome-ok': replyExecSummaryTone(r.text, t) === 'ok',
@@ -701,46 +805,50 @@ watch(streamingSynthText, async () => {
                   'is-outcome-human': replyExecSummaryTone(r.text, t) === 'human'
                 }"
               >
-                <summary>{{ thoughtViewMode === 'user' ? '本轮结果' : '执行摘要' }}</summary>
+                <summary>执行摘要</summary>
                 <div
                   class="md-body reply-chat reply-exec-summary-body"
                   v-html="renderAssistantMarkdown(replyExecutionSummaryMarkdown(r.text, t))"
                 ></div>
               </details>
 
-              <div v-if="t.userFacing?.appendix || resolveReportBody(r.text, t)" class="reply-inline-report">
-                <div class="report-card">
-                  <div class="report-card-head">
-                    <span class="report-card-icon" aria-hidden="true">📋</span>
-                    <span class="report-card-title">详细说明（附录）</span>
-                    <button
-                      type="button"
-                      class="reply-tool-btn reply-tool-btn-inline"
-                      @click.stop="
-                        downloadMarkdown(
-                          `report_detail_${t.id}_${idx}.md`,
-                          t.userFacing?.appendix || resolveReportBody(r.text, t)
-                        )
-                      "
-                    >
-                      下载 .md
-                    </button>
-                  </div>
+              <!-- 详细说明：可折叠，默认收起，避免与主回复重复灌屏 -->
+              <details
+                v-if="replyUserDetailAppendix(t, r.text)"
+                class="report-details reply-inline-report"
+              >
+                <summary class="report-label report-card-head">
+                  <span class="report-card-mark" aria-hidden="true"></span>
+                  <span class="report-card-title">详细说明</span>
+                  <button
+                    type="button"
+                    class="reply-tool-btn reply-tool-btn-inline"
+                    @click.stop="
+                      downloadMarkdown(
+                        `report_detail_${t.id}_${idx}.md`,
+                        replyUserDetailAppendix(t, r.text)
+                      )
+                    "
+                  >
+                    下载 .md
+                  </button>
+                </summary>
+                <div class="report-card report-body">
                   <div
                     class="report-card-body md-body reply-rich"
                     v-html="
-                      renderReportMarkdown(t.userFacing?.appendix || resolveReportBody(r.text, t))
+                      renderReportMarkdown(replyUserDetailAppendix(t, r.text))
                     "
                   ></div>
                 </div>
-              </div>
+              </details>
 
               <details
                 v-if="t.userFacing?.sources?.length || replyHasCollapsibleSources(r.text, t)"
                 class="reply-attachments"
               >
                 <summary class="reply-attachments-summary">
-                  <span class="reply-attachments-icon" aria-hidden="true">📎</span>
+                  <span class="reply-attachments-icon" aria-hidden="true"></span>
                   参考来源
                   <span
                     v-if="t.userFacing?.sources?.length || replySourceCount(r, t)"
@@ -766,7 +874,17 @@ watch(streamingSynthText, async () => {
                 </div>
               </details>
 
-              <p v-if="!replyMarkdownBody(r.text, t) && !replyExecutionSummaryMarkdown(r.text, t) && !hasMediaContent(r.text) && !replyHasAnalytics(r.text, t)" class="spring-log-empty">
+              <p
+                v-if="
+                  !replyMarkdownBody(r.text, t) &&
+                  !replyExecutionSummaryMarkdown(r.text, t) &&
+                  !replyUserOutcomeBanner(t) &&
+                  !replyUserDetailAppendix(t, r.text) &&
+                  !hasMediaContent(r.text) &&
+                  !replyHasAnalytics(r.text, t)
+                "
+                class="spring-log-empty"
+              >
                 {{ thoughtViewMode === 'user'
                   ? '（正文为空，请展开上方「正在思考」查看进展说明）'
                   : '（正文为空，请展开上方「思考过程」查看各 Agent 输出）' }}

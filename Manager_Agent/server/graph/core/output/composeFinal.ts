@@ -17,6 +17,8 @@ import {
   formatUserFacingMainText,
   type UserFacingPayload
 } from './userFacingPayload'
+import { assessEvidenceGate } from '../db/evidenceGate'
+import type { Step } from '../../../utils/shared/taskPlan'
 
 function appendCrawlerSourcesIfMissing(text: string, crawlerRaw: unknown): string {
   const cur = String(text || '').trim()
@@ -104,7 +106,21 @@ export function composeFinalBundleFromGraphResult(result: unknown): ComposeFinal
     }
   }
 
-  const meta = (r?.meta || {}) as Record<string, unknown>
+  const meta = { ...((r?.meta || {}) as Record<string, unknown>) }
+  // U3：终局证据门写入 meta，供拒答徽章 / outcome
+  if (meta.evidenceGatePassed == null) {
+    const gate = assessEvidenceGate({
+      intent: String(r?.intent || ''),
+      meta,
+      plan: Array.isArray(r?.plan) ? (r.plan as Step[]) : [],
+      taskPlan: (r as { taskPlan?: { steps?: Step[] } })?.taskPlan || null,
+      final: String(r?.final || rawBody || ''),
+      results: bag,
+      evidence: Array.isArray(r?.evidence) ? (r.evidence as Array<Record<string, unknown>>) : []
+    })
+    meta.evidenceGatePassed = gate.pass
+    meta.evidenceGateReason = gate.reason
+  }
   const clarifyQs = Array.isArray(r?.meta?.clarifyQuestions)
     ? r.meta!.clarifyQuestions!.map((q) => String(q ?? '').trim()).filter((q) => q.length >= 2).slice(0, 6)
     : Array.isArray(meta.clarifyQuestions)

@@ -12,10 +12,20 @@ trigger:
   flags_present: [xy_portfolio_shown]
 prompt_snippet: |
   【专属故事 · 画框里的邻人 · 第4幕 · 画框之外】
-  告白不靠甜言，靠「我要和你过没画进画里的日子」
-  立绘气质参考：intimate_lounge, date, balcony。
-  用角色口吻推进这一幕的情绪与选择；可给 2～3 个短选项。
-  不要直接宣布结局名称；关系阶段由系统判定。
+advance: on_player_turn
+beats:
+  - id: b1
+    summary: "告白不靠甜言，靠「我要和你过没画进画里的日子」"
+    sprite_hint: [intimate_lounge, date]
+    soft_options: ["认真接话", "先观察", "轻声提问"]
+  - id: b2
+    summary: "「画框之外」里出现犹豫或选择。"
+    sprite_hint: [date, balcony]
+    soft_options: ["表明态度", "给她空间", "确认她的意思"]
+  - id: b3
+    summary: "收束本幕：留下可被记住的结果，不剧透结局名。"
+    sprite_hint: [balcony]
+    soft_options: ["坦白心意", "先缓一缓", "诚实说明顾虑"]
 rewards:
   flags_set: [xy_life_outside_frame, confessed]
 choice_effects:

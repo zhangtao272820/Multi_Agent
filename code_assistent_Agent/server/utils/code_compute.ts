@@ -39,7 +39,7 @@ export async function runComputeChat(params: {
   inspectStrategyHint?: string
   sendDelta: (delta: string) => void
   sendEvent: (type: string, payload?: any) => void
-}): Promise<{ text: string; ms: number }> {
+}): Promise<{ text: string; ms: number; usage?: unknown }> {
   const started = Date.now()
   params.sendEvent('phase', { phase: 'compute' })
 
@@ -69,6 +69,7 @@ export async function runComputeChat(params: {
   })
 
   let text = ''
+  let llmUsage: unknown = null
   const stream = await model.stream([new SystemMessage(system), new HumanMessage(userParts.join('\n'))])
   for await (const chunk of stream) {
     const part =
@@ -83,7 +84,12 @@ export async function runComputeChat(params: {
       text += part
       params.sendDelta(part)
     }
+    const chunkUsage =
+      (chunk as { usage_metadata?: unknown })?.usage_metadata ??
+      (chunk as { response_metadata?: { tokenUsage?: unknown } })?.response_metadata?.tokenUsage ??
+      null
+    if (chunkUsage) llmUsage = chunkUsage
   }
 
-  return { text: text.trim(), ms: Date.now() - started }
+  return { text: text.trim(), ms: Date.now() - started, usage: llmUsage }
 }

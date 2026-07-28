@@ -692,23 +692,49 @@ def public_bond_summary(
         from .sprite_outfit import resolve_outfit_for_bond
 
         outfit = resolve_outfit_for_bond(save, bond)
-    return {
+    prof = bond.profile
+    rel = bond.relationship_state
+    met = int(rel.turns or 0) > 0 or len(bond.messages) > 0
+    traits: dict[str, Any] = {}
+    if met and getattr(prof, "traits", None) is not None:
+        raw = prof.traits
+        traits = raw.model_dump() if hasattr(raw, "model_dump") else dict(raw or {})
+    # 看板用：谈过才揭性格；关系数值始终下发（前端用印象词）
+    payload: dict[str, Any] = {
         "character_id": bond.character_id,
         "base_id": bond.base_id,
-        "name": bond.profile.name,
+        "name": prof.name,
         "cast_kind": bond.cast_kind,
         "social_role_to_pc": bond.social_role_to_pc,
         "role_hint": bond.role_hint,
-        "theme_color": bond.profile.theme_color,
-        "affinity": bond.relationship_state.affinity,
-        "trust": bond.relationship_state.trust,
-        "stage_id": bond.relationship_state.stage_id,
-        "stage_label": bond.relationship_state.stage_label,
-        "turns": bond.relationship_state.turns,
+        "theme_color": prof.theme_color,
+        "affinity": rel.affinity,
+        "trust": rel.trust,
+        "mood": int(getattr(rel, "mood", 0) or 0),
+        "stage_id": rel.stage_id,
+        "stage_label": rel.stage_label,
+        "user_title": rel.user_title or "",
+        "route_label": getattr(rel, "route_label", "") or "",
+        "turns": rel.turns,
         "message_count": len(bond.messages),
         "status_hint": soft_status_hint(bond, day) if day else "",
         "sprite_outfit": outfit,
+        "met": met,
     }
+    if met:
+        payload.update(
+            {
+                "age": int(getattr(prof, "age", 0) or 0) or None,
+                "occupation": (prof.occupation or "").strip(),
+                "personality": (prof.personality or "").strip()[:280],
+                "appearance": (prof.appearance or "").strip()[:160],
+                "mbti_type": (getattr(prof, "mbti_type", None) or "").strip(),
+                "mbti_label": (getattr(prof, "mbti_label", None) or "").strip(),
+                "speaking_style": (getattr(prof, "speaking_style", None) or "").strip(),
+                "traits": traits,
+            }
+        )
+    return payload
 
 
 def public_protagonist(save: WorldSave) -> dict[str, Any]:

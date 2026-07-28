@@ -154,6 +154,8 @@ export async function callAiAdminAgent(params: {
   traceId?: string
   /** 为 true 时个人助手将直接执行高风险工具（待办/日程/提醒等），不再进入待确认队列 */
   autoConfirmRisky?: boolean
+  /** N5：auto_confirm 原因码，写入 client_context 便于审计 */
+  autoConfirmReason?: string
   /** 浏览器定位等上下文，透传给个人助手 */
   clientContext?: Record<string, unknown>
   sendThinking?: (text: string) => void
@@ -175,7 +177,16 @@ export async function callAiAdminAgent(params: {
       ...(params.traceId ? { trace_id: params.traceId } : {}),
       client_context: {
         ...(params.clientContext && typeof params.clientContext === 'object' ? params.clientContext : {}),
-        ...(params.traceId ? { manager_orchestrated: true } : {})
+        ...(params.traceId ? { manager_orchestrated: true } : {}),
+        ...(params.autoConfirmRisky
+          ? {
+              auto_confirm_audit: {
+                auto_confirm_risky: true,
+                reason: String(params.autoConfirmReason || 'unknown'),
+                trace_id: params.traceId || undefined
+              }
+            }
+          : {})
       }
     })
   })

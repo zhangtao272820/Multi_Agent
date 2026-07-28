@@ -139,7 +139,7 @@
     {
       "cast": "romance",
       "character_id": "fengyin",
-      "total_png": 70,
+      "total_png": 100,
       "emotion_base": {
         "have": [
           "neutral",
@@ -1541,7 +1541,7 @@
     {
       "cast": "romance",
       "character_id": "xingnai",
-      "total_png": 73,
+      "total_png": 83,
       "emotion_base": {
         "have": [
           "neutral",

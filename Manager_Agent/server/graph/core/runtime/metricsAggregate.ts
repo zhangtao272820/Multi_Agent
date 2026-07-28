@@ -13,6 +13,8 @@ import { buildUserGoalsDashboard, isUserGoalsEnabled } from '../task/userGoals'
 import { buildAutonomousQueueDashboard } from '../task/autonomousQueue'
 import { isRouteStrategyEnabled } from '../routing/routeStrategy'
 import { promptCanaryPercent, plannerRulesCanaryPercent } from '../evolution/artifactCanary'
+import { aggregateManagerSli } from './sliAggregate'
+import { readHistoryEntries as readHistForSli } from '../shared'
 
 function avg(nums: number[]) {
   if (!nums.length) return 0
@@ -132,6 +134,12 @@ export async function buildManagerMetricsDashboard(policyDir: string) {
   const userGoals = await buildUserGoalsDashboard(policyDir).catch(() => null)
   const autonomousQueue = await buildAutonomousQueueDashboard(policyDir).catch(() => null)
 
+  const hitlJsonl = path.join(policyDir, 'manager-hitl-decisions.jsonl')
+  const hitlRows = await readHistForSli(hitlJsonl, path.join(policyDir, 'manager-hitl-decisions.json'), 800).catch(
+    () => []
+  )
+  const sli = aggregateManagerSli(runMetricRows as Array<Record<string, unknown>>, nlu, hitlRows)
+
   return {
     experienceCount: experiences.length,
     nluSampleCount: nlu.length,
@@ -173,6 +181,7 @@ export async function buildManagerMetricsDashboard(policyDir: string) {
     vectorIndex: vector,
     promptPatches: promptDiff,
     plannerRules: plannerRulesDiff,
-    downstreamQuality
+    downstreamQuality,
+    sli
   }
 }

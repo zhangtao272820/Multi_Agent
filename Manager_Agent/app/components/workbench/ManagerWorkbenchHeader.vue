@@ -1,7 +1,8 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { ThoughtViewMode, WorkbenchMode } from '~/composables/managerChatTypes'
 
-defineProps<{
+const props = defineProps<{
   connected: boolean
   currentRunId: string
   livePhaseText: string
@@ -18,6 +19,13 @@ defineProps<{
   }>
   stepProgressLine: string
   activeTraceId: string
+  conversationCompactLive: {
+    compacted: boolean
+    fullChars?: number
+    compactChars?: number
+    savedRatio?: number
+    turns?: number
+  } | null
   workbenchMode: WorkbenchMode
   thoughtViewMode: ThoughtViewMode
   historyPanelOpen: boolean
@@ -27,12 +35,23 @@ defineProps<{
   collabStatusShort: (status: string) => string
 }>()
 
+const compactBadgeTitle = computed(() => {
+  const c = props.conversationCompactLive
+  if (!c?.compacted) return '上下文已压缩'
+  const ratio = typeof c.savedRatio === 'number' ? Math.round(c.savedRatio * 100) : null
+  const parts = ['上下文已压缩']
+  if (ratio != null) parts.push(`约省 ${ratio}%`)
+  if (c.fullChars != null && c.compactChars != null) parts.push(`${c.fullChars}→${c.compactChars} 字`)
+  return parts.join(' · ')
+})
+
 const emit = defineEmits<{
   setWorkbenchMode: [mode: WorkbenchMode]
   setThoughtViewMode: [mode: ThoughtViewMode]
   toggleHistory: []
   newSession: []
   toggleSidebar: []
+  openTraceDrawer: []
 }>()
 </script>
 
@@ -49,6 +68,11 @@ const emit = defineEmits<{
               {{ routeCapLive.agents.map((a) => planAgentLabel(a)).join(' · ') }}
             </span>
             <span v-if="planStepsTodo.length && currentRunId" class="conv-live-plan">{{ planStepsDoneCount }}/{{ planStepsTodo.length }} 步</span>
+            <span
+              v-if="conversationCompactLive?.compacted"
+              class="conv-live-compact"
+              :title="compactBadgeTitle"
+            >已压缩</span>
           </div>
           <div class="conv-phase-badges" aria-hidden="false">
             <div class="badge" :class="{ active: currentPhase === 'route' }">理解</div>
@@ -75,9 +99,15 @@ const emit = defineEmits<{
       <div v-if="stepProgressLine" class="spring-step-progress" :title="stepProgressLine">
         {{ stepProgressLine }}
       </div>
-      <div v-if="activeTraceId" class="spring-trace-id" :title="`排障 trace: ${activeTraceId}`">
+      <button
+        v-if="activeTraceId"
+        type="button"
+        class="spring-trace-id spring-trace-id-btn"
+        :title="`打开排障 Trace：${activeTraceId}`"
+        @click="emit('openTraceDrawer')"
+      >
         trace {{ activeTraceId.slice(0, 8) }}
-      </div>
+      </button>
       <div class="spring-seg spring-workbench-mode-toggle" role="group" aria-label="工作台模式">
         <button type="button" :class="{ 'is-active': workbenchMode === 'chat' }" title="对话模式：轻量直连" @click="emit('setWorkbenchMode', 'chat')">
           对话

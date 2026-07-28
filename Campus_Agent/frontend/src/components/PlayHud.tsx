@@ -8,6 +8,7 @@ interface Props {
   busy: boolean;
   title?: string;
   onAdvance: () => void;
+  onAdvanceSkip?: () => void;
   onBoard: () => void;
   onMap?: () => void;
   onSave?: () => void;
@@ -20,6 +21,7 @@ export function PlayHud({
   busy,
   title,
   onAdvance,
+  onAdvanceSkip,
   onBoard,
   onMap,
   onSave,
@@ -62,6 +64,11 @@ export function PlayHud({
         <button type="button" className="btn primary" disabled={busy} onClick={onAdvance}>
           推进时段
         </button>
+        {onAdvanceSkip && (
+          <button type="button" className="btn ghost" disabled={busy} onClick={onAdvanceSkip} title="跳过上课/熄灯直到可行动时段">
+            跳到可行动
+          </button>
+        )}
         <button type="button" className="btn hud-board" disabled={busy} onClick={onBoard}>
           班级看板
         </button>

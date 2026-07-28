@@ -21,3 +21,34 @@ scrape_configs:
     metrics_path: "/api/metrics/prometheus"
     static_configs:
       - targets: ["manager_agent:13106"]
+
+  # E1：六专家真实 exposition（job 名对齐 clawhive.yml Down 告警）
+  - job_name: "db_agent"
+    metrics_path: "/api/metrics/prometheus"
+    static_configs:
+      - targets: ["db_agent:13101"]
+
+  - job_name: "rag_agent"
+    metrics_path: "/api/metrics/prometheus"
+    static_configs:
+      - targets: ["rag_agent:13102"]
+
+  - job_name: "code_assistent_agent"
+    metrics_path: "/api/metrics/prometheus"
+    static_configs:
+      - targets: ["code_assistent_agent:13103"]
+
+  - job_name: "extractor_agent"
+    metrics_path: "/api/metrics/prometheus"
+    static_configs:
+      - targets: ["extractor_agent:13104"]
+
+  - job_name: "ai_admin_agent"
+    metrics_path: "/api/metrics/prometheus"
+    static_configs:
+      - targets: ["ai_admin_agent:13105"]
+
+  - job_name: "lobster_agent"
+    metrics_path: "/api/metrics/prometheus"
+    static_configs:
+      - targets: ["lobster_agent:13108"]

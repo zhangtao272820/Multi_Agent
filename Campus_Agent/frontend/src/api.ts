@@ -48,6 +48,13 @@ export function advancePeriod() {
   return request<HubState>("/api/campus/advance", { method: "POST" });
 }
 
+export function advanceSkip(max_steps?: number) {
+  return request<HubState>("/api/campus/advance_skip", {
+    method: "POST",
+    body: JSON.stringify(max_steps != null ? { max_steps } : {}),
+  });
+}
+
 export function studySubject(subject_id: string) {
   return request<HubState>("/api/campus/study", {
     method: "POST",

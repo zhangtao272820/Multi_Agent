@@ -273,12 +273,28 @@ export async function executeCodeStep(
     }
   } catch (e: unknown) {
     const err = String((e as Error)?.message || e || 'unknown error')
+    const lower = err.toLowerCase()
+    const error_code =
+      lower.includes('timeout') || lower.includes('timed out') || lower.includes('aborted')
+        ? 'timeout'
+        : lower.includes('tool_round_limit') || lower.includes('recursion limit')
+          ? 'tool_round_limit'
+          : 'business'
     return {
       ok: false,
       agent: 'code',
       output: `代码助手步骤失败：${err}`,
       query: input.effQuery,
-      error: err
+      error: error_code,
+      meta: {
+        agentResult: {
+          ok: false,
+          agent: 'code',
+          error_code,
+          answer: err.slice(0, 400),
+          trace_id: opts.runId
+        }
+      }
     }
   }
 }

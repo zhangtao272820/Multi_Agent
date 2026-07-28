@@ -40,7 +40,7 @@ owner: manager_agent
 - **SearXNG 自建（推荐）**：`MANAGER_WEB_SEARCH_MODE=open` + `WEB_SEARCH_PROVIDER=searxng`；一项模式替代多组 LOOP/VERIFY/DIRECT_SYNTH 开关。
 - **联网直答**：open 档位默认开 SERP 直答；economy 档位默认关以省额度。
 - **聊天式联网问答（默认开）**：`MANAGER_CHAT_WEB=1` 时，一般资讯/对比/「有哪些/怎么选」类问题走 **search_chat**（SERP→直答汇总，跳过 crawler）；像 DeepSeek 一样用表格+[1][2] 角标；**勿**判 gui/crawler 全量抓取。
-- **Admin 聊天边界**：一般知识问答/联网对比/搜索/玩法 → 总管（crawler+needsWebSearch+search_chat 等）；仅邮件/联系人/待办/日程/天气/高德/飞书发消息 → admin。
+- **Admin 聊天边界**：一般知识问答/联网对比/搜索/玩法 → 总管（crawler+needsWebSearch+search_chat 等）；仅**天气 / 地图 / 日程（含待办·联系人）/ 邮件** → admin（见 `admin_capabilities`）。
 - **crawler（Extractor）**：**必须先**经总管 `web_search` 联网增强再精抓；静态正文/列表；**禁止**不经 SERP 单独调用；**禁止**用于「打开站点并点选第 N 条」。
 - **gui（Lobster，extended profile）**：登录、填表、点击、提交、SPA 交互、站内搜索后点选；典型「去百度搜索并打开第一条」→ **gui 非 crawler**。
 - **gui 登录态**：总管会话自动透传 `storage_profile`（`userId_sessionId`）；用户可说「登录态:xxx」指定 profile；填表/OA 任务超时更长（`MANAGER_GUI_TIMEOUT_FORM_MS`）。
@@ -51,7 +51,7 @@ owner: manager_agent
 - **地图/出行/天气（强制）**：问路线、多久到、怎么去、附近/周边、地址解析、**城市天气预报/气温** → **admin**（个人助理调高德/get_weather API）；单一地图或天气诉求 intent=admin，allowedAgents=["admin"]；勿判给 code/rag/crawler。
 - 能力详见 admin_capabilities skill（办公 + 高德路线/POI/地址）。
 - code：计算、加工、汇总、图表、逻辑分析。
-- admin：邮件、联系人、待办、日程/提醒；**高德路线/耗时、周边 POI、地址解析**；飞书发消息（个人助理内置，需 ADMIN_AMAP_KEY）。
+- admin：天气、地图（高德路线/耗时、周边 POI、地址解析）、日程/提醒/待办/联系人、邮件。玩法/飞书 IM 等不经总管 admin 路由。
 - clean：对已有结果做标准化、清洗、去重。
 - visualize：把已有事实转成图表方案和 ECharts 配置。
 - report：整合结果输出结论、建议、风险。

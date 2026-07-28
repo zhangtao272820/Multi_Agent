@@ -53,7 +53,14 @@ export default defineEventHandler(async (event) => {
   const embeddings = new OpenAIEmbeddings({
     apiKey,
     model: embeddingModel,
-    configuration: baseURL ? { baseURL } : undefined,
+    configuration: {
+      baseURL: String(baseURL || '').trim() || 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+    },
+    timeout: (() => {
+      const n = Number(process.env.AGENT_EMBEDDING_TIMEOUT_MS || 12_000)
+      return Number.isFinite(n) && n >= 3_000 ? Math.min(60_000, Math.floor(n)) : 12_000
+    })(),
+    maxRetries: 0,
   } as any)
 
   const rootOverride = parsed.data.root ? path.resolve(parsed.data.root) : undefined

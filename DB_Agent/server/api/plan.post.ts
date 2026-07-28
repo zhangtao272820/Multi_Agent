@@ -21,6 +21,7 @@ import { getDbAgentBlueprintEnv } from '../../utils/db_agent_env'
 import { judgeTablesForQuestion, type SchemaTableJudgeResult, type TableBrief } from '../../utils/schema_table_judge'
 import { stampLlmTableJudge } from '../../utils/prefetch_table_judge'
 import type { QueryPlan } from '../../utils/nlu/query_plan'
+import { buildDbAgentResult } from '../utils/agent_result'
 
 function parseTablesFromSchemaText(text: string): string[] {
   return text
@@ -277,11 +278,30 @@ export default defineEventHandler(async (event) => {
       String((llmTableJudge as { judge_source?: string }).judge_source) === 'llm',
   )
 
+  // D1：无候选表，或开启 Judge 却无 LLM 主表 → schema_miss（禁止恒 ok:true）
+  const schemaMiss = !tables.length
+  const judgeRequired = getDbAgentBlueprintEnv().enableSchemaTableJudge
+  const judgeMiss =
+    judgeRequired && tables.length > 0 && !llmTableJudge?.primary_tables?.length
+  const planErrorCode = schemaMiss || judgeMiss ? 'schema_miss' : undefined
+  const agentResult = planErrorCode
+    ? buildDbAgentResult({
+        answer: schemaMiss
+          ? '未能定位可用数据表，请补充业务域或表线索。'
+          : '未能判定主查表（schema table judge 未产出 primary_tables）。',
+        empty: true,
+        reason: schemaMiss ? 'no_schema_ground' : 'no_primary_table',
+        error_code: planErrorCode,
+        path: 'plan',
+      })
+    : undefined
+
   return {
-    ok: true,
+    ok: !planErrorCode,
     db: dbName,
     matched: tables.length > 0,
     tables,
+    ...(agentResult ? { agentResult } : {}),
     unified_task_plan: {
       intent: 'db',
       entities,

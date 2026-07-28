@@ -722,11 +722,12 @@
   font-size: var(--chat-font-secondary) !important;
 }
 
-.spring-root.cursor-workbench .report-details .report-label {
-  padding: 7px 0 !important;
-  font-size: var(--chat-font-ui) !important;
-  font-weight: 500 !important;
-  color: var(--chat-text-muted) !important;
+.spring-root.cursor-workbench .report-details .report-label,
+.spring-root.cursor-workbench .report-details .report-card-head {
+  padding: 12px 14px !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: #94a3b8 !important;
 }
 
 .spring-root.cursor-workbench .sources-panel {
@@ -737,15 +738,30 @@
   background: transparent !important;
 }
 
+/* 详细说明：卡片式可折叠（覆盖旧的透明扁条样式） */
 .spring-root.cursor-workbench .report-details {
+  border: 1px solid rgba(100, 116, 139, 0.24) !important;
+  border-radius: 14px !important;
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.5), rgba(8, 12, 28, 0.42)) !important;
+  margin-top: 12px !important;
+  overflow: hidden !important;
+}
+
+.spring-root.cursor-workbench .report-details .report-body,
+.spring-root.cursor-workbench .report-details .report-card {
+  padding: 0 14px 14px !important;
   border: none !important;
-  border-top: 1px solid var(--mgr-border-soft) !important;
-  border-radius: 0 !important;
   background: transparent !important;
 }
 
-.spring-root.cursor-workbench .report-details .report-body {
-  padding: 6px 0 8px !important;
+/* 图表可折叠区 */
+.spring-root.cursor-workbench .chart-details.reply-inline-analytics {
+  border: 1px solid rgba(100, 116, 139, 0.22) !important;
+  border-radius: 14px !important;
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.55), rgba(2, 6, 23, 0.42)) !important;
+  margin: 8px 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
 }
 
 .spring-root.cursor-workbench .reply-toolbar {

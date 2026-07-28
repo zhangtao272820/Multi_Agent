@@ -24,6 +24,8 @@ export function isDbNoData(text: string) {
 }
 
 import { appendManagerMemory, hydrateManagerMemoryCache, readManagerMemorySync } from '../../../utils/session/managerMemoryStore'
+import { normalizeManagerMetricEntry, type ManagerMetricEntryInput } from './observabilitySchema'
+import { redactForPersistence } from '#agent-shared/redact'
 
 export async function appendMemory(entry: { user: string } & Record<string, any>) {
   await appendManagerMemory(entry)
@@ -34,53 +36,18 @@ export async function readManagerExperienceHistory(policyDir: string, maxLines =
   return readManagerMemorySync(maxLines)
 }
 
-export async function appendMetrics(entry: {
-  runId: string
-  phase: string
-  ms: number
-  tokens?: number
-  usd?: number
-  model?: string
-  agent?: string
-  extra?: Record<string, any>
-}) {
+export async function appendMetrics(entry: ManagerMetricEntryInput) {
   try {
     const dir = path.join(process.cwd(), '.data')
     await fs.mkdir(dir, { recursive: true }).catch(() => undefined)
     const p = path.join(dir, 'manager-metrics.jsonl')
-    const workerPhases = new Set([
-      'db',
-      'rag',
-      'code',
-      'crawler',
-      'gui',
-      'admin',
-      'multimodal',
-      'music',
-      'video',
-      'clean',
-      'visualize',
-      'report'
-    ])
-    const phase = String(entry.phase || 'unknown')
-    const agent =
-      String(entry.agent || entry.extra?.agent || '').trim() ||
-      (workerPhases.has(phase) ? phase : undefined)
-    await fs.appendFile(
-      p,
-      `${JSON.stringify({
-        runId: entry.runId,
-        phase,
-        ms: entry.ms,
-        tokens: typeof entry.tokens === 'number' ? entry.tokens : undefined,
-        usd: typeof entry.usd === 'number' ? entry.usd : undefined,
-        model: typeof entry.model === 'string' ? entry.model : undefined,
-        ...(agent ? { agent } : {}),
-        ...(entry.extra && typeof entry.extra === 'object' ? entry.extra : {}),
-        ts: new Date().toISOString()
-      })}\n`,
-      'utf8'
-    )
+    const normalized = normalizeManagerMetricEntry(entry)
+    const { extra, ...core } = normalized
+    const payload = redactForPersistence({
+      ...core,
+      ...(extra && typeof extra === 'object' ? extra : {})
+    }) as Record<string, unknown>
+    await fs.appendFile(p, `${JSON.stringify(payload)}\n`, 'utf8')
   } catch {}
 }
 

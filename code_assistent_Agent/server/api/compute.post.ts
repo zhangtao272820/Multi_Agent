@@ -1,4 +1,4 @@
-import { defineEventHandler, readBody, createError } from 'h3'
+import { defineEventHandler, readBody, createError, setResponseStatus } from 'h3'
 import * as z from 'zod'
 import { resolveCodeExecutionPlan } from '../utils/code_execution'
 import { runComputeChat, shouldSkipManagerComputeOverhead } from '../utils/code_compute'
@@ -9,11 +9,16 @@ import {
   recordPromptAbObservation,
 } from '../utils/code_prompt_ab_router'
 import { recordCodeQueryMetric } from '../utils/code_metrics'
-import { buildCodeComputeAgentResult } from '../utils/agent_result'
+import {
+  buildCodeComputeAgentResult,
+  buildCodeFailAgentResult,
+  classifyCodeThrownError
+} from '../utils/agent_result'
 import { appendAgentTraceLog } from '../utils/trace_log'
 import { ensureInternalAgentAccess } from '../utils/internal_auth'
 import { applyPlatformRuntimeOverrides } from '../utils/platform_config'
 import { mergeOpenAiRuntimeSecrets } from '../utils/runtime_secrets'
+import { resolveAgentUsage } from '#agent-shared/agentUsage'
 
 /**
  * 总管编排专用 compute：HTTP JSON，无 WebSocket / LangGraph。
@@ -120,6 +125,7 @@ export default defineEventHandler(async (event) => {
       trace_id: traceId,
       ms,
       task_kind: 'compute',
+      usage: resolveAgentUsage({ llmUsage: result.usage, answerText: result.text })
     })
     void appendAgentTraceLog({
       agent: 'code',
@@ -141,13 +147,22 @@ export default defineEventHandler(async (event) => {
   } catch (e: unknown) {
     const ms = Date.now() - started
     const errMsg = String((e as Error)?.message || e || 'compute failed')
+    const error_code = classifyCodeThrownError(e)
     recordCodeQueryMetric({
       path: 'compute',
       ok: false,
       ms,
       question: executionPlan.question,
       from_manager: executionPlan.fromManager,
-      reason: errMsg,
+      reason: error_code,
+    })
+    void appendAgentTraceLog({
+      agent: 'code',
+      path: '/api/compute',
+      trace_id: traceId,
+      ok: false,
+      latency_ms: ms,
+      detail: `error_code=${error_code}`,
     })
     if (/403|AllocationQuota|free quota|免费额度|FreeTierOnly/i.test(errMsg)) {
       throw createError({
@@ -156,6 +171,22 @@ export default defineEventHandler(async (event) => {
           `DashScope 模型调用被拒绝（model=${model}）：免费额度已用尽或控制台开启了「仅使用免费额度」。请开通付费/关闭该限制，或改用有余额的模型。模型名由 .env.capability-models 经 apply-capability-models 同步到本服务 .env。`,
       })
     }
-    throw e
+    // 契约失败体：供总管 wrap / U2，避免无码 500
+    setResponseStatus(event, 200)
+    return {
+      ok: false,
+      answer: '',
+      ms,
+      meta: { task_kind: 'compute', from_manager: executionPlan.fromManager, error: errMsg.slice(0, 400) },
+      agentResult: buildCodeFailAgentResult({
+        error_code,
+        answer: errMsg.slice(0, 400),
+        trace_id: traceId,
+        ms,
+        structured: { task_kind: 'compute' },
+      }),
+      error_code,
+      trace_id: traceId,
+    }
   }
 })

@@ -7,6 +7,10 @@ import { getRagAgentEnv, ragFastJudgeModelName } from "./rag_agent_env";
 import type { EvidenceItem } from "./retrieval_shared";
 import { scoreTextOverlap, scoreDocByQueryTerms, tokenizeForKeywordSearch } from "./retrieval_shared";
 import { filterTextsRelevantToQuery } from "./preference_context_gate";
+import {
+  buildEvidenceOnlyFallback,
+  checkAnswerGroundedInEvidence,
+} from "./citation_guard";
 
 /** 模型常误判「无结果」的表述（字符串包含检测，非业务 regex 扩词） */
 const NEGATIVE_ANSWER_MARKERS = [
@@ -224,7 +228,7 @@ export async function extractAnswerFromEvidence(input: {
   return String(res.content ?? "").trim();
 }
 
-/** 流式主模型 + 证据兜底 */
+/** 流式主模型 + 证据兜底 + H5 citation guard */
 export async function finalizeRagAnswerWithEvidenceGuard(input: {
   question: string;
   effectiveQuery: string;
@@ -233,18 +237,42 @@ export async function finalizeRagAnswerWithEvidenceGuard(input: {
 }): Promise<string> {
   let answer = String(input.draftAnswer ?? "").trim();
   if (!input.evidence.length) return answer;
-  if (!answerLooksLikeRetrievalMiss(answer)) return answer;
-  try {
-    const extracted = await extractAnswerFromEvidence({
-      question: input.question,
-      effectiveQuery: input.effectiveQuery,
-      evidence: input.evidence,
-    });
-    if (extracted.length >= 12 && !answerLooksLikeRetrievalMiss(extracted)) {
-      return extracted;
+  if (answerLooksLikeRetrievalMiss(answer)) {
+    try {
+      const extracted = await extractAnswerFromEvidence({
+        question: input.question,
+        effectiveQuery: input.effectiveQuery,
+        evidence: input.evidence,
+      });
+      if (extracted.length >= 12 && !answerLooksLikeRetrievalMiss(extracted)) {
+        answer = extracted;
+      }
+    } catch (e) {
+      console.warn("[EvidenceAnswerGuard] fallback failed:", e);
     }
-  } catch (e) {
-    console.warn("[EvidenceAnswerGuard] fallback failed:", e);
+  }
+
+  const env = getRagAgentEnv();
+  if (!env.enableCitationGuard) return answer;
+
+  let grounded = checkAnswerGroundedInEvidence(answer, input.evidence);
+  if (!grounded.ok && !answerLooksLikeRetrievalMiss(answer)) {
+    try {
+      const extracted = await extractAnswerFromEvidence({
+        question: input.question,
+        effectiveQuery: input.effectiveQuery,
+        evidence: input.evidence,
+      });
+      if (extracted.length >= 12) {
+        answer = extracted;
+        grounded = checkAnswerGroundedInEvidence(answer, input.evidence);
+      }
+    } catch (e) {
+      console.warn("[CitationGuard] re-extract failed:", e);
+    }
+  }
+  if (!grounded.ok) {
+    return buildEvidenceOnlyFallback(input.question || input.effectiveQuery, input.evidence, grounded.missing);
   }
   return answer;
 }

@@ -4,6 +4,7 @@ type Props = {
   onContinue: () => void;
   onManualSave?: () => void;
   onLoadSave: () => void;
+  onCodex?: () => void;
   onSprites: () => void;
   onSettings: () => void;
   onTitle: () => void;
@@ -15,6 +16,7 @@ export default function GameMenu({
   onContinue,
   onManualSave,
   onLoadSave,
+  onCodex,
   onSprites,
   onSettings,
   onTitle,
@@ -29,6 +31,11 @@ export default function GameMenu({
           <button type="button" className="gal-action-btn gal-action-btn--primary" onClick={onContinue}>
             继续游戏
           </button>
+          {onCodex && (
+            <button type="button" className="gal-action-btn" disabled={!hasWorld} onClick={onCodex}>
+              人物看板
+            </button>
+          )}
           {onManualSave && (
             <button type="button" className="gal-action-btn" disabled={!hasWorld} onClick={onManualSave}>
               手动存档

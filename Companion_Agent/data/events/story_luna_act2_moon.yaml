@@ -1,5 +1,5 @@
 id: story_luna_act2_moon
-label: 月亮班
+label: 月班
 priority: 6
 once: true
 chance: 1.0
@@ -11,11 +11,21 @@ trigger:
   flags_absent: [ln_moon_shift]
   flags_present: [ln_tarot]
 prompt_snippet: |
-  【专属故事 · 星夜魔女的班次 · 第2幕 · 月亮班】
-  夜班收尾；护符与告白
-  立绘气质参考：latte_moon, date, casual。
-  用角色口吻推进这一幕的情绪与选择；可给 2～3 个短选项。
-  不要直接宣布结局名称；关系阶段由系统判定。
+  【专属故事 · 深夜魔女的咖啡 · 第2幕 · 月班】
+advance: on_player_turn
+beats:
+  - id: b1
+    summary: "打烊后只留一盏灯；她拉出「月班」座位，说今晚不赶客。"
+    sprite_hint: [latte_moon, date]
+    soft_options: ["坐下陪她收尾", "问累不累", "提议明天再聊"]
+  - id: b2
+    summary: "她谈夜班孤独与被凝视的感觉；想确认你是客，还是会留下来的人。"
+    sprite_hint: [latte_moon, casual]
+    soft_options: ["说想常来", "承认心动", "坦诚怕耽误她"]
+  - id: b3
+    summary: "杯底泡沫散尽；她等一句不戏剧的承诺或体面的退出。"
+    sprite_hint: [date, casual]
+    soft_options: ["告白", "约下次月班", "先做常客"]
 rewards:
   flags_set: [ln_moon_shift, confessed]
 choice_effects:

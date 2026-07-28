@@ -1,5 +1,5 @@
 import type { QuestState, WorldPublic } from "../types";
-import HeroinePanel from "./HeroinePanel";
+import HeroinePanel, { type CodexLiveOverride } from "./HeroinePanel";
 
 type Props = {
   world: WorldPublic;
@@ -7,9 +7,10 @@ type Props = {
   focusId?: string | null;
   quest?: QuestState | null;
   onOpenQuest?: () => void;
+  liveOverride?: CodexLiveOverride | null;
 };
 
-/** 人物图鉴入口 → 美德式角色一览 / 详情 */
+/** 人物看板：关系阶段 + 性格气质，Hub / 地点 / 对话场随时可开 */
 export default function CastCodex(props: Props) {
   return <HeroinePanel {...props} />;
 }

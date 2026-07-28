@@ -1,5 +1,6 @@
 {
-  "description": "人员域聚合 paraphrase golden — slot LLM + Judge 锁 person_info",
+  "description": "人员域 NL2SQL 黄金集（D3）：≥20；离线断言槽位/主表/路径；可选 live 断言数字来自执行",
+  "min_cases": 20,
   "cases": [
     {
       "id": "region_count_paraphrase_a",
@@ -7,7 +8,9 @@
       "expect": {
         "intent": "aggregation",
         "locations": ["河西区"],
-        "primaryTable": "person_info"
+        "primaryTable": "person_info",
+        "path_any": ["sql_direct", "person_info"],
+        "expect_number_live": null
       }
     },
     {
@@ -16,7 +19,28 @@
       "expect": {
         "intent": "aggregation",
         "locations": ["河西区"],
-        "primaryTable": "person_info"
+        "primaryTable": "person_info",
+        "path_any": ["sql_direct", "person_info"]
+      }
+    },
+    {
+      "id": "region_count_paraphrase_c",
+      "user": "帮我查河西区一共有多少位老人",
+      "expect": {
+        "intent": "aggregation",
+        "locations": ["河西区"],
+        "primaryTable": "person_info",
+        "path_any": ["sql_direct", "person_info"]
+      }
+    },
+    {
+      "id": "region_count_paraphrase_d",
+      "user": "河西区老年人数量是多少",
+      "expect": {
+        "intent": "aggregation",
+        "locations": ["河西区"],
+        "primaryTable": "person_info",
+        "path_any": ["sql_direct", "person_info"]
       }
     },
     {
@@ -26,7 +50,177 @@
         "intent": "aggregation",
         "locations": ["河西区"],
         "dimensions": ["性别"],
-        "primaryTable": "person_info"
+        "primaryTable": "person_info",
+        "path_any": ["sql_direct", "person_info"]
+      }
+    },
+    {
+      "id": "age_gender_distribution_b",
+      "user": "统计河西区70-79岁人群的男女人数",
+      "expect": {
+        "intent": "aggregation",
+        "locations": ["河西区"],
+        "dimensions": ["性别"],
+        "primaryTable": "person_info",
+        "path_any": ["sql_direct", "person_info"]
+      }
+    },
+    {
+      "id": "nankai_count",
+      "user": "南开区有多少老人",
+      "expect": {
+        "intent": "aggregation",
+        "locations": ["南开区"],
+        "primaryTable": "person_info",
+        "path_any": ["sql_direct", "person_info"]
+      }
+    },
+    {
+      "id": "hedong_count",
+      "user": "河东区老年人口统计",
+      "expect": {
+        "intent": "aggregation",
+        "locations": ["河东区"],
+        "primaryTable": "person_info",
+        "path_any": ["sql_direct", "person_info"]
+      }
+    },
+    {
+      "id": "heping_count",
+      "user": "和平区有多少人",
+      "expect": {
+        "intent": "aggregation",
+        "locations": ["和平区"],
+        "primaryTable": "person_info",
+        "path_any": ["sql_direct", "person_info"]
+      }
+    },
+    {
+      "id": "hebei_count",
+      "user": "河北区老人数量",
+      "expect": {
+        "intent": "aggregation",
+        "locations": ["河北区"],
+        "primaryTable": "person_info",
+        "path_any": ["sql_direct", "person_info"]
+      }
+    },
+    {
+      "id": "binhai_count",
+      "user": "滨海新区有多少老人",
+      "expect": {
+        "intent": "aggregation",
+        "locations": ["滨海新区"],
+        "primaryTable": "person_info",
+        "path_any": ["sql_direct", "person_info"]
+      }
+    },
+    {
+      "id": "person_lookup_long",
+      "user": "查一下龙奶奶的基本信息",
+      "expect": {
+        "intent": "lookup",
+        "primaryTable": "person_info",
+        "path_any": ["sql_direct", "person_info", "sql_agent"]
+      }
+    },
+    {
+      "id": "person_lookup_lin",
+      "user": "林爷爷住在哪里",
+      "expect": {
+        "intent": "lookup",
+        "primaryTable": "person_info",
+        "path_any": ["sql_direct", "person_info", "sql_agent"]
+      }
+    },
+    {
+      "id": "person_lookup_zhang",
+      "user": "张三的年龄是多少",
+      "expect": {
+        "intent": "lookup",
+        "primaryTable": "person_info",
+        "path_any": ["sql_direct", "person_info", "sql_agent"]
+      }
+    },
+    {
+      "id": "hex_age_60_plus",
+      "user": "河西区60岁以上有多少人",
+      "expect": {
+        "intent": "aggregation",
+        "locations": ["河西区"],
+        "primaryTable": "person_info",
+        "path_any": ["sql_direct", "person_info"]
+      }
+    },
+    {
+      "id": "hex_age_65_plus",
+      "user": "统计河西区65岁及以上人口",
+      "expect": {
+        "intent": "aggregation",
+        "locations": ["河西区"],
+        "primaryTable": "person_info",
+        "path_any": ["sql_direct", "person_info"]
+      }
+    },
+    {
+      "id": "hex_male_count",
+      "user": "河西区男性老人有多少",
+      "expect": {
+        "intent": "aggregation",
+        "locations": ["河西区"],
+        "primaryTable": "person_info",
+        "path_any": ["sql_direct", "person_info"]
+      }
+    },
+    {
+      "id": "hex_female_count",
+      "user": "河西区女性老人数量",
+      "expect": {
+        "intent": "aggregation",
+        "locations": ["河西区"],
+        "primaryTable": "person_info",
+        "path_any": ["sql_direct", "person_info"]
+      }
+    },
+    {
+      "id": "region_pop_paraphrase_e",
+      "user": "麻烦统计下河西区的人口数",
+      "expect": {
+        "intent": "aggregation",
+        "locations": ["河西区"],
+        "primaryTable": "person_info",
+        "path_any": ["sql_direct", "person_info"]
+      }
+    },
+    {
+      "id": "region_pop_paraphrase_f",
+      "user": "河西区常住老人规模大概多少",
+      "expect": {
+        "intent": "aggregation",
+        "locations": ["河西区"],
+        "primaryTable": "person_info",
+        "path_any": ["sql_direct", "person_info"]
+      }
+    },
+    {
+      "id": "age_band_hex_g",
+      "user": "河西区八十岁以上有几人",
+      "expect": {
+        "intent": "aggregation",
+        "locations": ["河西区"],
+        "primaryTable": "person_info",
+        "path_any": ["sql_direct", "person_info"]
+      }
+    },
+    {
+      "id": "gender_dist_hex_h",
+      "user": "河西区人口按性别怎么分布",
+      "expect": {
+        "intent": "aggregation",
+        "locations": ["河西区"],
+        "dimensions": ["性别"],
+        "primaryTable": "person_info",
+        "path_any": ["sql_direct", "person_info"]
       }
     }
   ]

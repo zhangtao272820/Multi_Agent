@@ -1,5 +1,5 @@
 id: story_qingcai_act2_festival
-label: 夏祭
+label: 文化祭
 priority: 6
 once: true
 chance: 1.0
@@ -11,11 +11,21 @@ trigger:
   flags_absent: [qc_festival]
   flags_present: [qc_mirror]
 prompt_snippet: |
-  【专属故事 · 练舞室的夏 · 第2幕 · 夏祭】
-  文化祭/舞台；确认或婉拒
-  立绘气质参考：stage_bow, date, festival_spring。
-  用角色口吻推进这一幕的情绪与选择；可给 2～3 个短选项。
-  不要直接宣布结局名称；关系阶段由系统判定。
+  【专属故事 · 舞台外的我 · 第2幕 · 文化祭】
+advance: on_player_turn
+beats:
+  - id: b1
+    summary: "文化祭谢幕鞠躬后，她在侧幕喘气，舞台笑还挂在脸上。"
+    sprite_hint: [stage_bow, festival_spring]
+    soft_options: ["递毛巾", "说你看见了努力", "让她先喝水"]
+  - id: b2
+    summary: "她问：喜欢舞台上的闪光，还是愿意要卸妆后的沉默。"
+    sprite_hint: [date, casual]
+    soft_options: ["要真实的她", "两面都喜欢", "还不确定"]
+  - id: b3
+    summary: "人群散去；她等你确认关系——恋人，或可靠的台下同伴。"
+    sprite_hint: [date, casual]
+    soft_options: ["告白", "做台下同伴", "节日后再谈"]
 rewards:
   flags_set: [qc_festival, confessed]
 choice_effects:

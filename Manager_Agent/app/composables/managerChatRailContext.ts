@@ -7,7 +7,16 @@ export type ManagerChatRailContext = {
     constraints?: string
     approveTier?: 'auto' | 'plan' | 'strict'
     riskScore?: number
-    steps: Array<{ id: string; agent: string; agentLabel?: string; query: string; enabled: boolean; optional?: boolean }>
+    steps: Array<{
+      id: string
+      agent: string
+      agentLabel?: string
+      query: string
+      enabled: boolean
+      optional?: boolean
+      confirmMode?: 'hitl' | 'auto_confirm' | 'none'
+      confirmReason?: string
+    }>
     routePlan?: {
       dataSources?: string[]
       clauses?: Array<{ id: string; text: string; agents?: string[] }>

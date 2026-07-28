@@ -86,7 +86,15 @@ function getEmbeddings(config: EmbeddingClientConfig): OpenAIEmbeddings | null {
   embeddingsClient = new OpenAIEmbeddings({
     apiKey: config.openaiApiKey,
     model,
-    configuration: config.openaiBaseUrl ? { baseURL: config.openaiBaseUrl } : undefined,
+    configuration: {
+      baseURL:
+        String(config.openaiBaseUrl || '').trim() || 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+    },
+    timeout: (() => {
+      const n = Number(process.env.AGENT_EMBEDDING_TIMEOUT_MS || 12_000)
+      return Number.isFinite(n) && n >= 3_000 ? Math.min(60_000, Math.floor(n)) : 12_000
+    })(),
+    maxRetries: 0,
   } as any)
   embeddingsKey = key
   return embeddingsClient

@@ -204,13 +204,27 @@ export type BondSummary = {
   theme_color?: string;
   affinity: number;
   trust: number;
+  mood?: number;
   stage_id: string;
   stage_label: string;
+  user_title?: string;
+  route_label?: string;
   turns: number;
   message_count: number;
   status_hint?: string;
   /** 当前时段/地点解析出的立绘前缀；空则用裸情绪图 */
   sprite_outfit?: string;
+  /** 是否已交谈（后端计算） */
+  met?: boolean;
+  /** 以下字段：已交谈后才下发（看板性格区） */
+  age?: number | null;
+  occupation?: string;
+  personality?: string;
+  appearance?: string;
+  mbti_type?: string;
+  mbti_label?: string;
+  speaking_style?: string;
+  traits?: PersonalityTraits | Record<string, number>;
 };
 
 export type WorldCalendar = {
@@ -557,6 +571,17 @@ export type SceneRunPublic = {
   pool_hint?: string;
 };
 
+/** 专属故事幕节拍进度（有 beats 时由后端下发） */
+export type StoryProgressPublic = {
+  event_id: string;
+  beat_index: number;
+  beat_total: number;
+  beat_id?: string;
+  soft_options?: string[];
+  act_summary?: string;
+  completed?: boolean;
+};
+
 export type RelationshipUpdate = {
   relationship_state: RelationshipState;
   memories: MemoryFact[];
@@ -581,6 +606,7 @@ export type RelationshipUpdate = {
   dialogue?: DialogueTurn[];
   world_save_id?: string;
   scene_run?: SceneRunPublic | null;
+  story_progress?: StoryProgressPublic | null;
   scene_hint?: string;
   settle_note?: string;
   scene_ended?: boolean;
@@ -646,6 +672,11 @@ export type AvatarState = {
 export type GameEventInfo = {
   id: string;
   label: string;
+  scene_id?: string;
+  beat_total?: number;
+  /** 开幕 / 幕落字幕 */
+  curtain?: string;
+  story?: boolean;
 };
 
 export type EventLogEntry = {
@@ -750,6 +781,7 @@ export type WsIncoming =
         ping_text?: string;
         scene_run?: SceneRunPublic | null;
         ensemble?: EnsemblePublic | null;
+        story_progress?: StoryProgressPublic | null;
       };
     }
   | { type: "world_ready"; payload: { world: WorldPublic; hub: HubState } }

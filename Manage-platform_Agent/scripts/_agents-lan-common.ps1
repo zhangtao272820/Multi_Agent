@@ -15,6 +15,8 @@ $Script:ManagerStack = @(
     "music_agent",
     "video_agent",
     "multimodal_agent",
+    "playwright_mcp",
+    "lobster_agent",
     "manager_agent"
 )
 
@@ -22,11 +24,9 @@ $Script:ExtendedOnlyServices = @(
     "multimodal_agent",
     "music_agent",
     "video_agent",
-    "lobster_agent",
     "tavern_agent",
     "ai_agent",
     "browserless",
-    "playwright_mcp",
     "prometheus",
     "grafana",
     "alertmanager",
@@ -66,11 +66,61 @@ $Script:AllCapabilityServices = @(
     "ai_agent"
 )
 
+# UTF-8 helpers: Windows PowerShell 5.1 Set-Content -Encoding utf8 writes BOM and
+# Get-Content default uses system ANSI (GBK), which mojibakes Chinese comments in .env.
+function Read-EnvFileUtf8 {
+    param([Parameter(Mandatory = $true)][string]$Path)
+    if (-not (Test-Path $Path)) { return @() }
+    # detectEncodingFromByteOrderMarks=true so existing UTF-8 BOM files don't poison line 1
+    $utf8 = New-Object System.Text.UTF8Encoding $false
+    $reader = New-Object System.IO.StreamReader((Resolve-Path $Path).Path, $utf8, $true)
+    try {
+        $list = New-Object System.Collections.Generic.List[string]
+        while ($null -ne ($line = $reader.ReadLine())) { [void]$list.Add($line) }
+        return ,$list.ToArray()
+    } finally {
+        $reader.Dispose()
+    }
+}
+
+function Read-EnvFileUtf8Text {
+    param([Parameter(Mandatory = $true)][string]$Path)
+    if (-not (Test-Path $Path)) { return "" }
+    $utf8 = New-Object System.Text.UTF8Encoding $false
+    $reader = New-Object System.IO.StreamReader((Resolve-Path $Path).Path, $utf8, $true)
+    try { return $reader.ReadToEnd() } finally { $reader.Dispose() }
+}
+
+function Write-EnvFileUtf8 {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter(Mandatory = $true)][AllowEmptyCollection()][string[]]$Lines
+    )
+    $utf8 = New-Object System.Text.UTF8Encoding $false
+    $text = if ($null -eq $Lines -or $Lines.Count -eq 0) { "" } else { ($Lines -join "`n") + "`n" }
+    [System.IO.File]::WriteAllText($Path, $text, $utf8)
+}
+
+function Write-EnvFileUtf8Text {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter(Mandatory = $true)][AllowEmptyString()][string]$Text
+    )
+    $utf8 = New-Object System.Text.UTF8Encoding $false
+    if ($Text.Length -gt 0 -and -not $Text.EndsWith("`n")) { $Text = $Text + "`n" }
+    [System.IO.File]::WriteAllText($Path, $Text, $utf8)
+}
+
 function Get-AgentsLanLanHost {
     $lan = "localhost"
     if (Test-Path $Script:EnvFile) {
-        $line = Get-Content $Script:EnvFile | Where-Object { $_ -match "^LAN_HOST=" } | Select-Object -First 1
-        if ($line) { $lan = $line.Split("=", 2)[1].Trim() }
+        $line = Read-EnvFileUtf8 $Script:EnvFile | Where-Object { $_ -match "^LAN_HOST=" } | Select-Object -First 1
+        if ($line) {
+            # 防御：.env 若被错误拼成单行，只取 LAN_HOST 值的第一个 token
+            $raw = $line.Split("=", 2)[1].Trim()
+            $lan = ($raw -split "\s+")[0].Trim().Trim('"').Trim("'")
+            if (-not $lan) { $lan = "localhost" }
+        }
     }
     return $lan
 }
@@ -173,7 +223,7 @@ function Resolve-CapabilityDockerServices {
     }
 
     if ($Extended) {
-        $extendedAgents = @("lobster_agent", "tavern_agent", "ai_agent")
+        $extendedAgents = @("tavern_agent", "ai_agent")
         $services = [System.Collections.Generic.List[string]]::new()
         foreach ($svc in $Script:ManagerStack + $extendedAgents) {
             if (-not $services.Contains($svc)) { $services.Add($svc) | Out-Null }

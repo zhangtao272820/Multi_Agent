@@ -29,6 +29,7 @@ JUDGE_NOTE_CHARS = 28
 BLOCK_PRIORITY = {
     "agenda": 10,
     "world_facts": 15,
+    "story_beat": 12,
     "calendar": 20,
     "pc_status": 30,
     "pc_day": 32,
@@ -72,6 +73,7 @@ def trim_blocks(blocks: list[PromptBlock], *, budget: int = WORLD_EXTRA_BUDGET) 
     protected = {
         "agenda",
         "world_facts",
+        "story_beat",
         "calendar",
         "pc_status",
         "pc_day",

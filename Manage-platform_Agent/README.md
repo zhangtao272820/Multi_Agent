@@ -15,9 +15,9 @@
 
 含密钥的实文件 **勿提交**。索引说明见 [`.env.llm-first.example`](.env.llm-first.example)。
 
-## 项目介绍（面试版）
+## 项目简介
 
-Manage-platform Agent 体现「**可运维的多 Agent 底座**」：用 Compose 固化端口、服务发现与依赖顺序，用 PowerShell 脚本封装 `up/down/restart`，让演示与内网部署可重复；管理平台侧提供 Agent 启停、技能市场、任务编排与健康总览，适合作为整套方案的 **运维与治理入口**。
+Manage-platform 是整套矩阵的 **运维与治理入口**：用 Compose 固化端口、服务发现与依赖顺序，用脚本封装 `up/down/restart`，让演示与内网部署可重复；ClawHive 提供 Agent 启停、技能市场、任务编排与健康总览。
 
 ## 核心文件
 
@@ -219,8 +219,8 @@ admin / admin123
 
 5) 进阶功能（可选）：
 
-- 「技能中心」：市场、安装/Rollout、沙箱执行引擎（升级路线见 [`docs/公共技能市场方案.md`](../docs/公共技能市场方案.md)）
-- **记忆 / 反馈进化 / Phase 路线图**：[`docs/Agent记忆与存储数据库化升级方案.md`](../docs/Agent记忆与存储数据库化升级方案.md)（**P0 用户反馈门控进化**：总管/DB/RAG/Admin）
+- 「技能中心」：市场、安装/Rollout、沙箱执行引擎（平台内已有能力；旧「公共技能市场方案」长文已废弃）
+- **记忆 / 反馈进化**：历史 Phase 已落地；旧「Agent 记忆与存储数据库化」长文已废弃，不再单列升级（见矩阵总表「已完成 / 已取消」）
 - Grafana / Prometheus / Tempo / Loki：`:13000` / `:19090` / `:3200` / `:3100`（控制台 Trace/Log 深链 → Explore）
 
 ### 仅重建 ClawHive 平台（改过 `frontend/` 或 `backend/app/` 后）
@@ -705,4 +705,5 @@ docker compose --env-file ".\.env.agents-lan" -f ".\docker-compose.agents-lan.ym
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\apply-capability-models.ps1
+
 ```

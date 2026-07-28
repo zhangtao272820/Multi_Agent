@@ -177,12 +177,20 @@ export async function executeDbStep(
       signal: opts.signal
     })
     let output = String(dbRes?.answer ?? '')
-    const isEmpty = Boolean(dbRes?.empty) || deps.isDbNoData(output)
+    const ar = dbRes.agentResult
+    const isEmpty =
+      Boolean(dbRes?.empty) ||
+      Boolean(ar?.structured?.empty) ||
+      ar?.error_code === 'empty_result' ||
+      ar?.error_code === 'schema_miss' ||
+      deps.isDbNoData(output)
+    const arFailed = ar?.ok === false
+    const stepOk = !isEmpty && !arFailed
     if (isEmpty) {
       output = output ? `${output}\n(注：未在数据库中查到匹配的明细数据)` : '数据库未查到相关记录。'
     }
-    const explainPreflight = Array.isArray(dbRes.agentResult?.structured?.explain_preflight)
-      ? (dbRes.agentResult!.structured!.explain_preflight as string[]).map((x) => String(x ?? '').trim()).filter(Boolean)
+    const explainPreflight = Array.isArray(ar?.structured?.explain_preflight)
+      ? (ar!.structured!.explain_preflight as string[]).map((x) => String(x ?? '').trim()).filter(Boolean)
       : []
     if (explainPreflight.length) {
       input.sendThinking(`数据库 Agent：SQL 预检提示 — ${explainPreflight[0]}`)
@@ -192,25 +200,28 @@ export async function executeDbStep(
         from: 'db'
       })
     }
+    const errorCode = String(ar?.error_code || (isEmpty ? 'empty_result' : '')).trim() || undefined
     return {
-      ok: true,
+      ok: stepOk,
       agent: 'db',
       output,
       query: finalDbMessage,
       parsed: extractStructuredPayload(output),
+      error: stepOk ? undefined : errorCode || dbRes.reason || 'db_step_failed',
       evidence: {
         kind: 'db',
         query: finalDbMessage,
         transport: dbRes.transport,
         run_id: dbRes.run_id,
         trace_id: dbRes.trace_id || opts.runId,
-        sources: dbRes.agentResult?.sources,
+        sources: ar?.sources,
         empty: isEmpty,
         reason: dbRes.reason,
-        executed_sql: dbRes.agentResult?.structured?.executed_sql,
+        error_code: errorCode,
+        executed_sql: ar?.structured?.executed_sql,
         ...(explainPreflight.length ? { explain_preflight: explainPreflight } : {})
       },
-      meta: dbRes.agentResult ? { agentResult: dbRes.agentResult } : {}
+      meta: ar ? { agentResult: ar } : {}
     }
   } catch (e: unknown) {
     const err = String((e as Error)?.message || e || 'unknown error')

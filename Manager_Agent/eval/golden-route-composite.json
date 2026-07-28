@@ -1,0 +1,92 @@
+{
+  "version": 1,
+  "description": "N4 复合路由 golden（≥10）：rag/db/admin/gui/crawler/multi 结构性门禁；schema 校验为主（不做 keyword structural 强绑）",
+  "skipStructuralHints": true,
+  "cases": [
+    {
+      "id": "rag_policy_lookup",
+      "query": "请说明养老机构护理员补贴标准",
+      "expectIntent": "rag",
+      "expectAllowedIncludes": ["rag"],
+      "expectAllowedExcludes": ["gui"]
+    },
+    {
+      "id": "db_metrics_query",
+      "query": "查询上季度各门店销售额合计",
+      "expectIntent": "db",
+      "expectAllowedIncludes": ["db"],
+      "expectAllowedExcludes": ["gui"]
+    },
+    {
+      "id": "admin_schedule",
+      "query": "帮我创建明天下午三点的团队周会提醒",
+      "expectIntent": "admin",
+      "expectAllowedIncludes": ["admin"],
+      "expectAllowedExcludes": ["crawler"]
+    },
+    {
+      "id": "gui_interactive",
+      "query": "打开百度搜索 LangGraph，点击第一条结果并截图",
+      "expectIntent": "gui",
+      "expectAllowedIncludes": ["gui"],
+      "expectAllowedExcludes": ["crawler"]
+    },
+    {
+      "id": "crawler_list",
+      "query": "抓取 https://www.gov.cn/ 首页资讯列表标题和链接",
+      "expectIntent": "crawler",
+      "expectAllowedIncludes": ["crawler"],
+      "expectAllowedExcludes": ["gui"]
+    },
+    {
+      "id": "multi_db_code",
+      "query": "查询上季度销售并画柱状图",
+      "expectIntent": "multi",
+      "expectAllowedIncludes": ["db", "code"],
+      "expectAllowedExcludes": []
+    },
+    {
+      "id": "multi_rag_admin",
+      "query": "根据制度文档总结护理配比，并写一条待办提醒我下周复核",
+      "expectIntent": "multi",
+      "expectAllowedIncludes": ["rag", "admin"],
+      "expectAllowedExcludes": ["gui"]
+    },
+    {
+      "id": "code_edit_repo",
+      "query": "在 RAG_Agent 加一个环境变量开关并跑 typecheck",
+      "expectIntent": "code",
+      "expectAllowedIncludes": ["code"],
+      "expectAllowedExcludes": ["admin"]
+    },
+    {
+      "id": "web_search_crawler",
+      "query": "今天美元兑人民币汇率是多少",
+      "expectIntent": "multi",
+      "expectAllowedIncludes": ["crawler"],
+      "expectNeedsWebSearch": true,
+      "expectAllowedExcludes": ["gui"]
+    },
+    {
+      "id": "multi_crawler_db",
+      "query": "联网查血压参考区间，再对照库内最近一次血压记录给结论",
+      "expectIntent": "multi",
+      "expectAllowedIncludes": ["crawler", "db"],
+      "expectAllowedExcludes": []
+    },
+    {
+      "id": "rag_quote",
+      "query": "请引用养老机构服务规范中关于人员配比的原文",
+      "expectIntent": "rag",
+      "expectAllowedIncludes": ["rag"],
+      "expectAllowedExcludes": ["db", "gui"]
+    },
+    {
+      "id": "admin_todo_followup",
+      "query": "把下周制度复核写成一条待办",
+      "expectIntent": "admin",
+      "expectAllowedIncludes": ["admin"],
+      "expectAllowedExcludes": ["gui"]
+    }
+  ]
+}

@@ -1,6 +1,7 @@
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import type { Document } from "@langchain/core/documents";
 import { getRagAgentEnv } from "./rag_agent_env";
+import { createParentId } from "./parent_expand";
 
 const HEADING_RE = /^(#{1,6}\s+.+|[\d一二三四五六七八九十]+[、.．]\s*.+|第[一二三四五六七八九十\d]+[章节条]\s*.+)$/m;
 const MD_TABLE_ROW_RE = /^\|.+\|$/;
@@ -79,29 +80,77 @@ function tableRowsPerChunk(chunkSize: number) {
   return Math.max(4, Math.min(16, Math.floor(chunkSize / 80)));
 }
 
-/** 表格块 → 带 chunkType=table 的 Document 列表 */
-function documentsFromTableBlock(block: ContentBlock, meta: Record<string, unknown>, chunkSize: number): Document[] {
+/** 表格块 → 带 chunkType=table 的 Document 列表（自身即 parent） */
+function documentsFromTableBlock(
+  block: ContentBlock,
+  meta: Record<string, unknown>,
+  chunkSize: number,
+  parentTextMaxChars: number
+): Document[] {
   const rowsPerChunk = tableRowsPerChunk(chunkSize);
   const parts = chunkTableLines(block.lines, chunkSize, rowsPerChunk);
+  const fullTable = block.lines.join("\n");
+  const parentId = createParentId({
+    source: String(meta.source ?? ""),
+    sectionHeading: "table",
+    sectionIndex: String(meta.tablePartIndex ?? "t"),
+    parentText: fullTable,
+  });
+  const parentText = fullTable.slice(0, parentTextMaxChars);
   return parts.map((part, i) => ({
     pageContent: part,
     metadata: {
       ...meta,
       chunkType: "table",
       tablePartIndex: i,
+      chunk_level: "child",
+      parent_id: parentId,
+      parent_text: parentText,
     },
   })) as Document[];
 }
 
-/** 按标题/条款边界预切，再 RecursiveCharacter 细切，减少语义断裂 */
+function attachParentChildMeta(
+  child: Document,
+  parent: { text: string; id: string; heading?: string; sectionIndex?: number },
+  parentTextMaxChars: number
+): Document {
+  return {
+    ...child,
+    metadata: {
+      ...(child.metadata ?? {}),
+      chunk_level: "child",
+      parent_id: parent.id,
+      parent_text: parent.text.slice(0, parentTextMaxChars),
+      ...(parent.heading ? { sectionHeading: parent.heading.slice(0, 120) } : {}),
+      ...(parent.sectionIndex != null ? { sectionIndex: parent.sectionIndex } : {}),
+    },
+  } as Document;
+}
+
+/** 按标题/条款边界预切，再 RecursiveCharacter 细切；子块携带 parent_id/parent_text */
 export async function splitDocumentsStructured(docs: Document[]): Promise<Document[]> {
   const env = getRagAgentEnv();
+  const parentTextMaxChars = Math.max(800, Math.floor(env.parentTextMaxChars ?? 6000));
+  const enableParentChild = env.enableParentChildChunking !== false;
+
   if (!env.structureAwareChunking) {
     const splitter = new RecursiveCharacterTextSplitter({
       chunkSize: env.chunkSize,
       chunkOverlap: env.chunkOverlap,
     });
-    return splitter.splitDocuments(docs);
+    const split = await splitter.splitDocuments(docs);
+    if (!enableParentChild) return split;
+    return split.map((child, i) => {
+      const source = String(child.metadata?.source ?? "");
+      const parentText = String(docs[0]?.pageContent ?? child.pageContent);
+      const parentId = createParentId({
+        source,
+        sectionIndex: i,
+        parentText,
+      });
+      return attachParentChildMeta(child, { text: parentText, id: parentId, sectionIndex: i }, parentTextMaxChars);
+    });
   }
 
   const sections: Document[] = [];
@@ -116,7 +165,7 @@ export async function splitDocumentsStructured(docs: Document[]): Promise<Docume
     if (preBlocks && preBlocks.some((b) => b.kind === "table")) {
       for (const block of preBlocks) {
         if (block.kind === "table") {
-          sections.push(...documentsFromTableBlock(block, meta, env.chunkSize));
+          sections.push(...documentsFromTableBlock(block, meta, env.chunkSize, parentTextMaxChars));
           continue;
         }
         const prose = block.lines.join("\n").trim();
@@ -158,6 +207,38 @@ export async function splitDocumentsStructured(docs: Document[]): Promise<Docume
     chunkSize: env.chunkSize,
     chunkOverlap: env.chunkOverlap,
   });
-  const splitProse = proseSections.length ? await splitter.splitDocuments(proseSections) : [];
-  return [...tableSections, ...splitProse];
+
+  if (!enableParentChild) {
+    const splitProse = proseSections.length ? await splitter.splitDocuments(proseSections) : [];
+    return [...tableSections, ...splitProse];
+  }
+
+  const childProse: Document[] = [];
+  for (const section of proseSections) {
+    const parentText = String(section.pageContent ?? "");
+    const meta = section.metadata ?? {};
+    const parentId = createParentId({
+      source: String(meta.source ?? ""),
+      sectionIndex: meta.sectionIndex as number | string | undefined,
+      sectionHeading: String(meta.sectionHeading ?? ""),
+      parentText,
+    });
+    const fine = await splitter.splitDocuments([section]);
+    for (const child of fine) {
+      childProse.push(
+        attachParentChildMeta(
+          child,
+          {
+            text: parentText,
+            id: parentId,
+            heading: String(meta.sectionHeading ?? ""),
+            sectionIndex: meta.sectionIndex as number | undefined,
+          },
+          parentTextMaxChars
+        )
+      );
+    }
+  }
+
+  return [...tableSections, ...childProse];
 }

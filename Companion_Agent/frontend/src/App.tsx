@@ -17,6 +17,7 @@ import GameMenu from "./components/GameMenu";
 import WorldSavePicker from "./components/WorldSavePicker";
 import { clearAuthUser, loadAuthUser, saveAuthUser, type AuthUser } from "./auth";
 import OpeningIntro from "./components/OpeningIntro";
+import StageTransition from "./components/StageTransition";
 import { useBgm } from "./hooks/useBgm";
 import { isDesktopShell, setDesktopFullscreen } from "./desktopApi";
 import { applySettingsToDom, loadSettings, saveSettings, type GameSettings } from "./settings";
@@ -68,6 +69,7 @@ import {
   type RelationshipState,
   type SceneRunPublic,
   type ScreenId,
+  type StoryProgressPublic,
   type WorldPublic,
   type WorldSaveSummary,
   type WorldSocialResult,
@@ -117,6 +119,9 @@ export default function App() {
   const [eventToast, setEventToast] = useState<GameEventInfo | null>(null);
   const [stageNotice, setStageNotice] = useState("");
   const [sceneRun, setSceneRun] = useState<SceneRunPublic | null>(null);
+  const [storyProgress, setStoryProgress] = useState<StoryProgressPublic | null>(null);
+  const [transitionSig, setTransitionSig] = useState(0);
+  const [transitionCaption, setTransitionCaption] = useState("");
   const [sceneEndedBanner, setSceneEndedBanner] = useState<{
     title: string;
     body: string;
@@ -390,6 +395,8 @@ export default function App() {
           if (msg.payload.scene) setScene(msg.payload.scene);
           setPending(false);
           setScreen("location");
+          setTransitionCaption(msg.payload.label ? `来到了 ${msg.payload.label}` : "换个地方……");
+          setTransitionSig((n) => n + 1);
           setStageNotice(msg.payload.label ? `来到了 ${msg.payload.label}` : "");
           break;
         case "world_day_ended":
@@ -464,6 +471,7 @@ export default function App() {
           );
           setQuestState(msg.payload.quest_state ?? null);
           setSceneRun(msg.payload.scene_run ?? null);
+          setStoryProgress(msg.payload.story_progress ?? null);
           setSceneEndedBanner(null);
           setActiveEnding(null);
           setDialogueTurns(msg.payload.dialogue ?? []);
@@ -476,6 +484,11 @@ export default function App() {
             setDatesByChar((prev) => ({ ...prev, [msg.payload.character_id!]: msg.payload.dates || [] }));
           }
           setPending(false);
+          {
+            const nm = msg.payload.profile?.name || "她";
+            setTransitionCaption(`你走近了${nm}。`);
+            setTransitionSig((n) => n + 1);
+          }
           setScreen("play");
           break;
         case "relationship_state": {
@@ -483,7 +496,27 @@ export default function App() {
           setRelationshipState(rs);
           if (msg.payload.dialogue) setDialogueTurns(msg.payload.dialogue);
           if (msg.payload.scene_run) setSceneRun(msg.payload.scene_run);
-          if (msg.payload.stage_changed && rs) {
+          if (msg.payload.story_progress !== undefined) {
+            setStoryProgress(msg.payload.story_progress ?? null);
+          }
+          if (msg.payload.event && String(msg.payload.event.id || "").startsWith("story_")) {
+            const sp = msg.payload.story_progress;
+            const beat =
+              sp && sp.beat_total
+                ? `（${Math.min((sp.beat_index ?? 0) + 1, sp.beat_total)}/${sp.beat_total}）`
+                : "";
+            setStageNotice(`专属故事 · ${msg.payload.event.label || "新的一幕"}${beat}`);
+            setTransitionCaption(`专属故事 · ${msg.payload.event.label || ""}`);
+            setTransitionSig((n) => n + 1);
+          } else if (msg.payload.event_applied && String(msg.payload.event_applied.id || "").startsWith("story_")) {
+            const curtain = msg.payload.event_applied.curtain;
+            setStageNotice(curtain || `幕落 · ${msg.payload.event_applied.label || "这一幕收束了"}`);
+            if (curtain) {
+              setTransitionCaption(String(curtain).replace(/——/g, "").trim());
+              setTransitionSig((n) => n + 1);
+            }
+            setStoryProgress(null);
+          } else if (msg.payload.stage_changed && rs) {
             setStageNotice(`关系悄然变化……称呼变成了「${rs.user_title}」`);
           } else if (msg.payload.settle_note) {
             setStageNotice(msg.payload.settle_note);
@@ -564,6 +597,13 @@ export default function App() {
         case "event_toast":
           setEventToast(msg.payload);
           setActiveEvent(msg.payload);
+          if (msg.payload.curtain) {
+            setStageNotice(String(msg.payload.curtain));
+            setTransitionCaption(String(msg.payload.curtain).replace(/——/g, "").trim());
+            setTransitionSig((n) => n + 1);
+          } else if (String(msg.payload.id || "").startsWith("story_")) {
+            setStageNotice(`专属故事开启 · ${msg.payload.label || ""}`);
+          }
           break;
         case "quest_toast":
           if (msg.payload.message) setStageNotice(String(msg.payload.message));
@@ -965,6 +1005,7 @@ export default function App() {
     setActiveEnding(null);
     setShowHistory(false);
     setSceneRun(null);
+    setStoryProgress(null);
     setScreen("hub");
     if (worldSaveId && authRef.current?.user_id) {
       void fetchWorldSave(worldSaveId, authRef.current.user_id).then((data) => {
@@ -979,11 +1020,14 @@ export default function App() {
     setSceneEndedBanner(null);
     setSessionId(null);
     setSceneRun(null);
+    setStoryProgress(null);
     setMessages([]);
     setDialogueTurns([]);
     setChoices([]);
     setChoiceKind("soft");
     setActiveEvent(null);
+    setTransitionCaption("你回到了街上。");
+    setTransitionSig((n) => n + 1);
     setScreen("hub");
     if (worldSaveId && authRef.current?.user_id) {
       void fetchWorldSave(worldSaveId, authRef.current.user_id).then((data) => {
@@ -1153,6 +1197,15 @@ export default function App() {
           world={world}
           focusId={codexFocusId}
           quest={codexFocusId && profile.character_id === codexFocusId ? questState : null}
+          liveOverride={
+            codexFocusId && profile.character_id === codexFocusId
+              ? {
+                  character_id: codexFocusId,
+                  relationship: relationshipState,
+                  profile,
+                }
+              : null
+          }
           onOpenQuest={() => setShowQuestBoard(true)}
           onBack={() => {
             setCodexFocusId(null);
@@ -1178,6 +1231,7 @@ export default function App() {
     const periodClass = `gal-period--${hub.calendar?.period || "afternoon"}`;
     return (
       <div className={`gal-app-shell ${periodClass}`}>
+        <StageTransition signal={transitionSig} caption={transitionCaption} />
         {settings.softTips && nightNotice && <p className="gal-hub-tutorial">{nightNotice}</p>}
         <TownHubScreen
           hub={hub}
@@ -1207,6 +1261,12 @@ export default function App() {
           onContinue={() => setMenuOpen(false)}
           onManualSave={() => void manualSaveNow()}
           onLoadSave={() => openSaves("hub")}
+          onCodex={() => {
+            setMenuOpen(false);
+            setCodexFocusId(null);
+            setCodexReturn("hub");
+            setScreen("codex");
+          }}
           onSprites={() => openSprites("hub")}
           onSettings={() => openSettings("hub")}
           onTitle={goTitle}
@@ -1218,6 +1278,8 @@ export default function App() {
   if (screen === "location" && hub) {
     return (
       <div className="gal-app-shell">
+        <StageTransition signal={transitionSig} caption={transitionCaption} />
+        {stageNotice ? <p className="gal-float-notice">{stageNotice}</p> : null}
         <LocationScreen
           hub={hub}
           datesByChar={datesByChar}
@@ -1231,12 +1293,15 @@ export default function App() {
           onFulfillAppointment={fulfillAppointment}
           onReplyPing={replyPing}
           onGoLocation={goLocation}
-          onCodex={() => {
-            setCodexFocusId(null);
+          onCodex={(characterId) => {
+            setCodexFocusId(characterId || null);
             setCodexReturn("location");
             setScreen("codex");
           }}
           onBack={() => setScreen("hub")}
+          onFocusChange={(_id, name) => {
+            setStageNotice(`你的目光转向了${name}。`);
+          }}
         />
       </div>
     );
@@ -1244,6 +1309,7 @@ export default function App() {
 
   return (
     <div className="gal-app-shell gal-play-shell">
+      <StageTransition signal={transitionSig} caption={transitionCaption} />
       <EventToast event={eventToast} onDismiss={() => setEventToast(null)} />
       <GalScene
         profile={profile}
@@ -1258,6 +1324,7 @@ export default function App() {
         choiceKind={choiceKind}
         eventLog={[]}
         activeEvent={activeEvent}
+        storyProgress={storyProgress}
         stageNotice={stageNotice}
         socialToast={socialToast}
         onDismissSocialToast={() => setSocialToast(null)}
@@ -1322,9 +1389,15 @@ export default function App() {
         hasWorld={!!worldSaveId}
         onContinue={() => setMenuOpen(false)}
         onManualSave={() => void manualSaveNow()}
-        onLoadSave={() => openSaves("hub")}
-        onSprites={() => openSprites("hub")}
-        onSettings={() => openSettings("hub")}
+        onLoadSave={() => openSaves("play")}
+        onCodex={() => {
+          setMenuOpen(false);
+          setCodexFocusId(profile.character_id || null);
+          setCodexReturn("play");
+          setScreen("codex");
+        }}
+        onSprites={() => openSprites("play")}
+        onSettings={() => openSettings("play")}
         onTitle={goTitle}
       />
       {showHistory && (

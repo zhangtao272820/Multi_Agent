@@ -12,10 +12,20 @@ trigger:
   flags_present: [cousin_watch_done]
 prompt_snippet: |
   【专属故事 · 堂姐的观察日记 · 第2幕 · 吐槽干杯】
-  她愿做你的情报同盟，条件是别伤害堂姐
-  立绘气质参考：cafe, casual。
-  用角色口吻推进这一幕的情绪与选择；可给 2～3 个短选项。
-  不要直接宣布结局名称；关系阶段由系统判定。
+advance: on_player_turn
+beats:
+  - id: b1
+    summary: "她愿做你的情报同盟，条件是别伤害堂姐"
+    sprite_hint: [cafe, casual]
+    soft_options: ["认真接话", "先观察", "轻声提问"]
+  - id: b2
+    summary: "「吐槽干杯」里出现犹豫或选择。"
+    sprite_hint: [casual]
+    soft_options: ["表明态度", "给她空间", "确认她的意思"]
+  - id: b3
+    summary: "收束羁绊：确认界线与同盟，禁止恋爱走向。"
+    sprite_hint: [casual]
+    soft_options: ["答应站同一边", "先缓一缓", "诚实说明顾虑"]
 rewards:
   flags_set: [bond_ally_done, cousin_ally]
 choice_effects:

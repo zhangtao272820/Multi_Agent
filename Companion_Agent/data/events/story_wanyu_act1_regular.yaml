@@ -11,18 +11,20 @@ trigger:
   flags_absent: [wy_regular_seat]
 prompt_snippet: |
   【专属故事 · 关店之后的温度 · 第1幕 · 熟客的座位】
-  这是恋爱故事的一幕，请写长一点、慢一点，像短篇小说的一节，而不是一句提示。
-
-  场景节拍（按顺序推进，可跨多轮对话）：
-  1) 雨天推门——她报出你的默认糖度，像随口，又像试探。
-  2) 「熟客的座位」：靠窗那张，杯子沿上还有一圈未擦干的水痕。
-  3) 她短暂停住服务笑容，问你最近是不是总来得更晚。
-  4) 收束于被记住的温度：不是优惠，是有人愿意为你多留一分钟。
-
-  立绘气质参考：work, barista_steam, rain。
-  用角色口吻推进；可给 2～3 个短选项（承认常来 / 问她累不累 / 开玩笑点错单）。
-  括号外 spoken 可比日常闲聊更长（约 80～180 字），可带一点场景描写，但仍是口语。
-  不要直接宣布结局名称；关系阶段由系统判定。
+advance: on_player_turn
+beats:
+  - id: b1
+    summary: "你成了熟客座位；她把杯子放下的角度像记得糖度。"
+    sprite_hint: [work, barista_steam]
+    soft_options: ["道谢点单", "开个小玩笑", "安静坐下"]
+  - id: b2
+    summary: "雨敲窗；她问你是来躲雨，还是专门来找这杯味道。"
+    sprite_hint: [rain, work]
+    soft_options: ["说专门来的", "说顺便", "问她歇没歇"]
+  - id: b3
+    summary: "收束于「常客」被记住：她允许你把这里当成短暂停靠。"
+    sprite_hint: [barista_steam, casual]
+    soft_options: ["约定下次还坐这", "多留一会儿", "道谢离开"]
 rewards:
   flags_set: [wy_regular_seat]
 choice_effects:

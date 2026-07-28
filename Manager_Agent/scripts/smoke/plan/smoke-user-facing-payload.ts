@@ -5,8 +5,10 @@ import {
   buildUserFacingPayload,
   composeFinalBundleFromGraphResult,
   formatUserFacingMainText,
-  stripDeveloperJargon
+  stripDeveloperJargon,
+  stripStructuredExecReport
 } from '../../../server/graph/core/output'
+import { stripSynthPromptLeakage } from '../../../agent-repo-shared/synthOutputSanitize'
 
 function assert(cond: unknown, msg: string): void {
   if (!cond) throw new Error(msg)
@@ -133,5 +135,89 @@ assert(withSlots.metrics!.some((m) => m.label === '男性'), 'metric label chine
 assert(withSlots.actions?.length === 1, 'actions from needsHumanConfirm')
 assert(withSlots.actions![0]!.status === 'awaiting_confirm', 'action awaiting confirm')
 assert(withSlots.outcome === 'needs_human', 'needs_human outcome')
+
+/** 用户主列不得泄漏执行摘要 / 已执行步骤 / 证据管线 */
+const leakySynth = [
+  '本月收入 6000、支出 5000，结余约 1000。',
+  '',
+  '### 月度收支明细',
+  '- 收入稳定，支出可控。',
+  '',
+  '### 已执行步骤',
+  '- ✓ rag：检索知识库财务数据（ok）',
+  '- ✓ clean：对齐清洗（ok）',
+  '',
+  '### 证据',
+  '- rag：检索个人月度财务状况',
+  '- clean：对齐检索数据',
+  's2 (clean): facts(1): 月收入：6000 月支出：5000',
+  '',
+  '### 后续建议',
+  '- 如需深挖，可指定下一步关注点',
+  '',
+  '**小结**：财务状况整体健康。'
+].join('\n')
+
+const strippedLeak = stripStructuredExecReport(leakySynth)
+assert(!/已执行步骤/.test(strippedLeak), 'strip drops 已执行步骤')
+assert(!/### 证据/.test(strippedLeak), 'strip drops ### 证据')
+assert(!/后续建议/.test(strippedLeak), 'strip drops 后续建议')
+assert(!/facts\(1\)/.test(strippedLeak), 'strip drops facts echo')
+assert(!/s2\s*\(clean\)/.test(strippedLeak), 'strip drops step-id echo')
+assert(strippedLeak.includes('6000') && strippedLeak.includes('月度收支'), 'keeps user analysis')
+
+const leakPayload = buildUserFacingPayload({
+  synth: leakySynth,
+  intent: 'multi',
+  results: { rag: 'ok', clean: 'ok' },
+  plan: undefined as any,
+  meta: {}
+})
+assert(!/已执行步骤/.test(leakPayload.summary), 'userFacing summary no 已执行步骤')
+assert(!/### 证据/.test(leakPayload.summary), 'userFacing summary no ### 证据')
+assert(!/判定[：:]/.test(leakPayload.summary), 'userFacing summary no 判定')
+assert(leakPayload.summary.includes('6000') || leakPayload.summary.includes('结余'), 'keeps finance conclusion')
+
+const leakBundle = composeFinalBundleFromGraphResult({
+  final: leakySynth,
+  intent: 'multi',
+  results: { rag: 'x', clean: 'y', code: 'z', visualize: 'v' },
+  plan: [
+    { id: 's1', agent: 'rag', query: '检索' },
+    { id: 's2', agent: 'clean', query: '清洗' },
+    { id: 's3', agent: 'code', query: '计算' },
+    { id: 's4', agent: 'visualize', query: '图表' }
+  ],
+  meta: {
+    lastStepRecords: [
+      { id: 's1', agent: 'rag', status: 'ok' },
+      { id: 's2', agent: 'clean', status: 'ok' },
+      { id: 's3', agent: 'code', status: 'ok' },
+      { id: 's4', agent: 'visualize', status: 'ok' }
+    ]
+  },
+  routedQuery: '查知识库月度财务并出图'
+})
+assert(!/已执行步骤/.test(leakBundle.userFacing.summary), 'compose userFacing clean of steps')
+assert(leakBundle.text.includes('执行摘要') || leakBundle.text.includes('已执行步骤'), 'audit text still has exec report')
+
+const sanitized = stripSynthPromptLeakage(leakySynth)
+assert(!/已执行步骤/.test(sanitized), 'synth sanitize drops steps')
+assert(sanitized.includes('小结') || sanitized.includes('6000'), 'synth sanitize keeps user body')
+
+const preambleLeak = [
+  '主要回答如下。',
+  'error: 仅处理下列个人助理能力（勿混入知识库检索/搜索/问数/玩法/画图/报告）：',
+  '· 邮件：发信、收件箱、分拣、回复',
+  '· 联系人：添加/查询通讯录',
+  '· 待办：创建/列出/完成待办',
+  'admin: empty_result',
+  '### 失败'
+].join('\n')
+const cleanedPreamble = stripSynthPromptLeakage(preambleLeak)
+assert(!/仅处理下列个人助理能力/.test(cleanedPreamble), 'strip admin preamble leak')
+assert(!/^·\s*邮件/.test(cleanedPreamble), 'strip capability bullet')
+assert(!/admin:\s*empty_result/i.test(cleanedPreamble), 'strip empty_result jargon')
+assert(cleanedPreamble.includes('主要回答'), 'keeps user-facing lead')
 
 console.log('smoke-user-facing-payload: ok')

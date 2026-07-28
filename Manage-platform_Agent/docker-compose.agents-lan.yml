@@ -539,6 +539,12 @@ services:
       AGENT_LLM_MAX_RETRIES: ${AGENT_LLM_MAX_RETRIES:-0}
       AGENT_LLM_JSON_MAX_TOKENS: ${AGENT_LLM_JSON_MAX_TOKENS:-896}
       AGENT_LLM_SYNTH_MAX_TOKENS: ${AGENT_LLM_SYNTH_MAX_TOKENS:-2048}
+      # 单轮图执行上限（须 ≤ Manager AGENT_TIMEOUT，超时必回 WS error，避免总管空等）
+      ADMIN_WS_TURN_TIMEOUT_SEC: ${ADMIN_WS_TURN_TIMEOUT_SEC:-90}
+      # Embedding：未设 OPENAI_BASE_URL 时代码会回退百炼 compatible-mode；显式配置更稳
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://dashscope.aliyuncs.com/compatible-mode/v1}
+      OPENAI_EMBEDDING_MODEL: ${OPENAI_EMBEDDING_MODEL:-text-embedding-v1}
+      ADMIN_EMBEDDING_TIMEOUT_SEC: ${ADMIN_EMBEDDING_TIMEOUT_SEC:-12}
       CLAWHIVE_CONFIG_SYNC: ${CLAWHIVE_CONFIG_SYNC:-1}
       # MODEL_NAME 由挂载的 backend/.env 提供（sync-capability-models.py 同步 SSOT）
       RAG_AGENT_URL: http://rag_agent:13102
@@ -712,9 +718,11 @@ services:
       DB_AGENT_HTTP_URL: http://db_agent:13101
       RAG_AGENT_HTTP_URL: http://rag_agent:13102
       CODE_AGENT_WS_URL: ws://code_assistent_agent:13103/_ws
+      CODE_AGENT_HTTP_URL: http://code_assistent_agent:13103
       CRAWLER_AGENT_WS_URL: ws://extractor_agent:13104/_ws
       CRAWLER_AGENT_HTTP_URL: http://extractor_agent:13104
       AI_ADMIN_AGENT_WS_URL: ws://ai_admin_agent:13105/api/chat/ws
+      AI_ADMIN_AGENT_HTTP_URL: http://ai_admin_agent:13105
       MULTIMODAL_AGENT_HTTP_URL: http://multimodal_agent:13107
       MUSIC_AGENT_WS_URL: ws://music_agent:13110/ws
       VIDEO_AGENT_WS_URL: ws://video_agent:13111/ws/video

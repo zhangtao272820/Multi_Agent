@@ -1,4 +1,5 @@
 import type { AgentStepOutcome } from '../executors'
+import { errorCodeFromStepOutcome } from '../runtime/expertFailure'
 
 const AGENT_LABELS: Record<string, string> = {
   db: '数据库查询',
@@ -23,10 +24,13 @@ export type StepResultPayload = {
   preview: string
   query?: string
   error?: string
+  /** U2：与 observabilitySchema ExpertErrorCode 对齐 */
+  errorCode?: string
   empty?: boolean
   ragCitations?: Array<{ source: string; excerpt?: string }>
   runId?: string
 }
+
 
 function extractRagCitations(outcome: AgentStepOutcome): StepResultPayload['ragCitations'] {
   const ev = outcome.evidence as Record<string, unknown> | undefined
@@ -60,6 +64,14 @@ export function buildStepResultPayload(input: {
   const { stepId, agent, outcome, runId } = input
   const preview = String(outcome.output || outcome.error || '').trim().slice(0, 520)
   const empty = Boolean((outcome.evidence as { empty?: boolean } | undefined)?.empty)
+  const errorCode = outcome.ok
+    ? undefined
+    : errorCodeFromStepOutcome({
+        ok: false,
+        error: outcome.error,
+        meta: outcome.meta,
+        policy: String((outcome.meta as { policy?: string } | undefined)?.policy || '') || undefined
+      })
   return {
     stepId,
     agent,
@@ -68,11 +80,13 @@ export function buildStepResultPayload(input: {
     preview,
     query: String(outcome.query || '').slice(0, 240) || undefined,
     error: outcome.ok ? undefined : String(outcome.error || '').slice(0, 240) || undefined,
+    errorCode: errorCode || undefined,
     empty: empty || undefined,
     ragCitations: agent === 'rag' ? extractRagCitations(outcome) : undefined,
     runId
   }
 }
+
 
 export function emitStepResultEvent(
   opts: { sendEvent: (event: { event: string; data?: unknown; from?: string }) => void; runId?: string; sessionId?: string; tenantId?: string },

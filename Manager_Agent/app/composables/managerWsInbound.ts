@@ -35,6 +35,7 @@ export type RunTokenSummary = {
   totalUsd?: number
   byAgent?: Record<string, number>
   byPhase?: Record<string, number>
+  byModelTier?: Record<string, number>
 }
 
 export type ManagerWsInboundCtx = {
@@ -87,6 +88,13 @@ export type ManagerWsInboundCtx = {
     phaseTimeline: RunPhaseItem[]
     tokenSummary: RunTokenSummary | null
     wallClockMs?: number
+  } | null>
+  conversationCompactLive: Ref<{
+    compacted: boolean
+    fullChars?: number
+    compactChars?: number
+    savedRatio?: number
+    turns?: number
   } | null>
   latestGuiScreenshot: Ref<string>
   streamingSynthText: Ref<string>
@@ -414,7 +422,11 @@ export function handleManagerWsInboundMessage(evt: MessageEvent, ctx: ManagerWsI
             agentLabel: String(s.agentLabel || ctx.planAgentLabel(String(s.agent || ''))),
             query: String(s.query || ''),
             enabled: s.enabled !== false,
-            optional: Boolean(s.optional)
+            optional: Boolean(s.optional),
+            confirmMode: (['hitl', 'auto_confirm', 'none'].includes(String(s.confirmMode || ''))
+              ? String(s.confirmMode)
+              : 'none') as 'hitl' | 'auto_confirm' | 'none',
+            confirmReason: String(s.confirmReason || '') || undefined
           }))
         }
         ctx.applyPlanStepsPayload(p)
@@ -586,6 +598,19 @@ export function handleManagerWsInboundMessage(evt: MessageEvent, ctx: ManagerWsI
             : [],
           wantsVisualize: Boolean(p.wantsVisualize),
           wantsReport: Boolean(p.wantsReport)
+        }
+      }
+      return
+    }
+    if (event === 'conversation_compact') {
+      const p = data?.data && typeof data.data === 'object' ? (data.data as Record<string, unknown>) : null
+      if (p && p.compacted === true) {
+        ctx.conversationCompactLive.value = {
+          compacted: true,
+          fullChars: Number(p.fullChars || 0) || undefined,
+          compactChars: Number(p.compactChars || 0) || undefined,
+          savedRatio: Number(p.savedRatio || 0) || undefined,
+          turns: Number(p.turns || 0) || undefined
         }
       }
       return

@@ -10,11 +10,21 @@ trigger:
   affinity_min: 55
   flags_absent: [ln_tarot]
 prompt_snippet: |
-  【专属故事 · 星夜魔女的班次 · 第1幕 · 休息室塔罗】
-  咖啡店休息时抽牌
-  立绘气质参考：break_tarot, work, astro_apron。
-  用角色口吻推进这一幕的情绪与选择；可给 2～3 个短选项。
-  不要直接宣布结局名称；关系阶段由系统判定。
+  【专属故事 · 深夜魔女的咖啡 · 第1幕 · 休息室塔罗】
+advance: on_player_turn
+beats:
+  - id: b1
+    summary: "店休时段，她洗牌：说只是玩玩，眼神却比牌面认真。"
+    sprite_hint: [break_tarot, work]
+    soft_options: ["抽一张", "先看她洗牌", "说不信这个"]
+  - id: b2
+    summary: "牌意偏暧昧；她用半真半假的口吻解读你，又怕自己说太满。"
+    sprite_hint: [break_tarot, astro_apron]
+    soft_options: ["追问她自己怎么看", "开玩笑破功", "安静听完"]
+  - id: b3
+    summary: "收牌时她塞你一枚小护符：不是绑定，是「今晚可以再来」的许可。"
+    sprite_hint: [work, casual]
+    soft_options: ["收下并道谢", "问意义", "说改天再聊牌"]
 rewards:
   flags_set: [ln_tarot, witch_charm_done]
 choice_effects:

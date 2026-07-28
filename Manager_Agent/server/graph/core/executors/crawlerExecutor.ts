@@ -1,3 +1,4 @@
+import { markAgentPayloadUntrusted } from '#agent-shared/contentTrust'
 import { wrapCrawlerResult } from '../../../utils/agents/agentResult'
 import type { AgentResult } from '../../../utils/agents/agentResult'
 import { crawlerSourceHitsForEvent, extractCrawlerItemsFromPayload, extractCrawlerItemsFromText } from '../../../utils/crawler/crawlerItemsParse'
@@ -93,9 +94,18 @@ export function isCrawlerResultEmpty(result: unknown, answer: string): boolean {
 
 function crawlerMetaAgentResult(raw: unknown, output: string, traceId?: string): AgentResult | undefined {
   const row = raw as { agentResult?: AgentResult; items?: unknown[] } | null
-  if (row?.agentResult && typeof row.agentResult === 'object') return row.agentResult
-  const items = Array.isArray(row?.items) ? row.items : []
-  return wrapCrawlerResult(output, items, traceId)
+  const base: AgentResult | undefined =
+    row?.agentResult && typeof row.agentResult === 'object'
+      ? row.agentResult
+      : wrapCrawlerResult(output, Array.isArray(row?.items) ? row.items : [], traceId)
+  if (!base) return undefined
+  return {
+    ...base,
+    structured: markAgentPayloadUntrusted(
+      (base.structured && typeof base.structured === 'object' ? base.structured : {}) as Record<string, unknown>,
+      'crawler'
+    )
+  }
 }
 
 function formatCrawlerPhaseTiming(trace: CrawlerStepPhaseTrace): string {

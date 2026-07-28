@@ -97,4 +97,47 @@ const forceHigh = resolveRiskExecutionPolicy({
 assert(planGateRequiresPreview(forceHigh), 'high requires preview')
 assert(!forceHigh.allowAutoConfirm, 'gui high no auto')
 
+import {
+  resolveAdminAutoConfirmDecision,
+  buildAutoConfirmAuditMetric
+} from '../../../server/graph/core/executors/autoConfirmAudit'
+
+const allowWrites = resolveAdminAutoConfirmDecision(
+  { meta: { allowRiskyWrites: true } },
+  '发邮件给王五'
+)
+assert(allowWrites.autoConfirm && allowWrites.reason === 'allowRiskyWrites', 'audit reason allowRiskyWrites')
+const auditMetric = buildAutoConfirmAuditMetric({
+  runId: 'smoke-risk-audit',
+  reason: allowWrites.reason,
+  autoConfirm: true,
+  step: '发邮件给王五'
+})
+assert(auditMetric.phase === 'auto_confirm_audit', 'audit metric phase')
+assert((auditMetric.extra as { auto_confirm_risky?: boolean }).auto_confirm_risky === true, 'audit flag')
+
+const scheduleHitl = resolveAdminAutoConfirmDecision(
+  { meta: { collaborationPosture: 'agent' } },
+  '创建明天上午10点的会议日程，标题为「项目周会」，并设置会议提醒。'
+)
+assert(!scheduleHitl.autoConfirm, 'agent schedule must HITL (no silent auto_confirm)')
+assert(
+  !resolveAdminAutoConfirm(
+    { meta: { collaborationPosture: 'agent' } },
+    '创建明天上午10点的会议日程，标题为「项目周会」'
+  ),
+  'resolveAdminAutoConfirm schedule false under agent'
+)
+const emailDec = resolveAdminAutoConfirmDecision({ meta: { collaborationPosture: 'agent' } }, '发邮件给张三')
+assert(!emailDec.autoConfirm, 'email still requires HITL under agent')
+assert(
+  !resolveAdminAutoConfirm({ meta: { collaborationPosture: 'ask' } }, '创建明天会议日程'),
+  'ask posture still bans schedule auto'
+)
+const planConfirmed = resolveAdminAutoConfirmDecision(
+  { meta: { collaborationPosture: 'plan', planConfirmed: true } },
+  '添加待办：买菜'
+)
+assert(!planConfirmed.autoConfirm, 'plan confirmed todo still HITL (pending protocol)')
+
 console.log('smoke-risk-execution-policy: ok')

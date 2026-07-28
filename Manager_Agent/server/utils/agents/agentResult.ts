@@ -1,5 +1,7 @@
 import type { AgentResult, AgentSource, CodeAgentMeta, DbResult } from './types'
 import { detectLobsterSemanticBlock } from '#agent-shared/lobsterRunVerifyLite'
+import { enforceAgentResultContract } from '#agent-shared/agentResultContract'
+import { isAdminResultProtocolGarbage } from '../route/managerSubAgentHelpers'
 
 /** E2：统一子 Agent 调用返回值（文本 + 可选结构化契约） */
 export type AgentCallResult = {
@@ -15,19 +17,23 @@ export function unwrapAgentCall(res: string | AgentCallResult): AgentCallResult 
   }
 }
 
-/** P2-1：优先采用子 Agent 服务端 agentResult，总管 wrap 仅作 fallback */
+/** P2-1：优先采用子 Agent 服务端 agentResult，总管 wrap 仅作 fallback；G1 执法 */
 export function coalesceAgentResult(server: AgentResult | null | undefined, fallback: AgentResult): AgentResult {
+  let merged: AgentResult
   if (server && typeof server === 'object' && String(server.agent || '').trim()) {
-    return {
+    merged = {
       ...fallback,
       ...server,
       trace_id: String(server.trace_id || fallback.trace_id || '').trim() || undefined,
       answer: String(server.answer || fallback.answer || '').trim() || undefined,
       sources: server.sources?.length ? server.sources : fallback.sources,
-      structured: { ...(fallback.structured || {}), ...(server.structured || {}) }
+      structured: { ...(fallback.structured || {}), ...(server.structured || {}) },
+      usage: server.usage || fallback.usage
     }
+  } else {
+    merged = fallback
   }
-  return fallback
+  return enforceAgentResultContract(merged, { defaultFailureCode: 'business' })
 }
 
 export function agentResultFromPayload(data: unknown, fallback: AgentResult): AgentResult {
@@ -54,8 +60,19 @@ function urlsFromText(text: string): AgentSource[] {
 
 export function wrapAdminResult(answer: string, traceId?: string): AgentResult {
   const tid = String(traceId || '').trim()
+  if (isAdminResultProtocolGarbage(answer)) {
+    return {
+      ok: false,
+      agent: 'admin',
+      trace_id: tid,
+      answer: '个人助手协议异常：未返回可执行结果。',
+      structured: { transport: 'ws' },
+      error_code: 'admin_protocol_garbage'
+    }
+  }
   const head = answer.slice(0, 120).toLowerCase()
   const pending = /【待确认】/.test(answer)
+  const cancelled = /未确认，未写入/.test(answer)
   const writeFail = /未能完成写操作|工具未成功|遇到.{0,4}小问题|缺少具体内容|无法成功设置/.test(answer)
   const needsClarify = /请问.*(会议|内容|标题|时间|城市)|请补充|请提供|请指定|请确认.*(时间|标题|会议)|需补充|后重试/.test(
     answer
@@ -66,6 +83,7 @@ export function wrapAdminResult(answer: string, traceId?: string): AgentResult {
     !head.includes('error') &&
     !pending &&
     !writeFail &&
+    !cancelled &&
     !needsClarify
   const clarifyQuestions = needsClarify
     ? [String(answer || '').trim()].filter((q) => q.length >= 4).slice(0, 3)
@@ -79,7 +97,15 @@ export function wrapAdminResult(answer: string, traceId?: string): AgentResult {
     structured: pending ? { needs_human_confirm: true, transport: 'ws' } : { transport: 'ws' },
     needs_clarify: needsClarify || undefined,
     clarify_questions: clarifyQuestions,
-    error_code: needsClarify ? 'needs_clarify' : writeFail ? 'admin_write_failed' : pending ? 'needs_human_confirm' : undefined
+    error_code: needsClarify
+      ? 'needs_clarify'
+      : cancelled
+        ? 'user_cancelled_admin_write'
+        : writeFail
+          ? 'admin_write_failed'
+          : pending
+            ? 'needs_human_confirm'
+            : undefined
   }
 }
 
@@ -292,8 +318,14 @@ export function wrapCodeResult(answer: string, meta?: CodeAgentMeta, traceId?: s
     const ref = String(p || '').trim()
     if (ref) sources.push({ type: 'doc', ref })
   }
+  const explicit = String((meta as { error_code?: unknown } | undefined)?.error_code || '').trim()
+  const trimmed = Boolean(answer?.trim())
+  let error_code: string | undefined
+  if (needs) error_code = 'needs_clarify'
+  else if (explicit) error_code = explicit
+  else if (!trimmed) error_code = 'empty_result'
   return {
-    ok: Boolean(answer?.trim()) && !needs,
+    ok: trimmed && !needs && !error_code,
     agent: 'code',
     trace_id: tid,
     answer,
@@ -301,6 +333,6 @@ export function wrapCodeResult(answer: string, meta?: CodeAgentMeta, traceId?: s
     structured: meta ? { ...meta } : undefined,
     needs_clarify: needs,
     clarify_questions: meta?.clarifyQuestions || meta?.questions,
-    error_code: needs ? 'needs_clarify' : undefined
+    error_code
   }
 }

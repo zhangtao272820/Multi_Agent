@@ -24,7 +24,9 @@
     "smoke:nlu-mode": "npx --yes tsx --tsconfig tsconfig.smoke.json scripts/smoke-db-nlu-mode.ts",
     "smoke:domain-modules": "npx --yes tsx --tsconfig tsconfig.smoke.json scripts/smoke-domain-modules.ts",
     "smoke:split-exports": "npx --yes tsx --tsconfig tsconfig.smoke.json scripts/smoke-split-exports.ts",
-    "smoke:all": "npm run smoke:metrics && npm run smoke:slot-ssot && npm run smoke:person && npm run smoke:nlu && npm run smoke:nlu-mode && npm run smoke:sql-path && npm run smoke:domain-modules && npm run smoke:split-exports && npm run smoke:ws-thinking"
+    "smoke:all": "npm run smoke:metrics && npm run smoke:slot-ssot && npm run smoke:person && npm run smoke:nlu && npm run smoke:nlu-mode && npm run smoke:sql-path && npm run smoke:domain-modules && npm run smoke:split-exports && npm run smoke:ws-thinking && npm run gate:nl2sql",
+    "eval:golden": "npx --yes tsx --tsconfig tsconfig.smoke.json scripts/eval-golden-person-basic-stats.ts",
+    "gate:nl2sql": "node scripts/gate-db-nl2sql-offline.mjs && npm run eval:golden"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

@@ -37,6 +37,15 @@ class ChoiceEffect(BaseModel):
     flags: dict[str, bool] = Field(default_factory=dict)
 
 
+class StoryBeat(BaseModel):
+    """专属故事幕单拍；进 prompt 只用 summary（≤80 字），不塞整幕。"""
+
+    id: str = ""
+    summary: str = ""
+    sprite_hint: list[str] = Field(default_factory=list)
+    soft_options: list[str] = Field(default_factory=list)
+
+
 class GameEvent(BaseModel):
     id: str
     label: str = ""
@@ -47,6 +56,10 @@ class GameEvent(BaseModel):
     scene_id: str = ""
     trigger: EventTrigger = Field(default_factory=EventTrigger)
     prompt_snippet: str = ""
+    """结构化节拍；有则运行时只注入当前拍。无则回退 prompt_snippet。"""
+    beats: list[StoryBeat] = Field(default_factory=list)
+    """on_player_turn=每玩家一轮推进一拍；on_choice=点选项才推进（预留）。"""
+    advance: str = "on_player_turn"
     rewards: dict[str, Any] = Field(default_factory=dict)
     choice_effects: list[ChoiceEffect] = Field(default_factory=list)
 

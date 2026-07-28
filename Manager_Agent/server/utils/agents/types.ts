@@ -26,6 +26,8 @@ export type AgentResult = {
   needs_human_confirm?: boolean
   error_code?: string
   latency_ms?: number
+  /** E3：可选用量；actual=提供商回传，缺省由总管估算 */
+  usage?: { tokens?: number; usd?: number; actual?: boolean }
   /** A2 结构化 handoff（可选，优先于全文 answer 注入父上下文） */
   handoff?: SpecialistHandoff
 }
@@ -84,6 +86,8 @@ export type CodeAgentMeta = {
   unified_diff?: string
   diff_stat?: string
   branch?: string
+  /** §2.8.5：与专家 AgentResult.error_code 对齐 */
+  error_code?: string
 }
 
 export type CodeAgentResult = {

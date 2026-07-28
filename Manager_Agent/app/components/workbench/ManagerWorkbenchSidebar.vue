@@ -15,6 +15,7 @@ const {
   obsPhaseColor,
   obsDisplayLabel,
   runTokenByAgentEntries,
+  runTokenByTierEntries,
   obsAgentColor,
   runTokenBarMax,
   planAgentLabel,
@@ -110,9 +111,53 @@ watch(localLearningChartEl, (el) => {
                   <span class="spring-run-obs-stat-icon" aria-hidden="true">◈</span>
                   <div class="spring-run-obs-stat-body">
                     <span class="spring-run-obs-stat-value">{{ formatTokenCount(runObservabilityLive.tokenSummary.totalTokens) }}</span>
-                    <span class="spring-run-obs-stat-label">Token</span>
+                    <span class="spring-run-obs-stat-label">{{
+                      runObservabilityLive?.tokenSummary?.tokenAccounting === 'actual'
+                        ? 'Token'
+                        : runObservabilityLive?.tokenSummary?.tokenAccounting === 'mixed'
+                          ? 'Token·混合'
+                          : 'Token·估算'
+                    }}</span>
                   </div>
                 </div>
+                <div
+                  v-if="runObservabilityLive?.tokenSummary?.totalUsd"
+                  class="spring-run-obs-stat-card"
+                  title="本轮估算费用"
+                >
+                  <span class="spring-run-obs-stat-icon" aria-hidden="true">$</span>
+                  <div class="spring-run-obs-stat-body">
+                    <span class="spring-run-obs-stat-value">{{
+                      Number(runObservabilityLive.tokenSummary.totalUsd).toFixed(4)
+                    }}</span>
+                    <span class="spring-run-obs-stat-label">USD</span>
+                  </div>
+                </div>
+              </div>
+              <!-- U4：能力层 tier 成本条 -->
+              <div v-if="runTokenByTierEntries.length" class="spring-run-token-chart spring-run-cost-bar">
+                <div class="spring-run-chart-label">能力层 Token（T0～T3）</div>
+                <ul class="spring-run-token-list spring-run-token-list--viz">
+                  <li
+                    v-for="([tier, tokens], i) in runTokenByTierEntries"
+                    :key="tier"
+                    class="spring-run-token-row"
+                    :style="{ '--token-color': obsAgentColor(tier), '--bar-delay': `${i * 0.06}s` }"
+                  >
+                    <div class="spring-run-token-meta">
+                      <span class="spring-run-token-agent" :title="tier">{{ tier }}</span>
+                      <span class="spring-run-token-n">{{ formatTokenCount(tokens) }}</span>
+                    </div>
+                    <div class="spring-run-token-bar">
+                      <div
+                        class="spring-run-token-fill"
+                        :style="{
+                          width: `${Math.max(4, Math.round((tokens / Math.max(1, ...runTokenByTierEntries.map(([, n]) => n))) * 100))}%`
+                        }"
+                      />
+                    </div>
+                  </li>
+                </ul>
               </div>
               <div v-if="runObservabilityLive?.phaseTimeline?.length" class="spring-run-phase-chart">
                 <div class="spring-run-chart-label">阶段耗时</div>

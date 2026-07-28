@@ -94,6 +94,7 @@ export function shouldAttemptAgenticRetry(params: {
   return (
     params.clarifyReason === "zero_hits" ||
     params.clarifyReason === "weak_evidence" ||
+    params.clarifyReason === "ambiguous_low_confidence" ||
     params.clarifyReason === "evidence_filtered_off_topic"
   );
 }

@@ -89,7 +89,11 @@ export function shouldConsiderLocalReplan(input: {
   output?: string
   error?: string
   agent?: string
+  /** 该 Agent 已 hard-down / 熔断 → 禁止烧 LLM replan */
+  expertHardDown?: boolean
+  circuitOpen?: boolean
 }): boolean {
+  if (input.expertHardDown || input.circuitOpen) return false
   const status = String(input.status || '').toLowerCase()
   if (status === 'error' || status === 'failed') return true
   const err = String(input.error || '').trim()

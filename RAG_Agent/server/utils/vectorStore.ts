@@ -12,6 +12,11 @@ import { rankBm25Docs, type Bm25Hit } from "./bm25_lexical";
 import { performOCR } from "./ocr";
 import { looksLikeHtmlDocument, stripHtmlToPlainText } from "./html_text";
 import { extractPptxText, isLegacyPptOle } from "./pptx_text";
+import {
+  buildIngestTimestamps,
+  hashCorpusText,
+  resolveSourceVersion,
+} from "./ingest_meta";
 
 const DATA_DIR = path.join(process.cwd(), ".data");
 const VECTOR_STORE_PATH = path.join(DATA_DIR, "vector_store.json");
@@ -33,7 +38,18 @@ const addDocumentsInBatches = async (store: AnyVectorStore, docs: any[]) => {
 let vectorStore: AnyVectorStore | null = null;
 let vectorBackend: "memory" | "pgvector" = "memory";
 let pgPool: Pool | null = null;
-let uploadedDocuments: { name: string; summary?: string; type: string }[] = [];
+
+export type UploadedDocMeta = {
+  name: string;
+  summary?: string;
+  type: string;
+  content_hash?: string;
+  ingest_at?: string;
+  source_version?: string;
+  chunk_count?: number;
+};
+
+let uploadedDocuments: UploadedDocMeta[] = [];
 export type KeywordCandidate = {
   pageContent: string;
   metadata: Record<string, any>;
@@ -48,6 +64,11 @@ type ProcessLimits = {
   totalChunks: number;
   totalZipEntries: number;
   totalZipUncompressedBytes: number;
+};
+
+export type ProcessDocumentOptions = {
+  /** 调用方显式版本号；缺省用 content_hash 前 12 位 */
+  source_version?: string;
 };
 
 const getDefaultLimits = (): ProcessLimits => ({
@@ -296,37 +317,61 @@ export const getUploadedDocuments = async () => {
   return uploadedDocuments;
 };
 
-export const deleteDocument = async (fileName: string) => {
-  // 确保向量存储已加载，这样元数据也会被加载
+/** H1：按 source 清除向量（不依赖元数据列表是否存在） */
+export const purgeVectorsBySource = async (fileName: string): Promise<number> => {
   await getVectorStore();
-  
-  const index = uploadedDocuments.findIndex(d => d.name === fileName);
+  if (!vectorStore) return 0;
+  let removed = 0;
+  if (vectorBackend === "memory") {
+    const memoryStore = vectorStore as MemoryVectorStore;
+    const before = memoryStore.memoryVectors?.length ?? 0;
+    memoryStore.memoryVectors = (memoryStore.memoryVectors ?? []).filter(
+      (v) => String(v.metadata?.source ?? "") !== fileName
+    );
+    removed = before - (memoryStore.memoryVectors?.length ?? 0);
+  } else {
+    const cfg = getPgRuntimeConfig();
+    const col = cfg.metadataColumnName;
+    if (pgPool) {
+      const res = await pgPool.query(
+        `DELETE FROM "${cfg.tableName}" WHERE COALESCE("${col}"->>'source','') = $1`,
+        [fileName]
+      );
+      removed = Number(res.rowCount ?? 0);
+    }
+  }
+  return removed;
+};
+
+export const countVectorsBySource = async (fileName: string): Promise<number> => {
+  await getVectorStore();
+  if (!vectorStore) return 0;
+  if (vectorBackend === "memory") {
+    const memoryStore = vectorStore as MemoryVectorStore;
+    return (memoryStore.memoryVectors ?? []).filter(
+      (v) => String(v.metadata?.source ?? "") === fileName
+    ).length;
+  }
+  const cfg = getPgRuntimeConfig();
+  const col = cfg.metadataColumnName;
+  if (!pgPool) return 0;
+  const res = await pgPool.query(
+    `SELECT COUNT(*)::int AS c FROM "${cfg.tableName}" WHERE COALESCE("${col}"->>'source','') = $1`,
+    [fileName]
+  );
+  return Number(res.rows?.[0]?.c ?? 0);
+};
+
+export const deleteDocument = async (fileName: string) => {
+  await getVectorStore();
+
+  const index = uploadedDocuments.findIndex((d) => d.name === fileName);
+  await purgeVectorsBySource(fileName);
   if (index !== -1) {
     uploadedDocuments.splice(index, 1);
-    
-    if (vectorStore) {
-      if (vectorBackend === "memory") {
-        // MemoryVectorStore：过滤内存向量实现删除
-        const memoryStore = vectorStore as MemoryVectorStore;
-        memoryStore.memoryVectors = memoryStore.memoryVectors.filter(
-          (v) => v.metadata.source !== fileName
-        );
-      } else {
-        // PGVector：按 metadata.source 物理删除
-        const cfg = getPgRuntimeConfig();
-        const col = cfg.metadataColumnName;
-        if (pgPool) {
-          await pgPool.query(
-            `DELETE FROM "${cfg.tableName}" WHERE COALESCE("${col}"->>'source','') = $1`,
-            [fileName]
-          );
-        }
-      }
-      await saveToDisk();
-    }
-    return true;
   }
-  return false;
+  await saveToDisk();
+  return index !== -1;
 };
 
 export const getVectorStore = async () => {
@@ -355,7 +400,14 @@ export type VectorStoreHealthAudit = {
   memoryVectorCount: number | null;
   consistent: boolean;
   reconciled: boolean;
+  /** 硬告警：会导致 ready=false（meta/vector 真漂移等） */
   warnings: string[];
+  /** 软告警：升级期字段缺失等，不阻断检索 */
+  softWarnings: string[];
+  /** H6：元数据缺 ingest_at 的文档占比 0～1 */
+  missingIngestAtRatio: number | null;
+  /** 元数据缺 content_hash 的文档占比 0～1 */
+  missingContentHashRatio: number | null;
 };
 
 /** pgvector / memory 与 docs_metadata 对账；ready 探针可调用 */
@@ -404,6 +456,15 @@ export async function auditVectorStoreHealth(opts?: { reconcile?: boolean }): Pr
     }
   }
 
+  const metaN = uploadedDocuments.length;
+  const missingIngestAt =
+    metaN > 0 ? uploadedDocuments.filter((d) => !String(d.ingest_at || "").trim()).length / metaN : null;
+  const missingHash =
+    metaN > 0 ? uploadedDocuments.filter((d) => !String(d.content_hash || "").trim()).length / metaN : null;
+  const softWarnings: string[] = [];
+  if ((missingIngestAt ?? 0) > 0.25) softWarnings.push("many_docs_missing_ingest_at");
+  if ((missingHash ?? 0) > 0.25) softWarnings.push("many_docs_missing_content_hash");
+
   return {
     backend: vectorBackend,
     metadataDocCount: uploadedDocuments.length,
@@ -413,6 +474,9 @@ export async function auditVectorStoreHealth(opts?: { reconcile?: boolean }): Pr
     consistent: warnings.length === 0,
     reconciled,
     warnings,
+    softWarnings,
+    missingIngestAtRatio: missingIngestAt,
+    missingContentHashRatio: missingHash,
   };
 };
 
@@ -597,8 +661,14 @@ const generateSummary = async (text: string) => {
 /**
  * 文档处理服务
  * 对应架构图中的：文档解析服务 -> 文本分块 -> 向量化存储
+ * H1：同名 upsert（先 purge）+ content_hash 幂等跳过 + ingest_at/source_version
  */
-export const processDocument = async (file: Blob | Buffer, fileName: string, limits?: ProcessLimits): Promise<number> => {
+export const processDocument = async (
+  file: Blob | Buffer,
+  fileName: string,
+  limits?: ProcessLimits,
+  opts?: ProcessDocumentOptions
+): Promise<number> => {
   const normalizeFilename = (name: string) => {
     const s = String(name || "").trim();
     if (!s) return "unknown";
@@ -664,7 +734,7 @@ export const processDocument = async (file: Blob | Buffer, fileName: string, lim
           if (effectiveLimits.totalZipUncompressedBytes > effectiveLimits.maxZipTotalUncompressedBytes) {
             throw new Error(`ZIP uncompressed data too large: ${effectiveLimits.totalZipUncompressedBytes} > ${effectiveLimits.maxZipTotalUncompressedBytes}`);
           }
-          totalChunks += await processDocument(data, entryName, effectiveLimits);
+          totalChunks += await processDocument(data, entryName, effectiveLimits, opts);
         }
       }
       return totalChunks;
@@ -674,7 +744,6 @@ export const processDocument = async (file: Blob | Buffer, fileName: string, lim
     }
   }
 
-  const store = await getVectorStore();
   let docs = [];
 
   try {
@@ -750,7 +819,19 @@ export const processDocument = async (file: Blob | Buffer, fileName: string, lim
       // 1.2 OCR 识别 (针对扫描件/图片)
       const text = await performOCR(buffer, fileName);
       const { Document } = await import("@langchain/core/documents");
-      docs = [new Document({ pageContent: text, metadata: { source: fileName, isOCR: true, fileType } })];
+      // R4：OCR/上传片段入模前打 untrusted，不得当指令
+      docs = [
+        new Document({
+          pageContent: text,
+          metadata: {
+            source: fileName,
+            isOCR: true,
+            fileType,
+            content_trust: "untrusted",
+            content_trust_source: "ocr_upload",
+          },
+        }),
+      ];
     } else if (fileType === "xlsx" || fileType === "xls") {
       const { parseSpreadsheetBuffer } = await import("./spreadsheet_parse");
       const text = parseSpreadsheetBuffer(buffer, fileName);
@@ -784,10 +865,52 @@ export const processDocument = async (file: Blob | Buffer, fileName: string, lim
 
   if (docs.length === 0) return 0;
 
-  const env = getRagAgentEnv();
-  const splitDocs = await splitDocumentsStructured(docs);
+  const inferredType = fileType === "unknown" ? "txt" : fileType;
+  return upsertParsedDocuments(docs as any[], fileName, inferredType, effectiveLimits, opts);
+};
 
-  const docsWithMetadata = splitDocs.map(doc => ({
+/**
+ * H1/H6：已解析 Document[] → hash 幂等 / purge upsert / 版本元数据
+ */
+export async function upsertParsedDocuments(
+  docs: { pageContent?: string; metadata?: Record<string, unknown> }[],
+  fileName: string,
+  fileType: string,
+  limits?: ProcessLimits,
+  opts?: ProcessDocumentOptions
+): Promise<number> {
+  const store = await getVectorStore();
+  const effectiveLimits = limits ?? getDefaultLimits();
+  if (!docs.length) return 0;
+
+  const fullText = docs.map((d) => String(d.pageContent ?? "")).join("\n");
+  const contentHash = hashCorpusText(fullText);
+  const sourceVersion = resolveSourceVersion({
+    explicit: opts?.source_version,
+    contentHash,
+  });
+  const { ingest_at, processedAt } = buildIngestTimestamps();
+
+  const existingMeta = uploadedDocuments.find((d) => d.name === fileName);
+  if (existingMeta?.content_hash && existingMeta.content_hash === contentHash) {
+    const existingCount =
+      existingMeta.chunk_count && existingMeta.chunk_count > 0
+        ? existingMeta.chunk_count
+        : await countVectorsBySource(fileName);
+    console.log(
+      `[Upload] unchanged content_hash=${contentHash.slice(0, 12)}… skip re-embed: ${fileName} (chunks=${existingCount})`
+    );
+    existingMeta.ingest_at = ingest_at;
+    existingMeta.source_version = sourceVersion;
+    existingMeta.chunk_count = existingCount;
+    await saveToDisk();
+    return existingCount;
+  }
+
+  const env = getRagAgentEnv();
+  const splitDocs = await splitDocumentsStructured(docs as any);
+
+  const docsWithMetadata = splitDocs.map((doc) => ({
     ...doc,
     metadata: {
       ...doc.metadata,
@@ -795,8 +918,11 @@ export const processDocument = async (file: Blob | Buffer, fileName: string, lim
       fileType,
       chunkSize: env.chunkSize,
       chunkOverlap: env.chunkOverlap,
-      processedAt: new Date().toISOString()
-    }
+      processedAt,
+      ingest_at,
+      source_version: sourceVersion,
+      content_hash: contentHash,
+    },
   }));
 
   const remaining = Math.max(0, effectiveLimits.maxTotalChunks - effectiveLimits.totalChunks);
@@ -804,32 +930,125 @@ export const processDocument = async (file: Blob | Buffer, fileName: string, lim
     throw new Error(`Chunk budget exceeded: ${effectiveLimits.totalChunks} >= ${effectiveLimits.maxTotalChunks}`);
   }
   if (docsWithMetadata.length > remaining) {
-    throw new Error(`Chunk budget exceeded: need ${docsWithMetadata.length}, remaining ${remaining}, max ${effectiveLimits.maxTotalChunks}`);
+    throw new Error(
+      `Chunk budget exceeded: need ${docsWithMetadata.length}, remaining ${remaining}, max ${effectiveLimits.maxTotalChunks}`
+    );
   }
-  const docsToAdd = docsWithMetadata;
-  await addDocumentsInBatches(store, docsToAdd);
-  effectiveLimits.totalChunks += docsToAdd.length;
-  
-  // 自动生成摘要
+
+  const purged = await purgeVectorsBySource(fileName);
+  if (purged > 0) {
+    console.log(`[Upload] purged ${purged} old vectors for ${fileName} before upsert`);
+  }
+
+  await addDocumentsInBatches(store, docsWithMetadata);
+  effectiveLimits.totalChunks += docsWithMetadata.length;
+
   let summary = "";
   try {
-    const fullText = docs.map(d => d.pageContent).join(" ");
     summary = await generateSummary(fullText);
   } catch (summaryErr) {
     console.warn(`[Summary Warning] Failed to generate summary for ${fileName}:`, summaryErr);
     summary = "摘要生成失败，但文档已存入向量数据库。";
   }
 
-  if (!uploadedDocuments.find(d => d.name === fileName)) {
+  const metaRow: UploadedDocMeta = {
+    name: fileName,
+    summary,
+    type: fileType,
+    content_hash: contentHash,
+    ingest_at,
+    source_version: sourceVersion,
+    chunk_count: docsWithMetadata.length,
+  };
+  const idx = uploadedDocuments.findIndex((d) => d.name === fileName);
+  if (idx === -1) {
     console.log(`[Upload Success] Document added to list: ${fileName}`);
-    uploadedDocuments.push({ name: fileName, summary, type: fileType });
+    uploadedDocuments.push(metaRow);
   } else {
-    console.log(`[Upload Success] Document updated in list: ${fileName}`);
-    const existingDoc = uploadedDocuments.find(d => d.name === fileName);
-    if (existingDoc) existingDoc.summary = summary;
+    console.log(`[Upload Success] Document upserted in list: ${fileName}`);
+    uploadedDocuments[idx] = { ...uploadedDocuments[idx], ...metaRow };
   }
-  
+
   await saveToDisk();
-  
-  return docsToAdd.length;
+  return docsWithMetadata.length;
+}
+
+/** 按原文 source 名写入纯文本语料（reindex / 测试用，不走格式解析器） */
+export async function upsertTextDocument(
+  fileName: string,
+  text: string,
+  opts?: ProcessDocumentOptions & { fileType?: string }
+): Promise<number> {
+  const { Document } = await import("@langchain/core/documents");
+  const fileType = opts?.fileType || "txt";
+  const docs = [
+    new Document({
+      pageContent: String(text ?? ""),
+      metadata: { source: fileName, fileType },
+    }),
+  ];
+  return upsertParsedDocuments(docs, fileName, fileType, undefined, opts);
+}
+
+/**
+ * H6：从已存向量按 source 重建正文后重新切分嵌入（无原始文件时的 best-effort）。
+ */
+export const reindexAllFromStore = async (): Promise<{ sources: number; chunks: number }> => {
+  await getVectorStore();
+  const bySource = new Map<string, { texts: string[]; fileType: string }>();
+
+  const push = (source: string, text: string, fileType?: string) => {
+    const s = String(source || "").trim();
+    const t = String(text || "").trim();
+    if (!s || !t) return;
+    const row = bySource.get(s) ?? { texts: [], fileType: fileType || "txt" };
+    if (fileType) row.fileType = fileType;
+    row.texts.push(t);
+    bySource.set(s, row);
+  };
+
+  if (vectorBackend === "memory") {
+    const memoryStore = vectorStore as MemoryVectorStore;
+    for (const v of memoryStore.memoryVectors ?? []) {
+      const meta = v.metadata ?? {};
+      const parent = String(meta.parent_text ?? "").trim();
+      const text = parent || String((v as any).content ?? (v as any).pageContent ?? "").trim();
+      push(String(meta.source ?? ""), text, String(meta.fileType ?? "") || undefined);
+    }
+  } else if (pgPool) {
+    const cfg = getPgRuntimeConfig();
+    const res = await pgPool.query(
+      `SELECT "${cfg.contentColumnName}" AS content, "${cfg.metadataColumnName}" AS metadata FROM "${cfg.tableName}"`
+    );
+    for (const row of res.rows ?? []) {
+      const meta = row.metadata ?? {};
+      const parent = String(meta.parent_text ?? "").trim();
+      const text = parent || String(row.content ?? "").trim();
+      push(String(meta.source ?? ""), text, String(meta.fileType ?? "") || undefined);
+    }
+  }
+
+  // 快照后再写，避免边扫边改
+  const snapshot = [...bySource.entries()];
+  let totalChunks = 0;
+  for (const [source, { texts, fileType }] of snapshot) {
+    const sorted = [...texts].sort((a, b) => b.length - a.length);
+    const kept: string[] = [];
+    for (const t of sorted) {
+      if (kept.some((u) => u.includes(t))) continue;
+      // 去掉被本段包含的更短段
+      for (let i = kept.length - 1; i >= 0; i--) {
+        if (t.includes(kept[i]!)) kept.splice(i, 1);
+      }
+      kept.push(t);
+    }
+    const merged = kept.join("\n\n");
+    const existing = uploadedDocuments.find((d) => d.name === source);
+    const n = await upsertTextDocument(source, merged, {
+      fileType: existing?.type || fileType || "txt",
+      source_version: existing?.source_version,
+    });
+    totalChunks += n;
+  }
+  return { sources: snapshot.length, chunks: totalChunks };
 };

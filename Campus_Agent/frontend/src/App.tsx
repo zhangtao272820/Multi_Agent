@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   advancePeriod,
+  advanceSkip,
   askOut,
   chatWith,
   clubActivity,
@@ -20,10 +21,20 @@ import { BoardOverlay } from "./components/BoardOverlay";
 import { CampusMapScreen, LocationScreen } from "./components/CampusScreens";
 import { CoachOverlay, isCoachDone } from "./components/CoachOverlay";
 import { EndingScreen } from "./components/EndingScreen";
+import { PeriodRecapOverlay } from "./components/PeriodRecapOverlay";
 import { PortraitModal, type PortraitTarget } from "./components/PortraitModal";
 import { TalkScreen, type InteractVerb } from "./components/TalkScreen";
 import { CreatePcScreen, SavePickerScreen, TitleScreen } from "./components/TitleAndCreate";
-import type { BoardState, CampusMeta, EndingState, HubState, ScreenId, StudentPublic, TalkPrep } from "./types";
+import type {
+  BoardState,
+  CampusMeta,
+  EndingState,
+  HubState,
+  PeriodRecap,
+  ScreenId,
+  StudentPublic,
+  TalkPrep,
+} from "./types";
 
 function applyHub(next: HubState, setHub: (h: HubState) => void, setScreen: (s: ScreenId) => void, setEnding: (e: EndingState | null) => void) {
   setHub(next);
@@ -48,6 +59,8 @@ export default function App() {
   const [portrait, setPortrait] = useState<PortraitTarget | null>(null);
   const [ending, setEnding] = useState<EndingState | null>(null);
   const [coachOpen, setCoachOpen] = useState(false);
+  const [recap, setRecap] = useState<PeriodRecap | null>(null);
+  const [recapOpen, setRecapOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -131,6 +144,17 @@ export default function App() {
     }
   }
 
+  function showRecapFromHub(next: HubState) {
+    if (next.period_recap && !next.ended) {
+      setRecap(next.period_recap);
+      setRecapOpen(true);
+    } else if (next.period_summary) {
+      setToast(next.period_summary);
+    } else if (next.active_event) {
+      setToast(`${next.active_event.label}：${next.active_event.blurb}`);
+    }
+  }
+
   async function handleAdvance() {
     setBusy(true);
     try {
@@ -138,11 +162,59 @@ export default function App() {
       applyHub(next, setHub, setScreen, setEnding);
       if (next.ended && next.ending) {
         setToast(next.period_summary || "高考日到了");
-      } else if (next.period_summary) {
-        setToast(next.period_summary);
-      } else if (next.active_event) {
-        setToast(`${next.active_event.label}：${next.active_event.blurb}`);
+        setRecapOpen(false);
+      } else {
+        showRecapFromHub(next);
       }
+    } catch (e) {
+      setToast(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleAdvanceSkip() {
+    setBusy(true);
+    try {
+      const next = await advanceSkip();
+      applyHub(next, setHub, setScreen, setEnding);
+      if (next.ended && next.ending) {
+        setToast(next.period_summary || "高考日到了");
+        setRecapOpen(false);
+      } else {
+        showRecapFromHub(next);
+      }
+    } catch (e) {
+      setToast(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleEventTalk(npcId: string, locationId?: string | null) {
+    setBusy(true);
+    setRecapOpen(false);
+    try {
+      let loc = locationId || null;
+      const snapshot = hub;
+      if (!loc && snapshot) {
+        for (const L of snapshot.locations) {
+          if ((L.present_preview || []).some((p) => p.id === npcId)) {
+            loc = L.id;
+            break;
+          }
+        }
+      }
+      loc = loc || snapshot?.location_id || "classroom";
+      const moved = await travelTo(loc);
+      setHub(moved);
+      if (!moved.present.some((p) => p.id === npcId)) {
+        setToast("对方此刻不在该地点，可推进时段后再试");
+        return;
+      }
+      const prep = await prepareTalk(npcId);
+      setTalk(prep);
+      setScreen("talk");
     } catch (e) {
       setToast(e instanceof Error ? e.message : String(e));
     } finally {
@@ -409,10 +481,12 @@ export default function App() {
           onEnter={handleTravel}
           onSelectPerson={handleSelectPerson}
           onAdvance={handleAdvance}
+          onAdvanceSkip={handleAdvanceSkip}
           onBoard={handleBoard}
           onSave={handleSave}
           onTitle={() => setScreen("title")}
           onIntent={handleIntent}
+          onEventTalk={handleEventTalk}
           onWeekendRoam={async () => {
             setBusy(true);
             try {
@@ -448,12 +522,14 @@ export default function App() {
             setScreen("map");
           }}
           onAdvance={handleAdvance}
+          onAdvanceSkip={handleAdvanceSkip}
           onBoard={handleBoard}
           onTalk={handleTalk}
           onStudy={handleStudy}
           onAskOut={handleAskOut}
           onClub={handleClub}
           onSpot={handleSpot}
+          onEventTalk={handleEventTalk}
         />
       )}
       {screen === "talk" && talk && hub && (
@@ -508,6 +584,19 @@ export default function App() {
       {hub && (
         <CoachOverlay dayIndex={hub.calendar.day_index} open={coachOpen} onClose={() => setCoachOpen(false)} />
       )}
+
+      <PeriodRecapOverlay
+        recap={recap}
+        open={recapOpen}
+        onClose={() => setRecapOpen(false)}
+        onTalkIntent={(fromId, locationId) => {
+          setRecapOpen(false);
+          void handleIntent(fromId, locationId);
+        }}
+        onTalkEvent={(npcId, locationId) => {
+          void handleEventTalk(npcId, locationId);
+        }}
+      />
     </div>
   );
 }

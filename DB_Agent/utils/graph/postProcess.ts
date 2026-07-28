@@ -105,6 +105,16 @@ export function createPostGraphStep(deps: PostGraphDeps) {
         routeReason = "";
       }
       const blueprintEnv = getDbAgentBlueprintEnv();
+      const failReason = String(state.sql_direct_fail_reason || ctx?.reason || "").trim();
+      const errorCode = (() => {
+        if (!empty) return undefined;
+        if (failReason === "no_schema_ground" || (!tables.length && !primaryTables.length && !ans)) {
+          return "schema_miss";
+        }
+        if (failReason.includes("timeout")) return "timeout";
+        if (failReason.includes("empty") || empty) return "empty_result";
+        return "business";
+      })();
       setRunMeta({
         path,
         data_domain: plan.data_domain,
@@ -141,6 +151,10 @@ export function createPostGraphStep(deps: PostGraphDeps) {
         structural_plan_used: Boolean(state.structural_plan_used),
         manager_plan_used: Boolean(state.manager_plan_used),
         llm_calls: getLlmCallCount(),
+        // D1：空结果/失败码写入 meta；后续友好话术不得冲掉
+        empty,
+        error_code: errorCode,
+        fail_reason: empty ? failReason || "empty_or_weak_answer" : undefined,
       });
 
       const clarified = String(state.clarification_question || "").trim();
@@ -158,6 +172,9 @@ export function createPostGraphStep(deps: PostGraphDeps) {
           clarification_suggestions: suggestions,
           data_domain: plan.data_domain,
           intent: plan.intent,
+          empty: false,
+          error_code: "needs_clarify",
+          fail_reason: "needs_clarification",
         });
       }
 

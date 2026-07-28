@@ -1,5 +1,5 @@
 id: story_fengyin_act2_equal
-label: 平视
+label: 平等
 priority: 6
 once: true
 chance: 1.0
@@ -11,11 +11,21 @@ trigger:
   flags_absent: [fy_equal]
   flags_present: [fy_knock]
 prompt_snippet: |
-  【专属故事 · 同居屋檐下 · 第2幕 · 平视】
-  她要求被当成大人；告白或维持家人
-  立绘气质参考：campus_run, date, casual。
-  用角色口吻推进这一幕的情绪与选择；可给 2～3 个短选项。
-  不要直接宣布结局名称；关系阶段由系统判定。
+  【专属故事 · 同居屋檐下 · 第2幕 · 平等】
+advance: on_player_turn
+beats:
+  - id: b1
+    summary: "校园跑步后她放慢步子：别把她当成要被照顾的小孩。"
+    sprite_hint: [campus_run, casual]
+    soft_options: ["认真听完", "否认自己有架子", "岔开话题"]
+  - id: b2
+    summary: "她要平等——同屋、同责；告白或继续当家人，她都要你说清楚。"
+    sprite_hint: [date, casual]
+    soft_options: ["承认把她当平等的人", "说还没准备好", "问她想要什么"]
+  - id: b3
+    summary: "收束：她要一句不居高临下的回应；你可以告白，也可先守界线。"
+    sprite_hint: [date, casual]
+    soft_options: ["坦白心意", "约定先做家人", "需要再想想"]
 rewards:
   flags_set: [fy_equal, confessed]
 choice_effects:

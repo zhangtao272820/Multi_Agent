@@ -32,12 +32,29 @@ try {
   assert(telemetry.circuitStreakThreshold === 2, 'telemetry threshold')
 
   telemetry.recordAgentFailure('db')
-  assert(!telemetry.runtimeCircuitOpenAgents.has('db'), '1 fail no circuit')
+  assert(!telemetry.runtimeCircuitOpenAgents.has('db'), '1 soft fail no circuit')
   assert(telemetry.getAgentFailureStreak('db') === 1, 'streak 1')
 
   telemetry.recordAgentFailure('db')
-  assert(telemetry.runtimeCircuitOpenAgents.has('db'), '2 fails open circuit')
+  assert(telemetry.runtimeCircuitOpenAgents.has('db'), '2 soft fails open circuit')
   assert(telemetry.getAgentFailureStreak('db') === 2, 'streak 2')
+
+  // 硬失败：一次即开路 + hard-down
+  const telHard = createAgentRunTelemetry({ globalTimeoutMs: 60_000, timeLeftMs: () => 60_000 })
+  telHard.recordAgentFailure('rag', { errorCode: 'network', error: new Error('ECONNREFUSED') })
+  assert(telHard.isExpertHardDown('rag'), 'hard down immediate')
+  assert(telHard.runtimeCircuitOpenAgents.has('rag'), 'hard opens circuit')
+  const hardPre = precheckAgentStep({
+    stepAgent: 'rag',
+    stepId: 'h1',
+    agent: 'rag',
+    effQuery: 'q',
+    plannedInTask: true,
+    schedulerSkipAgents: [],
+    schedulerDegradeOptionalAgents: [],
+    telemetry: telHard
+  })
+  assert(hardPre.action === 'skip' && hardPre.policy === 'expert_hard_down', 'hard-down skip')
 
   const coreSkip = precheckAgentStep({
     stepAgent: 'db',

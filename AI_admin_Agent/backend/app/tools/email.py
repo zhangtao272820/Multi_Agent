@@ -142,8 +142,17 @@ def get_email_detail(email_id: int, session_id: str = "default") -> dict:
             "body": body or "（无正文）",
             "message_id": (msg.get("Message-ID") or meta.get("message_id") or "").strip(),
         }
+        # A1：邮件正文不可信 — 结构化打标，禁止当指令
+        from app.core.content_trust import mark_payload_untrusted, wrap_untrusted_content
+
+        detail = mark_payload_untrusted(detail, "email")
+        preview = wrap_untrusted_content(
+            source="email",
+            text=f"主题：{subject}\n发件人：{detail.get('sender')}\n\n{body or '（无正文）'}",
+            max_chars=4000,
+        )
         return _tool_ok(
-            f"邮件 #{email_id}：{subject}",
+            preview or f"邮件 #{email_id}：{subject}",
             data=detail,
             code="email_detail_ok",
         )

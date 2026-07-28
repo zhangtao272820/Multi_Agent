@@ -5,6 +5,7 @@ import {
   resolveManagerRetryLimits
 } from '../../core/runtime/retryBudget'
 import { criticRetryContradictsRunEvidence } from '../../core/output/criticEvidence'
+import { detectAdminWriteTerminalFailure } from '../../core/runtime/adminWriteTerminal'
 
 import { detectGuiSemanticBlockFromState } from '../../../utils/gui/guiHumanConfirm'
 import type { CreateOptimizerNodeDeps } from './types'
@@ -70,12 +71,17 @@ export function createOptimizerNode(deps: CreateOptimizerNodeDeps) {
       evaluation: state?.evaluation
     })
     const guiSemanticBlock = detectGuiSemanticBlockFromState(state)
+    const adminTerminal = detectAdminWriteTerminalFailure(state)
 
     let action: 'clarify' | 'fix' | 'verifier' | 'replan_multi' = 'verifier'
     let reason = 'evidence_good'
     if (guiSemanticBlock.blocked) {
       action = hasAnswer ? 'verifier' : 'clarify'
       reason = 'gui_semantic_blocked'
+    } else if (adminTerminal.terminal) {
+      // 取消 / 协议垃圾 / 写失败：禁止 quality_repair 多轮复读 preamble
+      action = canClarify || evalRec === 'clarify' ? 'clarify' : 'verifier'
+      reason = 'admin_write_terminal_no_repair'
     } else if (pendingRepair && criticRetryOverridden) {
       action = 'verifier'
       reason = 'critic_retry_overridden_by_evidence'
@@ -144,9 +150,10 @@ export function createOptimizerNode(deps: CreateOptimizerNodeDeps) {
     return {
       optimizer: { action, reason, at: new Date().toISOString() },
       fixQuery: '',
-      fixIntent: undefined
+      fixIntent: undefined,
+      ...(adminTerminal.terminal
+        ? { meta: { ...(state?.meta || {}), adminWriteTerminal: true, finalSynthPass: true } }
+        : {})
     }
   }
 }
-
-

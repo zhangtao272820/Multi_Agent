@@ -668,6 +668,11 @@ export function getEmbeddingModel(config: EmbeddingClientConfig): OpenAIEmbeddin
     model: modelName,
     dimensions: dims,
     configuration: { baseURL: baseUrl },
+    timeout: (() => {
+      const n = Number(process.env.AGENT_EMBEDDING_TIMEOUT_MS || 12_000);
+      return Number.isFinite(n) && n >= 3_000 ? Math.min(60_000, Math.floor(n)) : 12_000;
+    })(),
+    maxRetries: 0,
   });
   embeddingModelCache.set(key, emb);
   return emb;

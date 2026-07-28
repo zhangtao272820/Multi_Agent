@@ -9,6 +9,7 @@ import type { RagProbeHint } from '../probe/retrieverPlan'
 import type { RagRetrievePrefetchResult } from '../rag/ragPrefetch'
 import { ragRetrieveCallOptions } from '../rag/ragRetrievePolicy'
 import type { RagRetrieveAttemptMode } from '../rag/ragRetrievePolicy'
+import { isHardExpertFailureRaw } from '../runtime/expertFailure'
 import { extractStructuredPayload } from '../shared'
 import { countRagEvidenceUnits, RAG_EMPTY_EVIDENCE_CLARIFY } from './sharedHelpers'
 import type { AgentExecutorOpts, AgentStepOutcome } from './types'
@@ -71,19 +72,51 @@ export function finishRagFastPath(
   input: { leanRagQuery: string; sendThinking: (t: string) => void; sendDelta?: (d: string) => void },
   opts: AgentExecutorOpts,
   probeRag: { hits?: number; sources?: string[]; snippets?: string[] } | null | undefined,
-  fast: { answer: string; evidence: Record<string, unknown>; agentResult?: import('../../utils/agents/types').AgentResult },
+  fast: {
+    answer?: string
+    evidence?: Record<string, unknown>
+    agentResult?: import('../../utils/agents/types').AgentResult
+    hardFailure?: boolean
+    error_code?: string
+  },
   label: string
 ): AgentStepOutcome {
+  // R3：向量未就绪 / 超时 — 可解释失败，禁止扮成快路径成功
+  if (fast.hardFailure) {
+    const code = String(fast.error_code || fast.agentResult?.error_code || 'business').trim()
+    const msg =
+      code === 'vector_not_ready'
+        ? '知识库向量服务未就绪，本步已跳过。请稍后重试或检查 RAG 向量库。'
+        : code === 'timeout'
+          ? '知识库检索超时，本步已停止等待。'
+          : `知识库检索失败（${code}）。`
+    input.sendThinking(`RAG Agent：${msg}`)
+    return {
+      ok: false,
+      agent: 'rag',
+      output: msg,
+      query: input.leanRagQuery,
+      error: code,
+      evidence: {
+        kind: 'rag',
+        query: input.leanRagQuery,
+        error_code: code,
+        ...(fast.evidence || {})
+      },
+      meta: fast.agentResult ? { agentResult: fast.agentResult } : { agentResult: { ok: false, agent: 'rag', error_code: code } }
+    }
+  }
+  const answer = String(fast.answer || '')
   input.sendThinking(label)
-  input.sendDelta?.(fast.answer)
-  opts.sendEvent({ event: 'delta', data: fast.answer, from: 'rag' })
-  const evidenceUnits = countRagEvidenceUnits(fast.evidence, probeRag)
+  input.sendDelta?.(answer)
+  opts.sendEvent({ event: 'delta', data: answer, from: 'rag' })
+  const evidenceUnits = countRagEvidenceUnits(fast.evidence || {}, probeRag)
   return {
     ok: true,
     agent: 'rag',
-    output: fast.answer,
+    output: answer,
     query: input.leanRagQuery,
-    parsed: extractStructuredPayload(fast.answer),
+    parsed: extractStructuredPayload(answer),
     evidence: fast.evidence,
     meta: fast.agentResult ? { agentResult: fast.agentResult } : undefined,
     clarifyQuestions: evidenceUnits === 0 ? [...RAG_EMPTY_EVIDENCE_CLARIFY] : undefined
@@ -144,6 +177,36 @@ export async function tryRagRetrieveAlignedPath(input: {
           signal: input.opts.signal
         })
   const rawEvidence = Array.isArray(data?.evidence) ? data!.evidence! : []
+  // R3 / fail-fast：硬失败向上抛带码结构，勿静默当空检索再叠 chat
+  const failCode = String(data?.error_code || data?.agentResult?.error_code || '').trim()
+  if (!data) {
+    return {
+      kind: 'rag',
+      query: input.leanRagQuery,
+      hits: 0,
+      citations: [],
+      hardFailure: true,
+      error_code: 'network'
+    } as any
+  }
+  if (
+    data.ok === false &&
+    (failCode === 'vector_not_ready' ||
+      failCode === 'timeout' ||
+      failCode === 'http_5xx' ||
+      failCode === 'network' ||
+      isHardExpertFailureRaw(failCode))
+  ) {
+    return {
+      kind: 'rag',
+      query: input.leanRagQuery,
+      hits: 0,
+      citations: [],
+      agentResult: data.agentResult,
+      hardFailure: true,
+      error_code: failCode || 'network'
+    } as any
+  }
   const judged = await judgeFilterRagEvidence(input.ragEvidenceMatchJudge, input.leanRagQuery, rawEvidence, {
     probeHits,
     bypassJudge

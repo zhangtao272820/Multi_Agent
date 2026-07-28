@@ -46,6 +46,8 @@ import {
 } from "./sub_query_retrieval";
 import { judgeDocScope, getRagRequestIntent } from "./doc_scope_judge";
 import { condenseRetrievalQuery } from "./query_condense";
+import { expandDocsToParent } from "./parent_expand";
+import { mmrSelect } from "./mmr_select";
 import {
   buildClarifyMessage,
   buildExplicitDocNotFoundMessage,
@@ -94,6 +96,8 @@ export type DocumentRetrievalResult = {
   agenticRounds?: number;
   rerankMode?: string;
   clarifyReason?: string;
+  /** H4：zero_hits | weak_evidence | ambiguous_low_confidence | … */
+  retrievalFailureMode?: string;
   experienceHits?: number;
   abVariant?: string;
   banditArm?: string;
@@ -799,10 +803,26 @@ export async function runDocumentRetrieval(input: {
   const keywordCount = tokenizeForKeywordSearch(effectiveQuery).length;
   const tooVagueQuery = keywordCount < 2 && entityTermCount < 1;
   const topScore = coverageMergedDocs[0]?.score ?? 0;
+  const secondScore = coverageMergedDocs[1]?.score ?? 0;
+  const scoreGap = topScore - secondScore;
+  /** H4：Top1 偏低且与 Top2 分差过小 → 证据ambiguous，走 Corrective */
+  const ambiguousLowConfidence =
+    !tooVagueQuery &&
+    coverageMergedDocs.length >= 2 &&
+    topScore > 0 &&
+    topScore <= env.correctiveAmbiguousTopMax &&
+    scoreGap < env.correctiveMinScoreGap;
   const zeroHits =
     semanticMap.size === 0 && keywordMap.size === 0 && bm25Map.size === 0 && coverageMergedDocs.length === 0;
   const weakEvidence =
-    zeroHits || (coverageMergedDocs.length === 0 && tooVagueQuery);
+    zeroHits || (coverageMergedDocs.length === 0 && tooVagueQuery) || ambiguousLowConfidence;
+  const retrievalFailureMode = zeroHits
+    ? "zero_hits"
+    : ambiguousLowConfidence
+      ? "ambiguous_low_confidence"
+      : weakEvidence
+        ? "weak_evidence"
+        : undefined;
 
   const persistSuccessExperience = (items: EvidenceItem[]) => {
     if (!env.enableVectorExperience || items.length === 0 || skipSlowAugments) return;
@@ -827,6 +847,15 @@ export async function runDocumentRetrieval(input: {
   };
 
   const finish = (extra?: { weak_evidence?: boolean; reason?: string }) => {
+    const refused =
+      Boolean(extra?.weak_evidence) ||
+      extra?.reason === "needs_clarify" ||
+      String(extra?.reason || "").includes("clarify");
+    const empty_evidence =
+      Boolean(extra?.weak_evidence) ||
+      extra?.reason === "zero_hits" ||
+      extra?.reason === "weak_evidence" ||
+      extra?.reason === "empty_result";
     recordRagQueryMetric({
       path: "document_query",
       ok: !extra?.weak_evidence,
@@ -841,6 +870,9 @@ export async function runDocumentRetrieval(input: {
       rerank_mode: rerankMode,
       ab_variant: promptAbVariant,
       bandit_arm: banditArm,
+      refused,
+      empty_evidence,
+      error_code: refused ? "needs_clarify" : empty_evidence ? "empty_result" : undefined,
     });
     recordPromptAbObservation(promptAbVariant, !extra?.weak_evidence);
     const elapsedMs = Date.now() - retrievalStartedAt;
@@ -857,7 +889,11 @@ export async function runDocumentRetrieval(input: {
         enabled: env.enableAgenticRetrieval,
         attempt: agenticAttempt,
         maxRounds: env.agenticMaxRounds,
-        clarifyReason: zeroHits ? "zero_hits" : "weak_evidence",
+        clarifyReason: zeroHits
+          ? "zero_hits"
+          : ambiguousLowConfidence
+            ? "ambiguous_low_confidence"
+            : "weak_evidence",
         turboRetrieval,
       })
     ) {
@@ -867,7 +903,7 @@ export async function runDocumentRetrieval(input: {
         attempt: agenticAttempt + 1,
         priorQueries: [...(params._priorQueries ?? []), effectiveQuery],
         learningHints: learning?.similarPositiveQueries,
-        retrievalFailureMode: zeroHits ? "zero_hits" : "weak_evidence",
+        retrievalFailureMode: retrievalFailureMode || (zeroHits ? "zero_hits" : "weak_evidence"),
         docCatalog: uploadedDocs,
       });
       return runDocumentRetrieval({
@@ -889,9 +925,9 @@ export async function runDocumentRetrieval(input: {
       question: effectiveQuery,
       intent: ragPlan.intent,
       routing_mode: String(routingDecision.routingMode || ""),
-      reason: "weak_evidence",
+      reason: retrievalFailureMode || "weak_evidence",
     });
-    const clarifyTag = zeroHits ? "zero_hits" : "weak_evidence";
+    const clarifyTag = retrievalFailureMode || (zeroHits ? "zero_hits" : "weak_evidence");
     const output = `${routingExplainBlock(routingDecision, routedSources)}${formatClarifyEnvelope(effectiveQuery, clarify, clarifyTag)}`;
     return {
       output,
@@ -903,6 +939,7 @@ export async function runDocumentRetrieval(input: {
       routingMode: String(routingDecision.routingMode || ""),
       agenticRounds: agenticAttempt,
       clarifyReason: clarifyTag,
+      retrievalFailureMode: clarifyTag,
       experienceHits,
       abVariant: promptAbVariant,
       banditArm,
@@ -959,7 +996,7 @@ export async function runDocumentRetrieval(input: {
     ).slice(0, rerankPoolSize);
   }
 
-  let results = uniqueDocs.slice(0, maxResults);
+  let results = uniqueDocs.slice(0, Math.max(maxResults * 2, maxResults));
   const rerankCandidates = uniqueDocs.slice(0, rerankPoolSize);
   if (
     !params.skipLlmRerank &&
@@ -979,16 +1016,32 @@ ${rerankCandidates.map((d, i) => `[ID ${i}] [来源 ${resolveSourceLabel(d.metad
       .filter((id) => Number.isInteger(id) && id >= 0 && id < rerankCandidates.length);
     const topDocs = topIds.map((id) => rerankCandidates[id]).filter(Boolean);
     if (topDocs.length >= Math.min(2, maxResults)) {
-      results = topDocs.slice(0, maxResults);
+      results = topDocs.slice(0, Math.max(maxResults * 2, maxResults));
     } else {
       const baseDocs = uniqueDocs.slice(0, Math.min(Math.max(env.rerankKeepTopBase, maxResults - 1), uniqueDocs.length));
       const merged = uniqBy([...topDocs, ...baseDocs], (d) => {
         const label = resolveSourceLabel(d?.metadata ?? {}, routedSources);
         return `${label}:${String(d?.pageContent ?? "").slice(0, 120)}`;
       });
-      results = (merged.length > 0 ? merged : rerankCandidates).slice(0, maxResults);
+      results = (merged.length > 0 ? merged : rerankCandidates).slice(0, Math.max(maxResults * 2, maxResults));
     }
   }
+
+  // H3：MMR 去冗余（在 parent expand 前，对子块候选打散）
+  if (env.enableMmr && results.length > maxResults) {
+    results = mmrSelect(
+      results.map((doc, i) => ({
+        item: doc,
+        relevance: results.length - i,
+        text: String(doc?.pageContent ?? ""),
+      })),
+      Math.max(maxResults + 2, maxResults),
+      env.mmrLambda
+    );
+  }
+
+  // H2：子块 → 父块文本扩展并去重
+  results = expandDocsToParent(results, env.enableParentExpand).slice(0, maxResults);
 
   const content = results
     .map((r) => {
@@ -998,10 +1051,17 @@ ${rerankCandidates.map((d, i) => `[ID ${i}] [来源 ${resolveSourceLabel(d.metad
     .join("\n\n");
 
   const buildEvidenceFromResults = () =>
-    results.slice(0, maxEvidence).map((r) => ({
-      content: String(r.pageContent ?? ""),
-      source: resolveSourceLabel(r.metadata ?? {}, routedSources) || "unknown",
-    }));
+    results.slice(0, maxEvidence).map((r) => {
+      const meta = (r.metadata ?? {}) as Record<string, unknown>
+      const ingestAt = String(meta.ingest_at || meta.ingestAt || meta.uploaded_at || meta.created_at || '').trim()
+      const sourceVersion = String(meta.source_version || meta.version || meta.doc_version || '').trim()
+      return {
+        content: String(r.pageContent ?? ''),
+        source: resolveSourceLabel(meta, routedSources) || 'unknown',
+        ...(ingestAt ? { ingest_at: ingestAt } : {}),
+        ...(sourceVersion ? { source_version: sourceVersion } : {})
+      }
+    })
 
   let evidence: EvidenceItem[] = [];
   if (turboRetrieval) {

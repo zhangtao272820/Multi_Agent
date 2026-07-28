@@ -1,5 +1,6 @@
 import type { WsHandlerContext, ParsedWsMessage } from './types'
-import { crypto, RunIdSchema, createManagerGraph, buildManagerGraphInvokeConfig, buildManagerTurnInvokeState, composeFinalBundleFromGraphResult, buildHumanConfirmCheckpoint, pickRicherFinalText, saveHumanConfirmCheckpoint, isSynthRejectingMedia, resolveManagerLlmConfig, resolveAgentEndpointsWithPlatform, buildGraphHistoryMessages, buildSummarizeWithLlmFn, graphAgentEndpoints, buildRagHistoryForRun, sanitizeHistoryText, detectClarifyFollowUp, clarifyReplanMetaPatch, ingestTaskStackFromUserMessage, withAgentTraceContext, emitRunObservability, emitAdminHumanConfirmRequest, isHumanConfirmClarification, pauseAdminConfirmMessage, loadTaskStack, path, runs, runMeta, sessionMeta, sessions, readSession, writeSession, buildUserContent, stripAttachmentSuffix, resolveUserMessageSessionIndex, pruneAutoUserTasksOnEditResend, policyDataDir, emitImplicitLearning, allowRate, nowMs, isRunAbortError, useRuntimeConfig } from './wsBarrel'
+import { tryAcquireRunSlot, releaseRunSlot } from '../../../graph/core/runtime/backpressure'
+import { crypto, RunIdSchema, createManagerGraph, buildManagerGraphInvokeConfig, buildManagerTurnInvokeState, composeFinalBundleFromGraphResult, buildHumanConfirmCheckpoint, pickRicherFinalText, saveHumanConfirmCheckpoint, isSynthRejectingMedia, resolveManagerLlmConfig, resolveAgentEndpointsWithPlatform, buildCompactedHistoryWithStats, buildSummarizeWithLlmFn, graphAgentEndpoints, buildRagHistoryForRun, sanitizeHistoryText, detectClarifyFollowUp, clarifyReplanMetaPatch, ingestTaskStackFromUserMessage, withAgentTraceContext, emitRunObservability, emitAdminHumanConfirmRequest, isHumanConfirmClarification, pauseAdminConfirmMessage, loadTaskStack, path, runs, runMeta, sessionMeta, sessions, readSession, writeSession, buildUserContent, stripAttachmentSuffix, resolveUserMessageSessionIndex, pruneAutoUserTasksOnEditResend, policyDataDir, emitImplicitLearning, allowRate, nowMs, isRunAbortError, useRuntimeConfig } from './wsBarrel'
 
 export async function handleChat(ctx: WsHandlerContext, payload: ParsedWsMessage) {
   const { peer, peerKey, send, sessionId, boundUserId, tenantId, explicitUserId, platformTraceId, payloadRaw } = ctx
@@ -98,6 +99,11 @@ if (!allowRate(`${peerKey}:chat`, 8, 30_000)) {
     runMeta.delete(prevRunId)
     send('status', { status: 'canceled_by_new_chat', runId: prevRunId }, 'manager', prevRunId)
   }
+  const runSlot = tryAcquireRunSlot()
+  if (!runSlot.ok) {
+    send('error', { error_code: 'overloaded', message: runSlot.reason }, 'manager')
+    return
+  }
    const runId = crypto.randomUUID()
   if (!RunIdSchema.safeParse(runId).success) {
     send('error', 'runId 生成失败', 'manager')
@@ -116,9 +122,9 @@ if (!allowRate(`${peerKey}:chat`, 8, 30_000)) {
           openaiBaseUrl: llm.openaiBaseUrl
         })
       : Promise.resolve()
-     const [endpointResolved, history] = await Promise.all([
+     const [endpointResolved, historyPack] = await Promise.all([
       resolveAgentEndpointsWithPlatform(process.env),
-      buildGraphHistoryMessages({
+      buildCompactedHistoryWithStats({
         messages: session.messages,
         sanitize: sanitizeHistoryText,
         summarizeWithLlm: buildSummarizeWithLlmFn({
@@ -130,6 +136,21 @@ if (!allowRate(`${peerKey}:chat`, 8, 30_000)) {
       }),
       ingestPromise
     ])
+    const history = historyPack.messages
+    if (historyPack.compacted) {
+      send(
+        'conversation_compact',
+        {
+          compacted: true,
+          fullChars: historyPack.fullChars,
+          compactChars: historyPack.compactChars,
+          savedRatio: Math.round(historyPack.savedRatio * 1000) / 1000,
+          turns: session.messages.length
+        },
+        'manager',
+        runId
+      )
+    }
      const graph = createManagerGraph({
       openaiApiKey: llm.openaiApiKey,
       openaiBaseUrl: llm.openaiBaseUrl,
@@ -258,6 +279,7 @@ if (!allowRate(`${peerKey}:chat`, 8, 30_000)) {
       send('error', String(e?.message || e || 'unknown error'), 'manager', runId)
     }
   } finally {
+    releaseRunSlot()
     runs.delete(runId)
     runMeta.delete(runId)
     const sMeta = sessionMeta.get(sessionId)

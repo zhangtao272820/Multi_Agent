@@ -67,6 +67,7 @@ import {
   assessEvidenceGate,
   hasDbEvidenceInRun
 } from '../../core/db/evidenceGate'
+import { appendMetrics } from '../../core/runtime/runtimePersistence'
 import {
   criticRetryContradictsRunEvidence,
   formatEvaluatorForCriticAudit,
@@ -177,6 +178,14 @@ export function buildFinalizeNodeRun(deps: CreateFinalNodesDeps) {
           results: state.results,
           evidence: state.evidence
         })
+        void appendMetrics({
+          runId: opts.runId,
+          phase: 'evidence_gate',
+          ms: 0,
+          ok: evidenceGate.pass,
+          error_code: evidenceGate.pass ? undefined : 'business',
+          extra: { reason: evidenceGate.reason }
+        }).catch(() => {})
         const evidenceSupportedClaimRate =
           typeof state.meta?.evidenceSupportedClaimRate === 'number' ? Number(state.meta.evidenceSupportedClaimRate) : null
         const routeMatrixPass = inferManagerRouteMatrixPass((state.meta || {}) as Record<string, unknown>)

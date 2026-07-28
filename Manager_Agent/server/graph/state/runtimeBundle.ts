@@ -1,4 +1,5 @@
 import type { ChatOpenAI } from '@langchain/openai'
+import { redactSecrets as scrubSecretsForSynth } from '#agent-shared/redact'
 import {
   createManagerChatOpenAI,
   callAiAdminAgent,
@@ -177,14 +178,7 @@ export function buildManagerGraphRuntimeBundle(input: {
       return `\n\n[参考来源]\n${lines.join('\n')}`
     }
 
-    const redactSecrets = (text: string) => {
-      let s = String(text ?? '')
-      s = s.replace(/sk-[A-Za-z0-9]{10,}/g, 'sk-***REDACTED***')
-      s = s.replace(/(bearer)\s+[A-Za-z0-9._-]{10,}/gi, '$1 ***REDACTED***')
-      s = s.replace(/(openai_api_key|api_key|apikey|token|secret)\s*[:=]\s*['"]?[^'"\s]{8,}['"]?/gi, '$1=***REDACTED***')
-      s = s.replace(/-----BEGIN [A-Z ]+PRIVATE KEY-----[\s\S]*?-----END [A-Z ]+PRIVATE KEY-----/g, '***REDACTED_PRIVATE_KEY***')
-      return s
-    }
+    const redactSecrets = (text: string) => scrubSecretsForSynth(String(text ?? ''))
 
     const emitTrace = (data: any, from = 'manager') => {
       try {

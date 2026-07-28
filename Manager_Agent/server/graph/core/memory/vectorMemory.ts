@@ -63,11 +63,18 @@ function memoryKey(user: string, memoryType: string) {
 
 function getEmbeddingsClient() {
   if (!embedClient) {
+    const timeoutRaw = Number(process.env.AGENT_EMBEDDING_TIMEOUT_MS || 12_000)
+    const timeout = Number.isFinite(timeoutRaw) && timeoutRaw >= 3_000 ? Math.min(60_000, Math.floor(timeoutRaw)) : 12_000
+    const baseURL =
+      String(process.env.OPENAI_BASE_URL || process.env.DASHSCOPE_BASE_URL || '').trim() ||
+      'https://dashscope.aliyuncs.com/compatible-mode/v1'
     embedClient = new OpenAIEmbeddings({
-      apiKey: process.env.OPENAI_API_KEY,
-      configuration: process.env.OPENAI_BASE_URL ? { baseURL: process.env.OPENAI_BASE_URL } : undefined,
+      apiKey: process.env.OPENAI_API_KEY || process.env.DASHSCOPE_API_KEY,
+      configuration: { baseURL },
       model: String(process.env.OPENAI_EMBEDDING_MODEL || 'text-embedding-v1').trim(),
-      dimensions: PGVECTOR_DIM
+      dimensions: PGVECTOR_DIM,
+      timeout,
+      maxRetries: 0
     })
   }
   return embedClient

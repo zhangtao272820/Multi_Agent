@@ -454,7 +454,54 @@
   background: rgba(14, 165, 233, 0.1) !important;
 }
 
-/* ── 执行摘要（A4：与步状态同源着色，弱于 HITL）── */
+/* ── U2 专家失败卡片 ── */
+.reply-fail-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 10px 0 12px;
+}
+.reply-fail-card {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(248, 113, 113, 0.28);
+  background: rgba(127, 29, 29, 0.18);
+}
+.reply-fail-card[data-error-code='timeout'],
+.reply-fail-card[data-error-code='circuit_open'] {
+  border-color: rgba(251, 191, 36, 0.35);
+  background: rgba(120, 53, 15, 0.22);
+}
+.reply-fail-card-badge {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(248, 113, 113, 0.2);
+  color: #fecaca;
+}
+.reply-fail-card[data-error-code='timeout'] .reply-fail-card-badge,
+.reply-fail-card[data-error-code='circuit_open'] .reply-fail-card-badge {
+  background: rgba(251, 191, 36, 0.22);
+  color: #fde68a;
+}
+.reply-fail-card-title {
+  font-size: 13px;
+  font-weight: 650;
+  color: #fee2e2;
+}
+.reply-fail-card-msg {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #fecaca;
+}
+
+/* ── 执行摘要（开发视图）；用户视图改用 .reply-outcome-banner ── */
 .reply-exec-summary {
   margin: 10px 0 4px;
   padding: 8px 12px;
@@ -503,4 +550,89 @@
   margin-top: 8px;
   font-size: 13px;
   color: #cbd5e1;
+}
+
+/* 用户视图：失败 / 待确认短状态条（无步骤日志） */
+.reply-outcome-banner {
+  margin: 12px 0 4px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(15, 23, 42, 0.4);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.45;
+  color: #cbd5e1;
+}
+
+.reply-outcome-banner.is-outcome-fail {
+  border-color: rgba(248, 113, 113, 0.4);
+  background: rgba(127, 29, 29, 0.18);
+  color: #fecaca;
+}
+
+.reply-outcome-banner.is-outcome-human {
+  border-color: rgba(251, 191, 36, 0.4);
+  background: rgba(120, 53, 15, 0.2);
+  color: #fde68a;
+}
+
+/* U3：无证据拒答徽章 + 证据优先面板 */
+.reply-evidence-badge {
+  display: inline-flex;
+  align-items: center;
+  margin: 0.35rem 0 0.5rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 4px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.reply-evidence-badge.is-rejected {
+  background: rgba(248, 113, 113, 0.15);
+  color: #fecaca;
+  border: 1px solid rgba(248, 113, 113, 0.4);
+}
+.reply-evidence-badge.is-clarify {
+  background: rgba(251, 191, 36, 0.12);
+  color: #fde68a;
+  border: 1px solid rgba(251, 191, 36, 0.35);
+}
+.reply-evidence-first {
+  margin: 0.35rem 0 0.65rem;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.35);
+}
+.reply-evidence-first > summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: #cbd5e1;
+}
+.reply-evidence-first .spring-search-sources-list {
+  margin: 0.4rem 0 0;
+  padding-left: 1.1rem;
+}
+
+/* U5：步级 HITL / auto_confirm 芯片 */
+.conv-plan-preview-confirm {
+  display: inline-block;
+  margin-left: 0.35rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+.conv-plan-preview-confirm.is-hitl {
+  background: rgba(251, 191, 36, 0.15);
+  color: #fde68a;
+}
+.conv-plan-preview-confirm.is-auto {
+  background: rgba(52, 211, 153, 0.12);
+  color: #6ee7b7;
 }

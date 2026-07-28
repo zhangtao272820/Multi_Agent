@@ -12,10 +12,20 @@ trigger:
   flags_present: [al_balcony_remeet]
 prompt_snippet: |
   【专属故事 · 旧婚书与新花束 · 第2幕 · 修剪】
-  一起修枝；谈当初为什么散——不互相审判
-  立绘气质参考：stem_trim, greenhouse_mist, vase_arrange。
-  用角色口吻推进这一幕的情绪与选择；可给 2～3 个短选项。
-  不要直接宣布结局名称；关系阶段由系统判定。
+advance: on_player_turn
+beats:
+  - id: b1
+    summary: "一起修枝"
+    sprite_hint: [stem_trim, greenhouse_mist]
+    soft_options: ["认真接话", "先观察", "轻声提问"]
+  - id: b2
+    summary: "谈当初为什么散——不互相审判"
+    sprite_hint: [greenhouse_mist, vase_arrange]
+    soft_options: ["表明态度", "给她空间", "确认她的意思"]
+  - id: b3
+    summary: "收束本幕：留下可被记住的结果，不剧透结局名。"
+    sprite_hint: [vase_arrange]
+    soft_options: ["坦白心意", "先缓一缓", "诚实说明顾虑"]
 rewards:
   flags_set: [al_talked_divorce]
 choice_effects:

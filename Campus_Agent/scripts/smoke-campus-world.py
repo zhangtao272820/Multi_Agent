@@ -89,8 +89,52 @@ def main() -> int:
 
     hub2 = campus_engine.advance_period()
     assert "period_summary" in hub2
+    assert "period_recap" in hub2
+    assert hub2["period_recap"] is not None
+    assert "summary" in hub2["period_recap"]
     assert "pending_intents" in hub2
     assert "event_reactions" in hub2
+
+    # M19+/pace: skip to actionable
+    while store.require_active().period_id != "class_am":
+        campus_engine.advance_period()
+        if store.require_active().day_index > 3:
+            break
+    if store.require_active().period_id == "class_am":
+        skip_hub = campus_engine.advance_until_actionable()
+        assert skip_hub.get("period_recap")
+        assert (skip_hub["calendar"].get("period_kind") in {"free", "free_day", "meal", "dorm"}) or skip_hub.get(
+            "ended"
+        )
+        assert skip_hub["last_action"]["type"] == "advance_skip"
+
+    # weekly event on day 1
+    from app import relationship as rel_mod
+
+    hub_w = campus_engine.create_new(name="事件生", grade_tier="mid", mbti="INFJ")
+    ev = hub_w.get("active_event")
+    assert ev and ev.get("id") == "week1_roster", ev
+    assert ev.get("source") == "weekly"
+    assert ev.get("talk_npc_id")
+
+    # opening_line on prepare_talk
+    campus_engine.travel("classroom")
+    present_w = [p for p in campus_engine.hub_public(store.require_active())["present"] if not p.get("is_pc")]
+    assert present_w
+    # seed memory for greeting hook
+    edge_w = rel_mod.ensure_edge(
+        store.require_active().edges,
+        "pc",
+        present_w[0]["id"],
+        gender_a="male",
+        gender_b=str(next(s for s in store.require_active().students if s["id"] == present_w[0]["id"])["gender"]),
+    )
+    edge_w["memories"] = ["昨晚一起在走廊看了倒计时"]
+    edge_w["affinity"] = 40
+    edge_w["stage"] = "friend"
+    prep_w = campus_engine.prepare_talk(present_w[0]["id"])
+    assert prep_w.get("opening_line")
+    assert "倒计时" in prep_w["opening_line"] or len(prep_w["opening_line"]) > 4
 
     # push to weekend
     save = store.require_active()
@@ -107,12 +151,11 @@ def main() -> int:
     sid = meta["save_id"]
     store.clear()
     loaded = store.load_save(sid)
-    assert loaded.protagonist["name"] == "测试生"
+    assert loaded.protagonist["name"] == "事件生"
     assert isinstance(getattr(loaded, "npc_minds", None), dict)
 
     # M12–M14: talk dual-layer + interact verbs + club
     from app import catalog
-    from app import relationship as rel_mod
 
     hub_m = campus_engine.create_new(name="互动生", grade_tier="mid", mbti="ENFP")
     campus_engine.travel("classroom")
@@ -123,6 +166,7 @@ def main() -> int:
     assert prep.get("sprite") is not None
     assert prep.get("q_sprite") is not None
     assert prep["q_sprite"].get("kind") == "q" or prep["q_sprite"].get("path")
+    assert prep.get("opening_line")
 
     chat = campus_engine.chat_turn(target_id=tid, text="早啊，今天天气不错。", verb="greet")
     assert chat.get("line")
@@ -265,17 +309,26 @@ def main() -> int:
     assert end_hub.get("ended") is True
     assert end_hub.get("ending")
     assert end_hub["ending"]["kind"] == "gaokao"
+    assert end_hub["ending"]["ending_id"]
+    assert end_hub["ending"]["grade_band"] in {"top", "good", "mid", "low"}
     assert end_hub["ending"]["pc_rank"] >= 1
     # second advance stays ended
     again = campus_engine.advance_period()
     assert again.get("ended") is True
+
+    # male baseline sprites resolve
+    for mid in ("pc", "m01", "m09"):
+        sp = sprites_mod.resolve_student_sprite(mid)
+        assert sp.get("path"), mid
+        qsp = sprites_mod.resolve_q_sprite(mid)
+        assert qsp.get("path"), mid
 
     print("OK world smoke")
     print(" weather:", hub["calendar"]["weather_id"])
     print(" pc_rank:", mock["last_mock"]["pc_rank"])
     print(" weekend day:", loaded.day_index, loaded.day_kind)
     print(" minds:", len(loaded.npc_minds))
-    print(" ending:", end_hub["ending"]["tone"], "rank", end_hub["ending"]["pc_rank"])
+    print(" ending:", end_hub["ending"]["ending_id"], end_hub["ending"]["tone"], "rank", end_hub["ending"]["pc_rank"])
     return 0
 
 

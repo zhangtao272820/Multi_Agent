@@ -11,11 +11,21 @@ trigger:
   flags_absent: [xyang_stall]
   flags_present: [xyang_club]
 prompt_snippet: |
-  【专属故事 · 社团海报上的名字 · 第2幕 · 摊位】
-  文化祭并肩；告白或维持同学
-  立绘气质参考：culture_stall, date, casual。
-  用角色口吻推进这一幕的情绪与选择；可给 2～3 个短选项。
-  不要直接宣布结局名称；关系阶段由系统判定。
+  【专属故事 · 晒干后的系领带 · 第2幕 · 摊位】
+advance: on_player_turn
+beats:
+  - id: b1
+    summary: "文化祭摊位收摊，夕阳把领结晒得有点皱；她数着零钱笑累了。"
+    sprite_hint: [culture_stall, casual]
+    soft_options: ["帮她对账", "递水", "夸今天圆满"]
+  - id: b2
+    summary: "她问同学以上还能不能靠近——怕认真起来就回不去。"
+    sprite_hint: [date, casual]
+    soft_options: ["说想试", "尊重同学界线", "问她怕什么"]
+  - id: b3
+    summary: "摊布叠好；她要一句清楚的关系定位，不要含糊的「再说」。"
+    sprite_hint: [date, casual]
+    soft_options: ["告白", "先稳同学情", "给她考虑时间"]
 rewards:
   flags_set: [xyang_stall, confessed]
 choice_effects:

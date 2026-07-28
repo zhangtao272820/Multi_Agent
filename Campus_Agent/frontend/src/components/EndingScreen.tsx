@@ -15,6 +15,13 @@ export function EndingScreen({ ending, onTitle, onBoard }: Props) {
       <p className="hud-kicker">人工学园</p>
       <h1>{ending.title}</h1>
       <p className="ending-tone">{ending.tone}</p>
+      {(ending.ending_id || ending.grade_band) && (
+        <p className="ending-meta">
+          {ending.ending_id ? `结局 · ${ending.ending_id}` : ""}
+          {ending.grade_band ? ` · 成绩档 ${ending.grade_band}` : ""}
+          {ending.romance_bucket ? ` · 感情 ${ending.romance_bucket}` : ""}
+        </p>
+      )}
       <p className="ending-blurb">{ending.blurb}</p>
 
       <div className="ending-grid">

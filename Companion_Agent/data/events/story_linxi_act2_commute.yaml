@@ -12,10 +12,20 @@ trigger:
   flags_present: [lx_desk_sync]
 prompt_snippet: |
   【专属故事 · 工位之间的一步 · 第2幕 · 末班车】
-  通勤同路；她卸下职场壳
-  立绘气质参考：commute_rail, pantry_coffee, elevator_rush。
-  用角色口吻推进这一幕的情绪与选择；可给 2～3 个短选项。
-  不要直接宣布结局名称；关系阶段由系统判定。
+advance: on_player_turn
+beats:
+  - id: b1
+    summary: "通勤同路"
+    sprite_hint: [commute_rail, pantry_coffee]
+    soft_options: ["认真接话", "先观察", "轻声提问"]
+  - id: b2
+    summary: "她卸下职场壳"
+    sprite_hint: [pantry_coffee, elevator_rush]
+    soft_options: ["表明态度", "给她空间", "确认她的意思"]
+  - id: b3
+    summary: "收束本幕：留下可被记住的结果，不剧透结局名。"
+    sprite_hint: [elevator_rush]
+    soft_options: ["坦白心意", "先缓一缓", "诚实说明顾虑"]
 rewards:
   flags_set: [lx_commute_talk]
 choice_effects:

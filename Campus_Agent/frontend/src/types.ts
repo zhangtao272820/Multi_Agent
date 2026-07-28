@@ -77,6 +77,41 @@ export interface EventReaction {
   sprite?: SpriteRef;
 }
 
+export interface ActiveEvent {
+  id: string;
+  label: string;
+  blurb: string;
+  talk_npc_id?: string | null;
+  talk_npc_name?: string | null;
+  talk_npc_q?: SpriteRef;
+  location_id?: string | null;
+  source?: string;
+  effects?: Record<string, number>;
+}
+
+export interface PeriodRecapNeighbor {
+  id: string;
+  name: string;
+  delta: number;
+  seat_relation?: string;
+  seat_label?: string;
+}
+
+export interface PeriodRecap {
+  from_period?: { id?: string; label?: string; kind?: string } | null;
+  to_period?: { id?: string; label?: string; kind?: string } | null;
+  day_index?: number;
+  days_left?: number;
+  class_gain?: { subject_id: string; subject_label: string; pc_gain: number } | null;
+  neighbors?: PeriodRecapNeighbor[];
+  intents?: { from_id?: string; from_name?: string; blurb?: string; type?: string }[];
+  event?: ActiveEvent | null;
+  reactions?: EventReaction[];
+  skipped_periods?: { id?: string; label?: string; kind?: string }[];
+  summary?: string;
+  ended?: boolean;
+}
+
 export interface CalendarState {
   day_index: number;
   days_left?: number;
@@ -107,7 +142,7 @@ export interface HubState {
   note_actions_left?: number;
   club_action_used?: boolean;
   spot_action_used?: boolean;
-  active_event?: { id: string; label: string; blurb: string } | null;
+  active_event?: ActiveEvent | null;
   pending_intents?: PendingIntent[];
   event_reactions?: EventReaction[];
   pc_scores?: Record<string, number>;
@@ -118,8 +153,10 @@ export interface HubState {
     gain?: number;
     neighbors?: { id: string; name: string; delta: number; seat_label?: string }[];
     from_period?: string;
+    skipped?: number;
   };
   period_summary?: string;
+  period_recap?: PeriodRecap | null;
   mind_tick?: { used_llm?: boolean; sampled?: string[]; intent_count?: number };
   ended?: boolean;
   ending?: EndingState | null;
@@ -137,9 +174,12 @@ export interface EndingRomance {
 
 export interface EndingState {
   kind: string;
+  ending_id?: string;
   title: string;
   tone: string;
   blurb: string;
+  grade_band?: string;
+  romance_bucket?: string;
   pc_rank: number;
   pc_total: number;
   pc_scores?: Record<string, number>;
@@ -183,7 +223,7 @@ export interface BoardEdge {
 export interface BoardToday {
   weather_id?: string;
   weather_label?: string;
-  active_event?: { id: string; label: string; blurb: string } | null;
+  active_event?: ActiveEvent | null;
   pending_intents?: PendingIntent[];
   pc_neighbors?: { id: string; name: string; seat_relation: string; seat_label: string }[];
   event_reactions?: EventReaction[];
@@ -225,7 +265,7 @@ export interface TalkPrep {
   calendar: CalendarState;
   location_id: string;
   bg?: SpriteRef;
-  active_event?: { id: string; label: string; blurb: string } | null;
+  active_event?: ActiveEvent | null;
   /** Explicit Q portrait for dialogue nameplate (also on target.q_sprite). */
   q_sprite?: SpriteRef;
   sprite?: SpriteRef;

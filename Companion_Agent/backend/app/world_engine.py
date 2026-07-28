@@ -50,6 +50,7 @@ class DateCatalog(BaseModel):
     scene_talk_turns: int = 6
     scene_date_turns: int = 10
     scene_ping_turns: int = 4
+    scene_story_turns: int = 8
     daily_scene_limit: int = 2
     scene_settle_affinity_cap: int = 8
     scene_settle_trust_cap: int = 6

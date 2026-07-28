@@ -121,6 +121,18 @@ def campus_advance() -> dict[str, Any]:
         raise HTTPException(status_code=404, detail="no_active_save") from e
 
 
+class AdvanceSkipBody(BaseModel):
+    max_steps: int | None = Field(default=None, ge=1, le=12)
+
+
+@app.post("/api/campus/advance_skip")
+def campus_advance_skip(body: AdvanceSkipBody = AdvanceSkipBody()) -> dict[str, Any]:
+    try:
+        return campus_engine.advance_until_actionable(max_steps=body.max_steps)
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail="no_active_save") from e
+
+
 @app.post("/api/campus/study")
 def campus_study(body: StudyBody) -> dict[str, Any]:
     try:

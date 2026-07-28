@@ -520,17 +520,34 @@ def understand_admin_user_message(
     query = build_admin_rag_query(dlg, msg)
     emit_admin_thought("正在识别意图与场景…")
 
-    from concurrent.futures import ThreadPoolExecutor
+    from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
+
+    recall: AdminScenarioRecallHit | None = None
+    exp_hints: list[str] = []
+    recall_timeout = 15.0
+    try:
+        recall_timeout = float(os.getenv("ADMIN_NLU_RECALL_TIMEOUT_SEC") or "15")
+    except (TypeError, ValueError):
+        recall_timeout = 15.0
+    recall_timeout = max(3.0, min(45.0, recall_timeout))
 
     with ThreadPoolExecutor(max_workers=2) as pool:
         f_recall = pool.submit(recall_admin_scenario, query)
-        if suppress_experience_replay:
-            recall = f_recall.result()
-            exp_hints: list[str] = []
-        else:
-            f_hints = pool.submit(get_admin_tool_experience_hints, msg, 3)
-            recall = f_recall.result()
-            exp_hints = f_hints.result()
+        try:
+            if suppress_experience_replay:
+                recall = f_recall.result(timeout=recall_timeout)
+            else:
+                f_hints = pool.submit(get_admin_tool_experience_hints, msg, 3)
+                recall = f_recall.result(timeout=recall_timeout)
+                try:
+                    exp_hints = f_hints.result(timeout=min(8.0, recall_timeout)) or []
+                except (FuturesTimeout, Exception):
+                    exp_hints = []
+        except FuturesTimeout:
+            emit_admin_thought("场景召回超时，继续意图识别…")
+            recall = None
+        except Exception:
+            recall = None
 
     fast = recall is not None and recall.score >= _rag_fast_min_score()
 

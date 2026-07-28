@@ -9,6 +9,7 @@ import type {
   GalSceneInfo,
   RelationshipState,
   SceneRunPublic,
+  StoryProgressPublic,
 } from "../types";
 import type { SpriteStyle } from "../spriteUrl";
 import { affinityImpression, stageImpression } from "../impression";
@@ -31,6 +32,7 @@ type Props = {
   choiceKind?: "soft" | "branch";
   eventLog: EventLogEntry[];
   activeEvent: GameEventInfo | null;
+  storyProgress?: StoryProgressPublic | null;
   stageNotice: string;
   spriteOutfit?: string;
   spriteStyle?: SpriteStyle;
@@ -73,6 +75,7 @@ export default function GalScene({
   choiceKind = "soft",
   eventLog: _eventLog,
   activeEvent,
+  storyProgress = null,
   stageNotice,
   spriteOutfit = "",
   spriteStyle = "anime",
@@ -165,7 +168,21 @@ export default function GalScene({
             {turnsLeft != null ? (
               <span className={turnsLeft <= 2 ? "gal-hud-turns--low" : undefined}>还剩 {turnsLeft} 句</span>
             ) : null}
-            {activeEvent ? <span className="gal-hud-event">突发 · {activeEvent.label}</span> : null}
+            {storyProgress && !storyProgress.completed && storyProgress.beat_total > 0 ? (
+              <span
+                className="gal-hud-story"
+                title={storyProgress.act_summary || "专属故事节拍"}
+              >
+                故事 · {Math.min(storyProgress.beat_index + 1, storyProgress.beat_total)}/
+                {storyProgress.beat_total}
+              </span>
+            ) : null}
+            {activeEvent ? (
+              <span className="gal-hud-event">
+                {activeEvent.id?.startsWith("story_") ? "专属 · " : "突发 · "}
+                {activeEvent.label}
+              </span>
+            ) : null}
           </span>
         </div>
         <div className="gal-hud-right">
@@ -177,8 +194,8 @@ export default function GalScene({
             </span>
           )}
           {onOpenCodex ? (
-            <button type="button" className="gal-hud-btn" onClick={onOpenCodex} title="人物与关系">
-              状态
+            <button type="button" className="gal-hud-btn" onClick={onOpenCodex} title="人物看板：关系与性格">
+              人物
             </button>
           ) : null}
           <button type="button" className="gal-hud-btn" onClick={onOpenLog} title="对话足迹与回退">

@@ -1,5 +1,5 @@
 import type { WsHandlerContext, ParsedWsMessage } from './types'
-import { HumanMessage, crypto, RunIdSchema, createManagerGraph, buildManagerGraphInvokeConfig, composeFinalBundleFromGraphResult, pickRicherFinalText, deleteHumanConfirmCheckpoint, loadHumanConfirmCheckpoint, isSynthRejectingMedia, resolveManagerLlmConfig, resolveAgentEndpointsWithPlatform, buildGraphHistoryMessages, buildSummarizeWithLlmFn, graphAgentEndpoints, buildRagHistoryForRun, sanitizeHistoryText, withAgentTraceContext, emitRunObservability, emitImplicitLearning, loadTaskStack, path, runs, runMeta, sessionMeta, sessions, readSession, writeSession, nowMs, isRunAbortError } from './wsBarrel'
+import { HumanMessage, crypto, RunIdSchema, createManagerGraph, buildManagerGraphInvokeConfig, composeFinalBundleFromGraphResult, pickRicherFinalText, deleteHumanConfirmCheckpoint, loadHumanConfirmCheckpoint, isSynthRejectingMedia, resolveManagerLlmConfig, resolveAgentEndpointsWithPlatform, buildCompactedHistoryWithStats, buildSummarizeWithLlmFn, graphAgentEndpoints, buildRagHistoryForRun, sanitizeHistoryText, withAgentTraceContext, emitRunObservability, emitImplicitLearning, loadTaskStack, path, runs, runMeta, sessionMeta, sessions, readSession, writeSession, nowMs, isRunAbortError } from './wsBarrel'
 
 export async function handleHumanConfirm(ctx: WsHandlerContext, payload: ParsedWsMessage) {
   const { peer, peerKey, send, sessionId, boundUserId, tenantId, explicitUserId, platformTraceId, payloadRaw } = ctx
@@ -73,9 +73,9 @@ const decision = payload.decision
       if (checkpoint && decision === 'confirm') {
         await deleteHumanConfirmCheckpoint(sessionId)
       }
-       const [endpointResolved, history] = await Promise.all([
+       const [endpointResolved, historyPack] = await Promise.all([
         resolveAgentEndpointsWithPlatform(process.env),
-        buildGraphHistoryMessages({
+        buildCompactedHistoryWithStats({
           messages: session.messages,
           sanitize: sanitizeHistoryText,
           summarizeWithLlm: buildSummarizeWithLlmFn({
@@ -86,6 +86,21 @@ const decision = payload.decision
           })
         })
       ])
+      const history = historyPack.messages
+      if (historyPack.compacted) {
+        send(
+          'conversation_compact',
+          {
+            compacted: true,
+            fullChars: historyPack.fullChars,
+            compactChars: historyPack.compactChars,
+            savedRatio: Math.round(historyPack.savedRatio * 1000) / 1000,
+            turns: session.messages.length
+          },
+          'manager',
+          runId
+        )
+      }
        const graph = createManagerGraph({
         openaiApiKey: llm.openaiApiKey,
         openaiBaseUrl: llm.openaiBaseUrl,

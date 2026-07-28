@@ -13,7 +13,13 @@ export type ManagerWorkbenchSidebarContext = {
   } | null>
   runObservabilityLive: Ref<{
     wallClockMs?: number
-    tokenSummary?: { totalTokens?: number }
+    tokenSummary?: {
+      totalTokens?: number
+      totalUsd?: number
+      byModelTier?: Record<string, number>
+      /** E3：estimated | mixed | actual */
+      tokenAccounting?: 'estimated' | 'mixed' | 'actual'
+    }
     phaseTimeline?: SidebarRunPhaseItem[]
   } | null>
   formatObsMs: (ms: number) => string
@@ -22,6 +28,7 @@ export type ManagerWorkbenchSidebarContext = {
   obsPhaseColor: (item: SidebarRunPhaseItem) => string
   obsDisplayLabel: (item: SidebarRunPhaseItem) => string
   runTokenByAgentEntries: ComputedRef<Array<[string, number]>>
+  runTokenByTierEntries: ComputedRef<Array<[string, number]>>
   obsAgentColor: (agent: string) => string
   runTokenBarMax: ComputedRef<number>
   planAgentLabel: (agent: string) => string

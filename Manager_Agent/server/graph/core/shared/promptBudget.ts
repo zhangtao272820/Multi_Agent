@@ -1,7 +1,10 @@
 /**
  * B2 Prompt / 上下文预算层 — Rules / Skill / Obs / Handoff 分块硬截断。
  * 确定性 clip；不为省钱 silent fallback 到 regex 路由。
+ * G3：Observation 摘要入模前走 redactObservation（去密钥 + 截断）。
  */
+
+import { redactObservation } from '#agent-shared/redact'
 
 export function envInt(name: string, fallback: number, min: number, max: number): number {
   const n = Number(process.env[name] ?? fallback)
@@ -46,7 +49,9 @@ export function clipSkillBlock(text: string): string {
 }
 
 export function clipObsSummary(text: string): string {
-  return clipChars(String(text || '').replace(/\s+/g, ' ').trim(), obsSummaryMaxChars())
+  const max = obsSummaryMaxChars()
+  const cleaned = String(text || '').replace(/\s+/g, ' ').trim()
+  return redactObservation(cleaned, max)
 }
 
 export function clipHandoffSummary(text: string): string {

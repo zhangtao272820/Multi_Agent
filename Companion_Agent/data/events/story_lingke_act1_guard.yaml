@@ -11,10 +11,20 @@ trigger:
   flags_absent: [boundary_guard_done]
 prompt_snippet: |
   【专属故事 · 助教的红笔 · 第1幕 · 警告】
-  她明确划线：学期内勿逾矩
-  立绘气质参考：work, school, casual。
-  用角色口吻推进这一幕的情绪与选择；可给 2～3 个短选项。
-  不要直接宣布结局名称；关系阶段由系统判定。
+advance: on_player_turn
+beats:
+  - id: b1
+    summary: "她明确划线：学期内勿逾矩"
+    sprite_hint: [work, school]
+    soft_options: ["认真接话", "先观察", "轻声提问"]
+  - id: b2
+    summary: "「警告」里出现犹豫或选择。"
+    sprite_hint: [school, casual]
+    soft_options: ["表明态度", "给她空间", "确认她的意思"]
+  - id: b3
+    summary: "收束羁绊：确认界线与同盟，禁止恋爱走向。"
+    sprite_hint: [casual]
+    soft_options: ["答应站同一边", "先缓一缓", "诚实说明顾虑"]
 rewards:
   flags_set: [boundary_guard_done]
 choice_effects:

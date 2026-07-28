@@ -48,6 +48,11 @@ def weather_catalog() -> dict[str, Any]:
     return _load_json("weather_catalog.json")
 
 
+@lru_cache(maxsize=1)
+def weekly_events_catalog() -> dict[str, Any]:
+    return _load_json("weekly_events.json")
+
+
 def periods_for_day_kind(day_kind: str) -> list[dict[str, Any]]:
     cmap = campus_map()
     if day_kind == "weekend":
@@ -90,5 +95,6 @@ def reload_catalogs() -> None:
         dorms,
         sprite_budget,
         weather_catalog,
+        weekly_events_catalog,
     ):
         fn.cache_clear()

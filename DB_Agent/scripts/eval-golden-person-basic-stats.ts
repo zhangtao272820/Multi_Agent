@@ -20,6 +20,7 @@ type GoldenCase = {
     locations?: string[]
     primaryTable?: string
     dimensions?: string[]
+    path_any?: string[]
   }
 }
 
@@ -29,14 +30,21 @@ function assert(cond: unknown, msg: string) {
 
 function planFromCase(c: GoldenCase): QueryPlan {
   const loc = c.expect.locations?.[0]
+  const intent = (c.expect.intent as QueryPlan['intent']) || 'aggregation'
+  const isLookup = intent === 'lookup' || intent === 'detail'
   return {
     ...defaultQueryPlan(),
-    intent: (c.expect.intent as QueryPlan['intent']) || 'aggregation',
+    intent,
     subject: 'person',
     data_domain: 'person_basic',
     confidence: 0.82,
-    entities: { names: [], locations: loc ? [loc] : [], orgs: [], ids: [] },
-    metrics: ['人数'],
+    entities: {
+      names: isLookup ? [c.user.replace(/查一下|的基本信息|住在哪里|的年龄是多少/g, '').trim()].filter(Boolean).slice(0, 1) : [],
+      locations: loc ? [loc] : [],
+      orgs: [],
+      ids: [],
+    },
+    metrics: isLookup ? [] : ['人数'],
     dimensions: c.expect.dimensions ?? [],
     filters: {
       time_range: { start: '', end: '', relative: '' },
@@ -49,9 +57,12 @@ function planFromCase(c: GoldenCase): QueryPlan {
 }
 
 function main() {
-  const raw = JSON.parse(readFileSync(goldenPath, 'utf8')) as { cases: GoldenCase[] }
+  const raw = JSON.parse(readFileSync(goldenPath, 'utf8')) as { cases: GoldenCase[]; min_cases?: number }
+  const minCases = Number(raw.min_cases ?? process.env.DB_NL2SQL_MIN_CASES ?? 20)
+  assert(Array.isArray(raw.cases) && raw.cases.length >= minCases, `need >=${minCases} golden cases`)
   let ok = 0
   for (const c of raw.cases) {
+    assert(Array.isArray(c.expect.path_any) && c.expect.path_any.length >= 1, `${c.id}: path_any required`)
     const assembled = assemblePlanSlotsOrNull(planFromCase(c))
     assert(assembled, `${c.id}: assemble rejected valid plan`)
     if (c.expect.locations?.length) {

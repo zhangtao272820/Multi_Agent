@@ -1264,6 +1264,23 @@ function buildGraph(opts: {
     if (!last || !isAIMessage(last) || !last.tool_calls?.length) {
       return END
     }
+    // §2.8.5：工具轮次上限（含当前即将执行的一轮）
+    const maxRounds = getCodeAgentEnv().maxToolRounds
+    let toolRounds = 0
+    for (const m of messages) {
+      if (isAIMessage(m) && Array.isArray((m as any).tool_calls) && (m as any).tool_calls.length) {
+        toolRounds += 1
+      }
+    }
+    if (toolRounds > maxRounds) {
+      requestSendEvent('phase', {
+        phase: 'tool_round_limit',
+        maxToolRounds: maxRounds,
+        toolRounds,
+        error_code: 'tool_round_limit',
+      })
+      return END
+    }
     return 'tools'
   })
 
@@ -1367,7 +1384,13 @@ function wantsCodeChange(message: string) {
 
 function shouldRecoverThreadFromError(err: unknown) {
   const text = String(getErrorText(err) || '')
+  if (/recursion limit/i.test(text)) return false
   return /assistant message with "tool_calls" must be followed by tool messages/i.test(text)
+}
+
+function isToolRoundLimitError(err: unknown) {
+  const text = String(getErrorText(err) || '').toLowerCase()
+  return text.includes('recursion limit') || text.includes('tool_round_limit')
 }
 
 function aiMessageContentToText(content: unknown) {
@@ -1802,6 +1825,7 @@ export async function handleAgentChat(payload: any, sendJson: (data: any) => voi
 
     const config = {
       configurable: { thread_id: parsed.data.threadId },
+      recursionLimit: getCodeAgentEnv().maxToolRounds * 2 + 2,
       context: {
         mode: parsed.data.mode,
         root: rootOverride ?? REPO_ROOT,
@@ -2056,6 +2080,26 @@ export async function handleAgentChat(payload: any, sendJson: (data: any) => voi
           }
           runError = null
         } else if (runError) {
+          if (isToolRoundLimitError(runError)) {
+            recordCodeQueryMetric({
+              path:
+                executionPlan.taskKind === 'inspect' ||
+                executionPlan.taskKind === 'edit' ||
+                executionPlan.taskKind === 'script'
+                  ? executionPlan.taskKind
+                  : 'full',
+              ok: false,
+              ms: Date.now() - graphStarted,
+              question: effectiveMessage,
+              from_manager: executionPlan.fromManager,
+              reason: 'tool_round_limit',
+              tool_calls: toolEventSummaries.length,
+            })
+            endStreamWithError(
+              `tool_round_limit: 工具轮次已达上限（CODE_MAX_TOOL_ROUNDS=${getCodeAgentEnv().maxToolRounds}）`
+            )
+            return
+          }
           throw runError
         }
       }

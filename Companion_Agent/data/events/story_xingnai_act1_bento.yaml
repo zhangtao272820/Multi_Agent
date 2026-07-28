@@ -1,5 +1,5 @@
 id: story_xingnai_act1_bento
-label: 天台便当
+label: 便当分当
 priority: 5
 once: true
 chance: 1.0
@@ -10,11 +10,21 @@ trigger:
   affinity_min: 55
   flags_absent: [xn_bento]
 prompt_snippet: |
-  【专属故事 · 旧相册的缺口 · 第1幕 · 天台便当】
-  重拾一起吃饭的节奏
-  立绘气质参考：rooftop_bento, school, casual。
-  用角色口吻推进这一幕的情绪与选择；可给 2～3 个短选项。
-  不要直接宣布结局名称；关系阶段由系统判定。
+  【专属故事 · 青梅的缺口 · 第1幕 · 便当分当】
+advance: on_player_turn
+beats:
+  - id: b1
+    summary: "天台风大，她把便当盒往你这边推了一寸，假装不在意。"
+    sprite_hint: [rooftop_bento, school]
+    soft_options: ["接过一半", "先问她吃饱没", "笑她别扭"]
+  - id: b2
+    summary: "闲聊童年琐事；她提起一件你忘了、她却记得很清的小事。"
+    sprite_hint: [school, casual]
+    soft_options: ["认真回忆", "道歉忘了", "问她为何记得"]
+  - id: b3
+    summary: "收拾便当时她说：分当可以，别把她的关心当成理所当然。"
+    sprite_hint: [rooftop_bento, casual]
+    soft_options: ["答应会珍惜", "开玩笑化解", "安静点头"]
 rewards:
   flags_set: [xn_bento, childhood_talk_done]
 choice_effects:

@@ -15,12 +15,23 @@ from app.core.agent_result import build_admin_agent_result
 from app.core.learning_curator import maybe_run_lightweight_curator
 from app.core.langgraph_checkpointer import build_graph_invoke_config
 from app.core.admin_stream_thoughts import set_admin_thought_callback
+from app.core.admin_turn_cancel import (
+    begin_admin_turn_cancel,
+    cancel_admin_turn,
+    clear_admin_turn_cancel,
+)
+from app.core.admin_turn_exec import (
+    admin_ws_turn_timeout_sec,
+    run_agent_graph_invoke,
+    run_agent_graph_stream,
+)
 from app.core.trace_log import append_agent_trace_log
 from app.api.ready import router as ready_router
 from app.api.internal_skills import router as internal_skills_router
 from app.api.learning import router as learning_router
 from app.api.integrations import router as integrations_router
 from app.api.playground import router as playground_router
+from app.api.metrics import router as metrics_router
 from app.db.database import get_db, Task, Event, Note
 from app.tools.skills import (
     restore_event_reminders,
@@ -45,6 +56,7 @@ app.include_router(internal_skills_router)
 app.include_router(learning_router)
 app.include_router(integrations_router)
 app.include_router(playground_router)
+app.include_router(metrics_router)
 FRONTEND_DIST_DIR = os.getenv("FRONTEND_DIST_DIR", "/frontend-dist")
 
 
@@ -168,6 +180,30 @@ def _calc_total_tokens(result: Dict[str, Any], request_text: str, response_text:
     if usage_total and usage_total > 0:
         return usage_total
     return qwen_llm.get_token_count(request_text) + qwen_llm.get_token_count(response_text)
+
+
+def _graph_response_text(final_result: Dict[str, Any]) -> str:
+    """
+    从图谱终态取用户可见文案：优先 pending/验证结果与最后一条 AI，避免只剩 HumanMessage 时把用户原话当回复。
+    保证总管侧总能拿到可解析的 final 文本（含【待确认】）。
+    """
+    pending = final_result.get("pending_actions") or []
+    vr = str(final_result.get("verification_result") or "").strip()
+    if pending and vr:
+        return vr
+    if vr.startswith("【待确认】") or "处理已取消或超时" in vr:
+        return vr
+    messages = final_result.get("messages") or []
+    for msg in reversed(messages):
+        if isinstance(msg, HumanMessage):
+            continue
+        content = getattr(msg, "content", None)
+        text = str(content or "").strip()
+        if text:
+            return text
+    if vr:
+        return vr
+    return "处理完成"
 
 @app.get("/api/health")
 async def health_check():
@@ -666,8 +702,15 @@ class ConnectionManager:
         if websocket in self.active_connections:
             self.active_connections.remove(websocket)
 
-    async def send_personal_message(self, message: str, websocket: WebSocket):
-        await websocket.send_text(message)
+    async def send_personal_message(self, message: str, websocket: WebSocket) -> bool:
+        """发送成功返回 True；连接已关闭时吞掉异常，避免 ASGI 'websocket.send' after close。"""
+        try:
+            if websocket.client_state.name != "CONNECTED":
+                return False
+            await websocket.send_text(message)
+            return True
+        except Exception:
+            return False
 
 manager = ConnectionManager()
 
@@ -881,11 +924,14 @@ async def websocket_endpoint(websocket: WebSocket):
                 }
             
             # Use stream to send updates to frontend
+            # 关键：同步 LangGraph 必须 offload，否则 LLM 卡住会冻死整个 uvicorn（健康检查也挂）
             final_result = initial_state
             graph_config = build_graph_invoke_config(session_id, trace_id)
             stream_kwargs = {"config": graph_config} if graph_config else {}
             loop = asyncio.get_running_loop()
             streamed_thoughts: list[str] = []
+            turn_timeout = admin_ws_turn_timeout_sec()
+            turn_cancel = begin_admin_turn_cancel()
 
             def _push_thought(content: str) -> None:
                 msg = str(content or "").strip()
@@ -902,25 +948,73 @@ async def websocket_endpoint(websocket: WebSocket):
 
             set_admin_thought_callback(_push_thought)
             try:
-                for output in agent_graph.stream(initial_state, **stream_kwargs):
-                    # output is a dict like {node_name: state_delta}
-                    for node_name, state_delta in output.items():
-                        print(f"DEBUG: node {node_name} emitted state delta")
-                        if "thoughts" in state_delta:
-                            for thought in state_delta["thoughts"]:
-                                t = str(thought or "").strip()
-                                if t and t not in streamed_thoughts:
-                                    streamed_thoughts.append(t)
-                                    await manager.send_personal_message(
-                                        json.dumps({"type": "thought", "content": t}),
-                                        websocket,
-                                    )
-                        final_result.update(state_delta)
+                await manager.send_personal_message(
+                    json.dumps(
+                        {
+                            "type": "thought",
+                            "content": f"开始处理请求（整轮超时 {turn_timeout:.0f}s）…",
+                        }
+                    ),
+                    websocket,
+                )
+                try:
+                    final_result = await asyncio.wait_for(
+                        asyncio.to_thread(
+                            run_agent_graph_stream,
+                            agent_graph,
+                            initial_state,
+                            stream_kwargs,
+                            on_thought=_push_thought,
+                            on_node=lambda n: print(f"DEBUG: node {n} emitted state delta"),
+                            cancel_token=turn_cancel,
+                        ),
+                        timeout=turn_timeout,
+                    )
+                except asyncio.TimeoutError:
+                    # 先置取消，堵住线程内后续孤儿写；再必回 error，避免总管空等
+                    cancel_admin_turn()
+                    err = f"处理超时（{turn_timeout:.0f}s 未完成）。请稍后重试，或简化任务后重发。"
+                    latency_ms = int((time.time() - started) * 1000)
+                    agent_result = build_admin_agent_result(
+                        err,
+                        trace_id=trace_id,
+                        latency_ms=latency_ms,
+                        error_code="timeout",
+                        structured={"timeout_sec": turn_timeout},
+                    )
+                    append_agent_trace_log(
+                        agent="admin",
+                        path="/api/chat/ws",
+                        trace_id=trace_id,
+                        ok=False,
+                        latency_ms=latency_ms,
+                    )
+                    await manager.send_personal_message(
+                        json.dumps(
+                            {
+                                "type": "error",
+                                "error": err,
+                                "agentResult": agent_result,
+                            }
+                        ),
+                        websocket,
+                    )
+                    continue
             finally:
                 set_admin_thought_callback(None)
-            
+                clear_admin_turn_cancel()
+
+            # 若工作线程因取消提前结束，仍发 final（含取消文案 / pending），协议不得静默
+            if turn_cancel.is_cancelled() and not (final_result.get("pending_actions") or []):
+                vr = str(final_result.get("verification_result") or "").strip()
+                if not vr:
+                    final_result = {
+                        **final_result,
+                        "verification_result": "处理已取消或超时，未继续执行。",
+                    }
+
             # Send final response
-            response_text = final_result["messages"][-1].content if final_result["messages"] else "处理完成"
+            response_text = _graph_response_text(final_result)
             latency_ms = int((time.time() - started) * 1000)
             agent_result = build_admin_agent_result(
                 response_text,
@@ -961,7 +1055,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 "agentResult": agent_result,
             }
             token_controller.update_usage(session_id, response_data["tokens_used"])
-            
+
             await manager.send_personal_message(json.dumps(response_data), websocket)
     except WebSocketDisconnect:
         manager.disconnect(websocket)
@@ -998,11 +1092,31 @@ async def chat_endpoint(request: ChatRequest, _: None = Depends(verify_internal_
             "ui_cards": [],
         }
         
-        # Invoke the graph
+        # Invoke the graph（线程卸载 + 整轮超时，避免卡死事件循环）
         graph_config = build_graph_invoke_config(request.session_id, request.trace_id)
         invoke_kwargs = {"config": graph_config} if graph_config else {}
-        result = agent_graph.invoke(initial_state, **invoke_kwargs)
-        response_text = result["messages"][-1].content if result["messages"] else "处理完成"
+        turn_timeout = admin_ws_turn_timeout_sec()
+        turn_cancel = begin_admin_turn_cancel()
+        try:
+            result = await asyncio.wait_for(
+                asyncio.to_thread(
+                    run_agent_graph_invoke,
+                    agent_graph,
+                    initial_state,
+                    invoke_kwargs,
+                    cancel_token=turn_cancel,
+                ),
+                timeout=turn_timeout,
+            )
+        except asyncio.TimeoutError:
+            cancel_admin_turn()
+            raise HTTPException(
+                status_code=504,
+                detail=f"处理超时（{turn_timeout:.0f}s 未完成）。请稍后重试。",
+            )
+        finally:
+            clear_admin_turn_cancel()
+        response_text = _graph_response_text(result)
         tokens_used = _calc_total_tokens(result, request.message, response_text)
         token_controller.update_usage(request.session_id, tokens_used)
         trace_id = str(request.trace_id or "").strip() or None

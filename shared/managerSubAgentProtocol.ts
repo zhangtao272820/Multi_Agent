@@ -129,6 +129,37 @@ export function stripAdminManagerGuards(raw: string): string {
   return isAdminPreambleLine(s) ? "" : s;
 }
 
+/**
+ * Admin 入站结果是否为协议垃圾（能力 preamble / 纯 guard），不得喂给 synth。
+ * 结构判定：剥 guard 后为空，或整段几乎全是 preamble 行。
+ */
+export function isAdminResultProtocolGarbage(answer: string): boolean {
+  const raw = String(answer || "").trim();
+  if (!raw) return true;
+  const withoutError = raw.replace(/^(error|错误|失败)\s*[:：]\s*/i, "").trim();
+  if (!withoutError) return true;
+  if (withoutError.includes("仅处理下列个人助理能力")) {
+    const peeled = stripAdminManagerGuards(withoutError);
+    if (!peeled.trim() || peeled.length < 12) return true;
+    const lines = withoutError
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean);
+    if (lines.length >= 2 && lines.every((l) => isAdminPreambleLine(l) || /^error\s*[:：]/i.test(l))) {
+      return true;
+    }
+  }
+  const peeledOnly = stripAdminManagerGuards(withoutError);
+  if (!peeledOnly.trim() && (withoutError.startsWith("· ") || withoutError.startsWith("【总管"))) {
+    return true;
+  }
+  return false;
+}
+
+/** 人审未通过时的用户可读文案（禁止改写成「权限不足」） */
+export const ADMIN_WRITE_UNCONFIRMED_USER_MSG =
+  "未确认，未写入日程/待办。如需执行请重新发起并点击确认。";
+
 /** DB 总管步骤常见前缀（入站剥离） */
 export const DB_MANAGER_PREFIXES = [
   "从数据库查询相关记录并返回结构化结果：",

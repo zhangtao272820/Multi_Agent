@@ -18,9 +18,11 @@ type Props = {
   onCompleteErrand?: () => void;
   onFulfillAppointment?: (appointmentId: string) => void;
   onReplyPing?: (characterId: string) => void;
-  onCodex: () => void;
+  onCodex: (characterId?: string) => void;
   onGoLocation: (locationId: string) => void;
   onBack: () => void;
+  /** 地点内切换关注角色时的桥接提示（父级可转成 stageNotice） */
+  onFocusChange?: (characterId: string, name: string) => void;
 };
 
 const LOC_BG: Record<string, string> = {
@@ -55,6 +57,7 @@ export default function LocationScreen({
   onCodex,
   onGoLocation,
   onBack,
+  onFocusChange,
 }: Props) {
   const present = hub.present_here || [];
   const locLabel = hub.locations.find((l) => l.id === hub.location_id)?.label || hub.location_id;
@@ -62,6 +65,7 @@ export default function LocationScreen({
   const dateSlots = life?.date_slots || [];
   const fulfillable = (hub.appointments_upcoming || []).filter((a) => a.fulfillable);
   const [focusId, setFocusId] = useState<string | null>(null);
+  const [focusBridge, setFocusBridge] = useState("");
   const [inviteFor, setInviteFor] = useState<string | null>(null);
   const [ensembleGuestId, setEnsembleGuestId] = useState<string | null>(null);
   const bgName = useMemo(() => bgForLocation(hub.location_id), [hub.location_id]);
@@ -204,6 +208,11 @@ export default function LocationScreen({
                 </div>
               </div>
             ) : null}
+            {focusBridge ? (
+              <p className="gal-loc-focus-bridge" role="status">
+                {focusBridge}
+              </p>
+            ) : null}
             <div className="gal-loc-face-row gal-loc-face-row--chips">
               {present.map((b: BondSummary) => {
                 const rec =
@@ -218,7 +227,14 @@ export default function LocationScreen({
                       rec ? " gal-loc-chip--rec" : ""
                     }`}
                     disabled={busy}
-                    onClick={() => setFocusId(b.character_id)}
+                    onClick={() => {
+                      const next = b.character_id;
+                      if (next === focusId) return;
+                      setFocusId(next);
+                      const line = `你的目光转向了${b.name}。`;
+                      setFocusBridge(line);
+                      onFocusChange?.(next, b.name);
+                    }}
                     onDoubleClick={() => onTalk(b.character_id)}
                     title={b.status_hint || affinityImpression(b.affinity)}
                   >
@@ -373,7 +389,7 @@ export default function LocationScreen({
         connected
         onGoLocation={onGoLocation}
         onReplyPing={onReplyPing}
-        onOpenStatus={onCodex}
+        onOpenStatus={() => onCodex(focusId || undefined)}
         onBuyGift={onBuyGift}
         onWork={onWork}
         onEat={onEat}

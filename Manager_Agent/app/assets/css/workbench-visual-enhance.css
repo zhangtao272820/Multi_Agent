@@ -1198,6 +1198,15 @@
   opacity: 0.6;
 }
 
+/* 外层 chart-details 已有边框，内层 chart-card 不再叠顶条 */
+.spring-root .chart-details .chart-card::before {
+  display: none;
+}
+
+.spring-root .chart-details.reply-inline-analytics {
+  position: relative;
+}
+
 /* 流式回复指示 */
 .spring-root .conv-stream-bubble {
   border-radius: 12px !important;

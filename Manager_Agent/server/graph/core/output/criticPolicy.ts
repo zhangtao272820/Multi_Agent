@@ -4,7 +4,7 @@ import { isMediaOnlyPlanAgents } from '../shared'
 
 const FAST_PATH_BLOCK_AGENTS = new Set(['code', 'crawler', 'admin', 'visualize', 'report'])
 
-function criticFastPathBlocked(input: {
+export function criticFastPathBlocked(input: {
   intent: string
   planAgents: string[]
   results?: Record<string, unknown>
@@ -51,6 +51,12 @@ export function shouldSkipCriticLlm(input: {
     return { skip: true, reason: 'low_cost_or_timeout' }
   }
 
+  // 专家本轮已硬失败：勿再开 critic 烧 token 去改道重调
+  const hard = input.meta?.expertHardDown
+  if (hard && typeof hard === 'object' && Object.keys(hard as object).length > 0) {
+    return { skip: true, reason: 'expert_hard_down' }
+  }
+
   const planAgents = input.planAgents.filter(Boolean)
   const mmLen = Number(input.multimodalOutLen ?? 0)
   if (mmLen >= 20 && isMediaOnlyPlanAgents(planAgents)) {
@@ -73,4 +79,14 @@ export function shouldSkipCriticLlm(input: {
   }
 
   return { skip: true, reason: 'high_conf_simple' }
+}
+
+/** critic/fix 改道意图若指向本轮 hard-down 专家 → 应拦截 */
+export function isFixIntentBlockedByHardDown(intent: string | undefined | null, meta: unknown): boolean {
+  const hard = (meta as { expertHardDown?: Record<string, string> } | null)?.expertHardDown
+  if (!hard || typeof hard !== 'object') return false
+  const i = String(intent || '').trim()
+  if (!i) return false
+  if (hard[i]) return true
+  return false
 }

@@ -5,6 +5,7 @@ import { buildRagRefocusMessage, isRagRelevanceJudgeEnabled, refineRagAnswerIfIr
 import type { ManagerGraphState } from '../../state/state'
 import { resolveLeanRagQuery } from '../probe/retrieverPlan'
 import { isManagerRagRetrieveFirstEnabled, shouldSkipRagRelevanceRefine, shouldTreatRagAsMiss } from '../rag/ragRetrievePolicy'
+import { classifyAndDetectHard } from '../runtime/expertFailure'
 import { buildRagHistoryFromState } from '../runtime/sessionBridge'
 import { extractStructuredPayload } from '../shared'
 import { parseRagClarifyPayload } from '../text'
@@ -12,6 +13,32 @@ import { resolveRagRetrievalBundle, tryRagProbeSnippetFastPath, finishRagFastPat
 import { countRagEvidenceUnits, mergeRagClarifyQuestions, isChatRevisionMeta } from './sharedHelpers'
 import type { AgentExecutorDeps, AgentExecutorOpts, AgentStepOutcome } from './types'
 import { callRagMcpRetrieve } from '../../../utils/mcp/managerMcpHost'
+
+function isRagHardFailureBlob(x: unknown): x is { hardFailure: true; error_code?: string; agentResult?: AgentResult } {
+  return Boolean(x && typeof x === 'object' && (x as { hardFailure?: boolean }).hardFailure === true)
+}
+
+function ragHardFailOutcome(input: {
+  query: string
+  errorCode: string
+  detail?: string
+  agentResult?: AgentResult
+}): AgentStepOutcome {
+  const code = String(input.errorCode || 'network').trim() || 'network'
+  const detail = String(input.detail || code).slice(0, 200)
+  return {
+    ok: false,
+    agent: 'rag',
+    output: `知识库（RAG）暂不可用（${code}），已截断后续检索以免空转。${detail ? `详情：${detail}` : ''}`,
+    query: input.query,
+    error: detail || code,
+    meta: {
+      agentResult: input.agentResult || { ok: false, error_code: code },
+      hardFailure: true,
+      error_code: code
+    }
+  }
+}
 
 export function isRagMcpFirstEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
   return String(env.MANAGER_RAG_MCP_FIRST ?? '0').trim() === '1'
@@ -38,21 +65,45 @@ export async function executeRagStep(
   let probeRag = input.state.probe?.rag
   const leanForProbe = resolveLeanRagQuery(String(input.baseQuery || input.question || ''), String(input.question || ''))
 
+  const metaHard = (input.state.meta as { expertHardDown?: Record<string, string> } | null)?.expertHardDown
+  const prefetchHard = (input.state.meta as { ragRetrievePrefetch?: { hardFailure?: boolean; error_code?: string; error?: string } } | null)
+    ?.ragRetrievePrefetch
+  if (metaHard?.rag || prefetchHard?.hardFailure) {
+    const code = String(metaHard?.rag || prefetchHard?.error_code || 'network').trim() || 'network'
+    input.sendThinking(`RAG Agent：本轮已硬失败（${code}），跳过重复调用`)
+    return ragHardFailOutcome({
+      query: input.effQuery || input.baseQuery,
+      errorCode: code,
+      detail: prefetchHard?.error || code
+    })
+  }
+
   if (Number(probeRag?.hits ?? 0) <= 0 && leanForProbe) {
-    const freshProbe = await callRagProbe({
-      ragAgentHttpUrl: opts.ragAgentHttpUrl,
-      timeoutMs: Math.min(input.timeoutMs, ragProbeTimeoutMs()),
-      query: leanForProbe,
-      userId: opts.userId,
-      traceId: opts.runId,
-      signal: opts.signal
-    }).catch(() => null)
-    if (freshProbe && (freshProbe.hits ?? 0) > 0) {
-      probeRag = {
-        hasDocs: Boolean(freshProbe.hasDocs ?? probeRag?.hasDocs),
-        hits: freshProbe.hits ?? 0,
-        sources: freshProbe.sources ?? [],
-        snippets: freshProbe.snippets ?? []
+    try {
+      const freshProbe = await callRagProbe({
+        ragAgentHttpUrl: opts.ragAgentHttpUrl,
+        timeoutMs: Math.min(input.timeoutMs, ragProbeTimeoutMs()),
+        query: leanForProbe,
+        userId: opts.userId,
+        traceId: opts.runId,
+        signal: opts.signal
+      })
+      if (freshProbe && (freshProbe.hits ?? 0) > 0) {
+        probeRag = {
+          hasDocs: Boolean(freshProbe.hasDocs ?? probeRag?.hasDocs),
+          hits: freshProbe.hits ?? 0,
+          sources: freshProbe.sources ?? [],
+          snippets: freshProbe.snippets ?? []
+        }
+      }
+    } catch (probeErr: unknown) {
+      const detected = classifyAndDetectHard({ error: probeErr })
+      if (detected.hard) {
+        return ragHardFailOutcome({
+          query: input.effQuery || leanForProbe,
+          errorCode: detected.code,
+          detail: detected.message
+        })
       }
     }
   }
@@ -83,6 +134,14 @@ export async function executeRagStep(
     mode: 'default',
     ragEvidenceMatchJudge: deps.ragEvidenceMatchJudge
   })
+  if (isRagHardFailureBlob(aligned)) {
+    return ragHardFailOutcome({
+      query: leanRagQuery,
+      errorCode: String(aligned.error_code || 'network'),
+      detail: String(aligned.error_code || 'retrieve hard failure'),
+      agentResult: aligned.agentResult
+    })
+  }
   if (!aligned && isManagerRagRetrieveFirstEnabled()) {
     const relaxed = await tryRagRetrieveAlignedPath({
       state: input.state,
@@ -95,6 +154,13 @@ export async function executeRagStep(
       mode: 'relaxed',
       ragEvidenceMatchJudge: deps.ragEvidenceMatchJudge
     })
+    if (isRagHardFailureBlob(relaxed)) {
+      return ragHardFailOutcome({
+        query: leanRagQuery,
+        errorCode: String(relaxed.error_code || 'network'),
+        agentResult: relaxed.agentResult
+      })
+    }
     if (relaxed) {
       return finishRagFastPath(
         ragUi,
@@ -149,6 +215,14 @@ export async function executeRagStep(
         }
       }
     } catch (mcpErr) {
+      const detected = classifyAndDetectHard({ error: mcpErr })
+      if (detected.hard) {
+        return ragHardFailOutcome({
+          query: leanRagQuery,
+          errorCode: detected.code,
+          detail: detected.message
+        })
+      }
       input.sendThinking(
         `RAG Agent：MCP 失败，回退 HTTP（${String((mcpErr as Error)?.message || mcpErr).slice(0, 120)}）`
       )
@@ -197,6 +271,18 @@ export async function executeRagStep(
     if (unwrapAgentCall(ragCall as string | AgentCallResult).agentResult) {
       ragAgentResult = unwrapAgentCall(ragCall as string | AgentCallResult).agentResult
     }
+    if (ragAgentResult?.ok === false) {
+      const code = String(ragAgentResult.error_code || '').trim()
+      const detected = classifyAndDetectHard({ agentResult: ragAgentResult, error: ragOut })
+      if (detected.hard || code === 'vector_not_ready') {
+        return ragHardFailOutcome({
+          query: leanRagQuery,
+          errorCode: code || detected.code,
+          detail: ragOut,
+          agentResult: ragAgentResult
+        })
+      }
+    }
     if (isRagRelevanceJudgeEnabled() && deps.ragRelevanceJudge && !shouldSkipRagRelevanceRefine(ragEvidence as Record<string, unknown>, ragOut)) {
       const refined = await refineRagAnswerIfIrrelevant({
         query: leanRagQuery,
@@ -238,6 +324,13 @@ export async function executeRagStep(
         mode: 'relaxed',
         ragEvidenceMatchJudge: deps.ragEvidenceMatchJudge
       })
+      if (isRagHardFailureBlob(retrieveFallback)) {
+        return ragHardFailOutcome({
+          query: leanRagQuery,
+          errorCode: String(retrieveFallback.error_code || 'network'),
+          agentResult: retrieveFallback.agentResult
+        })
+      }
       if (retrieveFallback) {
         return finishRagFastPath(ragUi, opts, probeRag, retrieveFallback, 'RAG Agent：retrieve 兜底命中…')
       }
@@ -268,6 +361,14 @@ export async function executeRagStep(
     }
   } catch (e: unknown) {
     const err = String((e as Error)?.message || e || 'unknown error')
+    const detected = classifyAndDetectHard({ error: e })
+    if (detected.hard) {
+      return ragHardFailOutcome({
+        query: input.effQuery,
+        errorCode: detected.code,
+        detail: err
+      })
+    }
     const hits = Number(probeRag?.hits ?? 0) || 0
     if (input.allowRetry && hits > 0) {
       try {
@@ -296,6 +397,10 @@ export async function executeRagStep(
         }
       } catch (e2: unknown) {
         const err2 = String((e2 as Error)?.message || e2 || 'unknown error')
+        const d2 = classifyAndDetectHard({ error: e2 })
+        if (d2.hard) {
+          return ragHardFailOutcome({ query: input.effQuery, errorCode: d2.code, detail: err2 })
+        }
         return {
           ok: false,
           agent: 'rag',
@@ -312,5 +417,3 @@ export async function executeRagStep(
     return { ok: false, agent: 'rag', output, query: input.effQuery, error: err }
   }
 }
-
-

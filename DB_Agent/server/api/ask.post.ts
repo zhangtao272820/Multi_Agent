@@ -11,6 +11,7 @@ import { buildDbAgentResult } from "../utils/agent_result";
 import { appendAgentTraceLog } from "../utils/trace_log";
 import { ensureInternalAgentAccess } from "../utils/internal_auth";
 import { applyPlatformModelOverrides } from "../utils/platform_config";
+import { accumulateLlmUsage, resolveAgentUsage, type AgentUsage } from "#agent-shared/agentUsage";
 
 export default defineEventHandler(async (event) => {
   ensureInternalAgentAccess(event);
@@ -54,6 +55,7 @@ export default defineEventHandler(async (event) => {
   });
 
   let capturedRunId: string | null = null;
+  let llmUsageAcc: AgentUsage | undefined;
   const manager_task_json = (() => {
     if (typeof body?.manager_task_json === "string" && body.manager_task_json.trim()) return body.manager_task_json.trim();
     if (body?.managerTask && typeof body.managerTask === "object") {
@@ -82,6 +84,18 @@ export default defineEventHandler(async (event) => {
           handleLLMStart(_llm, _prompts, runId) {
             if (!capturedRunId) capturedRunId = runId;
           },
+          handleLLMEnd(output) {
+            const gen = Array.isArray((output as any)?.generations)
+              ? (output as any).generations?.[0]?.[0]
+              : null;
+            const raw =
+              (output as any)?.llmOutput?.tokenUsage ??
+              (output as any)?.llmOutput?.usage ??
+              gen?.message?.usage_metadata ??
+              gen?.usage_metadata ??
+              null;
+            llmUsageAcc = accumulateLlmUsage(llmUsageAcc, raw);
+          },
         },
       ],
     },
@@ -95,30 +109,38 @@ export default defineEventHandler(async (event) => {
 
   const text = typeof answer === "string" ? answer : JSON.stringify(answer ?? {});
   const meta = getRunMeta();
+  // D1：优先信任图终态 meta.empty / error_code（友好话术不得粉饰成功）
   const empty = meta?.needs_clarification
     ? false
-    : (() => {
-        const t = String(text || "").trim();
-        if (!t) return true;
-        const pats = [
-          /没有查到/,
-          /未查询到/,
-          /无记录/,
-          /暂无数据/,
-          /查询结果为空/,
-          /not\s+found/,
-          /no\s+data/,
-          /no\s+records/,
-        ];
-        if (pats.some((p) => p.test(t))) return true;
-        if (t.length < 6) return true;
-        return false;
-      })();
-  const reason = meta?.needs_clarification ? "needs_clarification" : empty ? "no_data_or_unmatched" : "ok";
+    : meta?.empty === true
+      ? true
+      : meta?.error_code === "empty_result" || meta?.error_code === "schema_miss"
+        ? true
+        : (() => {
+            const t = String(text || "").trim();
+            if (!t) return true;
+            const pats = [
+              /没有查到/,
+              /未查询到/,
+              /无记录/,
+              /暂无数据/,
+              /查询结果为空/,
+              /not\s+found/,
+              /no\s+data/,
+              /no\s+records/,
+            ];
+            if (pats.some((p) => p.test(t))) return true;
+            if (t.length < 6) return true;
+            return false;
+          })();
+  const reason = meta?.needs_clarification
+    ? "needs_clarification"
+    : meta?.fail_reason || (empty ? "no_data_or_unmatched" : "ok");
   const traceId =
     String(event.node.req.headers["x-trace-id"] ?? event.node.req.headers["x-run-id"] ?? "").trim() ||
     capturedRunId ||
     undefined;
+  const latencyMs = Date.now() - started;
 
   const agentResult = buildDbAgentResult({
     answer: text,
@@ -130,6 +152,10 @@ export default defineEventHandler(async (event) => {
     clarification_question: meta?.clarification_question,
     explain_preflight: meta?.explain_preflight,
     executed_sql: meta?.executed_sql,
+    error_code: meta?.error_code,
+    path: meta?.path ? String(meta.path) : undefined,
+    latency_ms: latencyMs,
+    usage: resolveAgentUsage({ llmUsage: llmUsageAcc, answerText: text }),
   });
 
   void appendAgentTraceLog({

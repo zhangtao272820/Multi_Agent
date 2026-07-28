@@ -126,6 +126,8 @@ export function buildGuiAgentResult(params: {
     answer: answer || undefined,
     sources: sources.length ? sources : undefined,
     structured: {
+      content_trust: 'untrusted',
+      content_trust_source: 'gui',
       finalUrl: finalUrl || undefined,
       stepCount,
       dataChunks: data.length,

@@ -68,7 +68,7 @@ import {
   formatEvaluatorForCriticAudit,
   formatEvidenceForCriticAudit
 } from '../../core/output/criticEvidence'
-import { shouldSkipCriticLlm } from '../../core/output/criticPolicy'
+import { shouldSkipCriticLlm, isFixIntentBlockedByHardDown } from '../../core/output/criticPolicy'
 import { loadTaskStack } from '../../core/task/taskStack'
 import { extractAndUpsertTasksFromAssistantText, isTaskStackFinalizeLlmExtractEnabled } from '../../core/task/taskStackLlmExtract'
 import {
@@ -199,15 +199,24 @@ export function buildCriticNodeRun(deps: CreateFinalNodesDeps) {
           canManagerRetryMore(retryLimits) &&
           String(process.env.MANAGER_EVIDENCE_GATE ?? '1').trim() !== '0'
         ) {
-          opts.sendEvent({
-            event: 'thinking',
-            data: `证据门禁：${evidenceGate.reason || '来源不足'}，触发重试`,
-            from: 'manager'
-          })
-          return {
-            final: '',
-            fixIntent: 'multi' as const,
-            fixQuery: `请补充可核验依据后重答：${evidenceGate.reason || '缺少来源或数据'}`
+          const hard = state.meta?.expertHardDown
+          if (hard && typeof hard === 'object' && Object.keys(hard as object).length > 0) {
+            opts.sendEvent({
+              event: 'thinking',
+              data: `证据门禁：${evidenceGate.reason || '来源不足'}；专家已硬失败，跳过重试以免空转`,
+              from: 'manager'
+            })
+          } else {
+            opts.sendEvent({
+              event: 'thinking',
+              data: `证据门禁：${evidenceGate.reason || '来源不足'}，触发重试`,
+              from: 'manager'
+            })
+            return {
+              final: '',
+              fixIntent: 'multi' as const,
+              fixQuery: `请补充可核验依据后重答：${evidenceGate.reason || '缺少来源或数据'}`
+            }
           }
         }
         if (
@@ -407,6 +416,14 @@ export function buildCriticNodeRun(deps: CreateFinalNodesDeps) {
             }
             const intent = IntentSchema.safeParse(String(v.retryIntent || '')).success ? (v.retryIntent as any) : ('multi' as const)
             const q = String(v.retryQuery || '').trim() || `请按审计建议重试：${String(v.note || '')}`
+            if (isFixIntentBlockedByHardDown(intent, state.meta)) {
+              opts.sendEvent({
+                event: 'thinking',
+                data: `审计：目标专家 ${intent} 本轮已硬失败，跳过改道重试`,
+                from: 'manager'
+              })
+              return {}
+            }
             opts.sendEvent({ event: 'thinking', data: `审计未通过，触发模型自愈重试：${String(v.note || '重试')}`, from: 'manager' })
             return { final: '', fixIntent: intent as any, fixQuery: q }
           }

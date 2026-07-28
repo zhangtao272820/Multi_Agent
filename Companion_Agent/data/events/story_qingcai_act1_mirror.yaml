@@ -10,11 +10,21 @@ trigger:
   affinity_min: 55
   flags_absent: [qc_mirror]
 prompt_snippet: |
-  【专属故事 · 练舞室的夏 · 第1幕 · 镜前】
-  练舞室；她直球邀请你当观众
-  立绘气质参考：studio_mirror, rehearsal_sweat, school。
-  用角色口吻推进这一幕的情绪与选择；可给 2～3 个短选项。
-  不要直接宣布结局名称；关系阶段由系统判定。
+  【专属故事 · 舞台外的我 · 第1幕 · 镜前】
+advance: on_player_turn
+beats:
+  - id: b1
+    summary: "排练室镜墙前，她满头汗，却仍纠正自己的表情管理。"
+    sprite_hint: [studio_mirror, rehearsal_sweat]
+    soft_options: ["递水", "夸动作", "安静看完这组"]
+  - id: b2
+    summary: "她嫌你把「舞台上的她」和「镜前的她」混为一谈。"
+    sprite_hint: [studio_mirror, school]
+    soft_options: ["承认分得清", "问哪一面更累", "道歉看走眼"]
+  - id: b3
+    summary: "她允许你偶尔看后台：前提是别把努力说成「天赋故事」。"
+    sprite_hint: [rehearsal_sweat, casual]
+    soft_options: ["答应只当见证人", "约下次练完一起走", "先离开让她独处"]
 rewards:
   flags_set: [qc_mirror, dance_practice_done]
 choice_effects:

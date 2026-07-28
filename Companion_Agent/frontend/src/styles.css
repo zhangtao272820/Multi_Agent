@@ -1346,6 +1346,89 @@ select {
   backdrop-filter: blur(4px);
 }
 
+.gal-stage-transition {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gal-stage-transition-veil {
+  position: absolute;
+  inset: 0;
+  background: #0a070c;
+  animation: gal-stage-fade 0.52s ease-in-out both;
+}
+
+.gal-stage-transition-caption {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  padding: 0 1.25rem;
+  max-width: min(28rem, 88vw);
+  text-align: center;
+  font-size: 1.05rem;
+  letter-spacing: 0.06em;
+  color: rgba(255, 236, 210, 0.92);
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.55);
+  animation: gal-stage-caption 0.52s ease-in-out both;
+}
+
+@keyframes gal-stage-fade {
+  0% {
+    opacity: 0;
+  }
+  35% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes gal-stage-caption {
+  0% {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  75% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gal-stage-transition-veil,
+  .gal-stage-transition-caption {
+    animation-duration: 0.01ms;
+  }
+}
+
+.gal-hud-story {
+  color: rgba(255, 214, 170, 0.95);
+  font-variant-numeric: tabular-nums;
+}
+
+.gal-event-toast--story {
+  border-color: rgba(201, 162, 99, 0.55);
+}
+
+.gal-loc-focus-bridge {
+  margin: 0.35rem 0 0.15rem;
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+  color: rgba(240, 220, 190, 0.82);
+}
+
 .gal-scene-end-card {
   max-width: min(420px, 88vw);
   padding: 1.4rem 1.5rem 1.25rem;
@@ -7077,6 +7160,218 @@ html[data-reduced-motion="1"] .gal-vn-actor--rec .gal-vn-sprite {
   gap: 1rem;
   align-items: end;
   margin-bottom: 1rem;
+}
+
+.gal-codex-head {
+  align-items: flex-end;
+  gap: 0.75rem;
+}
+
+.gal-codex-head-copy h2 {
+  margin: 0;
+  font-family: var(--font-display, "Segoe UI", serif);
+  letter-spacing: 0.08em;
+}
+
+.gal-codex-head-copy .muted {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.85rem;
+}
+
+.gal-codex-dossier {
+  max-width: min(920px, 100%);
+  margin: 0 auto;
+  padding: 0 0.25rem 1.5rem;
+}
+
+.gal-codex-dossier-hero {
+  display: grid;
+  grid-template-columns: minmax(160px, 240px) 1fr;
+  gap: 1.1rem 1.35rem;
+  align-items: end;
+  margin-bottom: 1.15rem;
+  padding: 1rem 1.1rem 1.15rem;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--codex-accent, #d4a574) 35%, transparent);
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--codex-accent, #d4a574) 14%, transparent), transparent 55%),
+    linear-gradient(180deg, rgba(28, 18, 24, 0.72), rgba(12, 8, 14, 0.88));
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.28);
+}
+
+.gal-codex-dossier-art {
+  position: relative;
+  min-height: 220px;
+}
+
+.gal-codex-dossier-art .gal-heroine-menu-art {
+  width: 100%;
+  height: 260px;
+  object-fit: cover;
+  object-position: top center;
+  border-radius: 10px;
+}
+
+.gal-codex-kicker {
+  margin: 0 0 0.25rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--codex-accent, #e0c090) 80%, #fff);
+}
+
+.gal-codex-dossier-title h3 {
+  margin: 0 0 0.25rem;
+  font-family: var(--font-display, Georgia, serif);
+  font-size: clamp(1.45rem, 2.4vw, 1.9rem);
+  letter-spacing: 0.06em;
+  color: rgba(255, 246, 230, 0.98);
+}
+
+.gal-codex-role {
+  margin: 0;
+  color: rgba(243, 228, 205, 0.78);
+}
+
+.gal-codex-meta {
+  margin: 0.35rem 0 0.65rem;
+  font-size: 0.9rem;
+  color: rgba(230, 210, 180, 0.7);
+}
+
+.gal-codex-panels {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem;
+}
+
+.gal-codex-panel {
+  padding: 0.95rem 1rem 1.05rem;
+  border-radius: 10px;
+  border: 1px solid rgba(201, 162, 99, 0.22);
+  background: rgba(18, 12, 18, 0.55);
+}
+
+.gal-codex-panel h4 {
+  margin: 0 0 0.7rem;
+  font-size: 0.82rem;
+  letter-spacing: 0.16em;
+  color: rgba(224, 192, 144, 0.92);
+  font-weight: 600;
+}
+
+.gal-codex-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem 0.75rem;
+  margin: 0;
+}
+
+.gal-codex-facts > div {
+  min-width: 0;
+}
+
+.gal-codex-facts dt {
+  margin: 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  color: rgba(220, 200, 170, 0.55);
+}
+
+.gal-codex-facts dd {
+  margin: 0.12rem 0 0;
+  font-size: 0.95rem;
+  color: rgba(255, 244, 226, 0.94);
+}
+
+.gal-codex-status,
+.gal-codex-hint-line,
+.gal-codex-personality,
+.gal-codex-appearance,
+.gal-codex-speak {
+  margin: 0.75rem 0 0;
+  line-height: 1.55;
+  color: rgba(236, 224, 206, 0.82);
+  font-size: 0.92rem;
+}
+
+.gal-codex-mbti {
+  display: flex;
+  align-items: baseline;
+  gap: 0.55rem;
+  margin: 0 0 0.55rem;
+}
+
+.gal-codex-mbti span {
+  font-family: var(--font-display, Georgia, serif);
+  font-size: 1.25rem;
+  letter-spacing: 0.08em;
+  color: rgba(255, 228, 186, 0.98);
+}
+
+.gal-codex-mbti em {
+  font-style: normal;
+  color: rgba(220, 200, 170, 0.7);
+  font-size: 0.88rem;
+}
+
+.gal-codex-traits {
+  list-style: none;
+  margin: 0.85rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.gal-codex-traits li {
+  display: grid;
+  grid-template-columns: 3.2rem 1fr;
+  gap: 0.55rem;
+  align-items: center;
+  font-size: 0.82rem;
+  color: rgba(236, 224, 206, 0.78);
+}
+
+.gal-codex-trait-bar {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 248, 230, 0.08);
+  overflow: hidden;
+}
+
+.gal-codex-trait-bar i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(201, 162, 99, 0.55), rgba(255, 214, 160, 0.9));
+}
+
+.gal-codex-card-mbti {
+  display: inline-block;
+  margin-top: 0.2rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  color: rgba(224, 192, 144, 0.85);
+}
+
+.gal-codex-locked {
+  margin: 0.5rem 0 0;
+  padding: 0.85rem 1rem;
+  border-radius: 8px;
+  border: 1px dashed rgba(201, 162, 99, 0.28);
+}
+
+@media (max-width: 780px) {
+  .gal-codex-dossier-hero,
+  .gal-codex-panels,
+  .gal-codex-facts {
+    grid-template-columns: 1fr;
+  }
+
+  .gal-codex-dossier-art .gal-heroine-menu-art {
+    height: 220px;
+  }
 }
 
 .gal-heroine-detail-copy h3 {

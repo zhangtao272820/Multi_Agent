@@ -374,7 +374,7 @@ export function finalizePlanExecutionDeps(planIn: Step[]): Step[] {
 
 /**
  * multi 调度：步骤是否可执行。
- * - 取数/加工链：上游 terminal（含 skipped/error）即可推进，避免 rag 被跳过后 code 永远等不到
+ * - 上游须 terminal 才就绪；消费链的「未成功则 skip」在 runStep 用 getUpstreamFailureSkipReason 处理
  * - visualize/report 等 code：code 须 terminal；失败/跳过后由 runStep 内门禁 skip，不再空转
  */
 export function isStepReadyForExecution(
@@ -394,6 +394,62 @@ export function isStepReadyForExecution(
     if (!stepUpstreamTerminal(rec)) return false
   }
   return true
+}
+
+/** 数据/加工消费链：上游未成功则应 skip，避免空转烧 token */
+const UPSTREAM_CONSUMER_AGENTS = new Set<Step['agent']>([
+  'clean',
+  'code',
+  'visualize',
+  'report',
+  'music',
+  'video'
+])
+
+/**
+ * 若本步依赖的上游已 terminal 但未成功 → 返回 skip 原因；否则 null。
+ * 调用方应在 precheck 通过后、executor 前调用。
+ */
+export function getUpstreamFailureSkipReason(
+  step: Step,
+  allSteps: Step[],
+  completedById: Record<string, StepCompletionRecord>
+): string | null {
+  if (!UPSTREAM_CONSUMER_AGENTS.has(step.agent)) return null
+  const planById = stepById(allSteps)
+  const depIds = resolveEffectiveDependencies(step, allSteps)
+  if (!depIds.length) return null
+  for (const depId of depIds) {
+    const rec = completedById[depId]
+    if (!stepUpstreamTerminal(rec)) return null
+    if (stepDependencySatisfied(rec)) continue
+    const depAgent = String(planById.get(depId)?.agent || depId).trim()
+    const st = String(rec?.status || '').trim() || 'unknown'
+    return `上游 ${depAgent}(${depId}) 未成功（${st}），跳过本步以免空转`
+  }
+  return null
+}
+
+/** 失败/跳过某步后：列出应立即 skip 的 pending 下游（dependsOn 消费链） */
+export function listDependentsToSkipAfterFailure(
+  failedStepId: string,
+  pendingSteps: Step[],
+  allSteps: Step[],
+  completedById: Record<string, StepCompletionRecord>
+): Step[] {
+  const fid = String(failedStepId || '').trim()
+  if (!fid) return []
+  const nextCompleted: Record<string, StepCompletionRecord> = { ...completedById }
+  if (!nextCompleted[fid]) nextCompleted[fid] = { status: 'error' }
+  const out: Step[] = []
+  for (const s of pendingSteps) {
+    const sid = String(s.id || '').trim()
+    if (!sid || nextCompleted[sid]) continue
+    if (!UPSTREAM_CONSUMER_AGENTS.has(s.agent)) continue
+    const reason = getUpstreamFailureSkipReason(s, allSteps, nextCompleted)
+    if (reason) out.push(s)
+  }
+  return out
 }
 
 /** 列出仍阻塞该步骤的上游 id（调试用） */
@@ -423,7 +479,7 @@ export function isCodeStepCompletedInRun(
   return Boolean(codeId && stepDependencySatisfied(completedById[codeId]))
 }
 
-/** 调度死锁兜底：取数步可强行启动；code 在上游均已 terminal 时可强行启动 */
+/** 调度死锁兜底：取数步可强行启动；code 在上游均已成功时可强行启动（失败上游则由上游剪枝 skip，不 force） */
 export function canForceRunPendingStep(
   step: Step,
   allSteps: Step[],
@@ -440,7 +496,7 @@ export function canForceRunPendingStep(
   }
   if (step.agent === 'code') {
     const deps = resolveEffectiveDependencies(step, allSteps)
-    return deps.length > 0 && deps.every((depId) => stepUpstreamTerminal(completedById[depId]))
+    return deps.length > 0 && deps.every((depId) => stepDependencySatisfied(completedById[depId]))
   }
   return DATA_PARALLEL_AGENTS.has(step.agent) || step.agent === 'crawler' || step.agent === 'admin'
 }

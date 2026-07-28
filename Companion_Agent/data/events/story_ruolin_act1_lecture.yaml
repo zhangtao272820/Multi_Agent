@@ -11,10 +11,20 @@ trigger:
   flags_absent: [rl_office_hours]
 prompt_snippet: |
   【专属故事 · 讲台下的一年 · 第1幕 · 粉笔灰】
-  课堂提问、office hours 第一次单独谈话
-  立绘气质参考：lecture_pointer, office_hours, school。
-  用角色口吻推进这一幕的情绪与选择；可给 2～3 个短选项。
-  不要直接宣布结局名称；关系阶段由系统判定。
+advance: on_player_turn
+beats:
+  - id: b1
+    summary: "课堂提问、office hours 第一次单独谈话"
+    sprite_hint: [lecture_pointer, office_hours]
+    soft_options: ["认真接话", "先观察", "轻声提问"]
+  - id: b2
+    summary: "「粉笔灰」里出现犹豫或选择。"
+    sprite_hint: [office_hours, school]
+    soft_options: ["表明态度", "给她空间", "确认她的意思"]
+  - id: b3
+    summary: "收束本幕：留下可被记住的结果，不剧透结局名。"
+    sprite_hint: [school]
+    soft_options: ["坦白心意", "先缓一缓", "诚实说明顾虑"]
 rewards:
   flags_set: [rl_office_hours]
 choice_effects:

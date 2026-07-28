@@ -41,11 +41,27 @@ def _catalog_int(name: str, default: int) -> int:
 
 def scene_turn_budget(mode: str) -> int:
     m = (mode or "talk").strip().lower()
+    if m == "story":
+        return max(4, _catalog_int("scene_story_turns", 8))
     if m == "date":
         return max(3, _catalog_int("scene_date_turns", 10))
     if m == "ping":
         return max(2, _catalog_int("scene_ping_turns", 4))
     return max(2, _catalog_int("scene_talk_turns", 6))
+
+
+def bump_scene_for_story(run: SceneRun | dict[str, Any] | None) -> SceneRun | None:
+    """专属故事幕触发时抬高回合预算，不缩短已用轮；日常 talk/date 默认上限不变。"""
+    if not run:
+        return None
+    if isinstance(run, dict):
+        run = SceneRun.model_validate(run)
+    budget = scene_turn_budget("story")
+    used = max(0, int(run.turns_used or 0))
+    turns_max = max(int(run.turns_max or 0), budget)
+    run.turns_max = turns_max
+    run.turns_left = max(0, turns_max - used)
+    return run
 
 
 def daily_scene_limit() -> int:

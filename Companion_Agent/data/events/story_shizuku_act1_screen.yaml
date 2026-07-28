@@ -11,10 +11,20 @@ trigger:
   flags_absent: [sz_first_irl]
 prompt_snippet: |
   【专属故事 · 书脊后的声线 · 第1幕 · 屏幕到台阶】
-  第一次线下面基，坐得远远的
-  立绘气质参考：quiet_reading, library_ladder, casual。
-  用角色口吻推进这一幕的情绪与选择；可给 2～3 个短选项。
-  不要直接宣布结局名称；关系阶段由系统判定。
+advance: on_player_turn
+beats:
+  - id: b1
+    summary: "第一次线下面基，坐得远远的"
+    sprite_hint: [quiet_reading, library_ladder]
+    soft_options: ["认真接话", "先观察", "轻声提问"]
+  - id: b2
+    summary: "「屏幕到台阶」里出现犹豫或选择。"
+    sprite_hint: [library_ladder, casual]
+    soft_options: ["表明态度", "给她空间", "确认她的意思"]
+  - id: b3
+    summary: "收束本幕：留下可被记住的结果，不剧透结局名。"
+    sprite_hint: [casual]
+    soft_options: ["坦白心意", "先缓一缓", "诚实说明顾虑"]
 rewards:
   flags_set: [sz_first_irl]
 choice_effects:

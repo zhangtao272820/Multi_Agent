@@ -17,6 +17,7 @@ export default defineEventHandler(async () => {
       (memory.backend === 'dual' && (!memory.pgConfigured || memory.pgReachable)) ||
       (memory.backend === 'postgres' && memory.pgConfigured && memory.pgReachable)
     const ready = vectorReady && memoryReady
+    const error_code = !vectorReady ? 'vector_not_ready' : !memoryReady ? 'vector_not_ready' : undefined
     return {
       ok: true,
       ready,
@@ -31,6 +32,7 @@ export default defineEventHandler(async () => {
         policyVersion: amp.version
       },
       detail: ready ? `vector_${backend}_memory_${memory.backend}` : `vector_${vectorReady ? 'ok' : 'drift'}_memory_${memory.backend}`,
+      ...(error_code ? { error_code } : {}),
       ts: new Date().toISOString()
     }
   } catch (e: unknown) {
@@ -40,6 +42,7 @@ export default defineEventHandler(async () => {
       ready: false,
       service: 'rag_agent',
       detail,
+      error_code: 'vector_not_ready',
       ts: new Date().toISOString()
     }
   }

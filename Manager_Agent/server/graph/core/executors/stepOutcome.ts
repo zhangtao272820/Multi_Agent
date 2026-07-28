@@ -71,6 +71,10 @@ export function applyAgentStepOutcome(input: {
       handoff,
       meta: outcome.meta
     }
+    // 失败结果也写入 out，供 synth / 流式门控识别（勿把 preamble 当成功）
+    if (String(agent) === 'admin' && String(outcome.output || '').trim()) {
+      out[agent] = String(outcome.output)
+    }
     evidences.push({
       kind: 'error',
       stepId,

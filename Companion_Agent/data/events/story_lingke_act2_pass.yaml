@@ -12,10 +12,20 @@ trigger:
   flags_present: [boundary_guard_done]
 prompt_snippet: |
   【专属故事 · 助教的红笔 · 第2幕 · 放行】
-  你守住边界后，她承认你可以平等地站在导师身侧
-  立绘气质参考：campus, work。
-  用角色口吻推进这一幕的情绪与选择；可给 2～3 个短选项。
-  不要直接宣布结局名称；关系阶段由系统判定。
+advance: on_player_turn
+beats:
+  - id: b1
+    summary: "你守住边界后，她承认你可以平等地站在导师身侧"
+    sprite_hint: [campus, work]
+    soft_options: ["认真接话", "先观察", "轻声提问"]
+  - id: b2
+    summary: "「放行」里出现犹豫或选择。"
+    sprite_hint: [work]
+    soft_options: ["表明态度", "给她空间", "确认她的意思"]
+  - id: b3
+    summary: "收束羁绊：确认界线与同盟，禁止恋爱走向。"
+    sprite_hint: [work]
+    soft_options: ["答应站同一边", "先缓一缓", "诚实说明顾虑"]
 rewards:
   flags_set: [bond_ally_done, boundary_pass]
 choice_effects:

@@ -64,6 +64,23 @@ def _openai_extra_body(model: str, stream: bool) -> Optional[Dict[str, Any]]:
     return {"enable_thinking": _read_qwen_enable_thinking(stream)}
 
 
+def _dashscope_call_with_timeout(**kwargs):
+    """dashscope.Generation.call 补超时：优先原生 timeout，否则线程池硬切。"""
+    timeout = _llm_timeout_sec()
+    try:
+        return dashscope.Generation.call(timeout=timeout, **kwargs)
+    except TypeError:
+        from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
+
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            fut = pool.submit(dashscope.Generation.call, **kwargs)
+            try:
+                return fut.result(timeout=timeout)
+            except FuturesTimeout as e:
+                fut.cancel()
+                raise TimeoutError(f"dashscope Generation.call timed out after {timeout:.0f}s") from e
+
+
 class QwenLLM:
     def __init__(self, model: str = None):
         self.model = effective_model_name(model or settings.MODEL_NAME)
@@ -85,7 +102,7 @@ class QwenLLM:
             extra["enable_thinking"] = _read_qwen_enable_thinking(stream)
         if max_tokens is not None:
             extra["max_tokens"] = max_tokens
-        response = dashscope.Generation.call(
+        response = _dashscope_call_with_timeout(
             model=model,
             messages=messages,
             result_format='message',

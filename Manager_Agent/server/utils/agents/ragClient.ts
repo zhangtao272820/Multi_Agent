@@ -4,6 +4,7 @@ import type { ManagerRagTaskPayload } from '#agent-shared/managerSubAgentProtoco
 import { resolveOrchestratedClientHistory } from '#agent-shared/turnScope'
 import { ragProbeTimeoutMs } from '../../graph/core/probe/probeConfig'
 import { withTimeout, LruCache } from './agentTransport'
+import { fetchWithExpertPolicy } from '../../graph/core/runtime/expertFailure'
 import { buildAgentTraceHeaders, isManagerStreamDeltaEnabled, withTraceBody } from './agentTrace'
 import type { AgentCallResult, AgentResult, RagCitation, RagEvidence, RagHistoryMessage } from './types'
 
@@ -163,6 +164,25 @@ export type RagRetrieveResponse = {
   citations?: Array<{ source?: string; quote?: string }>
   agentResult?: AgentResult
   ms?: number
+  error_code?: string
+}
+
+function ragFailureRetrieveResponse(code: string, query: string, detail?: string): RagRetrieveResponse {
+  return {
+    ok: false,
+    query,
+    needsClarify: false,
+    evidence: [],
+    citations: [],
+    error_code: code,
+    agentResult: {
+      ok: false,
+      agent: 'rag',
+      answer: query,
+      error_code: code,
+      structured: { evidence_count: 0, ...(detail ? { detail } : {}) }
+    }
+  }
 }
 
 /** 将 /api/probe 结果映射为 retrieve 形态（与 route probe 召回一致） */
@@ -251,10 +271,24 @@ export async function callRagRetrieve(params: {
       params.timeoutMs,
       'ragRetrieve'
     )
-    if (!res.ok) return null
-    return (await res.json()) as RagRetrieveResponse
-  } catch {
-    return null
+    // R3：HTTP 失败也返回带码结构，禁止一律 null 吞错
+    if (!res.ok) {
+      const code = res.status >= 500 ? 'http_5xx' : 'business'
+      return ragFailureRetrieveResponse(code, q, `HTTP ${res.status}`)
+    }
+    const data = (await res.json()) as RagRetrieveResponse
+    if (data?.ok === false && data?.agentResult) return data
+    if (data?.agentResult?.ok === false) return data
+    return data
+  } catch (e: unknown) {
+    const msg = String((e as Error)?.message || e || '').toLowerCase()
+    const code =
+      msg.includes('timeout') || msg.includes('timed out') || msg.includes('aborted')
+        ? 'timeout'
+        : msg.includes('econnrefused') || msg.includes('fetch failed')
+          ? 'vector_not_ready'
+          : 'business'
+    return ragFailureRetrieveResponse(code, q, String((e as Error)?.message || e || '').slice(0, 200))
   }
 }
 
@@ -317,49 +351,43 @@ export async function callRagAgent(params: {
   }
 
   params.sendThinking?.('RAG Agent：正在检索文档…')
-  let res: Response | null = null
-  let attempt = 0
-  let lastErr: unknown = null
-  while (attempt < 2) {
-    attempt++
-    try {
-      res = await withTimeout(
-        fetch(url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...buildAgentTraceHeaders(params.traceId),
-            ...(params.traceId ? { 'x-manager-orchestrated': '1' } : {}),
-            ...(uid ? { 'x-user-id': uid } : {})
-          },
-          body: JSON.stringify(
-            withTraceBody(
-              {
-                message: chatMessage,
-                history: chatHistory,
-                conversationId: params.conversationId || undefined,
-                ...(params.managerRagTask
-                  ? { manager_rag_task_json: JSON.stringify(params.managerRagTask) }
-                  : {}),
-                ...(uid ? { userId: uid } : {})
-              },
-              params.traceId
-            )
-          ),
-          signal: params.signal
-        }),
-        params.timeoutMs,
-        'ragAgent',
-        params.signal
-      )
-      if (res.ok) break
-      lastErr = new Error(`ragAgent http ${res.status}: ${res.statusText}`)
-    } catch (e) {
-      lastErr = e
-    }
-    await new Promise((r) => setTimeout(r, 300 * attempt))
+  let res: Response
+  try {
+    res = await fetchWithExpertPolicy(
+      url,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...buildAgentTraceHeaders(params.traceId),
+          ...(params.traceId ? { 'x-manager-orchestrated': '1' } : {}),
+          ...(uid ? { 'x-user-id': uid } : {})
+        },
+        body: JSON.stringify(
+          withTraceBody(
+            {
+              message: chatMessage,
+              history: chatHistory,
+              conversationId: params.conversationId || undefined,
+              ...(params.managerRagTask
+                ? { manager_rag_task_json: JSON.stringify(params.managerRagTask) }
+                : {}),
+              ...(uid ? { userId: uid } : {})
+            },
+            params.traceId
+          )
+        ),
+        signal: params.signal
+      },
+      {
+        timeoutMs: params.timeoutMs,
+        signal: params.signal,
+        label: 'ragAgent'
+      }
+    )
+  } catch (e) {
+    throw e instanceof Error ? e : new Error(String(e || 'ragAgent http error'))
   }
-  if (!res) throw lastErr || new Error('ragAgent http error')
   if (!res.ok) {
     const text = await res.text().catch(() => '')
     throw new Error(`ragAgent http ${res.status}: ${text || res.statusText}`)

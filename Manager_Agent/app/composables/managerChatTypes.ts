@@ -36,9 +36,12 @@ export type StepResultItem = {
   preview: string
   query?: string
   error?: string
+  /** N2/U2：标准失败码 timeout | circuit_open | http_5xx | network | business | … */
+  errorCode?: string
   empty?: boolean
   ragCitations?: Array<{ source: string; excerpt?: string }>
 }
+
 
 export type PlanStepTodo = {
   id: string
@@ -86,6 +89,8 @@ export type UserFacingPayload = {
   sources?: Array<{ title: string; url?: string }>
   outcome?: 'completed' | 'failed' | 'needs_human'
   outcomeLabel?: string
+  badge?: 'evidence_rejected' | 'needs_clarify'
+  badgeLabel?: string
 }
 
 export type LogItem = {

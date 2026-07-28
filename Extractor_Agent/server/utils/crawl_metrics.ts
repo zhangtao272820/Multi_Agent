@@ -183,3 +183,26 @@ export function aggregateCrawlMetrics(recent: Array<CrawlMetricEvent & { at?: st
     bySite,
   }
 }
+
+/** E2：与 DB/RAG 同形的 SLI，供 Manager experts.extractor 消费 */
+export function getExtractorSliSummary(limit = 80) {
+  const recent = readRecentCrawlMetrics(limit)
+  const agg = aggregateCrawlMetrics(recent)
+  const msVals = recent.map((r) => Number(r.ms || 0)).filter((n) => Number.isFinite(n) && n > 0).sort((a, b) => a - b)
+  const p95Ms = msVals.length ? msVals[Math.min(msVals.length - 1, Math.floor(msVals.length * 0.95))] : null
+  const p50Ms = msVals.length ? msVals[Math.min(msVals.length - 1, Math.floor(msVals.length * 0.5))] : null
+  const errorCodes: Record<string, number> = {}
+  for (const row of recent) {
+    if (row.ok) continue
+    const code = String(row.reason || row.status || 'fail').slice(0, 64) || 'fail'
+    errorCodes[code] = (errorCodes[code] || 0) + 1
+  }
+  return {
+    p95Ms,
+    p50Ms,
+    sampleCount: agg.total,
+    okRate: agg.okRate,
+    emptyRate: agg.total ? agg.empty / agg.total : 0,
+    errorCodes,
+  }
+}

@@ -78,6 +78,9 @@ def build_admin_agent_result(
             or not re.search(r"失败|error", head, re.I)
         )
     )
+    # 显式 error_code（如 timeout）必须以失败收口，避免文案未命中 hard_fail 时 ok=true
+    if error_code:
+        ok = False
     sources = _urls_from_text(text)
     base_structured = {"transport": "ws"}
     if structured:

@@ -160,6 +160,18 @@ watch(localLogEl, (el) => {
               <input v-model="step.enabled" type="checkbox" :disabled="planPreviewSending" />
               <span class="conv-plan-preview-agent">{{ step.agentLabel || planAgentLabel(step.agent) }}</span>
               <span v-if="step.optional" class="conv-plan-preview-optional">可选</span>
+              <span
+                v-if="step.confirmMode === 'hitl'"
+                class="conv-plan-preview-confirm is-hitl"
+                :title="step.confirmReason || '执行前需人工确认'"
+                >人审</span
+              >
+              <span
+                v-else-if="step.confirmMode === 'auto_confirm'"
+                class="conv-plan-preview-confirm is-auto"
+                :title="step.confirmReason || '策略允许自动确认'"
+                >自动确认</span
+              >
             </label>
             <textarea
               v-model="step.query"

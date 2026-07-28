@@ -2,85 +2,125 @@
 
 > **学习文档**：[入门](../docs/Agent学习指南-入门版.md) · [进阶](../docs/Agent学习指南-进阶版.md) · [DB 专篇](学习指南.md)
 
-基于 **Nuxt 4 + LangGraph** 的单库自然语言查数 Agent。
+单库 **自然语言查数（NL2SQL）** Agent：Schema 接地 → 路径选择 → 只读 SQL 执行。对应平台 `db_agent`，默认端口 **13101**；总管能力 cap 为 `db`。
 
-## 治理与优化（2026-07-10）
+## 项目简介
 
-- [优化路线图](doc/optimization-roadmap.md) — **D-P0～D-P2 已全部 ✅**
-- [拆分与优化 Playbook](doc/split-cleanup-playbook.md) — 主链拆分批次、smoke 门禁
-- [环境变量参考](doc/env-reference.md) — profile / 档位 / NLU preset 优先级
-- [Skills 双体系边界](doc/db-agent-skills-boundary.md)
-- [LLM-First 约束](doc/db-agent-llm-first-constraints.md)
-- [人员域升级方案](doc/person-basic-stats-llm-first-upgrade.md)
+面向「连上一套 MySQL、用中文问业务指标」的场景。主链强调 **只读查询、Schema 注释接地、结构化槽位**，避免在总管侧用关键词硬路由。范例域 `p2026`（养老）可作补丁模板；生产可用 `generic` + 本库 `data/domains/<库名>/` 补丁。
 
-**近期完成**：env-reference · Manager `ci:gate` smoke:db-all · split-exports 回归 · 总管 `/api/ask` 500 修复。
+## 核心能力
+
+| 能力 | 说明 |
+|------|------|
+| 查询编排 | `repeat → condense → plan → schema_ground → route → …` |
+| 统计路径 | generic_stats / 领域模板 + LLM 路由 |
+| SQL 路径 | 默认 `sql_plan_direct`（preflight+SQL）；失败可回落 `sql_agent` |
+| 域补丁 | `data/domains/<DB_AGENT_DOMAIN>/`（blueprint / relations / metrics） |
+| 运行档位 | `DB_AGENT_PROFILE=low_token \| balanced \| full`（生产推荐 `balanced`） |
+| 观测 | `GET /api/metrics`、`/api/learning`、`/api/metrics-catalog` |
+| 反馈 | `POST /api/feedback` `{ question, score: 1\|-1 }` |
+| 进化数据 | `.data/`（学习信号、经验回放、影子 prompt、路径 Bandit） |
+
+## 技术栈
+
+- Nuxt 4、LangGraph、Zod、OpenAI 兼容 LLM
+- MySQL（业务库）；主链见 `utils/graph/`、`conversational_retrieval_chain.ts`
+
+## 架构与关键路径
+
+```text
+repeat → condense → plan → schema_ground → route
+  → statistics（generic_stats / 领域模板）
+  → sql_plan_direct → sql_direct → sql_agent（fallback）
+```
+
+前端：`pages/index.vue` + `components/db-chat/`。
+
+## 目录结构速览
+
+- `utils/graph/` — LangGraph 节点
+- `utils/db_agent_env.ts` — 默认开关与档位 SSOT
+- `data/domains/` — 库级补丁
+- `server/api/` — ask / plan / probe / metrics / schema
+- `scripts/` — smoke 与灌数
 
 ## 快速开始
 
 ```bash
 cd DB_Agent
 npm install
-cp .env.example .env   # 或编辑现有 .env
+cp .env.example .env
 npm run dev
 ```
 
-## .env（仅保留必改项）
+### Smoke
+
+```bash
+npm run smoke:all              # 无 MySQL：含 nlu-mode / sql-path / domain-modules 等
+npm run smoke:structural-link  # 需 MySQL
+npm run smoke:decompose        # 需本服务 HTTP（默认 :13101）
+```
+
+Manager `ci:gate` 会跑：`npm run smoke:db-all`。
+
+可选灌数：`npm run seed:p2026-person`。Schema 缓存：`POST /api/schema/refresh`。
+
+## 环境变量
+
+`.env` 仅保留必改项示例：
 
 ```bash
 OPENAI_API_KEY=sk-...
 MYSQL_PASSWORD=...
 MYSQL_DATABASE=p2026
 
-# 能力层（SSOT：Manage-platform_Agent/backend/app/capability_models.py）
-OPENAI_ORCHESTRATION_MODEL=qwen3-14b               # T0 route
-OPENAI_NLU_MODEL=qwen3-14b                         # T0 route
-OPENAI_AGENT_MODEL=qwen3-coder-flash               # T2 coder
-EMBEDDING_MODEL=text-embedding-v1                  # E0 embedding
+# 能力层模型名（SSOT 也可来自 Manage-platform capability_models）
+OPENAI_ORCHESTRATION_MODEL=qwen3-14b
+OPENAI_NLU_MODEL=qwen3-14b
+OPENAI_AGENT_MODEL=qwen3-coder-flash
+EMBEDDING_MODEL=text-embedding-v1
 ```
 
-其余开关、token 预算 → `utils/db_agent_env.ts` 的 `DB_AGENT_DEFAULTS`  
-库级补丁 → `data/domains/<DB_AGENT_DOMAIN>/`（`DB_AGENT_DOMAIN=p2026` 为养老范例；`generic` 为纯通用）  
-运行档位 → `DB_AGENT_PROFILE=low_token|balanced|full`；**生产推荐 `balanced`**（详见 `utils/db_agent_env.ts`）
-本地灌数 → `npm run seed:p2026-person`（可选，重置 person 相关测试数据）  
-Metrics 目录 → `GET /api/metrics-catalog`（P3 补丁 metrics.json）
-Schema 缓存刷新 → `POST /api/schema/refresh`
+其余开关与 token 预算 → `utils/db_agent_env.ts` 的 `DB_AGENT_DEFAULTS`。  
+库级补丁 → `DB_AGENT_DOMAIN=p2026` 或 `generic`。
 
-## Smoke（本地门禁）
+## 与 Manager 协作
 
-```bash
-npm run smoke:all          # 无 MySQL：9 条（含 nlu-mode / sql-path / domain-modules / split-exports）
-npm run smoke:structural-link   # 需 MySQL
-npm run smoke:decompose         # 需 DB_Agent HTTP（默认 :13101）
-```
+- 总管 cap：`db`
+- `POST /api/ask`、`/api/plan`、`/api/probe` 与 `managerTask` 载荷协议稳定
+- `dbId` 忽略，始终连 `MYSQL_DATABASE`；换库只改域补丁，总管侧无需改代码
 
-Manager `ci:gate` 已接入：`npm run smoke:db-all`（聚合上述 9 条）。
+## 新库接入 checklist
 
-## 查询路径
+1. `.env` 设 `MYSQL_*`；`DB_AGENT_DOMAIN=generic` 试跑  
+2. 为业务表/列写清中文 `COMMENT`  
+3. 手工提 10–20 条典型问句，确认 `sql_direct` 与选表  
+4. 复制 `data/domains/p2026/` → `data/domains/<新库>/`，只改 JSON  
+5. Docker 镜像需含 `data/domains/`；一库一实例  
+6. `GET /api/config` 看 `patch.id`；`GET /api/metrics` 看 path / `llm_calls`
 
-```text
-repeat → condense → plan → schema_ground → route
-  → statistics（generic_stats / 领域模板 + LLM 路由）
-  → sql_plan_direct（preflight+SQL 单次 LLM，默认 low_token）→ sql_direct → sql_agent（fallback）
-```
+## 能力边界
 
-主链 `conversational_retrieval_chain.ts` 仅 ~142 行；LangGraph 在 `utils/graph/`；前端页 `index.vue` ~36 行，聊天 UI 在 `components/db-chat/`。
+- **适合**：单库只读问数、指标统计、带 Schema 接地的 SQL
+- **不适合**：跨库联邦、写库/DDL、无注释的「盲猜列名」生产库
 
-观测：`GET /api/metrics`、`GET /api/learning`（含路径 Bandit 偏好）  
-反馈：`POST /api/feedback` `{ question, score: 1|-1 }`
+## Docker / 平台编排
 
-进化数据目录：`.data/`（学习信号、经验回放、影子 prompt 补丁、**路径偏好**）
+默认 **`13101:13101`**。镜像须带上 `data/domains/`（见 Manage-platform Nuxt Dockerfile）。
 
-Skill 化待办见 [docs/Skill化升级计划.md](../docs/Skill化升级计划.md)（DB 章节）。
+## 安全提示
 
-## 与总管
+- 生产保持只读账号与最小权限
+- 勿把生产库密码提交进仓库
 
-`POST /api/ask`、`/api/plan`、`/api/probe` 与 `managerTask` 载荷**协议不变**；`dbId` 忽略，始终连 `MYSQL_DATABASE`。换库写 `data/domains/<db>/` 补丁，总管侧无需改代码。
+## 常见问题
 
-## 新库接入（生产 checklist）
+- **选表错误**：补 COMMENT 与域补丁 relations  
+- **路径总走 agent**：看 `DB_AGENT_PROFILE` 与 metrics 中 path 分布  
+- **总管 500**：先对本机 `/api/ask` 做协议 smoke，再查 Manager 透传字段
 
-1. **连库**：`.env` 设 `MYSQL_*`；`DB_AGENT_DOMAIN=generic` 试跑  
-2. **注释 SSOT**：为每张业务表/列写清中文 `COMMENT`（设备名、指标含义）  
-3. **冒烟**：页面或总管协议手工提 10–20 条本库典型问句，确认 `sql_direct` 与选表正确  
-4. **补丁**：复制 `data/domains/p2026/` → `data/domains/<新库>/`，只改 JSON（blueprint / relations / metrics）  
-5. **部署**：Docker 需含 `data/domains/`（见 `Manage-platform_Agent/docker/nuxt-agent/Dockerfile`）；一库一 `db_agent` 实例  
-6. **观测**：`GET /api/config` 确认 `patch.id`；`GET /api/metrics` 看 path 与 `llm_calls`
+## 相关文档
+
+- Skills：`skills/*/skill.md`
+- LLM-First 约束：`doc/db-agent-llm-first-constraints.md`（若本地保留）
+- 矩阵总表：[docs/Agent矩阵升级总路线图.md](../docs/Agent矩阵升级总路线图.md)

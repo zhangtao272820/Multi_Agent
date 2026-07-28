@@ -4,11 +4,16 @@ import { unwrapAgentCall, wrapAdminResult } from '../../../utils/agents/agentRes
 import type { AgentCallResult } from '../../../utils/agents/agentResult'
 import type { AgentResult } from '../../../utils/agents/types'
 import { waitGuiConfirm } from '../../../utils/gui/guiConfirmBridge'
-import { stripAdminManagerGuards } from '../../../utils/route/managerSubAgentHelpers'
+import { stripAdminManagerGuards, isAdminResultProtocolGarbage, ADMIN_WRITE_UNCONFIRMED_USER_MSG } from '../../../utils/route/managerSubAgentHelpers'
 import { resolveSubAgentScopeByLlm } from '../../../utils/route/managerSubAgentScopeLlm'
 import type { LlmInvokeFn } from '../../llm/taskConstraintsLlm'
 import type { ManagerGraphState } from '../../state/state'
-import { isAdminReadOnlyOrchestrationStep, resolveAdminAutoConfirm } from '../db/writeGate'
+import { isAdminReadOnlyOrchestrationStep } from '../db/writeGate'
+import {
+  buildAutoConfirmAuditMetric,
+  resolveAdminAutoConfirmDecision
+} from './autoConfirmAudit'
+import { appendMetrics } from '../runtime/runtimePersistence'
 import {
   gateCopy,
   inferActionKindFromAgent,
@@ -152,20 +157,32 @@ export async function executeAdminStep(
       meta: input.state.meta,
       scopedText: scopedAction || stripAdminManagerGuards(input.effQuery) || undefined
     })
+    const autoDecision = resolveAdminAutoConfirmDecision(input.state, scopedAction || input.effQuery)
     const adminMessage =
       input.message ??
       buildManagerAdminWsMessage(scopedAction || stripAdminManagerGuards(input.effQuery) || input.effQuery, {
         fallbackTask: scopedAction || stripAdminManagerGuards(input.effQuery) || input.effQuery,
-        autoConfirm: resolveAdminAutoConfirm(input.state, scopedAction || input.effQuery),
+        autoConfirm: autoDecision.autoConfirm,
         readOnlyOrchestration: isAdminReadOnlyOrchestrationStep(scopedAction || input.effQuery)
       })
+    if (autoDecision.autoConfirm) {
+      const audit = buildAutoConfirmAuditMetric({
+        runId: String(opts.runId || input.state?.meta?.runId || 'unknown'),
+        trace_id: String(opts.runId || ''),
+        step: scopedAction || input.effQuery,
+        reason: autoDecision.reason,
+        autoConfirm: true
+      })
+      await appendMetrics(audit).catch(() => undefined)
+    }
     const res = await deps.callAiAdminAgent({
       aiAdminAgentWsUrl: opts.aiAdminAgentWsUrl,
       timeoutMs: input.timeoutMs,
       message: adminMessage,
       sessionId: resolveManagerAgentSessionId(opts),
       traceId: opts.runId,
-      autoConfirmRisky: resolveAdminAutoConfirm(input.state, scopedAction || input.effQuery),
+      autoConfirmRisky: autoDecision.autoConfirm,
+      autoConfirmReason: autoDecision.reason,
       clientContext: resolveAdminClientContext(
         input.state.meta as Record<string, unknown> | undefined,
         managerTask
@@ -173,7 +190,20 @@ export async function executeAdminStep(
       sendThinking: input.sendThinking,
       signal: opts.signal
     })
-    const { answer: adminText, agentResult } = unwrapAgentCall(res as string | AgentCallResult)
+    const { answer: adminTextRaw, agentResult: agentResultRaw } = unwrapAgentCall(res as string | AgentCallResult)
+    let adminText = adminTextRaw
+    let agentResult = agentResultRaw
+    if (isAdminResultProtocolGarbage(adminText)) {
+      adminText = '个人助手协议异常：未返回可执行结果。'
+      agentResult = {
+        ...(agentResult || {}),
+        ok: false,
+        agent: 'admin',
+        answer: adminText,
+        error_code: 'admin_protocol_garbage',
+        structured: { ...(agentResult?.structured || {}), transport: 'ws', adminWriteTerminal: true }
+      }
+    }
     const uiCards = Array.isArray((agentResult as { structured?: { ui_cards?: unknown[] } } | undefined)?.structured?.ui_cards)
       ? ((agentResult as { structured?: { ui_cards?: unknown[] } }).structured!.ui_cards as unknown[])
       : []
@@ -184,7 +214,7 @@ export async function executeAdminStep(
         from: 'admin'
       })
     }
-    const autoConfirm = resolveAdminAutoConfirm(input.state, scopedAction || input.effQuery)
+    const autoConfirm = autoDecision.autoConfirm
     const pendingConfirm = adminResponseSignalsPendingConfirm(adminText, agentResult)
     const riskPolicy = resolveRiskExecutionPolicy({
       actionKind: inferActionKindFromAgent('admin', {
@@ -244,9 +274,10 @@ export async function executeAdminStep(
         return {
           ok: false,
           agent: 'admin',
-          output: '已取消个人事务写操作；数据分析等只读步骤结果仍保留。',
+          output: ADMIN_WRITE_UNCONFIRMED_USER_MSG,
           query: input.effQuery,
-          error: 'user_cancelled_admin_write'
+          error: 'user_cancelled_admin_write',
+          meta: { adminWriteTerminal: true, agentResult: { ok: false, error_code: 'user_cancelled_admin_write' } }
         }
       }
       const pendingRows = extractAdminPendingActions(agentResult)
@@ -319,14 +350,22 @@ export async function executeAdminStep(
     const stepOk = adminStepOk(adminText, agentResult, pendingConfirm)
     if (!stepOk) {
       const qs = adminClarifyQuestions(adminText, agentResult)
+      const errCode = String(agentResult?.error_code || (qs.length ? 'needs_clarify' : 'admin_pending_or_write_failed'))
+      const terminal =
+        errCode === 'admin_protocol_garbage' ||
+        errCode === 'user_cancelled_admin_write' ||
+        errCode === 'admin_write_failed'
       return {
         ok: false,
         agent: 'admin',
         output: adminText,
         query: input.effQuery,
-        error: String(agentResult?.error_code || (qs.length ? 'needs_clarify' : 'admin_pending_or_write_failed')),
+        error: errCode,
         clarifyQuestions: qs.length ? qs : undefined,
-        meta: agentResult ? { agentResult } : undefined
+        meta: {
+          ...(agentResult ? { agentResult } : {}),
+          ...(terminal ? { adminWriteTerminal: true } : {})
+        }
       }
     }
     return {

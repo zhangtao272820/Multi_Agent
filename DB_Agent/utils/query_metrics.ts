@@ -15,9 +15,13 @@ export type QueryMetricEvent = {
   question?: string;
   data_domain?: string;
   tables?: string[];
+  error_code?: string;
+  trace_id?: string;
 };
 
 const counters: Record<string, number> = {};
+const latencySamples: number[] = [];
+const MAX_LAT_SAMPLES = 400;
 
 let lastRunContext: {
   path: QueryPath;
@@ -57,6 +61,13 @@ export type DbRunMeta = {
   llm_calls?: number;
   /** P0：当次成功执行的 SQL（供产物 learning / artifact 绑定） */
   executed_sql?: string;
+  /** D1：终态空结果 / 失败码（友好话术不得冲掉） */
+  empty?: boolean;
+  error_code?: string;
+  fail_reason?: string;
+  turn_scope_mode?: string;
+  context_history_turns?: number;
+  manager_plan_used?: boolean;
 };
 
 let lastRunMeta: DbRunMeta | null = null;
@@ -112,8 +123,16 @@ export function recordQueryMetric(ev: QueryMetricEvent) {
   const keyParts = [ev.path, ev.ok ? "ok" : "fail"];
   if (ev.empty) keyParts.push("empty");
   if (ev.reason) keyParts.push(ev.reason);
+  if (ev.error_code) keyParts.push(`code:${ev.error_code}`);
   const key = keyParts.join(":");
   counters[key] = (counters[key] || 0) + 1;
+  if (ev.error_code) {
+    counters[`error_code:${ev.error_code}`] = (counters[`error_code:${ev.error_code}`] || 0) + 1;
+  }
+  if (typeof ev.ms === "number" && Number.isFinite(ev.ms)) {
+    latencySamples.push(Math.max(0, Math.round(ev.ms)));
+    if (latencySamples.length > MAX_LAT_SAMPLES) latencySamples.shift();
+  }
   try {
     const line = JSON.stringify({ ...ev, at: new Date().toISOString() });
     appendFileSync(metricsFile(), `${line}\n`, "utf8");
@@ -126,11 +145,33 @@ export function getQueryMetricCounters() {
   return { ...counters };
 }
 
+function percentile(sorted: number[], p: number): number | null {
+  if (!sorted.length) return null;
+  const idx = Math.min(sorted.length - 1, Math.max(0, Math.ceil((p / 100) * sorted.length) - 1));
+  return sorted[idx] ?? null;
+}
+
+/** D2：与 Manager SLI 对齐的最小汇总 */
+export function getDbSliSummary() {
+  const sorted = [...latencySamples].sort((a, b) => a - b);
+  const errorCodes: Record<string, number> = {};
+  for (const [k, v] of Object.entries(counters)) {
+    if (k.startsWith("error_code:")) errorCodes[k.slice("error_code:".length)] = v;
+  }
+  return {
+    p95Ms: percentile(sorted, 95),
+    p50Ms: percentile(sorted, 50),
+    samples: sorted.length,
+    errorCodes,
+  };
+}
+
 export function clearQueryMetrics() {
   for (const k of Object.keys(counters)) delete counters[k];
   lastRunContext = null;
   lastRunMeta = null;
   stashedExplainPreflight = undefined;
+  latencySamples.length = 0;
   try {
     writeFileSync(metricsFile(), "", "utf8");
   } catch {

@@ -38,7 +38,7 @@ owner: manager_agent
 2. rag：只负责从知识库/文档检索原始事实。
 3. crawler：**爬虫**（Extractor_Agent）；在总管 SERP 种子上精抓公网正文/列表；**禁止**不经联网单独使用。详见 `crawler_web` skill。
 4. code：只负责对已有数据进行计算、加工、汇总；**使用前应有 clean 清洗对齐**。
-5. admin：**仅**邮件、联系人、待办、日程、天气、高德、飞书发消息（见 `admin_capabilities` skill）；勿塞检索/问数/玩法/画图/报告诉求。
+5. admin：**仅**天气、地图（高德）、日程（含待办/联系人）、邮件（见 `admin_capabilities` skill）；勿塞检索/问数/玩法/画图/报告/飞书玩法诉求。
 6. clean：对**上游取数结果**做标准化、字段对齐、去重；输出 **CleanPayload JSON**（facts/sources/quality）；**必须排在 code/visualize/report 之前**。
 7. visualize：只负责基于 **Code 计算结果**生成图表（ECharts 由结构层组装，LLM 仅规划 chart_plan）。
 8. report：只负责基于 **Code 计算结果**生成分析结论；须带 evidence 引用或确定性 facts 表，禁止引用 Code 外数字。

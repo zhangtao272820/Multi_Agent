@@ -2,146 +2,102 @@
 
 > **学习文档**：[入门](../docs/Agent学习指南-入门版.md) · [进阶](../docs/Agent学习指南-进阶版.md) · [RAG 专篇](学习指南.md)
 
-基于 **Nuxt 4 + LangGraph** 的私有文档检索增强生成服务，支持 PDF、Word、TXT 等上传解析、向量检索和基于上下文的问答。它的重点不是“随便回答”，而是尽量做到 **有据可依、先检索后生成、列表和深度问答分流**。
+私有文档 **检索增强生成** 服务：上传解析 → 切分入库 → Hybrid 检索 → 有据问答。对应平台 `rag_agent`，默认端口 **13102**；总管能力 cap 为 `rag`。
 
-本目录位于单体仓库 `RAG_Agent/` 中，对应平台编排里的 `rag_agent` 服务，默认端口通常为 **13102**。
+## 项目简介
 
-## 项目定位（面试版）
+面向小中规模知识库，强调 **先检索后生成、弱证据澄清或拒答、引用可核验**。查询侧会区分列表型检索与深度问答，避免「简单问题答复杂 / 复杂问题无出处」。
 
-RAG Agent 适合展示“文档问答系统如何工程化”。它把知识库问答拆成两段：
+## 核心能力
 
-- **入库阶段**：解析文档、切分文本、生成向量、保存元数据
-- **查询阶段**：先判断用户是在找列表，还是要深度问答，再决定是否检索和如何生成
+| 能力 | 说明 |
+|------|------|
+| 多格式入库 | PDF / Word / TXT 等；OCR 辅助扫描件 |
+| 幂等与版本 | content hash / `source_version` / `ingest_at`（H1） |
+| 父子块 | Parent-Child 切分，检索 child、展开 parent 上下文（H2） |
+| Hybrid 检索 | 向量 + keyword + BM25，RRF 融合（默认开） |
+| 重排 | Cross-Encoder / LLM 梯子；MMR 去冗余（H3） |
+| Corrective | 弱证据触发 rewrite / clarify / 拒答（H4） |
+| Citation | 引用片段可核验门禁（H5） |
+| 离线重建 | reindex 脚本与流程（H6） |
+| 向量后端 | 内存向量（开发）或 `pgvector`（持久化） |
 
-这样做的目标是降低幻觉，让回答尽量站在文档证据上。
+企业化细节见 [doc/企业化升级方案.md](doc/企业化升级方案.md)；守门 `npm run smoke:enterprise-h`。
 
-## 技术栈与实现方式
+## 技术栈
 
-- **框架**：`Nuxt 4`、`Vue 3`
-- **文档解析**：`pdf-parse`、`mammoth`、`word-extractor`、`sharp`
-- **Agent 编排**：`LangGraph`、`langchain`、`@langchain/openai`
-- **检索后端**：`server/utils/vectorStore.ts`，支持内存向量或 `pgvector`
-- **结构化校验**：`zod`
-- **样式与前端**：`Tailwind`
+- Nuxt 4、Vue 3、Tailwind
+- LangGraph、`@langchain/openai`、Zod
+- 解析：`pdf-parse`、`mammoth`、`word-extractor`、`sharp`
+- 向量：`server/utils/vectorStore.ts`
 
-## 面试者建议：先理解什么
+## 架构与关键路径
 
-1. **为什么 RAG 不只是向量检索**
-   - 还要考虑文档切分、元数据、查询意图、生成约束
-
-2. **为什么要区分列表和问答**
-   - 列表型需求和解释型需求的检索策略不同
-   - 这能显著改善用户体验
-
-3. **为什么回答要带依据**
-   - 私有知识库最怕“看起来很对但没有出处”
-   - 引用上下文能提高可验证性
-
-4. **为什么要做多后端向量存储**
-   - 内存向量适合开发和小规模验证
-   - `pgvector` 更适合持久化和共享部署
-
-## 如何实现这个 Agent
-
-推荐按下面顺序理解或复现：
-
-1. **单文件解析 + 分块**
-   - 先支持一种文档格式
-   - 将文本切块并保存元数据
-
-2. **向量化入库**
-   - 调用兼容 OpenAI 的嵌入接口
-   - 写入向量数据库或内存结构
-
-3. **查询意图分类**
-   - 判断是列表查询还是深度问答
-   - 决定检索范围和生成方式
-
-4. **LangGraph 编排**
-   - 用图把检索、生成、校验串起来
-
-5. **引用与结果约束**
-   - 让回答尽量返回来源片段
-   - 避免无依据扩写
+```text
+upload → parse → chunk（parent/child）→ embed → store
+                                              │
+chat / ask ← generate ← rerank ← hybrid retrieve ← query intent
+                │
+         citation / clarify / refuse
+```
 
 ## 目录结构速览
 
-- `server/api/chat.post.ts`：对话入口
-- `server/api/upload.post.ts`：文档上传与入库
-- `server/api/list.get.ts` / `server/api/delete.post.ts`：文档管理
-- `server/api/probe.post.ts`：探针接口
-- `server/utils/agent.ts`：编排主逻辑
-- `server/utils/vectorStore.ts`：向量存储
-- `server/utils/doc_scope_judge.ts`：文档范围与路由意图
-- `server/utils/ocr.ts`：图片/扫描件相关文本抽取
-- `skills/`：面向协作工具的能力说明
-- `data/`：本地开发用的元数据和向量文件
+- `server/api/chat.post.ts` — 对话
+- `server/api/upload.post.ts` — 上传入库
+- `server/api/list.get.ts` / `delete.post.ts` — 文档管理
+- `server/api/probe.post.ts` — 总管探针
+- `server/utils/agent.ts` — 编排主逻辑
+- `server/utils/vectorStore.ts` — 向量存储
+- `server/utils/doc_scope_judge.ts` — 范围与列表/问答分流
+- `skills/` — 能力说明
+- `data/` — 本地元数据与向量
 
 ## 快速开始
 
 ```bash
 cd RAG_Agent
 npm install
+cp .env.example .env
 npm run dev
 ```
 
-### 环境变量
+常用：上传文档 → 确认解析 → 提问 → 检查是否引用正确片段。
 
-常见配置包括：
+## 环境变量
 
-- `OPENAI_API_KEY`
-- `OPENAI_BASE_URL`
-- `OPENAI_MODEL`
-- 数据库或向量相关配置
+必改：`OPENAI_API_KEY`（及可选 `OPENAI_BASE_URL` / 模型名）。向量库相关见 `.env.example` 与 `nuxt.config.ts` runtimeConfig。
 
-具体以 `nuxt.config.ts` 的 `runtimeConfig` 为准。
+## 与 Manager 协作
 
-## 常用运行思路
-
-- 上传文档
-- 检查解析是否成功
-- 做向量化
-- 发起提问
-- 看回答是否引用了正确片段
-
-## 面试常问点
-
-### 为什么要区分列表和问答
-
-因为用户意图不同。列表需求更像检索，问答需求更像归纳和解释。如果不分流，系统容易把简单问题答复杂，或者把复杂问题答得太浅。
-
-### 如何降低幻觉
-
-- 先检索再生成
-- 用上下文约束答案
-- 必要时返回无法确定，而不是硬答
-
-### 如何处理多种文件格式
-
-通过不同解析器把格式统一成文本，再进入后续切分和向量化流程。
+- 总管 cap：`rag`
+- 协议：`POST /api/ask`、`/api/probe`、健康 `/api/health`
+- 可选 MCP：`RAG_MCP_SERVER=1` 时暴露 `/api/mcp`
+- 证据新鲜度等字段由总管消费侧（`agent_result` / evidenceFreshness）使用
 
 ## 能力边界
 
-- **适合**：内部文档问答、资料查询、带出处的解释型回答
-- **不适合**：实时公网搜索、大规模爬虫、没有文档依据的开放式问答
+- **适合**：内部文档问答、带出处的解释、资料列表检索
+- **不适合**：实时公网搜索、大规模爬虫、无文档依据的开放闲聊
+- **明确不做**：完整 RAGAS 流水线、GraphRAG、多租户物理隔离
 
 ## Docker / 平台编排
 
-在 `Manage-platform_Agent` 中，该服务默认映射为 **`13102:13102`**。
+`Manage-platform_Agent` 默认 **`13102:13102`**。
 
 ## 安全提示
 
-- 上传内容可能包含隐私数据
-- 生产环境应加鉴权和文件类型白名单
-- 不要把真实密钥提交到仓库
+- 上传内容可能含隐私；生产加鉴权与文件类型白名单
+- 勿提交真实密钥与生产向量库凭据
 
 ## 常见问题
 
-- **上传后搜不到**：检查解析、分块和向量维度配置
-- **总是答偏**：检查 `server/utils/doc_scope_judge.ts` 与 `document_retrieval.ts`
-- **回答没来源**：加强提示词和后处理约束
+- **上传后搜不到**：检查解析、分块与向量维度
+- **答偏**：查 `doc_scope_judge.ts` 与检索路径
+- **无来源**：检查 citation 门禁与 prompt 约束
 
-## 文档
+## 相关文档
 
-- **治理与优化**：[优化路线图](doc/optimization-roadmap.md) · [拆分 Playbook](doc/split-cleanup-playbook.md)
-- Skill 化升级计划：[docs/Skill化升级计划.md](../docs/Skill化升级计划.md)（RAG 章节，路径待核对）
+- [企业化升级方案](doc/企业化升级方案.md)
+- Skills：`skills/*/skill.md`
+- 矩阵总表：[docs/Agent矩阵升级总路线图.md](../docs/Agent矩阵升级总路线图.md)

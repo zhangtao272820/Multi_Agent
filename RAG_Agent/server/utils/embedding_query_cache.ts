@@ -63,9 +63,18 @@ export function getRagEmbeddings(): OpenAIEmbeddings {
   ].join("|");
   if (ragEmbeddings && ragEmbeddingsKey === key) return ragEmbeddings;
   const client = new OpenAIEmbeddings({
-    openAIApiKey: process.env.OPENAI_API_KEY,
-    configuration: { baseURL: process.env.OPENAI_BASE_URL },
+    openAIApiKey: process.env.OPENAI_API_KEY || process.env.DASHSCOPE_API_KEY,
+    configuration: {
+      baseURL:
+        String(process.env.OPENAI_BASE_URL || process.env.DASHSCOPE_BASE_URL || "").trim() ||
+        "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    },
     modelName: env.embeddingModel,
+    timeout: (() => {
+      const n = Number(process.env.AGENT_EMBEDDING_TIMEOUT_MS || 12_000);
+      return Number.isFinite(n) && n >= 3_000 ? Math.min(60_000, Math.floor(n)) : 12_000;
+    })(),
+    maxRetries: 0,
   });
   ragEmbeddings = wrapEmbeddingsWithQueryCache(client);
   ragEmbeddingsKey = key;

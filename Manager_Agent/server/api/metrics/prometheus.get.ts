@@ -3,6 +3,7 @@ import { buildManagerMetricsDashboard } from '../../graph/core/runtime/metricsAg
 import { buildAgentRegistry } from '../../graph/core/agent/agentRegistry'
 import { queryMemoryPgStats } from '#agent-shared/memoryDashboard'
 import { queryToolMemoryTop } from '#agent-shared/toolMemoryStore'
+import { getBackpressureSnapshot } from '../../graph/core/runtime/backpressure'
 
 function escLabel(v: string) {
   return String(v || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, ' ')
@@ -84,6 +85,19 @@ export default defineEventHandler(async (event) => {
   out.push('# TYPE manager_tokens_total gauge')
   out.push(line('manager_tokens_total', totalTokens))
 
+  const bp = getBackpressureSnapshot()
+  out.push('# HELP manager_agent_sli_inflight Active manager runs (G2 backpressure)')
+  out.push('# TYPE manager_agent_sli_inflight gauge')
+  out.push(line('manager_agent_sli_inflight', bp.inflightRuns))
+  out.push('# HELP manager_agent_sli_queue_depth Run queue depth alias (G2)')
+  out.push('# TYPE manager_agent_sli_queue_depth gauge')
+  out.push(line('manager_agent_sli_queue_depth', bp.queueDepth))
+  for (const [agent, n] of Object.entries(bp.inflightByExpert)) {
+    out.push('# HELP manager_agent_expert_inflight Expert inflight calls (G2)')
+    out.push('# TYPE manager_agent_expert_inflight gauge')
+    out.push(line('manager_agent_expert_inflight', n, { agent }))
+  }
+
   for (const [phase, v] of Object.entries(phaseAgg)) {
     out.push('# HELP manager_phase_ms_avg Average phase latency ms')
     out.push('# TYPE manager_phase_ms_avg gauge')
@@ -107,6 +121,47 @@ export default defineEventHandler(async (event) => {
   }
 
   const evo = dashboard as Record<string, unknown> | null
+  const sli = evo && typeof evo === 'object' ? ((evo as any).sli as Record<string, unknown> | undefined) : undefined
+  if (sli && typeof sli === 'object') {
+    const p95 = Number(sli.p95LatencyMs ?? NaN)
+    if (Number.isFinite(p95)) {
+      out.push('# HELP manager_sli_p95_latency_ms End-to-end phase latency P95 ms')
+      out.push('# TYPE manager_sli_p95_latency_ms gauge')
+      out.push(line('manager_sli_p95_latency_ms', p95))
+    }
+    const errRate = Number(sli.expertErrorRate ?? NaN)
+    if (Number.isFinite(errRate)) {
+      out.push('# HELP manager_sli_expert_error_rate Expert step failure rate 0..1')
+      out.push('# TYPE manager_sli_expert_error_rate gauge')
+      out.push(line('manager_sli_expert_error_rate', errRate))
+    }
+    const byCode = sli.expertErrorsByCode as Record<string, number> | undefined
+    if (byCode && typeof byCode === 'object') {
+      for (const [code, n] of Object.entries(byCode)) {
+        out.push('# HELP manager_sli_expert_errors_total Expert errors by error_code')
+        out.push('# TYPE manager_sli_expert_errors_total gauge')
+        out.push(line('manager_sli_expert_errors_total', Number(n) || 0, { error_code: code }))
+      }
+    }
+    const hitlP95 = Number(sli.hitlWaitMsP95 ?? NaN)
+    if (Number.isFinite(hitlP95)) {
+      out.push('# HELP manager_sli_hitl_wait_p95_ms HITL wait duration P95 ms')
+      out.push('# TYPE manager_sli_hitl_wait_p95_ms gauge')
+      out.push(line('manager_sli_hitl_wait_p95_ms', hitlP95))
+    }
+    const rejectRate = Number(sli.evidenceRejectionRate ?? NaN)
+    if (Number.isFinite(rejectRate)) {
+      out.push('# HELP manager_sli_evidence_rejection_rate Evidence gate / clarify rate 0..1')
+      out.push('# TYPE manager_sli_evidence_rejection_rate gauge')
+      out.push(line('manager_sli_evidence_rejection_rate', rejectRate))
+    }
+    const sliTok = Number(sli.totalTokens ?? NaN)
+    if (Number.isFinite(sliTok)) {
+      out.push('# HELP manager_sli_tokens_total Token sum in SLI window')
+      out.push('# TYPE manager_sli_tokens_total gauge')
+      out.push(line('manager_sli_tokens_total', sliTok))
+    }
+  }
   if (evo && typeof evo === 'object') {
     const searchHit = Number((evo as any).searchHitRate ?? (evo as any).search_hit_rate ?? NaN)
     if (Number.isFinite(searchHit)) {

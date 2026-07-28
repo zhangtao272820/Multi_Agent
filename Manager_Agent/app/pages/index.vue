@@ -19,6 +19,7 @@
         :collab-status-items="collabStatusItems"
         :step-progress-line="stepProgressLine"
         :active-trace-id="activeTraceId"
+        :conversation-compact-live="conversationCompactLive"
         :workbench-mode="workbenchMode"
         :thought-view-mode="thoughtViewMode"
         :history-panel-open="historyPanelOpen"
@@ -31,6 +32,20 @@
         @toggle-history="historyPanelOpen = !historyPanelOpen"
         @new-session="newSession"
         @toggle-sidebar="sidebarOpen = !sidebarOpen"
+        @open-trace-drawer="openTraceDrawer"
+      />
+
+      <ManagerTraceDrawer
+        :open="traceDrawerOpen"
+        :trace-id="activeTraceId || currentRunId"
+        :run-id="currentRunId"
+        :wall-clock-ms="runObservabilityLive?.wallClockMs"
+        :phase-timeline="runObservabilityLive?.phaseTimeline"
+        :token-total="runObservabilityLive?.tokenSummary?.totalTokens"
+        :format-obs-ms="formatObsMs"
+        :format-token-count="formatTokenCount"
+        :obs-display-label="obsDisplayLabel"
+        @close="closeTraceDrawer"
       />
 
       <ManagerHumanConfirmBar
@@ -88,6 +103,7 @@
 
 <script setup lang="ts">
 import AppModal from '~/components/AppModal.vue'
+import ManagerTraceDrawer from '~/components/workbench/ManagerTraceDrawer.vue'
 
 const {
   agentCosmicActive,
@@ -104,6 +120,14 @@ const {
   collabStatusItems,
   stepProgressLine,
   activeTraceId,
+  conversationCompactLive,
+  traceDrawerOpen,
+  openTraceDrawer,
+  closeTraceDrawer,
+  runObservabilityLive,
+  formatObsMs,
+  formatTokenCount,
+  obsDisplayLabel,
   historyPanelOpen,
   sidebarOpen,
   toolsBadgeCount,

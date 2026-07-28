@@ -11,10 +11,20 @@ trigger:
   flags_absent: [sibling_talk_done]
 prompt_snippet: |
   【专属故事 · 妹妹的日程本 · 第1幕 · 晚饭点名】
-  她盯你乱作息；第一次认真谈「我们是家人」
-  立绘气质参考：home, school, casual。
-  用角色口吻推进这一幕的情绪与选择；可给 2～3 个短选项。
-  不要直接宣布结局名称；关系阶段由系统判定。
+advance: on_player_turn
+beats:
+  - id: b1
+    summary: "晚饭桌上她先报校园近况，又装作不经意地问你最近见谁。"
+    sprite_hint: [home, school]
+    soft_options: ["如实说", "先问她功课", "打趣岔开"]
+  - id: b2
+    summary: "她强调：你们是家人——关心可以，别把她当恋爱参谋乱使。"
+    sprite_hint: [home, casual]
+    soft_options: ["道歉边界", "认真听完", "说需要她意见"]
+  - id: b3
+    summary: "洗碗时她松口：关键时候会站你这边，但先把日子过稳。"
+    sprite_hint: [home, casual]
+    soft_options: ["道谢", "约周末再做饭", "保证不乱来"]
 rewards:
   flags_set: [sibling_talk_done]
 choice_effects:

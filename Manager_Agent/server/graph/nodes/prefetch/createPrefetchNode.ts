@@ -153,6 +153,13 @@ export function createPrefetchNode(deps: CreatePrefetchNodeDeps) {
       metaPatch.ragRetrievePrefetch = ragRes
       const block = formatRagPrefetchForPlanner(ragRes)
       if (block) metaPatch.ragPrefetchPlannerHint = block
+      if (ragRes.hardFailure) {
+        const code = String(ragRes.error_code || 'network').trim() || 'network'
+        const prev = (metaPatch.expertHardDown && typeof metaPatch.expertHardDown === 'object'
+          ? metaPatch.expertHardDown
+          : {}) as Record<string, string>
+        metaPatch.expertHardDown = { ...prev, rag: code }
+      }
       if (ragRes.ok) {
         const fromProbeCache = (ragRes.ms ?? 0) < 80 && Number(ragRes.hits ?? 0) > 0
         const preview = (ragRes.evidence || [])

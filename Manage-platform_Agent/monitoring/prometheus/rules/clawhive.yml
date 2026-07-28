@@ -41,6 +41,42 @@ groups:
         annotations:
           summary: "RAG Agent 不可达"
 
+      - alert: CodeAgentDown
+        expr: up{job="code_assistent_agent"} == 0
+        for: 3m
+        labels:
+          severity: warning
+          source: code_agent
+        annotations:
+          summary: "Code Agent 不可达"
+
+      - alert: ExtractorAgentDown
+        expr: up{job="extractor_agent"} == 0
+        for: 3m
+        labels:
+          severity: warning
+          source: extractor_agent
+        annotations:
+          summary: "Extractor Agent 不可达"
+
+      - alert: AdminAgentDown
+        expr: up{job="ai_admin_agent"} == 0
+        for: 3m
+        labels:
+          severity: warning
+          source: admin_agent
+        annotations:
+          summary: "Admin Agent 不可达"
+
+      - alert: LobsterAgentDown
+        expr: up{job="lobster_agent"} == 0
+        for: 5m
+        labels:
+          severity: warning
+          source: lobster_agent
+        annotations:
+          summary: "Lobster Agent 不可达"
+
   - name: clawhive_sla
     interval: 60s
     rules:
@@ -62,6 +98,52 @@ groups:
           source: manager
         annotations:
           summary: "Manager 合成阶段 P95 延迟过高 (>90s)"
+
+      - alert: ManagerSliFailRateHigh
+        expr: manager_sli_expert_error_rate > 0.35
+        for: 15m
+        labels:
+          severity: warning
+          source: manager
+        annotations:
+          summary: "Manager 专家步骤失败率过高 (>35%)"
+          description: "检查专家可用性与 fail-fast 是否生效"
+
+      - alert: ManagerSliP95High
+        expr: manager_sli_p95_latency_ms > 120000
+        for: 10m
+        labels:
+          severity: warning
+          source: manager
+        annotations:
+          summary: "Manager SLI P95 延迟过高 (>120s)"
+
+      - alert: ManagerEvidenceRejectionHigh
+        expr: manager_sli_evidence_rejection_rate > 0.5
+        for: 15m
+        labels:
+          severity: warning
+          source: manager
+        annotations:
+          summary: "证据拒答/澄清率过高 (>50%)"
+
+      - alert: ManagerBackpressureHigh
+        expr: manager_agent_sli_inflight >= 6
+        for: 5m
+        labels:
+          severity: info
+          source: manager
+        annotations:
+          summary: "Manager 并发 run 偏高（G2 背压观测）"
+
+      - alert: BudgetNearLimit
+        expr: increase(manager_sli_expert_errors_total{error_code="budget_exceeded"}[1h]) > 3
+        for: 5m
+        labels:
+          severity: warning
+          source: manager
+        annotations:
+          summary: "1h 内多次触发 run 预算截断（E3/G4）"
 
       - alert: ManagerRunVolumeSpike
         expr: increase(manager_runs_total[1h]) > 200

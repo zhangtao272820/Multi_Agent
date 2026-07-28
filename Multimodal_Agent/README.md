@@ -2,15 +2,11 @@
 
 > **学习文档**：[入门](../docs/Agent学习指南-入门版.md) · [进阶](../docs/Agent学习指南-进阶版.md) · [Multimodal 专篇](学习指南.md)
 
-基于 **FastAPI + React (Vite)** 的多模态理解服务，为 Agent 矩阵提供「眼睛」与「耳朵」：图像/视频理解、语音转写、图文问答，并可转发 Music / Video 生成请求（总管也可直连后两者）。
+矩阵的「眼睛 / 耳朵」：**图像 / 视频理解、语音转写、图文问答**。对应平台 `multimodal_agent`，默认端口 **13107**；总管能力 cap 为 `multimodal`。
 
-本目录对应平台编排里的 `multimodal_agent` 服务，默认端口 **13107**。
+## 项目简介
 
-## 简历摘要（可直接写入项目经历）
-
-- **项目**：统一多模态入口，承接 Manager_Agent 的识图、听音、看视频与媒体生成编排。
-- **技术栈**：Python、FastAPI、Qwen-VL / ASR（DashScope 兼容）、WebSocket 流式、React 前端。
-- **职责亮点**：`POST /api/multimodal/unified` 供总管一次调用；图像 OCR/情绪/描述；视频关键帧摘要；实时 WS 转写；音乐/视频生成请求引导至独立 Agent UI。
+为 Manager 提供统一多模态理解入口（`POST /api/multimodal/unified`）。**作曲与文生视频不在本服务内生成**：总管直连 `Music_Agent` / `Video_Agent`；本服务前端若收到生成类请求，仅 redirect 到对应 UI。
 
 ## 核心能力
 
@@ -20,15 +16,25 @@
 | 视频摘要 | 同上 `media_type=video` | 关键帧 + VL 摘要 |
 | 语音转写 | `POST /api/multimodal/describe` / WS | ASR |
 | 图文问答 | `POST /api/multimodal/qa` | 基于理解结果问答 |
-| 总管入口 | `POST /api/multimodal/unified` | Manager_Agent 调用 |
-| 音乐/视频生成 | WS `generate_music` / `generate_video` | 返回 redirect 至 Music/Video Agent UI（不内嵌生成） |
-| 实时流 | `WS /ws/multimodal` | 口述转写、理解进度 |
+| 总管入口 | `POST /api/multimodal/unified` | Manager 一次调用 |
+| 生成引导 | WS `generate_music` / `generate_video` | 跳转 Music/Video UI，不内嵌生成 |
+| 实时流 | `WS /ws/multimodal` | 转写与理解进度 |
 
-## 技术栈与目录
+## 技术栈
 
-- `backend/app/main.py`、`agent.py`：路由与编排  
-- `backend/app/processors/`：`image_processor`、`video_processor`、音频处理  
-- `frontend/`：上传与结果展示  
+- 后端：Python、FastAPI、Qwen-VL / ASR（DashScope 兼容）
+- 前端：React + Vite
+- 目录：`backend/app/main.py`、`agent.py`；`backend/app/processors/`（image / video / audio）；`frontend/`
+
+## 架构与关键路径
+
+```text
+Manager ──HTTP──► /api/multimodal/unified
+                     ├─ image / video / audio processors
+                     └─ 结构化理解结果回总管
+
+本机 UI ──WS──► 理解进度；生成类 → redirect Music/Video
+```
 
 ## 快速开始
 
@@ -44,7 +50,25 @@ npm install
 npm run dev
 ```
 
-## Docker
+## 环境变量
+
+见 `.env.example`。Docker 内示例：
+
+- `MUSIC_AGENT_UI_URL=http://music_agent:13110`
+- `VIDEO_AGENT_UI_URL=http://video_agent:13111`
+
+## 与 Manager 协作
+
+- 总管 cap：`multimodal`；HTTP 基址 `MULTIMODAL_AGENT_HTTP_URL`
+- 健康 / 探针：`/api/health`、`/api/probe`
+- 音乐 / 视频生成由总管 **直连** music/video，不经本服务转发执行
+
+## 能力边界
+
+- **适合**：识图 OCR、短视频理解、ASR、总管多模态理解步骤
+- **不适合**：替代 Music/Video 的深度作曲与成片生产
+
+## Docker / 平台编排
 
 ```bash
 cd Manage-platform_Agent
@@ -53,12 +77,12 @@ docker compose -f docker-compose.agents-lan.yml up -d --build multimodal_agent
 
 访问：`http://localhost:13107/`
 
-环境变量见 `.env.example`。Docker 内示例：
+## 安全提示
 
-- `MUSIC_AGENT_UI_URL=http://music_agent:13110`
-- `VIDEO_AGENT_UI_URL=http://video_agent:13111`
+- 上传媒体可能含隐私；生产加鉴权与体积限制
+- 勿提交真实 API Key
 
-## 能力边界
+## 常见问题
 
-- **适合**：识图/OCR、短视频理解、语音转文字、总管多模态路由  
-- **不适合**：替代 Music/Video Agent 的深度作曲与长视频生产（应直连对应服务）  
+- **VL/ASR 失败**：检查 DashScope / 兼容 Base URL 与模型名
+- **总管调不通**：确认 `13107` 与 `/api/multimodal/unified` 可达

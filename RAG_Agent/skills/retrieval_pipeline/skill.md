@@ -12,7 +12,7 @@ owner: rag_agent
 
 ## Pipeline
 
-稳定阶段顺序（代码实现见 `document_retrieval.ts`）：
+稳定阶段顺序（代码实现见 `document_retrieval.ts`；H 波企业化见 `doc/企业化升级方案.md`）：
 
 1. **Query Plan**：`buildRagQueryPlan` → intent / sub_queries / 实体词
 2. **Condense**（可选）：多轮指代消解 → 自包含检索问句
@@ -21,10 +21,13 @@ owner: rag_agent
 5. **Hybrid Recall**：向量 + keyword + BM25 融合；复合问句可走 sub-query 并行 lane
 6. **Pre-Rerank**：lexical / cross-encoder / local rerank（Bandit 可选跳过 LLM rerank）
 7. **Rerank**：LLM 从候选池选 Top-N 片段
-8. **Evidence Select**：LLM 输出严格 JSON evidence 列表
-9. **Agentic Retry**（可选）：弱证据时改写 query 重试
+8. **MMR**（可选，H3）：相关性 vs 多样性去冗余
+9. **Parent Expand**（H2）：子块命中 → `parent_text` 扩展并按 `parent_id` 去重
+10. **Evidence Select**：LLM 输出严格 JSON evidence 列表
+11. **Agentic Retry**（可选，H4）：零命中 / 弱证据 / `ambiguous_low_confidence` 时改写 query 重试
 
-弱证据 / 零命中 → clarify，不编造。
+弱证据 / 零命中 / 分差过低且分数偏低 → clarify，不编造。  
+生成侧另有 **Citation Guard（H5）**：答案中的数字/条款须能在证据原文中核对。
 
 ## Expansion
 

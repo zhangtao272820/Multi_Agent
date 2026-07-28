@@ -1,5 +1,6 @@
 /**
  * RAG 检索与回答路径观测（进程内计数 + .data 落盘）。
+ * R2：trace_id + 拒答率 / 空证据率 / retrieve P95 汇总。
  */
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from "fs";
 import { join } from "path";
@@ -25,9 +26,16 @@ export type RagQueryMetricEvent = {
   rerank_mode?: string;
   ab_variant?: string;
   bandit_arm?: string;
+  /** R2 */
+  trace_id?: string;
+  error_code?: string;
+  refused?: boolean;
+  empty_evidence?: boolean;
 };
 
 const counters: Record<string, number> = {};
+const retrieveMsSamples: number[] = [];
+const MAX_MS_SAMPLES = 500;
 
 function metricsFile() {
   const dir = join(process.cwd(), ".data");
@@ -35,9 +43,24 @@ function metricsFile() {
   return join(dir, "rag-query-metrics.jsonl");
 }
 
+function percentile(sorted: number[], p: number): number | null {
+  if (!sorted.length) return null;
+  const idx = Math.min(sorted.length - 1, Math.max(0, Math.ceil((p / 100) * sorted.length) - 1));
+  return sorted[idx] ?? null;
+}
+
 export function recordRagQueryMetric(ev: RagQueryMetricEvent) {
-  const key = `${ev.path}:${ev.ok ? "ok" : "fail"}${ev.weak_evidence ? ":weak" : ""}`;
+  const key = `${ev.path}:${ev.ok ? "ok" : "fail"}${ev.weak_evidence ? ":weak" : ""}${
+    ev.error_code ? `:${ev.error_code}` : ""
+  }`;
   counters[key] = (counters[key] || 0) + 1;
+  if (ev.refused) counters["sli:refused"] = (counters["sli:refused"] || 0) + 1;
+  if (ev.empty_evidence) counters["sli:empty_evidence"] = (counters["sli:empty_evidence"] || 0) + 1;
+  counters["sli:total"] = (counters["sli:total"] || 0) + 1;
+  if (ev.path === "document_query" && typeof ev.ms === "number" && Number.isFinite(ev.ms)) {
+    retrieveMsSamples.push(Math.max(0, Math.round(ev.ms)));
+    if (retrieveMsSamples.length > MAX_MS_SAMPLES) retrieveMsSamples.shift();
+  }
   try {
     const line = JSON.stringify({ ...ev, at: new Date().toISOString() });
     appendFileSync(metricsFile(), `${line}\n`, "utf8");
@@ -48,6 +71,22 @@ export function recordRagQueryMetric(ev: RagQueryMetricEvent) {
 
 export function getRagQueryMetricCounters() {
   return { ...counters };
+}
+
+/** R2 汇总：拒答率 / 空证据率 / retrieve P95 */
+export function getRagSliSummary() {
+  const total = counters["sli:total"] || 0;
+  const refused = counters["sli:refused"] || 0;
+  const empty = counters["sli:empty_evidence"] || 0;
+  const sorted = [...retrieveMsSamples].sort((a, b) => a - b);
+  return {
+    sampleCount: total,
+    refusalRate: total > 0 ? refused / total : 0,
+    emptyEvidenceRate: total > 0 ? empty / total : 0,
+    retrieveP95Ms: percentile(sorted, 95),
+    retrieveP50Ms: percentile(sorted, 50),
+    retrieveSamples: sorted.length,
+  };
 }
 
 export function readRecentRagMetrics(limit = 50): RagQueryMetricEvent[] {

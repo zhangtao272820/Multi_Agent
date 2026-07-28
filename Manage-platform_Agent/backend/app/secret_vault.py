@@ -1,7 +1,12 @@
-"""平台密钥托管：对外仅暴露 ref id，明文仅 internal API 下发。"""
+"""平台密钥托管：对外仅暴露 ref id，明文仅 internal API 下发。
+
+E5：可选 at-rest — 设 CLAWHIVE_VAULT_KEY 时，store/load 可用 Fernet 封套（非 KMS）。
+"""
 
 from __future__ import annotations
 
+import base64
+import hashlib
 import os
 from typing import Any
 
@@ -11,6 +16,40 @@ from .config import get_settings
 from .db_models import SecretRefRecord
 
 settings = get_settings()
+
+
+def _vault_fernet():
+    """CLAWHIVE_VAULT_KEY → Fernet；未设置则 None（仍走 env 明文路径）。"""
+    raw = (os.getenv("CLAWHIVE_VAULT_KEY") or "").strip()
+    if not raw:
+        return None
+    try:
+        from cryptography.fernet import Fernet
+    except ImportError:
+        return None
+    key = base64.urlsafe_b64encode(hashlib.sha256(raw.encode("utf-8")).digest())
+    return Fernet(key)
+
+
+def seal_secret_value(plaintext: str) -> str | None:
+    """加密明文；失败或未配置 vault 返回 None。"""
+    f = _vault_fernet()
+    if not f or not plaintext:
+        return None
+    try:
+        return f.encrypt(plaintext.encode("utf-8")).decode("ascii")
+    except Exception:
+        return None
+
+
+def open_secret_value(ciphertext: str) -> str | None:
+    f = _vault_fernet()
+    if not f or not ciphertext:
+        return None
+    try:
+        return f.decrypt(ciphertext.encode("ascii")).decode("utf-8")
+    except Exception:
+        return None
 
 # 内置 ref → 环境变量映射（不落库明文）
 _BUILTIN_REF_ENV: dict[str, str] = {

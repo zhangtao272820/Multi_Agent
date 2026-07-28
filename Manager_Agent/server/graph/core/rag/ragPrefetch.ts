@@ -1,5 +1,6 @@
 import { callRagProbe, callRagRetrieve } from '../../../utils/agents/ragClient'
 import { isManagerDockerRuntime } from '../../../utils/platform/managerEnvModes'
+import { classifyAndDetectHard, isHardExpertFailureRaw } from '../runtime/expertFailure'
 import { resolvePrefetchTargets, type PrefetchGateState } from '../probe/prefetchGate'
 import {
   resolveLeanRagQuery,
@@ -17,6 +18,9 @@ export type RagRetrievePrefetchResult = {
   needsClarify?: boolean
   sub_queries?: string[]
   error?: string
+  /** 硬失败：同 run 内勿再打 RAG */
+  hardFailure?: boolean
+  error_code?: string
 }
 
 /** Docker / 提速：跳过 RAG EvidenceSelect LLM（省 1 次调用；403 模型权限问题时亦避免拖慢） */
@@ -110,15 +114,31 @@ export async function prefetchRagRetrieve(params: {
 
   try {
     /** orchestrate 后始终 fresh probe（与 RAG /api/probe 同内核），带 manager_rag_task_json */
-    const freshProbe = await callRagProbe({
-      ragAgentHttpUrl: base,
-      timeoutMs: probeTimeout,
-      query: q,
-      k: 8,
-      userId: params.userId,
-      traceId: params.traceId,
-      managerRagTask
-    })
+    let freshProbe: Awaited<ReturnType<typeof callRagProbe>> = null
+    try {
+      freshProbe = await callRagProbe({
+        ragAgentHttpUrl: base,
+        timeoutMs: probeTimeout,
+        query: q,
+        k: 8,
+        userId: params.userId,
+        traceId: params.traceId,
+        managerRagTask
+      })
+    } catch (probeErr: unknown) {
+      const detected = classifyAndDetectHard({ error: probeErr })
+      if (detected.hard) {
+        return {
+          ok: false,
+          ms: Date.now() - t0,
+          query: q,
+          error: detected.message,
+          hardFailure: true,
+          error_code: detected.code
+        }
+      }
+      // 软失败：继续走 route probe / retrieve
+    }
     const fromProbe = prefetchRagFromProbeCache(
       freshProbe
         ? {
@@ -136,6 +156,7 @@ export async function prefetchRagRetrieve(params: {
     const routeProbe = prefetchRagFromProbeCache(params.probeRag, q, Date.now() - t0)
     if (routeProbe && Number(params.probeRag?.hits ?? 0) > 0) return routeProbe
 
+    // probe 抛错或返回空且环境要求跳过 retrieve，或默认：硬失败不再叠 retrieve
     if (shouldSkipRagPrefetchRetrieveOnMiss()) {
       return {
         ok: false,
@@ -160,7 +181,27 @@ export async function prefetchRagRetrieve(params: {
       skipEvidenceSelect: shouldSkipRagEvidenceSelect()
     })
     if (!data) {
-      return { ok: false, ms: Date.now() - t0, query: q, error: 'rag retrieve empty' }
+      // retrieve 空且无响应体：多为服务不可达
+      return {
+        ok: false,
+        ms: Date.now() - t0,
+        query: q,
+        error: 'rag retrieve empty',
+        hardFailure: true,
+        error_code: 'network'
+      }
+    }
+    const failCode = String(data.error_code || data.agentResult?.error_code || '').trim()
+    if (data.ok === false && (isHardExpertFailureRaw(failCode) || failCode === 'vector_not_ready')) {
+      return {
+        ok: false,
+        ms: Date.now() - t0,
+        query: q,
+        error: failCode || 'rag hard failure',
+        hardFailure: true,
+        error_code: failCode || 'network',
+        hits: 0
+      }
     }
     const evidence = Array.isArray(data.evidence)
       ? (data.evidence as Array<{ source?: string; content?: string }>)
@@ -179,11 +220,14 @@ export async function prefetchRagRetrieve(params: {
       needsClarify: Boolean(data.needsClarify)
     }
   } catch (e: unknown) {
+    const detected = classifyAndDetectHard({ error: e })
     return {
       ok: false,
       ms: Date.now() - t0,
       query: q,
-      error: String((e as Error)?.message || e || 'prefetch failed')
+      error: String((e as Error)?.message || e || 'prefetch failed'),
+      hardFailure: detected.hard,
+      error_code: detected.hard ? detected.code : undefined
     }
   }
 }

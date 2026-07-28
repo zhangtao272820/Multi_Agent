@@ -468,7 +468,14 @@ export const selectCandidateSources = async (
   };
 };
 
-export type EvidenceItem = { content: string; source: string };
+export type EvidenceItem = {
+  content: string
+  source: string
+  /** G5：入库时间 ISO；供新鲜度告警 */
+  ingest_at?: string
+  /** G5：文档版本 / 修订标识 */
+  source_version?: string
+}
 
 /** 文件名与问句词面重合（通用，用于文档路由） */
 export function scoreDocNameForQuery(docName: string, queries: string[]): number {

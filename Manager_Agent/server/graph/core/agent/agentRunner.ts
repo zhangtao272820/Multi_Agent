@@ -1,4 +1,13 @@
 import type { Step } from '../../../utils/shared/taskPlan'
+import {
+  buildExpertDegradeMessage,
+  classifyAndDetectHard,
+  classifyExpertFailure,
+  isHardExpertFailureCode,
+  isHardExpertFailureRaw
+} from '../runtime/expertFailure'
+import { checkRunBudget, type RunBudgetCheck } from '../runtime/runBudget'
+import { checkExpertInflight } from '../runtime/backpressure'
 
 export type StepRunStatus = 'ok' | 'error' | 'skipped'
 
@@ -19,11 +28,21 @@ export type StepRunRecord = {
 export type AgentRunTelemetry = {
   scaledTimeoutForAgent: (agent: string, baseMs: number) => number
   recordAgentSuccess: (agent: string) => void
-  recordAgentFailure: (agent: string) => void
+  /** soft 失败仍按 streak；hard 失败立即 hard-down + 熔断 */
+  recordAgentFailure: (agent: string, opts?: { errorCode?: string; error?: unknown; hard?: boolean }) => void
+  markExpertHardDown: (agent: string, errorCode?: string) => void
+  isExpertHardDown: (agent: string) => boolean
+  getExpertHardDownCode: (agent: string) => string | undefined
+  getHardDownAgents: () => string[]
   getAgentFailureStreak: (agent: string) => number
   optionalAgents: Set<string>
   runtimeCircuitOpenAgents: Set<string>
   circuitStreakThreshold: number
+  /** E3：累计本 run tokens/usd，供预算闸 */
+  addSpend: (delta: { tokens?: number; usd?: number }) => void
+  getSpend: () => { tokens: number; usd: number }
+  checkBudget: () => import('../runtime/runBudget').RunBudgetCheck
+  timeLeftMs: () => number
 }
 
 export type CreateAgentRunTelemetryInput = {
@@ -37,7 +56,14 @@ export type CreateAgentRunTelemetryInput = {
 
 const DEFAULT_OPTIONAL_AGENTS = new Set(['clean', 'visualize', 'report'])
 
-/** 同 Agent 连续失败达阈后开路（clamp 1–5，默认 2） */
+/** 截止将近：跳过非关键剩余步（ms） */
+export function readNearDeadlineSkipMs(env: NodeJS.ProcessEnv = process.env): number {
+  const n = Number(env.MANAGER_NEAR_DEADLINE_SKIP_MS ?? 10_000)
+  if (!Number.isFinite(n)) return 10_000
+  return Math.max(3_000, Math.min(30_000, Math.floor(n)))
+}
+
+/** 同 Agent 连续失败达阈后开路（clamp 1–5，默认 2；硬失败另走 streak=1） */
 export function readAgentCircuitStreak(env: NodeJS.ProcessEnv = process.env): number {
   const n = Number(env.MANAGER_AGENT_CIRCUIT_STREAK ?? 2)
   if (!Number.isFinite(n)) return 2
@@ -59,6 +85,7 @@ export function createAgentRunTelemetry(input: CreateAgentRunTelemetryInput): Ag
   const circuitStreakThreshold = readAgentCircuitStreak()
   const agentFailureStreak = new Map<string, number>()
   const runtimeCircuitOpenAgents = new Set<string>(input.schedulerCircuitOpenAgents ?? [])
+  const expertHardDown = new Map<string, string>()
 
   const scaledTimeoutForAgent = (agent: string, baseMs: number) => {
     const perAgent = Number(input.schedulerAgentTimeoutScale?.[agent] ?? 1)
@@ -71,13 +98,44 @@ export function createAgentRunTelemetry(input: CreateAgentRunTelemetryInput): Ag
     return Math.max(12_000, Math.min(maxStepTimeoutMs, budgetCap, Math.max(scaled, p95Floor)))
   }
 
+  const markExpertHardDown = (agent: string, errorCode?: string) => {
+    const a = String(agent || '').trim()
+    if (!a) return
+    const code = String(errorCode || 'network').trim() || 'network'
+    if (!expertHardDown.has(a)) expertHardDown.set(a, code)
+    runtimeCircuitOpenAgents.add(a)
+    agentFailureStreak.set(a, Math.max(circuitStreakThreshold, Number(agentFailureStreak.get(a) || 0)))
+  }
+
+  const isExpertHardDown = (agent: string) => expertHardDown.has(String(agent || '').trim())
+  const getExpertHardDownCode = (agent: string) => expertHardDown.get(String(agent || '').trim())
+  const getHardDownAgents = () => [...expertHardDown.keys()]
+
   const recordAgentSuccess = (agent: string) => {
     if (!agent) return
+    // 硬失败本 run 不因偶发成功清除 unavailable（避免半挂服务来回打）
+    if (expertHardDown.has(agent)) return
     agentFailureStreak.set(agent, 0)
   }
 
-  const recordAgentFailure = (agent: string) => {
+  const recordAgentFailure = (
+    agent: string,
+    opts?: { errorCode?: string; error?: unknown; hard?: boolean }
+  ) => {
     if (!agent) return
+    const detected = classifyAndDetectHard({
+      error: opts?.error,
+      agentResult: opts?.errorCode ? { ok: false, error_code: opts.errorCode } : undefined
+    })
+    const hard =
+      opts?.hard === true ||
+      detected.hard ||
+      isHardExpertFailureCode(opts?.errorCode) ||
+      isHardExpertFailureRaw(opts?.errorCode)
+    if (hard) {
+      markExpertHardDown(agent, opts?.errorCode || detected.code)
+      return
+    }
     const next = Number(agentFailureStreak.get(agent) || 0) + 1
     agentFailureStreak.set(agent, next)
     if (next >= circuitStreakThreshold) runtimeCircuitOpenAgents.add(agent)
@@ -85,14 +143,33 @@ export function createAgentRunTelemetry(input: CreateAgentRunTelemetryInput): Ag
 
   const getAgentFailureStreak = (agent: string) => Number(agentFailureStreak.get(agent) || 0) || 0
 
+  let spendTokens = 0
+  let spendUsd = 0
+  const addSpend = (delta: { tokens?: number; usd?: number }) => {
+    const t = Number(delta.tokens || 0)
+    const u = Number(delta.usd || 0)
+    if (Number.isFinite(t) && t > 0) spendTokens += t
+    if (Number.isFinite(u) && u > 0) spendUsd += u
+  }
+  const getSpend = () => ({ tokens: spendTokens, usd: spendUsd })
+  const checkBudgetFn = (): RunBudgetCheck => checkRunBudget(getSpend())
+
   return {
     scaledTimeoutForAgent,
     recordAgentSuccess,
     recordAgentFailure,
+    markExpertHardDown,
+    isExpertHardDown,
+    getExpertHardDownCode,
+    getHardDownAgents,
     getAgentFailureStreak,
     optionalAgents: DEFAULT_OPTIONAL_AGENTS,
     runtimeCircuitOpenAgents,
-    circuitStreakThreshold
+    circuitStreakThreshold,
+    addSpend,
+    getSpend,
+    checkBudget: checkBudgetFn,
+    timeLeftMs: () => input.timeLeftMs()
   }
 }
 
@@ -106,17 +183,64 @@ export type StepPrecheckInput = {
   schedulerSkipAgents: string[]
   schedulerDegradeOptionalAgents: string[]
   telemetry: AgentRunTelemetry
+  /** 是否为可选/非关键步（截止将近时可跳过） */
+  optionalStep?: boolean
 }
 
-export type StepPrecheckPolicy = 'circuit_degrade_optional' | 'circuit_open_core' | 'tool_health_down'
+export type StepPrecheckPolicy =
+  | 'circuit_degrade_optional'
+  | 'circuit_open_core'
+  | 'tool_health_down'
+  | 'budget_exceeded'
+  | 'expert_hard_down'
+  | 'deadline_exceeded'
+  | 'upstream_failed'
+  | 'clean_dedupe'
+  | 'overloaded'
 
 export type StepPrecheckResult =
   | { action: 'run' }
   | { action: 'skip'; reason: string; policy: StepPrecheckPolicy }
 
-/** 执行前检查：熔断降级 / 核心熔断跳过 / toolHealth 跳过 */
+/** 执行前检查：预算 / hard-down / 截止 / 熔断降级 / 核心熔断跳过 / toolHealth 跳过 */
 export function precheckAgentStep(input: StepPrecheckInput): StepPrecheckResult {
   const { stepAgent, telemetry, schedulerSkipAgents, schedulerDegradeOptionalAgents, plannedInTask } = input
+
+  const budget = telemetry.checkBudget()
+  if (!budget.ok) {
+    return {
+      action: 'skip',
+      reason: budget.reason || 'run budget exceeded',
+      policy: 'budget_exceeded'
+    }
+  }
+
+  if (telemetry.isExpertHardDown(stepAgent)) {
+    const code = telemetry.getExpertHardDownCode(stepAgent) || 'network'
+    return {
+      action: 'skip',
+      reason: `agent ${stepAgent} 本轮已硬失败（${code}），截断后续调用以免空转耗 token`,
+      policy: 'expert_hard_down'
+    }
+  }
+
+  const bp = checkExpertInflight(stepAgent)
+  if (!bp.ok) {
+    return { action: 'skip', reason: bp.reason, policy: 'overloaded' }
+  }
+
+  const left = telemetry.timeLeftMs()
+  const nearMs = readNearDeadlineSkipMs()
+  const isOptional =
+    Boolean(input.optionalStep) || telemetry.optionalAgents.has(stepAgent)
+  if (left < nearMs && isOptional) {
+    return {
+      action: 'skip',
+      reason: `截止将近（剩余 ${Math.round(left)}ms < ${nearMs}ms），跳过非关键步骤 ${stepAgent}`,
+      policy: 'deadline_exceeded'
+    }
+  }
+
   const protectPlannedOptional = Boolean(plannedInTask) && telemetry.optionalAgents.has(stepAgent)
   const circuitOpen = telemetry.runtimeCircuitOpenAgents.has(stepAgent)
 
@@ -156,7 +280,7 @@ export type RecordSkippedStepInput = {
   agent: Step['agent']
   effQuery: string
   reason: string
-  policy: StepPrecheckResult extends { action: 'skip' } ? StepPrecheckResult['policy'] : string
+  policy: StepPrecheckPolicy | string
   t0: number
   runId: string
   byId: Record<string, StepRunRecord>
@@ -170,15 +294,55 @@ export type RecordSkippedStepInput = {
 export async function recordSkippedAgentStep(input: RecordSkippedStepInput) {
   const { stepId, agent, effQuery, reason, policy, t0, runId, byId, evidences, relayThinking, emitTrace, appendMetrics } =
     input
-  byId[stepId] = { id: stepId, agent, query: effQuery, output: reason, status: 'skipped', error: reason }
-  evidences.push({ kind: 'skipped', stepId, agent, query: effQuery, reason })
-  const skipLabel = policy === 'tool_health_down' || policy === 'circuit_open_core' ? '跳过' : '降级跳过'
-  relayThinking('manager', `步骤 ${stepId} ${skipLabel}：${reason}`)
-  emitTrace({ type: 'step_skip', agent, stepId, reason, at: new Date().toISOString() })
+  const classified = classifyExpertFailure({ error: reason, policy: String(policy) })
+  const degradeMsg =
+    policy === 'budget_exceeded'
+      ? `成本预算已超限，后续专家步骤已跳过（${reason}）`
+      : policy === 'upstream_failed'
+        ? buildExpertDegradeMessage(String(agent), 'skipped', reason)
+        : policy === 'deadline_exceeded'
+          ? `截止将近，已截断非关键步骤（${reason}）`
+          : buildExpertDegradeMessage(String(agent), classified.code, reason)
+  byId[stepId] = {
+    id: stepId,
+    agent,
+    query: effQuery,
+    output: degradeMsg,
+    status: 'skipped',
+    error: degradeMsg,
+    meta: { skipPolicy: policy, skipReason: reason }
+  }
+  evidences.push({ kind: 'skipped', stepId, agent, query: effQuery, reason: degradeMsg, policy })
+  const skipLabel =
+    policy === 'budget_exceeded'
+      ? '预算跳过'
+      : policy === 'upstream_failed'
+        ? '上游失败跳过'
+        : policy === 'deadline_exceeded'
+          ? '截止截断'
+          : policy === 'tool_health_down' ||
+              policy === 'circuit_open_core' ||
+              policy === 'expert_hard_down'
+            ? '跳过'
+            : '降级跳过'
+  relayThinking('manager', `步骤 ${stepId} ${skipLabel}：${degradeMsg}`)
+  emitTrace({ type: 'step_skip', agent, stepId, reason: degradeMsg, policy, at: new Date().toISOString() })
   await appendMetrics({
     runId,
-    phase: 'step_skip',
+    phase: String(agent),
     ms: Date.now() - t0,
-    extra: { stepId, agent: String(agent), reason, policy }
+    ok: false,
+    agent: String(agent),
+    error_code:
+      policy === 'budget_exceeded'
+        ? 'budget_exceeded'
+        : policy === 'overloaded'
+          ? 'overloaded'
+        : policy === 'upstream_failed'
+          ? 'upstream_failed'
+          : classified.code === 'unknown'
+            ? 'skipped'
+            : classified.code,
+    extra: { stepId, reason, policy, step_skip: true }
   })
 }

@@ -790,6 +790,15 @@
   max-height: none !important;
 }
 
+/* 主要回复正文层级：覆盖通用 reply-chat 灰字 */
+.spring-root.cursor-workbench.cosmic-theme .chat-thread .reply-primary-section .reply-chat .md-p,
+.spring-root.cursor-workbench.cosmic-theme .chat-thread .reply-primary-section .md-body.reply-chat .md-p {
+  margin: 0 0 1.05em !important;
+  line-height: 1.82 !important;
+  color: #f1f5f9 !important;
+  font-size: 16px !important;
+}
+
 .spring-root.cursor-workbench.cosmic-theme .chat-thread .reply-chat,
 .spring-root.cursor-workbench.cosmic-theme .chat-thread .md-body.reply-chat {
   letter-spacing: 0.02em !important;

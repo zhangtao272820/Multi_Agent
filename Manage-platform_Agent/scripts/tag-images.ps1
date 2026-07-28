@@ -8,11 +8,15 @@ $sha = "local"
 try { $sha = (git -C $repo rev-parse --short HEAD).Trim() } catch {}
 $tag = "$semver-$sha"
 if (-not (Test-Path $envFile)) { New-Item -ItemType File -Path $envFile | Out-Null }
-$content = @(Get-Content $envFile -ErrorAction SilentlyContinue)
+
+# Must use UTF-8 (no BOM): default Get-Content/Set-Content on Chinese Windows rewrites UTF-8 as GBK mojibake.
+. (Join-Path $PSScriptRoot "_agents-lan-common.ps1")
+$content = @(Read-EnvFileUtf8 $envFile)
 if ($content -match "^CLAWHIVE_IMAGE_TAG=") {
     $content = $content | ForEach-Object { if ($_ -match "^CLAWHIVE_IMAGE_TAG=") { "CLAWHIVE_IMAGE_TAG=$tag" } else { $_ } }
-    Set-Content -Path $envFile -Value $content
+    Write-EnvFileUtf8 -Path $envFile -Lines $content
 } else {
-    Add-Content -Path $envFile -Value "CLAWHIVE_IMAGE_TAG=$tag"
+    $content = @($content) + @("CLAWHIVE_IMAGE_TAG=$tag")
+    Write-EnvFileUtf8 -Path $envFile -Lines $content
 }
 Write-Output $tag

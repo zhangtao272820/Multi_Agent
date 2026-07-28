@@ -11,6 +11,7 @@ import {
   guiScreenshotFingerprint,
   shouldForwardGuiThinking,
 } from '#agent-shared/lobsterGuiProgressContract'
+import { markAgentPayloadUntrusted } from '#agent-shared/contentTrust'
 
 function resolveLobsterWsCandidates(env: NodeJS.ProcessEnv = process.env): string[] {
   const primary = resolveAgentUrl(env.LOBSTER_AGENT_WS_URL, env)
@@ -384,5 +385,15 @@ export function normalizeLobsterCallResult(raw: unknown, task: string, traceId?:
           { taskKind },
         )
       : answer
-  return { raw, agentResult: { ...agentResult, answer: framed }, answer: framed }
+  const structured = markAgentPayloadUntrusted(
+    (agentResult.structured && typeof agentResult.structured === 'object'
+      ? agentResult.structured
+      : {}) as Record<string, unknown>,
+    'gui'
+  )
+  return {
+    raw,
+    agentResult: { ...agentResult, answer: framed, structured },
+    answer: framed
+  }
 }

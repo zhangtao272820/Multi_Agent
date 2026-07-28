@@ -1,3 +1,4 @@
+import { prepareUntrustedForSynth, wrapUntrustedContent, UNTRUSTED_BEGIN } from '#agent-shared/contentTrust'
 import { AIMessage, HumanMessage, SystemMessage } from '@langchain/core/messages'
 import { effectiveUserTask } from '../../core/text'
 import { z } from 'zod'
@@ -21,6 +22,7 @@ import { updateUserProfileFromRun } from '../../core/memory/userProfile'
 import { recordLayeredMemoryFromRun } from '../../core/layeredMemory'
 import { recordUnifiedLearningFromRun } from '../../core/unifiedLearning'
 import { interactionModeFromMeta } from '../../core/runtime/modeIsolate'
+import { collectStaleEvidenceSources, buildStaleEvidenceHint } from '../../core/runtime/evidenceFreshness'
 import { inferManagerRouteMatrixPass } from '#agent-shared/evolutionConvergence'
 import { recordToolMemoryEvent } from '#agent-shared/toolMemoryStore'
 import { isAgentToolSuccess, isSkillDraftEligible } from '#agent-shared/agentOutcomePolicy'
@@ -88,6 +90,7 @@ import {
 } from '../../../utils/agents/specialistHandoff'
 import { assessCodeDownstreamConsistencyAsync } from '../../../utils/code/managerCodeAuthorityNormalize'
 import { isManagerSynthStreamEnabled } from '../../core/runtime/runtime'
+import { shouldEmitUserSynthStream } from '../../core/runtime/streamEvents'
 import type { LlmInvokeOptions } from '../../core/shared/modelTier'
 import { resolveManagerInteractionMode } from '../../../utils/platform/managerInteractionMode'
 import { buildCodeFirstBundle } from '#agent-shared/codeFirstAuthority'
@@ -132,9 +135,11 @@ export function buildSynthNodeRun(deps: CreateFinalNodesDeps) {
     return async (state: any) => {
         ensureNotAborted()
         opts.sendEvent({ event: 'phase', data: 'synth', from: 'manager' })
-        const streamSynthEarly = isManagerSynthStreamEnabled()
+        const streamSynthEarly =
+          isManagerSynthStreamEnabled() && shouldEmitUserSynthStream(state)
         if (streamSynthEarly) {
           opts.sendEvent({ event: 'phase', data: 'synth_stream', from: 'manager' })
+          opts.sendEvent({ event: 'stream_start', data: { phase: 'synth' }, from: 'manager' })
         }
 
         if (Boolean(state.meta?.directChitchatSynth)) {
@@ -281,10 +286,9 @@ export function buildSynthNodeRun(deps: CreateFinalNodesDeps) {
         for (const agent of mediaAgents) {
           const val = results[agent]
           if (!val) continue
-          const safe = sanitizeUntrustedText(String(val).replace(/\s+/g, ' ').trim())
-          const clipped = safe.length > 1200 ? `${safe.slice(0, 1200)}…` : safe
+          const wrapped = prepareUntrustedForSynth(agent, String(val).replace(/\s+/g, ' ').trim(), sanitizeUntrustedText, 1200)
           const label = agent === 'multimodal' ? '多模态' : agent === 'music' ? '音乐' : '视频'
-          synthBlocks.push([`### 数据来源：${label}`, clipped || '（无输出）'].filter(Boolean).join('\n'))
+          synthBlocks.push([`### 数据来源：${label}`, wrapped || '（无输出）'].filter(Boolean).join('\n'))
         }
 
         const agents: Intent[] = ['db', 'rag', 'crawler', 'gui', 'code', 'admin']
@@ -315,6 +319,21 @@ export function buildSynthNodeRun(deps: CreateFinalNodesDeps) {
           }
         }
 
+        const staleMeta = (Array.isArray(evidences) ? evidences : []).flatMap((ev) => {
+          const ar = (ev as { agentResult?: { structured?: Record<string, unknown> } }).agentResult
+          const structured = ar?.structured
+          const rows = Array.isArray(structured?.citations)
+            ? (structured?.citations as Array<Record<string, unknown>>)
+            : []
+          return rows.map((c) => ({
+            source: String(c.source || c.ref || ''),
+            ingest_at: String(c.ingest_at || c.ingestAt || ''),
+            source_version: String(c.source_version || c.sourceVersion || '')
+          }))
+        })
+        const staleHint = buildStaleEvidenceHint(collectStaleEvidenceSources(staleMeta))
+        if (staleHint) synthBlocks.push(`### 证据新鲜度\n${staleHint}`)
+
         for (const agent of agents) {
           const val = results[agent]
           if (!val) continue
@@ -326,8 +345,12 @@ export function buildSynthNodeRun(deps: CreateFinalNodesDeps) {
             if (handoffAgents.has('gui')) {
               continue
             }
-            const safe = sanitizeUntrustedText(String(val).replace(/\s+/g, ' ').trim())
-            const clipped = safe.length > 900 ? `${safe.slice(0, 900)}…` : safe
+            const wrapped = prepareUntrustedForSynth(
+              'gui',
+              String(val).replace(/\s+/g, ' ').trim(),
+              sanitizeUntrustedText,
+              900
+            )
             const guiAr = evidences.find((e) => String(e?.agent || '') === 'gui')?.agentResult as
               | { structured?: { finalUrl?: string; stepCount?: number } }
               | undefined
@@ -336,7 +359,7 @@ export function buildSynthNodeRun(deps: CreateFinalNodesDeps) {
             synthBlocks.push(
               [
                 '[CTX:gui]',
-                clipped || '（无页面抽取文本）',
+                wrapped || '（无页面抽取文本）',
                 finalUrl ? `最终页面：${finalUrl}` : '',
                 stepCount > 0 ? `自动化步数：${stepCount}` : '',
                 hasDbResult
@@ -382,9 +405,17 @@ export function buildSynthNodeRun(deps: CreateFinalNodesDeps) {
               synthBlocks.push(
                 [
                   '[CTX:crawler]',
-                  `已获取 ${itemCount || '若干'} 条联网参考（完整来源表由系统渲染，正文须引用摘要中的标准/区间/指南要点并与 DB 数据对照）。`,
-                  excerptLines.length ? `联网摘要摘录：\n${excerptLines.join('\n')}` : '',
-                  '汇总时必须写清：公开参考标准/区间是什么、受测者 DB 数值如何、是否在参考范围内；禁止只写 DB 字段而忽略联网对照。',
+                  wrapUntrustedContent({
+                    source: 'crawler',
+                    text: [
+                      `已获取 ${itemCount || '若干'} 条联网参考（完整来源表由系统渲染，正文须引用摘要中的标准/区间/指南要点并与 DB 数据对照）。`,
+                      excerptLines.length ? `联网摘要摘录：\n${excerptLines.join('\n')}` : '',
+                      '汇总时必须写清：公开参考标准/区间是什么、受测者 DB 数值如何、是否在参考范围内；禁止只写 DB 字段而忽略联网对照。'
+                    ]
+                      .filter(Boolean)
+                      .join('\n'),
+                    maxChars: 2400
+                  }),
                   '[/CTX]'
                 ]
                   .filter(Boolean)
@@ -397,6 +428,13 @@ export function buildSynthNodeRun(deps: CreateFinalNodesDeps) {
           let safeAnswer = sanitizeUntrustedText(String(extracted.answer || '').trim())
           safeAnswer = safeAnswer.replace(/\s+/g, ' ').trim()
           if (safeAnswer.length > 720) safeAnswer = `${safeAnswer.slice(0, 720)}…`
+          if (agent === 'admin' || agent === 'crawler' || agent === 'gui') {
+            safeAnswer = wrapUntrustedContent({ source: agent, text: safeAnswer, maxChars: 800 }) || safeAnswer
+          } else if (safeAnswer && (agent === 'rag' || agent === 'db' || agent === 'code')) {
+            // E2：检索/工具/仓库正文一律 untrusted wrap，防注入改 cap
+            safeAnswer =
+              prepareUntrustedForSynth(agent, safeAnswer, sanitizeUntrustedText, 800) || safeAnswer
+          }
           const facts: StructuredFact[] = (Array.isArray(extracted.facts) ? extracted.facts : [])
             .map((f: any) => ({
               key: String(f?.key ?? '').trim(),
@@ -496,6 +534,7 @@ export function buildSynthNodeRun(deps: CreateFinalNodesDeps) {
               '你是总管 Agent 的对话式汇总助手。用中文像主流 AI 助手（DeepSeek / ChatGPT）一样回复：正文即完整答案，先 1～2 句开门见山，再用 ### 小标题分段展开（每段 2～5 条列表），末段用 **小结** 收束；语气自然、有人情味，像同事帮你查完资料后的口头汇报。',
               '纪律：专业但不说教；禁止「您好」「作为助手」「根据您的要求」；禁止贴 JSON/日志/内部章节名。',
               '纪律：禁止复述输入中的 [CTX:…]…[/CTX]、数据来源、RAG 检索事实、[事实N] 等内部参考块；只输出面向用户的自然语言。',
+              '纪律：禁止输出「执行摘要 / 已执行步骤 / 证据 / 目标·结果·判定 / 后续建议」等内部审计章节，以及 rag:/clean:/s2 (clean):/facts(N): 等管线回显；只写面向用户的分析结论与建议。',
               chatWebHint || '',
               '',
               canShowAuxOutputs && shouldShowCharts
@@ -553,7 +592,18 @@ export function buildSynthNodeRun(deps: CreateFinalNodesDeps) {
                   ? '\n\n[说明] 报告由你汇总撰写：全部内容写在正文，用 ### 分段；勿留空壳摘要。'
                   : '') +
               (hasAdminResult
-                ? `\n\n[附属] admin 已执行：${sanitizeUntrustedText(String(results.admin).replace(/\s+/g, ' ').trim()).slice(0, 600)}`
+                ? `\n\n[附属] admin 已执行：${prepareUntrustedForSynth(
+                    'admin',
+                    String(results.admin).replace(/\s+/g, ' ').trim(),
+                    sanitizeUntrustedText,
+                    600
+                  )}${
+                    /未确认，未写入/.test(String(results.admin || ''))
+                      ? '\n（写操作未确认，未落库；禁止改写成权限不足或编造已创建。）'
+                      : /协议异常/.test(String(results.admin || ''))
+                        ? '\n（协议异常，禁止复述能力列表 preamble。）'
+                        : ''
+                  }`
                 : plannedAdmin
                   ? '\n\n[说明] 计划含 admin 步骤，但当前无 admin 子输出；勿编造已创建提醒/日程。'
                   : '\n\n[说明] 本任务计划未含 admin 步骤；禁止声称已创建提醒/日程/会议/待办。') +
@@ -562,7 +612,8 @@ export function buildSynthNodeRun(deps: CreateFinalNodesDeps) {
         ]
 
         try {
-          const streamSynth = isManagerSynthStreamEnabled()
+          const streamSynth =
+            isManagerSynthStreamEnabled() && shouldEmitUserSynthStream(state)
           const r = await llmInvoke('synth', state, synthPrompt, {
             onDelta: streamSynth
               ? (delta) => {

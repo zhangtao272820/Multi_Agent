@@ -46,34 +46,53 @@
     ],
     "slides": [
       {
-        "id": "home",
-        "bg": "home.png",
-        "period": "afternoon",
-        "title": "落脚",
-        "sprites": [
-          {
-            "character_id": "shuli",
-            "outfit": "casual",
-            "emotion": "happy"
-          },
-          {
-            "character_id": "fengyin",
-            "outfit": "casual",
-            "emotion": "shy"
-          }
-        ],
+        "id": "arrive",
+        "bg": "campus.png",
+        "period": "morning",
+        "title": "抵达",
         "lines": [
           "你是普通公司职员。带着不多的行李，落脚这座还算安静的小镇。",
-          "亲妹妹沈书璃同城念书，常回这间屋——晚饭与借书，她比谁都懂你。",
-          "义妹沈枫音同住。屋檐下先学会敲门——亲近，不等于没有边界。"
+          "晨光里校门与街道都陌生——但房租已付，生活得开始。"
         ],
-        "caption": "你是普通公司职员。带着不多的行李，落脚这座还算安静的小镇。"
+        "caption": "普通职员，行李落脚小镇。"
       },
       {
-        "id": "rhythm",
-        "bg": "cafe.png",
+        "id": "sister_blood",
+        "bg": "home.png",
         "period": "afternoon",
-        "title": "日常",
+        "title": "亲妹",
+        "sprite": {
+          "character_id": "shuli",
+          "outfit": "casual",
+          "emotion": "happy"
+        },
+        "lines": [
+          "亲妹妹沈书璃同城念书，常回这间屋。",
+          "晚饭、借书、唠叨——她比谁都懂你的底细。"
+        ],
+        "caption": "亲妹妹沈书璃同城念书。"
+      },
+      {
+        "id": "sister_step",
+        "bg": "home.png",
+        "period": "evening",
+        "title": "义妹",
+        "sprite": {
+          "character_id": "fengyin",
+          "outfit": "casual",
+          "emotion": "shy"
+        },
+        "lines": [
+          "义妹沈枫音同住。屋檐下亲近，不等于没有边界。",
+          "先学会敲门——她要被当成平等的人，不是被照顾的小孩。"
+        ],
+        "caption": "义妹同住，先学会敲门。"
+      },
+      {
+        "id": "workday",
+        "bg": "office.png",
+        "period": "afternoon",
+        "title": "工位",
         "sprites": [
           {
             "character_id": "linxi",
@@ -81,41 +100,114 @@
             "emotion": "neutral"
           },
           {
-            "character_id": "wanyu",
-            "outfit": "work",
-            "emotion": "happy"
-          },
-          {
-            "character_id": "yeyu",
+            "character_id": "jingliu",
             "outfit": "work",
             "emotion": "neutral"
           }
         ],
         "lines": [
-          "工作日去公司。工位之间往往只差一步——实习同事，或是上司的目光。",
-          "周末在咖啡店晃。有人会把热拿铁推到你面前——像记得你的糖度。",
-          "便利店的荧光灯整夜不熄。夜班柜台后，也有人在等一句闲聊。",
-          "隔壁住着插画师苏晚悠。门铃有时会响两下——也许只是借个盐。",
-          "校园、图书馆、坡上书店……这座镇还有很多人。恋爱只发生在愿意靠近之后。"
+          "工作日去公司。工位之间往往只差一步。",
+          "实习同事的追问，或是上司隔着玻璃的目光——都会变成故事。"
         ],
-        "caption": "工作日去公司，周末在咖啡店与便利店之间晃——偶遇会变成故事。"
+        "caption": "工作日公司：同事与上司。"
       },
       {
-        "id": "limits",
-        "bg": "home.png",
-        "period": "morning",
-        "title": "一天",
+        "id": "cafe_weekend",
+        "bg": "cafe.png",
+        "period": "afternoon",
+        "title": "咖啡",
+        "sprite": {
+          "character_id": "wanyu",
+          "outfit": "work",
+          "emotion": "happy"
+        },
+        "lines": [
+          "周末在咖啡店晃。有人会把热拿铁推到你面前。",
+          "像记得你的糖度——熟客座位，是一点点被记住的。"
+        ],
+        "caption": "周末咖啡，记得糖度。"
+      },
+      {
+        "id": "neighbor",
+        "bg": "room.png",
+        "period": "evening",
+        "title": "隔壁",
         "sprite": {
           "character_id": "xiaoyou",
           "outfit": "casual",
           "emotion": "shy"
         },
         "lines": [
-          "心力有限，钱要算——一天只能认真见几个人。",
-          "选地点、见面、聊聊，就是你的日常。",
-          "今天先从最近的人开始：邻居、咖啡店熟人，或是回家看见妹妹。"
+          "隔壁住着插画师苏晚悠。门铃有时会响两下。",
+          "也许只是借个盐——门槛里外，是邻居与更近一点的距离。"
         ],
-        "caption": "心力有限——一天只能认真见几个人。选地点、见面、聊聊。"
+        "caption": "隔壁门铃。"
+      },
+      {
+        "id": "night_store",
+        "bg": "store.png",
+        "period": "night",
+        "title": "夜班",
+        "sprite": {
+          "character_id": "yeyu",
+          "outfit": "work",
+          "emotion": "neutral"
+        },
+        "lines": [
+          "便利店的荧光灯整夜不熄。",
+          "夜班柜台后，也有人在等一句不赶客的闲聊。"
+        ],
+        "caption": "便利店夜班灯。"
+      },
+      {
+        "id": "town_more",
+        "bg": "starry.png",
+        "period": "night",
+        "title": "镇上",
+        "lines": [
+          "校园、图书馆、坡上书店……这座镇还有很多人。",
+          "恋爱只发生在愿意靠近之后——不是名单，是选择。"
+        ],
+        "caption": "镇上还有很多人。"
+      },
+      {
+        "id": "limits",
+        "bg": "home.png",
+        "period": "morning",
+        "title": "心力",
+        "lines": [
+          "心力有限，钱要算——一天只能认真见几个人。",
+          "选地点、见面、聊聊，就是你的日常；结束今天，世界会往前走。"
+        ],
+        "caption": "心力有限，一天认真见几个人。"
+      },
+      {
+        "id": "near",
+        "bg": "campus.png",
+        "period": "morning",
+        "title": "最近",
+        "sprites": [
+          {
+            "character_id": "xiaoyou",
+            "outfit": "casual",
+            "emotion": "happy"
+          },
+          {
+            "character_id": "wanyu",
+            "outfit": "casual",
+            "emotion": "neutral"
+          },
+          {
+            "character_id": "shuli",
+            "outfit": "casual",
+            "emotion": "happy"
+          }
+        ],
+        "lines": [
+          "今天可以从最近的人开始。",
+          "邻居、咖啡店熟人，或是回家看见妹妹——故事不远。"
+        ],
+        "caption": "从最近的人开始。"
       },
       {
         "id": "begin",
@@ -142,6 +234,16 @@
             "character_id": "ruolin",
             "outfit": "casual",
             "emotion": "neutral"
+          },
+          {
+            "character_id": "jingliu",
+            "outfit": "casual",
+            "emotion": "neutral"
+          },
+          {
+            "character_id": "aili",
+            "outfit": "casual",
+            "emotion": "happy"
           }
         ],
         "lines": [
@@ -236,7 +338,12 @@
         "character_id": "ruolin",
         "outfit": "end_lingerie_set",
         "emotion": "love"
-      }
+      },
+      "pages": [
+        "成绩提交截止的当晚，她把「老师」两个字从通讯录备注里删掉。",
+        "雨打在办公室窗上，她第一次用名字叫你。",
+        "办公室雨窗 · 名片。"
+      ]
     },
     "ending_jingliu_rooftop_true": {
       "bg": "starry.png",
@@ -245,7 +352,12 @@
         "character_id": "jingliu",
         "outfit": "end_lingerie_set",
         "emotion": "love"
-      }
+      },
+      "pages": [
+        "她把工牌翻到背面给你看——没有职位，只有名字。",
+        "风很大，她说：「从今晚起，别用汇报的语气跟我说话。",
+        "」。"
+      ]
     },
     "ending_aili_second_bloom_true": {
       "bg": "forest.png",
@@ -254,7 +366,12 @@
         "character_id": "aili",
         "outfit": "end_lingerie_set",
         "emotion": "love"
-      }
+      },
+      "pages": [
+        "她把旧婚书折成纸花埋进花土，又递给你一束没有标签的花：「这次不写祝福语——写收件人。",
+        "」收件人是你。",
+        "温室 · 新花束。"
+      ]
     },
     "ending_linxi_onestep_true": {
       "bg": "office.png",
@@ -263,7 +380,12 @@
         "character_id": "linxi",
         "outfit": "end_lingerie_set",
         "emotion": "love"
-      }
+      },
+      "pages": [
+        "转正名单公布的晚上，她把工牌甩到你桌上：「别再装不熟。",
+        "我的座位——以后算我们的。",
+        "」。"
+      ]
     },
     "ending_yeyu_hem_true": {
       "bg": "store.png",
@@ -272,7 +394,12 @@
         "character_id": "yeyu",
         "outfit": "end_lingerie_set",
         "emotion": "love"
-      }
+      },
+      "pages": [
+        "她把成衣挂到你身上，别针还没拔：「别动。",
+        "我量的不是尺寸——是你会不会逃。",
+        "」你没逃。"
+      ]
     },
     "ending_taotao_plain_true": {
       "bg": "festival.png",
@@ -281,7 +408,12 @@
         "character_id": "taotao",
         "outfit": "end_lingerie_set",
         "emotion": "love"
-      }
+      },
+      "pages": [
+        "返场结束，她把你从人群里拽进侧幕。",
+        "「别举牌子了。」素颜的她说：「看着我。",
+        "」。"
+      ]
     },
     "ending_shizuku_aloud_true": {
       "bg": "library.png",
@@ -290,7 +422,12 @@
         "character_id": "shizuku",
         "outfit": "end_lingerie_set",
         "emotion": "love"
-      }
+      },
+      "pages": [
+        "消磁门的灯灭了。",
+        "她把推荐书单翻到最后一页——只写了你的名字，然后念了出来。",
+        "闭馆灯 · 书单。"
+      ]
     },
     "ending_qiansha_merge_true": {
       "bg": "office.png",
@@ -299,7 +436,12 @@
         "character_id": "qiansha",
         "outfit": "end_lingerie_set",
         "emotion": "love"
-      }
+      },
+      "pages": [
+        "她把旧聊天记录文件夹改名为 archive，又新建了一份叫 us 的文档。",
+        "「这次写测试。",
+        "」她说。"
+      ]
     },
     "ending_shiori_blank_true": {
       "bg": "library.png",
@@ -308,7 +450,12 @@
         "character_id": "shiori",
         "outfit": "end_lingerie_set",
         "emotion": "love"
-      }
+      },
+      "pages": [
+        "她把一本空白诗集塞给你：「别只买别人的故事。",
+        "」月光照在坡上书店的招牌上，像盖了章。",
+        "窗月 · 空白诗集。"
+      ]
     },
     "ending_miara_oath_true": {
       "bg": "forest.png",
@@ -317,7 +464,12 @@
         "character_id": "miara",
         "outfit": "end_lingerie_set",
         "emotion": "love"
-      }
+      },
+      "pages": [
+        "她摘下假发，露出自己的头发：「契约条款更新——只对你生效。",
+        "」林间灯串像审核通过的光。",
+        "林灯 · 契约符。"
+      ]
     },
     "ending_xingnai_album_good": {
       "bg": "campus.png",
@@ -326,7 +478,12 @@
         "character_id": "xingnai",
         "outfit": "end_lingerie_set",
         "emotion": "love"
-      }
+      },
+      "pages": [
+        "她把空白页的相册递过来：「以前空着。",
+        "现在可以拍了。",
+        "」天台上的风比小时候温柔一点。"
+      ]
     },
     "ending_fengyin_knock_good": {
       "bg": "home.png",
@@ -335,7 +492,12 @@
         "character_id": "fengyin",
         "outfit": "max_slit_gown",
         "emotion": "love"
-      }
+      },
+      "pages": [
+        "她说：「喜欢可以，但要敲门。",
+        "」你照做了。",
+        "屋檐还在，称呼却换了。"
+      ]
     },
     "ending_qingcai_summer_good": {
       "bg": "festival.png",
@@ -344,7 +506,12 @@
         "character_id": "qingcai",
         "outfit": "max_slit_gown",
         "emotion": "love"
-      }
+      },
+      "pages": [
+        "谢幕掌声里，她对着你的方向比了心。",
+        "烟火升起时，答案已经不用喊了。",
+        "校园烟火 · 舞台。"
+      ]
     },
     "ending_xiaoyang_stall_good": {
       "bg": "campus.png",
@@ -353,7 +520,12 @@
         "character_id": "xiaoyang",
         "outfit": "max_slit_gown",
         "emotion": "love"
-      }
+      },
+      "pages": [
+        "卖完最后一份烤鱿鱼，她把围裙解给你系：「下一班——恋人值班。",
+        "」。",
+        "文化祭摊 · 夕阳。"
+      ]
     },
     "ending_luna_moon_good": {
       "bg": "cafe.png",
@@ -362,7 +534,294 @@
         "character_id": "luna",
         "outfit": "max_slit_gown",
         "emotion": "love"
-      }
+      },
+      "pages": [
+        "她把「星夜魔女」护符改成一对。",
+        "「魔法失效条款——如果你不牵手。",
+        "」你牵了。"
+      ]
+    },
+    "ending_qixi_vow": {
+      "bg": "starry.png",
+      "bgm": "ending_true",
+      "pages": [
+        "七夕夜的灯笼见证了一句没说出口的誓言，你们的心意已无需多言。",
+        "桥灯 · 双人。"
+      ]
+    },
+    "ending_true_love": {
+      "bg": "starry.png",
+      "bgm": "ending_true",
+      "pages": [
+        "从相识到告白、约会与和解，你们走过了完整的一条线，心意再无隐瞒。",
+        "星空 · 拥抱。"
+      ]
+    },
+    "ending_aichen_gate_ally": {
+      "bg": "cafe.png",
+      "bgm": "ending_good",
+      "sprite": {
+        "character_id": "aichen",
+        "emotion": "happy",
+        "outfit": "end_robe_open"
+      },
+      "pages": [
+        "她把一枝备用花材塞给你：「送给她。",
+        "下次再让她哭，花圈我先备好。",
+        "」语气却是笑着的。"
+      ]
+    },
+    "ending_aili_gentle_remarry": {
+      "bg": "cafe.png",
+      "bgm": "ending_good",
+      "sprite": {
+        "character_id": "aili",
+        "emotion": "happy",
+        "outfit": "end_robe_open"
+      },
+      "pages": [
+        "你们没有急着办酒。",
+        "花店打烊后的厨房灯，已足够像一份新的婚书。",
+        "厨房晨光 · 花剪。"
+      ]
+    },
+    "ending_bond_ally": {
+      "bg": "cafe.png",
+      "bgm": "ending_good",
+      "pages": [
+        "她成为了你故事里可靠的同盟：不一定恋爱，却总能在关键头替你撑一把。",
+        "并肩 · 街灯。"
+      ]
+    },
+    "ending_exclusive_heart": {
+      "bg": "cafe.png",
+      "bgm": "ending_good",
+      "pages": [
+        "在开放的世界里，你们仍选择了彼此唯一。",
+        "承诺落地的那一刻，喧闹都远了。",
+        "双人影 · 窗边。"
+      ]
+    },
+    "ending_harem_open": {
+      "bg": "cafe.png",
+      "bgm": "ending_good",
+      "pages": [
+        "你没有只选一个人。",
+        "几段真心同时开花——有人咬牙容忍，有人坦然分享，小镇的风里多了几分复杂的甜。",
+        "多人影 · 灯火。"
+      ]
+    },
+    "ending_jingliu_lookbook_heart": {
+      "bg": "cafe.png",
+      "bgm": "ending_good",
+      "sprite": {
+        "character_id": "jingliu",
+        "emotion": "happy",
+        "outfit": "end_robe_open"
+      },
+      "pages": [
+        "她把私人行程写进你的日历。",
+        "董事会仍在，但周末的样衣间只留给你们。",
+        "样衣镜 · 共翻 lookbook。"
+      ]
+    },
+    "ending_jingning_watch_ally": {
+      "bg": "cafe.png",
+      "bgm": "ending_good",
+      "sprite": {
+        "character_id": "jingning",
+        "emotion": "happy",
+        "outfit": "end_robe_open"
+      },
+      "pages": [
+        "她碰杯：「堂姐的面子我护着。",
+        "你若真心，我帮腔；你若玩弄，我拆台。",
+        "」。"
+      ]
+    },
+    "ending_lingke_boundary_ally": {
+      "bg": "cafe.png",
+      "bgm": "ending_good",
+      "sprite": {
+        "character_id": "lingke",
+        "emotion": "happy",
+        "outfit": "end_robe_open"
+      },
+      "pages": [
+        "她收起红笔：「规则你守过了。",
+        "以后办公室的门——对你和导师，我不再拦。",
+        "」。"
+      ]
+    },
+    "ending_linxi_overtime_pair": {
+      "bg": "cafe.png",
+      "bgm": "ending_good",
+      "sprite": {
+        "character_id": "linxi",
+        "emotion": "happy",
+        "outfit": "end_robe_open"
+      },
+      "pages": [
+        "恋爱没有让效率下降。",
+        "打印机旁的拌嘴，成了公司里公开的甜蜜噪音。",
+        "打印室 · 咖啡。"
+      ]
+    },
+    "ending_lover": {
+      "bg": "cafe.png",
+      "bgm": "ending_good",
+      "pages": [
+        "你们确认了彼此的心意，在告白与信任中正式成为恋人。",
+        "牵手 · 夕阳。"
+      ]
+    },
+    "ending_married_daily": {
+      "bg": "cafe.png",
+      "bgm": "ending_good",
+      "pages": [
+        "作为妻子，你们继续着温暖而默契的每一天。",
+        "厨房 · 晨光。"
+      ]
+    },
+    "ending_miara_merch_heart": {
+      "bg": "cafe.png",
+      "bgm": "ending_good",
+      "sprite": {
+        "character_id": "miara",
+        "emotion": "happy",
+        "outfit": "end_robe_open"
+      },
+      "pages": [
+        "她把限定谷子分你一半。",
+        "恋爱公开在朋友圈的方式，是合拍徽章墙。",
+        "徽章墙 · 笑脸。"
+      ]
+    },
+    "ending_qiansha_hotfix": {
+      "bg": "cafe.png",
+      "bgm": "ending_good",
+      "sprite": {
+        "character_id": "qiansha",
+        "emotion": "happy",
+        "outfit": "end_robe_open"
+      },
+      "pages": [
+        "不一定完美，但你们学会了小步提交。",
+        "毒舌仍在，伤害少了。",
+        "马克杯 · 夜编码。"
+      ]
+    },
+    "ending_ruolin_lamp_guide": {
+      "bg": "cafe.png",
+      "bgm": "ending_good",
+      "sprite": {
+        "character_id": "ruolin",
+        "emotion": "happy",
+        "outfit": "end_robe_open"
+      },
+      "pages": [
+        "你们恋爱了，但她仍是你迷茫时的灯。",
+        "课堂与课后散步并存，并不彼此取消。",
+        "讲台 · 粉笔灰。"
+      ]
+    },
+    "ending_shiori_spirit_vow": {
+      "bg": "cafe.png",
+      "bgm": "ending_good",
+      "sprite": {
+        "character_id": "shiori",
+        "emotion": "happy",
+        "outfit": "end_robe_open"
+      },
+      "pages": [
+        "精灵与人类的戏言变成认真的羁绊。",
+        "你们在星空下许诺陪伴。",
+        "星尘 · 契约。"
+      ]
+    },
+    "ending_shizuku_shelf_heart": {
+      "bg": "cafe.png",
+      "bgm": "ending_good",
+      "sprite": {
+        "character_id": "shizuku",
+        "emotion": "happy",
+        "outfit": "end_robe_open"
+      },
+      "pages": [
+        "她仍轻声，但会主动牵袖口。",
+        "图书馆的位置永远为两人留着。",
+        "并排座位 · 窗光。"
+      ]
+    },
+    "ending_shuli_family_ally": {
+      "bg": "cafe.png",
+      "bgm": "ending_good",
+      "sprite": {
+        "character_id": "shuli",
+        "emotion": "happy",
+        "outfit": "end_robe_open"
+      },
+      "pages": [
+        "她把日程本拍到你胸口：「恋爱随便你——但先按时吃饭。",
+        "」这是妹妹能给的最高认证。",
+        "餐桌 · 日程本。"
+      ]
+    },
+    "ending_taotao_front_row": {
+      "bg": "cafe.png",
+      "bgm": "ending_good",
+      "sprite": {
+        "character_id": "taotao",
+        "emotion": "happy",
+        "outfit": "end_robe_open"
+      },
+      "pages": [
+        "恋爱公开或半公开，你仍是她认定的「固定前排」。",
+        "舞台与日常终于能切换。",
+        "舞台灯 · 牵手。"
+      ]
+    },
+    "ending_yeyu_sharp_heart": {
+      "bg": "cafe.png",
+      "bgm": "ending_good",
+      "sprite": {
+        "character_id": "yeyu",
+        "emotion": "happy",
+        "outfit": "end_robe_open"
+      },
+      "pages": [
+        "她用最锋利的话护着最软的心。",
+        "便利店暖灯下，你终于听懂。",
+        "便利店 · 暖灯。"
+      ]
+    },
+    "ending_youwei_studio_ally": {
+      "bg": "cafe.png",
+      "bgm": "ending_good",
+      "sprite": {
+        "character_id": "youwei",
+        "emotion": "happy",
+        "outfit": "end_robe_open"
+      },
+      "pages": [
+        "她把马克笔塞给你：「学姐的线我改不了——你负责让她睡觉。",
+        "」。",
+        "打包台 · 马克笔。"
+      ]
+    },
+    "ending_yuxi_shift_ally": {
+      "bg": "cafe.png",
+      "bgm": "ending_good",
+      "sprite": {
+        "character_id": "yuxi",
+        "emotion": "happy",
+        "outfit": "end_robe_open"
+      },
+      "pages": [
+        "她把围裙抛给你：「今晚你收桌。",
+        "温晚雨去睡觉——这是死党许可。",
+        "」。"
+      ]
     }
   }
 }

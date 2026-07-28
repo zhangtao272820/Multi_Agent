@@ -1,3 +1,13 @@
+/**
+ * N1：四层记忆语义（与备战 09 / conversationBudget 对齐）
+ *
+ * 1. 会话短记忆 — WS 会话轮次；本文件 compact/摘要
+ * 2. 图状态·checkpoint — LangGraph state / HITL 续跑
+ * 3. 可选向量记忆 — layeredMemory / embeddings（非用户画像中台）
+ * 4. RAG 知识库 — 企业文档证据，禁止当作「用户聊天记忆」
+ *
+ * 专家 condense 只服务本专家问句；总管下发子句后专家不得再双头改写用户原话意图。
+ */
 import { AIMessage, HumanMessage, SystemMessage, type BaseMessage } from '@langchain/core/messages'
 
 export type SessionTurn = { role: 'user' | 'assistant'; content: string }
@@ -26,6 +36,15 @@ export function loadConversationBudgetConfig(): ConversationBudgetConfig {
   }
 }
 
+/** 粗估 token（字符/2，验收用，非计费精确值） */
+export function estimateConversationChars(messages: SessionTurn[]): number {
+  return messages.reduce((n, m) => n + String(m.content || '').length, 0)
+}
+
+export function estimateMessageListChars(messages: BaseMessage[]): number {
+  return messages.reduce((n, m) => n + String((m as { content?: unknown }).content ?? '').length, 0)
+}
+
 /** 规则摘要：将较早轮次压缩为 SystemMessage，供 LangGraph 路由/综合使用 */
 export function buildRuleBasedConversationSummary(
   older: SessionTurn[],
@@ -50,7 +69,8 @@ export function buildRuleBasedConversationSummary(
 }
 
 /**
- * E4：长会话预算 — 保留最近 K 轮 + 较早轮次规则摘要（可选 LLM 增强）。
+ * N1：长会话预算 — 保留最近 K 轮 + 较早轮次规则摘要（可选 LLM 增强）。
+ * 验收：20+ 轮时输出字符量相对全量历史可测下降；最近轮指代仍在 recent 窗口内。
  */
 export async function buildGraphHistoryMessages(input: {
   messages: SessionTurn[]
@@ -92,4 +112,26 @@ export async function buildGraphHistoryMessages(input: {
     out.push(m.role === 'assistant' ? new AIMessage(m.content) : new HumanMessage(m.content))
   }
   return out
+}
+
+/** 压缩结果元信息（可选写 meta / UI「已压缩」） */
+export async function buildCompactedHistoryWithStats(input: {
+  messages: SessionTurn[]
+  sanitize: (s: string) => string
+  summarizeWithLlm?: (olderText: string) => Promise<string>
+  cfg?: ConversationBudgetConfig
+}): Promise<{
+  messages: BaseMessage[]
+  compacted: boolean
+  fullChars: number
+  compactChars: number
+  savedRatio: number
+}> {
+  const cfg = input.cfg ?? loadConversationBudgetConfig()
+  const fullChars = estimateConversationChars(input.messages)
+  const messages = await buildGraphHistoryMessages(input)
+  const compactChars = estimateMessageListChars(messages)
+  const compacted = input.messages.length > cfg.recentTurns && compactChars < fullChars
+  const savedRatio = fullChars > 0 ? Math.max(0, 1 - compactChars / fullChars) : 0
+  return { messages, compacted, fullChars, compactChars, savedRatio }
 }

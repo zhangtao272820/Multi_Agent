@@ -129,7 +129,7 @@ export default function VirtuesChrome({
           onClick={() => openOrToggle("status")}
         >
           <span className="gal-virtues-tab-icon gal-virtues-tab-icon--status" aria-hidden />
-          <strong>状态</strong>
+          <strong>人物</strong>
         </button>
         <button
           type="button"

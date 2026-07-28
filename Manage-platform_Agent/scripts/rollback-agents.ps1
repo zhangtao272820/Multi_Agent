@@ -16,13 +16,14 @@ $healthTimeoutSec = 180
 
 if (-not (Test-Path $envFile)) { throw "缺少 $envFile" }
 
-$content = Get-Content -Path $envFile -Raw
+. (Join-Path $PSScriptRoot "_agents-lan-common.ps1")
+$content = Read-EnvFileUtf8Text $envFile
 if ($content -match "(?m)^CLAWHIVE_IMAGE_TAG=") {
     $content = $content -replace "(?m)^CLAWHIVE_IMAGE_TAG=.*", "CLAWHIVE_IMAGE_TAG=$Tag"
 } else {
     $content = $content.TrimEnd() + "`nCLAWHIVE_IMAGE_TAG=$Tag`n"
 }
-Set-Content -Path $envFile -Value $content -NoNewline:$false
+Write-EnvFileUtf8Text -Path $envFile -Text $content
 $env:CLAWHIVE_IMAGE_TAG = $Tag
 Write-Host "回滚到 CLAWHIVE_IMAGE_TAG=$Tag"
 

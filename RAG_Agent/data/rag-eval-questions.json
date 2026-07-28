@@ -27,6 +27,124 @@
     "id": "quote_request",
     "question": "请引用养老机构服务规范中关于人员配比的原文",
     "expect_sources": ["养老机构服务规范"],
-    "tags": ["quote"]
+    "tags": ["quote", "policy"]
+  },
+  {
+    "id": "policy_staffing_ratio",
+    "question": "养老机构护理人员配比有什么要求？",
+    "expect_sources": ["养老机构服务规范"],
+    "tags": ["fact_lookup", "policy"]
+  },
+  {
+    "id": "policy_infection_control",
+    "question": "养老机构感染防控有哪些基本要求？",
+    "expect_sources": ["养老机构服务规范"],
+    "tags": ["fact_lookup", "policy"]
+  },
+  {
+    "id": "policy_medication",
+    "question": "养老机构给药管理应注意什么？",
+    "expect_sources": ["养老机构服务规范"],
+    "tags": ["fact_lookup", "policy"]
+  },
+  {
+    "id": "policy_fall_prevention",
+    "question": "防范老年人跌倒的护理要求是什么？",
+    "expect_sources": ["养老机构服务规范"],
+    "tags": ["fact_lookup", "policy"]
+  },
+  {
+    "id": "policy_diet",
+    "question": "养老机构膳食服务有哪些规范？",
+    "expect_sources": ["养老机构服务规范"],
+    "tags": ["fact_lookup", "policy"]
+  },
+  {
+    "id": "policy_emergency",
+    "question": "老年人突发不适时的应急处置要求？",
+    "expect_sources": ["养老机构服务规范"],
+    "tags": ["fact_lookup", "policy"]
+  },
+  {
+    "id": "policy_privacy",
+    "question": "养老服务中如何保护老年人隐私？",
+    "expect_sources": ["养老机构服务规范"],
+    "tags": ["fact_lookup", "policy"]
+  },
+  {
+    "id": "policy_records",
+    "question": "护理记录应包含哪些内容？",
+    "expect_sources": ["养老机构服务规范"],
+    "tags": ["fact_lookup", "policy"]
+  },
+  {
+    "id": "policy_fire_safety",
+    "question": "养老机构消防与安全管理制度要点？",
+    "expect_sources": ["养老机构服务规范"],
+    "tags": ["fact_lookup", "policy"]
+  },
+  {
+    "id": "policy_admission",
+    "question": "入住评估一般需要关注哪些方面？",
+    "expect_sources": ["养老机构服务规范"],
+    "tags": ["fact_lookup", "policy"]
+  },
+  {
+    "id": "policy_rehab",
+    "question": "养老机构康复服务有什么要求？",
+    "expect_sources": ["养老机构服务规范"],
+    "tags": ["fact_lookup", "policy"]
+  },
+  {
+    "id": "policy_hygiene",
+    "question": "养老机构环境与卫生清洁标准是什么？",
+    "expect_sources": ["养老机构服务规范"],
+    "tags": ["fact_lookup", "policy"]
+  },
+  {
+    "id": "policy_restraint",
+    "question": "约束带使用有哪些限制与注意事项？",
+    "expect_sources": ["养老机构服务规范"],
+    "tags": ["fact_lookup", "policy"]
+  },
+  {
+    "id": "policy_handover",
+    "question": "护理交接班应交接哪些关键信息？",
+    "expect_sources": ["养老机构服务规范"],
+    "tags": ["fact_lookup", "policy"]
+  },
+  {
+    "id": "policy_family_comm",
+    "question": "与家属沟通的服务规范有哪些？",
+    "expect_sources": ["养老机构服务规范"],
+    "tags": ["fact_lookup", "policy"]
+  },
+  {
+    "id": "compound_staff_diet",
+    "question": "人员配比和膳食服务分别有什么要求？",
+    "expect_sources": ["养老机构服务规范"],
+    "tags": ["multi_part", "policy"]
+  },
+  {
+    "id": "quote_oral_care",
+    "question": "请引用规范中关于口腔护理频次的表述",
+    "expect_sources": ["养老机构服务规范"],
+    "tags": ["quote", "policy"]
+  },
+  {
+    "id": "stale_policy_hint",
+    "question": "2020年旧版养老机构服务规范中护理员补贴是多少？",
+    "expect_sources": ["养老机构服务规范"],
+    "tags": ["stale", "policy"],
+    "expect_stale_hint": true,
+    "notes": "G5：若 citation ingest_at 过旧，应答含过期提示或拒答，勿编造新数字"
+  },
+  {
+    "id": "conflict_policy_versions",
+    "question": "新旧两版规范对人员配比要求不一致时以哪个为准？",
+    "expect_sources": ["养老机构服务规范"],
+    "tags": ["conflict", "policy"],
+    "expect_clarify_or_cite": true,
+    "notes": "G5：知识不一致应澄清或引用最新 source_version"
   }
 ]

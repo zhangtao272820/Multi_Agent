@@ -7,8 +7,10 @@ export function isManagerOtelExportEnabled(env: NodeJS.ProcessEnv = process.env)
   return String(env.MANAGER_OTEL_EXPORT ?? '').trim() === '1'
 }
 
+/** E1：默认开启 W3C traceparent 出站；设 MANAGER_OTEL_TRACEPARENT=0 可关 */
 export function isManagerOtelTraceparentEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
-  return String(env.MANAGER_OTEL_TRACEPARENT ?? '').trim() === '1'
+  const v = String(env.MANAGER_OTEL_TRACEPARENT ?? '1').trim().toLowerCase()
+  return !(v === '0' || v === 'false' || v === 'off' || v === 'no')
 }
 
 /** W3C traceparent：由 runId/traceId 派生，便于下游 HTTP 透传 */

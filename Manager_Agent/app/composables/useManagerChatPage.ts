@@ -2,7 +2,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, provide, ref, watch } f
 import { resolveClientMediaUrl } from '#agent-shared/mediaUrls'
 import { normalizeModelReplyHtml } from '#agent-shared/replyHtmlNormalize'
 import { extractAuxBlocksStructural, pickRicherNarrativeWithAuxBlocks } from '#agent-shared/auxBlocks'
-import { stripSynthPromptLeakage } from '#agent-shared/synthOutputSanitize'
+import { stripSynthPromptLeakage, stripStructuredExecReport, looksLikeExecAuditDump } from '#agent-shared/synthOutputSanitize'
 import { resolveRenderableEchartsOptionFromText } from '#agent-shared/codeAuthorityPayload'
 import { isRenderableChartOption, readChartTitle, readPanelCount, suggestChartContainerHeight } from '#agent-shared/chartOption'
 import { buildChartPngExportMeta } from '#agent-shared/chartExportMeta'
@@ -30,6 +30,11 @@ import { useManagerSession, FEEDBACK_PENDING_ACK, type ManagerSessionHost } from
 import { MANAGER_CHAT_THREAD_KEY } from '~/composables/managerChatThreadContext'
 import { MANAGER_WORKBENCH_SIDEBAR_KEY } from '~/composables/managerWorkbenchSidebarContext'
 import { MANAGER_CHAT_RAIL_KEY } from '~/composables/managerChatRailContext'
+import {
+  buildClientDegradeMessage,
+  errorCodeBadgeLabel,
+  normalizeClientErrorCode
+} from '~/utils/expertDegradeUi'
 
 export function useManagerChatPage() {
   const runtimeConfig = useRuntimeConfig()
@@ -271,12 +276,20 @@ export function useManagerChatPage() {
     totalUsd?: number
     byAgent?: Record<string, number>
     byPhase?: Record<string, number>
+    byModelTier?: Record<string, number>
   }
   const runObservabilityLive = ref<{
     runId?: string
     phaseTimeline: RunPhaseItem[]
     tokenSummary: RunTokenSummary | null
     wallClockMs: number
+  } | null>(null)
+  const conversationCompactLive = ref<{
+    compacted: boolean
+    fullChars?: number
+    compactChars?: number
+    savedRatio?: number
+    turns?: number
   } | null>(null)
   const runPhaseBarMaxMs = computed(() => {
     const items = runObservabilityLive.value?.phaseTimeline || []
@@ -285,6 +298,12 @@ export function useManagerChatPage() {
   const runTokenByAgentEntries = computed(() => {
     const by = runObservabilityLive.value?.tokenSummary?.byAgent || {}
     return Object.entries(by).sort((a, b) => b[1] - a[1])
+  })
+  const runTokenByTierEntries = computed(() => {
+    const by = runObservabilityLive.value?.tokenSummary?.byModelTier || {}
+    return Object.entries(by)
+      .filter(([, n]) => Number(n) > 0)
+      .sort((a, b) => b[1] - a[1])
   })
   const runTokenBarMax = computed(() => {
     const entries = runTokenByAgentEntries.value
@@ -413,7 +432,16 @@ export function useManagerChatPage() {
     approveTier?: 'auto' | 'plan' | 'strict'
     riskScore?: number
     routePlan?: RoutePlanCardData | null
-    steps: Array<{ id: string; agent: string; agentLabel?: string; query: string; enabled: boolean; optional?: boolean }>
+    steps: Array<{
+      id: string
+      agent: string
+      agentLabel?: string
+      query: string
+      enabled: boolean
+      optional?: boolean
+      confirmMode?: 'hitl' | 'auto_confirm' | 'none'
+      confirmReason?: string
+    }>
   } | null>(null)
   const planPreviewSending = ref(false)
   const stepResultsByTurn = ref<Record<number, StepResultItem[]>>({})
@@ -916,6 +944,17 @@ export function useManagerChatPage() {
   }
   const stepProgressMap = ref<Record<string, StepProgressEntry>>({})
   const activeTraceId = ref('')
+  const traceDrawerOpen = ref(false)
+
+  function openTraceDrawer() {
+    if (!activeTraceId.value && !currentRunId.value) return
+    if (!activeTraceId.value && currentRunId.value) activeTraceId.value = currentRunId.value
+    traceDrawerOpen.value = true
+  }
+
+  function closeTraceDrawer() {
+    traceDrawerOpen.value = false
+  }
   const streamAgentLabel = ref('')
   
   const stepProgressLine = computed(() => {
@@ -1498,17 +1537,18 @@ export function useManagerChatPage() {
   }
 
   function resolveReportBody(text: string, turn?: TurnGroup): string {
-    const tagged = normalizeReportBodyText(extractReportBlock(text))
-    if (tagged) return tagged
+    const stripExec = (s: string) => stripStructuredExecReport(String(s || '').trim())
+    const tagged = stripExec(normalizeReportBodyText(extractReportBlock(text)))
+    if (tagged && !looksLikeExecAuditDump(tagged)) return tagged
     const agentOut = buildTurnAgentResults(turn)
-    const fromAgent = normalizeReportBodyText(String(agentOut?.report || ''))
-    if (fromAgent.length >= 40) return fromAgent
+    const fromAgent = stripExec(normalizeReportBodyText(String(agentOut?.report || '')))
+    if (fromAgent.length >= 40 && !looksLikeExecAuditDump(fromAgent)) return fromAgent
     return ''
   }
   
   /** 展示用正文：用户视图优先 UserFacingPayload，并剥离开发者腔 */
   function stripDeveloperJargonUi(text: string): string {
-    let s = String(text || '')
+    let s = stripStructuredExecReport(String(text || ''))
     s = s.replace(/\[CTX:[^\]]*\]/gi, '')
     s = s.replace(/\(ok\)|\(OK\)/gi, '')
     s = s
@@ -1524,7 +1564,7 @@ export function useManagerChatPage() {
       })
       .filter((line) => line.trim().length > 0)
       .join('\n')
-    return s.replace(/\n{3,}/g, '\n\n').trim()
+    return stripStructuredExecReport(s.replace(/\n{3,}/g, '\n\n').trim())
   }
 
   function replyMarkdownBody(text: string, turn?: TurnGroup): string {
@@ -1547,40 +1587,90 @@ export function useManagerChatPage() {
       .replace(/\n{3,}/g, '\n\n')
       .trim()
     // 主气泡去掉结构化执行摘要（单独折叠展示）
-    const splitAt = s.search(/\n---\n+## 执行摘要\b/)
-    if (splitAt >= 0) s = s.slice(0, splitAt).trim()
-    else if (s.startsWith('## 执行摘要')) s = ''
+    s = stripStructuredExecReport(s)
     if (thoughtViewMode.value === 'user') s = stripDeveloperJargonUi(s)
     return s
   }
 
+  /** 用户视图：详细说明正文（过滤执行摘要 dump） */
+  function replyUserDetailAppendix(turn?: TurnGroup, replyText?: string): string {
+    const raw = String(turn?.userFacing?.appendix || resolveReportBody(String(replyText || ''), turn) || '').trim()
+    if (!raw) return ''
+    if (thoughtViewMode.value === 'user' && looksLikeExecAuditDump(raw)) return ''
+    const cleaned = stripStructuredExecReport(raw)
+    if (!cleaned || looksLikeExecAuditDump(cleaned)) return ''
+    return cleaned
+  }
+
   function replyExecutionSummaryMarkdown(text: string, turn?: TurnGroup): string {
-    if (thoughtViewMode.value === 'user') {
-      // 用户视图：短卡「本轮结果」，不用执行摘要原文
-      const label = turn?.userFacing?.outcomeLabel
-      if (label) return `本轮结果：${label}`
-      return ''
-    }
+    // 用户视图：不展示执行摘要（完成态隐藏；失败/待确认走 replyUserOutcomeBanner）
+    if (thoughtViewMode.value === 'user') return ''
+    void turn
     const raw = String(text || '')
     const m = raw.match(/(?:^|\n)(## 执行摘要[\s\S]*)$/)
     return m?.[1]?.trim() || ''
   }
 
+  /** 用户视图短状态条：仅失败 / 待确认 */
+  function replyUserOutcomeBanner(turn?: TurnGroup): { tone: 'fail' | 'human'; label: string } | null {
+    if (thoughtViewMode.value !== 'user') return null
+    const o = turn?.userFacing?.outcome
+    if (o === 'failed') {
+      return { tone: 'fail', label: `本轮未完成：${turn?.userFacing?.outcomeLabel || '未完成'}` }
+    }
+    if (o === 'needs_human') {
+      return { tone: 'human', label: `需要你确认：${turn?.userFacing?.outcomeLabel || '待你确认'}` }
+    }
+    return null
+  }
+
+  /** U2：本轮专家失败 → 可解释降级卡片 */
+  function turnExpertFailureCards(
+    turn?: TurnGroup
+  ): Array<{ agent: string; label: string; code: string; codeLabel: string; message: string }> {
+    if (!turn) return []
+    const results = stepResultsForTurn(turn).filter((r) => r.status === 'failed')
+    const planFailed = (turnPlanOutline(turn)?.steps || []).filter((s: any) => String(s?.status) === 'failed')
+    const seen = new Set<string>()
+    const cards: Array<{ agent: string; label: string; code: string; codeLabel: string; message: string }> = []
+
+    const push = (agent: string, errorCode?: string, errorDetail?: string) => {
+      const key = `${agent}|${errorCode || ''}|${errorDetail || ''}`
+      if (seen.has(key) || seen.has(agent)) return
+      seen.add(key)
+      seen.add(agent)
+      const code = normalizeClientErrorCode(errorCode, errorDetail)
+      cards.push({
+        agent,
+        label: planAgentLabel(agent),
+        code,
+        codeLabel: errorCodeBadgeLabel(code),
+        message: buildClientDegradeMessage(agent, code, errorDetail)
+      })
+    }
+
+    for (const r of results) {
+      push(String(r.agent || ''), r.errorCode, r.error || r.preview)
+    }
+    for (const s of planFailed as Array<{ agent?: string; id?: string }>) {
+      const agent = String(s.agent || '')
+      if (!agent || seen.has(agent)) continue
+      const sr = results.find((r) => r.agent === agent || r.stepId === s.id)
+      push(agent, sr?.errorCode, sr?.error)
+    }
+    return cards
+  }
+
   function replyExecSummaryTone(text: string, turn?: TurnGroup): 'ok' | 'fail' | 'human' | '' {
-    if (thoughtViewMode.value === 'user' && turn?.userFacing?.outcome) {
-      const o = turn.userFacing.outcome
-      if (o === 'failed') return 'fail'
-      if (o === 'needs_human') return 'human'
-      if (o === 'completed') return 'ok'
-      return ''
+    if (thoughtViewMode.value === 'user') {
+      const banner = replyUserOutcomeBanner(turn)
+      return banner?.tone || ''
     }
     const md = replyExecutionSummaryMarkdown(text, turn)
     if (!md) return ''
     if (/结果：失败/.test(md) || /判定：failed_steps/.test(md)) return 'fail'
     if (/结果：需人工/.test(md) || /⚠/.test(md)) return 'human'
-    if (/结果：完成/.test(md) || /本轮结果：已完成/.test(md)) return 'ok'
-    if (/本轮结果：未完成/.test(md)) return 'fail'
-    if (/本轮结果：待你确认/.test(md)) return 'human'
+    if (/结果：完成/.test(md)) return 'ok'
     return ''
   }
   
@@ -4027,6 +4117,7 @@ export function useManagerChatPage() {
     resetCollabStates('pending')
     resetStepProgress()
     runObservabilityLive.value = null
+    conversationCompactLive.value = null
     taskConstraintsLive.value = null
     currentRunId.value = ''
     cosmicRunPending.value = true
@@ -4106,6 +4197,7 @@ export function useManagerChatPage() {
     cancelEditTurn()
     cancelAfterRunId.value = false
     runObservabilityLive.value = null
+    conversationCompactLive.value = null
     taskConstraintsLive.value = null
     proactiveNudges.value = []
     pendingHumanConfirm.value = null
@@ -4719,6 +4811,7 @@ export function useManagerChatPage() {
     humanConfirmSending,
     taskConstraintsLive,
     runObservabilityLive,
+    conversationCompactLive,
     latestGuiScreenshot,
     streamingSynthText,
     streamAgentLabel,
@@ -4898,6 +4991,7 @@ export function useManagerChatPage() {
     resetCollabStates('pending')
     resetStepProgress()
     runObservabilityLive.value = null
+    conversationCompactLive.value = null
     currentRunId.value = ''
     cosmicRunPending.value = true
     const uidx = userMessageIndexCounter++
@@ -5264,7 +5358,9 @@ export function useManagerChatPage() {
     adminUiCardsFromTurn,
     replyMarkdownBody,
     replyExecutionSummaryMarkdown,
+    replyUserOutcomeBanner,
     replyExecSummaryTone,
+    turnExpertFailureCards,
     replyHasInlineAnalytics,
     buildTurnAgentResults,
     extractEchartsOption,
@@ -5283,6 +5379,7 @@ export function useManagerChatPage() {
     respondActionCardCancel,
     humanConfirmSending,
     resolveReportBody,
+    replyUserDetailAppendix,
     downloadMarkdown,
     replyHasCollapsibleSources,
     replySourceCount,
@@ -5312,6 +5409,7 @@ export function useManagerChatPage() {
     obsPhaseColor,
     obsDisplayLabel,
     runTokenByAgentEntries,
+    runTokenByTierEntries,
     obsAgentColor,
     runTokenBarMax,
     planAgentLabel,
@@ -5505,6 +5603,14 @@ export function useManagerChatPage() {
     collabStatusItems,
     stepProgressLine,
     activeTraceId,
+    conversationCompactLive,
+    traceDrawerOpen,
+    openTraceDrawer,
+    closeTraceDrawer,
+    runObservabilityLive,
+    formatObsMs,
+    formatTokenCount,
+    obsDisplayLabel,
     historyPanelOpen,
     sidebarOpen,
     toolsBadgeCount,

@@ -8,9 +8,15 @@ import {
   readChartTitle,
   readEchartsOptionJsonFromVisualizeText
 } from '#agent-shared/chartOption'
+import {
+  looksLikeExecAuditDump,
+  stripStructuredExecReport
+} from '#agent-shared/synthOutputSanitize'
 import { planAgentLabel } from '../runtime/phaseLabels'
 import type { SpecialistHandoff } from '../../../utils/agents/types'
 import { buildActionCardsFromHumanConfirm } from './actionCard'
+
+export { looksLikeExecAuditDump, stripStructuredExecReport }
 
 export type UserFacingOutcome = 'completed' | 'failed' | 'needs_human'
 
@@ -41,6 +47,9 @@ export type UserFacingPayload = {
   sources?: Array<{ title: string; url?: string }>
   outcome?: UserFacingOutcome
   outcomeLabel?: string
+  /** U3：无证据拒答徽章 */
+  badge?: 'evidence_rejected' | 'needs_clarify'
+  badgeLabel?: string
 }
 
 const DEVELOPER_JARGON_RE =
@@ -156,24 +165,24 @@ function collectHandoffSummaries(input: {
 }
 
 function extractAppendix(synthOrFinal: string): { summary: string; appendix?: string } {
-  const raw = String(synthOrFinal || '').trim()
+  const raw = stripStructuredExecReport(String(synthOrFinal || '').trim())
   if (!raw) return { summary: '' }
-  const reportSplit = raw.search(/\n---\n+## 执行摘要\b/)
-  let body = reportSplit >= 0 ? raw.slice(0, reportSplit).trim() : raw
-  if (body.startsWith('## 执行摘要')) body = ''
-  const reportMarker = body.search(/\n##\s*详细报告|\n<!--\s*REPORT\s*-->/i)
+  const reportMarker = raw.search(/\n##\s*详细报告|\n##\s*详细说明|\n<!--\s*REPORT\s*-->/i)
   if (reportMarker >= 0) {
     return {
-      summary: stripDeveloperJargon(body.slice(0, reportMarker)),
+      summary: stripDeveloperJargon(raw.slice(0, reportMarker)),
       appendix: stripDeveloperJargon(
-        body.slice(reportMarker).replace(/^[\s\S]*?(##\s*详细报告|<!--\s*REPORT\s*-->)/i, '## 详细说明')
+        stripStructuredExecReport(
+          raw.slice(reportMarker).replace(/^[\s\S]*?(##\s*详细报告|##\s*详细说明|<!--\s*REPORT\s*-->)/i, '## 详细说明')
+        )
       )
     }
   }
-  return { summary: stripDeveloperJargon(body) }
+  return { summary: stripDeveloperJargon(raw) }
 }
 
 function resolveOutcome(meta?: Record<string, unknown>): UserFacingOutcome {
+  if (meta?.evidenceGatePassed === false) return 'failed'
   if (Boolean(meta?.needsHumanConfirm) || Boolean(meta?.needsClarify)) return 'needs_human'
   const records = Array.isArray(meta?.lastStepRecords)
     ? (meta!.lastStepRecords as Array<{ status?: string }>)
@@ -377,7 +386,7 @@ export function buildUserFacingPayload(input: {
       : '暂无结论。可查看上方进展，或换个说法再试一次。'
   }
 
-  summary = stripDeveloperJargon(summary)
+  summary = stripStructuredExecReport(stripDeveloperJargon(summary))
   if (!summary) summary = '暂无结论。可查看上方进展，或换个说法再试一次。'
 
   const outcome = resolveOutcome(meta)
@@ -388,17 +397,50 @@ export function buildUserFacingPayload(input: {
       if (title) sources.push({ title: title.slice(0, 120), url: s?.url ? String(s.url) : undefined })
     }
   }
+  // U3：从 evidence 提取 RAG/doc 引用，供前端证据优先展示
+  if (Array.isArray(input.evidence)) {
+    for (const ev of input.evidence as Array<Record<string, unknown>>) {
+      const ar = ev?.agentResult as { sources?: Array<{ type?: string; ref?: string }> } | undefined
+      for (const s of ar?.sources || []) {
+        const ref = String(s?.ref || '').trim()
+        if (ref && !sources.some((x) => x.title === ref)) {
+          sources.push({ title: ref.slice(0, 120) })
+        }
+      }
+      const citations = (ev as { citations?: Array<{ source?: string }> })?.citations
+      if (Array.isArray(citations)) {
+        for (const c of citations.slice(0, 6)) {
+          const title = String(c?.source || '').trim()
+          if (title && !sources.some((x) => x.title === title)) sources.push({ title: title.slice(0, 120) })
+        }
+      }
+    }
+  }
 
   const slots = collectModuleSlots({ results: input.results, meta, synth })
   const actions = resolveActions({ meta, actions: input.actions })
 
+  const cleanAppendix = appendix ? stripStructuredExecReport(appendix) : ''
   const payload: UserFacingPayload = {
     summary,
     outcome,
     outcomeLabel: outcomeLabelZh(outcome)
   }
-  if (appendix && appendix.length >= 40) payload.appendix = appendix
-  if (sources.length) payload.sources = sources
+  if (meta.evidenceGatePassed === false) {
+    payload.badge = 'evidence_rejected'
+    payload.badgeLabel = '无证据拒答'
+    if (outcome === 'failed' && !/证据|依据|拒答/.test(summary)) {
+      payload.summary = `${summary}\n\n（系统未找到足够可核验依据，已拒绝编造结论。）`
+    }
+  } else if (Boolean(meta.needsClarify)) {
+    payload.badge = 'needs_clarify'
+    payload.badgeLabel = '需补充信息'
+  }
+  // 执行摘要类 dump 不进用户附录（开发者视图看 composeFinal.text）
+  if (cleanAppendix && cleanAppendix.length >= 40 && !looksLikeExecAuditDump(cleanAppendix)) {
+    payload.appendix = cleanAppendix
+  }
+  if (sources.length) payload.sources = sources.slice(0, 12)
   if (slots.metrics?.length) payload.metrics = slots.metrics
   if (slots.chart) payload.chart = slots.chart
   if (slots.table) payload.table = slots.table
@@ -408,5 +450,5 @@ export function buildUserFacingPayload(input: {
 
 /** 用户主列正文：仅 summary（附录/执行摘要不进主气泡） */
 export function formatUserFacingMainText(payload: UserFacingPayload): string {
-  return stripDeveloperJargon(payload.summary || '')
+  return stripStructuredExecReport(stripDeveloperJargon(payload.summary || ''))
 }

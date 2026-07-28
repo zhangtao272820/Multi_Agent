@@ -95,6 +95,8 @@ export const CODE_AGENT_DEFAULTS = {
   subagentEnabled: false,
   subagentMinFiles: 3,
   exportFactsEnabled: true,
+  /** ReAct 工具轮次上限（防死循环，对齐 N2） */
+  maxToolRounds: 12,
 } as const
 
 export type CodeAgentEnv = typeof CODE_AGENT_DEFAULTS
@@ -166,6 +168,7 @@ export function getCodeAgentEnv(): CodeAgentEnv {
     subagentEnabled: parseEnvBool('CODE_SUBAGENT_ENABLED', false),
     subagentMinFiles: parseEnvInt('CODE_SUBAGENT_MIN_FILES', 3, 2, 12),
     exportFactsEnabled: parseEnvBool('CODE_EXPORT_FACTS', true),
+    maxToolRounds: parseEnvInt('CODE_MAX_TOOL_ROUNDS', d.maxToolRounds, 1, 24),
   }
   cached = { at: now, env }
   return env

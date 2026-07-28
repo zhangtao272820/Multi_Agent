@@ -12,10 +12,20 @@ trigger:
   flags_present: [rl_boundary_kept]
 prompt_snippet: |
   【专属故事 · 讲台下的一年 · 第3幕 · 成绩单之外】
-  学期末；她卸下讲师身份邀你散步
-  立绘气质参考：campus_twilight, co_read, open_day。
-  用角色口吻推进这一幕的情绪与选择；可给 2～3 个短选项。
-  不要直接宣布结局名称；关系阶段由系统判定。
+advance: on_player_turn
+beats:
+  - id: b1
+    summary: "学期末"
+    sprite_hint: [campus_twilight, co_read]
+    soft_options: ["认真接话", "先观察", "轻声提问"]
+  - id: b2
+    summary: "她卸下讲师身份邀你散步"
+    sprite_hint: [co_read, open_day]
+    soft_options: ["表明态度", "给她空间", "确认她的意思"]
+  - id: b3
+    summary: "收束本幕：留下可被记住的结果，不剧透结局名。"
+    sprite_hint: [open_day]
+    soft_options: ["坦白心意", "先缓一缓", "诚实说明顾虑"]
 rewards:
   flags_set: [rl_semester_end_walk]
 choice_effects:

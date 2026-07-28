@@ -11,12 +11,14 @@ interface MapProps {
   onEnter: (locationId: string) => void;
   onSelectPerson?: (locationId: string, studentId: string) => void;
   onAdvance: () => void;
+  onAdvanceSkip?: () => void;
   onBoard: () => void;
   onSave: () => void;
   onTitle: () => void;
   onWeekendRoam?: () => void;
   onMock?: () => void;
   onIntent?: (fromId: string, locationId?: string | null) => void;
+  onEventTalk?: (npcId: string, locationId?: string | null) => void;
 }
 
 const MOOD_LABEL: Record<string, string> = {
@@ -51,12 +53,14 @@ export function CampusMapScreen({
   onEnter,
   onSelectPerson,
   onAdvance,
+  onAdvanceSkip,
   onBoard,
   onSave,
   onTitle,
   onWeekendRoam,
   onMock,
   onIntent,
+  onEventTalk,
 }: MapProps) {
   const extras: ReactNode = (
     <>
@@ -80,6 +84,7 @@ export function CampusMapScreen({
         busy={busy}
         title="校园地图"
         onAdvance={onAdvance}
+        onAdvanceSkip={onAdvanceSkip}
         onBoard={onBoard}
         onSave={onSave}
         onMenu={onTitle}
@@ -88,8 +93,23 @@ export function CampusMapScreen({
 
       {hub.active_event && (
         <aside className="event-card">
-          <strong>{hub.active_event.label}</strong>
+          <strong>
+            {hub.active_event.source === "weekly" ? "本周 · " : ""}
+            {hub.active_event.label}
+          </strong>
           <p>{hub.active_event.blurb}</p>
+          {hub.active_event.talk_npc_id && onEventTalk && (
+            <button
+              type="button"
+              className="btn ghost small"
+              disabled={busy}
+              onClick={() =>
+                onEventTalk(hub.active_event!.talk_npc_id!, hub.active_event!.location_id)
+              }
+            >
+              找{hub.active_event.talk_npc_name || "同学"}聊聊
+            </button>
+          )}
           {(hub.event_reactions || []).length > 0 && (
             <ul className="event-reaction-list">
               {(hub.event_reactions || []).map((r) => (
@@ -175,12 +195,14 @@ interface LocProps {
   initialFocusId?: string | null;
   onBack: () => void;
   onAdvance: () => void;
+  onAdvanceSkip?: () => void;
   onBoard: () => void;
   onTalk: (s: StudentPublic) => void;
   onStudy: (subjectId: string) => void;
   onAskOut?: (s: StudentPublic) => void;
   onClub?: () => void;
   onSpot?: (focusId?: string | null) => void;
+  onEventTalk?: (npcId: string, locationId?: string | null) => void;
 }
 
 const SPOT_LABEL: Record<string, string> = {
@@ -204,12 +226,14 @@ export function LocationScreen({
   initialFocusId,
   onBack,
   onAdvance,
+  onAdvanceSkip,
   onBoard,
   onTalk,
   onStudy,
   onAskOut,
   onClub,
   onSpot,
+  onEventTalk,
 }: LocProps) {
   const loc = hub.locations.find((l) => l.id === hub.location_id);
   const canStudy = hub.calendar.period_kind === "free" || hub.calendar.period_kind === "free_day";
@@ -363,9 +387,30 @@ export function LocationScreen({
         busy={busy}
         title={loc?.name ?? hub.location_id}
         onAdvance={onAdvance}
+        onAdvanceSkip={onAdvanceSkip}
         onBoard={onBoard}
         onMap={onBack}
       />
+
+      {hub.active_event?.talk_npc_id && onEventTalk && (
+        <aside className="event-card loc-event">
+          <strong>
+            {hub.active_event.source === "weekly" ? "本周 · " : ""}
+            {hub.active_event.label}
+          </strong>
+          <p>{hub.active_event.blurb}</p>
+          <button
+            type="button"
+            className="btn ghost small"
+            disabled={busy}
+            onClick={() =>
+              onEventTalk(hub.active_event!.talk_npc_id!, hub.active_event!.location_id)
+            }
+          >
+            找{hub.active_event.talk_npc_name || "同学"}聊聊
+          </button>
+        </aside>
+      )}
 
       <div className="loc-gal-body">
         <aside className="period-action-menu period-guide">

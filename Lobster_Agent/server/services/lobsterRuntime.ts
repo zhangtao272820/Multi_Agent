@@ -325,18 +325,35 @@ export function getLobsterRuntimeMetrics() {
   let done = 0
   let error = 0
   let canceled = 0
+  const errorCodes: Record<string, number> = {}
   for (const r of runs.values()) {
     if (r.status === 'running') running++
     else if (r.status === 'queued') queued++
     else if (r.status === 'done') done++
-    else if (r.status === 'error') error++
-    else if (r.status === 'canceled') canceled++
+    else if (r.status === 'error') {
+      error++
+      const code = String(r.error || 'error').slice(0, 64) || 'error'
+      errorCodes[code] = (errorCodes[code] || 0) + 1
+    } else if (r.status === 'canceled') canceled++
   }
+  const finished = done + error
   return {
     service: 'lobster',
     runs: { total: runs.size, running, queued, done, error, canceled },
     queue_depth: runQueue.length,
-    channels: channels.size
+    channels: channels.size,
+    // E2：与 Manager experts.lobster 同形
+    sli: {
+      sampleCount: runs.size,
+      queueDepth: runQueue.length,
+      errorRate: finished > 0 ? error / finished : 0,
+      errorCodes,
+    },
+    capabilityAudit: {
+      CAP_ROUTE: process.env.CAP_ROUTE || null,
+      CAP_REASON: process.env.CAP_REASON || null,
+      silent_upgrade_forbidden: true,
+    },
   }
 }
 

@@ -13,6 +13,7 @@ import { getEffectivePlanSteps } from '../plan'
 import { planAgentLabel } from '../runtime/phaseLabels'
 import { buildRoutePlanCardFromState, type RoutePlanCardPayload } from '../routing/routePlanCard'
 import { llmUpgradeRequiresPlanPreview } from './planUpgrade'
+import { resolveAdminAutoConfirmDecision } from '../executors/autoConfirmAudit'
 
 export type PlanPreviewStepItem = {
   id: string
@@ -22,6 +23,9 @@ export type PlanPreviewStepItem = {
   order: number
   enabled: boolean
   optional?: boolean
+  /** U5：本步人审 vs 自动确认预告 */
+  confirmMode?: 'hitl' | 'auto_confirm' | 'none'
+  confirmReason?: string
 }
 
 /** 分层 Approve：auto 跳过预览 · plan 步数达标才预览 · strict 强制预览 */
@@ -131,15 +135,34 @@ export function buildPlanPreviewPayload(
   previewId?: string,
   state?: { meta?: Record<string, unknown>; allowedAgents?: string[]; intent?: string }
 ) {
-  const items: PlanPreviewStepItem[] = (Array.isArray(steps) ? steps : []).map((s, i) => ({
-    id: String(s.id || `step_${i + 1}`),
-    agent: String(s.agent || ''),
-    agentLabel: planAgentLabel(String(s.agent || '')),
-    query: String(s.query || '').slice(0, 320),
-    order: i,
-    enabled: true,
-    optional: Boolean((s as { optional?: boolean }).optional)
-  }))
+  const items: PlanPreviewStepItem[] = (Array.isArray(steps) ? steps : []).map((s, i) => {
+    const agent = String(s.agent || '')
+    const query = String(s.query || '').slice(0, 320)
+    let confirmMode: PlanPreviewStepItem['confirmMode'] = 'none'
+    let confirmReason: string | undefined
+    const ag = agent.toLowerCase()
+    if (ag === 'admin' || ag === 'gui') {
+      const d = resolveAdminAutoConfirmDecision(state || null, query)
+      confirmMode = d.autoConfirm ? 'auto_confirm' : 'hitl'
+      confirmReason = d.reason
+      // GUI 写操作默认倾向人审（无 allowRiskyWrites 时）
+      if (ag === 'gui' && !(state?.meta as { allowRiskyWrites?: boolean } | undefined)?.allowRiskyWrites) {
+        confirmMode = 'hitl'
+        confirmReason = confirmReason || 'gui_default_hitl'
+      }
+    }
+    return {
+      id: String(s.id || `step_${i + 1}`),
+      agent,
+      agentLabel: planAgentLabel(agent),
+      query,
+      order: i,
+      enabled: true,
+      optional: Boolean((s as { optional?: boolean }).optional),
+      confirmMode,
+      confirmReason
+    }
+  })
   const routePlan = state ? buildRoutePlanCardFromState(state) : null
   const priorConstraints = String(state?.meta?.planConstraints || '').trim()
   const tier = resolvePlanApproveTier({

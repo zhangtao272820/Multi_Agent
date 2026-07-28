@@ -1,6 +1,7 @@
 import WebSocket from 'ws'
 import { structuralAnswerVerdict } from '../../graph/core/agent/agentAnswerJudge'
 import { withTimeout, LruCache, normalizeDbWsUrl, dbHttpBaseFromWsUrl } from './agentTransport'
+import { fetchWithExpertPolicy } from '../../graph/core/runtime/expertFailure'
 import { buildAgentTraceHeaders, withTraceBody } from './agentTrace'
 import { MANAGER_ORCHESTRATED_HEADER } from '../route/managerSubAgentHelpers'
 import { wrapDbResult } from './agentResult'
@@ -110,41 +111,30 @@ export async function callDbAgent(params: {
     params.sendThinking?.(forced ? '数据库 Agent：HTTP 调用中…' : '数据库 Agent：WebSocket 不可用，改用 HTTP 调用…')
     const base = String(params.dbAgentHttpUrl || dbHttpBaseFromWsUrl(wsUrl))
     const url = `${base.replace(/\/+$/, '')}/api/ask`
-    let res: Response | null = null
-    let attempt = 0
-    let lastErr: any = null
-    while (attempt < 2) {
-      attempt++
-      try {
-        res = await withTimeout(
-          fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', ...buildAgentTraceHeaders(params.traceId) },
-            body: JSON.stringify(
-              withTraceBody(
-                {
-                  messages: params.messages.length ? params.messages : [{ role: 'user', content: question }],
-                  dbId: params.dbId,
-                  ...(sessionKey ? { session_id: sessionKey, sessionId: sessionKey } : {}),
-                  ...(params.managerTask && Object.keys(params.managerTask).length ? { managerTask: params.managerTask } : {})
-                },
-                params.traceId
-              )
-            ),
-            signal: params.signal
-          }),
-          params.timeoutMs,
-          'dbAgent(http)',
-          params.signal
-        )
-        if (res.ok) break
-        lastErr = new Error(`dbAgent http ${res.status}: ${res.statusText}`)
-      } catch (e) {
-        lastErr = e
+    const res = await fetchWithExpertPolicy(
+      url,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...buildAgentTraceHeaders(params.traceId) },
+        body: JSON.stringify(
+          withTraceBody(
+            {
+              messages: params.messages.length ? params.messages : [{ role: 'user', content: question }],
+              dbId: params.dbId,
+              ...(sessionKey ? { session_id: sessionKey, sessionId: sessionKey } : {}),
+              ...(params.managerTask && Object.keys(params.managerTask).length ? { managerTask: params.managerTask } : {})
+            },
+            params.traceId
+          )
+        ),
+        signal: params.signal
+      },
+      {
+        timeoutMs: params.timeoutMs,
+        signal: params.signal,
+        label: 'dbAgent(http)'
       }
-      await new Promise((r) => setTimeout(r, 300 * attempt))
-    }
-    if (!res) throw lastErr || new Error('dbAgent http error')
+    )
     if (!res.ok) {
       const text = await res.text().catch(() => '')
       throw new Error(`dbAgent http ${res.status}: ${text || res.statusText}`)

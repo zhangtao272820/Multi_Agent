@@ -97,11 +97,16 @@ class Session:
     scene_run: dict[str, Any] = field(default_factory=dict)
     # 双人同场
     ensemble: dict[str, Any] = field(default_factory=dict)
+    # 专属故事节拍（有 beats 时）
+    story_beat_index: int = 0
+    story_act_summary: str = ""
+    story_event_id: str = ""
 
     def rebuild_prompt(self, *, user_text: str = "", event_snippet: str = "") -> None:
         from .cross_impression import cross_impression_prompt_line
         from .prompt_budget import PromptBlock, trim_blocks
         from .scene_agenda import SceneAgenda, agenda_prompt_block, build_scene_agenda
+        from .story_beats import event_beats, format_story_snippet, is_story_event
 
         snippet = event_snippet
         if not snippet and self.date_snippet:
@@ -109,7 +114,14 @@ class Session:
         if not snippet and self.daily_encounter_snippet:
             snippet = self.daily_encounter_snippet
         if not snippet and self.active_event:
-            snippet = self.active_event.prompt_snippet
+            if event_beats(self.active_event):
+                snippet = format_story_snippet(
+                    self.active_event,
+                    beat_index=self.story_beat_index,
+                    act_summary=self.story_act_summary,
+                )
+            else:
+                snippet = self.active_event.prompt_snippet
         quest_snip = quest_prompt_snippet(
             character_id=self.profile.character_id or "",
             base_id=self.base_id,
@@ -118,6 +130,10 @@ class Session:
             runtime=self.runtime,
         )
         blocks: list[PromptBlock] = []
+        if is_story_event(self.active_event) and snippet.strip():
+            # 故事当前拍单独成块且受保护，避免被传闻挤掉
+            blocks.append(PromptBlock("story_beat", f"\n\n{snippet.strip()}"))
+            snippet = ""
         if self.preferences:
             likes = "、".join((self.preferences.get("likes") or [])[:5])
             dislikes = "、".join((self.preferences.get("dislikes") or [])[:4])
@@ -462,13 +478,28 @@ class Session:
             ),
             "scene_run": public_scene_run(self.scene_run) if self.scene_run else None,
             "ensemble": (self.ensemble if self.ensemble.get("enabled") else None),
+            "story_progress": self._public_story_progress(),
         }
+
+    def _public_story_progress(self) -> dict[str, Any] | None:
+        from .story_beats import public_story_progress
+
+        return public_story_progress(
+            self.active_event,
+            beat_index=self.story_beat_index,
+            act_summary=self.story_act_summary,
+        )
 
     @staticmethod
     def _public_event(event: GameEvent | None) -> dict[str, Any] | None:
         if not event:
             return None
-        return {"id": event.id, "label": event.label, "scene_id": event.scene_id}
+        from .story_beats import event_beats
+
+        out: dict[str, Any] = {"id": event.id, "label": event.label, "scene_id": event.scene_id}
+        if event_beats(event):
+            out["beat_total"] = len(event.beats)
+        return out
 
     @staticmethod
     def _public_log_entry(entry: EventLogEntry) -> dict[str, Any]:
@@ -730,6 +761,9 @@ class SessionStore:
         session.pending_choice_kind = "soft"
         session.last_event_fired = None
         session.daily_encounter_snippet = ""
+        session.story_beat_index = 0
+        session.story_act_summary = ""
+        session.story_event_id = ""
         session.rebuild_prompt()
         opening = default_opening(session.profile, relationship_state=session.relationship_state)
         session.messages = [{"role": "assistant", "content": opening}]
@@ -762,10 +796,40 @@ class SessionStore:
             scene_id=event.scene_id if event else "",
         )
         if event and event.id != prev_event_id:
+            from .scene_run import bump_scene_for_story
+            from .story_beats import event_beats, is_story_event, soft_options_for_beat
+
             session.event_log.append(
                 EventLogEntry(event_id=event.id, label=event.label, turn=session.user_turns() + 1)
             )
             fired = Session._public_event(event)
+            session.story_beat_index = 0
+            session.story_act_summary = ""
+            session.story_event_id = event.id
+            if is_story_event(event) and session.scene_run:
+                bumped = bump_scene_for_story(session.scene_run)
+                if bumped:
+                    session.scene_run = bumped.model_dump()
+            if event_beats(event):
+                # 有节拍：奖励延后到末拍；首轮不下 last_event_fired
+                session.last_event_fired = None
+                opts = soft_options_for_beat(event, 0)
+                if opts:
+                    session.pending_choices = opts
+                    session.pending_choice_kind = "branch" if event_has_branch_choices(event) else "soft"
+                    session.pending_choice_event_id = event.id if event_has_branch_choices(event) else None
+                if fired is not None:
+                    fired["curtain"] = f"—— 专属故事 · {event.label or event.id} · 开幕 ——"
+                    fired["story"] = True
+            else:
+                session.last_event_fired = fired
+                if fired is not None and is_story_event(event):
+                    fired["curtain"] = f"—— 专属故事 · {event.label or event.id} · 开幕 ——"
+                    fired["story"] = True
+        elif not event:
+            session.story_beat_index = 0
+            session.story_act_summary = ""
+            session.story_event_id = ""
 
         from .life_friction import is_structurally_cold_input
 
@@ -777,12 +841,12 @@ class SessionStore:
         session.rebuild_prompt(user_text=user_text)
         settings = get_settings()
         from .prompt_budget import context_keep_pairs
+        from .scene_run import public_scene_run
 
         limit = context_keep_pairs(world_mode=bool(session.world_save_id))
         if not session.world_save_id:
             limit = max(limit, settings.history_max_turns)
         trimmed = trim_messages_for_context(session.messages, keep_pairs=limit)
-        session.last_event_fired = fired
         session.daily_encounter_snippet = ""
         return {
             "messages": trimmed,
@@ -790,6 +854,10 @@ class SessionStore:
             "event": fired,
             "scene": scene,
             "daily_state": public_daily_state(session.runtime),
+            "scene_run": public_scene_run(session.scene_run) if session.scene_run else None,
+            "story_progress": session._public_story_progress(),
+            "pending_choices": list(session.pending_choices),
+            "pending_choice_kind": session.pending_choice_kind if session.pending_choices else "soft",
         }
 
     def start_daily_encounter(self, session_id: str, encounter_id: str) -> dict[str, Any] | None:
@@ -1359,7 +1427,47 @@ class SessionStore:
                             world_social["world"] = public_world(world)
 
         event_applied = None
-        if (
+        from .story_beats import (
+            advance_beat_index,
+            append_act_summary,
+            current_beat,
+            event_beats,
+            soft_options_for_beat,
+        )
+
+        if session.active_event and event_beats(session.active_event):
+            # 本轮演绎的是推进前的当前拍
+            played = current_beat(session.active_event, session.story_beat_index)
+            session.story_act_summary = append_act_summary(session.story_act_summary, played)
+            new_idx, completed = advance_beat_index(
+                session.active_event, session.story_beat_index
+            )
+            session.story_beat_index = new_idx
+            if completed:
+                session.relationship_state = apply_event_rewards(
+                    session.relationship_state, session.active_event
+                )
+                event_applied = Session._public_event(session.active_event)
+                if event_applied is not None:
+                    event_applied["curtain"] = (
+                        f"—— 幕落 · {session.active_event.label or session.active_event.id} ——"
+                    )
+                    event_applied["story"] = True
+                session.last_event_fired = None
+                session.story_act_summary = ""
+                session.story_event_id = ""
+            # 下一拍软选项（末拍完成后清空，交给下方议程补齐）
+            if not completed:
+                opts = soft_options_for_beat(session.active_event, session.story_beat_index)
+                if opts:
+                    session.pending_choices = opts
+                    if event_has_branch_choices(session.active_event):
+                        session.pending_choice_kind = "branch"
+                        session.pending_choice_event_id = session.active_event.id
+                    else:
+                        session.pending_choice_kind = "soft"
+                        session.pending_choice_event_id = None
+        elif (
             session.active_event
             and session.last_event_fired
             and session.last_event_fired.get("id") == session.active_event.id
@@ -1379,8 +1487,13 @@ class SessionStore:
                 # 女主偶发【选项】= 软提示，不绑事件数值
                 session.pending_choice_kind = "soft"
                 session.pending_choice_event_id = None
-        else:
-            # 美德式：每轮保证 soft 可选回复；无 LLM【选项】时用议程补齐
+        elif not (
+            session.active_event
+            and event_beats(session.active_event)
+            and session.story_beat_index < len(session.active_event.beats)
+            and session.pending_choices
+        ):
+            # 美德式：每轮保证 soft 可选回复；故事拍已有系统选项则不覆盖
             from .life_briefs import soft_choices_for_agenda
 
             soft = soft_choices_for_agenda(session.scene_agenda)
@@ -1479,6 +1592,8 @@ class SessionStore:
             "pending_choice_kind": session.pending_choice_kind if session.pending_choices else "soft",
             "message_summary_updated": summarized,
             "event_log": [Session._public_log_entry(e) for e in session.event_log[-12:]],
+            "story_progress": session._public_story_progress(),
+            "scene_run": public_scene_run(session.scene_run) if session.scene_run else None,
             "scene": resolve_scene(
                 base_id=session.base_id,
                 stage_id=session.relationship_state.stage_id,

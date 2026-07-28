@@ -75,8 +75,16 @@ export type ManagerChatThreadContext = {
   mediaDownloadName: (url: string, kind: string) => string
   adminUiCardsFromTurn: (t: TurnGroup) => unknown[]
   replyMarkdownBody: (text: string, t: TurnGroup) => string
-  replyExecutionSummaryMarkdown: (text: string) => string
-  replyExecSummaryTone: (text: string) => 'ok' | 'fail' | 'human' | ''
+  replyExecutionSummaryMarkdown: (text: string, t?: TurnGroup) => string
+  replyUserOutcomeBanner: (t?: TurnGroup) => { tone: 'fail' | 'human'; label: string } | null
+  turnExpertFailureCards: (t?: TurnGroup) => Array<{
+    agent: string
+    label: string
+    code: string
+    codeLabel: string
+    message: string
+  }>
+  replyExecSummaryTone: (text: string, t?: TurnGroup) => 'ok' | 'fail' | 'human' | ''
   replyHasInlineAnalytics: (text: string, agentResults?: unknown, turn?: TurnGroup) => boolean
   buildTurnAgentResults: (t: TurnGroup) => unknown
   extractEchartsOption: (text: string, agentResults?: unknown) => unknown
@@ -95,6 +103,7 @@ export type ManagerChatThreadContext = {
   respondActionCardCancel: (cardId: string) => void
   humanConfirmSending: Ref<boolean>
   resolveReportBody: (text: string, t: TurnGroup) => string
+  replyUserDetailAppendix: (t?: TurnGroup, replyText?: string) => string
   downloadMarkdown: (filename: string, body: string) => void
   replyHasCollapsibleSources: (text: string, t: TurnGroup) => boolean
   replySourceCount: (r: LogItem, t: TurnGroup) => number

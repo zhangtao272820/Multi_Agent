@@ -17,6 +17,14 @@ export function trustImpression(trust: number): string {
   return "深深信任";
 }
 
+export function moodImpression(mood: number): string {
+  if (mood <= -40) return "心情很差";
+  if (mood <= -15) return "有点低落";
+  if (mood < 15) return "情绪平稳";
+  if (mood < 40) return "心情不错";
+  return "神采飞扬";
+}
+
 /** Stage labels that spoil route progression stay vague until late. */
 export function stageImpression(stageId: string, stageLabel?: string): string {
   const soft: Record<string, string> = {

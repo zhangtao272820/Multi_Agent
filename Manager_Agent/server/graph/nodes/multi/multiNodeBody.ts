@@ -9,6 +9,8 @@ import {
   isCodeStepCompletedInRun,
   isParallelIndependentEnabled,
   listBlockingDependencies,
+  listDependentsToSkipAfterFailure,
+  getUpstreamFailureSkipReason,
   suggestMaxParallelForPlan
 } from '../../core/plan/planParallel'
 import { validateAndPreparePlan } from '../../core/plan/planValidate'
@@ -34,6 +36,8 @@ import {
   isCircuitSkipCoreEnabled,
   type StepRunRecord
 } from '../../core/agent/agentRunner'
+import { errorCodeFromStepOutcome } from '../../core/runtime/expertFailure'
+import { acquireExpertInflight, releaseExpertInflight } from '../../core/runtime/backpressure'
 import type { ManagerGraphState } from '../../state/state'
 import type { AgentExecutorDeps, AgentExecutorOpts } from '../../core/executors'
 import {
@@ -105,7 +109,7 @@ export async function runMultiNodeBody(state: any, deps: any) {
       probeRagEvidence,
       filterCrawlerResultDomestic,
       buildClarifyQuestions,
-      appendMetrics,
+      appendMetrics: appendMetricsDep,
       isDbNoData,
       emitTrace,
       summarize,
@@ -210,12 +214,51 @@ export async function runMultiNodeBody(state: any, deps: any) {
         toolHealthP95ByAgent,
         schedulerCircuitOpenAgents
       })
+      const seededHard =
+        state?.meta?.expertHardDown && typeof state.meta.expertHardDown === 'object'
+          ? (state.meta.expertHardDown as Record<string, string>)
+          : {}
+      for (const [agent, code] of Object.entries(seededHard)) {
+        if (agent) telemetry.markExpertHardDown(String(agent), String(code || 'network'))
+      }
+      // E3/F3: enrich tokens from meta/output then accumulate spend for budget gate
+      const appendMetrics = async (entry: Record<string, unknown>) => {
+        const { extractStepUsage } = await import('../../core/runtime/expertFailure')
+        const meta = entry.meta
+        const outputText = String(entry.outputText || entry.output || '')
+        const { meta: _meta, outputText: _ot, output: _out, ...rest } = entry
+        let tokens = Number(rest.tokens || 0)
+        let usd = Number(rest.usd || 0)
+        const extraBase =
+          rest.extra && typeof rest.extra === 'object' && !Array.isArray(rest.extra)
+            ? { ...(rest.extra as Record<string, unknown>) }
+            : {}
+        let extra = { ...extraBase }
+        if (!(Number.isFinite(tokens) && tokens > 0)) {
+          const usage = extractStepUsage(meta, outputText)
+          if (usage.tokens) tokens = usage.tokens
+          if (usage.usd) usd = usage.usd
+          if (usage.actual === false) extra = { ...extra, tokenAccounting: 'estimated' }
+          else if (usage.actual === true) extra = { ...extra, tokenAccounting: 'actual' }
+        }
+        const cleaned: Record<string, unknown> = { ...rest }
+        if (Number.isFinite(tokens) && tokens > 0) cleaned.tokens = tokens
+        if (Number.isFinite(usd) && usd > 0) cleaned.usd = usd
+        if (Object.keys(extra).length) cleaned.extra = extra
+        else delete cleaned.extra
+        telemetry.addSpend({
+          tokens: Number.isFinite(tokens) && tokens > 0 ? tokens : undefined,
+          usd: Number.isFinite(usd) && usd > 0 ? usd : undefined
+        })
+        return appendMetricsDep(cleaned as any)
+      }
       const {
         scaledTimeoutForAgent,
         recordAgentSuccess,
         recordAgentFailure,
         optionalAgents,
-        runtimeCircuitOpenAgents
+        runtimeCircuitOpenAgents,
+        isExpertHardDown
       } =
         telemetry
       const executionMode = String(state?.executionMode?.mode || 'parallel')
@@ -477,7 +520,8 @@ export async function runMultiNodeBody(state: any, deps: any) {
           plannedInTask: steps.some((s) => String(s.agent) === stepAgent),
           schedulerSkipAgents,
           schedulerDegradeOptionalAgents,
-          telemetry
+          telemetry,
+          optionalStep: Boolean((step as { optional?: boolean }).optional) || optionalAgents.has(stepAgent)
         })
         if (precheck.action === 'skip') {
           await recordSkippedAgentStep({
@@ -486,6 +530,29 @@ export async function runMultiNodeBody(state: any, deps: any) {
             effQuery,
             reason: precheck.reason,
             policy: precheck.policy,
+            t0,
+            runId: opts.runId,
+            byId,
+            evidences,
+            relayThinking,
+            emitTrace,
+            appendMetrics
+          })
+          return
+        }
+
+        const upstreamSkip = getUpstreamFailureSkipReason(
+          step,
+          steps,
+          Object.fromEntries(Object.entries(byId).map(([id, rec]) => [id, { status: rec.status }]))
+        )
+        if (upstreamSkip) {
+          await recordSkippedAgentStep({
+            stepId,
+            agent: step.agent,
+            effQuery,
+            reason: upstreamSkip,
+            policy: 'upstream_failed',
             t0,
             runId: opts.runId,
             byId,
@@ -542,6 +609,8 @@ export async function runMultiNodeBody(state: any, deps: any) {
                 ? Math.min(scaledTimeoutForAgent('gui', opts.timeoutMs), 600_000)
                 : scaledTimeoutForAgent(stepAgent, opts.timeoutMs)
         if (sharedDispatchAgents.has(step.agent)) {
+          acquireExpertInflight(stepAgent)
+          try {
           emitTrace({
             type: 'step_start',
             agent: step.agent,
@@ -651,7 +720,14 @@ export async function runMultiNodeBody(state: any, deps: any) {
                   })
                   emitStepResultEvent(opts, { stepId, agent: String(step.agent), outcome: repairOutcome })
                   emitCollabPreview(opts.sendEvent, step.agent, repairedEarly, 'code_authority_repair')
-                  await appendMetrics({ runId: opts.runId, phase: step.agent, ms: Date.now() - t0 })
+                  await appendMetrics({
+                    runId: opts.runId,
+                    phase: step.agent,
+                    ms: Date.now() - t0,
+                    ok: true,
+                    agent: String(step.agent),
+                    outputText: repairedEarly
+                  })
                   emitTrace({
                     type: 'step_end',
                     agent: step.agent,
@@ -741,7 +817,14 @@ export async function runMultiNodeBody(state: any, deps: any) {
                 })
                 emitStepResultEvent(opts, { stepId, agent: String(step.agent), outcome: authOutcome })
                 emitCollabPreview(opts.sendEvent, step.agent, auth.output, auth.mode)
-                await appendMetrics({ runId: opts.runId, phase: step.agent, ms: Date.now() - t0 })
+                await appendMetrics({
+                  runId: opts.runId,
+                  phase: step.agent,
+                  ms: Date.now() - t0,
+                  ok: true,
+                  agent: String(step.agent),
+                  outputText: auth.output
+                })
                 emitTrace({
                   type: 'step_end',
                   agent: step.agent,
@@ -795,7 +878,14 @@ export async function runMultiNodeBody(state: any, deps: any) {
                   })
                   emitStepResultEvent(opts, { stepId, agent: String(step.agent), outcome: repairOutcome })
                   emitCollabPreview(opts.sendEvent, step.agent, repairedOut, 'code_authority_repair')
-                  await appendMetrics({ runId: opts.runId, phase: step.agent, ms: Date.now() - t0 })
+                  await appendMetrics({
+                    runId: opts.runId,
+                    phase: step.agent,
+                    ms: Date.now() - t0,
+                    ok: true,
+                    agent: String(step.agent),
+                    outputText: repairedOut
+                  })
                   recordAgentSuccess(stepAgent)
                   return
                 }
@@ -962,7 +1052,16 @@ export async function runMultiNodeBody(state: any, deps: any) {
                   : undefined
               emitCollabPreview(opts.sendEvent, step.agent, outcome.output, evMode || undefined)
             }
-            await appendMetrics({ runId: opts.runId, phase: step.agent, ms: Date.now() - t0 })
+            await appendMetrics({
+              runId: opts.runId,
+              phase: step.agent,
+              ms: Date.now() - t0,
+              ok: outcome.ok,
+              agent: String(step.agent),
+              meta: (outcome as { meta?: unknown }).meta,
+              outputText: String(outcome.output || ''),
+              error_code: outcome.ok ? undefined : String((outcome as { error?: string }).error || '')
+            })
             const lastRecord = byId[stepId]
             emitTrace({
               type: 'step_end',
@@ -976,7 +1075,21 @@ export async function runMultiNodeBody(state: any, deps: any) {
               at: new Date().toISOString()
             })
             if (outcome.ok) recordAgentSuccess(stepAgent)
-            else recordAgentFailure(stepAgent)
+            else {
+              const errCode =
+                errorCodeFromStepOutcome({
+                  ok: false,
+                  error: outcome.error,
+                  meta: outcome.meta
+                }) ||
+                String((outcome.meta as { error_code?: string } | undefined)?.error_code || '').trim() ||
+                undefined
+              recordAgentFailure(stepAgent, {
+                error: outcome.error,
+                errorCode: errCode,
+                hard: Boolean((outcome.meta as { hardFailure?: boolean } | undefined)?.hardFailure)
+              })
+            }
             if (outcome.ok && step.agent === 'crawler') {
               const routeSuggestion = crawlerOutcomeRouteSuggestion(outcome)
               if (routeSuggestion) {
@@ -996,6 +1109,9 @@ export async function runMultiNodeBody(state: any, deps: any) {
               }
             }
             return
+          }
+          } finally {
+            releaseExpertInflight(stepAgent)
           }
         }
 
@@ -1210,7 +1326,42 @@ export async function runMultiNodeBody(state: any, deps: any) {
             const status = record?.status === 'error' ? 'failed' : String(record?.status || 'ok')
             const output = String(record?.output || '')
             const error = String(record?.error || '')
+            const failedAgent = String(s.agent || '').trim()
             const pendingSteps = steps.filter((x) => {
+              const id = String(x.id || '').trim()
+              return id && id !== stepId && !byId[id]
+            })
+
+            // 上游失败/跳过：立即剪枝依赖消费链，避免 clean/code 空转
+            if ((status === 'failed' || status === 'error' || status === 'skipped') && pendingSteps.length) {
+              const completedSnap = Object.fromEntries(
+                Object.entries(byId).map(([id, rec]) => [id, { status: rec.status }])
+              )
+              const toSkip = listDependentsToSkipAfterFailure(stepId, pendingSteps, steps, completedSnap)
+              for (const ps of toSkip) {
+                const pid = String(ps.id || '').trim()
+                if (!pid || byId[pid]) continue
+                await recordSkippedAgentStep({
+                  stepId: pid,
+                  agent: ps.agent,
+                  effQuery: String(ps.query || question),
+                  reason: `上游 ${failedAgent || stepId} 未成功，跳过关联步骤`,
+                  policy: 'upstream_failed',
+                  t0: Date.now(),
+                  runId: opts.runId,
+                  byId,
+                  evidences,
+                  relayThinking,
+                  emitTrace,
+                  appendMetrics
+                })
+                emitStepStatus(pid, String(ps.agent), 'skipped', {
+                  error: `upstream_failed:${failedAgent || stepId}`
+                })
+              }
+            }
+
+            const pendingAfterPrune = steps.filter((x) => {
               const id = String(x.id || '').trim()
               return id && id !== stepId && !byId[id]
             })
@@ -1218,15 +1369,16 @@ export async function runMultiNodeBody(state: any, deps: any) {
               status,
               output,
               error,
-              agent: String(s.agent || '')
+              agent: failedAgent,
+              expertHardDown: Boolean(failedAgent && isExpertHardDown(failedAgent)),
+              circuitOpen: Boolean(failedAgent && runtimeCircuitOpenAgents.has(failedAgent))
             })
-            if (pendingSteps.length > 0 && wouldReplan) {
-              const failedAgent = String(s.agent || '').trim()
+            if (pendingAfterPrune.length > 0 && wouldReplan) {
               const circuitBlocked =
                 isCircuitSkipCoreEnabled() && !optionalAgents.has(failedAgent)
                   ? resolveCircuitBlockedReplan({
                       failedAgent,
-                      pendingSteps,
+                      pendingSteps: pendingAfterPrune,
                       circuitOpenAgents: runtimeCircuitOpenAgents
                     })
                   : ({ kind: 'passthrough' } as const)
@@ -1300,7 +1452,7 @@ export async function runMultiNodeBody(state: any, deps: any) {
                 })
                 opts.sendEvent({ event: 'phase', data: 'plan_preview', from: 'manager' })
                 const previewId = crypto.randomUUID()
-                const payload = buildPlanPreviewPayload(pendingSteps, opts.runId, previewId, {
+                const payload = buildPlanPreviewPayload(pendingAfterPrune, opts.runId, previewId, {
                   intent: state.intent,
                   allowedAgents: state.allowedAgents,
                   meta: {
@@ -1316,7 +1468,7 @@ export async function runMultiNodeBody(state: any, deps: any) {
                 opts.sendEvent({ event: 'plan_preview', data: payload, from: 'manager' })
                 const decision = await waitPlanConfirm(opts.runId, previewId)
                 if (decision.action === 'cancel') {
-                  for (const ps of pendingSteps) {
+                  for (const ps of pendingAfterPrune) {
                     const pid = String(ps.id || '').trim()
                     if (!pid || byId[pid]) continue
                     await recordSkippedAgentStep({
@@ -1344,10 +1496,10 @@ export async function runMultiNodeBody(state: any, deps: any) {
                   })
                   return {
                     append: append.length ? append : undefined,
-                    removePendingIds: pendingSteps.map((x) => String(x.id || '')).filter(Boolean)
+                    removePendingIds: pendingAfterPrune.map((x) => String(x.id || '')).filter(Boolean)
                   }
                 }
-                let nextRemaining = pendingSteps
+                let nextRemaining = pendingAfterPrune
                 if (Array.isArray(decision.steps) && decision.steps.length) {
                   nextRemaining = normalizePlanSteps(
                     mergeConfirmedPlanSteps(pendingSteps, decision.steps as Step[])
@@ -1815,6 +1967,28 @@ export async function runMultiNodeBody(state: any, deps: any) {
         })
       )
 
+      const hardDownMap: Record<string, string> = {
+        ...((state?.meta?.expertHardDown && typeof state.meta.expertHardDown === 'object'
+          ? state.meta.expertHardDown
+          : {}) as Record<string, string>)
+      }
+      for (const a of ['rag', 'db', 'admin', 'code', 'crawler', 'gui', 'multimodal', 'music', 'video'] as const) {
+        if (isExpertHardDown(a)) hardDownMap[a] = telemetry.getExpertHardDownCode(a) || hardDownMap[a] || 'network'
+      }
+
+      const adminWriteTerminal = Object.values(byId).some((s) => {
+        if (String(s?.agent || '') !== 'admin') return false
+        const m = (s as { meta?: { adminWriteTerminal?: boolean; agentResult?: { error_code?: string } } })?.meta
+        if (m?.adminWriteTerminal === true) return true
+        const code = String(m?.agentResult?.error_code || (s as { error?: string })?.error || '')
+        return [
+          'user_cancelled_admin_write',
+          'confirm_timeout',
+          'admin_protocol_garbage',
+          'admin_write_failed'
+        ].includes(code)
+      })
+
       const replanAudit = {
         localReplanCount,
         runPhase,
@@ -1822,7 +1996,9 @@ export async function runMultiNodeBody(state: any, deps: any) {
         lastStepRecords,
         ...(lastReplanReason ? { lastReplanReason } : {}),
         ...(circuitShortCircuitCount > 0 ? { circuitShortCircuitCount } : {}),
-        ...(forcePlanRollback ? { forcePlanRollback: true, collaborationPosture: 'plan' } : {})
+        ...(forcePlanRollback ? { forcePlanRollback: true, collaborationPosture: 'plan' } : {}),
+        ...(Object.keys(hardDownMap).length ? { expertHardDown: hardDownMap } : {}),
+        ...(adminWriteTerminal ? { adminWriteTerminal: true } : {})
       }
 
       return {

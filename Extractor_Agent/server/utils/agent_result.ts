@@ -79,6 +79,8 @@ export function buildCrawlerAgentResult(params: {
     answer: answer || undefined,
     sources: sources.length ? sources : undefined,
     structured: {
+      content_trust: "untrusted",
+      content_trust_source: "crawler",
       itemCount,
       status: params.status,
       ...(params.serp_fallback ? { serp_fallback: true } : {}),

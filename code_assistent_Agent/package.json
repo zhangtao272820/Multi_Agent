@@ -26,6 +26,8 @@
     "smoke:p3-quick": "npx --yes tsx scripts/smoke-code-p3-quick.ts",
     "smoke:facts-export": "npx --yes tsx scripts/smoke-facts-export.ts",
     "smoke:subagent": "npx --yes tsx scripts/smoke-subagent-split.ts",
+    "smoke:code-dual": "npx --yes tsx scripts/smoke-code-dual.ts",
+    "gate:code": "node scripts/gate-code-offline.mjs",
     "smoke:p2-b": "npm run smoke:repo-map && npm run smoke:search-replace && npm run smoke:run-command && npm run smoke:edit-validate && npm run smoke:mcp-code-edit && npm run smoke:validate-diagnostics && npm run smoke:p3-quick && npm run smoke:facts-export && npm run smoke:subagent",
     "typecheck": "nuxi typecheck",
     "postinstall": "nuxt prepare"

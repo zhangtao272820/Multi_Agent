@@ -29,7 +29,9 @@ import {
   getRagSessionRetrievalAnchor,
   setRagSessionRetrievalAnchor,
 } from "../utils/rag_session_anchor";
-import { buildRagAgentResult } from "../utils/agent_result";
+import { buildRagAgentResult, buildRagFailureResult } from "../utils/agent_result";
+import { resolveAgentUsage } from "#agent-shared/agentUsage";
+import { classifyRagThrownError } from "../utils/vectorReady";
 import {
   findExplicitMissingDocs,
   formatDialogPreview,
@@ -423,6 +425,7 @@ export default defineEventHandler(async (event) => {
         evidence: evidenceRows,
         trace_id: traceId,
         needsClarify: Boolean(retrieveFirst.clarifyOnly),
+        usage: resolveAgentUsage({ llmUsage: retrieveFirst.usage, answerText: finalAnswer }),
       });
       sendData({
         type: "phase",
@@ -478,6 +481,7 @@ export default defineEventHandler(async (event) => {
           evidence: [],
           trace_id: traceId,
           needsClarify: true,
+          usage: resolveAgentUsage({ answerText: clarify }),
         }),
         evidence: [],
       });
@@ -683,6 +687,7 @@ export default defineEventHandler(async (event) => {
       evidence: evidenceRows,
       trace_id: traceId,
       needsClarify: retrievalNeedsClarify && !hasEvidence,
+      usage: resolveAgentUsage({ llmUsage: lastUsage, answerText: finalAnswer }),
     });
     sendData({
       type: "phase",
@@ -727,7 +732,15 @@ export default defineEventHandler(async (event) => {
   } catch (error: any) {
     clearRetrievalUserKey();
     console.error("Error in agent execution:", error);
-    sendData({ type: "error", content: error.message });
+    const code = classifyRagThrownError(error);
+    const detail = String(error?.message || error || "chat_failed").slice(0, 240);
+    const agentResult = buildRagFailureResult({
+      error_code: code,
+      detail,
+      ms: undefined,
+    });
+    sendData({ type: "error", content: detail, error_code: code });
+    sendData({ type: "agentResult", agentResult });
     event.node.res.end();
   }
 });

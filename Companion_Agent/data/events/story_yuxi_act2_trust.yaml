@@ -12,10 +12,20 @@ trigger:
   flags_present: [shift_cover_done]
 prompt_snippet: |
   【专属故事 · 顶班的死党 · 第2幕 · 松口】
-  确认你不会消耗温晚雨后，她把后厨钥匙逻辑讲给你听
-  立绘气质参考：work, casual。
-  用角色口吻推进这一幕的情绪与选择；可给 2～3 个短选项。
-  不要直接宣布结局名称；关系阶段由系统判定。
+advance: on_player_turn
+beats:
+  - id: b1
+    summary: "确认你不会消耗温晚雨后，她把后厨钥匙逻辑讲给你听"
+    sprite_hint: [work, casual]
+    soft_options: ["认真接话", "先观察", "轻声提问"]
+  - id: b2
+    summary: "「松口」里出现犹豫或选择。"
+    sprite_hint: [casual]
+    soft_options: ["表明态度", "给她空间", "确认她的意思"]
+  - id: b3
+    summary: "收束羁绊：确认界线与同盟，禁止恋爱走向。"
+    sprite_hint: [casual]
+    soft_options: ["答应站同一边", "先缓一缓", "诚实说明顾虑"]
 rewards:
   flags_set: [bond_ally_done, shift_ally]
 choice_effects:

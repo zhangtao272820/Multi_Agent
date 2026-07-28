@@ -44,7 +44,8 @@ const {
   onInputKeydown,
   onSendOrCancel,
   clearPendingAttachment,
-  onFileSelected
+  onFileSelected,
+  onAttachmentFile
 } = ctx
 const chatComposerRef = ctx.chatComposerRef
 
@@ -57,7 +58,7 @@ watch(localLogEl, (el) => {
 <template>
   <div class="chat-rail-stack" :class="{ 'has-plan-preview': !!pendingPlanPreview }">
     <div
-      v-if="lastPostureHint"
+      v-if="lastPostureHint && workbenchMode === 'professional'"
       class="posture-gate-card"
       :class="{ 'is-ask': String(lastPostureHint.reason || '').includes('write') || lastPostureHint.reason === 'ask_read_only' }"
       role="status"
@@ -299,6 +300,7 @@ watch(localLogEl, (el) => {
     <ManagerChatComposer
       ref="chatComposerRef"
       v-model="input"
+      :workbench-mode="workbenchMode"
       :collaboration-posture="collaborationPosture"
       :connected="connected"
       :is-run-active="isRunActive"
@@ -310,6 +312,7 @@ watch(localLogEl, (el) => {
       @send-or-cancel="onSendOrCancel"
       @clear-attachment="clearPendingAttachment"
       @file-selected="onFileSelected"
+      @attachment-file="onAttachmentFile"
     />
   </div>
 </template>

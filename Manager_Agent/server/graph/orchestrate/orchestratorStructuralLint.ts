@@ -8,6 +8,7 @@ import type { PlanBlueprint } from '../llm/planBlueprintLlm'
 import { blueprintCoversRequiredAgents } from '../llm/planBlueprintLlm'
 import type { IntentClassifyResult } from '../llm/intentClassifyLlm'
 import { lintWeatherBoundToCrawler } from './weatherAdminBoundary'
+import { lintMapBoundToCrawler } from './mapAdminBoundary'
 
 const DATA_PLANE = new Set(['rag', 'db', 'crawler'])
 const EXEC_COVER = new Set(['rag', 'db', 'crawler', 'clean', 'code', 'visualize', 'report', 'admin', 'gui'])
@@ -173,6 +174,7 @@ export function lintOrchestratorBundle(input: OrchestratorLintInput): string[] {
 
   issues.push(...spuriousDownstreamAgents(input))
   issues.push(...lintWeatherBoundToCrawler({ clauses: input.clauses, planBlueprint: input.planBlueprint }))
+  issues.push(...lintMapBoundToCrawler({ clauses: input.clauses, planBlueprint: input.planBlueprint }))
 
   return [...new Set(issues)]
 }

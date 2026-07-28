@@ -190,14 +190,32 @@ export default function SettingsGovernance({ apiBase, token, role, onMessage }) 
         <h3 className="admin-card__title">租户与 Token 配额</h3>
         <p className="admin-card__desc">
           租户实体 SSOT · 超配额任务返回 429 · 配额留空=不限（<code>CLAWHIVE_DEFAULT_TENANT_QUOTA_TOKENS</code>）
+          · 模型/MODE 下发见「Agent 配置」；密钥轮换见下方 Vault（不明文进配置页）
         </p>
         {loading && !usage && tenants.length === 0 ? <p className="muted">加载中…</p> : null}
         {usage ? (
-          <p className="muted">
-            账期 {usage.period}
-            {usage.default_quota_tokens ? ` · 全局默认配额 ${usage.default_quota_tokens.toLocaleString()} tokens` : ""}
-            {usage.total_tokens != null ? ` · 集群合计 ${usage.total_tokens.toLocaleString()}` : ""}
-          </p>
+          <div className="kpi-grid kpi-grid--3" style={{ marginBottom: 12 }}>
+            <div className="kpi-tile">
+              <span className="kpi-label">账期</span>
+              <span className="kpi-value" style={{ fontSize: "1rem" }}>
+                {usage.period || "—"}
+              </span>
+            </div>
+            <div className="kpi-tile">
+              <span className="kpi-label">集群合计 Tokens</span>
+              <span className="kpi-value" style={{ fontSize: "1rem" }}>
+                {usage.total_tokens != null ? Number(usage.total_tokens).toLocaleString() : "—"}
+              </span>
+            </div>
+            <div className="kpi-tile">
+              <span className="kpi-label">默认配额</span>
+              <span className="kpi-value" style={{ fontSize: "1rem" }}>
+                {usage.default_quota_tokens != null
+                  ? Number(usage.default_quota_tokens).toLocaleString()
+                  : "不限"}
+              </span>
+            </div>
+          </div>
         ) : null}
         <div className="compact-table">
           {tenantRows.length === 0 ? (

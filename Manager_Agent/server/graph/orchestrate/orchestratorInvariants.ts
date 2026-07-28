@@ -33,6 +33,7 @@ import { isPuStackOrchestratorAuthority, capFloorFromPuStackMeta } from './puSta
 import { shouldApplyFrozenPuCap } from '../core/routing/proRoutePolicy'
 import { isLlmFirstRouteEnabled } from './unifiedRouting'
 import { rematerializeWeatherCrawlerMisbind } from './weatherAdminBoundary'
+import { rematerializeMapCrawlerMisbind } from './mapAdminBoundary'
 import { inferPipelineHintsStructural } from '../llm/pipelineHintsLlm'
 import {
   adminExplicitlyRequested,
@@ -135,7 +136,7 @@ function applyFrozenPuOrchestratorDecision(input: {
   allowed = filterAgentsRespectingWriteGate(allowed, input.state ?? {}) as ExecutableAgent[]
   classify = syncDbAnchorFromOrchestratorEvidence(classify, clauses, allowed)
 
-  // 冻结 PU 路径也须天气契约（否则 bypass LLM 编排时 crawler 天气误绑无法纠正）
+  // 冻结 PU 路径也须天气/地图契约（否则 bypass LLM 编排时 crawler 误绑无法纠正）
   const weatherFixPu = rematerializeWeatherCrawlerMisbind({
     allowedAgents: allowed,
     clauses,
@@ -144,11 +145,21 @@ function applyFrozenPuOrchestratorDecision(input: {
     stepDispatchDraft: draft,
     needsWebSearch: input.bundle.needsWebSearch === true
   })
-  allowed = weatherFixPu.allowedAgents
-  clauses = weatherFixPu.clauses
-  classify = weatherFixPu.classify
-  const draftAfterWeather = weatherFixPu.stepDispatchDraft?.length
-    ? weatherFixPu.stepDispatchDraft
+  const mapFixPu = rematerializeMapCrawlerMisbind({
+    allowedAgents: weatherFixPu.allowedAgents,
+    clauses: weatherFixPu.clauses,
+    classify: weatherFixPu.classify,
+    planBlueprint: weatherFixPu.planBlueprint,
+    stepDispatchDraft: weatherFixPu.stepDispatchDraft?.length
+      ? weatherFixPu.stepDispatchDraft
+      : draft,
+    needsWebSearch: weatherFixPu.needsWebSearch === true
+  })
+  allowed = mapFixPu.allowedAgents
+  clauses = mapFixPu.clauses
+  classify = mapFixPu.classify
+  const draftAfterWeather = mapFixPu.stepDispatchDraft?.length
+    ? mapFixPu.stepDispatchDraft
     : draft
 
   const capDataSources = [...new Set(allowed.filter((a) => ['rag', 'db', 'crawler'].includes(String(a))))] as Array<
@@ -172,7 +183,7 @@ function applyFrozenPuOrchestratorDecision(input: {
   const pipelineRequired = requiresAgentPipelineExecution(classify, allowed)
   let intent = finalizeLlmRouteIntent(input.bundle.intent, allowed, null)
   intent = ensureMultiIntentForPipeline(intent, allowed, pipelineRequired)
-  let planBlueprint = weatherFixPu.planBlueprint ?? input.bundle.planBlueprint
+  let planBlueprint = mapFixPu.planBlueprint ?? input.bundle.planBlueprint
   const mustCover = allowed.filter((a) =>
     ['rag', 'db', 'crawler', 'clean', 'code', 'visualize', 'report', 'admin'].includes(String(a))
   )
@@ -195,14 +206,14 @@ function applyFrozenPuOrchestratorDecision(input: {
         userTask
       }) ?? planBlueprint
   }
+  const adminApiClearedWeb =
+    (weatherFixPu.changed && weatherFixPu.needsWebSearch === false) ||
+    (mapFixPu.changed && mapFixPu.needsWebSearch === false)
   const needsWebSearch = resolveNeedsWebSearchFlag({
     allowed: allowed.map(String),
     clauses,
     draft: draftAfterWeather,
-    bundleNeedsWeb:
-      weatherFixPu.changed && weatherFixPu.needsWebSearch === false
-        ? false
-        : input.bundle.needsWebSearch === true
+    bundleNeedsWeb: adminApiClearedWeb ? false : input.bundle.needsWebSearch === true
   })
   const compositeDataWeb =
     classify.needsWeb &&
@@ -287,7 +298,7 @@ function applyLlmFirstOrchestratorDecision(input: {
     ? input.bundle.stepDispatchDraft
     : stepDispatchDraftFromMeta(routingMeta)
 
-  // 天气能力契约：crawler 误绑 → admin（须在 stripUnboundCrawler 之前）
+  // 天气/地图能力契约：crawler 误绑 → admin（须在 stripUnboundCrawler 之前）
   const weatherFix = rematerializeWeatherCrawlerMisbind({
     allowedAgents: allowed,
     clauses,
@@ -296,11 +307,19 @@ function applyLlmFirstOrchestratorDecision(input: {
     stepDispatchDraft: alignedDraft,
     needsWebSearch: input.bundle.needsWebSearch === true
   })
-  allowed = weatherFix.allowedAgents
-  clauses = weatherFix.clauses
-  classify = weatherFix.classify
-  planBlueprint = weatherFix.planBlueprint
-  if (weatherFix.stepDispatchDraft) alignedDraft = weatherFix.stepDispatchDraft
+  const mapFix = rematerializeMapCrawlerMisbind({
+    allowedAgents: weatherFix.allowedAgents,
+    clauses: weatherFix.clauses,
+    classify: weatherFix.classify,
+    planBlueprint: weatherFix.planBlueprint,
+    stepDispatchDraft: weatherFix.stepDispatchDraft,
+    needsWebSearch: weatherFix.needsWebSearch === true
+  })
+  allowed = mapFix.allowedAgents
+  clauses = mapFix.clauses
+  classify = mapFix.classify
+  planBlueprint = mapFix.planBlueprint
+  if (mapFix.stepDispatchDraft) alignedDraft = mapFix.stepDispatchDraft
 
   allowed = stripUnboundCrawlerFromCap(allowed, clauses, alignedDraft)
   classify = {
@@ -335,7 +354,8 @@ function applyLlmFirstOrchestratorDecision(input: {
     clauses,
     draft: alignedDraft,
     bundleNeedsWeb:
-      weatherFix.changed && weatherFix.needsWebSearch === false
+      (weatherFix.changed && weatherFix.needsWebSearch === false) ||
+      (mapFix.changed && mapFix.needsWebSearch === false)
         ? false
         : input.bundle.needsWebSearch === true
   })
@@ -459,10 +479,18 @@ export function applyOrchestratorInvariants(input: {
     stepDispatchDraft: classicDraft,
     needsWebSearch: input.bundle.needsWebSearch === true
   })
-  allowed = weatherFixClassic.allowedAgents
-  clauses = weatherFixClassic.clauses
-  classify = weatherFixClassic.classify
-  if (weatherFixClassic.stepDispatchDraft) classicDraft = weatherFixClassic.stepDispatchDraft
+  const mapFixClassic = rematerializeMapCrawlerMisbind({
+    allowedAgents: weatherFixClassic.allowedAgents,
+    clauses: weatherFixClassic.clauses,
+    classify: weatherFixClassic.classify,
+    planBlueprint: weatherFixClassic.planBlueprint,
+    stepDispatchDraft: weatherFixClassic.stepDispatchDraft,
+    needsWebSearch: weatherFixClassic.needsWebSearch === true
+  })
+  allowed = mapFixClassic.allowedAgents
+  clauses = mapFixClassic.clauses
+  classify = mapFixClassic.classify
+  if (mapFixClassic.stepDispatchDraft) classicDraft = mapFixClassic.stepDispatchDraft
 
   allowed = stripUnboundCrawlerFromCap(allowed, clauses, classicDraft)
   classify = {
@@ -481,7 +509,7 @@ export function applyOrchestratorInvariants(input: {
 
   const capSet = new Set(allowed.map(String))
   let planBlueprint = filterBlueprintToCap(
-    weatherFixClassic.planBlueprint ?? input.bundle.planBlueprint,
+    mapFixClassic.planBlueprint ?? input.bundle.planBlueprint,
     capSet
   )
   const mustCover = allowed.filter((a) =>
@@ -511,7 +539,8 @@ export function applyOrchestratorInvariants(input: {
     clauses,
     draft: classicDraft,
     bundleNeedsWeb:
-      weatherFixClassic.changed && weatherFixClassic.needsWebSearch === false
+      (weatherFixClassic.changed && weatherFixClassic.needsWebSearch === false) ||
+      (mapFixClassic.changed && mapFixClassic.needsWebSearch === false)
         ? false
         : input.bundle.needsWebSearch === true
   })

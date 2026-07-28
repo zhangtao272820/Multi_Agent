@@ -16,6 +16,8 @@ owner: ai_admin_agent
 - 若同一工具出现多次，用 {{step_N.result}}；单次出现可用 {{tool_name.result}}。
 - 日程/待办时间：start_time_str / due_time_str 填用户原话（中文或英文均可），不要写 ISO 时间；系统会用专用时间模型解析。
 - 待办有截止时间时优先 add_task_with_due。
+- 联系人写操作只用 add_contact（name/email）；禁止把「添加联系人」改写成 add_task / add_task_with_due。
+- 用户明确「删除/取消所有/全部」会议提醒或日程：只用 delete_all_meeting_reminders，禁止追问哪个会议，禁止空 id 的 delete_event。
 
 只返回 JSON：{ "tools": [ { "name": "tool_name", "args": { ... } } ] }
 
@@ -23,7 +25,7 @@ owner: ai_admin_agent
 
 可用工具：add_contact, search_contact, list_contacts, get_contact_email, import_contacts,
 add_task, add_task_with_due, list_tasks, complete_task, delete_task,
-add_event, list_events, complete_event, modify_event, delete_event,
+add_event, list_events, complete_event, modify_event, delete_event, delete_all_meeting_reminders,
 import_calendar_ics, fetch_and_import_calendar, export_calendar_ics,
 add_note, list_notes, delete_note,
 send_email, list_emails, reply_email, classify_emails,

@@ -63,6 +63,7 @@ export type ManagerChatRailContext = {
   onSendOrCancel: () => void
   clearPendingAttachment: () => void
   onFileSelected: (e: Event) => void
+  onAttachmentFile: (file: File) => void | Promise<void>
   chatComposerRef: Ref<{ resetFileInput: () => void } | null>
 }
 

@@ -44,11 +44,11 @@ STANDARD_FIRST=(
   "clawhive/code_assistent_agent:${TAG}"
   "clawhive/extractor_agent:${TAG}"
   "clawhive/ai_admin_agent:${TAG}"
+  "clawhive/multimodal_agent:${TAG}"
   "clawhive/manager_agent:${TAG}"
 )
 
 EXTENDED_FIRST=(
-  "clawhive/multimodal_agent:${TAG}"
   "clawhive/lobster_agent:${TAG}"
   "clawhive/tavern_agent:${TAG}"
   "clawhive/companion_agent:${TAG}"

@@ -7,6 +7,5 @@
 | `debug-course-link.ts` | 课程→题库 Schema Link 调试 |
 | `debug-scalar-e2e.ts` | 拆解→Schema Ground→Scalar 端到端 |
 | `probe-course.mjs` | 课程域探针 |
-| `_tmp_schema_check.mjs` | 临时 schema 检查 |
 
 长期保留：`smoke-*`、`seed-p2026-person.mjs`、`eval-golden-person-basic-stats.ts`。

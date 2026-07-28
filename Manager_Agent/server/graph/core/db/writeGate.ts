@@ -23,6 +23,7 @@ const ADMIN_EMAIL_OR_IRREVERSIBLE_MARKERS = [
   '删除日程',
   '删除会议',
   'delete_event',
+  'delete_all_meeting_reminders',
   'import_calendar'
 ] as const
 

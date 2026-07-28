@@ -40,13 +40,13 @@ STANDARD=(
   code_assistent_agent
   extractor_agent
   ai_admin_agent
+  multimodal_agent
   manager_agent
 )
 
 SERVICES=("${STANDARD[@]}")
 if (( EXTENDED )); then
   SERVICES+=(
-    multimodal_agent
     lobster_agent
     tavern_agent
     companion_agent

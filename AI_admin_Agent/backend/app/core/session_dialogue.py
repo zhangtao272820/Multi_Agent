@@ -397,11 +397,20 @@ def _missing_fields_for_schedule(slots: Dict[str, Any], resolved_time: Any) -> L
     return missing
 
 
+def _missing_fields_for_contact(slots: Dict[str, Any]) -> List[str]:
+    missing: List[str] = []
+    if len(str(slots.get("contact_name") or "").strip()) < 1:
+        missing.append("contact_name")
+    if len(str(slots.get("contact_email") or "").strip()) < 3:
+        missing.append("contact_email")
+    return missing
+
+
 def save_clarification_from_understanding(
     session_id: str, understanding: Dict[str, Any], dialogue: str
 ) -> None:
     intent = str(understanding.get("intent") or "")
-    if intent not in ("日程", "待办", "混合任务"):
+    if intent not in ("日程", "待办", "联系人", "混合任务"):
         return
     slots = understanding.get("slots") if isinstance(understanding.get("slots"), dict) else {}
     resolved = understanding.get("resolved_time")
@@ -409,6 +418,8 @@ def save_clarification_from_understanding(
         missing = []
         if len(str(slots.get("task_title") or "").strip()) < 2:
             missing.append("task_title")
+    elif intent == "联系人":
+        missing = _missing_fields_for_contact(slots)
     else:
         missing = _missing_fields_for_schedule(slots, resolved)
     if not missing:
@@ -435,6 +446,10 @@ def clarification_question_for_missing(missing: List[str]) -> str:
         return "请问具体在什么时间？（例如：下周五上午9点 / next Friday 9am / tomorrow 3pm）"
     if field == "task_title":
         return "请问待办事项的内容是什么？"
+    if field == "contact_name":
+        return "请问联系人的姓名是什么？"
+    if field == "contact_email":
+        return "请问联系人的邮箱是什么？"
     return "我还需要一点信息才能继续。"
 
 
@@ -470,6 +485,10 @@ def try_continue_task(session_id: str, user_message: str) -> Optional[Dict[str, 
             resolved_time = time_res
     elif field == "task_title":
         slots["task_title"] = answer
+    elif field == "contact_name":
+        slots["contact_name"] = answer
+    elif field == "contact_email":
+        slots["contact_email"] = answer
     else:
         return None
 

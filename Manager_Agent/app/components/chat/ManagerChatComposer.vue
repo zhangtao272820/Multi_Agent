@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import type { CollaborationPosture, PendingAttachment } from '~/composables/managerChatTypes'
+import type { CollaborationPosture, PendingAttachment, WorkbenchMode } from '~/composables/managerChatTypes'
 import { COLLABORATION_POSTURE_OPTIONS } from '~/composables/managerChatTypes'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
 const input = defineModel<string>({ required: true })
 
 const props = defineProps<{
+  workbenchMode?: WorkbenchMode
   collaborationPosture: CollaborationPosture
   connected: boolean
   isRunActive: boolean
@@ -14,17 +15,22 @@ const props = defineProps<{
   pendingAttachment: PendingAttachment | null
 }>()
 
+const showPosture = computed(() => props.workbenchMode !== 'chat')
+
 const emit = defineEmits<{
   setCollaborationPosture: [mode: CollaborationPosture]
   inputKeydown: [e: KeyboardEvent]
   sendOrCancel: []
   clearAttachment: []
   fileSelected: [e: Event]
+  attachmentFile: [file: File]
 }>()
 
 const fileInputEl = ref<HTMLInputElement | null>(null)
 const postureMenuOpen = ref(false)
 const postureWrapEl = ref<HTMLElement | null>(null)
+const dragOver = ref(false)
+let dragDepth = 0
 
 const currentPosture = computed(
   () =>
@@ -59,6 +65,75 @@ function onDocPointerDown(e: PointerEvent) {
   postureMenuOpen.value = false
 }
 
+function pickImageFromDataTransfer(dt: DataTransfer | null): File | null {
+  if (!dt) return null
+  const files = dt.files
+  if (files?.length) {
+    for (let i = 0; i < files.length; i++) {
+      const f = files.item(i)
+      if (f && f.type.startsWith('image/')) return f
+    }
+    const first = files.item(0)
+    if (first) return first
+  }
+  const items = dt.items
+  if (items?.length) {
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i]
+      if (it.kind === 'file' && it.type.startsWith('image/')) {
+        const f = it.getAsFile()
+        if (f) return f
+      }
+    }
+  }
+  return null
+}
+
+function onPaste(e: ClipboardEvent) {
+  if (!props.connected || props.uploadingAttachment) return
+  const file = pickImageFromDataTransfer(e.clipboardData)
+  if (!file) return
+  e.preventDefault()
+  emit('attachmentFile', file)
+}
+
+function onDragEnter(e: DragEvent) {
+  if (!propsHavePayload(e.dataTransfer)) return
+  e.preventDefault()
+  dragDepth += 1
+  dragOver.value = true
+}
+
+function onDragOver(e: DragEvent) {
+  if (!filesHavePayload(e.dataTransfer)) return
+  e.preventDefault()
+  if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy'
+  dragOver.value = true
+}
+
+function onDragLeave(e: DragEvent) {
+  if (!filesHavePayload(e.dataTransfer) && dragDepth <= 0) return
+  e.preventDefault()
+  dragDepth = Math.max(0, dragDepth - 1)
+  if (dragDepth === 0) dragOver.value = false
+}
+
+function onDrop(e: DragEvent) {
+  e.preventDefault()
+  dragDepth = 0
+  dragOver.value = false
+  if (!props.connected || props.uploadingAttachment) return
+  const file = pickImageFromDataTransfer(e.dataTransfer)
+  if (!file) return
+  emit('attachmentFile', file)
+}
+
+function filesHavePayload(dt: DataTransfer | null | undefined): boolean {
+  if (!dt) return false
+  if (dt.types?.includes('Files')) return true
+  return Boolean(dt.files?.length)
+}
+
 onMounted(() => {
   document.addEventListener('pointerdown', onDocPointerDown, true)
 })
@@ -72,7 +147,11 @@ defineExpose({ resetFileInput })
 <template>
   <div
     class="spring-input cosmic-input-dock cosmic-comms-console"
-    :class="{ 'has-posture-menu': postureMenuOpen }"
+    :class="{ 'has-posture-menu': postureMenuOpen, 'is-drag-over': dragOver }"
+    @dragenter="onDragEnter"
+    @dragover="onDragOver"
+    @dragleave="onDragLeave"
+    @drop="onDrop"
   >
     <div class="spring-input-col">
       <div class="cosmic-input-head">
@@ -93,6 +172,8 @@ defineExpose({ resetFileInput })
         </button>
       </div>
 
+      <div v-if="dragOver" class="attach-drop-hint" aria-live="polite">松开以添加图片</div>
+
       <input
         ref="fileInputEl"
         type="file"
@@ -105,14 +186,15 @@ defineExpose({ resetFileInput })
         v-model="input"
         :disabled="!connected"
         class="spring-input-field spring-input-area"
-        placeholder="输入问题，或上传图片/音视频后提问（Enter 发送）"
+        placeholder="输入问题，或粘贴/拖拽/上传图片后提问（Enter 发送）"
         rows="3"
         @keydown="emit('inputKeydown', $event)"
+        @paste="onPaste"
       />
 
       <div class="composer-toolbar">
         <div class="composer-toolbar-left">
-          <div ref="postureWrapEl" class="composer-posture-wrap">
+          <div v-if="showPosture" ref="postureWrapEl" class="composer-posture-wrap">
             <button
               type="button"
               class="composer-posture-trigger"
@@ -153,14 +235,14 @@ defineExpose({ resetFileInput })
             type="button"
             class="spring-btn alt spring-attach-btn"
             :disabled="!connected || uploadingAttachment"
-            title="上传图片/音视频"
+            title="上传图片/音视频（也可粘贴或拖拽）"
             @click="openFilePicker"
           >
             附件
           </button>
 
           <span
-            v-if="postureHint"
+            v-if="showPosture && postureHint"
             class="composer-posture-inline-hint"
             :class="`is-${collaborationPosture}`"
             role="status"

@@ -45,9 +45,11 @@
 
 **三层分工：**
 
-1. **编排层** — `Manager_Agent`：会话、路由、HITL、合成  
-2. **专家层** — RAG / DB / Code / Extractor / Lobster / Admin / 媒体 …  
-3. **运维层** — `Manage-platform_Agent`：Compose、控制台、可选监控  
+1. **控制面** — `Manage-platform_Agent`（ClawHive）：Compose/Helm、启停、模型 SSOT、观测  
+2. **编排层** — `Manager_Agent`：会话、路由、HITL、合成  
+3. **专家层** — RAG / DB / Code / Extractor / Lobster / Admin / 媒体 …  
+
+升级与面试进度见 [`docs/Agent集群升级与面试对照.md`](docs/Agent集群升级与面试对照.md)（工程主轴已收口；口述轨继续）。控制面细节见 [`Manage-platform_Agent/doc/企业级控制面升级方案.md`](Manage-platform_Agent/doc/企业级控制面升级方案.md)（P3-CP 默认不开）。
 
 媒体理解（multimodal）与作曲 / 文生视频由总管 **直连** 对应服务，不强制经多模态二次转发。
 
@@ -57,7 +59,12 @@
 
 ```mermaid
 flowchart TB
-  User[用户浏览器] <-->|WebSocket| Mgr[Manager 总管<br/>LangGraph]
+  Ops[运维] --> Plat[Manage-platform_ClawHive]
+  User[用户浏览器] <-->|WebSocket| Mgr[Manager_总管_LangGraph]
+
+  Plat -.->|启停_模型_健康| Mgr
+  Plat -.-> RAG
+  Plat -.-> DB
 
   Mgr --> RAG[RAG]
   Mgr --> DB[DB]
@@ -68,13 +75,9 @@ flowchart TB
   Mgr --> MM[Multimodal]
   Mgr --> Mus[Music]
   Mgr --> Vid[Video]
-
-  Plat[Manage-platform] -.->|启停 / 模型 / 健康| Mgr
-  Plat -.-> RAG
-  Plat -.-> DB
 ```
 
-Manager 主链（简化）：`decompose → route → plan → execute → synthesize → critic`。子句拆解默认开启，关：`MANAGER_CLAUSE_DECOMPOSE=0`。
+Manager 主链（简化）：`decompose → route → plan → execute → synthesize → critic`。子句拆解默认开启，关：`MANAGER_CLAUSE_DECOMPOSE=0`。控制面 **不**替代该主链。
 
 ---
 
@@ -109,10 +112,10 @@ cd Manager_Agent && npm run dev      # http://127.0.0.1:13106
 
 ### 编排与运维
 
-| 目录 | 端口 | 一句话 |
-|------|------|--------|
-| [Manager_Agent](Manager_Agent/README.md) | **13106** | WebSocket 总管：路由 / 规划 / HITL / 注册表 / 进化看板 |
-| [Manage-platform_Agent](Manage-platform_Agent/README.md) | **18073**（控制台） | Compose + ClawHive：启停、模型、健康、可选监控 |
+| 目录 | 星曜（展示名） | 端口 | 一句话 |
+|------|----------------|------|--------|
+| [Manager_Agent](Manager_Agent/README.md) | **天机** | **13106** | WebSocket 总管：路由 / 规划 / HITL / 注册表 / 进化看板 |
+| [Manage-platform_Agent](Manage-platform_Agent/README.md) | **紫微** | **18073**（控制台） | Compose + ClawHive：启停、模型、健康、可选监控 |
 
 ```bash
 cd Manager_Agent && npm i && cp .env.example .env && npm run dev
@@ -120,31 +123,31 @@ cd Manager_Agent && npm i && cp .env.example .env && npm run dev
 
 ### 企业向专家（可被 Manager 调度）
 
-| 目录 | cap | 端口 | 一句话 |
-|------|-----|------|--------|
-| [RAG_Agent](RAG_Agent/README.md) | `rag` | **13102** | 私有文档 Hybrid RAG：父子块、引用门禁、澄清/拒答 |
-| [DB_Agent](DB_Agent/README.md) | `db` | **13101** | 单库只读 NL2SQL：Schema 接地 + 多路径统计/SQL |
-| [code_assistent_Agent](code_assistent_Agent/README.md) | `code` | **13103** | 仓库助手：语义搜索、Diff、受控写盘 |
-| [Extractor_Agent](Extractor_Agent/README.md) | `crawler` | **13104** | 结构化采集：HTTP/Playwright、质量门禁；总管 SERP 种子精抓 |
-| [Lobster_Agent](Lobster_Agent/README.md) | `gui` | **13108** | GUI RPA：plan → act → verify → recover（classic/mcp/auto） |
-| [AI_admin_Agent](AI_admin_Agent/README.md) | `admin` | **13105** | 办公助理：天气/地图/日程/邮件（总管仅编排这四类） |
+| 目录 | 星曜 | cap | 端口 | 一句话 |
+|------|------|-----|------|--------|
+| [RAG_Agent](RAG_Agent/README.md) | **文曲** | `rag` | **13102** | 私有文档 Hybrid RAG：父子块、引用门禁、澄清/拒答 |
+| [DB_Agent](DB_Agent/README.md) | **禄存** | `db` | **13101** | 单库只读 NL2SQL：Schema 接地 + 多路径统计/SQL |
+| [code_assistent_Agent](code_assistent_Agent/README.md) | **武曲** | `code` | **13103** | 仓库助手：语义搜索、Diff、受控写盘 |
+| [Extractor_Agent](Extractor_Agent/README.md) | **巨门** | `crawler` | **13104** | 结构化采集：HTTP/Playwright、质量门禁；总管 SERP 种子精抓 |
+| [Lobster_Agent](Lobster_Agent/README.md) | **七杀** | `gui` | **13108** | GUI RPA：plan → act → verify → recover（classic/mcp/auto） |
+| [AI_admin_Agent](AI_admin_Agent/README.md) | **天梁** | `admin` | **13105** | 办公助理：天气/地图/日程/邮件（总管仅编排这四类） |
 
 ### 媒体
 
-| 目录 | cap | 端口 | 一句话 |
-|------|-----|------|--------|
-| [Multimodal_Agent](Multimodal_Agent/README.md) | `multimodal` | **13107** | 识图 / ASR / 视频摘要；生成类跳转 Music/Video UI |
-| [Music_Agent](Music_Agent/README.md) | `music` | **13110** | MIDI/BGM 作曲、乐理工具、分轨 |
-| [Video_Agent](Video_Agent/README.md) | `video` | **13111** | 万相文生视频 + 可选 BGM + ffmpeg 混流 |
+| 目录 | 星曜 | cap | 端口 | 一句话 |
+|------|------|-----|------|--------|
+| [Multimodal_Agent](Multimodal_Agent/README.md) | **廉贞** | `multimodal` | **13107** | 识图 / ASR / 视频摘要；生成类跳转 Music/Video UI |
+| [Music_Agent](Music_Agent/README.md) | **贪狼** | `music` | **13110** | MIDI/BGM 作曲、乐理工具、分轨 |
+| [Video_Agent](Video_Agent/README.md) | **破军** | `video` | **13111** | 万相文生视频 + 可选 BGM + ffmpeg 混流 |
 
 ### 互动 Demo（相对独立）
 
-| 目录 | 端口 | 一句话 |
-|------|------|--------|
-| [AI_Agent](AI_Agent/README.md) | 后端常见 **8080** | 实时语音数字人（ASR → 对话 → TTS） |
-| [Companion_Agent](Companion_Agent/README.md) | **13115** | GAL + 多角色小镇 |
-| [Tavern_Agent](Tavern_Agent/README.md) | **13109** | 酒品 × 角色行为矩阵人格 Demo |
-| [Campus_Agent](Campus_Agent/README.md) | **13116** / 前端 **5176** | 高考前校园模拟 |
+| 目录 | 星曜 | 端口 | 一句话 |
+|------|------|------|--------|
+| [AI_Agent](AI_Agent/README.md) | **太阴** | 后端常见 **8080** | 实时语音数字人（ASR → 对话 → TTS） |
+| [Companion_Agent](Companion_Agent/README.md) | — | **13115** | GAL + 多角色小镇 |
+| [Tavern_Agent](Tavern_Agent/README.md) | **天府** | **13109** | 酒品 × 角色行为矩阵人格 Demo |
+| [Campus_Agent](Campus_Agent/README.md) | — | **13116** / 前端 **5176** | 高考前校园模拟 |
 
 ### shared
 
@@ -231,8 +234,8 @@ Windows：`scripts/up-agents-lan.ps1`（`-Extended` 启完整栈）。
 
 | 档位 | 内容 |
 |------|------|
-| **标准版** | 平台 + Manager + DB / RAG / Code / Extractor / Admin |
-| **完整版** | 标准版 + 多模态 / 音乐 / 视频 / Lobster / 监控等 |
+| **标准版** | 平台 + Manager + DB / RAG / Code / Extractor / Admin / Multimodal + 监控 |
+| **完整版** | 标准版 + 音乐 / 视频 / Lobster / 等 |
 
 验收：`http://<LAN_HOST>:18073` 健康总览 → Manager `:13106` 发一条对话。细节见 [Manage-platform_Agent/README.md](Manage-platform_Agent/README.md)。
 

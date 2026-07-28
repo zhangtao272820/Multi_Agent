@@ -94,6 +94,7 @@ export async function judgeOrchestratorDecision(input: {
             '3) 用户明确「知识库」→ cap 须含 rag；明确「数据库/查库」→ 须含 db 且 isDbAnchored=true；',
             '4) db 与 rag 是不同数据面，禁止因 Probe 命中文档就加 rag（除非用户要知识库）。',
             '5) 用户末轮含天气预报/气温/今日天气 → 须 admin（get_weather），禁止 crawler/needsWeb；若蓝图把天气标为 crawler 则 reject。',
+            '5a) 用户末轮含地铁/公交/从A到B/多久到/出行耗时 → 须单一 admin（get_travel_route），禁止 crawler/needsWeb；「查一下」≠ 公网抓取；若蓝图把出行标为 crawler 或 crawler+admin 双步则 reject。',
             '5b) 用户已标明「知识库查…」「数据库查…」→ 禁止再为同义内容加 crawler；显式知识库/数据库子句 ≠ 公网政策正文；无独立公网子句却含 crawler/needsWeb → reject。',
             '5c) 蓝图每步 queryFocus 须为该 agent 子句片段，禁止复制整段用户原话分发给子 Agent。',
             '6) 浏览器交互（打开站点、站内搜索、点选/打开第 N 条、登录、填表、在页面内提取）→ **gui**，禁止 crawler/needsWeb/web_search；',

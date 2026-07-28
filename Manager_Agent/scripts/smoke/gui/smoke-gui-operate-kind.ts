@@ -44,6 +44,19 @@ const wfMeta = guiOperateKindFromMeta({
 assert(wfMeta?.workflow_id === 'httpbin-form-fill', 'meta workflow_id')
 assert(String(wfMeta?.workflow_args?.customer_name) === 'alice', 'meta workflow_args')
 
+const fakeWf = guiOperateKindFromMeta({
+  guiOperateKind: {
+    task_kind: 'navigate',
+    needs_login: false,
+    confidence: 0.9,
+    rationale: '打开网页',
+    workflow_id: 'navigate-and-extract-title',
+  },
+})
+assert(!fakeWf?.workflow_id, 'unknown workflow stripped')
+assert(fakeWf?.dropped_workflow_id === 'navigate-and-extract-title', 'dropped id recorded')
+assert(fakeWf?.task_kind === 'navigate', 'task_kind kept after strip')
+
 const wfSchema = GuiOperateKindSchema.safeParse({
   task_kind: 'form_fill',
   needs_login: false,

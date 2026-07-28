@@ -167,6 +167,13 @@ function verifyDesktopAppOutput(task: string, result: unknown): LobsterRunVerify
   return { ok: false, reason: 'incomplete_task_output', hints: [answer.slice(0, 240) || '桌面任务目标未达成'] }
 }
 
+function isOpenOnlyBrowseTask(task: string): boolean {
+  const t = String(task || '')
+  if (!/(打开|导航|访问|browse|navigate)/i.test(t)) return false
+  // 含点击/搜索/抽取等后续动作时，停在起始页不算完成
+  return !/(点击|进入|first|第一条|搜索|search|查找|抽取|提取|列表|items)/i.test(t)
+}
+
 function hasMeaningfulTaskOutput(task: string, result: unknown): boolean {
   const row = resultPayload(result)
   const items = collectResultItems(result)
@@ -200,8 +207,11 @@ function hasMeaningfulTaskOutput(task: string, result: unknown): boolean {
   }
 
   if (/(打开|点击|进入|first|第一条|导航)/i.test(task)) {
+    // 纯打开：停在任务 URL 即成功（勿用 isLikelyStartPageOnly 误杀）
+    if (isOpenOnlyBrowseTask(task) && finalUrl && !CAPTCHA_URL_RE.test(finalUrl)) return true
     if (finalUrl && !CAPTCHA_URL_RE.test(finalUrl) && !isLikelyStartPageOnly(task, finalUrl)) return true
     if (items.length > 0) return true
+    if (answer.length > 24 && finalUrl && !CAPTCHA_URL_RE.test(finalUrl)) return true
     return false
   }
 
@@ -239,7 +249,17 @@ export function detectLobsterSemanticBlock(input: {
   return { blocked: true, reason: 'task_blocked', failureType: 'need_human' }
 }
 
-/** 仅 infra/连接类失败应触发引擎回退；语义阻塞不应重试 */
+/** 结果是否已含可用浏览证据（finalUrl / 实质 answer / items） */
+export function hasLobsterBrowseEvidence(result?: unknown): boolean {
+  const row = resultPayload(result)
+  const finalUrl = String(row.finalUrl || row.url || '').trim()
+  if (finalUrl && !CAPTCHA_URL_RE.test(finalUrl)) return true
+  if (collectResultItems(result).length > 0) return true
+  const answer = String(row.answer || row.summary || '').trim()
+  return answer.length > 12 && !INCOMPLETE_ANSWER_RE.test(answer)
+}
+
+/** 仅 infra/连接类失败应触发引擎回退；语义阻塞与 canceled 不应重试 */
 export function isLobsterRetryableFailure(input: {
   status?: string
   error?: string | null
@@ -247,18 +267,28 @@ export function isLobsterRetryableFailure(input: {
   text?: string
   verify?: Pick<LobsterRunVerifyOutcome, 'reason'>
 }): boolean {
+  const status = String(input.status || '').trim().toLowerCase()
+  if (status === 'canceled') return false
+  const verifyReason = String(input.verify?.reason || '').trim()
+  if (verifyReason === 'canceled' || verifyReason === 'task_blocked') return false
   if (isLobsterInfrastructureFailure(input)) return true
-  const reason = String(input.verify?.reason || '').trim()
+  // 已有可用浏览证据时，不再因 empty/navigation 等触发引擎整段回退
+  if (hasLobsterBrowseEvidence(input.result)) return false
   return (
-    reason === 'browser_infra_unavailable' ||
-    /^incomplete_/.test(reason) ||
-    reason === 'empty_result' ||
-    reason === 'search_no_results' ||
-    reason === 'search_extract_empty' ||
-    reason === 'navigation_unverified'
+    verifyReason === 'browser_infra_unavailable' ||
+    /^incomplete_/.test(verifyReason) ||
+    verifyReason === 'empty_result' ||
+    verifyReason === 'search_no_results' ||
+    verifyReason === 'search_extract_empty' ||
+    verifyReason === 'navigation_unverified' ||
+    verifyReason === 'error'
   )
 }
 
+/**
+ * 真基建/连接失败才算 infrastructure。
+ * 禁止把任意 status=error/canceled 一律当成基建（否则 MCP poll 已出截图仍强制 classic 双跑）。
+ */
 export function isLobsterInfrastructureFailure(input: {
   status?: string
   error?: string | null
@@ -266,7 +296,7 @@ export function isLobsterInfrastructureFailure(input: {
   text?: string
 }): boolean {
   const status = String(input.status || '').trim().toLowerCase()
-  if (status === 'error' || status === 'canceled') return true
+  if (status === 'canceled') return false
   const blob = [input.error, input.text, collectResultText(input.result)].filter(Boolean).join('\n')
   return INFRA_FAILURE_RE.test(blob)
 }
@@ -275,23 +305,35 @@ export function verifyLobsterRunResult(input: LobsterRunVerifyInput): LobsterRun
   const task = String(input.task || '').trim()
   const status = String(input.status || '').trim().toLowerCase()
 
-  if (status === 'error' || status === 'canceled') {
-    return {
-      ok: false,
-      reason: status,
-      hints: input.error ? [String(input.error).slice(0, 200)] : undefined,
-    }
-  }
-  if (status !== 'done') {
-    return { ok: false, reason: `incomplete_${status || 'unknown'}` }
-  }
-
-  if (isLobsterInfrastructureFailure({ status, error: input.error, result: input.result })) {
+  if (isLobsterInfrastructureFailure({ status, error: input.error, result: input.result, text: input.error || undefined })) {
     return {
       ok: false,
       reason: 'browser_infra_unavailable',
       hints: [collectResultText(input.result).slice(0, 240) || String(input.error || '').slice(0, 240)],
     }
+  }
+
+  if (status === 'canceled') {
+    return {
+      ok: false,
+      reason: 'canceled',
+      hints: input.error ? [String(input.error).slice(0, 200)] : undefined,
+    }
+  }
+
+  // error 但已 salvage 出可用浏览证据：按 done 语义继续校验（打开/导航类可 pass）
+  if (status === 'error') {
+    if (hasMeaningfulTaskOutput(task, input.result)) {
+      // fall through as if done
+    } else {
+      return {
+        ok: false,
+        reason: 'error',
+        hints: input.error ? [String(input.error).slice(0, 200)] : undefined,
+      }
+    }
+  } else if (status !== 'done') {
+    return { ok: false, reason: `incomplete_${status || 'unknown'}` }
   }
 
   const semanticBlock = detectLobsterSemanticBlock({
@@ -367,7 +409,7 @@ export function verifyLobsterRunResult(input: LobsterRunVerifyInput): LobsterRun
     }
   }
   if (/(打开|点击|进入|first|第一条)/i.test(task)) {
-    if (isLikelyStartPageOnly(task, finalUrl) && items.length === 0) {
+    if (!isOpenOnlyBrowseTask(task) && isLikelyStartPageOnly(task, finalUrl) && items.length === 0) {
       return {
         ok: false,
         reason: 'navigation_unverified',

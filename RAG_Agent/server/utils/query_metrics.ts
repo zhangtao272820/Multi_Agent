@@ -22,6 +22,8 @@ export type RagQueryMetricEvent = {
   sub_query_count?: number;
   routing_mode?: string;
   reason?: string;
+  /** H4 / I2：zero_hits | weak_evidence | ambiguous_low_confidence */
+  retrieval_failure_mode?: string;
   agentic_rounds?: number;
   rerank_mode?: string;
   ab_variant?: string;

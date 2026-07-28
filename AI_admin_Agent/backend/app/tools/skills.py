@@ -28,6 +28,7 @@ from app.tools.tasks import (
 from app.tools.calendar import (
     add_event,
     complete_event,
+    delete_all_meeting_reminders,
     delete_event,
     list_events,
     modify_event,

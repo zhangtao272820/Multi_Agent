@@ -2,7 +2,7 @@
  * 去掉 Synth 误复述的内部上下文 / 执行摘要审计块（确定性结构剥离，非业务意图识别）。
  */
 
-const AUDIT_HEADING_RE = /^#{1,3}\s*(执行摘要|已执行步骤|证据|失败|跳过|后续建议)(?:\s|$)/
+const AUDIT_HEADING_RE = /^#{1,3}\s*(执行摘要|已执行步骤|证据|失败|跳过|后续建议|关于数据来源的说明)(?:\s|$)/
 const AUDIT_META_LINE_RE = /^[-*•]\s*(目标|结果|判定)[：:]/
 const PIPELINE_CHECK_LINE_RE =
   /^[-*•]\s*[✓×−○✔✖]\s*(db|rag|crawler|code|clean|visualize|report|admin|gui|multi|extractor|lobster)\b/i
@@ -20,6 +20,7 @@ export function looksLikeExecAuditDump(text: string): boolean {
     return true
   }
   if (/[-*•]\s*目标[：:]/.test(s) && /[-*•]\s*(结果|判定)[：:]/.test(s)) return true
+  if (/仅处理下列个人助理能力/.test(s) && /·\s*(邮件|联系人|待办)/.test(s)) return true
   return false
 }
 
@@ -33,9 +34,10 @@ export function stripStructuredExecReport(text: string): string {
 
   const dashSplit = s.search(/\n---\n+##\s*执行摘要(?:\s|$)/m)
   if (dashSplit >= 0) s = s.slice(0, dashSplit).trim()
-  else if (/^##\s*执行摘要(?:\s|$)/m.test(s)) return ''
+  // 先裁掉后半段执行摘要；勿用 /m 的 ^ 把「正文+## 执行摘要」整段判空
   const bare = s.search(/\n##\s*执行摘要(?:\s|$)/m)
   if (bare >= 0) s = s.slice(0, bare).trim()
+  else if (/^##\s*执行摘要(?:\s|$)/.test(s)) return ''
 
   const lines = s.split('\n')
   const out: string[] = []
@@ -71,6 +73,10 @@ export function stripStructuredExecReport(text: string): string {
   return out.join('\n').replace(/\n{3,}/g, '\n\n').trim()
 }
 
+/** Admin 能力 preamble 整块（含 admin:/error: 前缀） */
+const ADMIN_PREAMBLE_BLOCK_RE =
+  /(?:^|\n)(?:(?:admin|error)\s*[:：]\s*)?仅处理下列个人助理能力[^\n]*(?:\n(?:·\s[^\n]+|勿混入[^\n]+|会议与日程须[^\n]+|路线\/地图[^\n]+|用户说「从这[^\n]+|若已给出会议[^\n]+))*/gi
+
 /** 去掉 Synth 误复述的内部上下文标记 + 执行摘要审计块 */
 export function stripSynthPromptLeakage(text: string): string {
   let s = String(text ?? '')
@@ -78,32 +84,52 @@ export function stripSynthPromptLeakage(text: string): string {
 
   // 整块内部 CTX（HumanMessage 注入格式）
   s = s.replace(/\[CTX:[^\]\n]+\][\s\S]*?\[\/CTX\]/gi, '')
+  // HANDOFF 块
+  s = s.replace(/\[HANDOFF:[^\]]*\][\s\S]*?\[\/HANDOFF\]/gi, '')
+  // 围栏 agent_result（仅匹配标注为 agent_result 的 fence）
+  s = s.replace(/```\s*agent_result\b[\s\S]*?```/gi, '')
 
-  // 旧版「### 数据来源：」块（直到下一 ### 或空行后非列表行）
-  s = s.replace(/#{1,3}\s*数据来源[：:][^\n]*[\s\S]*?(?=\n#{1,3}\s[^\n]+|\n\*\*小结\*\*|\n\*\*[^*]+\*\*|$)/gi, '')
-
-  // Admin 能力 preamble / error: 仅处理下列… 整块（出站指令误入用户面）
+  // 旧版「### 数据来源：」与「关于数据来源的说明」块（止于下一标题或执行摘要，勿吞到文末）
   s = s.replace(
-    /(?:^|\n)(?:error\s*[:：]\s*)?仅处理下列个人助理能力[^\n]*(?:\n(?:·\s[^\n]+|勿混入[^\n]+|会议与日程须[^\n]+|路线\/地图[^\n]+|用户说「从这[^\n]+|若已给出会议[^\n]+))*/gi,
-    '\n'
+    /#{1,3}\s*数据来源[：:][^\n]*[\s\S]*?(?=\n#{1,3}\s|\n\*\*小结\*\*|\n##\s*执行摘要|\n---\s*\n|$)/gi,
+    ''
   )
+  s = s.replace(
+    /#{1,3}\s*关于数据来源的说明[^\n]*[\s\S]*?(?=\n#{1,3}\s|\n\*\*小结\*\*|\n##\s*执行摘要|\n---\s*\n|$)/gi,
+    ''
+  )
+
+  // 不可信外部 / UNTRUSTED：仅剥含该词的行
+  s = s.replace(/(?:^|\n)[^\n]*不可信外部[^\n]*/gi, '\n')
+  s = s.replace(/<<<UNTRUSTED_DATA[\s\S]*?UNTRUSTED_DATA>>>/gi, '')
+  s = s.replace(/(?:^|\n)置信度[：:]\s*[\d.]+[^\n]*/gi, '\n')
+  s = s.replace(/(?:^|\n)[^\n]*置信度\s*0?\.\d+[^\n]*/gi, '\n')
+
+  // Admin 能力 preamble（含 admin: / error: 前缀）
+  s = s.replace(ADMIN_PREAMBLE_BLOCK_RE, '\n')
 
   const dropLine = (line: string) => {
     const t = line.trim()
     if (!t) return false
     if (/^#{1,3}\s*数据来源[：:]/i.test(t)) return true
+    if (/^#{1,3}\s*关于数据来源/i.test(t)) return true
     if (/^#{1,3}\s*结构化来源/i.test(t)) return true
     if (/^【RAG\s*检索事实】/i.test(t)) return true
     if (/^【RAG\s*探测事实块】/i.test(t)) return true
     if (/^【知识库检索】/.test(t)) return true
     if (/^\[CTX:/i.test(t) || /^\[\/CTX\]/i.test(t)) return true
+    if (/^\[HANDOFF:/i.test(t) || /^\[\/HANDOFF\]/i.test(t)) return true
     if (/^\[事实\d+\]/.test(t)) return true
     if (/^\[来源\]\s/.test(t)) return true
     if (/^摘要：.*\((code|db|rag|crawler|admin)\)/i.test(t)) return true
-    if (/^(?:error\s*[:：]\s*)?仅处理下列个人助理能力/.test(t)) return true
+    if (/^(?:(?:admin|error)\s*[:：]\s*)?仅处理下列个人助理能力/.test(t)) return true
     if (/^·\s*(邮件|联系人|待办|日程|天气|高德|飞书)[：:]/.test(t)) return true
     if (/^勿混入(搜索|知识库)/.test(t)) return true
     if (/^admin\s*[:：]\s*empty_result/i.test(t)) return true
+    if (/^置信度[：:]\s*[\d.]+/.test(t)) return true
+    if (/不可信外部/.test(t)) return true
+    if (/^```\s*agent_result\b/i.test(t)) return true
+    if (/^agent_result\b/i.test(t) && t.length < 80) return true
     return false
   }
 

@@ -3,6 +3,7 @@
  */
 import { agentWsUrlToHttpOrigin, resolveAgentUrl } from '../platform/agentEndpoints'
 import {
+  hasLobsterBrowseEvidence,
   isLobsterInfrastructureFailure,
   isLobsterRetryableFailure,
   verifyLobsterRunResult,
@@ -166,7 +167,23 @@ function buildPollResult(input: {
   runId: string
 }) {
   const status = String(input.status.status || '').trim().toLowerCase()
-  const result = input.status.result
+  const pageUrl = String(input.status.state?.pageUrl || '').trim()
+  const hasShot = Boolean(String(input.status.screenshotDataUrl || '').trim())
+  let result = input.status.result
+  // poll 侧二次 salvage：error 且 result 无 finalUrl 时用 state.pageUrl
+  if (
+    (status === 'error' || status === 'canceled') &&
+    (!result || typeof result !== 'object' || !String((result as any).finalUrl || (result as any).url || '').trim()) &&
+    (pageUrl || hasShot)
+  ) {
+    result = {
+      ...(result && typeof result === 'object' ? (result as Record<string, unknown>) : {}),
+      task: input.task,
+      ...(pageUrl ? { finalUrl: pageUrl, url: pageUrl } : {}),
+      ...(hasShot ? { hasScreenshot: true } : {}),
+      ...(input.status.error ? { error: String(input.status.error).slice(0, 400) } : {}),
+    }
+  }
   const verify = verifyLobsterRunResult({
     task: input.task,
     status,
@@ -182,7 +199,7 @@ function buildPollResult(input: {
     verify,
     agentResult: agentResult || undefined,
     screenshot_data_url: input.status.screenshotDataUrl || undefined,
-    page_url: String(input.status.state?.pageUrl || '').trim() || undefined,
+    page_url: pageUrl || undefined,
   }
   const text = JSON.stringify(payload)
   const infraFail = isLobsterInfrastructureFailure({
@@ -194,11 +211,13 @@ function buildPollResult(input: {
   const connFail = /Connection closed|playwright_mcp_browser_unavailable/i.test(
     String(input.status.error || text || ''),
   )
+  const browseOk = hasLobsterBrowseEvidence(result) || Boolean(pageUrl && !infraFail)
+  // status=error 但 verify 通过（salvage 后导航类成功）也算 ok
   const ok =
     !infraFail &&
     !connFail &&
     verify.ok !== false &&
-    status === 'done' &&
+    (status === 'done' || (status === 'error' && browseOk && verify.ok)) &&
     Boolean(result)
   const retryable = isLobsterRetryableFailure({
     status,

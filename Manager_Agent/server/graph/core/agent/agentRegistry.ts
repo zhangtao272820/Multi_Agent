@@ -136,16 +136,15 @@ export function filterAgentsByToolHealth<T extends string>(
 }
 
 /** extended Docker profile 才默认可用的能力（结构性 registry + toolHealth，不用问句关键词） */
-export const EXTENDED_PROFILE_AGENTS: CapabilityId[] = ['multimodal', 'music', 'video', 'gui']
+export const EXTENDED_PROFILE_AGENTS: CapabilityId[] = ['music', 'video', 'gui']
 
 const EXTENDED_AGENT_LABELS: Partial<Record<CapabilityId, string>> = {
-  multimodal: '多模态理解（Multimodal_Agent）',
   music: '音乐生成（Music_Agent）',
   video: '视频生成（Video_Agent）',
   gui: 'GUI 浏览器自动化（Lobster_Agent）'
 }
 
-const CORE_FALLBACK_AGENTS = new Set(['db', 'rag', 'code', 'crawler', 'admin', 'clean', 'visualize', 'report'])
+const CORE_FALLBACK_AGENTS = new Set(['db', 'rag', 'code', 'crawler', 'admin', 'clean', 'visualize', 'report', 'multimodal'])
 
 export type ExtendedAgentAvailability = {
   blocked: CapabilityId[]
@@ -172,7 +171,7 @@ export function reconcileExtendedAgentAvailability(
 
   const names = blocked.map((a) => EXTENDED_AGENT_LABELS[a] || a).join('、')
   const hasCoreFallback = allowedAgents.some((a) => CORE_FALLBACK_AGENTS.has(a) && !down.has(a))
-  const extendedOnlyIntent = new Set(['multimodal', 'music', 'video', 'gui']).has(String(intent || '').trim())
+  const extendedOnlyIntent = new Set(['music', 'video', 'gui']).has(String(intent || '').trim())
 
   if (hasCoreFallback && !extendedOnlyIntent) {
     return {
@@ -186,8 +185,8 @@ export function reconcileExtendedAgentAvailability(
     blocked,
     clarifyQuestions: [
       `当前部署未启用或未启动以下能力：${names}。`,
-      '标准 Docker 编排仅含 DB/RAG/Code/Extractor/Admin/Manager；multimodal、music、video、Lobster/gui 需启用 extended profile 或单独启动对应容器。',
-      '请确认是否改用标准能力（如联网搜索、静态抓取），或联系运维启用 extended 部署后再试。'
+      '标准 Docker 编排含 DB/RAG/Code/Extractor/Admin/Multimodal/Manager；music、video、Lobster/gui 需启用 extended profile 或单独启动对应容器。',
+      '请确认是否改用标准能力（如联网搜索、静态抓取、多模态理解），或联系运维启用 extended 部署后再试。'
     ]
   }
 }

@@ -32,6 +32,7 @@ const ids = new Set();
 let policyCount = 0;
 let staleHintCount = 0;
 let clarifyOrCiteCount = 0;
+let faithfulnessCount = 0;
 for (const c of cases) {
   assert(c && typeof c === "object", "case must be object");
   assert(String(c.id || "").trim(), "case.id required");
@@ -51,13 +52,15 @@ for (const c of cases) {
     assert(c.expect_clarify_or_cite === true, `${c.id}: expect_clarify_or_cite must be true when set`);
   }
   if (c.tags.includes("policy")) policyCount += 1;
+  if (c.tags.includes("faithfulness")) faithfulnessCount += 1;
   if (c.expect_stale_hint === true) staleHintCount += 1;
   if (c.expect_clarify_or_cite === true) clarifyOrCiteCount += 1;
 }
 assert(policyCount >= 10, `need >=10 policy-tagged questions, got ${policyCount}`);
+assert(faithfulnessCount >= 3, `H5/I1: need >=3 faithfulness-tagged questions, got ${faithfulnessCount}`);
 assert(staleHintCount >= 1, `G5: need >=1 expect_stale_hint case, got ${staleHintCount}`);
 assert(clarifyOrCiteCount >= 1, `G5: need >=1 expect_clarify_or_cite case, got ${clarifyOrCiteCount}`);
 
 console.log(
-  `gate-rag-eval-offline OK: ${cases.length} questions (${policyCount} policy, ${staleHintCount} stale_hint, ${clarifyOrCiteCount} clarify_or_cite)`
+  `gate-rag-eval-offline OK: ${cases.length} questions (${policyCount} policy, ${faithfulnessCount} faithfulness, ${staleHintCount} stale_hint, ${clarifyOrCiteCount} clarify_or_cite)`
 );

@@ -159,6 +159,8 @@ export type SessionHistoryItem = {
   messageCount: number
   userMessageCount: number
   customTitle?: boolean
+  /** 对话 / 专业双工作区标签；遗留项可能缺失，打开或发送时补打 */
+  workbenchMode?: WorkbenchMode
 }
 
 export const EMPTY_MEDIA: MediaBundles = { videos: [], audios: [], midis: [], images: [] }

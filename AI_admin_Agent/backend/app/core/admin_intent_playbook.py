@@ -152,6 +152,19 @@ ADMIN_SCENARIO_PLAYBOOK: list[AdminScenarioPlaybookEntry] = [
         "tool_hint": "send_feishu_message",
     },
     {
+        "id": "add_contact",
+        "paraphrases": [
+            "添加联系人",
+            "通讯录加一下",
+            "把邮箱存成联系人",
+            "新建联系人张三",
+            "存一下这个邮箱到通讯录",
+            "add contact with email",
+        ],
+        "intent_hint": "联系人",
+        "tool_hint": "add_contact",
+    },
+    {
         "id": "minutes_to_tasks",
         "paraphrases": ["把待办加进任务列表", "批量添加待办", "纪要待办写入任务"],
         "intent_hint": "待办",

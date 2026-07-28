@@ -194,8 +194,8 @@ export default function App() {
       <header className="hero">
         <div className="hero-glow" aria-hidden />
         <div className="hero-ring" aria-hidden />
-        <h1>Multimodal Agent</h1>
-        <p className="hero-sub">深空多模态枢纽 · 视觉理解 · 视频摘要 · 语音转写 · 实时思考链</p>
+        <h1>廉贞 · Multimodal Agent</h1>
+        <p className="hero-sub">多模态枢纽 · 视觉理解 · 视频摘要 · 语音转写 · 实时思考链</p>
         <div className="model-badges">
           <span>◆ VL · {String(health?.vl_model || "qwen-vl-plus")}</span>
           <span>◆ 推理 · {String(health?.helper_model || "qwen3.5-35b-a3b")}</span>

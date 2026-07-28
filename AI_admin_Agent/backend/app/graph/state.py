@@ -699,6 +699,25 @@ def _fallback_tools_by_intent(
     if intent == "待办":
         if any(keyword in user_message for keyword in ["列出", "查看", "有哪些"]):
             return [{"name": "list_tasks", "args": {}}]
+    if intent == "联系人":
+        slots = (
+            understanding.get("slots")
+            if isinstance(understanding, dict) and isinstance(understanding.get("slots"), dict)
+            else {}
+        )
+        if any(keyword in user_message for keyword in ["列出", "查看", "有哪些", "通讯录"]):
+            if not any(keyword in user_message for keyword in ["添加", "新建", "存", "导入"]):
+                return [{"name": "list_contacts", "args": {}}]
+        cname = str((slots or {}).get("contact_name") or "").strip()
+        cemail = str((slots or {}).get("contact_email") or "").strip()
+        if cname and cemail:
+            args: dict[str, Any] = {"name": cname, "email": cemail}
+            desc = str((slots or {}).get("contact_description") or "").strip()
+            if desc:
+                args["description"] = desc
+            return [{"name": "add_contact", "args": args}]
+        if cname:
+            return [{"name": "search_contact", "args": {"name": cname}}]
     if intent == "日程":
         if any(keyword in user_message for keyword in ["列出", "查看", "安排"]):
             return [{"name": "list_events", "args": {}}]
@@ -858,6 +877,22 @@ def _inject_slots_into_plan(plan: List[Dict[str, Any]], understanding: Dict[str,
                 args["title"] = task_title
             if name == "add_task_with_due" and task_due_expr and not str(args.get("due_time_str", "")).strip():
                 args["due_time_str"] = task_due_expr
+
+        if name == "add_contact":
+            contact_name = _slot("contact_name")
+            contact_email = _slot("contact_email")
+            contact_desc = _slot("contact_description")
+            if contact_name and not str(args.get("name", "")).strip():
+                args["name"] = contact_name
+            if contact_email and not str(args.get("email", "")).strip():
+                args["email"] = contact_email
+            if contact_desc and not str(args.get("description", "")).strip():
+                args["description"] = contact_desc
+
+        if name == "search_contact":
+            contact_name = _slot("contact_name")
+            if contact_name and not str(args.get("name", "")).strip():
+                args["name"] = contact_name
 
         if name == "send_email":
             if email_to and not str(args.get("to", "")).strip():
@@ -1136,6 +1171,11 @@ def create_agent_graph():
             )
             understanding = normalize_weather_understanding(understanding)
             understanding = refill_weather_city_if_needed(nlu_message or user_message, understanding)
+            from app.core.admin_plan_fastpath import suppress_clarify_for_bulk_delete
+
+            understanding = suppress_clarify_for_bulk_delete(
+                understanding, nlu_message or user_message or action_text
+            )
             understanding = _enrich_understanding_with_resolved_time_and_amap(
                 understanding, anchor, client_context
             )
@@ -1716,46 +1756,137 @@ def create_agent_graph():
                         processed_args = prepare_time_sensitive_tool_args(
                             name, processed_args, user_message, understanding
                         )
-                        action_id = create_pending_action(
-                            session_id, name, processed_args, user_message, understanding
-                        )
-                        title = str(processed_args.get("title") or "日程").strip()
-                        time_disp = str(
-                            processed_args.get("__time_display__")
-                            or processed_args.get("start_time_local")
-                            or processed_args.get("due_time_local")
-                            or ""
-                        ).strip()
-                        if time_disp and re.match(r"\d{4}-\d{2}-\d{2}", time_disp):
-                            try:
-                                dt = datetime.datetime.strptime(time_disp[:19], "%Y-%m-%d %H:%M:%S")
-                                time_disp = dt.strftime("%Y年%m月%d日 %H:%M")
-                            except ValueError:
-                                pass
-                        msg = f"【待确认】将添加「{title}」"
-                        if time_disp:
-                            msg += f"，时间：{time_disp}"
-                        msg += "。\n\n请点击下方「确认」或「取消」按钮。"
-                        state["thoughts"].append(
-                            f"已阻止高风险工具直接执行，等待确认：{name} [{action_id}] {title} {time_disp}"
-                        )
-                        pending_row = {
-                            "id": int(action_id),
-                            "tool": name,
-                            "title": title,
-                            "time": time_disp or None,
-                        }
-                        state["pending_actions"] = list(state.get("pending_actions") or []) + [pending_row]
-                        tool_results_by_step[step_index] = action_id
-                        tool_results_last_by_name[name] = action_id
-                        state["verification_result"] = msg
-                        clear_tool_context()
-                        return {
-                            "next_node": "verifying",
-                            "verification_result": state["verification_result"],
-                            "thoughts": state["thoughts"],
-                            "pending_actions": state.get("pending_actions") or [],
-                        }
+                        # 批量删除且当前无可删项：直接执行，不出 HITL
+                        if name == "delete_all_meeting_reminders":
+                            from app.tools.calendar import preview_meeting_reminders_purge
+
+                            preview = preview_meeting_reminders_purge()
+                            if int(preview.get("total_count") or 0) <= 0:
+                                state["thoughts"].append("批量删除预览为空，直接返回无可删项")
+                                # fall through to execute tool below
+                            else:
+                                action_id = create_pending_action(
+                                    session_id, name, processed_args, user_message, understanding
+                                )
+                                titles = [
+                                    str(x.get("title") or "日程")
+                                    for x in (preview.get("events") or [])[:6]
+                                ]
+                                rem_titles = [
+                                    str(x.get("title") or x.get("id") or "提醒")
+                                    for x in (preview.get("reminders") or [])[:4]
+                                ]
+                                summary_bits = titles + rem_titles
+                                summary = "、".join(summary_bits[:8])
+                                total = int(preview.get("total_count") or 0)
+                                msg = f"【待确认】将删除会议提醒共 {total} 项"
+                                if summary:
+                                    msg += f"：{summary}"
+                                    if total > len(summary_bits[:8]):
+                                        msg += " 等"
+                                msg += "。\n\n请点击下方「确认」或「取消」按钮。"
+                                state["thoughts"].append(
+                                    f"已阻止高风险工具直接执行，等待确认：{name} [{action_id}] count={total}"
+                                )
+                                pending_row = {
+                                    "id": int(action_id),
+                                    "tool": name,
+                                    "title": f"删除会议提醒（{total}项）",
+                                    "time": None,
+                                }
+                                state["pending_actions"] = list(state.get("pending_actions") or []) + [
+                                    pending_row
+                                ]
+                                tool_results_by_step[step_index] = action_id
+                                tool_results_last_by_name[name] = action_id
+                                state["verification_result"] = msg
+                                clear_tool_context()
+                                return {
+                                    "next_node": "verifying",
+                                    "verification_result": state["verification_result"],
+                                    "thoughts": state["thoughts"],
+                                    "pending_actions": state.get("pending_actions") or [],
+                                }
+                        elif name in ("delete_event", "cancel_reminder", "delete_task"):
+                            action_id = create_pending_action(
+                                session_id, name, processed_args, user_message, understanding
+                            )
+                            if name == "delete_event":
+                                eid = processed_args.get("event_id")
+                                title = str(processed_args.get("title") or f"日程#{eid}" or "日程").strip()
+                                msg = f"【待确认】将删除「{title}」。\n\n请点击下方「确认」或「取消」按钮。"
+                            elif name == "cancel_reminder":
+                                rid = str(processed_args.get("reminder_id") or "").strip() or "提醒"
+                                msg = f"【待确认】将取消提醒「{rid}」。\n\n请点击下方「确认」或「取消」按钮。"
+                                title = rid
+                            else:
+                                title = str(
+                                    processed_args.get("title")
+                                    or processed_args.get("task_id")
+                                    or "待办"
+                                ).strip()
+                                msg = f"【待确认】将删除待办「{title}」。\n\n请点击下方「确认」或「取消」按钮。"
+                            state["thoughts"].append(
+                                f"已阻止高风险工具直接执行，等待确认：{name} [{action_id}] {title}"
+                            )
+                            pending_row = {
+                                "id": int(action_id),
+                                "tool": name,
+                                "title": title,
+                                "time": None,
+                            }
+                            state["pending_actions"] = list(state.get("pending_actions") or []) + [pending_row]
+                            tool_results_by_step[step_index] = action_id
+                            tool_results_last_by_name[name] = action_id
+                            state["verification_result"] = msg
+                            clear_tool_context()
+                            return {
+                                "next_node": "verifying",
+                                "verification_result": state["verification_result"],
+                                "thoughts": state["thoughts"],
+                                "pending_actions": state.get("pending_actions") or [],
+                            }
+                        else:
+                            action_id = create_pending_action(
+                                session_id, name, processed_args, user_message, understanding
+                            )
+                            title = str(processed_args.get("title") or "日程").strip()
+                            time_disp = str(
+                                processed_args.get("__time_display__")
+                                or processed_args.get("start_time_local")
+                                or processed_args.get("due_time_local")
+                                or ""
+                            ).strip()
+                            if time_disp and re.match(r"\d{4}-\d{2}-\d{2}", time_disp):
+                                try:
+                                    dt = datetime.datetime.strptime(time_disp[:19], "%Y-%m-%d %H:%M:%S")
+                                    time_disp = dt.strftime("%Y年%m月%d日 %H:%M")
+                                except ValueError:
+                                    pass
+                            msg = f"【待确认】将添加「{title}」"
+                            if time_disp:
+                                msg += f"，时间：{time_disp}"
+                            msg += "。\n\n请点击下方「确认」或「取消」按钮。"
+                            state["thoughts"].append(
+                                f"已阻止高风险工具直接执行，等待确认：{name} [{action_id}] {title} {time_disp}"
+                            )
+                            pending_row = {
+                                "id": int(action_id),
+                                "tool": name,
+                                "title": title,
+                                "time": time_disp or None,
+                            }
+                            state["pending_actions"] = list(state.get("pending_actions") or []) + [pending_row]
+                            tool_results_by_step[step_index] = action_id
+                            tool_results_last_by_name[name] = action_id
+                            state["verification_result"] = msg
+                            clear_tool_context()
+                            return {
+                                "next_node": "verifying",
+                                "verification_result": state["verification_result"],
+                                "thoughts": state["thoughts"],
+                                "pending_actions": state.get("pending_actions") or [],
+                            }
 
                     if name in risky_tools and bool(state.get("auto_confirm_risky")):
                         # 整轮已超时/取消：禁止继续落库，避免 Manager 已失败后的孤儿写

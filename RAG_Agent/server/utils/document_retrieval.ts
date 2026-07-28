@@ -866,6 +866,9 @@ export async function runDocumentRetrieval(input: {
       sub_query_count: queries.length,
       routing_mode: String(routingDecision.routingMode || ""),
       reason: extra?.reason,
+      retrieval_failure_mode:
+        extra?.reason ||
+        (extra?.weak_evidence ? retrievalFailureMode || "weak_evidence" : undefined),
       agentic_rounds: agenticAttempt,
       rerank_mode: rerankMode,
       ab_variant: promptAbVariant,
@@ -917,6 +920,7 @@ export async function runDocumentRetrieval(input: {
     }
 
     const clarify = await buildClarifyMessage(effectiveQuery);
+    const clarifyTag = retrievalFailureMode || (zeroHits ? "zero_hits" : "weak_evidence");
     recordRagQueryMetric({
       path: "clarify",
       ok: false,
@@ -925,9 +929,9 @@ export async function runDocumentRetrieval(input: {
       question: effectiveQuery,
       intent: ragPlan.intent,
       routing_mode: String(routingDecision.routingMode || ""),
-      reason: retrievalFailureMode || "weak_evidence",
+      reason: clarifyTag,
+      retrieval_failure_mode: clarifyTag,
     });
-    const clarifyTag = retrievalFailureMode || (zeroHits ? "zero_hits" : "weak_evidence");
     const output = `${routingExplainBlock(routingDecision, routedSources)}${formatClarifyEnvelope(effectiveQuery, clarify, clarifyTag)}`;
     return {
       output,

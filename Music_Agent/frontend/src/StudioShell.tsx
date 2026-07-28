@@ -55,7 +55,7 @@ export function StudioShell({
         <div className="studio-brand">
           <span className="studio-brand-mark" aria-hidden />
           <div>
-            <span className="studio-brand-name">Music Agent</span>
+            <span className="studio-brand-name">贪狼 · Music</span>
             <span className="studio-brand-sub">可视化工作室</span>
           </div>
         </div>

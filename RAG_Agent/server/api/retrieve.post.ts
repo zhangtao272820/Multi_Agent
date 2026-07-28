@@ -123,6 +123,7 @@ export default defineEventHandler(async (event) => {
       ms: result.ms,
       evidence: result.evidence,
       trace_id: traceId,
+      retrievalFailureMode: result.retrievalFailureMode || result.clarifyReason,
     });
 
     // 成功/弱证据路径由 document_retrieval.finish 记账，此处避免双计
@@ -147,6 +148,7 @@ export default defineEventHandler(async (event) => {
       agentic_rounds: result.agenticRounds ?? 0,
       rerank_mode: result.rerankMode,
       clarify_reason: result.clarifyReason,
+      retrieval_failure_mode: result.retrievalFailureMode || result.clarifyReason,
       experience_hits: result.experienceHits ?? 0,
       ab_variant: result.abVariant,
       bandit_arm: result.banditArm,

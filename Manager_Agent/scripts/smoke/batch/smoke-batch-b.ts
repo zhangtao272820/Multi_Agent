@@ -36,8 +36,9 @@ function assert(cond: unknown, msg: string): void {
   if (!cond) throw new Error(msg)
 }
 
-// P1-11 WS 鉴权默认关
+// P1-11 WS 鉴权默认关（须同时清 AUTH_MODE，避免本机 .env 污染）
 delete process.env.MANAGER_WS_AUTH
+delete process.env.MANAGER_AUTH_MODE
 assert(!isManagerWsAuthEnabled(), 'ws auth default off')
 process.env.MANAGER_WS_AUTH = '1'
 process.env.MANAGER_WS_TOKEN = 'test-ws-token'
@@ -57,6 +58,7 @@ assert(
   'ws token from query'
 )
 delete process.env.MANAGER_WS_AUTH
+delete process.env.MANAGER_AUTH_MODE
 delete process.env.MANAGER_WS_TOKEN
 
 // P1-12 probe executable（Manager 侧逻辑）
@@ -139,11 +141,13 @@ assert(
   'web search blocked skip'
 )
 
-// P2-10 OTel export / traceparent 默认关
+// P2-10 / E1：OTel export 默认关；W3C traceparent 出站默认开（设 0 可关）
 delete process.env.MANAGER_OTEL_EXPORT
 delete process.env.MANAGER_OTEL_TRACEPARENT
 assert(!isManagerOtelExportEnabled(), 'otel export default off')
-assert(!isManagerOtelTraceparentEnabled(), 'traceparent default off')
+assert(isManagerOtelTraceparentEnabled(), 'traceparent default on (E1)')
+process.env.MANAGER_OTEL_TRACEPARENT = '0'
+assert(!isManagerOtelTraceparentEnabled(), 'traceparent off when env=0')
 process.env.MANAGER_OTEL_TRACEPARENT = '1'
 assert(buildAgentTraceHeaders('run-abc').traceparent?.startsWith('00-'), 'traceparent header when enabled')
 const traces = buildOtelTracesFromMetrics([

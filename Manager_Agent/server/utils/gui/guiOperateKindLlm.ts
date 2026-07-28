@@ -10,6 +10,7 @@ import {
   normalizeManagerGuiTaskKind,
   type ManagerGuiTaskKind,
 } from '#agent-shared/managerTaskEnvelope'
+import { listKnownGuiWorkflowIds, sanitizeGuiWorkflowId } from './guiWorkflowAllowlist'
 
 const WorkflowArgsSchema = z.record(z.unknown()).optional()
 
@@ -47,9 +48,12 @@ export type GuiOperateKindDecision = {
   rationale: string
   workflow_id?: string
   workflow_args?: Record<string, unknown>
+  /** 被白名单丢弃的宏 id（供执行层打 thinking） */
+  dropped_workflow_id?: string
 }
 
 function systemPrompt(): string {
+  const known = listKnownGuiWorkflowIds().join(', ') || '(无)'
   return [
     '你是总管 Agent 的「浏览器操作类型」分类器。根据用户要在真实浏览器里做的事，输出 task_kind。',
     '只输出 JSON，禁止 markdown。勿用关键词表硬套；按语义判断。',
@@ -68,9 +72,10 @@ function systemPrompt(): string {
     '',
     'needs_login：任务明确需要登录态或登录页时为 true。',
     '',
-    'workflow_id（可选）：仅当用户明确指定工作流/宏名，或明确要求跑已知黄金宏时填写。',
-    '- 已知宏示例：httpbin-form-fill（httpbin.org/forms/post 填 Customer name）',
-    '- 不确定则省略 workflow_id（不要猜测编造宏 id）',
+    'workflow_id（可选）：仅当用户明确指定工作流/宏名，或明确要求跑下列已知黄金宏时填写。',
+    `- 允许的宏 id（禁止编造其它 id）：${known}`,
+    '- httpbin-form-fill：httpbin.org/forms/post 填 Customer name',
+    '- 不确定或仅为「打开网页/点链接/抽标题」→ 省略 workflow_id，只出 task_kind',
     'workflow_args（可选）：宏参数对象。httpbin-form-fill 需 customer_name；startUrl 若任务含 URL 可写入。',
     '勿把普通填表误判为必须走宏；无明确宏意图时只出 task_kind。',
     '',
@@ -91,7 +96,11 @@ export function isGuiOperateKind(kind: ManagerGuiTaskKind | string | undefined):
 function decisionFromParsed(data: z.infer<typeof GuiOperateKindSchema>): GuiOperateKindDecision | null {
   const kind = normalizeManagerGuiTaskKind(data.task_kind)
   if (!kind) return null
-  const workflow_id = String(data.workflow_id || '').trim() || undefined
+  const rawWf = String(data.workflow_id || '').trim() || undefined
+  const sanitized = sanitizeGuiWorkflowId(rawWf)
+  const workflow_id = sanitized.ok ? sanitized.id : undefined
+  const dropped_workflow_id =
+    !sanitized.ok && sanitized.dropped ? sanitized.dropped : undefined
   const workflow_args =
     data.workflow_args && typeof data.workflow_args === 'object' && !Array.isArray(data.workflow_args)
       ? (data.workflow_args as Record<string, unknown>)
@@ -102,6 +111,7 @@ function decisionFromParsed(data: z.infer<typeof GuiOperateKindSchema>): GuiOper
     confidence: Number(data.confidence ?? 0.7),
     rationale: String(data.rationale || '').slice(0, 240),
     ...(workflow_id ? { workflow_id } : {}),
+    ...(dropped_workflow_id ? { dropped_workflow_id } : {}),
     ...(workflow_id && workflow_args && Object.keys(workflow_args).length
       ? { workflow_args }
       : {}),

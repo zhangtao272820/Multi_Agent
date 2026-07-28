@@ -606,6 +606,8 @@ border-color:rgba(30,41,59,.25);box-shadow:0 12px 40px rgba(15,23,42,.15)}
 .attach-pending-name{flex:1;font-size:13px;color:#e2e8f0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .attach-pending-status{font-size:12px;color:#94a3b8}
 .attach-pending-clear{border:none;background:transparent;color:#b45309;cursor:pointer;font-size:13px}
+.spring-input.is-drag-over{outline:2px dashed rgba(125,211,252,.55);outline-offset:2px;background:rgba(14,165,233,.08)}
+.attach-drop-hint{margin:0 0 8px;padding:8px 12px;border-radius:10px;border:1px dashed rgba(125,211,252,.4);background:rgba(14,165,233,.12);color:#bae6fd;font-size:13px;text-align:center}
 .user-attach-preview{margin-bottom:8px}
 .user-attach-img{max-width:min(280px,100%);max-height:200px;border-radius:10px;display:block}
 .gui-screenshot-preview{max-width:min(360px,100%);max-height:240px;margin-top:8px;border-radius:10px;border:1px solid rgba(56,189,248,.35);display:block;object-fit:contain;background:rgba(8,16,48,.4)}

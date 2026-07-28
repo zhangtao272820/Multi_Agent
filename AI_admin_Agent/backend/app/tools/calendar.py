@@ -169,6 +169,99 @@ def delete_event(event_id: int) -> str:
     )
 
 
+def preview_meeting_reminders_purge(limit: int = 20) -> dict:
+    """待确认文案用：预览将删除的日程与独立提醒（不写库）。"""
+    db = SessionLocal()
+    events = db.query(Event).order_by(Event.start_time).all()
+    db.close()
+    event_items = []
+    for e in events[: max(1, int(limit or 20))]:
+        local_time = utc_naive_to_local_naive(e.start_time) if e.start_time else None
+        event_items.append(
+            {
+                "id": e.id,
+                "title": e.title or "日程",
+                "start_time_local": local_time.strftime("%Y-%m-%d %H:%M") if local_time else None,
+            }
+        )
+    reminder_items = []
+    try:
+        for item in reminder_manager.list_reminders()[: max(1, int(limit or 20))]:
+            title = item["args"][0] if item.get("args") else "提醒"
+            reminder_items.append(
+                {
+                    "id": item.get("id"),
+                    "title": title,
+                    "next_run_time": item.get("next_run_time"),
+                }
+            )
+    except Exception:
+        reminder_items = []
+    return {
+        "events": event_items,
+        "event_count": len(events),
+        "reminders": reminder_items,
+        "reminder_count": len(reminder_items),
+        "total_count": len(events) + len(reminder_items),
+    }
+
+
+def delete_all_meeting_reminders() -> str:
+    """删除全部日程并取消全部定时提醒（会议提醒批量清理）。"""
+    db = SessionLocal()
+    events = db.query(Event).order_by(Event.start_time).all()
+    deleted_events = []
+    for e in events:
+        deleted_events.append({"id": e.id, "title": e.title or "日程"})
+        reminder_manager.cancel_reminder(f"event_{e.id}")
+        db.delete(e)
+    db.commit()
+    db.close()
+
+    cancelled_reminders = []
+    try:
+        for item in list(reminder_manager.list_reminders()):
+            rid = str(item.get("id") or "").strip()
+            if not rid:
+                continue
+            if reminder_manager.cancel_reminder(rid):
+                title = item["args"][0] if item.get("args") else rid
+                cancelled_reminders.append({"id": rid, "title": title})
+    except Exception:
+        pass
+
+    total = len(deleted_events) + len(cancelled_reminders)
+    if total == 0:
+        return _tool_ok(
+            "当前没有可删除的会议提醒。",
+            data={
+                "deleted_events": [],
+                "cancelled_reminders": [],
+                "count": 0,
+            },
+            code="empty",
+        )
+    titles = [x["title"] for x in deleted_events[:8]]
+    if cancelled_reminders:
+        titles.extend(str(x.get("title") or x.get("id")) for x in cancelled_reminders[:4])
+    summary = "、".join(titles[:8])
+    more = total - min(len(titles), 8)
+    human = f"已删除会议提醒共 {total} 项"
+    if summary:
+        human += f"：{summary}"
+        if more > 0:
+            human += f" 等"
+    return _tool_ok(
+        human,
+        data={
+            "deleted_events": deleted_events,
+            "cancelled_reminders": cancelled_reminders,
+            "count": total,
+        },
+        code="purged",
+    )
+
+
 def complete_event(event_id: int) -> str:
     db = SessionLocal()
     event = db.query(Event).filter(Event.id == event_id).first()

@@ -5,7 +5,6 @@ const NAV_GROUPS = [
     items: [
       { id: "overview", label: "总览", desc: "健康探活 · 集群状态 · 编排指标" },
       { id: "manager", label: "总管 & 子 Agent", desc: "Token 消耗 · 阶段耗时 · 调用流水" },
-      { id: "monitor", label: "监控大屏", desc: "总管 & 子 Agent · Prometheus 实时图表" },
       { id: "tasks", label: "任务编排", desc: "Manager WebSocket 转发执行" },
     ],
   },
@@ -13,15 +12,34 @@ const NAV_GROUPS = [
     id: "config",
     label: "配置",
     items: [
-      { id: "config", label: "Agent 配置", desc: "端点与模型参数同步" },
-      { id: "agents", label: "Agent 管控", desc: "舰队启停 · Drain · 滚动重启" },
+      { id: "config", label: "Agent 配置", desc: "模型 · MODE · 基建 · 本地 .env" },
       { id: "skills", label: "技能中心", desc: "发布 · 安装 · 执行技能" },
     ],
   },
   {
+    id: "control",
+    label: "管控",
+    items: [{ id: "agents", label: "Agent 管控", desc: "舰队启停 · Drain · 滚动重启" }],
+  },
+  {
+    id: "obs",
+    label: "可观测",
+    items: [{ id: "monitor", label: "监控与日志", desc: "Prometheus · 告警 · Loki/Tempo/Langfuse" }],
+  },
+  {
+    id: "deploy",
+    label: "部署",
+    items: [{ id: "deploy", label: "部署中心", desc: "镜像 tag · 回滚 · 离线包状态" }],
+  },
+  {
+    id: "maintain",
+    label: "维护",
+    items: [{ id: "maintain", label: "备份恢复", desc: "PostgreSQL 备份 · 恢复演练" }],
+  },
+  {
     id: "gov",
     label: "治理",
-    items: [{ id: "settings", label: "系统设置", desc: "配额 · 密钥 · 审计 · 告警" }],
+    items: [{ id: "settings", label: "系统设置", desc: "配额 · 密钥 · 审计 · 租户" }],
   },
 ];
 
@@ -35,7 +53,7 @@ const WS_LABEL = {
 };
 
 const WIDE_ROUTES = new Set(["monitor"]);
-const FILL_ROUTES = new Set(["monitor", "config", "agents"]);
+const FILL_ROUTES = new Set(["monitor", "config", "agents", "deploy", "maintain"]);
 
 export default function AdminShell({
   route,
@@ -65,10 +83,10 @@ export default function AdminShell({
       <aside className="admin-sidebar">
         <div className="admin-brand">
           <span className="admin-brand__mark" aria-hidden>
-            CH
+            紫
           </span>
           <div>
-            <strong>ClawHive</strong>
+            <strong>紫微</strong>
             <span>Agent 控制面</span>
           </div>
         </div>
@@ -118,7 +136,7 @@ export default function AdminShell({
             <div className="admin-topbar__actions">
               {route !== "monitor" ? (
                 <button type="button" className="btn-ghost" onClick={() => onNavigate("monitor")}>
-                  监控大屏
+                  监控与日志
                 </button>
               ) : null}
               <button type="button" className="btn-ghost btn-ghost--muted" onClick={onLogout}>

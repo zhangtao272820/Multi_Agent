@@ -54,9 +54,11 @@ import { CODE_AUTHORITY_CRITIC_RULE, CODE_AUTHORITY_SYNTH_RULE, REPORT_SYNTH_ALI
 import { parseCleanPayload } from '#agent-shared/cleanPayload'
 import {
   hasDeterministicReportEvidence,
+  shouldPassthroughAdminWriteOnly,
   shouldPassthroughDbOnly,
   shouldPassthroughDeterministicReport
 } from '#agent-shared/deterministicPassthrough'
+import { formatAdminWriteUserFacingReply } from '../../core/output/adminWriteUserReply'
 import { isMultiSourceDataPipeline } from '#agent-shared/dbPipelineDeterministic'
 import { resolveSynthShapeSignals } from '#agent-shared/synthShapePolicy'
 import { buildDeferredReportFromSynth } from '#agent-shared/deferredReportBlock'
@@ -257,6 +259,37 @@ export function buildSynthNodeRun(deps: CreateFinalNodesDeps) {
         }
 
         if (
+          shouldPassthroughAdminWriteOnly({
+            intent: String(state.intent ?? ''),
+            planSteps: effectivePlanSteps,
+            results,
+            evidence: evidences
+          })
+        ) {
+          const rawAdmin = String(results.admin || '').trim()
+          const handoffSummary = (() => {
+            for (const ev of Array.isArray(evidences) ? evidences : []) {
+              if (String((ev as { kind?: string })?.kind || '') !== 'admin') continue
+              const h = (ev as { handoff?: { summary?: string } })?.handoff
+              const s = String(h?.summary || '').trim()
+              if (s) return s
+            }
+            return ''
+          })()
+          const cleaned = formatAdminWriteUserFacingReply({
+            adminText: rawAdmin,
+            handoffSummary
+          })
+          opts.sendEvent({
+            event: 'thinking',
+            data: 'Synth：admin 写操作直通（跳过汇总 LLM）',
+            from: 'manager'
+          })
+          const finalText = polishFinalPayload(cleaned)
+          return { final: finalText, results, evidence: evidences, resources: merged.resources, meta: merged.meta }
+        }
+
+        if (
           shouldPassthroughDeterministicReport({
             planSteps: effectivePlanSteps,
             results,
@@ -314,7 +347,9 @@ export function buildSynthNodeRun(deps: CreateFinalNodesDeps) {
         if (handoffBlock) {
           synthBlocks.push(handoffBlock)
           for (const ev of Array.isArray(evidences) ? evidences : []) {
-            const a = String((ev as { agent?: string })?.agent || '').trim()
+            const a = String(
+              (ev as { agent?: string })?.agent || (ev as { kind?: string })?.kind || ''
+            ).trim()
             if (a && (ev as { handoff?: unknown })?.handoff) handoffAgents.add(a)
           }
         }
@@ -531,10 +566,10 @@ export function buildSynthNodeRun(deps: CreateFinalNodesDeps) {
         const synthPrompt = [
           new SystemMessage(
             [
-              '你是总管 Agent 的对话式汇总助手。用中文像主流 AI 助手（DeepSeek / ChatGPT）一样回复：正文即完整答案，先 1～2 句开门见山，再用 ### 小标题分段展开（每段 2～5 条列表），末段用 **小结** 收束；语气自然、有人情味，像同事帮你查完资料后的口头汇报。',
-              '纪律：专业但不说教；禁止「您好」「作为助手」「根据您的要求」；禁止贴 JSON/日志/内部章节名。',
+              '你是总管 Agent 的对话式汇总助手。用中文像正式产品助手一样回复：先给结论，再按需要补充要点；说清事实与结果，不要空话套话。',
+              '纪律：专业、克制；禁止「您好」「作为助手」「根据您的要求」「别担心」等客套；禁止贴 JSON/日志/内部章节名。',
               '纪律：禁止复述输入中的 [CTX:…]…[/CTX]、数据来源、RAG 检索事实、[事实N] 等内部参考块；只输出面向用户的自然语言。',
-              '纪律：禁止输出「执行摘要 / 已执行步骤 / 证据 / 目标·结果·判定 / 后续建议」等内部审计章节，以及 rag:/clean:/s2 (clean):/facts(N): 等管线回显；只写面向用户的分析结论与建议。',
+              '纪律：禁止输出「执行摘要 / 已执行步骤 / 证据 / 目标·结果·判定 / 后续建议」等内部审计章节，以及 rag:/clean:/s2 (clean):/facts(N): 等管线回显。',
               chatWebHint || '',
               '',
               canShowAuxOutputs && shouldShowCharts
@@ -545,12 +580,25 @@ export function buildSynthNodeRun(deps: CreateFinalNodesDeps) {
                   ? '本任务含报告等附属输出：正文 800～1200 字，须完整展开分析；勿只写一两句摘要把细节留给附属块。'
                   : multiSourceSynth
                     ? '多源任务：正文 700～1000 字，分段说明各源结论与采信口径。'
-                    : '总字数 500～800 字；单源查数也要给出解读与建议，勿只报数字。',
+                    : adminSynthContext && !canShowAuxOutputs && !multiSourceSynth
+                      ? [
+                          '本任务为个人助理写操作确认：',
+                          '· 用 1～3 句说清「做了什么」：事项标题、时间、是否已设提醒/是否已写入。',
+                          '· 语气正式简短，像系统回执；不要展开背景、不要安慰话、不要主动推销下一步。',
+                          '· 禁止 ### 小标题、**小结**、数据来源说明、后续建议、执行摘要、置信度、能力清单。'
+                        ].join('\n')
+                      : '总字数 500～800 字；单源查数也要给出解读与建议，勿只报数字。',
               '',
               '格式：',
-              '- 禁止报告体大章节名（不要出现「核心结论」「要点摘要」「计算口径」「风险与建议」「参考来源」等标题）。',
-              '- 推荐结构：首段直接结论 → ### 分段展开（每段 2～5 条 - 列表）→ 末段 **小结**（1～2 句 + 可选 gentle 建议）。',
-              '- 可用 **加粗** 强调数字与结论；列表每条独立一行，以 - 开头。',
+              adminSynthContext && !canShowAuxOutputs && !multiSourceSynth
+                ? '- 写操作成功：直接确认结果即可；缺信息时一句说明缺口，勿编造。'
+                : '- 禁止报告体大章节名（不要出现「核心结论」「要点摘要」「计算口径」「风险与建议」「参考来源」等标题）。',
+              adminSynthContext && !canShowAuxOutputs && !multiSourceSynth
+                ? '- 禁止输出置信度、不可信外部数据、能力清单、agent_result、[HANDOFF]、[CTX]。'
+                : '- 推荐结构：首段直接结论 → ### 分段展开（每段 2～5 条 - 列表）→ 末段 **小结**（1～2 句；仅在用户明确需要时给一句可执行建议）。',
+              adminSynthContext && !canShowAuxOutputs && !multiSourceSynth
+                ? '- 可用 **加粗** 强调标题或时间；不要用列表堆砌能力说明。'
+                : '- 可用 **加粗** 强调数字与结论；列表每条独立一行，以 - 开头。',
               '- 禁止在正文粘贴 http/https 链接、「| 排名 |」类抓取表格、[查看](url) 链接墙。',
               chatWebReply
                 ? '- 联网问答：对比/推荐类任务优先用 Markdown 表格（| 列 | 列 |）；正文用 [1][2] 角标引用来源，系统会在下方展示链接；信息不足时说明缺口。'
@@ -591,12 +639,12 @@ export function buildSynthNodeRun(deps: CreateFinalNodesDeps) {
                 : plannedReport
                   ? '\n\n[说明] 报告由你汇总撰写：全部内容写在正文，用 ### 分段；勿留空壳摘要。'
                   : '') +
-              (hasAdminResult
+              (hasAdminResult && !handoffAgents.has('admin')
                 ? `\n\n[附属] admin 已执行：${prepareUntrustedForSynth(
                     'admin',
-                    String(results.admin).replace(/\s+/g, ' ').trim(),
+                    String(results.admin).replace(/\s+/g, ' ').trim().slice(0, 400),
                     sanitizeUntrustedText,
-                    600
+                    400
                   )}${
                     /未确认，未写入/.test(String(results.admin || ''))
                       ? '\n（写操作未确认，未落库；禁止改写成权限不足或编造已创建。）'
@@ -604,7 +652,9 @@ export function buildSynthNodeRun(deps: CreateFinalNodesDeps) {
                         ? '\n（协议异常，禁止复述能力列表 preamble。）'
                         : ''
                   }`
-                : plannedAdmin
+                : hasAdminResult && handoffAgents.has('admin')
+                  ? '\n\n[说明] admin 结果已在 HANDOFF 中；勿复述能力清单、置信度或不可信标记。'
+                  : plannedAdmin
                   ? '\n\n[说明] 计划含 admin 步骤，但当前无 admin 子输出；勿编造已创建提醒/日程。'
                   : '\n\n[说明] 本任务计划未含 admin 步骤；禁止声称已创建提醒/日程/会议/待办。') +
               '\n\n请用对话口吻直接回答（不要报告章节标题）：'

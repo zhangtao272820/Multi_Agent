@@ -69,7 +69,8 @@ assert(textIndicatesRagMiss('知识库检索未找到相关内容'), 'rag miss m
 assert(!textIndicatesRagMiss('根据文档，答案是 42'), 'rag hit text')
 assert(shouldBypassRagEvidenceJudge(2), 'probe hits bypass judge')
 assert(!shouldBypassRagEvidenceJudge(0) || process.env.MANAGER_RAG_BYPASS_JUDGE_ON_PROBE === '0', 'zero probe default bypass')
-assert(isOrchestratorCompactFirst(), 'orchestrator compact-first default on')
+// convergence / LEGACY_DEFAULTS：compact-first 默认关（LLM-first 编排）
+assert(!isOrchestratorCompactFirst(), 'orchestrator compact-first default off')
 
 const ragHeuristic = buildProbeHeuristicOrchestration({
   lastUser: '从知识库检索《养老机构服务规范》中护理员配比并生成柱状图',

@@ -31,11 +31,6 @@ def _slot_str(slots: dict[str, Any], key: str) -> str:
     return str(v).strip() if v is not None else ""
 
 
-def _looks_like_list_intent(action_text: str) -> bool:
-    msg = str(action_text or "")
-    return any(w in msg for w in ("列出", "查看", "有哪些", "列表", "收件箱", "未读", "list "))
-
-
 def _includes_any(text: str, terms: tuple[str, ...]) -> bool:
     s = str(text or "")
     return any(t and t in s for t in terms)
@@ -44,6 +39,45 @@ def _includes_any(text: str, terms: tuple[str, ...]) -> bool:
 def _includes_any_ci(text: str, terms: tuple[str, ...]) -> bool:
     s = str(text or "").lower()
     return any(t and t.lower() in s for t in terms)
+
+
+def _looks_like_list_intent(action_text: str) -> bool:
+    msg = str(action_text or "")
+    return any(w in msg for w in ("列出", "查看", "有哪些", "列表", "收件箱", "未读", "list "))
+
+
+def _looks_like_bulk_delete_meeting_reminders(text: str) -> bool:
+    """用户明确「删除/取消全部」会议提醒/日程：走批量工具，禁止单条澄清。"""
+    s = str(text or "").strip()
+    if not s:
+        return False
+    delete_like = _includes_any(s, ("删除", "删掉", "取消", "清空", "清除"))
+    all_like = _includes_any(s, ("所有", "全部", "通通", "一键"))
+    target_like = _includes_any(s, ("会议", "提醒", "日程", "日历"))
+    return delete_like and all_like and target_like
+
+
+def _bulk_delete_plan() -> list[dict[str, Any]]:
+    return [{"name": "delete_all_meeting_reminders", "args": {}}]
+
+
+def suppress_clarify_for_bulk_delete(
+    understanding: dict[str, Any] | None,
+    user_message: str = "",
+) -> dict[str, Any]:
+    """
+    编排产出闸：批量删除语义已明确时，清空「哪个会议」类错误澄清。
+    不对用户原话做意图路由，只校正 understanding 产物。
+    """
+    und: dict[str, Any] = dict(understanding) if isinstance(understanding, dict) else {}
+    msg = str(user_message or "").strip()
+    if not _looks_like_bulk_delete_meeting_reminders(msg):
+        return und
+    und["needs_clarification"] = False
+    und["clarification_questions"] = []
+    if not str(und.get("intent") or "").strip() or und.get("intent") == "其他":
+        und["intent"] = "日程"
+    return und
 
 
 def _extract_quoted(text: str) -> str:
@@ -230,6 +264,8 @@ def infer_intent_from_action(action_text: str) -> str:
         return "混合任务"
     if _includes_any(action, ("邮件", "发信", "写邮件", "回信", "收件箱", "未读")):
         return "邮件"
+    if _includes_any(action, ("联系人", "通讯录", "add contact", "contact email")):
+        return "联系人"
     if _includes_any(action, ("提醒", "闹钟", "叫我", "通知我")):
         return "日程"
     if _includes_any(action, ("待办", "任务", "todo")):
@@ -262,6 +298,10 @@ def build_deterministic_plan_from_action_text(
     playground_plan = build_playground_plan_from_text(action)
     if playground_plan:
         return playground_plan
+
+    # 批量删除：不依赖 legacy infer / 槽位，尽早短路
+    if _looks_like_bulk_delete_meeting_reminders(action):
+        return _bulk_delete_plan()
 
     if isinstance(understanding, dict) and understanding and not understanding.get("needs_clarification"):
         from_action = build_deterministic_plan_from_understanding(understanding, action)
@@ -300,6 +340,14 @@ def build_deterministic_plan_from_action_text(
         if write_like or _includes_any(action, ("发邮件", "写邮件", "发送")):
             return _ok("send_email", {"to": "", "subject": title[:80], "content": action})
         return _ok("list_emails", {})
+
+    if intent == "联系人":
+        if list_like:
+            return _ok("list_contacts", {})
+        if _includes_any(action, ("查", "找", "搜索", "邮箱")) and not write_like:
+            return _ok("search_contact", {"name": title or action})
+        # 写操作需理解槽位；无槽时交给 understanding/LLM，此处不瞎造 name/email
+        return None
 
     if intent == "日程" and _includes_any(action, ("提醒", "闹钟", "叫我", "通知我")):
         if _includes_any(action, ("日程", "会议", "预约", "安排", "日历")):
@@ -365,8 +413,6 @@ def build_deterministic_plan_from_understanding(
         return None
     if not isinstance(understanding, dict):
         return None
-    if understanding.get("needs_clarification"):
-        return None
     if understanding.get("chitchat"):
         return None
 
@@ -374,6 +420,13 @@ def build_deterministic_plan_from_understanding(
     playground_plan = build_playground_plan_from_text(msg)
     if playground_plan:
         return playground_plan
+
+    # 批量删除：即使槽位 LLM 误澄清，仍可从消息短路出计划
+    if _looks_like_bulk_delete_meeting_reminders(msg):
+        return _bulk_delete_plan()
+
+    if understanding.get("needs_clarification"):
+        return None
 
     intent = str(understanding.get("intent") or "").strip()
     slots = understanding.get("slots") if isinstance(understanding.get("slots"), dict) else {}
@@ -465,6 +518,22 @@ def build_deterministic_plan_from_understanding(
             return None
         return [{"name": "send_email", "args": {"to": to, "subject": subject, "content": content or subject}}]
 
+    if intent == "联系人":
+        list_intent = any(w in msg for w in ("列出", "查看", "有哪些", "列表", "通讯录", "list "))
+        if list_intent and not any(w in msg for w in ("添加", "新建", "存", "导入")):
+            return [{"name": "list_contacts", "args": {}}]
+        name = _slot_str(slots, "contact_name")
+        email = _slot_str(slots, "contact_email")
+        if name and email:
+            args: dict[str, Any] = {"name": name, "email": email}
+            desc = _slot_str(slots, "contact_description")
+            if desc:
+                args["description"] = desc
+            return [{"name": "add_contact", "args": args}]
+        if name and any(w in msg for w in ("查", "找", "搜索", "邮箱是")):
+            return [{"name": "search_contact", "args": {"name": name}}]
+        return None
+
     return None
 
 
@@ -479,6 +548,7 @@ _INTENT_LIST_TOOLS: dict[str, str] = {
     "文件": "list_files",
     "待办": "list_tasks",
     "日程": "list_events",
+    "联系人": "list_contacts",
 }
 
 

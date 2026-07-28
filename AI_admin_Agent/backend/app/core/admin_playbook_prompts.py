@@ -16,7 +16,7 @@ _INTENT_CLASSIFY_FALLBACK = """你是办公助理意图识别器（Stage-1）。
 
 _SLOT_FILL_FALLBACK = """你是办公助理槽位填充器（Stage-2）。已知 intent，只抽取 slots 与澄清字段。只返回 JSON。"""
 
-_INTENT_FALLBACK = """判断用户意图（邮件/日程/待办/搜索/文件/天气/混合任务/其他）。只返回 JSON。"""
+_INTENT_FALLBACK = """判断用户意图（邮件/日程/待办/联系人/搜索/文件/天气/混合任务/其他）。只返回 JSON。"""
 
 _PLANNING_FALLBACK = """基于意图规划工具调用顺序。只返回 JSON tools 数组。"""
 

@@ -1,4 +1,5 @@
 import type { Intent } from '../../../utils/shared/taskPlan'
+import { textWantsVisualizeStructural } from '../../../utils/shared/visualizeMarkers'
 import type { IntentClassifyResult } from '../../llm/intentClassifyLlm'
 
 export type DbAnchorContext = {
@@ -49,9 +50,9 @@ export function looksLikeSimpleRagKbQuery(text: string): boolean {
   if (!s || s.length > 200) return false
   const hasKb = /知识库|文档库|手册|制度|内部资料|知识库中|文档中|从知识库|在知识库/.test(s)
   if (!hasKb) return false
-  if (/生成.{0,6}报告|写.{0,4}报告|分析报告|对比图|可视化|图表|画.{0,4}图|整理成报告|输出报告|做成图/.test(s)) {
-    return false
-  }
+  // 并列出图/报告 → 非「纯检索」；图表类型词走 VISUALIZE_MARKERS SSOT
+  if (textWantsVisualizeStructural(s)) return false
+  if (/生成.{0,6}报告|写.{0,4}报告|分析报告|整理成报告|输出报告/.test(s)) return false
   if (/查完.{0,10}后|然后.{0,8}(创建|安排|邮件|待办|会议|日程)/.test(s)) return false
   return true
 }
@@ -59,7 +60,8 @@ export function looksLikeSimpleRagKbQuery(text: string): boolean {
 export function userExplicitlyWantsPipelineOutput(text: string): boolean {
   const s = String(text || '').trim()
   if (!s) return false
-  return /生成.{0,6}报告|写.{0,4}报告|分析报告|对比图|可视化|图表|画.{0,4}图|整理成报告|输出报告|做成图/.test(s)
+  if (textWantsVisualizeStructural(s)) return true
+  return /生成.{0,6}报告|写.{0,4}报告|分析报告|整理成报告|输出报告/.test(s)
 }
 
 export function hasNamedSubjectForClarify(text: string, entityNames: string[]): boolean {

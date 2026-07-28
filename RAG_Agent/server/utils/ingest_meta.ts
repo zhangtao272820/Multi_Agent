@@ -31,3 +31,19 @@ export function buildIngestTimestamps(now = new Date()): { ingest_at: string; pr
 export function shortContentHash(hash: string): string {
   return String(hash || "").slice(0, 12);
 }
+
+/** H1：同 content_hash 则跳过重嵌入（只刷新元数据） */
+export function shouldSkipReembed(existingHash: string | undefined | null, nextHash: string): boolean {
+  const a = String(existingHash ?? "").trim();
+  const b = String(nextHash ?? "").trim();
+  return Boolean(a && b && a === b);
+}
+
+/** H1：memory 分支按 source 过滤（供 purge 与离线 smoke 共用） */
+export function filterMemoryVectorsBySource<T extends { metadata?: Record<string, unknown> }>(
+  vectors: T[],
+  fileName: string
+): { kept: T[]; removed: number } {
+  const kept = vectors.filter((v) => String(v?.metadata?.source ?? "") !== fileName);
+  return { kept, removed: vectors.length - kept.length };
+}

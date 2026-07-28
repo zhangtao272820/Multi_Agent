@@ -80,6 +80,7 @@ import {
   crawlerOutcomeRouteSuggestion,
   shouldInjectGuiAfterCrawler
 } from '../../core/agent/guiCrawlerHandoff'
+import { resolveEmptyPlanFallbackAgent } from '../../core/runtime/emptyPlanFallback'
 import type { CreateMultiNodeDeps } from './types'
 
 
@@ -145,8 +146,11 @@ export async function runMultiNodeBody(state: any, deps: any) {
       constraints: taskConstraintsFromMeta(state.meta) ?? undefined,
       pipelineHints: pipelineHintsFromMeta(state.meta) ?? undefined
     }
+    const emptyPlanAgent = resolveEmptyPlanFallbackAgent(state as any)
     const steps = validateAndPreparePlan(
-      normalizePlanSteps(sourceSteps.length ? sourceSteps : [{ agent: 'db' as const, query: question }]),
+      normalizePlanSteps(
+        sourceSteps.length ? sourceSteps : [{ agent: emptyPlanAgent, query: question }]
+      ),
       {
         excerpt: taskText,
         pipelineOpts: pipeOpts,

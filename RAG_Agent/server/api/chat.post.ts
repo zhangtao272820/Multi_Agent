@@ -426,6 +426,7 @@ export default defineEventHandler(async (event) => {
         trace_id: traceId,
         needsClarify: Boolean(retrieveFirst.clarifyOnly),
         usage: resolveAgentUsage({ llmUsage: retrieveFirst.usage, answerText: finalAnswer }),
+        retrievalFailureMode: retrieveFirst.retrievalFailureMode,
       });
       sendData({
         type: "phase",
@@ -482,6 +483,7 @@ export default defineEventHandler(async (event) => {
           trace_id: traceId,
           needsClarify: true,
           usage: resolveAgentUsage({ answerText: clarify }),
+          retrievalFailureMode: "weak_evidence",
         }),
         evidence: [],
       });
@@ -688,6 +690,8 @@ export default defineEventHandler(async (event) => {
       trace_id: traceId,
       needsClarify: retrievalNeedsClarify && !hasEvidence,
       usage: resolveAgentUsage({ llmUsage: lastUsage, answerText: finalAnswer }),
+      retrievalFailureMode:
+        retrievalNeedsClarify && !hasEvidence ? "weak_evidence" : undefined,
     });
     sendData({
       type: "phase",

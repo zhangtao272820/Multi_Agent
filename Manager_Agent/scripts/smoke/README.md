@@ -16,7 +16,7 @@
 | `evolution/` | 4 | 演化 · skill-draft |
 | `gui/` | 4 | GUI 路由与白名单 |
 | `search/` | 3 | SearXNG · web-search |
-| `misc/` | 8 | 杂项结构 smoke |
+| `misc/` | 10 | 杂项结构 smoke（`smoke-ws-auth` · `smoke-preflight` S3 联调预检） |
 
 ## 常用命令
 

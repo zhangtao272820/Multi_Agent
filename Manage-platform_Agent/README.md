@@ -1,19 +1,32 @@
-# Manage-platform Agent（LAN 部署版）
+# Manage-platform Agent（紫微 · LAN 部署版）
 
 > **学习文档**：[入门](../docs/Agent学习指南-入门版.md) · [进阶](../docs/Agent学习指南-进阶版.md) · [平台专篇](学习指南.md)  
-> **升级方案**：[企业级控制面升级方案](doc/企业级控制面升级方案.md)（P0 · P0.5 · P1 · P2a · **P2b HPA/LiteLLM** · **Langfuse** 已落地）
+> **升级方案**：[企业级控制面升级方案](doc/企业级控制面升级方案.md)（P0 · P0.5 · P1 · P2a · **P2b HPA/LiteLLM** · **Langfuse** 已落地；**P3-CP 可选加深默认不开**，见方案 §5.4）  
+> **对外展示名**：本控制面称 **紫微**；子 Agent 星曜别名见 [`frontend/src/agentDisplayNames.js`](frontend/src/agentDisplayNames.js)（仅 UI/文档，不改 docker / API 名）。
 
-本目录用于 **一键启动整套 Agent 运行环境**：Docker Compose 编排 **ClawHive 管理平台**（前端 + 后端 + PostgreSQL + Redis）以及 **DB / RAG / Code Assist / Extractor / AI Admin / Manager / Multimodal / Lobster / Tavern（Agent 酒馆）** 等子 Agent 容器；**标准版默认**挂载 **Prometheus + Grafana + Alertmanager + Tempo + Loki + Langfuse**（可用 `--no-monitor` / `-NoMonitor` 关闭）。可选 **LiteLLM** 出口网关（`--profile litellm` + `LITELLM_ENABLED=1`）。
+本目录用于 **一键启动整套 Agent 运行环境**：Docker Compose 编排 **紫微（ClawHive）管理平台**（前端 + 后端 + PostgreSQL + Redis）以及 **禄存 DB / 文曲 RAG / 武曲 Code / 巨门 Extractor / 天梁 Admin / 天机 Manager / 廉贞 Multimodal / 七杀 Lobster / 天府 Tavern** 等子 Agent 容器；**标准版默认**挂载 **Prometheus + Grafana + Alertmanager + Tempo + Loki + Langfuse**（可用 `--no-monitor` / `-NoMonitor` 关闭）。可选 **LiteLLM** 出口网关（`--profile litellm` + `LITELLM_ENABLED=1`）。
 
-本仓库在 Gitee 上为单体仓库 [`assssshuhuhuh/agent`](https://gitee.com/assssshuhuhuh/agent) 中的 `Manage-platform_Agent/`。本地 LAN 采用 **三层 SSOT**（勿压成单一巨型 `.env`）：
+本仓库在 Gitee 上为单体仓库 [`assssshuhuhuh/agent`](https://gitee.com/assssshuhuhuh/agent) 中的 `Manage-platform_Agent/`。本地 LAN 采用 **三层 SSOT**（勿压成单一巨型 `.env`）；**日常可在 ClawHive 控制台改**，文件仍是落盘权威：
 
-| 层 | 文件 | 写什么 |
-|----|------|--------|
-| 模型 | `.env.capability-models` | `CAP_*` 模型名（唯一可写源） |
-| 行为 MODE | `.env.convergence-modes` | `MANAGER_WEB_SEARCH_MODE`、`MANAGER_PRO_MODE` 等 |
-| 基础设施 | `.env.agents-lan` | 端口、Token、API Key、**SearXNG / WEB_SEARCH_*** |
+| 层 | 文件 | 写什么 | 控制台入口 |
+|----|------|--------|------------|
+| 模型 | `.env.capability-models` | `CAP_*` 模型名（唯一可写源） | Agent 配置 → 能力层 |
+| 行为 MODE | `.env.convergence-modes` | `MANAGER_WEB_SEARCH_MODE` 等 | Agent 配置 → 收敛 MODE |
+| 基础设施 | `.env.agents-lan` | 端口、Token、API Key、SearXNG | Agent 配置 → 集群基建；密钥 → 系统设置 Vault |
 
-含密钥的实文件 **勿提交**。索引说明见 [`.env.llm-first.example`](.env.llm-first.example)。
+### ClawHive 七域控制面
+
+| 域 | 控制台路由 | 能力 |
+|----|------------|------|
+| 运维 | 总览 / 总管 / 任务 | 健康、Token 流水、编排转发 |
+| 配置 | Agent 配置 | 模型 · MODE · agents-lan · 本地白名单 `.env` |
+| 管控 | Agent 管控 | 启停 · Drain · 滚动重启 |
+| 可观测 | 监控与日志 | Prom 大屏 · 告警 · run_id/trace_id → Loki/Tempo/Langfuse |
+| 部署 | 部署中心 | 镜像 tag · 回滚（封装 `rollback-agents`）· 离线包状态 |
+| 维护 | 备份恢复 | PG 备份/恢复（封装 scripts） |
+| 治理 | 系统设置 | 租户配额 · Vault · 审计 |
+
+API 速查：`/api/agents/config/convergence-modes`、`/api/agents/config/agents-lan`、`/api/agents/config/{name}/local-env`、`/api/ops/deploy/*`、`/api/ops/backup/*`。
 
 ## 项目简介
 
@@ -88,11 +101,11 @@ helm upgrade --install clawhive ./helm/clawhive -n clawhive \
 
 | 档位 | 命令 | 包含 |
 |------|------|------|
-| **标准版**（企业默认） | `install-linux.sh` 或 `up-agents-lan.ps1` | 平台 + DB/RAG/Code/Extractor/Admin/Manager + **Prom/Grafana/Alertmanager/Tempo/Loki** |
-| **完整版** | 加 `--extended` / `-Extended` | 标准版 + 多模态/音乐/视频/Lobster |
+| **标准版**（企业默认） | `install-linux.sh` 或 `up-agents-lan.ps1` | 平台 + DB/RAG/Code/Extractor/Admin/Multimodal/Manager + **Prom/Grafana/Alertmanager/Tempo/Loki** |
+| **完整版** | 加 `--extended` / `-Extended` | 标准版 + 音乐/视频/Lobster |
 | **弱机** | 加 `--no-monitor` / `-NoMonitor` | 标准协作链，不启监控（含 Tempo / Loki） |
 
-标准版已覆盖 **对话编排 + 查数 + RAG + 代码 + 爬虫 + 办公 + 基础监控**；媒体类按需再开 extended。
+标准版已覆盖 **对话编排 + 查数 + RAG + 代码 + 爬虫 + 办公 + 多模态理解 + 基础监控**；音乐/视频生成与 Lobster 按需再开 extended。
 
 镜像版本：环境变量 `CLAWHIVE_IMAGE_TAG`（默认 `prod`；构建/安装脚本可写成 `0.1.0-<gitsha>`）。离线交付：构建机 `package-offline` 产出 `offline/images.tar` + `SHA256SUMS` 后，客户机执行 `bash scripts/install-linux.sh --offline`。
 

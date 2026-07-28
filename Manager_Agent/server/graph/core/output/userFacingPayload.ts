@@ -10,7 +10,8 @@ import {
 } from '#agent-shared/chartOption'
 import {
   looksLikeExecAuditDump,
-  stripStructuredExecReport
+  stripStructuredExecReport,
+  stripSynthPromptLeakage
 } from '#agent-shared/synthOutputSanitize'
 import { planAgentLabel } from '../runtime/phaseLabels'
 import type { SpecialistHandoff } from '../../../utils/agents/types'
@@ -76,7 +77,7 @@ const FIELD_LABEL_ZH: Record<string, string> = {
 
 /** 剥离开发者腔（确定性，非意图识别） */
 export function stripDeveloperJargon(text: string): string {
-  let s = String(text || '')
+  let s = stripSynthPromptLeakage(String(text || ''))
   s = s.replace(CTX_MARK_RE, '')
   s = s.replace(OK_MARK_RE, '')
   s = s
@@ -89,7 +90,7 @@ export function stripDeveloperJargon(text: string): string {
     })
     .filter((line) => line.trim().length > 0)
     .join('\n')
-  return s.replace(/\n{3,}/g, '\n\n').trim()
+  return stripSynthPromptLeakage(s.replace(/\n{3,}/g, '\n\n').trim())
 }
 
 function looksLikeDeveloperDump(text: string): boolean {
@@ -98,6 +99,10 @@ function looksLikeDeveloperDump(text: string): boolean {
   if (DEVELOPER_JARGON_RE.test(s)) return true
   if (/\(ok\)/i.test(s) && s.length < 200) return true
   if (/^\{[\s\S]*"ok"\s*:/.test(s.trim())) return true
+  if (/仅处理下列个人助理能力/.test(s)) return true
+  if (/#{1,3}\s*执行摘要/.test(s)) return true
+  if (/关于数据来源的说明/.test(s) && /置信度|不可信/.test(s)) return true
+  if (/```\s*agent_result\b/i.test(s)) return true
   return false
 }
 
@@ -386,7 +391,7 @@ export function buildUserFacingPayload(input: {
       : '暂无结论。可查看上方进展，或换个说法再试一次。'
   }
 
-  summary = stripStructuredExecReport(stripDeveloperJargon(summary))
+  summary = stripStructuredExecReport(stripDeveloperJargon(stripSynthPromptLeakage(summary)))
   if (!summary) summary = '暂无结论。可查看上方进展，或换个说法再试一次。'
 
   const outcome = resolveOutcome(meta)
@@ -450,5 +455,5 @@ export function buildUserFacingPayload(input: {
 
 /** 用户主列正文：仅 summary（附录/执行摘要不进主气泡） */
 export function formatUserFacingMainText(payload: UserFacingPayload): string {
-  return stripStructuredExecReport(stripDeveloperJargon(payload.summary || ''))
+  return stripStructuredExecReport(stripDeveloperJargon(stripSynthPromptLeakage(payload.summary || '')))
 }

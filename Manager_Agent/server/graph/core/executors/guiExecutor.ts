@@ -19,6 +19,19 @@ import {
   isGuiOperateKind,
   resolveGuiOperateKindByLlm,
 } from '../../../utils/gui/guiOperateKindLlm'
+import { sanitizeGuiWorkflowId } from '../../../utils/gui/guiWorkflowAllowlist'
+import {
+  buildGuiBlockedFinalMessage,
+  detectGuiSemanticBlockFromState,
+  extractGuiObservationFromRaw,
+  isDockerHeadlessMcpGui,
+  isGuiHumanHandoffFailure,
+  requestGuiHumanConfirm,
+  resolveGuiFailureType,
+} from '../../../utils/gui/guiHumanConfirm'
+import { hasLobsterBrowseEvidence } from '#agent-shared/lobsterRunVerifyLite'
+
+const DOCKER_CLASSIC_BROWSE_KINDS = new Set(['navigate', 'extract', 'search', 'multi_step'])
 
 function parseMcpGuiRun(
   mcpOut: { ok: boolean; text: string; raw?: unknown },
@@ -68,6 +81,26 @@ function parseMcpGuiRun(
   }
 }
 
+function mcpGuiFailureSummary(mcpOut: { text?: string; raw?: unknown; ok?: boolean }): string {
+  const raw = mcpOut.raw && typeof mcpOut.raw === 'object' ? (mcpOut.raw as Record<string, unknown>) : {}
+  const err = String(raw.error || '').trim()
+  const verify = raw.verify && typeof raw.verify === 'object' ? (raw.verify as { reason?: string }) : null
+  const reason = String(verify?.reason || '').trim()
+  const status = String(raw.status || '').trim()
+  const parts = [err, reason ? `verify=${reason}` : '', status ? `status=${status}` : ''].filter(Boolean)
+  if (parts.length) return parts.join('；').slice(0, 160)
+  return String(mcpOut.text || 'lobster MCP run failed').slice(0, 120)
+}
+
+function mcpRawHasBrowseEvidence(mcpOut: { raw?: unknown; ok?: boolean }): boolean {
+  const raw = mcpOut.raw && typeof mcpOut.raw === 'object' ? (mcpOut.raw as Record<string, unknown>) : {}
+  if (hasLobsterBrowseEvidence(raw.result)) return true
+  const pageUrl = String(raw.page_url || '').trim()
+  if (pageUrl.startsWith('http')) return true
+  const shot = String(raw.screenshot_data_url || '').trim()
+  return Boolean(shot)
+}
+
 function buildMcpGuiStepOutcome(input: {
   task: string
   mcpOut: { ok: boolean; text: string; raw?: unknown }
@@ -79,6 +112,16 @@ function buildMcpGuiStepOutcome(input: {
 }): AgentStepOutcome & { task?: string; rawResult?: unknown } {
   const { task, mcpOut, parsed, ok, error, meta, outputOverride } = input
   const output = outputOverride || parsed.normalized.answer || parsed.answer || mcpOut.text
+  const raw = mcpOut.raw && typeof mcpOut.raw === 'object' ? (mcpOut.raw as Record<string, unknown>) : {}
+  const resultRow =
+    raw.result && typeof raw.result === 'object' ? (raw.result as Record<string, unknown>) : raw
+  const sourceHits = guiSourceHitsForEvent({
+    ...resultRow,
+    finalUrl: parsed.finalUrl || resultRow.finalUrl || raw.page_url,
+  })
+  const hasShot = Boolean(
+    String(parsed.screenshotDataUrl || raw.screenshot_data_url || '').trim() || resultRow.hasScreenshot
+  )
   return {
     ok,
     agent: 'gui',
@@ -90,6 +133,10 @@ function buildMcpGuiStepOutcome(input: {
       query: task,
       transport: 'mcp',
       engine: 'lobster-gui',
+      itemCount: sourceHits.length,
+      items: sourceHits,
+      finalUrl: parsed.finalUrl || String(resultRow.finalUrl || raw.page_url || ''),
+      hasScreenshot: hasShot,
       ...(ok ? {} : { failed: true, verifyReason: String(parsed.verify?.reason || '') }),
     },
     rawResult: mcpOut.raw,
@@ -271,6 +318,11 @@ export async function executeGuiStep(
     input.sendThinking(
       `GUI 操作类型：${operateKind.task_kind}${needsLogin ? '（needs_login）' : ''} · conf=${operateKind.confidence.toFixed(2)}`,
     )
+    if (operateKind.dropped_workflow_id) {
+      input.sendThinking(
+        `GUI：未知宏「${operateKind.dropped_workflow_id}」已丢弃，改走逐步 GUI`,
+      )
+    }
   }
 
   // 操作类（form_fill/login）靠 soft task_kind 选型，禁止经验引擎写成 forced engineHint
@@ -286,6 +338,29 @@ export async function executeGuiStep(
     } catch {
       /* optional */
     }
+  }
+
+  // workflow：LLM 优先；显式 `工作流:` hint 仅作 overlay。未知宏丢弃。
+  const rawWorkflowId =
+    String(operateKind?.workflow_id || '').trim() || String(hints.workflowId || '').trim() || undefined
+  const wfSanitized = sanitizeGuiWorkflowId(rawWorkflowId)
+  const workflowId = wfSanitized.ok ? wfSanitized.id : undefined
+  if (!wfSanitized.ok && wfSanitized.dropped) {
+    input.sendThinking(`GUI：未知宏「${wfSanitized.dropped}」已丢弃，改走逐步 GUI`)
+  }
+
+  // Docker 无头 MCP：浏览类（打开/抽取/搜索）优先 classic，与 noVNC 同屏
+  // 仅尊重用户显式「引擎:」hint；历史经验 mcp 不挡 classic
+  if (
+    !hints.engineHint &&
+    isDockerHeadlessMcpGui() &&
+    taskKind &&
+    DOCKER_CLASSIC_BROWSE_KINDS.has(String(taskKind)) &&
+    !needsLogin &&
+    !workflowId
+  ) {
+    engineHint = 'classic'
+    input.sendThinking('GUI Agent：Docker 无头 MCP 下浏览类任务改走 classic（与 noVNC 同屏）')
   }
   const storageProfile =
     hints.storageProfile ||
@@ -323,9 +398,6 @@ export async function executeGuiStep(
       ? hints.engineHint
       : engineHint || hints.engineHint || undefined
 
-  // workflow：LLM 优先；显式 `工作流:` hint 仅作 overlay。禁止静默填测试名。
-  const workflowId =
-    String(operateKind?.workflow_id || '').trim() || String(hints.workflowId || '').trim() || undefined
   const workflowArgs: Record<string, unknown> = {
     ...(operateKind?.workflow_args || {}),
     ...(hints.workflowArgs || {}),
@@ -473,7 +545,21 @@ export async function executeGuiStep(
         })
         let parsed = parseMcpGuiRun(mcpOut, task, opts.runId)
         if (mcpOut.retryable === true && !mcpOut.ok) {
-          throw new Error(mcpOut.text.slice(0, 240) || 'lobster MCP run failed')
+          // 已有页面/截图证据：落 outcome，禁止 classic 整段双跑
+          if (mcpRawHasBrowseEvidence(mcpOut) || parsed.finalUrl || parsed.semanticOk) {
+            input.sendThinking(
+              `GUI Agent：MCP 标记可回退，但已有浏览证据，直接采纳（${mcpGuiFailureSummary(mcpOut)}）`
+            )
+            const browseOk = parsed.semanticOk || Boolean(parsed.finalUrl) || mcpRawHasBrowseEvidence(mcpOut)
+            return buildMcpGuiStepOutcome({
+              task,
+              mcpOut,
+              parsed,
+              ok: browseOk,
+              error: browseOk ? undefined : parsed.failureType || mcpGuiFailureSummary(mcpOut),
+            })
+          }
+          throw new Error(mcpGuiFailureSummary(mcpOut) || 'lobster MCP run failed')
         }
         const handoff = await maybeHumanConfirmAndRetryMcpGui({
           task,
@@ -589,7 +675,21 @@ export async function executeGuiStep(
           })
         }
         if (mcpOut.retryable === true && !mcpOut.ok) {
-          throw new Error(mcpOut.text.slice(0, 240) || 'lobster MCP run failed')
+          if (mcpRawHasBrowseEvidence(mcpOut) || parsed.finalUrl || parsed.semanticOk) {
+            input.sendThinking(
+              `GUI Agent：MCP 标记可回退，但已有浏览证据，直接采纳（${mcpGuiFailureSummary(mcpOut)}）`
+            )
+            const browseOk = parsed.semanticOk || Boolean(parsed.finalUrl) || mcpRawHasBrowseEvidence(mcpOut)
+            return buildMcpGuiStepOutcome({
+              task,
+              mcpOut,
+              parsed,
+              ok: browseOk,
+              error: browseOk ? undefined : parsed.failureType || mcpGuiFailureSummary(mcpOut),
+              meta: blockMeta,
+            })
+          }
+          throw new Error(mcpGuiFailureSummary(mcpOut) || 'lobster MCP run failed')
         }
         if (!parsed.semanticOk) {
           const blockedMsg = buildGuiBlockedFinalMessage({
@@ -611,7 +711,9 @@ export async function executeGuiStep(
         }
         return buildMcpGuiStepOutcome({ task, mcpOut, parsed, ok: true })
       } catch (mcpErr) {
-        input.sendThinking(`GUI Agent：MCP 失败，回退 WebSocket（${String((mcpErr as Error)?.message || mcpErr).slice(0, 120)}）`)
+        input.sendThinking(
+          `GUI Agent：MCP 失败，回退 WebSocket（${String((mcpErr as Error)?.message || mcpErr).slice(0, 160)}）`
+        )
         engineHint = 'classic'
       }
     }
@@ -717,7 +819,9 @@ export async function executeGuiStep(
         itemCount: sourceHits.length,
         items: sourceHits,
         finalUrl: String((normalized.raw as Record<string, unknown>)?.finalUrl || ''),
-        engine: String((normalized.raw as Record<string, unknown>)?.engine || (normalized.raw as Record<string, unknown>)?.executionEngine || '')
+        engine: String((normalized.raw as Record<string, unknown>)?.engine || (normalized.raw as Record<string, unknown>)?.executionEngine || ''),
+        hasScreenshot: Boolean(extractGuiObservationFromRaw(normalized.raw).screenshotDataUrl),
+        ...(normalized.agentResult.ok === false ? { failed: true } : {}),
       },
       rawResult: normalized.raw,
       meta: { agentResult: normalized.agentResult }

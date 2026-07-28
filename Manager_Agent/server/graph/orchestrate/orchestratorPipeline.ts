@@ -33,17 +33,18 @@ import { stepDispatchDraftFromMeta } from '../core/proPuStack'
 import { buildBlueprintFromPuStackDispatch } from '../llm/planBlueprintLlm'
 import { alignOrchestratorWebExecutionMode } from './orchestratorWebExecutionAlign'
 import { rematerializeWeatherCrawlerMisbind } from './weatherAdminBoundary'
+import { rematerializeMapCrawlerMisbind } from './mapAdminBoundary'
 import { sortAgentsByPipelineOrder } from '../core/routing/clauses'
 import type { ExecutableAgent } from '../core/routing/routeFinalize'
 
 const EXEC_COVER = new Set(['rag', 'db', 'crawler', 'clean', 'code', 'visualize', 'report', 'admin', 'gui', 'multimodal', 'music', 'video'])
 
-/** web-align 之后再跑天气契约，防止 supplement/composite 把 crawler 加回 */
-function reapplyWeatherAdminBoundary(decision: OrchestratorDecision): OrchestratorDecision {
+/** web-align 之后再跑天气/地图契约，防止 supplement/composite 把 crawler 加回 */
+function reapplyAdminApiCrawlerBoundary(decision: OrchestratorDecision): OrchestratorDecision {
   const draft = Array.isArray(decision.metaPatch?.stepDispatchDraft)
     ? (decision.metaPatch.stepDispatchDraft as Parameters<typeof rematerializeWeatherCrawlerMisbind>[0]['stepDispatchDraft'])
     : decision.stepDispatchDraft
-  const fixed = rematerializeWeatherCrawlerMisbind({
+  const weatherFixed = rematerializeWeatherCrawlerMisbind({
     allowedAgents: decision.allowedAgents as ExecutableAgent[],
     clauses: decision.clauses,
     classify: decision.intentClassify,
@@ -51,7 +52,15 @@ function reapplyWeatherAdminBoundary(decision: OrchestratorDecision): Orchestrat
     stepDispatchDraft: draft,
     needsWebSearch: decision.needsWebSearch
   })
-  if (!fixed.changed) return decision
+  const fixed = rematerializeMapCrawlerMisbind({
+    allowedAgents: weatherFixed.allowedAgents,
+    clauses: weatherFixed.clauses,
+    classify: weatherFixed.classify,
+    planBlueprint: weatherFixed.planBlueprint,
+    stepDispatchDraft: weatherFixed.stepDispatchDraft,
+    needsWebSearch: weatherFixed.needsWebSearch
+  })
+  if (!weatherFixed.changed && !fixed.changed) return decision
   const allowed = sortAgentsByPipelineOrder(fixed.allowedAgents) as OrchestratorDecision['allowedAgents']
   return {
     ...decision,
@@ -84,7 +93,7 @@ async function finalizeOrchestratorDecision(
     state: input.state,
     toolHealth,
   })
-  return reapplyWeatherAdminBoundary(aligned)
+  return reapplyAdminApiCrawlerBoundary(aligned)
 }
 
 export function isOrchestratorLlmOnlyMode(env: NodeJS.ProcessEnv = process.env): boolean {

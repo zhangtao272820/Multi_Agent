@@ -347,6 +347,7 @@ export async function resolvePlanBlueprintByLlm(input: {
             '原则：',
             '- 按语义拆层：取数(db/rag/crawler/gui) → 可选 clean → code → visualize/report → admin 等动作；',
             '- **天气预报/气温/今日天气** → **admin**（get_weather），禁止 crawler；crawler 仅用于政策/公告/新闻网页正文；',
+            '- **地图/地铁/公交/从A到B/多久到** → **admin**（高德），禁止 crawler；「查一下」出行耗时禁止再挂 crawler 镜像步；',
             '- **gui vs crawler**：需浏览器点击/站内搜索/登录填表 → gui；仅需静态 URL 抓取或联网检索后 Extractor 抽正文 → crawler；二者勿混用同一步；',
             '- 路由若已给出【网页执行模式】，Planner 必须对齐（gui 任务禁止规划 crawler 替代）；',
             '- 独立子句（如 rag 查财务 + admin 建日程）默认**无依赖、可并行**（同 parallelGroup 或不写 dependsOn）；',

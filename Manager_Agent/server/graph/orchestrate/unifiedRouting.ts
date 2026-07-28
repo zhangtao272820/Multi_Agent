@@ -108,7 +108,9 @@ export function formatAttachmentHintForOrchestrator(
     '【用户附件】已上传，须纳入 allowedAgents 与 planBlueprint：',
     `- 附件类型：${mt}`,
     `- 建议 Agent：${media}（识图/理解附件）；若用户还要求生成音乐/视频则含 music/video`,
-    '- multimodal 负责理解附件内容；rag/db/crawler 负责文本任务；勿把附件任务写进 rag/db queryFocus'
+    '- 图片/附件是问题描述的一部分：须先由 multimodal 理解，理解结果供下游 Agent 消费',
+    '- 若本轮还要查库/文档/爬虫/日程等：intent=multi，planBlueprint 中 multimodal 为前序，下游 dependsOn multimodal',
+    '- multimodal 负责理解附件；rag/db/crawler/admin 负责文本任务；勿把识图/OCR 写进 rag/db queryFocus'
   ].join('\n')
 }
 
@@ -118,7 +120,8 @@ export function formatAdminCrawlerDisambiguationPrompt(): string {
     '【Admin 结构化能力 vs Crawler 公网抓取】',
     adminTaskLlmToolCatalog(),
     '- **天气预报/气温/湿度/穿衣/今日天气** → **admin**（get_weather 真实 API），**禁止** crawler/gui/needsWeb；',
-    '- **地图路线/多久到/从A到B/周边POI** → **admin**（高德 API），不是 crawler；',
+    '- **地图路线/多久到/从A到B/周边POI/地铁公交耗时** → **admin**（高德 get_travel_route 等），**禁止** crawler/needsWeb；',
+    '- 「查一下/帮我查 + 地铁/公交/从A到B/多久」仍是 **admin 高德**，≠ 联网抓网页；禁止再挂一条 crawler 镜像步骤；',
     '- **crawler** 仅当用户要公网**网页正文**（最新政策通知、民政部公告、官网新闻、列表页字段）；',
     '- 「查天气」≠「联网检索」；复合任务中天气子句须 clauses+planBlueprint 独立 admin 一步；',
     '- 用户说「网上查天气」仍走 admin（结构化预报），除非明确要求爬取某天气网站页面正文。'
@@ -136,10 +139,11 @@ export function formatAgentBoundaryPrompt(): string {
     '- **db**：结构化业务库/SQL/记录/统计；**rag**：内部文档/制度/知识库；二者不可混用',
     '- **crawler**：公网网页正文/政策公告；**rag**：私有文档；用户要「网上查最新政策/通知原文」才加 crawler',
     formatAdminCrawlerDisambiguationPrompt(),
-    '- **multimodal**：理解用户上传的图片/附件；**music/video**：基于附件或描述生成媒体',
-    '- **gui**：需登录填表的浏览器交互',
+    '- **multimodal**：理解用户上传的图片/附件（核心子 Agent）；有附件且还需其他 Agent 时 multimodal 须为前序，下游 dependsOn 它',
+    '- **music/video**：基于附件或描述生成媒体（extended）',
+    '- **gui**：需登录填表的浏览器交互（extended）',
     '- **clean/code/visualize/report**：多源对比、出图、写报告时的加工链；单源查数可不要',
-    '- planBlueprint 每步 queryFocus 须写「该 Agent 要做什么」，禁止复制整段用户原话',
+    '- planBlueprint 每步 queryFocus 须写「该 Agent 要做什么」，禁止复制整段用户原话；勿把识图写进 rag/db queryFocus',
     '- Probe/经验/读题 hint 仅供参考；与用户末轮冲突时必须以末轮为准'
   ].join('\n')
 }

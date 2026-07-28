@@ -1,3 +1,5 @@
+import { agentTitle } from "../agentDisplayNames";
+
 function statusClass(status) {
   if (status === "healthy" || status === "online" || status === "reachable") return "online";
   if (status === "degraded" || status === "unknown") return "degraded";
@@ -142,7 +144,7 @@ export default function OpsOverview({
               className={`health-chip ${statusClass(c.status)}`}
               title={`${c.target}${c.probe_path ? ` · ${c.probe_path}` : ""}`}
             >
-              {c.name.replace(/_Agent$/, "")} {c.latency_ms}ms
+              {agentTitle(c.name)} {c.latency_ms}ms
             </span>
           ))}
         </div>
@@ -184,7 +186,7 @@ export default function OpsOverview({
           <div className="chip-row">
             {monitorSummary.down_agents.map((a) => (
               <span key={a.name} className="health-chip offline" title={a.target}>
-                {a.name}
+                {agentTitle(a.name)}
               </span>
             ))}
           </div>

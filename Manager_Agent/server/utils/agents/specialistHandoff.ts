@@ -128,16 +128,18 @@ export function buildSpecialistHandoffFromStep(input: HandoffBuildInput): Specia
   }
 }
 
-/** 父上下文 / synth 用：只拼摘要与证据指针，不含全文 */
+/** 父上下文 / synth 用：只拼摘要与证据指针，不含全文；不注入置信度以免用户面鹦鹉学舌 */
 export function formatHandoffForParentContext(
   agent: string,
   handoff: SpecialistHandoff,
-  opts?: { includeRawHint?: boolean }
+  opts?: { includeRawHint?: boolean; includeConfidence?: boolean }
 ): string {
   const lines = [
     `[HANDOFF:${agent}]`,
     `结论：${clipHandoffSummary(handoff.summary)}`,
-    `置信度：${Math.round(handoff.confidence * 100) / 100}`,
+    opts?.includeConfidence
+      ? `置信度：${Math.round(handoff.confidence * 100) / 100}`
+      : '',
     handoff.evidenceRefs.length
       ? `证据指针：${handoff.evidenceRefs.slice(0, 8).join(' | ')}`
       : '证据指针：（无）',

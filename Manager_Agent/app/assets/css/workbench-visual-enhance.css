@@ -1589,3 +1589,140 @@
     display: none;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   双工作区 · 历史栏模式切换 + 对话 DeepSeek 式布局
+   ═══════════════════════════════════════════════════════════════ */
+
+.spring-history-mode-row {
+  display: flex;
+  gap: 6px;
+  padding: 8px 12px 0;
+}
+
+.spring-history-mode-btn {
+  flex: 1;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(15, 23, 42, 0.45);
+  color: rgba(226, 232, 240, 0.72);
+  border-radius: 10px;
+  padding: 7px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.spring-history-mode-btn:hover {
+  border-color: rgba(125, 211, 252, 0.35);
+  color: #f8fafc;
+}
+
+.spring-history-mode-btn.is-active {
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.28), rgba(37, 99, 235, 0.22));
+  border-color: rgba(56, 189, 248, 0.5);
+  color: #e0f2fe;
+}
+
+.spring-root.mode-chat .spring-history-mode-btn.is-active {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.32), rgba(79, 70, 229, 0.22));
+  border-color: rgba(167, 139, 250, 0.5);
+  color: #ede9fe;
+}
+
+.spring-history-mode-hint {
+  margin: 6px 12px 8px;
+  padding: 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: rgba(148, 163, 184, 0.78);
+}
+
+.spring-history-item-title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.spring-history-mode-badge {
+  flex: 0 0 auto;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+}
+
+.spring-history-mode-badge.is-chat {
+  color: #ddd6fe;
+  background: rgba(139, 92, 246, 0.22);
+  border-color: rgba(167, 139, 250, 0.35);
+}
+
+.spring-history-mode-badge.is-pro {
+  color: #bae6fd;
+  background: rgba(14, 165, 233, 0.2);
+  border-color: rgba(56, 189, 248, 0.4);
+}
+
+.spring-history-mode-badge.is-untagged {
+  color: rgba(148, 163, 184, 0.9);
+  background: rgba(51, 65, 85, 0.35);
+  border-color: rgba(100, 116, 139, 0.35);
+}
+
+.spring-history-item-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 对话模式 · 顶栏极简 + 宽对话列 */
+.spring-root.mode-chat {
+  --mgr-tools-w: 0px;
+  --chat-col-width: min(820px, calc(100vw - var(--mgr-sidebar-w, 260px) - 48px));
+}
+
+.spring-root.mode-chat .cosmic-hud-readout.is-chat-hud {
+  opacity: 0.35;
+  transform: scale(0.92);
+  transform-origin: top right;
+}
+
+.spring-root.mode-chat .spring-topbar.is-chat-header {
+  min-height: 52px;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+  background: rgba(8, 10, 24, 0.42);
+  backdrop-filter: blur(12px);
+}
+
+.spring-root.mode-chat .spring-topbar.is-chat-header .spring-title {
+  font-size: 1.05rem;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+}
+
+.spring-root.mode-chat .wb-chat-column {
+  max-width: var(--chat-col-width);
+  margin-inline: auto;
+  width: 100%;
+}
+
+.spring-root.mode-chat .cursor-main-split {
+  justify-content: center;
+}
+
+.spring-root.mode-chat .spring-input.cosmic-input-dock {
+  border-radius: 18px !important;
+  border-color: rgba(148, 163, 184, 0.18) !important;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28) !important;
+}
+
+.spring-root.mode-professional .spring-topbar.is-pro-header {
+  border-bottom: 1px solid rgba(56, 189, 248, 0.16);
+}

@@ -249,16 +249,21 @@ export function compileManagerGraph(
       'optimizer_node',
       (s: any) => {
         if (Boolean(s?.meta?.needsClarify) || String(s?.optimizer?.action || '') === 'clarify') return 'clarify'
+        if (s.fixIntent === 'gui') return 'gui'
         if (s.fixIntent === 'multi') return 'multi'
         if ((s.fixQuery && s.fixIntent) || String(s?.optimizer?.action || '') === 'fix' || String(s?.optimizer?.action || '') === 'replan_multi') return 'fix'
         return 'verifier'
       },
-      ['clarify', 'multi', 'fix', 'verifier'] as any
+      ['clarify', 'gui', 'multi', 'fix', 'verifier'] as any
     )
     .addEdge('verifier', 'monitor_node')
     .addEdge('monitor_node', 'finalize')
     .addNode('fix', nodes.fixNode)
-    .addEdge('fix', 'synth')
+    .addConditionalEdges(
+      'fix',
+      (s: any) => (String(s?.fixIntent || '') === 'gui' ? 'gui' : 'synth'),
+      ['gui', 'synth'] as any
+    )
     .addEdge('admin_confirm_resume', 'synth')
     .addEdge('finalize', END)
     .compile({

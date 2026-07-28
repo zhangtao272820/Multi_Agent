@@ -38,6 +38,8 @@ export function buildRagAgentResult(params: {
   error_code?: RagErrorCode | string;
   detail?: string;
   usage?: { tokens?: number; usd?: number; actual?: boolean };
+  /** H4 / I2：检索失败可解释枚举 */
+  retrievalFailureMode?: string;
 }): AgentResult {
   const sources: AgentSource[] = [];
   const citations: Array<Record<string, string>> = [];
@@ -57,6 +59,7 @@ export function buildRagAgentResult(params: {
     if (needsClarify) error_code = "needs_clarify";
     else if (!sources.length) error_code = "empty_result";
   }
+  const failureMode = String(params.retrievalFailureMode || "").trim();
   const failed =
     Boolean(error_code) &&
     (error_code === "vector_not_ready" ||
@@ -78,6 +81,7 @@ export function buildRagAgentResult(params: {
       citations: citations.length ? citations : undefined,
       ...(params.detail ? { detail: params.detail } : {}),
       ...(error_code ? { error_code } : {}),
+      ...(failureMode ? { retrieval_failure_mode: failureMode } : {}),
     },
     needs_clarify: needsClarify,
     error_code,

@@ -55,27 +55,57 @@ function hasClarifyOrCiteSignal(c, data) {
   return (c.expect_sources || []).some((s) => sources.includes(s) || blob.includes(s));
 }
 
+/** H5/I1：与 citation_guard 同核的轻量 groundedness（答案数字/条款须出现在证据） */
+function checkAnswerGroundedInEvidence(answer, evidence) {
+  const corpus = (evidence || []).map((e) => String(e?.content ?? "")).join("\n");
+  const s = String(answer ?? "");
+  const claims = [];
+  for (const m of s.match(/\d+(?:\.\d+)?%|\d+(?:\.\d+)?/g) ?? []) claims.push(m);
+  for (const m of s.match(/第[一二三四五六七八九十百千\d]+[条款章节项]/g) ?? []) claims.push(m);
+  if (claims.length < 1) return { ok: true, reason: "no_numeric_claims" };
+  if (!corpus.trim()) return { ok: false, reason: "empty_evidence" };
+  const missing = claims.filter((c) => !corpus.includes(c));
+  if (missing.length / claims.length > 0.5) return { ok: false, missing };
+  return { ok: true };
+}
+
+function hasSourceHit(c, data) {
+  const sources = (data.evidence || []).map((e) => String(e.source || "")).join(" ");
+  const blob = JSON.stringify(data ?? {});
+  return (c.expect_sources || []).some((s) => sources.includes(s) || blob.includes(s));
+}
+
 function casePass(c, data) {
   if (!data?.ok) return false;
   if (c.expect_intent === "document_list") {
     return isDocumentListHit(data);
   }
   if (c.expect_stale_hint === true) {
-    const sources = (data.evidence || []).map((e) => String(e.source || "")).join(" ");
-    const hit = (c.expect_sources || []).some(
-      (s) => sources.includes(s) || JSON.stringify(data).includes(s)
-    );
+    const hit = hasSourceHit(c, data);
     const hasEvidence = Boolean(data.evidence?.length > 0 || hit);
-    // 检索层：命中证据 +（新鲜度元数据或过期提示）；Manager synth 的「过期」文案由 smoke:evidence-freshness 覆盖
     return hasEvidence && (hasFreshnessMeta(data) || hasStaleHintSignal(data));
   }
-  if (c.expect_clarify_or_cite === true) {
+  if (c.expect_clarify_or_cite === true && !c.tags?.includes("faithfulness")) {
     return hasClarifyOrCiteSignal(c, data);
   }
-  const sources = (data.evidence || []).map((e) => String(e.source || "")).join(" ");
-  const hit = (c.expect_sources || []).some(
-    (s) => sources.includes(s) || JSON.stringify(data).includes(s)
-  );
+  if (Array.isArray(c.tags) && c.tags.includes("faithfulness")) {
+    const hit = hasSourceHit(c, data) || Boolean(data.evidence?.length > 0);
+    if (!hit) return false;
+    const answer = String(data.answer || data.agentResult?.answer || "").trim();
+    if (answer && data.evidence?.length) {
+      const grounded = checkAnswerGroundedInEvidence(answer, data.evidence);
+      if (grounded.ok) return true;
+      // 澄清/拒答也算通过（宁缺毋滥）
+      if (data.needsClarify || data.agentResult?.needs_clarify) return true;
+      return false;
+    }
+    // retrieve 路径无生成答案：要求可引用证据 +（澄清或命中来源）
+    return (
+      data.evidence.some((e) => String(e.content || "").trim().length >= 20) &&
+      (hasClarifyOrCiteSignal(c, data) || hasSourceHit(c, data))
+    );
+  }
+  const hit = hasSourceHit(c, data);
   return Boolean(data.evidence?.length > 0 || hit);
 }
 

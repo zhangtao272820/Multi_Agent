@@ -110,13 +110,13 @@ export default function CapabilityModelsPanel({ apiBase, token, role, onMessage 
           <button type="button" className="btn btn-ghost" disabled={!canEdit || saving} onClick={resetDefaults}>
             恢复默认
           </button>
-          <button type="button" className="btn btn-ghost" disabled={!canEdit || saving} onClick={() => reapply(false)}>
+          <button type="button" className="btn btn-ghost" disabled={!canEdit || saving} onClick={() => reapply(true)}>
             重新下发
           </button>
-          <button type="button" className="btn btn-ghost" disabled={!canEdit || saving} onClick={() => save(true)}>
-            保存并写 .env
+          <button type="button" className="btn btn-ghost" disabled={!canEdit || saving} onClick={() => save(false)}>
+            仅保存 DB
           </button>
-          <button type="button" className="btn btn-primary" disabled={!canEdit || saving} onClick={() => save(false)}>
+          <button type="button" className="btn btn-primary" disabled={!canEdit || saving} onClick={() => save(true)}>
             {saving ? "保存中…" : "保存并下发"}
           </button>
         </div>

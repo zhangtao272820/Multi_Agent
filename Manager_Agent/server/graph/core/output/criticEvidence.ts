@@ -1,10 +1,97 @@
 import type { AgentResult } from '../../../utils/agents/types'
+import { wrapAdminResult } from '../../../utils/agents/agentResult'
 
 function collapse(text: string, max = 900): string {
   return String(text ?? '').replace(/\s+/g, ' ').trim().slice(0, max)
 }
 
-/** 为 Critic 审计构造「本轮证据」摘要（rag/db/crawler/code 等，与 agent 无关） */
+/** 本轮是否已有成功的 admin 写操作证据（日程/提醒等） */
+export function hasSuccessfulAdminWriteInRun(input: {
+  results?: Record<string, unknown> | null
+  evidence?: Array<Record<string, unknown>> | null
+}): boolean {
+  const evidence = Array.isArray(input.evidence) ? input.evidence : []
+  const results = input.results && typeof input.results === 'object' ? input.results : {}
+  const adminOut = String((results as any)?.admin || '').trim()
+  const hasFailedAdminEvidence = evidence.some(
+    (e) =>
+      String(e?.kind || '') === 'admin' &&
+      ((e?.agentResult as AgentResult | undefined)?.ok === false || e?.failed === true)
+  )
+  if (hasFailedAdminEvidence) return false
+  const okEvidence = evidence.some((e) => {
+    if (String(e?.kind || '') !== 'admin') return false
+    if (e?.failed === true) return false
+    const ar = e?.agentResult as AgentResult | undefined
+    if (ar && ar.ok === false) return false
+    return true
+  })
+  if (okEvidence && adminOut) {
+    const wrapped = wrapAdminResult(adminOut)
+    return wrapped.ok === true
+  }
+  if (adminOut) {
+    const wrapped = wrapAdminResult(adminOut)
+    return wrapped.ok === true
+  }
+  return okEvidence
+}
+
+/** 本轮是否已有成功的 admin 只读结论（天气/路线等，非待确认写） */
+export function hasSuccessfulAdminReadInRun(input: {
+  results?: Record<string, unknown> | null
+  evidence?: Array<Record<string, unknown>> | null
+}): boolean {
+  if (hasSuccessfulAdminWriteInRun(input)) return true
+  const evidence = Array.isArray(input.evidence) ? input.evidence : []
+  const results = input.results && typeof input.results === 'object' ? input.results : {}
+  const adminOut = String((results as any)?.admin || '').trim()
+  if (!adminOut || /【待确认】|未能完成写操作|协议异常|未确认，未写入/i.test(adminOut)) return false
+  const failed = evidence.some(
+    (e) =>
+      String(e?.kind || '') === 'admin' &&
+      (e?.failed === true || (e?.agentResult as AgentResult | undefined)?.ok === false)
+  )
+  if (failed) return false
+  const wrapped = wrapAdminResult(adminOut)
+  return wrapped.ok === true && adminOut.length >= 8
+}
+
+/**
+ * 本轮 GUI 是否已有可用浏览证据（finalUrl / sources / 实质子输出）。
+ * items=0 不否定浏览成功（打开站常无结构化链接列表）。
+ */
+export function hasSuccessfulGuiBrowseInRun(input: {
+  results?: Record<string, unknown> | null
+  evidence?: Array<Record<string, unknown>> | null
+}): boolean {
+  const evidence = Array.isArray(input.evidence) ? input.evidence : []
+  const results = input.results && typeof input.results === 'object' ? input.results : {}
+  const guiOut = String((results as any)?.gui || '').trim()
+  if (/GUI 自动化失败|lobster_workflow_not_found/i.test(guiOut)) return false
+
+  for (const e of evidence) {
+    if (String(e?.kind || '') !== 'gui') continue
+    if (e?.failed === true && !String(e?.finalUrl || '').trim()) {
+      const ar = e?.agentResult as AgentResult | undefined
+      if (ar?.ok === false && !ar.sources?.length) continue
+    }
+    const finalUrl = String(
+      e?.finalUrl || (e?.agentResult as any)?.structured?.finalUrl || ''
+    ).trim()
+    if (finalUrl.startsWith('http')) return true
+    const ar = e?.agentResult as AgentResult | undefined
+    if (ar?.ok !== false && Array.isArray(ar?.sources) && ar!.sources!.length > 0) return true
+    if (Number(e?.itemCount || 0) > 0) return true
+    if (e?.hasScreenshot === true && guiOut.length >= 12) return true
+    if (ar?.ok !== false && String(ar?.answer || guiOut).trim().length >= 24) return true
+  }
+
+  if (guiOut.length >= 24 && !/GUI 自动化失败|验证码|需人工|登录墙/i.test(guiOut)) return true
+  return false
+}
+
+/** 为 Critic 审计构造「本轮证据」摘要（rag/db/crawler/admin/code 等） */
 export function formatEvidenceForCriticAudit(input: {
   evidence?: Array<Record<string, unknown>>
   results?: Record<string, unknown>
@@ -47,19 +134,43 @@ export function formatEvidenceForCriticAudit(input: {
       if (crawlerOut) lines.push(`crawler 子输出：${crawlerOut}`)
     } else if (kind === 'gui') {
       const guiOut = collapse(String(results.gui ?? ''), 1000)
-      const finalUrl = String((e?.agentResult as any)?.structured?.finalUrl || '').trim()
-      lines.push(`gui：finalUrl=${finalUrl || 'n/a'}；items=${Number(e?.itemCount || 0)}`)
+      const ar = e?.agentResult as AgentResult | undefined
+      const finalUrl = String(
+        e?.finalUrl || (ar as any)?.structured?.finalUrl || ''
+      ).trim()
+      const ok = e?.failed !== true && ar?.ok !== false
+      const itemCount = Number(e?.itemCount || 0)
+      const hasShot = e?.hasScreenshot === true
+      const src = (ar?.sources || [])
+        .slice(0, 3)
+        .map((s) => String((s as any)?.ref || (s as any)?.url || (s as any)?.title || '').trim())
+        .filter(Boolean)
+      lines.push(
+        `gui：ok=${ok ? 'yes' : 'no'}；finalUrl=${finalUrl || 'n/a'}；items=${itemCount}${hasShot ? '；hasScreenshot=yes' : ''}${src.length ? `；sources=${src.join(' | ')}` : ''}`
+      )
+      lines.push(
+        '（说明：浏览/打开类任务以 finalUrl/截图/实质 answer 为成功信号；items=0 不等于 GUI 失败，勿按爬虫抽取口径误杀）'
+      )
       if (guiOut) lines.push(`gui 子输出：${guiOut}`)
     } else if (kind === 'code') {
       lines.push(`code：threadId=${String(e?.threadId ?? '')}`)
       const codeOut = collapse(String(results.code ?? ''), 800)
       if (codeOut) lines.push(`code 子输出：${codeOut}`)
+    } else if (kind === 'admin') {
+      const ar = e?.agentResult as AgentResult | undefined
+      const ok = ar?.ok !== false && e?.failed !== true
+      const pendingDecide = Boolean(e?.pendingDecide)
+      lines.push(
+        `admin：ok=${ok ? 'yes' : 'no'}；pendingDecide=${pendingDecide ? 'yes' : 'no'}；query=${collapse(String(e?.query ?? ''), 120)}`
+      )
+      const adminOut = collapse(String(results.admin ?? ''), 1000)
+      if (adminOut) lines.push(`admin 子输出：${adminOut}`)
     } else {
       lines.push(`${kind}：（已记录 evidence）`)
     }
   }
 
-  for (const key of ['rag', 'db', 'crawler', 'gui', 'code', 'clean', 'visualize', 'report'] as const) {
+  for (const key of ['rag', 'db', 'crawler', 'gui', 'code', 'clean', 'visualize', 'report', 'admin'] as const) {
     if (seen.has(key)) continue
     const out = collapse(String(results[key] ?? ''), 600)
     if (out) lines.push(`${key} 子输出（无独立 evidence 行）：${out}`)

@@ -12,6 +12,7 @@ import {
   type McpJsonRpcRequest,
 } from '#agent-shared/mcpJsonRpc'
 import {
+  hasLobsterBrowseEvidence,
   isLobsterInfrastructureFailure,
   isLobsterRetryableFailure,
 } from '#agent-shared/lobsterRunVerifyLite'
@@ -298,11 +299,12 @@ async function callLobsterGuiMcpTaskBlocking(input: {
   const connFail = /Connection closed|playwright_mcp_browser_unavailable/i.test(
     String(parsed?.error || text || ''),
   )
+  const browseOk = hasLobsterBrowseEvidence(parsed?.result)
   const ok =
     !infraFail &&
     !connFail &&
     verifyOk &&
-    status === 'done' &&
+    (status === 'done' || (status === 'error' && browseOk && verifyOk)) &&
     Boolean(parsed?.result)
   const retryable = isLobsterRetryableFailure({
     status: parsed?.status,

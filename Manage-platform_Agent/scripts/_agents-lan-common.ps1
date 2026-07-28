@@ -21,7 +21,6 @@ $Script:ManagerStack = @(
 )
 
 $Script:ExtendedOnlyServices = @(
-    "multimodal_agent",
     "music_agent",
     "video_agent",
     "tavern_agent",

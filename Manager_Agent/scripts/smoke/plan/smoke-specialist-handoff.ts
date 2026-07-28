@@ -51,8 +51,11 @@ assert(failed.confidence < 0.5, 'failed confidence low')
 const parentBlock = formatHandoffForParentContext('db', handoff)
 assert(parentBlock.includes('[HANDOFF:db]'), 'parent block tagged')
 assert(parentBlock.includes('证据指针'), 'parent has refs')
+assert(!/置信度/.test(parentBlock), 'parent handoff omits confidence by default')
 assert(!parentBlock.includes('x'.repeat(400)), 'parent block excludes long raw padding')
 assert(parentContextLooksIsolated(parentBlock), 'parent context isolated')
+const parentWithConf = formatHandoffForParentContext('db', handoff, { includeConfidence: true })
+assert(/置信度/.test(parentWithConf), 'opt-in confidence still available')
 
 const byId: Record<string, StepRunRecord> = {}
 const out: Record<string, string> = {}

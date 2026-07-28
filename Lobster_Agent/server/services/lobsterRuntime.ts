@@ -5,6 +5,31 @@ import { type AgentConfig, type EmitEvent, type LobsterPublicState } from './lob
 import { runLobsterWithRouter } from './lobsterAgentRouter'
 import type { LobsterTaskSpec } from './lobsterTaskUnderstandSchema'
 import { resolveRunBrowserProfile } from './browserProfiles'
+import { ensureLobsterGuiFinalPayload } from './lobsterGuiFinalPayload'
+
+/** error/canceled 终态：把 state.pageUrl / 截图痕迹写入 result，避免只剩 traceId */
+function salvageGuiResultOnFailure(rec: RunRecord): Record<string, unknown> | null {
+  const existing =
+    rec.result && typeof rec.result === 'object' ? { ...(rec.result as Record<string, unknown>) } : {}
+  const pageUrl = String(rec.state?.pageUrl || existing.finalUrl || existing.url || '').trim()
+  const pageTitle = String((rec.state as any)?.pageTitle || existing.pageTitle || '').trim()
+  const hasShot = Boolean(String(rec.lastScreenshotDataUrl || '').trim())
+  const hasExisting =
+    Boolean(String(existing.answer || existing.summary || '').trim()) ||
+    Boolean(String(existing.finalUrl || existing.url || '').trim()) ||
+    (Array.isArray(existing.data) && existing.data.length > 0)
+  if (!pageUrl && !hasShot && !hasExisting) return null
+  const base: Record<string, unknown> = {
+    ...existing,
+    task: String(existing.task || rec.task || ''),
+    traceId: String(existing.traceId || rec.traceId || rec.runId || ''),
+    ...(pageUrl ? { finalUrl: pageUrl, url: pageUrl } : {}),
+    ...(pageTitle ? { pageTitle } : {}),
+    ...(hasShot ? { hasScreenshot: true } : {}),
+    ...(rec.error ? { error: String(rec.error).slice(0, 400) } : {}),
+  }
+  return ensureLobsterGuiFinalPayload(base, String(base.task || rec.task || ''))
+}
 
 type RunStatus = 'idle' | 'queued' | 'running' | 'done' | 'error' | 'canceled'
 
@@ -68,8 +93,11 @@ async function markRunningRunsAsError(message: string) {
       try {
         r.controller.abort()
       } catch {}
+      const salvaged = salvageGuiResultOnFailure(r)
+      if (salvaged) r.result = salvaged
       const cfg = (r as any).__config as AgentConfig | undefined
       const runsDir = cfg ? runsDirFromConfig(cfg) : path.resolve(process.cwd(), '.data', 'runs')
+      if (salvaged) await writeJsonSafe(perRunResultPath(runsDir, r.runId), salvaged).catch(() => {})
       await writeJsonSafe(perRunSummaryPath(runsDir, r.runId), {
         type: 'run_summary',
         runId: r.runId,
@@ -620,6 +648,11 @@ async function startExecution(runId: string) {
     if (rec.controller.signal.aborted) {
       rec.status = 'canceled'
       rec.endedAt = Date.now()
+      const salvagedCancel = salvageGuiResultOnFailure(rec)
+      if (salvagedCancel) {
+        rec.result = salvagedCancel
+        void writeJsonSafe(perRunResultPath(runsDir, runId), salvagedCancel).catch(() => {})
+      }
       emit({ type: 'log', payload: { level: 'warn', message: '任务已取消', ts: Date.now() } })
       void appendRunLog(runsDir, {
         type: 'run_end',
@@ -647,6 +680,11 @@ async function startExecution(runId: string) {
       rec.status = 'error'
       rec.error = e?.message ? String(e.message) : String(e)
       rec.endedAt = Date.now()
+      const salvaged = salvageGuiResultOnFailure(rec)
+      if (salvaged) {
+        rec.result = salvaged
+        void writeJsonSafe(perRunResultPath(runsDir, runId), salvaged).catch(() => {})
+      }
       emit({ type: 'error', payload: { message: rec.error, ts: Date.now() } })
       void appendRunLog(runsDir, {
         type: 'run_end',

@@ -1,10 +1,22 @@
 <template>
-  <div class="spring-root cosmic-theme cursor-workbench" :class="{ 'cosmic-agent-thinking': agentCosmicActive, 'mode-professional': workbenchMode === 'professional', 'thought-view-user': thoughtViewMode === 'user', 'thought-view-developer': thoughtViewMode === 'developer', 'posture-debug': collaborationPosture === 'debug', 'posture-ask': collaborationPosture === 'ask', 'posture-plan': collaborationPosture === 'plan' }">
+  <div
+    class="spring-root cosmic-theme cursor-workbench"
+    :class="{
+      'cosmic-agent-thinking': agentCosmicActive,
+      'mode-professional': workbenchMode === 'professional',
+      'mode-chat': workbenchMode === 'chat',
+      'thought-view-user': thoughtViewMode === 'user',
+      'thought-view-developer': thoughtViewMode === 'developer',
+      'posture-debug': collaborationPosture === 'debug',
+      'posture-ask': collaborationPosture === 'ask',
+      'posture-plan': collaborationPosture === 'plan'
+    }"
+  >
     <ClientOnly>
-    <CosmicGalaxyLane side="full" class="spring-bg-unified" :agent-thinking="agentCosmicActive" aria-hidden="true" />
+      <CosmicGalaxyLane side="full" class="spring-bg-unified" :agent-thinking="agentCosmicActive" aria-hidden="true" />
     </ClientOnly>
     <div class="spring-container cosmic-command-deck">
-      <div class="cosmic-hud-readout" aria-hidden="true">
+      <div class="cosmic-hud-readout" :class="{ 'is-chat-hud': workbenchMode === 'chat' }" aria-hidden="true">
         <span class="cosmic-hud-tag">STELLAR CMD</span>
         <span class="cosmic-hud-tag">{{ connected ? 'LINK · OK' : 'LINK · OFF' }}</span>
       </div>
@@ -27,10 +39,8 @@
         :tools-badge-count="toolsBadgeCount"
         :plan-agent-label="planAgentLabel"
         :collab-status-short="collabStatusShort"
-        @set-workbench-mode="setWorkbenchMode"
         @set-thought-view-mode="setThoughtViewMode"
         @toggle-history="historyPanelOpen = !historyPanelOpen"
-        @new-session="newSession"
         @toggle-sidebar="sidebarOpen = !sidebarOpen"
         @open-trace-drawer="openTraceDrawer"
       />
@@ -68,21 +78,27 @@
           :backdrop-visible="historyBackdropVisible"
           :session-id="sessionId"
           :items="sessionHistoryItems"
+          :workbench-mode="workbenchMode"
           :format-history-time="formatHistoryTime"
           @close-backdrop="closeHistoryPanel"
           @new-session="newSession"
-          @select="switchSession"
+          @select="selectHistorySession"
           @rename="renameSessionHistory"
           @delete="deleteSessionHistory"
+          @set-workbench-mode="setWorkbenchMode"
         />
 
-      <div class="spring-main cursor-main-split" ref="chatMainEl">
-          <ManagerWorkbenchSidebar />
+        <div class="spring-main cursor-main-split" ref="chatMainEl">
+          <ManagerWorkbenchSidebar v-if="workbenchMode === 'professional'" />
 
-        <div class="spring-chat-column cursor-chat-main" ref="chatColumnEl" :class="workbenchMode === 'professional' ? 'wb-professional-column' : 'wb-chat-column'">
+          <div
+            class="spring-chat-column cursor-chat-main"
+            ref="chatColumnEl"
+            :class="workbenchMode === 'professional' ? 'wb-professional-column' : 'wb-chat-column'"
+          >
             <ManagerChatRail :turns="visibleTurnGroups" />
-            </div>
-              </div>
+          </div>
+        </div>
       </div>
     </div>
     <AppModal
@@ -135,7 +151,6 @@ const {
   collabStatusShort,
   setWorkbenchMode,
   setThoughtViewMode,
-  setCollaborationPosture,
   newSession,
   pendingHumanConfirm,
   latestGuiScreenshot,
@@ -147,7 +162,7 @@ const {
   sessionHistoryItems,
   formatHistoryTime,
   closeHistoryPanel,
-  switchSession,
+  selectHistorySession,
   renameSessionHistory,
   deleteSessionHistory,
   chatMainEl,
@@ -165,4 +180,3 @@ const {
   onModalCancel
 } = useManagerChatPage()
 </script>
-

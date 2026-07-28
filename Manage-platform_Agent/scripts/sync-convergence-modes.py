@@ -1,190 +1,67 @@
 #!/usr/bin/env python3
-"""将收敛 MODE 从 SSOT 同步到各 Agent .env 与 .env.agents-lan。"""
+"""将收敛 MODE 从 SSOT 同步到各 Agent .env 与 .env.agents-lan。
+
+绑定表 SSOT：Manage-platform_Agent/backend/app/convergence_modes.py
+"""
 
 from __future__ import annotations
 
 import argparse
-import re
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 PLATFORM_DIR = SCRIPT_DIR.parent
-REPO_ROOT = PLATFORM_DIR.parent
-SSOT_FILE = PLATFORM_DIR / ".env.convergence-modes"
-SSOT_EXAMPLE = PLATFORM_DIR / ".env.convergence-modes.example"
-AGENTS_LAN_ENV = PLATFORM_DIR / ".env.agents-lan"
+BACKEND_APP = PLATFORM_DIR / "backend" / "app"
+sys.path.insert(0, str(BACKEND_APP.parent))
 
-AGENT_MODE_BINDINGS: dict[str, dict[str, list[str]]] = {
-    "Manager_Agent": {
-        "env_file": "Manager_Agent/.env",
-        "keys": [
-            "EVO_MODE",
-            "ARTIFACT_FEEDBACK_MODE",
-            "MANAGER_ROUTE_MODE",
-            "MANAGER_PRO_MODE",
-            "MANAGER_EVOLUTION_MODE",
-            "MANAGER_WEB_SEARCH_MODE",
-            "MANAGER_PLATFORM_MODE",
-            "MANAGER_AUTH_MODE",
-            "MANAGER_RUNTIME",
-            "QWEN_ENABLE_THINKING",
-            "MANAGER_INTENT_RAG_TOP_K",
-        ],
-    },
-    "DB_Agent": {
-        "env_file": "DB_Agent/.env",
-        "keys": [
-            "EVO_MODE",
-            "ARTIFACT_FEEDBACK_MODE",
-            "DB_AGENT_DOMAIN",
-            "DB_AGENT_PROFILE",
-            "DB_ROUTE_MODE",
-            "DB_LEGACY_SHORTCUTS",
-            "DB_NLU_MODE",
-        ],
-    },
-    "RAG_Agent": {
-        "env_file": "RAG_Agent/.env",
-        "keys": ["EVO_MODE", "ARTIFACT_FEEDBACK_MODE", "RAG_CORPUS_TIER", "RAG_NLU_MODE"],
-    },
-    "code_assistent_Agent": {
-        "env_file": "code_assistent_Agent/.env",
-        "keys": ["EVO_MODE", "CODE_LEARNING_MODE"],
-    },
-    "Extractor_Agent": {
-        "env_file": "Extractor_Agent/.env",
-        "keys": ["EVO_MODE", "EXTRACTOR_MODE", "EXTRACTOR_LEARNING_MODE"],
-    },
-    "AI_admin_Agent": {
-        "env_file": "AI_admin_Agent/backend/.env",
-        "keys": [
-            "EVO_MODE",
-            "ARTIFACT_FEEDBACK_MODE",
-            "ADMIN_EVOLUTION_MODE",
-            "ADMIN_NLU_MODE",
-            "ADMIN_MEMORY_MODE",
-        ],
-    },
-}
-
-AGENTS_LAN_MODE_KEYS = [
-    "EVO_MODE",
-    "ARTIFACT_FEEDBACK_MODE",
-    "MANAGER_ROUTE_MODE",
-    "MANAGER_PRO_MODE",
-    "MANAGER_EVOLUTION_MODE",
-    "MANAGER_WEB_SEARCH_MODE",
-    "MANAGER_PLATFORM_MODE",
-    "MANAGER_AUTH_MODE",
-    "MANAGER_RUNTIME",
-    "QWEN_ENABLE_THINKING",
-    "DB_AGENT_PROFILE",
-    "DB_ROUTE_MODE",
-    "DB_LEGACY_SHORTCUTS",
-    "DB_NLU_MODE",
-    "RAG_CORPUS_TIER",
-    "RAG_NLU_MODE",
-    "EXTRACTOR_MODE",
-    "EXTRACTOR_LEARNING_MODE",
-    "CODE_LEARNING_MODE",
-    "ADMIN_EVOLUTION_MODE",
-    "ADMIN_NLU_MODE",
-    "ADMIN_MEMORY_MODE",
-]
-
-
-def _parse_env_file(path: Path) -> dict[str, str]:
-    out: dict[str, str] = {}
-    if not path.is_file():
-        return out
-    for raw in path.read_text(encoding="utf-8", errors="replace").splitlines():
-        line = raw.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        if line.startswith("export "):
-            line = line[7:].strip()
-        key, _, val = line.partition("=")
-        key = key.strip()
-        val = val.strip().strip('"').strip("'")
-        if key:
-            out[key] = val
-    return out
-
-
-def _write_env_keys(path: Path, updates: dict[str, str], *, agent_name: str, dry_run: bool) -> dict[str, tuple[str, str]]:
-    pending = dict(updates)
-    lines: list[str] = []
-    changed: dict[str, tuple[str, str]] = {}
-
-    if path.is_file():
-        for raw in path.read_text(encoding="utf-8", errors="replace").splitlines():
-            stripped = raw.strip()
-            if not stripped or stripped.startswith("#") or "=" not in stripped:
-                lines.append(raw)
-                continue
-            key_part = stripped.split("=", 1)[0].strip().lstrip("export ").strip()
-            if key_part in pending:
-                old_val = stripped.split("=", 1)[1].strip().strip('"').strip("'")
-                new_val = pending.pop(key_part)
-                if old_val != new_val:
-                    changed[key_part] = (old_val, new_val)
-                lines.append(f"{key_part}={new_val}")
-            else:
-                lines.append(raw)
-    else:
-        ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-        lines.append(f"# synced convergence modes — {agent_name} ({ts})")
-
-    for key, val in pending.items():
-        changed[key] = ("", val)
-        lines.append(f"{key}={val}")
-
-    if not dry_run and (changed or not path.is_file()):
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-
-    return changed
-
-
-def _norm(v: str) -> str:
-    return re.sub(r"\s+", "", str(v or "").strip().lower())
+from app.convergence_modes import (  # noqa: E402
+    AGENT_MODE_BINDINGS,
+    AGENTS_LAN_MODE_KEYS,
+    apply_convergence_modes,
+    load_convergence_modes,
+    ssot_example_path,
+    ssot_path,
+)
+from app.env_file_io import norm_env_val, parse_env_file  # noqa: E402
+from app.config import get_settings  # noqa: E402
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="同步收敛 MODE 到各 Agent .env")
-    parser.add_argument("--workspace", default=str(REPO_ROOT))
-    parser.add_argument("--ssot", default=str(SSOT_FILE))
+    parser.add_argument("--workspace", default="")
+    parser.add_argument("--ssot", default="")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--check", action="store_true")
     parser.add_argument("--skip-agents-lan", action="store_true")
     parser.add_argument("--agents", default="", help="逗号分隔 Agent 名")
     args = parser.parse_args()
 
-    workspace = Path(args.workspace).resolve()
-    ssot_path = Path(args.ssot).resolve()
-    if not ssot_path.is_file():
-        if SSOT_EXAMPLE.is_file():
-            print(f"[warn] SSOT 不存在：{ssot_path}，使用 {SSOT_EXAMPLE}")
-            ssot_path = SSOT_EXAMPLE
+    ssot_file = Path(args.ssot).resolve() if args.ssot else ssot_path()
+    if not ssot_file.is_file():
+        if ssot_example_path().is_file():
+            print(f"[warn] SSOT 不存在：{ssot_file}，使用 example")
+            ssot_file = ssot_example_path()
         else:
             print("[error] 找不到 SSOT", file=sys.stderr)
             return 1
 
-    ssot = _parse_env_file(ssot_path)
+    ssot = parse_env_file(ssot_file) if args.ssot else load_convergence_modes()
     if not ssot:
         print("[error] SSOT 为空", file=sys.stderr)
         return 1
 
-    agent_filter: set[str] | None = None
-    if args.agents.strip():
-        agent_filter = {a.strip() for a in args.agents.split(",") if a.strip()}
+    settings = get_settings()
+    workspace = Path(args.workspace).resolve() if args.workspace else Path(settings.workspace_root or ".").resolve()
 
     print("── 收敛 MODE SSOT ──")
     for k in sorted(ssot.keys()):
         print(f"  {k}={ssot[k]}")
     print()
+
+    agent_filter: set[str] | None = None
+    if args.agents.strip():
+        agent_filter = {a.strip() for a in args.agents.split(",") if a.strip()}
 
     if args.check:
         drift_count = 0
@@ -193,14 +70,14 @@ def main() -> int:
                 continue
             rel = spec["env_file"]
             path = workspace / rel
-            env = _parse_env_file(path)
+            env = parse_env_file(path)
             drift: list[str] = []
             for key in spec["keys"]:
                 exp = str(ssot.get(key) or "").strip()
                 if not exp:
                     continue
                 cur = str(env.get(key) or "").strip()
-                if not cur or _norm(cur) != _norm(exp):
+                if not cur or norm_env_val(cur) != norm_env_val(exp):
                     drift.append(f"{key}: {cur or '(missing)'} → {exp}")
             if drift:
                 drift_count += 1
@@ -214,43 +91,19 @@ def main() -> int:
         print(f"\n检查完成：{drift_count} 个 Agent 存在 MODE 漂移")
         return 1 if drift_count else 0
 
-    mode_label = "dry-run" if args.dry_run else "sync"
-    print(f"模式：{mode_label}  |  workspace：{workspace}\n")
-    total = 0
+    if args.dry_run:
+        print("模式：dry-run（仅预览，请用控制台或去掉 --dry-run 写入）")
+        for agent_name, spec in sorted(AGENT_MODE_BINDINGS.items()):
+            if agent_filter and agent_name not in agent_filter:
+                continue
+            updates = {k: ssot[k] for k in spec["keys"] if k in ssot and str(ssot[k]).strip()}
+            print(f"[would-update] {agent_name}: {len(updates)} keys")
+        if not args.skip_agents_lan:
+            print(f"[would-update] .env.agents-lan: {len(AGENTS_LAN_MODE_KEYS)} candidate keys")
+        return 0
 
-    for agent_name, spec in sorted(AGENT_MODE_BINDINGS.items()):
-        if agent_filter and agent_name not in agent_filter:
-            continue
-        rel = spec["env_file"]
-        path = workspace / rel
-        updates = {k: ssot[k] for k in spec["keys"] if k in ssot and str(ssot[k]).strip()}
-        if not updates:
-            print(f"[skip] {agent_name}: 无键可写")
-            continue
-        changed = _write_env_keys(path, updates, agent_name=agent_name, dry_run=args.dry_run)
-        if not changed and path.is_file():
-            print(f"[ok] {agent_name} ({rel})")
-        else:
-            print(f"[{'new' if not path.is_file() else 'update'}] {agent_name} ({rel})")
-            for key, (old, new) in sorted(changed.items()):
-                print(f"         {key}: {old or '(新增)'} → {new}")
-        total += len(changed)
-
-    if not args.skip_agents_lan:
-        lan_updates = {k: ssot[k] for k in AGENTS_LAN_MODE_KEYS if k in ssot and str(ssot[k]).strip()}
-        if AGENTS_LAN_ENV.is_file() and lan_updates:
-            changed = _write_env_keys(AGENTS_LAN_ENV, lan_updates, agent_name="agents-lan", dry_run=args.dry_run)
-            if changed:
-                print("\n[update] .env.agents-lan")
-                for key, (old, new) in sorted(changed.items()):
-                    print(f"         {key}: {old or '(新增)'} → {new}")
-                total += len(changed)
-            else:
-                print("\n[ok] .env.agents-lan")
-        elif not AGENTS_LAN_ENV.is_file():
-            print("\n[skip] .env.agents-lan — 文件不存在")
-
-    print(f"\n完成：{total} 处 MODE 键{'将被' if args.dry_run else '已'}更新")
+    out = apply_convergence_modes(sync_env_files=True)
+    print(f"完成：env_synced={out.get('env_synced')} changed={out.get('changed_key_count')}")
     return 0
 
 

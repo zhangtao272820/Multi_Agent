@@ -179,6 +179,11 @@ def read_agent_env_models(agent_name: str) -> dict[str, Any]:
 
 
 def build_config_sync_status(db: Session) -> dict[str, Any]:
+    """分层漂移：model / mode；runtime_sync 的模型漂移以平台配置包为准（不因 .env 三槽误报）。"""
+    from .agent_config import is_platform_model_configured
+    from .capability_models import get_capability_models
+    from .convergence_modes import check_mode_drift_for_agent, load_convergence_modes
+
     rows = list_agent_configs(db)
     global_path = _workspace() / Path(GLOBAL_ENV_FILE)
     global_env = _parse_env_file(global_path)
@@ -187,9 +192,14 @@ def build_config_sync_status(db: Session) -> dict[str, Any]:
         "executor": _first_val(global_env, GLOBAL_MODEL_KEYS["executor"]),
         "base_url": _first_val(global_env, GLOBAL_MODEL_KEYS["base_url"]),
     }
+    cap = get_capability_models(db)
+    capability_configured = bool(cap.get("capability_configured"))
+    mode_ssot = load_convergence_modes()
 
     agents_out: list[dict[str, Any]] = []
     drift_count = 0
+    model_drift_count = 0
+    mode_drift_count = 0
     runtime_count = 0
     for row in rows:
         name = row["agent_name"]
@@ -200,10 +210,24 @@ def build_config_sync_status(db: Session) -> dict[str, Any]:
         }
         env_info = read_agent_env_models(name)
         env_models = env_info.get("models") or {}
-        drift = _has_drift(platform, env_models)
         runtime_sync = name in RUNTIME_SYNC_AGENTS
-        if drift:
+        # runtime sync：模型听平台 pull；仅在平台已配置且本地.env 与三槽明显不一致时标 env 提示，不算总漂移
+        file_model_drift = _has_drift(platform, env_models)
+        if runtime_sync and capability_configured:
+            model_drift = False
+        elif runtime_sync and not capability_configured:
+            model_drift = False
+        else:
+            model_drift = file_model_drift and is_platform_model_configured(row.get("updated_by"))
+        mode_info = check_mode_drift_for_agent(name, mode_ssot)
+        mode_drift = bool(mode_info.get("mode_drift"))
+        any_drift = model_drift or mode_drift
+        if any_drift:
             drift_count += 1
+        if model_drift:
+            model_drift_count += 1
+        if mode_drift:
+            mode_drift_count += 1
         if runtime_sync:
             runtime_count += 1
         agents_out.append(
@@ -214,7 +238,12 @@ def build_config_sync_status(db: Session) -> dict[str, Any]:
                 "env_file": env_info.get("env_file"),
                 "env_exists": env_info.get("exists"),
                 "env_models": env_models,
-                "drift": drift,
+                "drift": any_drift,
+                "model_drift": model_drift,
+                "mode_drift": mode_drift,
+                "mode_drift_keys": mode_info.get("mode_drift_keys") or [],
+                "env_file_model_mismatch": file_model_drift,
+                "local_drift": False,
                 "runtime_sync": runtime_sync,
                 "control_mode": "platform_db" if runtime_sync else "env_file_only",
             }
@@ -222,21 +251,24 @@ def build_config_sync_status(db: Session) -> dict[str, Any]:
 
     return {
         "ok": True,
-        "source_of_truth": "platform_db (agent_configs)",
+        "source_of_truth": "capability_models + convergence-modes + agent_configs",
         "global_env_file": GLOBAL_ENV_FILE,
         "global_env_exists": global_path.is_file(),
         "global_models": global_models,
         "runtime_sync_agents": sorted(RUNTIME_SYNC_AGENTS),
+        "capability_configured": capability_configured,
         "summary": {
             "total": len(agents_out),
             "drift_count": drift_count,
+            "model_drift_count": model_drift_count,
+            "mode_drift_count": mode_drift_count,
             "runtime_sync_count": runtime_count,
             "env_only_count": len(agents_out) - runtime_count,
         },
         "agents": agents_out,
         "recommendation": (
-            "未在控制台保存过模型时，各 Agent 使用本地 .env，平台 seed 默认值不会覆盖运行时；"
-            "在控制台改模型并保存后，已接入 runtime sync 的 Agent 约 60s 内自动生效。"
+            "模型：能力层 SSOT → 保存并下发（runtime sync ~60s）；"
+            "MODE：收敛 MODE 面板下发；集群基建：.env.agents-lan；密钥：系统设置 Vault。"
         ),
     }
 

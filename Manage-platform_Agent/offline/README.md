@@ -4,7 +4,7 @@
 #
 # Linux:
 #   bash scripts/package-offline.sh
-#   bash scripts/package-offline.sh --extended   # 含媒体 / Lobster 等
+#   bash scripts/package-offline.sh --extended   # 含音乐/视频 / Lobster 等
 #
 # Windows:
 #   .\scripts\package-offline.ps1

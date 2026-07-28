@@ -67,6 +67,11 @@ assert(ans.includes('alice'), `ans=${ans}`)
 
 assert(isLobsterWorkflowId('httpbin-form-fill'), 'id ok')
 assert(!isLobsterWorkflowId('../evil'), 'reject path')
+assert(!ids.includes('navigate-and-extract-title'), 'invented macro must not exist on disk')
+// router 侧：不在 list 内的合法格式 id 应回退逐步引擎，而非 load 抛 not_found
+const invented = 'navigate-and-extract-title'
+assert(isLobsterWorkflowId(invented), 'format-valid invented id')
+assert(!ids.some((id) => id.toLowerCase() === invented), 'invented id not in list → router must skip workflow path')
 
 const roundtrip = parseLobsterWorkflowDef(JSON.parse(JSON.stringify(def)))
 assert(roundtrip.id === def.id, 'parse roundtrip')

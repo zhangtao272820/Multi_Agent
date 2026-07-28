@@ -7,6 +7,7 @@ import {
 
 import { detectGuiSemanticBlockFromState } from '../../../utils/gui/guiHumanConfirm'
 import { wrapAdminResult } from '../../../utils/agents/agentResult'
+import { hasSuccessfulGuiBrowseInRun } from '../../core/output/criticEvidence'
 import type { CreateEvaluatorNodeDeps } from './types'
 import { evaluatorModel } from './types'
 
@@ -20,11 +21,14 @@ export function createEvaluatorNode(deps: CreateEvaluatorNodeDeps) {
     const errorCount =
       evidence.filter((e: any) => String(e?.kind || '') === 'error').length +
       evidence.filter((e: any) => e?.agentResult?.ok === false || e?.failed === true).length
-    const hasFailedGuiEvidence = evidence.some(
-      (e: any) =>
-        String(e?.kind || '') === 'gui' &&
-        (e?.agentResult?.ok === false || e?.failed === true)
-    )
+    const guiBrowseOk = hasSuccessfulGuiBrowseInRun({ results, evidence })
+    const hasFailedGuiEvidence =
+      !guiBrowseOk &&
+      evidence.some(
+        (e: any) =>
+          String(e?.kind || '') === 'gui' &&
+          (e?.agentResult?.ok === false || e?.failed === true)
+      )
     const adminOut = String(results?.admin || '').trim()
     const adminWrapped = adminOut ? wrapAdminResult(adminOut) : null
     const hasFailedAdminEvidence =
@@ -35,17 +39,22 @@ export function createEvaluatorNode(deps: CreateEvaluatorNodeDeps) {
       ) || Boolean(adminWrapped && adminWrapped.ok === false)
     const hasDataEvidence = evidence.some((e: any) => {
       const kind = String(e?.kind || '')
-      if (kind === 'gui' && (e?.agentResult?.ok === false || e?.failed === true)) return false
-      return ['rag', 'db', 'crawler', 'gui'].includes(kind)
+      if (kind === 'gui') {
+        if (guiBrowseOk) return true
+        if (e?.agentResult?.ok === false || e?.failed === true) return false
+      }
+      if (kind === 'admin' && (e?.agentResult?.ok === false || e?.failed === true)) return false
+      return ['rag', 'db', 'crawler', 'gui', 'admin'].includes(kind)
     })
     const timeoutErrorCount = countTimeoutErrors(evidence)
     const finalText = String(state.final || '').trim()
     const hasAnswer = finalText.length > 0
-    const hasImplicitDataEvidence = ['db', 'rag', 'crawler', 'gui', 'code', 'clean', 'visualize', 'report']
+    const hasImplicitDataEvidence = ['db', 'rag', 'crawler', 'gui', 'code', 'clean', 'visualize', 'report', 'admin']
       .some((k) => {
-        if (k === 'gui' && hasFailedGuiEvidence) return false
+        if (k === 'gui' && hasFailedGuiEvidence && !guiBrowseOk) return false
+        if (k === 'admin' && hasFailedAdminEvidence) return false
         return String((results as any)?.[k] || '').trim().length > 0
-      })
+      }) || guiBrowseOk
     const hasEffectiveDataFoundation = hasDataEvidence || hasImplicitDataEvidence
     const visualizeText = String(results?.visualize || '').trim()
     const effectivePlan = Array.isArray(state?.plan) ? state.plan : []
@@ -71,8 +80,9 @@ export function createEvaluatorNode(deps: CreateEvaluatorNodeDeps) {
     if (!hasAnswer) score -= 0.28
     const webOnlyIntent = ['gui', 'crawler'].includes(String(state.intent || '').trim())
     if (!hasEffectiveDataFoundation && state.intent !== 'admin' && !webOnlyIntent) score -= 0.22
-    if (errorCount > 0) score -= Math.min(0.3, errorCount * 0.08)
+    if (errorCount > 0 && !guiBrowseOk) score -= Math.min(0.3, errorCount * 0.08)
     if (hasFailedGuiEvidence) score -= 0.36
+    if (guiBrowseOk) score = Math.max(score, 0.72)
     if (hasFailedAdminEvidence) score -= 0.32
     if (guiSemanticBlock.blocked) score -= 0.28
     if (needsClarify || guiSemanticBlock.blocked) score -= 0.16

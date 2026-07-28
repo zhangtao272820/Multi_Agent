@@ -3,8 +3,9 @@
  * 原则：相似 ≠ 同一任务；经验只做弱提示，快路径仅允许与用户显式能力一致。
  */
 import type { IntentRecallHit } from '../rag/intentRagRecallCore'
-import { looksLikeSimpleRagKbQuery, userExplicitlyWantsPipelineOutput } from '../plan/clarifyContext'
+import { looksLikeSimpleRagKbQuery } from '../plan/clarifyContext'
 import { resolveManagerEnvBool } from '../../../utils/platform/managerEnvModes'
+import { textWantsVisualizeStructural } from '../../../utils/shared/visualizeMarkers'
 
 export type UserExplicitCapabilities = {
   /** 用户原话允许出现的 agent 上界（含数据面基线 + 显式下游） */
@@ -43,8 +44,8 @@ function hasMediaPlane(text: string): boolean {
 export function parseUserExplicitCapabilities(userText: string): UserExplicitCapabilities {
   const s = String(userText || '').trim()
   const allowed = new Set<string>()
-  const wantsReport = userExplicitlyWantsPipelineOutput(s)
-  const wantsVisualize = /图表|可视化|画图|对比图|做成图|绘制/.test(s)
+  const wantsVisualize = textWantsVisualizeStructural(s)
+  const wantsReport = /生成.{0,6}报告|写.{0,4}报告|分析报告|整理成报告|输出报告/.test(s)
   const wantsAdmin = hasAdminPlane(s)
   const wantsWeb = hasWebPlane(s)
   const wantsCompute =
@@ -86,8 +87,8 @@ export function parseUserExplicitCapabilities(userText: string): UserExplicitCap
   const multiData = (db ? 1 : 0) + (rag ? 1 : 0) + (web ? 1 : 0)
   if (multiData >= 2 || /清洗|对齐字段|去重/.test(s)) allowed.add('clean')
 
-  // 纯知识库：默认不允许下游流水线，除非用户显式要；但并列 db/联网/admin 时不得压成 rag-only
-  if (looksLikeSimpleRagKbQuery(s) && !db && !web && !admin) {
+  // 纯知识库：默认不允许下游流水线，除非用户显式要报告/图表/计算；并列 db/联网/admin 时不得压成 rag-only
+  if (looksLikeSimpleRagKbQuery(s) && !db && !web && !admin && !wantsReport && !wantsVisualize && !wantsCompute) {
     for (const a of [...allowed]) if (a !== 'rag') allowed.delete(a)
     allowed.add('rag')
   }

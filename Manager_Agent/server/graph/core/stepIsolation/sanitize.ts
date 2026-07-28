@@ -5,6 +5,7 @@ import { safeJsonParse } from '../shared'
 import { appendSerpContextToQuery } from '../../../utils/search/managerWebSearch'
 import { stripAdminManagerGuards } from '../../../utils/route/managerSubAgentHelpers'
 import { rematerializeWeatherCrawlerPlanSteps } from '../../orchestrate/weatherAdminBoundary'
+import { rematerializeMapCrawlerPlanSteps } from '../../orchestrate/mapAdminBoundary'
 import type { Step } from '../../../utils/shared/taskPlan'
 import { isAdminReadOnlyOrchestrationStep } from '../db/writeGate'
 import { getStepSanitizeLlmSystem } from '../evolution/playbookPrompts'
@@ -535,9 +536,10 @@ export async function llmRefineStepQueries(
 
 /** 结构化净化 + 可选 LLM 回填（Planner 统一出口） */
 export async function sanitizePlanSteps(plan: Step[], opts?: SanitizePlanOpts): Promise<Step[]> {
-  // 计划出口硬闸：crawler 步若仍是天气语义 → admin（堵住 web-align/Planner 回填）
+  // 计划出口硬闸：crawler 步若仍是天气/地图语义 → admin（堵住 web-align/Planner 回填）
   const weatherFixed = rematerializeWeatherCrawlerPlanSteps(plan)
-  const structured = weatherFixed.map((step) => sanitizeStepQueryForAgent(step, step.agent))
+  const mapFixed = rematerializeMapCrawlerPlanSteps(weatherFixed)
+  const structured = mapFixed.map((step) => sanitizeStepQueryForAgent(step, step.agent))
   if (!opts?.llmInvoke || !opts.state) return structured
   return llmRefineStepQueries(structured, opts)
 }

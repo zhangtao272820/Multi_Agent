@@ -34,11 +34,11 @@ export default function EnterpriseMonitorPanel({
   const grafanaUrl = tracing.grafana_public_url || logging.grafana_public_url;
 
   return (
-    <section className="panel">
+    <section className="panel ops-surface">
       <div className="ops-header">
         <div>
           <p className="panel-eyebrow">企业监控</p>
-          <h2 className="ops-title">Observability Strip</h2>
+          <h2 className="ops-title">观测指标条</h2>
           <p className="panel-desc">
             Prometheus + Tempo + Loki + Langfuse · <code>/api/manager/observability</code>
           </p>

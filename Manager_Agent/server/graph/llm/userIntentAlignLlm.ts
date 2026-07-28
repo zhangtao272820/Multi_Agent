@@ -174,6 +174,7 @@ export async function alignOrchestratorBundleToUserIntent(input: {
             '【唯一权威】用户末轮；相似主题 ≠ 同一任务；历史/Probe/PU/经验不得扩写 db/admin/人名等用户未提内容。',
             formatAdminCrawlerDisambiguationPrompt(),
             '若编排把天气预报/气温子句标为 crawler 或 needsWeb=true，须改为 admin 子句、needsAdmin=true，并从 dataSources 移除 crawler（除非另有明确网页政策/公告子句）。',
+            '若编排把地铁/公交/从A到B/多久到等出行子句标为 crawler 或再挂 crawler 镜像，须改为单一 admin（高德），needsWeb=false；「查一下」不等于公网抓取。',
             '用户已标明「知识库查…」「数据库查…」的内容禁止再为同义片段加 crawler；crawler 仅当用户明确要网上/网页/官网/公告正文。',
             '「查天气」不得 needsWeb=true；复合任务中天气须独立 admin 子句与 queryFocus。',
             '若编排含用户未要求的 data-plane agent（如未提数据库却含 db），须从 allowedAgents/clauses 删除。',

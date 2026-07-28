@@ -1,3 +1,8 @@
+"""托管 Agent 规格 SSOT（控制台启停 / desired·actual / Helm deployment 名）。
+
+新专家接入须与 Manager executor、metrics/Prom **同 wave** 交付，见：
+docs/Agent集群升级与面试对照.md §1.6b · Manage-platform_Agent/doc/企业级控制面升级方案.md §5.5
+"""
 import os
 
 from sqlalchemy.orm import Session

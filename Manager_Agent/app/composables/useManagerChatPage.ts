@@ -62,8 +62,67 @@ export function useManagerChatPage() {
   }
   
   function setWorkbenchMode(mode: WorkbenchMode) {
+    void switchWorkbenchMode(mode)
+  }
+
+  async function switchWorkbenchMode(mode: WorkbenchMode) {
+    if (mode === workbenchMode.value) return
+    const prev = workbenchMode.value
+    rememberSessionForMode(prev, sessionId.value)
+    stampCurrentSessionMode(prev)
+
     workbenchMode.value = mode
     if (typeof localStorage !== 'undefined') localStorage.setItem(WORKBENCH_MODE_KEY, mode)
+
+    sidebarOpen.value = false
+    if (mode === 'chat') {
+      thoughtViewMode.value = 'user'
+      if (typeof localStorage !== 'undefined') localStorage.setItem(THOUGHT_VIEW_MODE_KEY, 'user')
+      collaborationPosture.value = 'agent'
+      if (typeof localStorage !== 'undefined') localStorage.setItem(COLLABORATION_POSTURE_KEY, 'agent')
+      debugObservationPanelOpen.value = false
+    }
+
+    const targetId = getSessionSlot(mode)
+    if (targetId && targetId !== sessionId.value) {
+      await switchSession(targetId)
+    } else if (!targetId) {
+      await newSession({ skipPersistCurrent: true })
+    } else {
+      // 目标槽碰巧指向当前会话：若历史已标为另一模式，禁止混用，新开专业/对话会话
+      const item = sessionHistoryItems.value.find((s) => s.id === sessionId.value)
+      if (item?.workbenchMode && item.workbenchMode !== mode) {
+        await newSession({ skipPersistCurrent: true })
+      } else {
+        stampCurrentSessionMode(mode)
+      }
+    }
+    rememberSessionForMode(mode, sessionId.value)
+  }
+
+  async function selectHistorySession(id: string) {
+    const item = sessionHistoryItems.value.find((s) => s.id === id)
+    const tagged = item?.workbenchMode
+    if (tagged && tagged !== workbenchMode.value) {
+      rememberSessionForMode(workbenchMode.value, sessionId.value)
+      stampCurrentSessionMode(workbenchMode.value)
+      workbenchMode.value = tagged
+      if (typeof localStorage !== 'undefined') localStorage.setItem(WORKBENCH_MODE_KEY, tagged)
+      sidebarOpen.value = false
+      if (tagged === 'chat') {
+        thoughtViewMode.value = 'user'
+        if (typeof localStorage !== 'undefined') localStorage.setItem(THOUGHT_VIEW_MODE_KEY, 'user')
+        collaborationPosture.value = 'agent'
+        if (typeof localStorage !== 'undefined') localStorage.setItem(COLLABORATION_POSTURE_KEY, 'agent')
+        debugObservationPanelOpen.value = false
+      }
+      await switchSession(id)
+      rememberSessionForMode(tagged, id)
+      return
+    }
+    if (!tagged) stampSessionMode(id, workbenchMode.value)
+    await switchSession(id)
+    rememberSessionForMode(workbenchMode.value, id)
   }
   
   const THOUGHT_VIEW_MODE_KEY = 'manager_thought_view_mode'
@@ -188,6 +247,10 @@ export function useManagerChatPage() {
     ensureSessionId,
     loadSessionHistoryList,
     touchCurrentSessionHistory,
+    rememberSessionForMode,
+    getSessionSlot,
+    stampSessionMode,
+    stampCurrentSessionMode,
     persistChatLogs,
     restoreChatLogs,
     hydrateLogsFromServerHistory,
@@ -1143,7 +1206,25 @@ export function useManagerChatPage() {
   }
   
   function hasAgentPipeline(t: TurnGroup): boolean {
-    return !!(turnRouteCap(t) || turnPlanOutline(t)?.steps?.length || stepResultsForTurn(t).length)
+    const has = !!(turnRouteCap(t) || turnPlanOutline(t)?.steps?.length || stepResultsForTurn(t).length)
+    if (!has) return false
+    // 用户视图：单步 admin 写操作不展示沉重「任务执行」面板
+    if (thoughtViewMode.value === 'user' && isSimpleAdminOnlyPipeline(t)) return false
+    return true
+  }
+
+  /** 用户视图弱化：仅个人助理单步（或等价单 agent admin） */
+  function isSimpleAdminOnlyPipeline(t: TurnGroup): boolean {
+    const steps = turnAgentPipelineSteps(t)
+    if (steps.length === 1 && steps[0]?.agent === 'admin') return true
+    const outline = turnPlanOutline(t)?.steps || []
+    if (outline.length === 1 && String(outline[0]?.agent || '') === 'admin') return true
+    const caps = turnRouteCap(t)?.agents || []
+    if (caps.length === 1 && String(caps[0] || '').toLowerCase() === 'admin') {
+      const results = stepResultsForTurn(t)
+      if (!results.length || results.every((r) => r.agent === 'admin')) return true
+    }
+    return false
   }
   
   function resolvePipelineStepStatus(
@@ -2688,13 +2769,10 @@ export function useManagerChatPage() {
     chatComposerRef.value?.resetFileInput()
   }
   
-  async function onFileSelected(ev: Event) {
-    const input = ev.target as HTMLInputElement
-    const file = input.files?.[0]
+  async function ingestAttachmentFile(file: File) {
     if (!file) return
     if (file.size > 80 * 1024 * 1024) {
       add('error', '文件过大（上限 80MB）', undefined, activeTurn || turnSeq)
-      input.value = ''
       return
     }
     uploadingAttachment.value = true
@@ -2735,8 +2813,22 @@ export function useManagerChatPage() {
       add('error', `附件上传失败：${String(e?.message || e)}`, undefined, activeTurn || turnSeq)
     } finally {
       uploadingAttachment.value = false
+    }
+  }
+
+  async function onFileSelected(ev: Event) {
+    const input = ev.target as HTMLInputElement
+    const file = input.files?.[0]
+    if (!file) return
+    try {
+      await ingestAttachmentFile(file)
+    } finally {
       input.value = ''
     }
+  }
+
+  async function onAttachmentFile(file: File) {
+    await ingestAttachmentFile(file)
   }
   
   function flattenFormalReportHeadings(text: string): string {
@@ -4940,7 +5032,9 @@ export function useManagerChatPage() {
     },
     bumpNextLogId,
     runIdToTurn,
-    expandedProcessKeys
+    expandedProcessKeys,
+    isTurnLive,
+    getWorkbenchMode: () => workbenchMode.value
   } satisfies ManagerSessionHost)
   
   function onInputKeydown(e: KeyboardEvent) {
@@ -5490,6 +5584,7 @@ export function useManagerChatPage() {
     onSendOrCancel,
     clearPendingAttachment,
     onFileSelected,
+    onAttachmentFile,
     chatComposerRef
   })
 
@@ -5617,6 +5712,8 @@ export function useManagerChatPage() {
     planAgentLabel,
     collabStatusShort,
     setWorkbenchMode,
+    switchWorkbenchMode,
+    selectHistorySession,
     setThoughtViewMode,
     setCollaborationPosture,
     newSession,
@@ -5648,6 +5745,7 @@ export function useManagerChatPage() {
     onSendOrCancel,
     clearPendingAttachment,
     onFileSelected,
+    onAttachmentFile,
     modalOpen,
     modalMode,
     modalTitle,

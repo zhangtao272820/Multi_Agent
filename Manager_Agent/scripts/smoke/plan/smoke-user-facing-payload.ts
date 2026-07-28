@@ -4,11 +4,13 @@
 import {
   buildUserFacingPayload,
   composeFinalBundleFromGraphResult,
+  formatAdminWriteUserFacingReply,
   formatUserFacingMainText,
   stripDeveloperJargon,
   stripStructuredExecReport
 } from '../../../server/graph/core/output'
 import { stripSynthPromptLeakage } from '../../../agent-repo-shared/synthOutputSanitize'
+import { shouldPassthroughAdminWriteOnly } from '../../../agent-repo-shared/deterministicPassthrough'
 
 function assert(cond: unknown, msg: string): void {
   if (!cond) throw new Error(msg)
@@ -219,5 +221,126 @@ assert(!/仅处理下列个人助理能力/.test(cleanedPreamble), 'strip admin 
 assert(!/^·\s*邮件/.test(cleanedPreamble), 'strip capability bullet')
 assert(!/admin:\s*empty_result/i.test(cleanedPreamble), 'strip empty_result jargon')
 assert(cleanedPreamble.includes('主要回答'), 'keeps user-facing lead')
+
+/** admin: 前缀能力清单 + 数据来源说明 / 置信度 / 不可信 */
+const adminPrefixedPreamble = [
+  '明天 10:00 的「项目周会」已安排好。',
+  'admin: 仅处理下列个人助理能力（勿混入知识库检索/搜索/问数/玩法/画图/报告）：',
+  '· 邮件：发信、收件箱、分拣、回复',
+  '· 联系人：添加/查询通讯录',
+  '### 关于数据来源的说明',
+  '虽然系统内部标记了置信度 0.75，且提示不可信外部数据，但执行结果稳定。',
+  '```agent_result',
+  'ok: true',
+  '```',
+  '## 执行摘要',
+  'admin: 仅处理下列个人助理能力'
+].join('\n')
+const cleanedAdminLeak = stripSynthPromptLeakage(adminPrefixedPreamble)
+assert(!/仅处理下列个人助理能力/.test(cleanedAdminLeak), 'strip admin: prefixed preamble')
+assert(!/关于数据来源的说明/.test(cleanedAdminLeak), 'strip 关于数据来源的说明')
+assert(!/置信度\s*0\.75/.test(cleanedAdminLeak), 'strip confidence parrot')
+assert(!/不可信外部/.test(cleanedAdminLeak), 'strip untrusted parrot')
+assert(!/```\s*agent_result/.test(cleanedAdminLeak), 'strip agent_result fence')
+assert(cleanedAdminLeak.includes('项目周会'), 'keeps schedule confirmation')
+
+const dirtyAdminSynthPayload = buildUserFacingPayload({
+  synth: adminPrefixedPreamble,
+  intent: 'admin',
+  results: {
+    admin: '已添加日程并设置提醒：项目周会 (2026年7月29日 10:00)'
+  },
+  evidence: [
+    {
+      kind: 'admin',
+      handoff: {
+        summary: '已添加日程并设置提醒：项目周会 (2026年7月29日 10:00)',
+        evidenceRefs: [],
+        confidence: 0.75
+      }
+    }
+  ],
+  meta: {}
+})
+assert(!/仅处理下列个人助理能力/.test(dirtyAdminSynthPayload.summary), 'userFacing strips admin preamble')
+assert(!/置信度/.test(dirtyAdminSynthPayload.summary), 'userFacing strips confidence')
+assert(!/执行摘要/.test(dirtyAdminSynthPayload.summary), 'userFacing strips exec summary')
+assert(
+  dirtyAdminSynthPayload.summary.includes('项目周会') || dirtyAdminSynthPayload.summary.includes('日程'),
+  'userFacing keeps schedule fact'
+)
+
+assert(
+  shouldPassthroughAdminWriteOnly({
+    intent: 'admin',
+    planSteps: [{ agent: 'admin' }],
+    results: { admin: '已添加日程并设置提醒：项目周会 (2026年7月29日 10:00)' },
+    evidence: [{ kind: 'admin', agentResult: { ok: true } }]
+  }) === true,
+  'admin-only write should passthrough'
+)
+assert(
+  shouldPassthroughAdminWriteOnly({
+    intent: 'multi',
+    planSteps: [{ agent: 'admin' }, { agent: 'db' }],
+    results: {
+      admin: '已添加日程并设置提醒：项目周会',
+      db: '库内有 5 人'
+    },
+    evidence: []
+  }) === false,
+  'admin+db must not passthrough'
+)
+assert(
+  shouldPassthroughAdminWriteOnly({
+    intent: 'admin',
+    planSteps: [{ agent: 'admin' }],
+    results: { admin: '【待确认】将创建日程：项目周会' },
+    evidence: [{ kind: 'admin', agentResult: { ok: false } }]
+  }) === false,
+  'pending admin must not passthrough'
+)
+
+const adminPassthroughBundle = composeFinalBundleFromGraphResult({
+  final: formatAdminWriteUserFacingReply({
+    adminText: '已添加日程并设置提醒：项目周会 (2026年7月29日 10:00)',
+    handoffSummary: '已添加日程并设置提醒：项目周会 (2026年7月29日 10:00)'
+  }),
+  intent: 'admin',
+  results: { admin: '已添加日程并设置提醒：项目周会 (2026年7月29日 10:00)' },
+  plan: [{ id: 's1', agent: 'admin', query: '创建项目周会' }],
+  evidence: [
+    {
+      kind: 'admin',
+      handoff: {
+        summary: '已添加日程并设置提醒：项目周会 (2026年7月29日 10:00)',
+        evidenceRefs: [],
+        confidence: 0.75
+      },
+      agentResult: { ok: true, agent: 'admin' }
+    }
+  ],
+  meta: { lastStepRecords: [{ id: 's1', agent: 'admin', status: 'ok' }] }
+})
+assert(
+  adminPassthroughBundle.userFacing.summary.includes('项目周会'),
+  'compose admin short confirmation'
+)
+assert(!/#{1,3}\s/.test(adminPassthroughBundle.userFacing.summary), 'admin userFacing no ### headings')
+assert(!/执行摘要/.test(adminPassthroughBundle.userFacing.summary), 'admin userFacing no exec summary')
+assert(!/仅处理下列个人助理能力/.test(adminPassthroughBundle.userFacing.summary), 'admin userFacing no preamble')
+assert(!/别担心|后续建议|数据来源/.test(adminPassthroughBundle.userFacing.summary), 'admin userFacing no fluff')
+
+const polishedAdmin = formatAdminWriteUserFacingReply({
+  adminText: [
+    'admin: 仅处理下列个人助理能力（勿混入知识库）：',
+    '· 邮件：发信',
+    '已添加日程并设置提醒：项目周会 (2026年7月29日 10:00)'
+  ].join('\n'),
+  handoffSummary: '已添加日程并设置提醒：项目周会 (2026年7月29日 10:00)'
+})
+assert(polishedAdmin.includes('项目周会'), 'formatAdmin keeps fact')
+assert(!/仅处理下列/.test(polishedAdmin), 'formatAdmin drops preamble')
+assert(polishedAdmin.length < 200, 'formatAdmin stays short')
 
 console.log('smoke-user-facing-payload: ok')

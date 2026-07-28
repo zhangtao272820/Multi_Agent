@@ -86,8 +86,9 @@ export type RagScopeHintJudge = (input: {
 /** route probe 已命中时跳过 evidence/probe LLM 裁判，避免假阴性与额外 T0 延迟 */
 export function shouldBypassRagEvidenceJudge(probeHits = 0): boolean {
   if (Number(probeHits) > 0) return true
-  const v = String(process.env.MANAGER_RAG_BYPASS_JUDGE_ON_PROBE ?? '1').trim().toLowerCase()
-  return v !== '0' && v !== 'false' && v !== 'no'
+  // 零命中默认不跳过 relevance judge；显式 MANAGER_RAG_BYPASS_JUDGE_ON_PROBE=1 才 bypass
+  const v = String(process.env.MANAGER_RAG_BYPASS_JUDGE_ON_PROBE ?? '0').trim().toLowerCase()
+  return v === '1' || v === 'true' || v === 'on' || v === 'yes'
 }
 
 export function isRagRelevanceJudgeEnabled() {

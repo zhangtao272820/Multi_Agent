@@ -3,9 +3,13 @@
  * 自 index.vue 抽出；通过 ManagerSessionHost 注入页面侧依赖
  */
 import { nextTick, ref, type ComputedRef, type Ref } from 'vue'
-import type { LogItem, SessionHistoryItem, TurnGroup } from './managerChatTypes'
+import type { LogItem, SessionHistoryItem, TurnGroup, WorkbenchMode } from './managerChatTypes'
 
 const USER_ID_KEY = 'manager_user_id'
+const SESSION_ID_KEY = 'manager_session_id'
+const SESSION_ID_BY_MODE_KEY = 'manager_session_id_by_mode'
+
+type SessionIdByMode = { chat?: string; professional?: string }
 
 export const FEEDBACK_PENDING_ACK = '提交中…'
 
@@ -55,7 +59,7 @@ export type ManagerSessionHost = {
   bumpNextLogId: () => number
   runIdToTurn: Map<string, number>
   expandedProcessKeys: Ref<Set<string>>
-  isTurnLive: (t: TurnGroup) => boolean
+  getWorkbenchMode: () => WorkbenchMode
 }
 
 export function useManagerSession(host: ManagerSessionHost) {
@@ -212,6 +216,81 @@ export function useManagerSession(host: ManagerSessionHost) {
     return host.logs.value.filter((m) => String(m.kind).toLowerCase() === 'user').length
   }
 
+  function normalizeWorkbenchModeTag(raw: unknown): WorkbenchMode | undefined {
+    const x = String(raw ?? '').trim().toLowerCase()
+    if (x === 'professional' || x === 'pro') return 'professional'
+    if (x === 'chat' || x === 'dialog') return 'chat'
+    return undefined
+  }
+
+  function readSessionIdByMode(): SessionIdByMode {
+    if (typeof window === 'undefined') return {}
+    try {
+      const raw = window.localStorage.getItem(SESSION_ID_BY_MODE_KEY)
+      if (!raw) return {}
+      const parsed = JSON.parse(raw) as SessionIdByMode
+      const out: SessionIdByMode = {}
+      const chat = String(parsed?.chat || '').trim()
+      const pro = String(parsed?.professional || '').trim()
+      if (chat) out.chat = chat
+      if (pro) out.professional = pro
+      return out
+    } catch {
+      return {}
+    }
+  }
+
+  function writeSessionIdByMode(map: SessionIdByMode) {
+    if (typeof window === 'undefined') return
+    try {
+      window.localStorage.setItem(SESSION_ID_BY_MODE_KEY, JSON.stringify(map))
+    } catch {}
+  }
+
+  function rememberSessionForMode(mode: WorkbenchMode, id: string) {
+    const sid = String(id || '').trim()
+    if (!sid) return
+    const map = readSessionIdByMode()
+    map[mode] = sid
+    writeSessionIdByMode(map)
+    try {
+      window.localStorage.setItem(SESSION_ID_KEY, sid)
+    } catch {}
+  }
+
+  function getSessionSlot(mode: WorkbenchMode): string {
+    return String(readSessionIdByMode()[mode] || '').trim()
+  }
+
+  function stampSessionMode(id: string, mode: WorkbenchMode) {
+    const sid = String(id || '').trim()
+    if (!sid) return
+    const idx = sessionHistoryItems.value.findIndex((s) => s.id === sid)
+    if (idx < 0) return
+    const row = sessionHistoryItems.value[idx]!
+    if (row.workbenchMode === mode) return
+    row.workbenchMode = mode
+    persistSessionHistoryList()
+  }
+
+  function stampCurrentSessionMode(mode?: WorkbenchMode) {
+    const m = mode || host.getWorkbenchMode()
+    stampSessionMode(sessionId.value, m)
+    rememberSessionForMode(m, sessionId.value)
+  }
+
+  function persistActiveSessionId(id: string) {
+    sessionId.value = id
+    try {
+      window.localStorage.setItem(SESSION_ID_KEY, id)
+    } catch {}
+    try {
+      rememberSessionForMode(host.getWorkbenchMode(), id)
+    } catch {
+      /* host 可能尚未注入 getWorkbenchMode */
+    }
+  }
+
   function persistSessionHistoryList() {
     if (typeof window === 'undefined') return
     try {
@@ -231,14 +310,18 @@ export function useManagerSession(host: ManagerSessionHost) {
         if (Array.isArray(parsed?.items)) {
           sessionHistoryItems.value = parsed.items
             .filter((x: unknown) => x && typeof (x as SessionHistoryItem).id === 'string')
-            .map((x: SessionHistoryItem) => ({
-              id: String(x.id),
-              title: String(x.title || '新会话'),
-              updatedAt: String(x.updatedAt || new Date().toISOString()),
-              messageCount: Number(x.messageCount) || 0,
-              userMessageCount: Number(x.userMessageCount) || 0,
-              customTitle: Boolean(x.customTitle)
-            }))
+            .map((x: SessionHistoryItem) => {
+              const mode = normalizeWorkbenchModeTag(x.workbenchMode)
+              return {
+                id: String(x.id),
+                title: String(x.title || '新会话'),
+                updatedAt: String(x.updatedAt || new Date().toISOString()),
+                messageCount: Number(x.messageCount) || 0,
+                userMessageCount: Number(x.userMessageCount) || 0,
+                customTitle: Boolean(x.customTitle),
+                ...(mode ? { workbenchMode: mode } : {})
+              }
+            })
             .sort((a: SessionHistoryItem, b: SessionHistoryItem) => b.updatedAt.localeCompare(a.updatedAt))
         }
       }
@@ -254,12 +337,19 @@ export function useManagerSession(host: ManagerSessionHost) {
     const title = deriveSessionTitleFromLogs()
     const userMessageCount = countUserMessagesInLogs()
     const messageCount = host.logs.value.filter((m) => (typeof m.turn === 'number' ? m.turn : 0) > 0).length
+    let mode: WorkbenchMode | undefined
+    try {
+      mode = host.getWorkbenchMode()
+    } catch {
+      mode = undefined
+    }
     const idx = sessionHistoryItems.value.findIndex((s) => s.id === id)
     if (idx >= 0) {
       const row = sessionHistoryItems.value[idx]!
       row.messageCount = messageCount
       row.userMessageCount = userMessageCount
       if (!row.customTitle && (title !== '新会话' || row.title === '新会话')) row.title = title
+      if (mode && !row.workbenchMode) row.workbenchMode = mode
       if (bump) {
         row.updatedAt = now
         sessionHistoryItems.value.splice(idx, 1)
@@ -271,11 +361,13 @@ export function useManagerSession(host: ManagerSessionHost) {
         title,
         updatedAt: now,
         messageCount,
-        userMessageCount
+        userMessageCount,
+        ...(mode ? { workbenchMode: mode } : {})
       })
     }
     sessionHistoryItems.value = sessionHistoryItems.value.slice(0, 80)
     persistSessionHistoryList()
+    if (mode) rememberSessionForMode(mode, id)
   }
 
   function mergeSessionHistoryFromServer(serverItems: SessionHistoryItem[]) {
@@ -284,6 +376,7 @@ export function useManagerSession(host: ManagerSessionHost) {
     const map = new Map(sessionHistoryItems.value.map((s) => [s.id, s]))
     for (const item of serverItems) {
       const prev = map.get(item.id)
+      const mode = normalizeWorkbenchModeTag(prev?.workbenchMode ?? item.workbenchMode)
       map.set(item.id, {
         id: item.id,
         title: prev?.customTitle
@@ -296,7 +389,8 @@ export function useManagerSession(host: ManagerSessionHost) {
         updatedAt: String(item.updatedAt || prev?.updatedAt || new Date().toISOString()),
         messageCount: Math.max(Number(item.messageCount) || 0, Number(prev?.messageCount) || 0),
         userMessageCount: Math.max(Number(item.userMessageCount) || 0, Number(prev?.userMessageCount) || 0),
-        customTitle: Boolean(prev?.customTitle || item.customTitle)
+        customTitle: Boolean(prev?.customTitle || item.customTitle),
+        ...(mode ? { workbenchMode: mode } : {})
       })
     }
     const seen = new Set<string>()
@@ -408,12 +502,25 @@ export function useManagerSession(host: ManagerSessionHost) {
     clearLocalSessionCaches(id)
     sessionHistoryItems.value = sessionHistoryItems.value.filter((s) => s.id !== id)
     persistSessionHistoryList()
+    try {
+      const map = readSessionIdByMode()
+      let changed = false
+      if (map.chat === id) {
+        delete map.chat
+        changed = true
+      }
+      if (map.professional === id) {
+        delete map.professional
+        changed = true
+      }
+      if (changed) writeSessionIdByMode(map)
+    } catch {}
 
     if (id !== sessionId.value) return
 
     sessionId.value = ''
     try {
-      window.localStorage.removeItem('manager_session_id')
+      window.localStorage.removeItem(SESSION_ID_KEY)
     } catch {}
 
     const fallback = sessionHistoryItems.value[0]?.id
@@ -970,19 +1077,24 @@ export function useManagerSession(host: ManagerSessionHost) {
   function ensureSessionId() {
     if (sessionId.value) return sessionId.value
     try {
-      const existing = window.localStorage.getItem('manager_session_id')
+      const mode = host.getWorkbenchMode()
+      const slotted = getSessionSlot(mode)
+      if (slotted) {
+        persistActiveSessionId(slotted)
+        ensureUserId()
+        return slotted
+      }
+      const existing = window.localStorage.getItem(SESSION_ID_KEY)
       if (existing) {
-        sessionId.value = existing
+        persistActiveSessionId(existing)
         ensureUserId()
         return existing
       }
     } catch {}
     const id = generateSessionId()
-    sessionId.value = id
-    try {
-      window.localStorage.setItem('manager_session_id', id)
-    } catch {}
+    persistActiveSessionId(id)
     ensureUserId()
+    stampCurrentSessionMode()
     return id
   }
 
@@ -1005,16 +1117,14 @@ export function useManagerSession(host: ManagerSessionHost) {
       } catch {}
     }
     const id = generateSessionId()
-    sessionId.value = id
-    try {
-      window.localStorage.setItem('manager_session_id', id)
-    } catch {}
+    persistActiveSessionId(id)
     await host.resetTaskStackForSession()
     host.resetChatUiState()
     try {
       window.sessionStorage.removeItem(withdrawnTurnsStorageKey())
       window.sessionStorage.removeItem(chatLogsStorageKey())
     } catch {}
+    stampCurrentSessionMode()
     touchCurrentSessionHistory({ bump: true })
     loadSessionHistoryList()
     pruneEmptySessionHistory()
@@ -1041,10 +1151,7 @@ export function useManagerSession(host: ManagerSessionHost) {
       touchCurrentSessionHistory({ bump: false })
       persistChatLogs()
 
-      sessionId.value = id
-      try {
-        window.localStorage.setItem('manager_session_id', id)
-      } catch {}
+      persistActiveSessionId(id)
 
       host.resetChatUiState()
       host.clearTaskStackForSwitch()
@@ -1060,6 +1167,7 @@ export function useManagerSession(host: ManagerSessionHost) {
       reconcileTurnFeedbackKeys()
       void hydrateSessionFeedbackFromServer()
 
+      stampCurrentSessionMode()
       touchCurrentSessionHistory({ bump: false })
       void host.hydrateTaskStack()
       void fetchServerSessionHistory()
@@ -1105,6 +1213,10 @@ export function useManagerSession(host: ManagerSessionHost) {
     generateSessionId,
     loadSessionHistoryList,
     touchCurrentSessionHistory,
+    rememberSessionForMode,
+    getSessionSlot,
+    stampSessionMode,
+    stampCurrentSessionMode,
     persistChatLogs,
     restoreChatLogs,
     hydrateLogsFromServerHistory,

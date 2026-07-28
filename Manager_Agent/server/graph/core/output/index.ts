@@ -1,5 +1,6 @@
 export * from './composeFinal'
 export * from './userFacingPayload'
+export * from './adminWriteUserReply'
 export * from './actionCard'
 export * from './structuredRunReport'
 export * from './verifierCompletion'

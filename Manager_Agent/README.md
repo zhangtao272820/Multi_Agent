@@ -13,7 +13,7 @@ Manager 不替代 DB、RAG、Code、Extractor 等专业能力，只负责：
 - 在高风险步骤前暂停等待确认（HITL）
 - 聚合下游结果并做合成 / 批评闭环
 
-**媒体拓扑**：`multimodal`（识图/ASR/视频理解）、`music`、`video` 由总管 **直接** HTTP/WS 调用，不再经多模态 Agent 转发。任务分配默认 **`decompose`（子句拆解）→ `route` → `planner`**；关闭拆解：`MANAGER_CLAUSE_DECOMPOSE=0`。
+**媒体拓扑**：`multimodal`（识图/ASR/视频理解，**标准核心子 Agent**）、`music`、`video`（extended）由总管 **直接** HTTP/WS 调用。有附件且还需业务 Agent 时，Planner 先 multimodal 再下游 `dependsOn`。任务分配默认 **`decompose`（子句拆解）→ `route` → `planner`**；关闭拆解：`MANAGER_CLAUSE_DECOMPOSE=0`。聊天输入支持粘贴 / 拖拽 / 附件上传图片。
 
 ## 核心能力
 
@@ -88,6 +88,13 @@ npm run dev
 
 本地联调至少再起一个下游（例如 RAG），并在 `.env` / `nuxt.config` runtimeConfig 中指向其 URL。
 
+**测前预检**：
+
+```bash
+npm run smoke:preflight          # 鉴权与配置脚枪
+npm run smoke:preflight -- --live  # 再确认 Manager/DB/RAG 已 ready
+```
+
 ## 自我进化
 
 - **向量召回**（默认开）：experience / plan_outcome → `.data/manager-memory-embeddings.jsonl`
@@ -104,7 +111,7 @@ npm run dev
 
 复制 `.env.example`。必改：`OPENAI_API_KEY`、各 `*_AGENT_*_URL`。
 
-常用可选项：`MANAGER_MODEL_*`、`MANAGER_EXECUTION_MODE_OVERRIDE` / `MANAGER_VOTE_TARGETS`、`MANAGER_POLICY_CANARY_PERCENT`、`MANAGER_OPS_TOKEN`、`MANAGER_EVOLUTION_CURATOR=1`、`MANAGER_CLAUSE_DECOMPOSE=0`。
+常用可选项：`MANAGER_MODEL_*`、`MANAGER_AUTH_MODE` / `MANAGER_WS_TOKEN` / `MANAGER_OPS_TOKEN`、`MANAGER_EXECUTION_MODE_OVERRIDE` / `MANAGER_VOTE_TARGETS`、`MANAGER_POLICY_CANARY_PERCENT`、`MANAGER_EVOLUTION_CURATOR=1`、`MANAGER_CLAUSE_DECOMPOSE=0`。
 
 ## 下游协作一览
 
@@ -133,17 +140,27 @@ npm run dev
 
 ## 安全提示
 
-- 公网暴露 WebSocket 须鉴权 + TLS
-- 高风险写操作保留确认步骤
-- 勿把子 Agent 密钥或内网 URL 泄露到前端
+Docker/LAN/公网 checklist（与 `.env.example` / `agents-lan.example` 对齐）：
+
+| 项 | 说明 |
+|----|------|
+| `MANAGER_AUTH_MODE` | `token`（推荐集群）或裸机本地 `open`；未设则默认不鉴权 |
+| `MANAGER_WS_TOKEN` | `token` 模式必填；与 `NUXT_PUBLIC_MANAGER_WS_TOKEN` 成对，供同源 UI 连 WS |
+| `MANAGER_OPS_TOKEN` | 运维 `POST /api/manager/ops`（头 `x-manager-ops-token`）；未设则一律 403 |
+| TLS | 公网须 `wss` / HTTPS 反代；勿裸奔明文 |
+| 密钥边界 | 勿把子 Agent 内网 URL、SMTP/API Key 暴露到前端；`NUXT_PUBLIC_*` 仅同源 WS token |
+
+配置脚枪：`AUTH_MODE=token` 却未配 WS token 时，`/api/ready` 为 not-ready，启动日志 ERROR。守门：`npm run smoke:ws-auth`。
+
+高风险写操作保留 HITL / writeGate；勿对公网关闭鉴权。
 
 ## 相关文档
 
-- 矩阵总路线图：[docs/Agent矩阵升级总路线图.md](../docs/Agent矩阵升级总路线图.md)
+- 矩阵总路线图（能力主轴已收口）：[docs/Agent矩阵升级总路线图.md](../docs/Agent矩阵升级总路线图.md)
+- 生产硬度与下一波守门：[docs/Agent集群升级与面试对照.md](../docs/Agent集群升级与面试对照.md)
 - 协作架构：[doc/借鉴Cursor-Agent模式升级.md](doc/借鉴Cursor-Agent模式升级.md)
-- Token 预算：[doc/协作认知与Token预算升级.md](doc/协作认知与Token预算升级.md)
-- 动手操作：[doc/用户态回复与动手操作成熟化升级.md](doc/用户态回复与动手操作成熟化升级.md)
-- 子 Agent 协作现状：[doc/内部协作与子Agent能力升级.md](doc/内部协作与子Agent能力升级.md)
+- 域路由用例：[doc/真实域路由测试用例.md](doc/真实域路由测试用例.md)
+- Smoke / 门禁：[scripts/smoke/README.md](scripts/smoke/README.md)
 
 ## 常见问题
 

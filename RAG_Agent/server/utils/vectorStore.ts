@@ -14,8 +14,10 @@ import { looksLikeHtmlDocument, stripHtmlToPlainText } from "./html_text";
 import { extractPptxText, isLegacyPptOle } from "./pptx_text";
 import {
   buildIngestTimestamps,
+  filterMemoryVectorsBySource,
   hashCorpusText,
   resolveSourceVersion,
+  shouldSkipReembed,
 } from "./ingest_meta";
 
 const DATA_DIR = path.join(process.cwd(), ".data");
@@ -324,11 +326,12 @@ export const purgeVectorsBySource = async (fileName: string): Promise<number> =>
   let removed = 0;
   if (vectorBackend === "memory") {
     const memoryStore = vectorStore as MemoryVectorStore;
-    const before = memoryStore.memoryVectors?.length ?? 0;
-    memoryStore.memoryVectors = (memoryStore.memoryVectors ?? []).filter(
-      (v) => String(v.metadata?.source ?? "") !== fileName
+    const { kept, removed: n } = filterMemoryVectorsBySource(
+      memoryStore.memoryVectors ?? [],
+      fileName
     );
-    removed = before - (memoryStore.memoryVectors?.length ?? 0);
+    memoryStore.memoryVectors = kept as typeof memoryStore.memoryVectors;
+    removed = n;
   } else {
     const cfg = getPgRuntimeConfig();
     const col = cfg.metadataColumnName;
@@ -892,7 +895,7 @@ export async function upsertParsedDocuments(
   const { ingest_at, processedAt } = buildIngestTimestamps();
 
   const existingMeta = uploadedDocuments.find((d) => d.name === fileName);
-  if (existingMeta?.content_hash && existingMeta.content_hash === contentHash) {
+  if (shouldSkipReembed(existingMeta?.content_hash, contentHash)) {
     const existingCount =
       existingMeta.chunk_count && existingMeta.chunk_count > 0
         ? existingMeta.chunk_count

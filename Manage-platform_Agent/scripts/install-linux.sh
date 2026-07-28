@@ -2,8 +2,8 @@
 # ClawHive 客户服务器一键部署（Linux）
 # 用法：
 #   cd /path/to/agent/Manage-platform_Agent
-#   bash scripts/install-linux.sh                 # 标准版（含监控）
-#   bash scripts/install-linux.sh --extended      # + 媒体 / Lobster
+#   bash scripts/install-linux.sh                 # 标准版（含多模态理解 + 监控）
+#   bash scripts/install-linux.sh --extended      # + 音乐/视频 / Lobster
 #   bash scripts/install-linux.sh --no-monitor    # 弱机跳过 Prom/Grafana/AM/Tempo/Loki
 #   bash scripts/install-linux.sh --offline       # 从 offline/images.tar 加载
 #   bash scripts/install-linux.sh --no-build
@@ -173,5 +173,5 @@ echo "备份: bash scripts/backup-postgres.sh"
 echo "恢复: bash scripts/restore-postgres.sh backups/<file>.sql.gz --yes"
 echo "回滚: bash scripts/rollback-agents.sh <旧CLAWHIVE_IMAGE_TAG>"
 if (( ! EXTENDED )); then
-  echo "如需媒体/Lobster: bash scripts/install-linux.sh --extended --no-build"
+  echo "如需音乐/视频/Lobster: bash scripts/install-linux.sh --extended --no-build"
 fi

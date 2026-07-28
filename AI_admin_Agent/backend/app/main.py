@@ -175,6 +175,21 @@ def _tool_data(result: Any, default: Any) -> Any:
     return default
 
 
+def _tool_items(result: Any) -> list:
+    """
+    REST list endpoints expect top-level `items: [...]`.
+    Tool envelopes use `data: {items: [...], count: N}` — unwrap that shape.
+    """
+    data = _tool_data(result, None)
+    if isinstance(data, list):
+        return data
+    if isinstance(data, dict):
+        items = data.get("items")
+        if isinstance(items, list):
+            return items
+    return []
+
+
 def _calc_total_tokens(result: Dict[str, Any], request_text: str, response_text: str) -> int:
     usage_total = result.get("token_usage", {}).get("total", 0)
     if usage_total and usage_total > 0:
@@ -398,7 +413,7 @@ async def delete_note_api(note_id: int, db: Session = Depends(get_db)):
 @app.get("/api/contacts")
 async def get_contacts():
     result = list_contacts()
-    return {"contacts": _tool_text(result), "items": _tool_data(result, [])}
+    return {"contacts": _tool_text(result), "items": _tool_items(result)}
 
 
 @app.get("/api/search")
@@ -439,7 +454,7 @@ async def api_daily_briefing(session_id: str = "default", city: str = "", includ
 @app.get("/api/mail/inbox")
 async def get_mail_inbox(session_id: str = "default", limit: int = 10, unread_only: bool = True):
     result = list_emails(session_id=session_id, limit=limit, unread_only=unread_only)
-    return {"inbox": _tool_text(result), "items": _tool_data(result, []), "ok": isinstance(result, dict) and result.get("ok")}
+    return {"inbox": _tool_text(result), "items": _tool_items(result), "ok": isinstance(result, dict) and result.get("ok")}
 
 
 @app.get("/api/mail/inbox/{email_id}")
@@ -469,7 +484,7 @@ async def classify_mail_api(session_id: str = "default", limit: int = 20):
 @app.get("/api/pending")
 async def get_pending_actions(session_id: str = "default"):
     result = list_pending_actions(session_id=session_id)
-    return {"pending": _tool_text(result), "items": _tool_data(result, [])}
+    return {"pending": _tool_text(result), "items": _tool_items(result)}
 
 
 @app.post("/api/pending/decide")

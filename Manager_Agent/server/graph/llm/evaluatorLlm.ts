@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { ChatOpenAI } from '@langchain/openai'
 import { safeJsonParse } from '../core/shared/llmJson'
 import { hasTaggedBlock } from '../../utils/shared/outputMarkers'
+import { textWantsVisualizeStructural } from '../../utils/shared/visualizeMarkers'
 
 const EvaluatorSchema = z.object({
   wants_visualize: z.boolean(),
@@ -9,7 +10,6 @@ const EvaluatorSchema = z.object({
   confidence: z.number().min(0).max(1).optional(),
 })
 
-const VISUALIZE_MARKERS = ['图表', '可视化', 'echarts', '柱状图', '折线图', '饼图'] as const
 const TIMEOUT_MARKERS = ['timeout', 'timed out', 'socket hang up'] as const
 
 export function isEvaluatorLlmEnabled(): boolean {
@@ -17,8 +17,7 @@ export function isEvaluatorLlmEnabled(): boolean {
 }
 
 export function wantsVisualizeStructural(text: string): boolean {
-  const t = String(text ?? '')
-  return VISUALIZE_MARKERS.some((m) => t.toLowerCase().includes(m.toLowerCase()))
+  return textWantsVisualizeStructural(text)
 }
 
 export function isTimeoutErrorStructural(error: string): boolean {

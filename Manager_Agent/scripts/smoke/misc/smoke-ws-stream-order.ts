@@ -62,6 +62,22 @@ function ev(event: string, data?: unknown): WsStreamEvent {
 }
 
 {
+  // GUI 可修复失败轮：不应开用户流
+  const guiProvisional = shouldEmitUserSynthStream({
+    retryCount: 0,
+    intent: 'gui',
+    results: { gui: '页面超时，请重试' },
+    evidence: [{ kind: 'gui', failed: true, agentResult: { ok: false } }],
+    fixQuery: '请按审计建议重试',
+    fixIntent: 'gui',
+    meta: {
+      lastStepRecords: [{ agent: 'gui', status: 'error', error: 'timeout' }]
+    }
+  })
+  assert(!guiProvisional, 'provisional gui fail must not stream')
+}
+
+{
   // 协议垃圾 / 取消终态：可开流一次（不再 repair）
   const terminalGarbage = shouldEmitUserSynthStream({
     retryCount: 0,

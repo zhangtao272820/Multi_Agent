@@ -29,6 +29,10 @@ import { createCodeAuthorityLlmModel } from '../../../utils/code/managerCodeAuth
 import { criticRetryContradictsRunEvidence } from '../../core/output/criticEvidence'
 import { isFixIntentBlockedByHardDown } from '../../core/output/criticPolicy'
 import { detectGuiSemanticBlockFromState } from '../../../utils/gui/guiHumanConfirm'
+import {
+  detectGuiTerminalFailure,
+  hasFailedGuiEvidenceInRun
+} from '../../core/runtime/guiTerminal'
 
 import type { CreateFixNodeDeps, FixStrategy } from './types'
 
@@ -87,9 +91,31 @@ export function createFixNode(deps: CreateFixNodeDeps) {
       }
     }
 
+    const guiTerminal = detectGuiTerminalFailure(state)
+    if (guiTerminal.terminal) {
+      opts.sendEvent({
+        event: 'thinking',
+        data: `自愈：GUI 终态失败（${guiTerminal.code || 'gui_terminal'}），跳过改道`,
+        from: 'manager'
+      })
+      return {
+        meta: mergeMeta(state, {
+          guiTerminal: true,
+          ...(guiTerminal.code ? { guiTerminalCode: guiTerminal.code } : {}),
+          finalSynthPass: true
+        }),
+        fixQuery: '',
+        fixIntent: undefined
+      }
+    }
+
     const question = effectiveUserTask(state.messages as any, state.routedQuery)
     const advice = state.fixQuery || ''
     const results = state.results || {}
+    const pinGui =
+      String(state.intent || '') === 'gui' ||
+      String(state.fixIntent || '') === 'gui' ||
+      hasFailedGuiEvidenceInRun(state)
     const fixPrompt = [
       new SystemMessage(
         [
@@ -101,10 +127,11 @@ export function createFixNode(deps: CreateFixNodeDeps) {
           '',
           '### 策略选项：',
           '1. **更正查询 (Refine Query)**：如果审计说漏掉事实，请生成更具体的查询。',
-          '2. **切换 Agent (Switch Agent)**：如果某 Agent 持续无法获取数据，可以尝试切换。',
-          '3. **重新规划 (Re-Plan)**：如果任务逻辑需要大规模调整，设置 intent 为 multi。',
+          '2. **切换 Agent (Switch Agent)**：仅当原能力明显不适用时才切换；GUI 浏览器任务失败时禁止改道 db/rag，必须保持 intent=gui。',
+          '3. **重新规划 (Re-Plan)**：如果任务逻辑需要大规模调整，设置 intent 为 multi（GUI 单能力失败除外）。',
           '',
           '约束：若评估器认为 dataEvidence=yes 且本轮 evidence 已充分，禁止改道其它取数 Agent；应仅修正 query 或触发正文重汇总。',
+          '约束：原 intent 为 gui 或本轮存在失败 GUI evidence 时，输出 intent 必须为 gui。',
           '',
           '输出必须是严格 JSON，示例：{"intent":"multi","query":"更具体的子任务描述","rationale":"原因"}（禁止输出 Zod/_def）'
         ].join('\n')
@@ -123,9 +150,20 @@ export function createFixNode(deps: CreateFixNodeDeps) {
     } catch {
       opts.sendEvent({ event: 'thinking', data: '自愈决策：策略生成失败，执行默认修复', from: 'manager' })
     }
+    if (pinGui && strategy.intent !== 'gui') {
+      strategy = { ...strategy, intent: 'gui' as Intent, rationale: strategy.rationale || 'GUI 失败钉死重试 gui' }
+    }
 
     const intent = strategy.intent
     const q = strategy.query
+    if (intent === 'gui') {
+      opts.sendEvent({
+        event: 'thinking',
+        data: '自愈：GUI 失败保持 gui 重试（由图边重跑 gui 节点）',
+        from: 'manager'
+      })
+      return { fixIntent: 'gui' as Intent, fixQuery: q || advice || question }
+    }
     if (isFixIntentBlockedByHardDown(intent, state.meta)) {
       opts.sendEvent({
         event: 'thinking',

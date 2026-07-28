@@ -105,6 +105,74 @@ export function shouldPassthroughDbOnly(input: {
   return false
 }
 
+const NARRATIVE_AGENTS = [
+  'rag',
+  'db',
+  'crawler',
+  'code',
+  'gui',
+  'clean',
+  'visualize',
+  'report',
+  'music',
+  'video',
+  'multimodal'
+] as const
+
+/** admin 写操作文本是否像成功确认（非 pending / 失败 / 纯 preamble） */
+function looksLikeSuccessfulAdminWrite(admin: string): boolean {
+  const t = String(admin || '').trim()
+  if (!t || t.length < 4) return false
+  if (/【待确认】/.test(t)) return false
+  if (/未确认，未写入/.test(t)) return false
+  if (/未能完成写操作|工具未成功|无法成功设置|协议异常/.test(t)) return false
+  const head = t.slice(0, 120).toLowerCase()
+  if (head.includes('失败') || head.includes('error')) return false
+  // 整段几乎只有能力清单
+  if (/仅处理下列个人助理能力/.test(t)) {
+    const withoutPreamble = t
+      .replace(/(?:^|\n)(?:admin\s*[:：]\s*|error\s*[:：]\s*)?仅处理下列个人助理能力[^\n]*/gi, '')
+      .replace(/(?:^|\n)·\s*(邮件|联系人|待办|日程|天气|高德|飞书)[：:][^\n]*/gi, '')
+      .trim()
+    if (withoutPreamble.length < 8) return false
+  }
+  return true
+}
+
+/**
+ * 单步/纯 admin 写成功 → synth 直通短确认（跳过 500～800 字报告体 LLM）。
+ * 复杂 multi（admin + 取数/出图等）仍走叙述汇总。
+ */
+export function shouldPassthroughAdminWriteOnly(input: {
+  intent?: string
+  planSteps?: Array<{ agent?: string }>
+  results?: Record<string, unknown> | null
+  evidence?: Array<{ kind?: string; failed?: boolean; agentResult?: { ok?: boolean } }> | null
+}): boolean {
+  const admin = String(input.results?.admin ?? '').trim()
+  if (!looksLikeSuccessfulAdminWrite(admin)) return false
+
+  const evidence = Array.isArray(input.evidence) ? input.evidence : []
+  const hasFailedAdmin = evidence.some(
+    (e) =>
+      String(e?.kind || '') === 'admin' &&
+      (e?.failed === true || e?.agentResult?.ok === false)
+  )
+  if (hasFailedAdmin) return false
+
+  if (NARRATIVE_AGENTS.some((a) => String(input.results?.[a] ?? '').trim().length > 0)) return false
+
+  const steps = Array.isArray(input.planSteps) ? input.planSteps : []
+  const stepAgents = steps.map((s) => String(s?.agent ?? '').trim()).filter(Boolean)
+  if (stepAgents.some((a) => (NARRATIVE_AGENTS as readonly string[]).includes(a))) return false
+
+  const intent = String(input.intent ?? '').trim()
+  if (intent === 'admin') return true
+  if (stepAgents.length === 0) return true
+  if (stepAgents.every((a) => a === 'admin')) return true
+  return false
+}
+
 /** 路由未含 crawler/媒体时 SERP 无下游，结构性跳过 web_search */
 export function shouldSkipWebSearchStructurally(input: {
   allowedAgents?: string[]

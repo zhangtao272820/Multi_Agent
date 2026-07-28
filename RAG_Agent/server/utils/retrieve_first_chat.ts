@@ -113,6 +113,8 @@ export type RetrieveFirstChatResult = {
   workflowMode?: RagRetrievalMode;
   /** 无证据时的澄清答复（仍走 RAGFlow 管线，不回落 LangGraph） */
   clarifyOnly?: boolean;
+  /** H4 / I2：检索失败可解释枚举 */
+  retrievalFailureMode?: string;
 };
 
 function resolvePreflight(input: RetrieveFirstChatInput): RagIntentJudgment | null {
@@ -418,6 +420,7 @@ export async function runRetrieveFirstChatStream(
       effectiveQuery: retrieval.effectiveQuery,
       workflowMode: usedMode,
       clarifyOnly: true,
+      retrievalFailureMode: retrieval.retrievalFailureMode || retrieval.clarifyReason || "weak_evidence",
     };
   }
 
@@ -458,6 +461,7 @@ export async function runRetrieveFirstChatStream(
       effectiveQuery: retrieval.effectiveQuery,
       workflowMode: usedMode,
       clarifyOnly: true,
+      retrievalFailureMode: "weak_evidence",
     };
   }
 
@@ -513,5 +517,6 @@ export async function runRetrieveFirstChatStream(
     usage,
     effectiveQuery: retrieval.effectiveQuery,
     workflowMode: usedMode,
+    retrievalFailureMode: retrieval.retrievalFailureMode || retrieval.clarifyReason,
   };
 }

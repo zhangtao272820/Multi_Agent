@@ -43,9 +43,9 @@ if (Test-Path $tagScript) {
 $profileArgs = @()
 if ($Extended) {
     $profileArgs = @("--profile", "extended")
-    Write-Host "Deploy mode: extended (media + lobster)" -ForegroundColor Cyan
+    Write-Host "Deploy mode: extended (music/video + lobster)" -ForegroundColor Cyan
 } else {
-    Write-Host "Deploy mode: standard (platform + manager stack + monitoring)" -ForegroundColor Cyan
+    Write-Host "Deploy mode: standard (platform + manager stack + multimodal + monitoring)" -ForegroundColor Cyan
 }
 if ($NoMonitor) {
     Write-Host "Monitoring: skipped (-NoMonitor)" -ForegroundColor Yellow
@@ -102,13 +102,13 @@ if (-not $NoMonitor) {
     Write-Host "http://${lanHost}:3100   Loki"
 }
 if ($Extended) {
-    Write-Host "http://${lanHost}:13107  Multimodal_Agent"
     Write-Host "http://${lanHost}:13108  Lobster_Agent"
     Write-Host "http://${lanHost}:18088/vnc.html  Lobster_Agent_Viewer(noVNC)"
     Write-Host "http://${lanHost}:13110  Music_Agent"
     Write-Host "http://${lanHost}:13111  Video_Agent"
     Write-Host "http://${lanHost}:13112  AI_Agent"
 } else {
-    Write-Host "(extended) Multimodal/Music/Video/Lobster: up-agents-lan.ps1 -Extended" -ForegroundColor DarkGray
+    Write-Host "http://${lanHost}:13107  Multimodal_Agent"
+    Write-Host "(extended) Music/Video/Lobster: up-agents-lan.ps1 -Extended" -ForegroundColor DarkGray
 }
 Write-Host "Backup: .\scripts\backup-postgres.ps1" -ForegroundColor DarkGray

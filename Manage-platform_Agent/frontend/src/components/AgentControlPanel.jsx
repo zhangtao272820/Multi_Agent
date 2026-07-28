@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { agentListLabel, agentTitle, getAgentDisplay } from "../agentDisplayNames";
 
 export default function AgentControlPanel({
   controlMode,
@@ -60,7 +61,7 @@ export default function AgentControlPanel({
       <div className="fleet-hero">
         <div>
           <p className="panel-eyebrow">舰队管控</p>
-          <h2 className="fleet-hero__title">Agent Fleet Matrix</h2>
+          <h2 className="fleet-hero__title">Agent 矩阵</h2>
           <p className="panel-desc">期望态 / 实际态 · Drain · 滚动重启 · 批量选择</p>
         </div>
         <div className="fleet-hero__stats">
@@ -148,12 +149,15 @@ export default function AgentControlPanel({
                       type="checkbox"
                       checked={selected.has(agent.name)}
                       onChange={() => toggle(agent.name)}
-                      aria-label={`选择 ${agent.name}`}
+                      aria-label={`选择 ${agentListLabel(agent.name)}`}
                     />
                   </td>
                   <td>
-                    <strong>{agent.name}</strong>
-                    <div className="muted truncate code-inline">{agent.endpoint}</div>
+                    <strong>{agentTitle(agent.name)}</strong>
+                    <div className="muted truncate">
+                      {getAgentDisplay(agent.name)?.role || agent.category}
+                    </div>
+                    <div className="muted truncate code-inline">{agent.name} · {agent.endpoint}</div>
                   </td>
                   <td className="muted">{agent.category}</td>
                   <td>
@@ -175,18 +179,18 @@ export default function AgentControlPanel({
                   </td>
                   <td className="data-table__actions-col">
                     <div className="table-actions table-actions--dense">
-                      <button type="button" className="btn-ghost btn-sm" disabled={!controllable || loading} onClick={() => onStart(agent.name)}>
+                      <button type="button" className="btn-ghost btn-xs" disabled={!controllable || loading} onClick={() => onStart(agent.name)}>
                         启动
                       </button>
-                      <button type="button" className="btn-ghost btn-sm" disabled={!controllable || loading} onClick={() => onStop(agent.name)}>
+                      <button type="button" className="btn-ghost btn-xs" disabled={!controllable || loading} onClick={() => onStop(agent.name)}>
                         停止
                       </button>
-                      <button type="button" className="btn-ghost btn-sm" disabled={!controllable || loading} onClick={() => onDrain?.(agent.name)}>
+                      <button type="button" className="btn-ghost btn-xs" disabled={!controllable || loading} onClick={() => onDrain?.(agent.name)}>
                         Drain
                       </button>
                       <button
                         type="button"
-                        className="btn-secondary btn-sm"
+                        className="btn-secondary btn-xs"
                         disabled={!controllable || loading}
                         onClick={() => onRollingRestart?.(agent.name)}
                       >

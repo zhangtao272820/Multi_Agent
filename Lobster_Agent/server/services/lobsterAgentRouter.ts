@@ -31,6 +31,7 @@ import {
 } from '../utils/lobster_env'
 import { verifyLobsterRunResult, isLobsterRetryableFailure } from './lobsterRunVerify'
 import { isLobsterWorkflowId, runLobsterWorkflowAgent } from './lobsterWorkflowRunner'
+import { listLobsterWorkflowIds } from './lobsterWorkflowLoader'
 
 function emitLog(params: RunParams, level: 'info' | 'warn' | 'error', message: string) {
   params.emit({
@@ -105,12 +106,22 @@ async function isEngineReady(engine: LobsterEngineId): Promise<boolean> {
 export async function runLobsterWithRouter(params: RunParams) {
   const workflowId = String(params.workflowId || '').trim()
   if (workflowId && isLobsterWorkflowId(workflowId)) {
-    emitLog(params, 'info', `路由：Workflow Macro ${workflowId}`)
-    const out = await runLobsterWorkflowAgent({ ...params, workflowId })
-    return ensureLobsterGuiFinalPayload(
-      { ...(out && typeof out === 'object' ? out : {}), engine: 'workflow', actualEngine: 'workflow' },
-      params.task,
-    )
+    const knownIds = listLobsterWorkflowIds()
+    const known = knownIds.some((id) => id.toLowerCase() === workflowId.toLowerCase())
+    if (!known) {
+      emitLog(
+        params,
+        'warn',
+        `未知 Workflow Macro「${workflowId}」，回退逐步引擎（classic/mcp）`,
+      )
+    } else {
+      emitLog(params, 'info', `路由：Workflow Macro ${workflowId}`)
+      const out = await runLobsterWorkflowAgent({ ...params, workflowId })
+      return ensureLobsterGuiFinalPayload(
+        { ...(out && typeof out === 'object' ? out : {}), engine: 'workflow', actualEngine: 'workflow' },
+        params.task,
+      )
+    }
   }
 
   const mode = resolveLobsterExecutionMode()

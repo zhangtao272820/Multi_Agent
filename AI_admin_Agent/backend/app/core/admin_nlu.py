@@ -50,6 +50,9 @@ _EMPTY_SLOTS: dict[str, str] = {
     "start_time_expression": "",
     "task_title": "",
     "task_due_time_expression": "",
+    "contact_name": "",
+    "contact_email": "",
+    "contact_description": "",
     "email_to_name_or_email": "",
     "email_subject": "",
     "email_content": "",
@@ -65,6 +68,7 @@ ADMIN_INTENTS = (
     "邮件",
     "日程",
     "待办",
+    "联系人",
     "搜索",
     "文件",
     "天气",
@@ -343,7 +347,7 @@ def classify_admin_intent(
 {recall_section}
 
 只返回 JSON：
-{{"intent":"邮件|日程|待办|搜索|文件|天气|简报|问数|会前准备|混合任务|其他","confidence":0-1,"rationale":"简短中文","admin_scenario":null或场景id}}
+{{"intent":"邮件|日程|待办|联系人|搜索|文件|天气|简报|问数|会前准备|混合任务|其他","confidence":0-1,"rationale":"简短中文","admin_scenario":null或场景id}}
 """
     data = _llm_json(prompt)
     intent = _normalize_intent(data.get("intent"))
@@ -425,9 +429,19 @@ def fill_admin_slots(
 - 天气查询不是地图路线/POI/地址解析：has_location_query=false，amap_query_type=none。
 - 已从句中确定城市时 needs_clarification=false。
 """
+    contact_addon = ""
+    if intent == "联系人":
+        contact_addon = """
+【联系人 intent 专规】
+- 「添加/新建联系人」「存邮箱到通讯录」→ 抽取 contact_name、contact_email；可选 contact_description。
+- 创建联系人必须同时有姓名与邮箱；缺任一 → needs_clarification=true。
+- 联系人操作不是待办：不要填 task_title / task_due_time_expression；has_time_reference=false。
+- 「列出联系人/通讯录」不必填 name/email。
+"""
     prompt = f"""
 {get_slot_fill_rules(intent)}
 {weather_addon}
+{contact_addon}
 
 {_now_context_block()}
 

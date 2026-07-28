@@ -110,6 +110,17 @@ def enrich_time_and_literal_sensitivity(
     dlg = str(dialogue or "").strip()
     anchor = f"{dlg}\n{msg}".strip() if dlg else msg
     intent = str(understanding.get("intent") or "")
+    # 联系人增删查不走日程/待办时间强行解析，避免邮箱数字等误触发截止时间
+    if intent == "联系人":
+        understanding["has_time_reference"] = False
+        understanding["time_expression"] = ""
+        slots = dict(understanding.get("slots") or {})
+        for key in ("contact_name", "contact_email", "contact_description"):
+            if key in slots and msg and len(msg) <= 120:
+                slots[key] = preserve_slot_from_user(msg, str(slots.get(key) or ""))
+        understanding["slots"] = slots
+        return understanding
+
     time_hit = has_time_signal(msg) or has_time_signal(anchor)
 
     if time_hit or intent in ("日程", "待办", "混合任务"):

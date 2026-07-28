@@ -52,7 +52,9 @@
     "smoke:p0": "npx --yes tsx scripts/smoke/gate/smoke-p0-upgrades.ts",
     "smoke:p1": "npx --yes tsx scripts/smoke/gate/smoke-p1-upgrades.ts && npx --yes tsx scripts/smoke/gate/smoke-internal-agents.ts",
     "smoke:p2": "npx --yes tsx scripts/smoke/gate/smoke-p2-upgrades.ts",
-    "smoke:p3": "npx --yes tsx scripts/smoke/gate/smoke-p3-upgrades.ts && npm run smoke:observability && npm run smoke:expert-failover && npm run smoke:agent-circuit && npm run smoke:injection && npm run smoke:conversation-compact && npm run smoke:capability-cost && npm run smoke:budget && npm run smoke:agent-result-contract && npm run smoke:backpressure && npm run smoke:redact && npm run smoke:evidence-freshness && npm run smoke:ws-stream-order",
+    "smoke:p3": "npx --yes tsx scripts/smoke/gate/smoke-p3-upgrades.ts && npm run smoke:observability && npm run smoke:expert-failover && npm run smoke:agent-circuit && npm run smoke:injection && npm run smoke:conversation-compact && npm run smoke:capability-cost && npm run smoke:budget && npm run smoke:agent-result-contract && npm run smoke:backpressure && npm run smoke:redact && npm run smoke:evidence-freshness && npm run smoke:ws-stream-order && npm run smoke:ws-auth",
+    "smoke:ws-auth": "npx --yes tsx --tsconfig tsconfig.smoke.json scripts/smoke/misc/smoke-ws-auth.ts",
+    "smoke:preflight": "npx --yes tsx --tsconfig tsconfig.smoke.json scripts/smoke/misc/smoke-preflight.ts",
     "smoke:golden": "npx --yes tsx scripts/smoke/gate/smoke-golden-paths.ts",
     "policy:rollback": "node scripts/policy-rollback.mjs",
     "gate:nlu": "node scripts/gate-nlu-regression.mjs",
@@ -70,6 +72,7 @@
     "smoke:real-domain-route": "npx --yes tsx scripts/smoke/route/smoke-real-domain-route.ts",
     "smoke:collab-route": "npx --yes tsx scripts/smoke/route/smoke-collab-route.ts",
     "smoke:weather-admin-route": "npx --yes tsx --tsconfig tsconfig.smoke.json scripts/smoke/route/smoke-weather-admin-route.ts",
+    "smoke:map-admin-route": "npx --yes tsx --tsconfig tsconfig.smoke.json scripts/smoke/route/smoke-map-admin-route.ts",
     "smoke:search-clause-scope": "npx --yes tsx scripts/smoke/search/smoke-search-clause-scope.ts",
     "smoke:mode-isolation": "npx --yes tsx scripts/smoke/misc/smoke-mode-isolation.ts",
     "smoke:clarify-replan": "npx --yes tsx scripts/smoke/plan/smoke-clarify-replan.ts",
@@ -109,7 +112,9 @@
     "smoke:ws-stream-order": "npx --yes tsx --tsconfig tsconfig.smoke.json scripts/smoke/misc/smoke-ws-stream-order.ts",
     "smoke:evidence-freshness": "npx --yes tsx --tsconfig tsconfig.smoke.json scripts/smoke/misc/smoke-evidence-freshness.ts",
     "capability:runtime": "node scripts/tools/print-capability-runtime.mjs",
-    "smoke:expert-failover": "npx --yes tsx scripts/smoke/misc/smoke-expert-failover.ts"
+    "smoke:expert-failover": "npx --yes tsx scripts/smoke/misc/smoke-expert-failover.ts",
+    "smoke:gui-repair-no-db": "npx --yes tsx --tsconfig tsconfig.smoke.json scripts/smoke/gui/smoke-gui-repair-no-db.ts",
+    "smoke:gui-workflow-allowlist": "npx --yes tsx --tsconfig tsconfig.smoke.json scripts/smoke/gui/smoke-gui-workflow-allowlist.ts"
   },
   "dependencies": {
     "@langchain/core": "^1.1.32",

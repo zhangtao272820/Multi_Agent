@@ -1,17 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
 import { fetchJsonSafe } from "../utils/api";
+import { agentListLabel, agentTitle, getAgentDisplay } from "../agentDisplayNames";
 import CapabilityModelsPanel from "./CapabilityModelsPanel";
+import ConvergenceModesPanel from "./ConvergenceModesPanel";
+import AgentsLanPanel from "./AgentsLanPanel";
 
 const emptyForm = {
   port: "",
   endpoint: "",
 };
 
-export default function AgentConfigPanel({ apiBase, token, role, onMessage }) {
+export default function AgentConfigPanel({ apiBase, token, role, onMessage, onNavigate }) {
   const [agents, setAgents] = useState([]);
   const [syncStatus, setSyncStatus] = useState(null);
   const [selected, setSelected] = useState("");
   const [form, setForm] = useState(emptyForm);
+  const [localEnv, setLocalEnv] = useState(null);
+  const [localForm, setLocalForm] = useState({});
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [restarting, setRestarting] = useState(false);
@@ -44,6 +49,25 @@ export default function AgentConfigPanel({ apiBase, token, role, onMessage }) {
     }
   };
 
+  const loadLocal = async (name) => {
+    if (!name) {
+      setLocalEnv(null);
+      setLocalForm({});
+      return;
+    }
+    const { ok, data } = await fetchJsonSafe(
+      `${apiBase}/api/agents/config/${encodeURIComponent(name)}/local-env`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    if (ok) {
+      setLocalEnv(data);
+      setLocalForm({ ...(data.editable || {}) });
+    } else {
+      setLocalEnv(null);
+      setLocalForm({});
+    }
+  };
+
   useEffect(() => {
     if (token) void load();
   }, [token]);
@@ -58,6 +82,7 @@ export default function AgentConfigPanel({ apiBase, token, role, onMessage }) {
       port: row.port || "",
       endpoint: row.endpoint || "",
     });
+    void loadLocal(selected);
   }, [selected, agents]);
 
   const restartAgent = async (forceRecreate = false) => {
@@ -116,6 +141,26 @@ export default function AgentConfigPanel({ apiBase, token, role, onMessage }) {
     await load();
   };
 
+  const saveLocal = async () => {
+    if (!canEdit || !selected) return;
+    setSaving(true);
+    const { ok, error } = await fetchJsonSafe(
+      `${apiBase}/api/agents/config/${encodeURIComponent(selected)}/local-env`,
+      {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ values: localForm }),
+      }
+    );
+    setSaving(false);
+    if (!ok) {
+      onMessage?.(error || "本地 .env 保存失败");
+      return;
+    }
+    onMessage?.(`已写入 ${selected} 本地键；需重启才对未接 runtime sync 的键生效`);
+    await loadLocal(selected);
+  };
+
   const current = agents.find((a) => (a.agent_name || a.name) === selected);
   const currentSync = syncByAgent[selected];
   const summary = syncStatus?.summary;
@@ -123,6 +168,14 @@ export default function AgentConfigPanel({ apiBase, token, role, onMessage }) {
   return (
     <div className="page-stack page-stack--fill config-page">
       <CapabilityModelsPanel apiBase={apiBase} token={token} role={role} onMessage={onMessage} />
+      <ConvergenceModesPanel apiBase={apiBase} token={token} role={role} onMessage={onMessage} />
+      <AgentsLanPanel
+        apiBase={apiBase}
+        token={token}
+        role={role}
+        onMessage={onMessage}
+        onGotoSettings={onNavigate ? () => onNavigate("settings") : undefined}
+      />
 
       <div className="config-strip animate-in">
         {summary ? (
@@ -135,9 +188,13 @@ export default function AgentConfigPanel({ apiBase, token, role, onMessage }) {
               <span className="config-stat__label">Sync</span>
               <span className="config-stat__value">{summary.runtime_sync_count}</span>
             </div>
-            <div className={`config-stat ${summary.drift_count ? "config-stat--warn" : ""}`}>
-              <span className="config-stat__label">漂移</span>
-              <span className="config-stat__value">{summary.drift_count}</span>
+            <div className={`config-stat ${summary.model_drift_count ? "config-stat--warn" : ""}`}>
+              <span className="config-stat__label">模型↑</span>
+              <span className="config-stat__value">{summary.model_drift_count ?? 0}</span>
+            </div>
+            <div className={`config-stat ${summary.mode_drift_count ? "config-stat--warn" : ""}`}>
+              <span className="config-stat__label">MODE↑</span>
+              <span className="config-stat__value">{summary.mode_drift_count ?? 0}</span>
             </div>
           </div>
         ) : null}
@@ -163,23 +220,19 @@ export default function AgentConfigPanel({ apiBase, token, role, onMessage }) {
       </div>
 
       <details className="config-hierarchy-fold">
-        <summary>配置层级说明 · SSOT 与 .env 职责</summary>
-        <p className="config-hierarchy-fold__lead">
-          模型由上方<strong>能力层 SSOT</strong>统一映射到各 Agent；密钥在 <code>.env.agents-lan</code>，各 Agent 专有项在各自{" "}
-          <code>.env</code>。
-        </p>
+        <summary>配置层级 · 四层 SSOT</summary>
         <ol>
           <li>
-            <strong>能力层模型</strong> — 全集群 T0–T6 / E0 物理模型（控制台唯一入口）
+            <strong>能力层模型</strong> — `.env.capability-models` / 控制台能力层面板
           </li>
           <li>
-            <strong>.env.agents-lan</strong> — 集群密钥、Compose 端口、CLAWHIVE_INTERNAL_TOKEN
+            <strong>收敛 MODE</strong> — `.env.convergence-modes`
           </li>
           <li>
-            <strong>agent_configs</strong> — 端口 / Endpoint（运行时 SSOT）
+            <strong>集群基建</strong> — `.env.agents-lan`（密钥走治理 Vault）
           </li>
           <li>
-            <strong>各 Agent/.env</strong> — 仅 Agent 特有项；模型由能力层自动同步
+            <strong>Agent 本地白名单</strong> — 各 Agent `.env` 业务键；端口/Endpoint 见 agent_configs
           </li>
         </ol>
       </details>
@@ -196,14 +249,15 @@ export default function AgentConfigPanel({ apiBase, token, role, onMessage }) {
                 className={`config-list__item ${selected === name ? "config-list__item--active" : ""}`}
                 onClick={() => setSelected(name)}
               >
-                <strong>{name}</strong>
-                <span>{a.category}</span>
+                <strong>{agentTitle(name)}</strong>
+                <span>{getAgentDisplay(name)?.role || a.category}</span>
                 <small>
-                  {a.port ? `:${a.port}` : "—"} · {a.endpoint || "—"}
+                  {name} · {a.port ? `:${a.port}` : "—"} · {a.endpoint || "—"}
                 </small>
                 <div className="config-list__badges">
                   {st?.runtime_sync ? <span className="config-badge config-badge--sync">SYNC</span> : null}
-                  {st?.drift ? <span className="config-badge config-badge--drift">DRIFT</span> : null}
+                  {st?.model_drift ? <span className="config-badge config-badge--drift">模型↑</span> : null}
+                  {st?.mode_drift ? <span className="config-badge config-badge--drift">MODE↑</span> : null}
                   {!st?.runtime_sync ? <span className="config-badge config-badge--env">ENV</span> : null}
                 </div>
               </button>
@@ -218,18 +272,17 @@ export default function AgentConfigPanel({ apiBase, token, role, onMessage }) {
             <>
               <div className="config-editor__head">
                 <div>
-                  <h3>{selected}</h3>
+                  <h3>{agentTitle(selected)}</h3>
                   <p className="config-editor__meta">
+                    {agentListLabel(selected)} · <code>{selected}</code>
                     {current?.docker_service ? (
                       <>
-                        Docker <code>{current.docker_service}</code>
-                        {" · "}
+                        {" · "}Docker <code>{current.docker_service}</code>
                       </>
                     ) : null}
                     {currentSync?.env_file ? (
                       <>
-                        Env <code>{currentSync.env_file}</code>
-                        {current?.updated_at ? ` · 更新 ${current.updated_at.slice(0, 19)}` : ""}
+                        {" · "}Env <code>{currentSync.env_file}</code>
                       </>
                     ) : null}
                   </p>
@@ -242,8 +295,13 @@ export default function AgentConfigPanel({ apiBase, token, role, onMessage }) {
               </div>
 
               <p className="config-drift-box config-drift-box--ok">
-                模型由上方能力层统一配置；修改后点「保存并下发」，runtime sync 约 60s 内生效。
-                {currentSync?.drift ? " 检测到 .env 模型与平台不一致，请在能力层面板重新下发。" : null}
+                模型 / MODE 由上方 SSOT 统一下发。
+                {currentSync?.mode_drift
+                  ? ` MODE 漂移键：${(currentSync.mode_drift_keys || []).join(", ") || "有"}。`
+                  : null}
+                {currentSync?.env_file_model_mismatch && currentSync?.runtime_sync
+                  ? " 本地 .env 模型键与平台三槽不一致时，runtime 仍以平台 pull 为准。"
+                  : null}
               </p>
 
               <div className="config-form-grid">
@@ -270,6 +328,49 @@ export default function AgentConfigPanel({ apiBase, token, role, onMessage }) {
                   <p className="muted">当前角色只读；需 operator / admin</p>
                 )}
               </div>
+
+              <h4 style={{ marginTop: 20 }}>本地环境变量（白名单）</h4>
+              {localEnv?.secrets?.length ? (
+                <p className="muted">
+                  密钥 {localEnv.secrets.filter((s) => s.configured).length}/{localEnv.secrets.length} 已配置（不明文展示）
+                </p>
+              ) : null}
+              {(localEnv?.editable_keys || []).length === 0 ? (
+                <p className="muted">该 Agent 暂无额外本地可编辑键（模型/MODE 由 SSOT 管理）</p>
+              ) : (
+                <div className="config-form-grid">
+                  {(localEnv.editable_keys || []).map((k) => (
+                    <label key={k}>
+                      {k}
+                      <input
+                        value={localForm[k] || ""}
+                        disabled={!canEdit}
+                        onChange={(e) => setLocalForm({ ...localForm, [k]: e.target.value })}
+                      />
+                    </label>
+                  ))}
+                </div>
+              )}
+              {canEdit && (localEnv?.editable_keys || []).length > 0 ? (
+                <div className="config-editor__actions">
+                  <button type="button" className="btn-primary" disabled={saving} onClick={saveLocal}>
+                    保存本地 .env
+                  </button>
+                </div>
+              ) : null}
+
+              {(localEnv?.readonly_from_ssot || []).length > 0 ? (
+                <details style={{ marginTop: 12 }}>
+                  <summary>只读（来自能力层 / MODE）</summary>
+                  <ul className="muted">
+                    {localEnv.readonly_from_ssot.slice(0, 40).map((r) => (
+                      <li key={r.key}>
+                        <code>{r.key}</code>={r.value || "—"} <small>({r.source})</small>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              ) : null}
             </>
           )}
         </div>

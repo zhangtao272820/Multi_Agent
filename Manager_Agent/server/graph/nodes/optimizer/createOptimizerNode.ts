@@ -4,8 +4,12 @@ import {
   readManagerMaxRetryEnv,
   resolveManagerRetryLimits
 } from '../../core/runtime/retryBudget'
-import { criticRetryContradictsRunEvidence } from '../../core/output/criticEvidence'
+import { criticRetryContradictsRunEvidence, hasSuccessfulGuiBrowseInRun } from '../../core/output/criticEvidence'
 import { detectAdminWriteTerminalFailure } from '../../core/runtime/adminWriteTerminal'
+import {
+  detectGuiTerminalFailure,
+  hasFailedGuiEvidenceInRun
+} from '../../core/runtime/guiTerminal'
 
 import { detectGuiSemanticBlockFromState } from '../../../utils/gui/guiHumanConfirm'
 import type { CreateOptimizerNodeDeps } from './types'
@@ -37,9 +41,11 @@ export function createOptimizerNode(deps: CreateOptimizerNodeDeps) {
     const hasGuiResult = Boolean(String((results as any)?.gui || '').trim())
     const hasCrawlerResult = Boolean(String((results as any)?.crawler || '').trim())
     const evidence = Array.isArray(state?.evidence) ? state.evidence : []
+    const guiBrowseOk = hasSuccessfulGuiBrowseInRun({ results, evidence })
     const hasWebAgentEvidence =
       hasGuiResult ||
       hasCrawlerResult ||
+      guiBrowseOk ||
       evidence.some((e: any) => ['gui', 'crawler'].includes(String(e?.kind || '')))
     const isWebOnlyIntent = intent === 'gui' || intent === 'crawler'
     const preferredFixIntent = (() => {
@@ -47,6 +53,7 @@ export function createOptimizerNode(deps: CreateOptimizerNodeDeps) {
       if (String(results?.rag || '').trim() || String(results?.db || '').trim()) return 'code'
       if (state?.intent === 'crawler') return 'crawler'
       if (state?.intent === 'rag' || state?.intent === 'db') return state.intent
+      if (state?.intent === 'gui' || hasFailedGuiEvidenceInRun(state)) return 'gui'
       return 'multi'
     })()
     const fixQuery = (() => {
@@ -67,11 +74,13 @@ export function createOptimizerNode(deps: CreateOptimizerNodeDeps) {
       Boolean(state?.fixIntent) &&
       !String(state?.final || '').trim()
     const synthOnlyRepair = Boolean(state?.meta?.synthOnlyRepair)
-    const criticRetryOverridden = criticRetryContradictsRunEvidence({
-      evaluation: state?.evaluation
-    })
+    const criticRetryOverridden =
+      criticRetryContradictsRunEvidence({
+        evaluation: state?.evaluation
+      }) || guiBrowseOk
     const guiSemanticBlock = detectGuiSemanticBlockFromState(state)
     const adminTerminal = detectAdminWriteTerminalFailure(state)
+    const guiTerminal = detectGuiTerminalFailure(state)
 
     let action: 'clarify' | 'fix' | 'verifier' | 'replan_multi' = 'verifier'
     let reason = 'evidence_good'
@@ -82,9 +91,13 @@ export function createOptimizerNode(deps: CreateOptimizerNodeDeps) {
       // 取消 / 协议垃圾 / 写失败：禁止 quality_repair 多轮复读 preamble
       action = canClarify || evalRec === 'clarify' ? 'clarify' : 'verifier'
       reason = 'admin_write_terminal_no_repair'
+    } else if (guiTerminal.terminal) {
+      // workflow 不存在等基建错误：禁止改道 multi/db
+      action = canClarify || evalRec === 'clarify' ? 'clarify' : 'verifier'
+      reason = 'gui_terminal_no_repair'
     } else if (pendingRepair && criticRetryOverridden) {
       action = 'verifier'
-      reason = 'critic_retry_overridden_by_evidence'
+      reason = guiBrowseOk ? 'gui_browse_evidence_stop_retry' : 'critic_retry_overridden_by_evidence'
     } else if ((pendingRepair || synthOnlyRepair) && canManagerRetryMore(retryLimits)) {
       action = 'fix'
       reason = synthOnlyRepair ? 'synth_only_repair' : 'critic_repair_pending'
@@ -147,13 +160,20 @@ export function createOptimizerNode(deps: CreateOptimizerNodeDeps) {
     }
     // If we're already carrying a fixIntent/fixQuery, we still count the "repair attempt" to avoid retry loops.
     if (action === 'fix') return { optimizer: { action, reason, at: new Date().toISOString() }, retryCount: retryCount + 1 }
+    const terminalMeta = adminTerminal.terminal
+      ? { adminWriteTerminal: true, finalSynthPass: true }
+      : guiTerminal.terminal
+        ? {
+            guiTerminal: true,
+            ...(guiTerminal.code ? { guiTerminalCode: guiTerminal.code } : {}),
+            finalSynthPass: true
+          }
+        : null
     return {
       optimizer: { action, reason, at: new Date().toISOString() },
       fixQuery: '',
       fixIntent: undefined,
-      ...(adminTerminal.terminal
-        ? { meta: { ...(state?.meta || {}), adminWriteTerminal: true, finalSynthPass: true } }
-        : {})
+      ...(terminalMeta ? { meta: { ...(state?.meta || {}), ...terminalMeta } } : {})
     }
   }
 }

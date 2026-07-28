@@ -6,14 +6,15 @@ import zipfile
 from datetime import datetime, timedelta
 from pathlib import Path
 from urllib.parse import urlencode
-from urllib.request import Request, urlopen
+from urllib.request import Request as UrlRequest
+from urllib.request import urlopen
 from uuid import uuid4
 
 from fastapi import Depends, FastAPI, File, Header, HTTPException, Query, Request, UploadFile, WebSocket, WebSocketDisconnect
 from jsonschema import ValidationError as JsonSchemaValidationError
 from jsonschema import validate as jsonschema_validate
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from starlette.responses import JSONResponse
 from sqlalchemy import inspect, text
 from sqlalchemy.orm import Session
@@ -78,6 +79,16 @@ from .capability_models import (
     seed_capability_models,
 )
 from .agent_env_registry import build_config_sync_status, write_capability_env_for_agent, write_model_keys_to_env
+from .convergence_modes import (
+    ConvergenceModesApplyRequest,
+    ConvergenceModesUpdate,
+    apply_convergence_modes,
+    get_convergence_modes,
+    update_and_apply_convergence_modes,
+)
+from .agents_lan_config import AgentsLanUpdate, get_agents_lan_config, update_agents_lan_config
+from .agent_local_env_specs import LocalEnvUpdate, get_agent_local_env, update_agent_local_env
+from .ops_jobs import get_deploy_status, list_backups, run_backup, run_recreate, run_restore, run_rollback
 from .internal_agents import build_internal_agent_endpoints, verify_internal_token
 from .manager_observability import build_manager_observability
 from .trace_links import build_trace_link_payload, build_log_link_payload
@@ -1711,9 +1722,10 @@ async def metrics():
 
 
 def _prom_fetch_json(path: str, params: dict) -> dict:
+    """拉取 Prometheus HTTP API（须用 UrlRequest，避免被 FastAPI Request 遮蔽）。"""
     base = settings.prometheus_base_url.rstrip("/")
     url = f"{base}{path}?{urlencode(params)}"
-    req = Request(url, headers={"Accept": "application/json"})
+    req = UrlRequest(url, headers={"Accept": "application/json"})
     with urlopen(req, timeout=6) as resp:  # noqa: S310
         raw = resp.read().decode("utf-8", errors="replace")
     return json.loads(raw)
@@ -2266,6 +2278,209 @@ async def agents_capability_models_apply(
                 continue
     write_audit(db, current, "capability_models.apply", "capability_models", "cluster", f"agents={len(synced)}")
     return {"ok": True, "synced_agents": synced, "env_synced": env_synced, "models": models}
+
+
+@app.get("/api/agents/config/convergence-modes")
+async def agents_convergence_modes_get(
+    _: UserRecord = Depends(require_roles("viewer", "operator", "admin")),
+):
+    api_requests_total.labels(endpoint="/api/agents/config/convergence-modes", method="GET").inc()
+    return get_convergence_modes()
+
+
+@app.put("/api/agents/config/convergence-modes")
+async def agents_convergence_modes_update(
+    payload: ConvergenceModesUpdate,
+    current: UserRecord = Depends(require_roles("operator", "admin")),
+    db: Session = Depends(get_db),
+):
+    api_requests_total.labels(endpoint="/api/agents/config/convergence-modes", method="PUT").inc()
+    try:
+        result = update_and_apply_convergence_modes(payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    write_audit(
+        db,
+        current,
+        "convergence_modes.update",
+        "convergence_modes",
+        "cluster",
+        f"env_synced={len(result.get('env_synced') or [])}",
+    )
+    return result
+
+
+@app.post("/api/agents/config/convergence-modes/apply")
+async def agents_convergence_modes_apply(
+    payload: ConvergenceModesApplyRequest,
+    current: UserRecord = Depends(require_roles("operator", "admin")),
+    db: Session = Depends(get_db),
+):
+    api_requests_total.labels(endpoint="/api/agents/config/convergence-modes/apply", method="POST").inc()
+    try:
+        result = apply_convergence_modes(sync_env_files=bool(payload.sync_env_files))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    write_audit(db, current, "convergence_modes.apply", "convergence_modes", "cluster", "apply")
+    return result
+
+
+@app.get("/api/agents/config/agents-lan")
+async def agents_lan_config_get(
+    _: UserRecord = Depends(require_roles("viewer", "operator", "admin")),
+):
+    api_requests_total.labels(endpoint="/api/agents/config/agents-lan", method="GET").inc()
+    return get_agents_lan_config()
+
+
+@app.put("/api/agents/config/agents-lan")
+async def agents_lan_config_update(
+    payload: AgentsLanUpdate,
+    current: UserRecord = Depends(require_roles("operator", "admin")),
+    db: Session = Depends(get_db),
+):
+    api_requests_total.labels(endpoint="/api/agents/config/agents-lan", method="PUT").inc()
+    try:
+        result = update_agents_lan_config(payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    write_audit(db, current, "agents_lan.update", "agents_lan", "cluster", "save")
+    return result
+
+
+@app.get("/api/agents/config/{agent_name}/local-env")
+async def agents_local_env_get(
+    agent_name: str,
+    _: UserRecord = Depends(require_roles("viewer", "operator", "admin")),
+):
+    api_requests_total.labels(endpoint="/api/agents/config/{agent_name}/local-env", method="GET").inc()
+    try:
+        return get_agent_local_env(agent_name)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.put("/api/agents/config/{agent_name}/local-env")
+async def agents_local_env_update(
+    agent_name: str,
+    payload: LocalEnvUpdate,
+    current: UserRecord = Depends(require_roles("operator", "admin")),
+    db: Session = Depends(get_db),
+):
+    api_requests_total.labels(endpoint="/api/agents/config/{agent_name}/local-env", method="PUT").inc()
+    try:
+        result = update_agent_local_env(agent_name, payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    write_audit(db, current, "agent_local_env.update", "agent_config", agent_name, "local-env")
+    return result
+
+
+class DeployRollbackRequest(BaseModel):
+    image_tag: str = Field(..., min_length=1)
+
+
+class DeployRecreateRequest(BaseModel):
+    agent_names: list[str] | None = None
+    services: list[str] | None = None
+    build: bool = False
+
+
+class BackupRestoreRequest(BaseModel):
+    filename: str = Field(..., min_length=1)
+    confirm: bool = False
+
+
+@app.get("/api/ops/deploy/status")
+async def ops_deploy_status(
+    _: UserRecord = Depends(require_roles("viewer", "operator", "admin")),
+):
+    api_requests_total.labels(endpoint="/api/ops/deploy/status", method="GET").inc()
+    status = get_deploy_status()
+    status["health"] = build_health_overview()
+    return status
+
+
+@app.post("/api/ops/deploy/recreate")
+async def ops_deploy_recreate(
+    payload: DeployRecreateRequest,
+    current: UserRecord = Depends(require_roles("operator", "admin")),
+    db: Session = Depends(get_db),
+):
+    api_requests_total.labels(endpoint="/api/ops/deploy/recreate", method="POST").inc()
+    try:
+        result = run_recreate(
+            agent_names=payload.agent_names,
+            services=payload.services,
+            build=bool(payload.build),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    write_audit(
+        db,
+        current,
+        "ops.deploy.recreate",
+        "deploy",
+        ",".join(payload.agent_names or payload.services or [])[:120],
+        str(result.get("ok")),
+    )
+    return result
+
+
+@app.post("/api/ops/deploy/rollback")
+async def ops_deploy_rollback(
+    payload: DeployRollbackRequest,
+    current: UserRecord = Depends(require_roles("operator", "admin")),
+    db: Session = Depends(get_db),
+):
+    api_requests_total.labels(endpoint="/api/ops/deploy/rollback", method="POST").inc()
+    try:
+        result = run_rollback(payload.image_tag)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    write_audit(db, current, "ops.deploy.rollback", "deploy", payload.image_tag, str(result.get("ok")))
+    return result
+
+
+@app.get("/api/ops/backup/list")
+async def ops_backup_list(
+    _: UserRecord = Depends(require_roles("viewer", "operator", "admin")),
+):
+    api_requests_total.labels(endpoint="/api/ops/backup/list", method="GET").inc()
+    return list_backups()
+
+
+@app.post("/api/ops/backup/postgres")
+async def ops_backup_postgres(
+    current: UserRecord = Depends(require_roles("operator", "admin")),
+    db: Session = Depends(get_db),
+):
+    api_requests_total.labels(endpoint="/api/ops/backup/postgres", method="POST").inc()
+    try:
+        result = run_backup()
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    write_audit(db, current, "ops.backup.postgres", "backup", "postgres", str(result.get("ok")))
+    return result
+
+
+@app.post("/api/ops/backup/restore")
+async def ops_backup_restore(
+    payload: BackupRestoreRequest,
+    current: UserRecord = Depends(require_roles("admin")),
+    db: Session = Depends(get_db),
+):
+    api_requests_total.labels(endpoint="/api/ops/backup/restore", method="POST").inc()
+    try:
+        result = run_restore(payload.filename, confirm=bool(payload.confirm))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    write_audit(db, current, "ops.backup.restore", "backup", payload.filename, str(result.get("ok")))
+    return result
 
 
 @app.post("/api/agents/config/{agent_name}/sync-env")

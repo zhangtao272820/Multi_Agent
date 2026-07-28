@@ -30,10 +30,10 @@ $standardFirst = @(
     "clawhive/code_assistent_agent:$tag",
     "clawhive/extractor_agent:$tag",
     "clawhive/ai_admin_agent:$tag",
+    "clawhive/multimodal_agent:$tag",
     "clawhive/manager_agent:$tag"
 )
 $extendedFirst = @(
-    "clawhive/multimodal_agent:$tag",
     "clawhive/lobster_agent:$tag",
     "clawhive/tavern_agent:$tag",
     "clawhive/companion_agent:$tag",

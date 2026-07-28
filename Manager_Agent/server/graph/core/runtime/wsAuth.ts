@@ -12,6 +12,29 @@ export function resolveManagerWsExpectedToken(env: NodeJS.ProcessEnv = process.e
   return String(env.MANAGER_WS_TOKEN || env.CLAWHIVE_INTERNAL_TOKEN || env.MANAGER_OPS_TOKEN || '').trim()
 }
 
+/** S1：AUTH_MODE=token（或 WS_AUTH=1）时必须配置期望 token，否则半开不可用 */
+export function getManagerWsAuthConfigStatus(env: NodeJS.ProcessEnv = process.env): {
+  required: boolean
+  hasToken: boolean
+  ok: boolean
+  detail: string
+} {
+  const required = isManagerWsAuthRequired(env)
+  const hasToken = Boolean(resolveManagerWsExpectedToken(env))
+  if (!required) {
+    return { required: false, hasToken, ok: true, detail: 'auth_open' }
+  }
+  if (!hasToken) {
+    return {
+      required: true,
+      hasToken: false,
+      ok: false,
+      detail: 'auth_token_required_but_missing'
+    }
+  }
+  return { required: true, hasToken: true, ok: true, detail: 'auth_token_ok' }
+}
+
 function headerValue(raw: string | string[] | undefined): string {
   const v = Array.isArray(raw) ? raw[0] : raw
   return String(v ?? '').trim()

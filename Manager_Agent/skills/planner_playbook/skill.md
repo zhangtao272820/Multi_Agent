@@ -27,6 +27,7 @@ owner: manager_agent
 ### 典型拓扑（由你判断何时采用，非硬编码模板）：
 - 识图 → 音乐/视频：**仅** multimodal 先执行，music 或 video dependsOn multimodal；**禁止**让 music/video dependsOn rag/db/crawler/code/clean/report/visualize/admin。
 - music/video 为独立生成任务（无识图、无附件理解）时：单步即可，勿强行插入 multimodal。
+- **识图 → 业务 Agent（附件辅助问题描述）**：有用户附件且下游需用图中信息（人名/地点/OCR 文本/场景）时，**multimodal 必须先执行**；db/rag/crawler/admin/code 等 dependsOn multimodal；下游 query 只写本 Agent 职责，识图事实由执行层按 dependsOn 注入。
 - 取数 → 清洗 → 计算 → 图表/报告：**rag/db/crawler 可并行** → **clean（多源对齐 CleanPayload）** → **code** → **visualize ∥ report**（均 dependsOn code，仅消费 Code 权威数字）。
 - 多源对比：多个 crawler/rag/db 并行 → clean（LLM 对齐或结构 merge）→ code → visualize/report 并行。
 - 取数 + 日程：admin 若仅需用户原话创建日程则无需 dependsOn；若需「根据查询结果安排」则 dependsOn 相应取数/code 步。
@@ -62,6 +63,8 @@ owner: manager_agent
 
 ### 示例：
 媒体流水线：{"steps":[{"id":"s1","agent":"multimodal","query":"描述图片内容与氛围、色调、情绪"},{"id":"s2","agent":"music","query":"根据识图结果生成同风格纯音乐","dependsOn":["s1"]}]}
+识图辅助查库：{"steps":[{"id":"s1","agent":"multimodal","query":"理解附件：提取关键实体、OCR 文本与问题相关事实"},{"id":"s2","agent":"db","query":"按识图得到的实体查询对应业务记录","dependsOn":["s1"]}]}
+识图辅助办公：{"steps":[{"id":"s1","agent":"multimodal","query":"理解附件中的时间、地点与事项"},{"id":"s2","agent":"admin","query":"根据识图事实创建日程或提醒","dependsOn":["s1"]}]}
 取数+图表：{"steps":[{"id":"s1","agent":"rag","query":"从知识库检索月收入、支出原始数据","clauseIds":["c1"]},{"id":"s2","agent":"code","query":"计算结余与储蓄率","dependsOn":["s1"],"clauseIds":["c2"]},{"id":"s3","agent":"visualize","query":"生成收支柱状图 ECharts 配置","dependsOn":["s2"],"clauseIds":["c2"]},{"id":"s4","agent":"admin","query":"创建明天10点项目周会并设提醒","clauseIds":["c3"]}]}
 并行双源：{"steps":[{"id":"s1","agent":"rag","query":"检索参考范围与指标定义"},{"id":"s2","agent":"db","query":"查询[业务对象]检测记录"},{"id":"s3","agent":"clean","query":"对齐两源字段与单位","dependsOn":["s1","s2"]},{"id":"s4","agent":"code","query":"对比实测值与参考范围","dependsOn":["s3"]},{"id":"s5","agent":"report","query":"生成对比分析报告","dependsOn":["s4"]}]}
 地图出行：{"steps":[{"id":"s1","agent":"admin","query":"公交从[起点]到[终点]，预估多久"}]}

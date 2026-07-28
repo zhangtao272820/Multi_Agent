@@ -59,16 +59,20 @@ npm run dev
 
 ## 与 Manager 协作
 
-- 总管 cap：`multimodal`；HTTP 基址 `MULTIMODAL_AGENT_HTTP_URL`
+- 总管 **核心子 Agent**（标准 Docker 默认启动）；cap：`multimodal`；HTTP 基址 `MULTIMODAL_AGENT_HTTP_URL`
 - 健康 / 探针：`/api/health`、`/api/probe`
-- 音乐 / 视频生成由总管 **直连** music/video，不经本服务转发执行
+- 有附件且还需查库/文档/日程等时：Planner 将 multimodal 放前序，下游 `dependsOn`，理解文本由执行层注入
+- Manager 聊天支持粘贴 / 拖拽 / 附件按钮上传（经 `/api/multimodal-upload`）
+- 音乐 / 视频生成由总管 **直连** music/video（extended），不经本服务转发执行
 
 ## 能力边界
 
-- **适合**：识图 OCR、短视频理解、ASR、总管多模态理解步骤
+- **适合**：识图 OCR、短视频理解、ASR、总管多模态理解步骤、辅助复杂问题描述
 - **不适合**：替代 Music/Video 的深度作曲与成片生产
 
 ## Docker / 平台编排
+
+标准版（无需 `--profile extended`）：
 
 ```bash
 cd Manage-platform_Agent
@@ -77,6 +81,7 @@ docker compose -f docker-compose.agents-lan.yml up -d --build multimodal_agent
 
 访问：`http://localhost:13107/`
 
+音乐 / 视频 / Lobster 仍需 `docker compose --profile extended ...`。
 ## 安全提示
 
 - 上传媒体可能含隐私；生产加鉴权与体积限制

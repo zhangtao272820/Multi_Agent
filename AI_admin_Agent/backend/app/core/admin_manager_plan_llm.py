@@ -29,6 +29,7 @@ MANAGER_ADMIN_TOOLS: frozenset[str] = frozenset(
         "list_events",
         "modify_event",
         "delete_event",
+        "delete_all_meeting_reminders",
         "complete_event",
         "import_calendar_ics",
         "fetch_and_import_calendar",
@@ -64,7 +65,7 @@ def _manager_tool_catalog() -> str:
         "- 邮件：send_email, list_emails, reply_email, classify_emails, triage_emails",
         "- 联系人：add_contact, search_contact, get_contact_email, list_contacts, import_contacts",
         "- 待办：add_task, add_task_with_due, list_tasks, complete_task, delete_task",
-        "- 日程：add_event, list_events, modify_event, delete_event, complete_event, "
+        "- 日程：add_event, list_events, modify_event, delete_event, delete_all_meeting_reminders, complete_event, "
         "add_reminder, list_reminders, cancel_reminder, sync_feishu_calendar",
         "- 天气：get_weather",
         "- 高德：get_travel_route, search_places_amap, search_nearby_amap, "
@@ -227,6 +228,17 @@ def _normalize_tool_args(name: str, args: dict[str, Any], action_text: str = "")
             return None
         out["title"] = title
         return out
+    if name == "add_contact":
+        cname = str(out.get("name") or out.get("contact_name") or "").strip()
+        cemail = str(out.get("email") or out.get("contact_email") or "").strip()
+        if not cname or not cemail:
+            return None
+        out["name"] = cname
+        out["email"] = cemail
+        desc = str(out.get("description") or out.get("contact_description") or "").strip()
+        if desc:
+            out["description"] = desc
+        return out
     return out
 
 
@@ -266,6 +278,7 @@ _TOOL_INTENT_MAP: dict[str, str] = {
     "add_event": "日程",
     "modify_event": "日程",
     "delete_event": "日程",
+    "delete_all_meeting_reminders": "日程",
     "complete_event": "日程",
     "list_events": "日程",
     "add_reminder": "日程",
@@ -288,7 +301,11 @@ _TOOL_INTENT_MAP: dict[str, str] = {
     "search_places_amap": "混合任务",
     "list_files": "文件",
     "read_file_content": "文件",
-    "add_contact": "其他",
+    "add_contact": "联系人",
+    "search_contact": "联系人",
+    "list_contacts": "联系人",
+    "get_contact_email": "联系人",
+    "import_contacts": "联系人",
     "send_feishu_message": "其他",
 }
 
@@ -430,11 +447,12 @@ def _resolve_orchestrated_slot_intent(manager_task: dict[str, Any], understandin
                 "add_event",
                 "modify_event",
                 "delete_event",
+                "delete_all_meeting_reminders",
                 "add_reminder",
                 "add_task",
                 "add_task_with_due",
             ):
-                return "日程" if name != "add_task" and name != "add_task_with_due" else "待办"
+                return "日程" if name not in ("add_task", "add_task_with_due") else "待办"
     hint = str(manager_task.get("intent_hint") or "").strip()
     return hint if hint and hint != "其他" else intent
 

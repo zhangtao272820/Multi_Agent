@@ -8,9 +8,24 @@ import AgentControlPanel from "./components/AgentControlPanel";
 import SettingsGovernance from "./components/SettingsGovernance";
 import TaskProgressPanel from "./components/TaskProgressPanel";
 import MonitorChartsPanel from "./components/MonitorChartsPanel";
+import DeployCenterPanel from "./components/DeployCenterPanel";
+import MaintainPanel from "./components/MaintainPanel";
+import ObservabilityHub from "./components/ObservabilityHub";
 import { fetchJsonSafe } from "./utils/api";
+import { agentListLabel } from "./agentDisplayNames";
 
-const APP_ROUTES = ["overview", "manager", "monitor", "config", "agents", "tasks", "skills", "settings"];
+const APP_ROUTES = [
+  "overview",
+  "manager",
+  "monitor",
+  "config",
+  "agents",
+  "tasks",
+  "skills",
+  "settings",
+  "deploy",
+  "maintain",
+];
 
 function parseAppRoute(hash) {
   const raw = String(hash || "#/overview").replace(/^#/, "");
@@ -1503,8 +1518,8 @@ export default function App() {
       {!token ? (
         <div className="login-panel">
         <section className="card login-card">
-          <h1 className="login-card__title">ClawHive Agent 管理平台</h1>
-          <p className="login-card__sub">企业运维 · Manager 编排 · 集群监控</p>
+          <h1 className="login-card__title">紫微 · Agent 控制面</h1>
+          <p className="login-card__sub">企业运维 · 天机编排 · 星曜集群监控</p>
           <h2>登录</h2>
           {oidcError ? <p className="status offline">SSO 失败：{oidcError}</p> : null}
           <form onSubmit={login} className="form">
@@ -1552,16 +1567,36 @@ export default function App() {
         <p className="page-loading-hint">正在加载监控数据…</p>
       ) : null}
       {appRoute === "monitor" ? (
-        <MonitorChartsPanel
-          token={token}
+        <ObservabilityHub
           apiBase={API_BASE}
+          token={token}
           alerts={monitorAlerts}
-          onError={setControlMessage}
-          onAppendAlert={appendMonitorAlert}
           onAckAlert={acknowledgeAlert}
           onAckAllAlerts={ackAllMonitorAlerts}
           onClearAlerts={clearMonitorAlerts}
-        />
+          onRefreshAlerts={fetchMonitorAlerts}
+        >
+          <MonitorChartsPanel
+            token={token}
+            apiBase={API_BASE}
+            alerts={monitorAlerts}
+            onError={setControlMessage}
+            onAppendAlert={appendMonitorAlert}
+            onAckAlert={acknowledgeAlert}
+            onAckAllAlerts={ackAllMonitorAlerts}
+            onClearAlerts={clearMonitorAlerts}
+          />
+          <EnterpriseMonitorPanel
+            observability={managerObservability}
+            promSnapshot={promSnapshot}
+            loading={loading}
+            onNavigate={navigateApp}
+            onRefresh={async () => {
+              await fetchManagerObservability();
+              await fetchPromSnapshot();
+            }}
+          />
+        </ObservabilityHub>
       ) : null}
 
       {appRoute === "overview" ? (
@@ -1634,7 +1669,7 @@ export default function App() {
               <option value="manager">Manager 编排（显式）</option>
               {sortedAgents.map((agent) => (
                 <option key={agent.agent_id} value={agent.agent_id}>
-                  LangGraph → {agent.name}
+                  LangGraph → {agentListLabel(agent.name)}
                 </option>
               ))}
             </select>
@@ -1723,6 +1758,25 @@ export default function App() {
           token={token}
           role={role}
           onMessage={(msg) => setPlatformError(msg)}
+          onNavigate={navigateApp}
+        />
+      ) : null}
+
+      {appRoute === "deploy" ? (
+        <DeployCenterPanel
+          apiBase={API_BASE}
+          token={token}
+          role={role}
+          onMessage={setControlMessage}
+        />
+      ) : null}
+
+      {appRoute === "maintain" ? (
+        <MaintainPanel
+          apiBase={API_BASE}
+          token={token}
+          role={role}
+          onMessage={setControlMessage}
         />
       ) : null}
 

@@ -7,6 +7,7 @@ import {
   resolveManagerRetryLimits
 } from './retryBudget'
 import { detectAdminWriteTerminalFailure } from './adminWriteTerminal'
+import { detectGuiTerminalFailure, hasFailedGuiEvidenceInRun } from './guiTerminal'
 
 export type WsStreamEventKind =
   | 'stream_start'
@@ -73,7 +74,7 @@ export function validateSynthStreamOrder(events: WsStreamEvent[]): StreamOrderVa
 
 /**
  * 用户面 synth 流式：仅终态开流。
- * 仍有重试预算且 Admin 写失败等可修复失败 → 静默算 final，不开 stream_start。
+ * 仍有重试预算且 Admin/GUI 可修复失败 → 静默算 final，不开 stream_start。
  */
 export function shouldEmitUserSynthStream(state: {
   retryCount?: number
@@ -82,6 +83,8 @@ export function shouldEmitUserSynthStream(state: {
   results?: Record<string, unknown>
   evidence?: unknown[]
   meta?: Record<string, unknown>
+  fixQuery?: string
+  fixIntent?: string
 }): boolean {
   const meta = state.meta || {}
   if (Boolean(meta.finalSynthPass) || Boolean(meta.synthOnlyRepair) || Boolean(meta.directChitchatSynth)) {
@@ -90,8 +93,9 @@ export function shouldEmitUserSynthStream(state: {
   const limits = resolveManagerRetryLimits(state)
   const exhausted = isManagerRetryBudgetExhausted(limits)
   const adminTerminal = detectAdminWriteTerminalFailure(state)
+  const guiTerminal = detectGuiTerminalFailure(state)
   // 终态失败：允许本轮流一次清晰失败说明（不再进 repair）
-  if (adminTerminal.terminal) return true
+  if (adminTerminal.terminal || guiTerminal.terminal) return true
 
   const adminOut = String(state.results?.admin || '').trim()
   const adminLooksFailed =
@@ -105,8 +109,26 @@ export function shouldEmitUserSynthStream(state: {
     const r = row as { agent?: string; status?: string; error?: string }
     return String(r.agent || '').toLowerCase() === 'admin' && String(r.status || '') === 'error'
   })
+  const guiStepError = records.some((row) => {
+    if (!row || typeof row !== 'object') return false
+    const r = row as { agent?: string; status?: string }
+    return String(r.agent || '').toLowerCase() === 'gui' && String(r.status || '') === 'error'
+  })
+  const guiOut = String(state.results?.gui || '').trim()
+  const guiLooksFailed =
+    Boolean(guiOut) &&
+    (/GUI 自动化失败|lobster_workflow_not_found|task_blocked|timeout/i.test(guiOut) ||
+      hasFailedGuiEvidenceInRun(state))
+  const pendingGuiRepair =
+    Boolean(String(state.fixQuery || '').trim()) &&
+    String(state.fixIntent || '') === 'gui' &&
+    canManagerRetryMore(limits) &&
+    !exhausted
 
   if ((adminLooksFailed || adminStepError) && canManagerRetryMore(limits) && !exhausted) {
+    return false
+  }
+  if ((guiLooksFailed || guiStepError || pendingGuiRepair) && canManagerRetryMore(limits) && !exhausted) {
     return false
   }
   return true

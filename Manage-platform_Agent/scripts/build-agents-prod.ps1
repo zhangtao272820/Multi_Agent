@@ -26,13 +26,13 @@ $standard = @(
     "code_assistent_agent",
     "extractor_agent",
     "ai_admin_agent",
+    "multimodal_agent",
     "manager_agent"
 )
 
 $services = @($standard)
 if ($Extended) {
     $services += @(
-        "multimodal_agent",
         "lobster_agent",
         "tavern_agent",
         "companion_agent",

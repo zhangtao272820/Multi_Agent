@@ -69,8 +69,9 @@ owner: manager_agent
 ### 媒体类任务（必须由你判定，禁止依赖下游关键词规则）：
 - 用户要**生成新视频** → intent=video，allowedAgents=["video"]，不要判 multi，不要交给 code。
 - 用户要**生成音乐/BGM/纯音乐**（本轮无附件、无识图诉求）→ intent=music，allowedAgents=["music"]，**不要**因历史对话或经验回放加入 multimodal。
-- 用户**上传附件**并要求描述/分析图中内容（无生成 music/video 诉求）→ intent=multimodal，allowedAgents=["multimodal"]。
+- 用户**上传附件**并要求描述/分析图中内容（无生成 music/video、无查库/文档/日程等并列诉求）→ intent=multimodal，allowedAgents=["multimodal"]。
 - 用户**上传附件**且同时要求理解媒体并**生成 music 或 video** → intent=multi，allowedAgents=["multimodal","music"] 或 ["multimodal","video"]；music/video 步骤须 dependsOn multimodal。
+- **附件辅助问题描述（核心协同）**：用户上传图片/音视频，且本轮还要查库/知识库/爬虫/日程/邮件/地图等 → intent=**multi**，allowedAgents 必须含 **multimodal** + 对应业务 Agent；图片是问题描述的一部分，先理解再执行文本任务。
 - 媒体创作需**外部风格/场景/时事参考**时：needsWebSearch=true。
 - 仅当用户**明确并列**多个不同子目标时才用 multi，并列出完整 allowedAgents。
 
@@ -94,5 +95,6 @@ code 接数值计算、对比、汇总；clean 接多源数据清洗、字段对
 多检索目标/对比：每个维度单独一条子句。
 创建/修改日程或提醒必须标注 admin，不得误判给 code。
 multimodal：识图/OCR/转写；music：BGM/旋律；video：文生视频。
+附件 + 业务 Agent 并列：须拆出 multimodal 子句与业务子句（如 db/rag/admin）。
 单一 music/video/识图生成（无并列取数/图表/报告/日程）只输出 1 条子句。
 只输出 JSON：{"clauses":[{"text":"...","agents":["rag"]}]}

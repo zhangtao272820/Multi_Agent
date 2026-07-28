@@ -48,6 +48,8 @@ services:
     env_file:
       - path: .env.agents-lan
         required: false
+      - path: .env
+        required: false
     volumes:
       - ../:/workspace
       - clawhive_runtime_data:/app/.local/runtime
@@ -57,6 +59,9 @@ services:
       COMPOSE_FILE_PATH: /workspace/Manage-platform_Agent/docker-compose.agents-lan.yml
       COMPOSE_ENV_FILE_PATH: /workspace/Manage-platform_Agent/.env.agents-lan
       AGENT_CONTROL_MODE: docker
+      # 控制面任务队列可选调 LLM；缺 key 时 QwenClient 懒加载不崩
+      QWEN_API_KEY: ${QWEN_API_KEY:-${OPENAI_API_KEY:-}}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-${QWEN_API_KEY:-}}
       PROMETHEUS_BASE_URL: http://prometheus:9090
       GRAFANA_PUBLIC_URL: ${GRAFANA_PUBLIC_URL:-http://127.0.0.1:13000}
       TEMPO_BASE_URL: http://tempo:3200
@@ -110,7 +115,8 @@ services:
       COMPANION_PORT: ${COMPANION_PORT:-13115}
       MUSIC_AGENT_PORT: ${MUSIC_AGENT_PORT:-13110}
       VIDEO_AGENT_PORT: ${VIDEO_AGENT_PORT:-13111}
-      AI_AGENT_PORT: ${AI_AGENT_PORT:-13112}
+      # 容器内 AI_Agent 监听 8080；宿主机映射仍为 ${AI_AGENT_PORT:-13112}:8080
+      AI_AGENT_PORT: "8080"
       MAX_TASK_RETRIES: ${CLAWHIVE_MAX_TASK_RETRIES:-2}
       # QWEN_* 模型名：由 env_file（.env.agents-lan，sync-capability-models 同步）注入
       QWEN_TEMPERATURE: ${QWEN_TEMPERATURE:-0.2}
@@ -277,6 +283,13 @@ services:
       RAG_MIGRATE_LEGACY_MEMORY_ON_BOOT: ${RAG_MIGRATE_LEGACY_MEMORY_ON_BOOT:-1}
       RAG_ENABLE_BM25: ${RAG_ENABLE_BM25:-1}
       RAG_RRF_BM25_WEIGHT: ${RAG_RRF_BM25_WEIGHT:-0.85}
+      # H 波企业试点默认（与 RAG_Agent/.env.example / rag_agent_env 对齐）
+      RAG_ENABLE_PARENT_CHILD: ${RAG_ENABLE_PARENT_CHILD:-1}
+      RAG_PARENT_EXPAND: ${RAG_PARENT_EXPAND:-1}
+      RAG_ENABLE_MMR: ${RAG_ENABLE_MMR:-1}
+      RAG_MMR_LAMBDA: ${RAG_MMR_LAMBDA:-0.7}
+      RAG_ENABLE_CITATION_GUARD: ${RAG_ENABLE_CITATION_GUARD:-1}
+      RAG_ENABLE_AGENTIC_RETRIEVAL: ${RAG_ENABLE_AGENTIC_RETRIEVAL:-1}
       AGENT_DATABASE_URL: postgresql://${CLAWHIVE_PG_USER:-postgres}:${CLAWHIVE_PG_PASSWORD:-postgres}@clawhive_postgres:5432/${CLAWHIVE_PG_DB:-clawhive}
       RAG_AGENT_STORAGE_BACKEND: ${RAG_AGENT_STORAGE_BACKEND:-postgres}
       EVO_VERIFY_BEFORE_PROMOTE: ${EVO_VERIFY_BEFORE_PROMOTE:-1}
@@ -857,7 +870,6 @@ services:
     restart: unless-stopped
 
   multimodal_agent:
-    profiles: ["extended"]
     build:
       context: ../Multimodal_Agent
       dockerfile: Dockerfile
@@ -894,11 +906,6 @@ services:
       - "${MULTIMODAL_PORT:-13107}:13107"
     volumes:
       - multimodal_agent_data:/multimodal/.data
-    depends_on:
-      music_agent:
-        condition: service_started
-      video_agent:
-        condition: service_started
     restart: unless-stopped
 
   # 可选：Browserless 远程 CDP 池（lobster 设 LOBSTER_CDP_URL=ws://browserless:3000?token=...）
@@ -919,6 +926,7 @@ services:
     image: mcr.microsoft.com/playwright:v1.59.1-jammy
     container_name: playwright_mcp
     working_dir: /app
+    shm_size: '1gb'
     command:
       - bash
       - -c
@@ -937,6 +945,7 @@ services:
     image: clawhive/lobster_agent:${CLAWHIVE_IMAGE_TAG:-prod}
     container_name: lobster_agent
     working_dir: /app
+    shm_size: '1gb'
     env_file:
       - path: ../Lobster_Agent/.env
         required: false
@@ -972,6 +981,7 @@ services:
       LOBSTER_CDP_URL: ${LOBSTER_CDP_URL:-}
       LOBSTER_SESSION_DIR: ${LOBSTER_SESSION_DIR:-/app/.data/sessions}
       LOBSTER_STORAGE_DIR: ${LOBSTER_STORAGE_DIR:-/app/.data/lobster}
+      LOBSTER_WORKFLOWS_DIR: /app/workflows
       DISPLAY: ":99"
       APP_PORT: ${LOBSTER_PORT:-13108}
       HOST: "0.0.0.0"
@@ -1005,6 +1015,7 @@ services:
         condition: service_started
     volumes:
       - lobster_agent_sessions:/app/.data/sessions
+      - ../Lobster_Agent/workflows:/app/workflows:ro
     healthcheck:
       test:
         [

@@ -3,13 +3,13 @@
     "id": "policy_subsidy",
     "question": "养老机构护理员补贴标准是多少？",
     "expect_sources": ["养老机构服务规范"],
-    "tags": ["fact_lookup", "policy"]
+    "tags": ["fact_lookup", "policy", "faithfulness"]
   },
   {
     "id": "compound_care",
     "question": "压疮护理要求和口腔护理频次分别是多少？",
     "expect_sources": ["养老机构服务规范"],
-    "tags": ["multi_part", "policy"]
+    "tags": ["multi_part", "policy", "faithfulness"]
   },
   {
     "id": "income_txt",
@@ -27,13 +27,13 @@
     "id": "quote_request",
     "question": "请引用养老机构服务规范中关于人员配比的原文",
     "expect_sources": ["养老机构服务规范"],
-    "tags": ["quote", "policy"]
+    "tags": ["quote", "policy", "faithfulness"]
   },
   {
     "id": "policy_staffing_ratio",
     "question": "养老机构护理人员配比有什么要求？",
     "expect_sources": ["养老机构服务规范"],
-    "tags": ["fact_lookup", "policy"]
+    "tags": ["fact_lookup", "policy", "faithfulness"]
   },
   {
     "id": "policy_infection_control",
@@ -129,7 +129,15 @@
     "id": "quote_oral_care",
     "question": "请引用规范中关于口腔护理频次的表述",
     "expect_sources": ["养老机构服务规范"],
-    "tags": ["quote", "policy"]
+    "tags": ["quote", "policy", "faithfulness"]
+  },
+  {
+    "id": "faithfulness_subsidy_grounded",
+    "question": "护理员补贴标准是每人每月多少元？",
+    "expect_sources": ["养老机构服务规范"],
+    "tags": ["faithfulness", "policy"],
+    "expect_clarify_or_cite": true,
+    "notes": "H5/I1：答案中的数字须能在证据原文核对；retrieve 层至少命中可引用证据"
   },
   {
     "id": "stale_policy_hint",

@@ -256,7 +256,7 @@ export default function App() {
 
   return (
     <div className="layout">
-      <h1>Video Agent · 10 秒短视频多智能体</h1>
+      <h1>破军 · Video Agent · 10 秒短视频</h1>
       <p className="sub">
         LangGraph：总管 → 导演 → 镜头 → 通义万相 → BGM → 合成 → 质检（不通过回退镜头，最多 2 轮）。左侧为可读的协作时间线；万相为异步任务，中间可能等待数分钟。
       </p>

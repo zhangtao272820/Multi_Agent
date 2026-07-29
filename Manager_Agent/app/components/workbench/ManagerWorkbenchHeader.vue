@@ -58,7 +58,7 @@ const emit = defineEmits<{
 <template>
   <header class="spring-topbar cosmic-bridge-header" :class="isProfessional ? 'is-pro-header' : 'is-chat-header'">
     <div class="spring-topbar-main">
-      <h1 class="spring-title">{{ isProfessional ? '总管/统筹Agent' : '总管对话' }}</h1>
+      <h1 class="spring-title">{{ isProfessional ? '天机 · 总管' : '天机 · 对话' }}</h1>
       <div v-if="isProfessional" class="spring-phase conv-phase-rail" aria-label="执行阶段">
         <div class="conv-phase-track">
           <div class="conv-live-bar" :class="{ active: !!currentRunId }">

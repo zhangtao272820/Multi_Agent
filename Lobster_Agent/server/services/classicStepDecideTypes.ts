@@ -25,4 +25,6 @@ export type StepDecideTaskSpec = {
   summary?: Record<string, unknown>
   successCriteria?: Record<string, unknown>
   completionCriteria?: Record<string, unknown>
+  /** 任务起始 URL：用于禁止在首页误 done */
+  startUrl?: string
 }

@@ -50,7 +50,7 @@ function assert(cond: unknown, msg: string): void {
 }
 
 {
-  const { normalizeLlmUsage, resolveAgentUsage } = await import('../../../../shared/agentUsage')
+  const { normalizeLlmUsage, resolveAgentUsage } = await import('#agent-shared/agentUsage')
   const n = normalizeLlmUsage({ prompt_tokens: 10, completion_tokens: 20 })
   assert(n?.tokens === 30 && n.actual === true, 'normalize prompt+completion')
   const total = normalizeLlmUsage({ total_tokens: 99 })

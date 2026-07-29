@@ -9,8 +9,12 @@ import {
   verifyLobsterRunResult,
 } from '#agent-shared/lobsterRunVerifyLite'
 import {
+  buildGuiFailureUserMessage,
   buildGuiHumanConfirmMessage,
   isGuiHumanHandoffFailure,
+  isGuiIncompleteFailure,
+  normalizeGuiVerifyReasonForTask,
+  resolveGuiBlockedErrorCode,
 } from '../../../server/utils/gui/guiHumanConfirm'
 import {
   resolveGuiHandoffTimeoutMs,
@@ -50,6 +54,52 @@ const copy = buildGuiHumanConfirmMessage({
 assert(copy.title.includes('验证码'))
 assert(copy.message.includes('classic'), 'confirm message mentions classic retry')
 assert(copy.message.includes('不能'), 'confirm message clarifies manager cannot click captcha')
+
+assert.equal(resolveGuiBlockedErrorCode('empty_result'), 'incomplete_task_output')
+assert.equal(resolveGuiBlockedErrorCode('need_human'), 'need_human')
+assert.equal(resolveGuiBlockedErrorCode('navigation_unverified'), 'navigation_unverified')
+assert.ok(isGuiIncompleteFailure('navigation_unverified'))
+assert.equal(
+  normalizeGuiVerifyReasonForTask(
+    '打开 https://www.runoob.com/ ，点击第一个教程链接并提取标题',
+    'search_no_results',
+  ),
+  'navigation_unverified',
+)
+const incompleteMsg = buildGuiFailureUserMessage({
+  failureTypeOrReason: 'navigation_unverified',
+  task: '打开 https://www.runoob.com/ ，点击第一个教程链接并提取标题',
+  finalUrl: 'https://www.runoob.com/',
+  hasScreenshot: true,
+})
+assert.ok(incompleteMsg.includes('起始页'), 'incomplete mentions start page')
+assert.ok(!incompleteMsg.includes('站点拦截'), 'incomplete must not use site-block copy')
+assert.ok(incompleteMsg.includes('截图'), 'incomplete explains screenshot')
+
+const runoobStuck = verifyLobsterRunResult({
+  task: '打开 https://www.runoob.com/ ，点击第一个教程链接并提取标题',
+  status: 'done',
+  result: {
+    answer: 'MCP 模式已达最大步数',
+    finalUrl: 'https://www.runoob.com/',
+  },
+})
+assert.equal(runoobStuck.ok, false)
+assert.equal(runoobStuck.reason, 'navigation_unverified', 'C1 stuck on homepage → navigation_unverified')
+
+// 龙虾显式 failureType + 首页标题冒充答案：仍须失败（协议对齐）
+const runoobFakeTitle = verifyLobsterRunResult({
+  task: '打开 https://www.runoob.com/ ，点击第一个教程链接并提取标题',
+  status: 'done',
+  result: {
+    answer: '标题：菜鸟教程\n链接：https://www.runoob.com/',
+    finalUrl: 'https://www.runoob.com/',
+    failureType: 'navigation_unverified',
+    pageTitle: '菜鸟教程',
+  },
+})
+assert.equal(runoobFakeTitle.ok, false)
+assert.equal(runoobFakeTitle.reason, 'navigation_unverified', 'explicit failureType wins over fake title answer')
 
 const baseTimeout = resolveGuiTimeoutMs(90_000, '打开百度搜索')
 assert(baseTimeout >= 360_000, 'default gui timeout >= 360s')

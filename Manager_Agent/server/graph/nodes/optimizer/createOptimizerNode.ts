@@ -85,15 +85,15 @@ export function createOptimizerNode(deps: CreateOptimizerNodeDeps) {
     let action: 'clarify' | 'fix' | 'verifier' | 'replan_multi' = 'verifier'
     let reason = 'evidence_good'
     if (guiSemanticBlock.blocked) {
-      action = hasAnswer ? 'verifier' : 'clarify'
+      action = 'verifier'
       reason = 'gui_semantic_blocked'
     } else if (adminTerminal.terminal) {
       // 取消 / 协议垃圾 / 写失败：禁止 quality_repair 多轮复读 preamble
       action = canClarify || evalRec === 'clarify' ? 'clarify' : 'verifier'
       reason = 'admin_write_terminal_no_repair'
     } else if (guiTerminal.terminal) {
-      // workflow 不存在等基建错误：禁止改道 multi/db
-      action = canClarify || evalRec === 'clarify' ? 'clarify' : 'verifier'
+      // workflow 不存在等基建错误：禁止改道 multi/db；勿走空槽 clarify
+      action = 'verifier'
       reason = 'gui_terminal_no_repair'
     } else if (pendingRepair && criticRetryOverridden) {
       action = 'verifier'

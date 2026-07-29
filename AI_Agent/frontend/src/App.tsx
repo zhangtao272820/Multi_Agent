@@ -707,7 +707,7 @@ export default function App() {
       <header className="page-header">
         <div className="page-header__main">
           <h1>
-            <span className="page-eyebrow">Wasteland Link</span>
+            <span className="page-eyebrow">太阴 · Taiyin</span>
             废土数字人中继站
           </h1>
           <p className="page-desc">动态通信背景 · 科技废土终端 · 真对口型缓存链路</p>

@@ -72,6 +72,47 @@ function mockOpts() {
   assert.notEqual(out.fixIntent, 'multi')
 }
 
+// --- 1b) GUI semantic block → verifier，禁止空槽 clarify ---
+{
+  const state = {
+    intent: 'gui',
+    results: {
+      gui: '浏览器任务未完成：站点拦截或需人工介入。\n当前页面：https://www.runoob.com/'
+    },
+    evidence: [
+      {
+        kind: 'gui',
+        agent: 'gui',
+        failed: true,
+        error: 'need_human',
+        agentResult: { ok: false, error_code: 'need_human' }
+      }
+    ],
+    evaluation: {
+      score: 0.4,
+      recommendation: 'accept',
+      hasAnswer: false,
+      hasDataEvidence: false,
+      hasImplicitDataEvidence: false,
+      visualizeIntegrityOk: true
+    },
+    final: '',
+    retryCount: 0,
+    meta: {
+      guiSemanticBlocked: 'need_human',
+      needsClarify: false
+    }
+  }
+  const { opts } = mockOpts()
+  const node = createOptimizerNode({ opts } as any)
+  const out = await node(state)
+  assert.equal(out.optimizer?.action, 'verifier', 'semantic block must verifier')
+  assert.notEqual(out.optimizer?.action, 'clarify')
+  assert.equal(out.optimizer?.reason, 'gui_semantic_blocked')
+  assert.equal(out.fixIntent, undefined)
+  assert.equal(out.fixQuery, '')
+}
+
 // --- 2) 可恢复 GUI 失败：preferredFixIntent / invent-fix 钉 gui ---
 {
   const state = {

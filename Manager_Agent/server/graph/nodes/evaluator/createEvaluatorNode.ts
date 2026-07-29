@@ -93,15 +93,17 @@ export function createEvaluatorNode(deps: CreateEvaluatorNodeDeps) {
     score = Math.max(0, Math.min(1, score))
 
     const recommendation =
-      needsClarify || guiSemanticBlock.blocked || hasFailedAdminEvidence
+      needsClarify || hasFailedAdminEvidence
         ? 'clarify'
-        : !visualizeIntegrityOk
-          ? 'retry'
-        : score < 0.45
-          ? 'retry'
-          : score < 0.65
-            ? 'retry_if_possible'
-            : 'accept'
+        : guiSemanticBlock.blocked
+          ? 'accept'
+          : !visualizeIntegrityOk
+            ? 'retry'
+            : score < 0.45
+              ? 'retry'
+              : score < 0.65
+                ? 'retry_if_possible'
+                : 'accept'
     opts.sendEvent({
       event: 'thinking',
       data: `评估结果：score=${score.toFixed(2)}, errors=${errorCount}, dataEvidence=${hasDataEvidence ? 'yes' : 'no'}, implicitData=${hasImplicitDataEvidence ? 'yes' : 'no'}, recommend=${recommendation}`,

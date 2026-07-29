@@ -150,6 +150,7 @@ export function mcpOpenClawLeanPromptAddon(kind: LeanBrowseKind): string {
 
 /**
  * search_open：当前是否已到达「第一条结果」详情页（离开 SERP，且非验证码/搜索站导航页）
+ * 注意：站点首页（如 runoob.com/）也会匹配「非 SERP」——调用方必须再用 startUrl 排除起始页。
  */
 export function isSearchOpenDestinationUrl(url: string): boolean {
   const u = String(url || '').trim()
@@ -160,4 +161,35 @@ export function isSearchOpenDestinationUrl(url: string): boolean {
   if (/baidu\.com\/(news|map|tieba|image|zhidao|wenku|baike|v|video)/i.test(u)) return false
   // 百度结果常跳转到第三方；站内 /s? 已在 isResultListUrl 排除
   return true
+}
+
+/** hostname+pathname 相同（忽略尾斜杠与 query）视为同一落地页 */
+export function urlsSameSitePath(a: string, b: string): boolean {
+  try {
+    const ua = new URL(String(a || '').trim())
+    const ub = new URL(String(b || '').trim())
+    return (
+      ua.hostname.replace(/^www\./i, '') === ub.hostname.replace(/^www\./i, '') &&
+      ua.pathname.replace(/\/+$/, '') === ub.pathname.replace(/\/+$/, '')
+    )
+  } catch {
+    const na = String(a || '')
+      .trim()
+      .replace(/\/+$/, '')
+      .toLowerCase()
+    const nb = String(b || '')
+      .trim()
+      .replace(/\/+$/, '')
+      .toLowerCase()
+    return Boolean(na && nb && na === nb)
+  }
+}
+
+/** 是否已离开任务起始页（无 startUrl 时不做起始页约束） */
+export function hasLeftStartPage(currentUrl: string, startUrl?: string): boolean {
+  const start = String(startUrl || '').trim()
+  if (!start) return true
+  const cur = String(currentUrl || '').trim()
+  if (!cur) return false
+  return !urlsSameSitePath(cur, start)
 }

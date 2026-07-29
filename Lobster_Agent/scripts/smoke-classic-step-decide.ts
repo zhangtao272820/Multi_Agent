@@ -9,6 +9,7 @@ import {
 } from '../server/services/classicStepDecideSchema'
 import {
   gateStepByResultPage,
+  gateDoneByEnterDetail,
   maybeLeanExtractShortcut,
   maybeLeanOpenDoneShortcut,
   toIntentCall,
@@ -83,6 +84,43 @@ const openShort = maybeLeanOpenDoneShortcut({
   goals: { mustSearch: true, mustEnterDetail: true },
 })
 assert(openShort?.intent === 'done', 'lean open done on weixin')
+
+// 站点首页 ≠ 详情：runoob 起始页禁止 lean done / gate 须改写 done
+const runoobHome = {
+  url: 'https://www.runoob.com/',
+  title: '菜鸟教程',
+  stageHint: 'home',
+  candidatesTopK: [{ i: 0, label: 'HTML' }, { i: 1, label: 'CSS' }],
+  pageTextSnippet: '学的不仅是技术，更是梦想',
+}
+const noLeanOnHome = maybeLeanOpenDoneShortcut({
+  observation: runoobHome,
+  task: '打开 https://www.runoob.com/ ，点击第一个教程链接并提取标题',
+  goals: { mustEnterDetail: true, mustExtract: true, extractLimit: 1 },
+  startUrl: 'https://www.runoob.com/',
+})
+assert(!noLeanOnHome, 'lean must not done on site homepage')
+
+const gatedHomeDone = gateDoneByEnterDetail(
+  { intent: 'done', reason: '假完成', confidence: 0.93 },
+  runoobHome,
+  { mustEnterDetail: true },
+  'https://www.runoob.com/',
+)
+assert(gatedHomeDone.intent === 'open_first_result', 'gate done→open_first on homepage')
+
+const gatedDetailOk = gateDoneByEnterDetail(
+  { intent: 'done', reason: '真完成', confidence: 0.93 },
+  {
+    url: 'https://www.runoob.com/html/html-tutorial.html',
+    title: 'HTML 教程',
+    stageHint: 'detail',
+    candidatesTopK: [],
+  },
+  { mustEnterDetail: true },
+  'https://www.runoob.com/',
+)
+assert(gatedDetailOk.intent === 'done', 'gate allows done after leave start')
 
 // --- lean extract shortcut ---
 const lean = maybeLeanExtractShortcut({

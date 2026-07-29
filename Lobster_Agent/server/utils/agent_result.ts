@@ -134,8 +134,21 @@ export function buildGuiAgentResult(params: {
       stats,
       ...(failureType ? { failureType } : {}),
     },
-    error_code: ok ? undefined : semanticBlock?.failureType || params.error_code || 'empty_result',
-    needs_clarify: !ok && (failureType === 'captcha' || failureType === 'need_human' || failureType === 'need_login'),
+    error_code: ok
+      ? undefined
+      : semanticBlock?.failureType ||
+        (verify.reason === 'task_blocked' ? verify.failureType || 'task_blocked' : undefined) ||
+        (verify.reason &&
+        /^(navigation_unverified|incomplete_|search_no_results|search_extract_empty|empty_result)/.test(
+          String(verify.reason),
+        )
+          ? String(verify.reason)
+          : undefined) ||
+        params.error_code ||
+        (failureType && failureType !== 'empty_result' ? failureType : undefined) ||
+        (!finalUrl && !directAnswer && !data.length ? 'empty_result' : 'task_blocked'),
+    // handoff（验证码/登录/需人工）≠ 缺槽澄清；HITL 只靠 failureType / structured.failureType
+    needs_clarify: false,
     latency_ms: params.latency_ms
   }
 }

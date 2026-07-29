@@ -211,6 +211,8 @@ function hasMeaningfulTaskOutput(task: string, result: unknown): boolean {
     if (isOpenOnlyBrowseTask(task) && finalUrl && !CAPTCHA_URL_RE.test(finalUrl)) return true
     if (finalUrl && !CAPTCHA_URL_RE.test(finalUrl) && !isLikelyStartPageOnly(task, finalUrl)) return true
     if (items.length > 0) return true
+    // 仍在起始页：禁止仅靠 answer（首页标题冒充详情）过 verify
+    if (isLikelyStartPageOnly(task, finalUrl)) return false
     if (answer.length > 24 && finalUrl && !CAPTCHA_URL_RE.test(finalUrl)) return true
     return false
   }
@@ -326,6 +328,21 @@ export function verifyLobsterRunResult(input: LobsterRunVerifyInput): LobsterRun
     if (hasMeaningfulTaskOutput(task, input.result)) {
       // fall through as if done
     } else {
+      const rowEarly = resultPayload(input.result)
+      const finalUrlEarly = String(rowEarly.finalUrl || rowEarly.url || '').trim()
+      const itemsEarly = collectResultItems(input.result)
+      if (
+        /(打开|点击|进入|first|第一条)/i.test(task) &&
+        !isOpenOnlyBrowseTask(task) &&
+        isLikelyStartPageOnly(task, finalUrlEarly) &&
+        itemsEarly.length === 0
+      ) {
+        return {
+          ok: false,
+          reason: 'navigation_unverified',
+          hints: [finalUrlEarly ? `仍停留在起始页：${finalUrlEarly}` : '导航未完成'],
+        }
+      }
       return {
         ok: false,
         reason: 'error',
@@ -362,7 +379,30 @@ export function verifyLobsterRunResult(input: LobsterRunVerifyInput): LobsterRun
   const failureType = String(row.failureType || '').trim().toLowerCase()
   const blob = [answer, collectResultText(input.result), finalUrl].filter(Boolean).join('\n')
 
+  // 龙虾显式标记与总管对齐：未离开起始页 / 未验证导航
+  if (failureType === 'navigation_unverified') {
+    return {
+      ok: false,
+      reason: 'navigation_unverified',
+      failureType: 'navigation_unverified',
+      hints: [finalUrl ? `仍停留在起始页：${finalUrl}` : '导航未完成'],
+    }
+  }
+
   if (failureType.startsWith('incomplete') || isIncompleteRunAnswer(blob)) {
+    // 要求点击/进入但仍停在起始页：优先 navigation_unverified（比笼统 incomplete 可操作）
+    if (
+      /(打开|点击|进入|first|第一条)/i.test(task) &&
+      !isOpenOnlyBrowseTask(task) &&
+      isLikelyStartPageOnly(task, finalUrl) &&
+      items.length === 0
+    ) {
+      return {
+        ok: false,
+        reason: 'navigation_unverified',
+        hints: [finalUrl ? `仍停留在起始页：${finalUrl}` : '导航未完成'],
+      }
+    }
     return {
       ok: false,
       reason: failureType.startsWith('incomplete') ? failureType : 'incomplete_max_steps',
@@ -376,7 +416,7 @@ export function verifyLobsterRunResult(input: LobsterRunVerifyInput): LobsterRun
     return { ok: false, reason: 'empty_result', hints: ['run done 但无 answer/data/finalUrl'] }
   }
 
-  if (/(搜索|search|查找|query)/i.test(task)) {
+  if (/(搜索|search|查找|\bquery\b)/i.test(task)) {
     const onResults = isSearchResultsPage(finalUrl)
     const wantsExtract = /(抽取|提取|获取|输出|列表|结果|items|前\s*\d+\s*条|top\s*\d+)/i.test(task)
     if (!onResults && items.length === 0 && isLikelySearchNotStarted(task, finalUrl)) {

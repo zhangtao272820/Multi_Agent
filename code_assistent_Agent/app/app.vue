@@ -42,7 +42,7 @@
     <div class="shell">
       <header class="topbar card">
         <div class="brand">
-          <div class="title">代码助手 Workbench</div>
+          <div class="title">武曲 · 代码助手</div>
           <div class="subtitle">Repo Map · 编辑闭环 · Diff 审阅 · MCP</div>
         </div>
         <div class="controls">
@@ -510,6 +510,8 @@ import { storeToRefs } from 'pinia'
 import { nextTick } from 'vue'
 import { useCodeStore } from '../stores/codeStore'
 import { useSessionStore } from '../stores/sessionStore'
+
+useHead({ title: '武曲 · Code Agent' })
 
 type LeafItem = {
   id: number

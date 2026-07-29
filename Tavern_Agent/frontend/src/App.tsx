@@ -228,7 +228,7 @@ export default function App() {
         <div className="hero-inner">
           <p className="hero-ribbon">今夜开门迎客</p>
           <h1 className="hero-title">
-            <span className="hero-title-main">Agent 酒馆</span>
+            <span className="hero-title-main">天府 · Agent 酒馆</span>
             <span className="hero-title-sub">The Drunken Matrix</span>
           </h1>
           <p className="tagline">

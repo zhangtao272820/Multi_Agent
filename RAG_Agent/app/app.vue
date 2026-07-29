@@ -8,7 +8,7 @@
     <div class="relative z-10 flex h-screen">
       <div class="w-72 bg-slate-950/80 border-r border-white/10 flex flex-col">
         <div class="p-4 border-b border-white/10">
-          <h2 class="text-xl font-semibold tracking-wide">文档助手</h2>
+          <h2 class="text-xl font-semibold tracking-wide">文曲 · 文档助手</h2>
           <div class="mt-1 text-xs text-slate-300/70">基于已上传资料 · 本地向量检索</div>
         </div>
 
@@ -237,7 +237,7 @@
       <div class="flex-1 flex flex-col bg-slate-950/40 border-l border-white/5 min-w-0">
         <div class="px-4 py-2.5 border-b border-white/10 flex items-center justify-between gap-3 bg-slate-950/50">
           <div class="min-w-0">
-            <h1 class="text-sm font-semibold text-slate-100 truncate">文档助手</h1>
+            <h1 class="text-sm font-semibold text-slate-100 truncate">文曲 · 文档助手</h1>
             <div class="text-[10px] text-slate-400 truncate">会话 {{ conversationId ? conversationId.slice(0, 8) + '…' : '未开始' }}</div>
           </div>
           <div class="flex items-center gap-2 shrink-0">
@@ -407,7 +407,7 @@
               <!-- 助手消息 -->
               <template v-else>
               <div class="text-[10px] font-medium text-sky-200/70 mb-1">
-                文档助手
+                文曲
               </div>
 
               <div
@@ -599,6 +599,8 @@ import * as THREE from 'three';
 import MarkdownIt from 'markdown-it';
 import * as echarts from 'echarts';
 import AppModal from './components/AppModal.vue';
+
+useHead({ title: '文曲 · RAG Agent' });
 
 const fileInput = ref(null);
 const isUploading = ref(false);

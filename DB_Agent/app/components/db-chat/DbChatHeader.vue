@@ -22,7 +22,7 @@ const {
 <template>
   <header class="header">
     <div class="header-row">
-      <h1 class="title">养老信息AI 助手</h1>
+      <h1 class="title">禄存 · 数据库助手</h1>
       <button type="button" class="panel-toggle" @click="showIntel = !showIntel">
         {{ showIntel ? "收起说明" : "使用说明" }}
       </button>

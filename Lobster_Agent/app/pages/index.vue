@@ -2,7 +2,7 @@
   <div class="wrap">
     <header class="hdr">
       <div class="hdr-brand">
-        <div class="title">龙虾 Agent</div>
+        <div class="title">七杀 · 龙虾 Agent</div>
         <div class="sub">GUI 自动化 · 规划 · 执行 · 验证</div>
       </div>
       <div class="hdr-right">
@@ -357,6 +357,9 @@
 <script setup lang="ts">
 type LogLevel = 'info' | 'warn' | 'error'
 type LogItem = { level: LogLevel; message: string; ts: number }
+
+useHead({ title: '七杀 · Lobster' })
+
 type LobsterPublicState = {
   phase?: string
   stage?: string

@@ -19,14 +19,17 @@ import {
   isGuiOperateKind,
   resolveGuiOperateKindByLlm,
 } from '../../../utils/gui/guiOperateKindLlm'
-import { sanitizeGuiWorkflowId } from '../../../utils/gui/guiWorkflowAllowlist'
+import { resolveGuiWorkflowForTaskKind, sanitizeGuiWorkflowId } from '../../../utils/gui/guiWorkflowAllowlist'
 import {
-  buildGuiBlockedFinalMessage,
+  buildGuiFailureUserMessage,
   detectGuiSemanticBlockFromState,
   extractGuiObservationFromRaw,
   isDockerHeadlessMcpGui,
   isGuiHumanHandoffFailure,
+  isGuiIncompleteFailure,
+  normalizeGuiVerifyReasonForTask,
   requestGuiHumanConfirm,
+  resolveGuiBlockedErrorCode,
   resolveGuiFailureType,
 } from '../../../utils/gui/guiHumanConfirm'
 import { hasLobsterBrowseEvidence } from '#agent-shared/lobsterRunVerifyLite'
@@ -122,6 +125,11 @@ function buildMcpGuiStepOutcome(input: {
   const hasShot = Boolean(
     String(parsed.screenshotDataUrl || raw.screenshot_data_url || '').trim() || resultRow.hasScreenshot
   )
+  const handoffFt = isGuiHumanHandoffFailure(parsed.failureType) || isGuiHumanHandoffFailure(String(error || ''))
+  const rawErr = error || parsed.failureType || parsed.verify?.reason
+  const resolvedError = !ok
+    ? resolveGuiBlockedErrorCode(normalizeGuiVerifyReasonForTask(task, String(rawErr || '')))
+    : undefined
   return {
     ok,
     agent: 'gui',
@@ -142,10 +150,13 @@ function buildMcpGuiStepOutcome(input: {
     rawResult: mcpOut.raw,
     meta: {
       agentResult: parsed.normalized.agentResult,
-      needsClarify: parsed.normalized.agentResult.needs_clarify || !ok,
+      // handoff / !ok 不是缺槽澄清；仅透传真正的 slot needs_clarify
+      needsClarify: handoffFt || Boolean(outputOverride)
+        ? false
+        : Boolean(parsed.normalized.agentResult.needs_clarify),
       ...meta,
     },
-    ...(error ? { error } : {}),
+    ...(resolvedError ? { error: resolvedError } : {}),
   }
 }
 
@@ -153,7 +164,6 @@ function buildGuiSemanticBlockMeta(failureType: string, handoffAttempted: boolea
   return {
     guiSemanticBlocked: failureType,
     guiHandoffAttempted: handoffAttempted,
-    needsClarify: true,
   }
 }
 
@@ -340,13 +350,22 @@ export async function executeGuiStep(
     }
   }
 
-  // workflow：LLM 优先；显式 `工作流:` hint 仅作 overlay。未知宏丢弃。
+  // workflow：LLM 优先；显式 `工作流:` hint 仅作 overlay。未知/与 task_kind 不兼容的宏丢弃。
   const rawWorkflowId =
     String(operateKind?.workflow_id || '').trim() || String(hints.workflowId || '').trim() || undefined
-  const wfSanitized = sanitizeGuiWorkflowId(rawWorkflowId)
+  const wfSanitized = resolveGuiWorkflowForTaskKind(rawWorkflowId, taskKind)
   const workflowId = wfSanitized.ok ? wfSanitized.id : undefined
   if (!wfSanitized.ok && wfSanitized.dropped) {
-    input.sendThinking(`GUI：未知宏「${wfSanitized.dropped}」已丢弃，改走逐步 GUI`)
+    const viaAllowlist = !sanitizeGuiWorkflowId(wfSanitized.dropped).ok
+    input.sendThinking(
+      viaAllowlist
+        ? `GUI：未知宏「${wfSanitized.dropped}」已丢弃，改走逐步 GUI`
+        : `GUI：宏「${wfSanitized.dropped}」与 task_kind=${taskKind || '?'} 不兼容已丢弃，改走逐步 GUI`,
+    )
+  } else if (operateKind?.dropped_workflow_id && !workflowId) {
+    input.sendThinking(
+      `GUI：宏「${operateKind.dropped_workflow_id}」已丢弃，改走逐步 GUI`,
+    )
   }
 
   // Docker 无头 MCP：浏览类（打开/抽取/搜索）优先 classic，与 noVNC 同屏
@@ -373,8 +392,8 @@ export async function executeGuiStep(
   const handoffAlreadyAttempted = Boolean(input.state.meta?.guiHandoffAttempted)
   const priorBlock = detectGuiSemanticBlockFromState(input.state)
   if (priorBlock.blocked && handoffAlreadyAttempted) {
-    const blockedMsg = buildGuiBlockedFinalMessage({
-      failureType: priorBlock.failureType || 'captcha',
+    const blockedMsg = buildGuiFailureUserMessage({
+      failureTypeOrReason: priorBlock.failureType || 'captcha',
       task,
       finalUrl: priorBlock.finalUrl,
       headlessMcp: isDockerHeadlessMcpGui(),
@@ -386,7 +405,7 @@ export async function executeGuiStep(
       agent: 'gui',
       output: blockedMsg,
       query: task,
-      error: priorBlock.failureType || 'task_blocked',
+      error: resolveGuiBlockedErrorCode(priorBlock.failureType || 'task_blocked'),
       meta: buildGuiSemanticBlockMeta(priorBlock.failureType || 'captcha', true),
     }
   }
@@ -522,6 +541,16 @@ export async function executeGuiStep(
     }
 
     if (isGuiMcpFirstEnabled() && !isDesktopTask) {
+      const classicForced =
+        String(forcedEngineHint || engineHint || hints.engineHint || '')
+          .trim()
+          .toLowerCase() === 'classic'
+      if (classicForced) {
+        input.sendThinking(
+          'GUI Agent：engineHint=classic，跳过 MCP 主路径，直走 WebSocket classic（与 noVNC 同屏）…',
+        )
+        engineHint = 'classic'
+      } else {
       try {
         input.sendThinking('GUI Agent：MCP 主路径（lobster-gui run_browser_task）…')
         let mcpOut = await callLobsterGuiMcpTask({
@@ -550,13 +579,32 @@ export async function executeGuiStep(
             input.sendThinking(
               `GUI Agent：MCP 标记可回退，但已有浏览证据，直接采纳（${mcpGuiFailureSummary(mcpOut)}）`
             )
-            const browseOk = parsed.semanticOk || Boolean(parsed.finalUrl) || mcpRawHasBrowseEvidence(mcpOut)
+            const browseOk = parsed.semanticOk === true
             return buildMcpGuiStepOutcome({
               task,
               mcpOut,
               parsed,
               ok: browseOk,
-              error: browseOk ? undefined : parsed.failureType || mcpGuiFailureSummary(mcpOut),
+              error: browseOk
+                ? undefined
+                : normalizeGuiVerifyReasonForTask(
+                    task,
+                    parsed.failureType || parsed.verify?.reason || mcpGuiFailureSummary(mcpOut),
+                  ),
+              ...(!browseOk
+                ? {
+                    outputOverride: buildGuiFailureUserMessage({
+                      failureTypeOrReason: normalizeGuiVerifyReasonForTask(
+                        task,
+                        parsed.failureType || String(parsed.verify?.reason || 'incomplete_task_output'),
+                      ),
+                      task,
+                      finalUrl: parsed.finalUrl,
+                      headlessMcp: isDockerHeadlessMcpGui(),
+                      hasScreenshot: Boolean(parsed.screenshotDataUrl),
+                    }),
+                  }
+                : {}),
             })
           }
           throw new Error(mcpGuiFailureSummary(mcpOut) || 'lobster MCP run failed')
@@ -589,12 +637,13 @@ export async function executeGuiStep(
           const wsBlocked = isGuiHumanHandoffFailure(wsFailureType) && normalized.agentResult.ok === false
           if (wsBlocked) {
             const wsObs = extractGuiObservationFromRaw(normalized.raw)
-            const blockedMsg = buildGuiBlockedFinalMessage({
-              failureType: wsFailureType,
+            const blockedMsg = buildGuiFailureUserMessage({
+              failureTypeOrReason: wsFailureType,
               task,
               finalUrl: wsObs.pageUrl,
               headlessMcp: false,
               alreadyHandoff: true,
+              hasScreenshot: Boolean(wsObs.screenshotDataUrl),
             })
             return {
               ok: false,
@@ -614,7 +663,7 @@ export async function executeGuiStep(
                 agentResult: normalized.agentResult,
                 ...buildGuiSemanticBlockMeta(wsFailureType, true),
               },
-              error: wsFailureType || 'task_blocked',
+              error: resolveGuiBlockedErrorCode(wsFailureType || 'task_blocked'),
             }
           }
           const sourceHits = guiSourceHitsForEvent(normalized.raw)
@@ -657,19 +706,24 @@ export async function executeGuiStep(
           })
         }
         if (handoff.skipRetry) {
-          const blockedMsg = buildGuiBlockedFinalMessage({
-            failureType: parsed.failureType,
+          const failCode = normalizeGuiVerifyReasonForTask(
+            task,
+            parsed.failureType || String(parsed.verify?.reason || 'task_blocked'),
+          )
+          const blockedMsg = buildGuiFailureUserMessage({
+            failureTypeOrReason: failCode,
             task,
             finalUrl: parsed.finalUrl,
             headlessMcp: isDockerHeadlessMcpGui(),
             alreadyHandoff: true,
+            hasScreenshot: Boolean(parsed.screenshotDataUrl),
           })
           return buildMcpGuiStepOutcome({
             task,
             mcpOut,
             parsed,
             ok: false,
-            error: parsed.failureType || 'task_blocked',
+            error: resolveGuiBlockedErrorCode(failCode),
             meta: blockMeta,
             outputOverride: blockedMsg,
           })
@@ -679,33 +733,62 @@ export async function executeGuiStep(
             input.sendThinking(
               `GUI Agent：MCP 标记可回退，但已有浏览证据，直接采纳（${mcpGuiFailureSummary(mcpOut)}）`
             )
-            const browseOk = parsed.semanticOk || Boolean(parsed.finalUrl) || mcpRawHasBrowseEvidence(mcpOut)
+            // 有截图/URL 不等于目标达成；仅 semanticOk 才算成功
+            const browseOk = parsed.semanticOk === true
             return buildMcpGuiStepOutcome({
               task,
               mcpOut,
               parsed,
               ok: browseOk,
-              error: browseOk ? undefined : parsed.failureType || mcpGuiFailureSummary(mcpOut),
+              error: browseOk
+                ? undefined
+                : normalizeGuiVerifyReasonForTask(
+                    task,
+                    parsed.failureType || parsed.verify?.reason || mcpGuiFailureSummary(mcpOut),
+                  ),
               meta: blockMeta,
+              ...(!browseOk
+                ? {
+                    outputOverride: buildGuiFailureUserMessage({
+                      failureTypeOrReason: normalizeGuiVerifyReasonForTask(
+                        task,
+                        parsed.failureType || String(parsed.verify?.reason || 'incomplete_task_output'),
+                      ),
+                      task,
+                      finalUrl: parsed.finalUrl,
+                      headlessMcp: isDockerHeadlessMcpGui(),
+                      hasScreenshot: Boolean(parsed.screenshotDataUrl),
+                    }),
+                  }
+                : {}),
             })
           }
           throw new Error(mcpGuiFailureSummary(mcpOut) || 'lobster MCP run failed')
         }
         if (!parsed.semanticOk) {
-          const blockedMsg = buildGuiBlockedFinalMessage({
-            failureType: parsed.failureType,
+          const failCode = normalizeGuiVerifyReasonForTask(
+            task,
+            parsed.failureType || String(parsed.verify?.reason || 'incomplete_task_output'),
+          )
+          const blockedMsg = buildGuiFailureUserMessage({
+            failureTypeOrReason: failCode,
             task,
             finalUrl: parsed.finalUrl,
             headlessMcp: isDockerHeadlessMcpGui(),
             alreadyHandoff: Boolean(handoff.handoffAttempted),
+            hasScreenshot: Boolean(parsed.screenshotDataUrl),
           })
           return buildMcpGuiStepOutcome({
             task,
             mcpOut,
             parsed,
             ok: false,
-            error: parsed.failureType || String(parsed.verify?.reason || 'task_blocked'),
-            meta: blockMeta,
+            error: resolveGuiBlockedErrorCode(failCode),
+            meta: isGuiHumanHandoffFailure(failCode)
+              ? blockMeta
+              : isGuiIncompleteFailure(failCode)
+                ? undefined
+                : blockMeta,
             outputOverride: blockedMsg,
           })
         }
@@ -716,6 +799,7 @@ export async function executeGuiStep(
         )
         engineHint = 'classic'
       }
+      } // end else !classicForced
     }
 
     let res = await runOnce(isDesktopTask ? 'desktop' : engineHint || hints.engineHint, undefined, 'initial')
@@ -735,11 +819,12 @@ export async function executeGuiStep(
         timeoutMs: guiTimeoutMs,
       })
       if (!approved) {
-        const blockedMsg = buildGuiBlockedFinalMessage({
-          failureType: wsFailureType,
+        const blockedMsg = buildGuiFailureUserMessage({
+          failureTypeOrReason: wsFailureType,
           task,
           finalUrl: wsObs.pageUrl,
           headlessMcp: isDockerHeadlessMcpGui(),
+          hasScreenshot: Boolean(wsObs.screenshotDataUrl),
         })
         return {
           ok: false,
@@ -774,22 +859,26 @@ export async function executeGuiStep(
       }
     }
     const sourceHits = guiSourceHitsForEvent(normalized.raw)
-    const wsBlocked = isGuiHumanHandoffFailure(wsFailureType) && normalized.agentResult.ok === false
-    if (wsBlocked) {
-      const wsObs = extractGuiObservationFromRaw(normalized.raw)
-      const blockedMsg = buildGuiBlockedFinalMessage({
-        failureType: wsFailureType,
+    const wsObs = extractGuiObservationFromRaw(normalized.raw)
+    const wsFailCode = normalizeGuiVerifyReasonForTask(
+      task,
+      wsFailureType || normalized.agentResult.error_code || 'incomplete_task_output',
+    )
+    if (normalized.agentResult.ok === false) {
+      const failMsg = buildGuiFailureUserMessage({
+        failureTypeOrReason: wsFailCode,
         task,
-        finalUrl: wsObs.pageUrl,
+        finalUrl: wsObs.pageUrl || String((normalized.raw as Record<string, unknown>)?.finalUrl || ''),
         headlessMcp: isDockerHeadlessMcpGui(),
         alreadyHandoff: handoffAlreadyAttempted || Boolean(input.state.meta?.guiHandoffAttempted),
+        hasScreenshot: Boolean(wsObs.screenshotDataUrl),
       })
       return {
         ok: false,
         agent: 'gui',
-        output: blockedMsg || normalized.answer,
+        output: failMsg || normalized.answer,
         query: task,
-        parsed: extractStructuredPayload(blockedMsg || normalized.answer),
+        parsed: extractStructuredPayload(failMsg || normalized.answer),
         evidence: {
           kind: 'gui',
           query: task,
@@ -798,17 +887,20 @@ export async function executeGuiStep(
           finalUrl: String((normalized.raw as Record<string, unknown>)?.finalUrl || ''),
           engine: String((normalized.raw as Record<string, unknown>)?.engine || (normalized.raw as Record<string, unknown>)?.executionEngine || ''),
           failed: true,
+          hasScreenshot: Boolean(wsObs.screenshotDataUrl),
         },
         rawResult: normalized.raw,
         meta: {
           agentResult: normalized.agentResult,
-          ...buildGuiSemanticBlockMeta(wsFailureType, true),
+          ...(isGuiHumanHandoffFailure(wsFailCode)
+            ? buildGuiSemanticBlockMeta(wsFailCode, true)
+            : {}),
         },
-        error: wsFailureType || 'task_blocked',
+        error: resolveGuiBlockedErrorCode(wsFailCode),
       }
     }
     return {
-      ok: normalized.agentResult.ok !== false,
+      ok: true,
       agent: 'gui',
       output: normalized.answer,
       query: task,
@@ -820,11 +912,10 @@ export async function executeGuiStep(
         items: sourceHits,
         finalUrl: String((normalized.raw as Record<string, unknown>)?.finalUrl || ''),
         engine: String((normalized.raw as Record<string, unknown>)?.engine || (normalized.raw as Record<string, unknown>)?.executionEngine || ''),
-        hasScreenshot: Boolean(extractGuiObservationFromRaw(normalized.raw).screenshotDataUrl),
-        ...(normalized.agentResult.ok === false ? { failed: true } : {}),
+        hasScreenshot: Boolean(wsObs.screenshotDataUrl),
       },
       rawResult: normalized.raw,
-      meta: { agentResult: normalized.agentResult }
+      meta: { agentResult: normalized.agentResult },
     }
   } catch (e: unknown) {
     const err = String((e as Error)?.message || e || 'unknown error')

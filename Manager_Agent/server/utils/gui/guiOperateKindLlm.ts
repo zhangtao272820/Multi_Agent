@@ -10,7 +10,7 @@ import {
   normalizeManagerGuiTaskKind,
   type ManagerGuiTaskKind,
 } from '#agent-shared/managerTaskEnvelope'
-import { listKnownGuiWorkflowIds, sanitizeGuiWorkflowId } from './guiWorkflowAllowlist'
+import { listKnownGuiWorkflowIds, resolveGuiWorkflowForTaskKind } from './guiWorkflowAllowlist'
 
 const WorkflowArgsSchema = z.record(z.unknown()).optional()
 
@@ -72,9 +72,10 @@ function systemPrompt(): string {
     '',
     'needs_login：任务明确需要登录态或登录页时为 true。',
     '',
-    'workflow_id（可选）：仅当用户明确指定工作流/宏名，或明确要求跑下列已知黄金宏时填写。',
+    'workflow_id（可选）：仅当 task_kind=form_fill 且用户明确指定工作流/宏名，或明确要求跑下列已知黄金宏时填写。',
     `- 允许的宏 id（禁止编造其它 id）：${known}`,
-    '- httpbin-form-fill：httpbin.org/forms/post 填 Customer name',
+    '- httpbin-form-fill：仅 form_fill + httpbin.org/forms/post 填 Customer name',
+    '- navigate / extract / search / multi_step：必须省略 workflow_id（禁止误挂 form 宏）',
     '- 不确定或仅为「打开网页/点链接/抽标题」→ 省略 workflow_id，只出 task_kind',
     'workflow_args（可选）：宏参数对象。httpbin-form-fill 需 customer_name；startUrl 若任务含 URL 可写入。',
     '勿把普通填表误判为必须走宏；无明确宏意图时只出 task_kind。',
@@ -97,10 +98,10 @@ function decisionFromParsed(data: z.infer<typeof GuiOperateKindSchema>): GuiOper
   const kind = normalizeManagerGuiTaskKind(data.task_kind)
   if (!kind) return null
   const rawWf = String(data.workflow_id || '').trim() || undefined
-  const sanitized = sanitizeGuiWorkflowId(rawWf)
-  const workflow_id = sanitized.ok ? sanitized.id : undefined
+  const resolved = resolveGuiWorkflowForTaskKind(rawWf, kind)
+  const workflow_id = resolved.ok ? resolved.id : undefined
   const dropped_workflow_id =
-    !sanitized.ok && sanitized.dropped ? sanitized.dropped : undefined
+    !resolved.ok && resolved.dropped ? resolved.dropped : undefined
   const workflow_args =
     data.workflow_args && typeof data.workflow_args === 'object' && !Array.isArray(data.workflow_args)
       ? (data.workflow_args as Record<string, unknown>)

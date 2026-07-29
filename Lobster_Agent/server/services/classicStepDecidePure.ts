@@ -6,7 +6,7 @@ import {
   type ClassicStepDecideParsed,
 } from './classicStepDecideSchema'
 import { isResultPageGateEnabled } from './classicStepDecideSchema'
-import { isResultListUrl, isSearchOpenDestinationUrl } from './lobsterAgent/leanBrowsePolicy'
+import { isResultListUrl, isSearchOpenDestinationUrl, hasLeftStartPage } from './lobsterAgent/leanBrowsePolicy'
 import type { IntentCall } from './lobsterAgent/schemas'
 import type { StepDecideObservation } from './classicStepDecideTypes'
 
@@ -41,6 +41,34 @@ export function gateStepByResultPage(
       reason: '结果页门禁：未进结果页，禁止 open/extract，先搜索',
       expect: { urlIncludes: ['wd=', '/s?', 'search'], stageHint: 'list' },
       confidence: Math.max(step.confidence, 0.75),
+    }
+  }
+  return step
+}
+
+/**
+ * 禁止在起始页误 done：mustEnterDetail 仍停在 startUrl → 改写为 open_first_result
+ * （对齐总管 navigation_unverified：打开≠进入详情）
+ */
+export function gateDoneByEnterDetail(
+  step: ClassicStepDecideParsed,
+  observation: StepDecideObservation,
+  goals?: Record<string, unknown> | null,
+  startUrl?: string,
+): ClassicStepDecideParsed {
+  if (step.intent !== 'done') return step
+  const mustEnter = !!(goals && (goals as any).mustEnterDetail)
+  if (!mustEnter) return step
+  const url = String(observation.url || '')
+  if (hasLeftStartPage(url, startUrl) && isSearchOpenDestinationUrl(url)) return step
+  // 仍在起始页，或根本不像详情：禁止 done
+  if (!hasLeftStartPage(url, startUrl) || !isSearchOpenDestinationUrl(url)) {
+    return {
+      intent: 'open_first_result',
+      args: {},
+      reason: '门禁：须进入详情/教程页后才能 done（当前仍在起始页或列表页）',
+      expect: { stageHint: 'detail' },
+      confidence: Math.max(Number(step.confidence || 0), 0.82),
     }
   }
   return step
@@ -113,22 +141,25 @@ export function maybeLeanExtractShortcut(input: {
 }
 
 /**
- * OpenClaw 对齐：search_open 已进入详情（非 SERP）且有标题 → 立刻 done
+ * OpenClaw 对齐：search_open 已进入详情（非 SERP、且已离开 startUrl）且有标题 → 立刻 done
  * 避免 StepDecide 空转 wait / 误 open_first 被门禁打回 search。
+ * 禁止把站点首页（如 runoob.com/）当成详情 done。
  */
 export function maybeLeanOpenDoneShortcut(input: {
   observation: StepDecideObservation
   task: string
   goals?: Record<string, unknown> | null
+  startUrl?: string
 }): ClassicStepDecideParsed | null {
   const g = input.goals && typeof input.goals === 'object' ? input.goals : {}
   const t = String(input.task || '')
   const needsOpen =
     !!(g as any).mustEnterDetail ||
-    /打开第|第一条|第一个|首条|first\s*result|点.*第一条|进入.*结果/i.test(t) ||
+    /打开第|第一条|第一个|首条|first\s*result|点.*第一条|进入.*结果|教程链接/i.test(t) ||
     (/搜索|search/i.test(t) && /标题|链接|url|告诉我|提取/i.test(t))
   if (!needsOpen) return null
   const url = String(input.observation.url || '')
+  if (!hasLeftStartPage(url, input.startUrl)) return null
   if (!isSearchOpenDestinationUrl(url)) return null
   const title = String(input.observation.title || '').trim()
   const snippet = String(input.observation.pageTextSnippet || '').trim()

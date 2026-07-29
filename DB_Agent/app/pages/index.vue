@@ -17,6 +17,7 @@ import { useDbChatPage } from "~/composables/useDbChatPage";
 import { useOceanCanvasRef } from "~/composables/useOceanCanvas";
 
 useHead({
+  title: "禄存 · DB Agent",
   bodyAttrs: {
     class: "space-bg",
   },

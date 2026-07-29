@@ -4,7 +4,7 @@
     <div class="content-wrapper">
       <header class="main-header">
         <div class="header-row">
-          <h1 class="title">数据提取助手</h1>
+          <h1 class="title">巨门 · 数据提取</h1>
           <button
             type="button"
             class="capability-badge"
@@ -285,6 +285,8 @@
 <script setup lang="ts">
 import VideoBackground from '../components/VideoBackground.vue'
 type LogLine = { level: 'info' | 'warn' | 'error'; message: string; ts: number }
+
+useHead({ title: '巨门 · Extractor' })
 
 const runtimeConfig = useRuntimeConfig()
 const wsPath = String((runtimeConfig as any)?.public?.wsPath ?? '/_ws')

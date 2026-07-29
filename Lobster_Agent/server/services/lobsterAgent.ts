@@ -30,6 +30,7 @@ import {
   shouldSpendVisionThisTurn,
   isResultListUrl,
   isSearchOpenDestinationUrl,
+  hasLeftStartPage,
 } from './lobsterAgent/leanBrowsePolicy'
 import {
   classicStepDecide,
@@ -3865,6 +3866,12 @@ if (!visionHasOverlay && it === 'dismiss_overlays') return true
           summary: (taskSpec as any)?.summary || {},
           successCriteria: (taskSpec as any)?.successCriteria || parseSuccessCriteria((taskSpec as any)?.summary?.successCriteria),
           completionCriteria: (taskSpec as any)?.completionCriteria || {},
+          startUrl: String(
+            (state as any).startUrl ||
+              (state as any).plan?.startUrl ||
+              params.startUrl ||
+              '',
+          ).trim() || undefined,
         },
         observation: {
           url: String(state.pageUrl || ''),
@@ -3909,7 +3916,12 @@ if (!visionHasOverlay && it === 'dismiss_overlays') return true
       })
       emitLog('warn', 'StepDecide 低置信/失败，等待重感知（不回落 regex suggestedIntents）')
       // OpenClaw：已在详情仍决策失败 → 直接 done，禁止 wait 死循环后再触发 maxSteps / 回退 MCP 搜百度
+      // 必须已离开 startUrl，禁止把站点首页当成详情
+      const startUrlNow = String(
+        (state as any).startUrl || (state as any).plan?.startUrl || params.startUrl || '',
+      ).trim()
       if (
+        hasLeftStartPage(String(state.pageUrl || ''), startUrlNow) &&
         isSearchOpenDestinationUrl(String(state.pageUrl || '')) &&
         (String(state.pageTitle || '').trim().length >= 2 || String(state.pageText || '').trim().length >= 40)
       ) {
@@ -3924,7 +3936,24 @@ if (!visionHasOverlay && it === 'dismiss_overlays') return true
         )
       }
       const waitStreak = Number((state as any).stepDecideWaitStreak || 0) + 1
+      const mustEnterNow = !!(goals && (goals as any).mustEnterDetail)
       if (waitStreak >= 2) {
+        if (
+          mustEnterNow &&
+          !hasLeftStartPage(String(state.pageUrl || ''), startUrlNow)
+        ) {
+          // open_first_result 是 Intent，不是 Action；必须经 runIntent 落地为 goto/click
+          emitLog('warn', `StepDecide 连续等待且仍在起始页，强制 open_first_result`)
+          const grounded = await runIntent({
+            intent: 'open_first_result',
+            reason: 'step_decide_wait_streak:force_enter_detail',
+          })
+          return applyDecision(grounded.action, {
+            ...grounded.patch,
+            decisionSource: 'step_decide_wait_enter',
+            stepDecideWaitStreak: 0,
+          }, true)
+        }
         emitLog('warn', `StepDecide 连续 wait ${waitStreak} 次，强制 done/recover 跳出`)
         return applyDecision(
           { type: 'done', reason: 'step_decide_wait_streak:break_loop' },
@@ -5801,12 +5830,43 @@ const riskMeta = await applyActionPolicy({ actionType: 'click', intent, selector
       'classic',
       {
         confirmCount: Number((finalState as any).confirmCount || 0),
-        failureType: String((finalState as any).failureType || '').trim() || undefined,
         answer: (() => {
           const title = String((finalState as any).pageTitle || '').trim()
           const url = String(finalState.pageUrl || '').trim()
-          if (title && url && isSearchOpenDestinationUrl(url)) {
+          const start = String(
+            (finalState as any).startUrl ||
+              (finalState as any).plan?.startUrl ||
+              params.startUrl ||
+              '',
+          ).trim()
+          // 禁止用起始页标题冒充「已打开详情」答案（总管会误判成功或对不齐）
+          if (
+            title &&
+            url &&
+            hasLeftStartPage(url, start) &&
+            isSearchOpenDestinationUrl(url)
+          ) {
             return `标题：${title}\n链接：${url}`
+          }
+          return undefined
+        })(),
+        failureType: (() => {
+          const existing = String((finalState as any).failureType || '').trim()
+          if (existing) return existing
+          const g =
+            (finalState as any).goals ||
+            (finalState as any).taskSpec?.goals ||
+            (finalState as any).plan?.goals
+          const mustEnter = !!(g && (g as any).mustEnterDetail)
+          const url = String(finalState.pageUrl || '').trim()
+          const start = String(
+            (finalState as any).startUrl ||
+              (finalState as any).plan?.startUrl ||
+              params.startUrl ||
+              '',
+          ).trim()
+          if (mustEnter && start && !hasLeftStartPage(url, start)) {
+            return 'navigation_unverified'
           }
           return undefined
         })(),

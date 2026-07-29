@@ -2185,7 +2185,7 @@ function App() {
         <div className="app-assistant-card mb-6">
           <div className="app-assistant-avatar" aria-hidden>A</div>
           <div className="min-w-0">
-            <div className="app-assistant-name">个人助理</div>
+            <div className="app-assistant-name">天梁 · 个人助理</div>
             <div className="app-assistant-status">{greeting} · 在线</div>
           </div>
         </div>

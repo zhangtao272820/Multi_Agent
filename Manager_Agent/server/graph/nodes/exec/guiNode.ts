@@ -5,7 +5,7 @@ import type { ManagerGraphState } from '../../state/state'
 import { createExecContext } from './context'
 import { compactStepInput } from './helpers'
 import type { CreateExecutionNodesDeps } from './types'
-import { detectGuiSemanticBlockFromState } from '../../../utils/gui/guiHumanConfirm'
+import { detectGuiSemanticBlockFromState, isGuiHumanHandoffFailure } from '../../../utils/gui/guiHumanConfirm'
 
 
 export function buildGuiNode(deps: CreateExecutionNodesDeps) {
@@ -118,29 +118,46 @@ export function buildGuiNode(deps: CreateExecutionNodesDeps) {
       error: outcome.ok ? undefined : outcome.error,
       at: new Date().toISOString()
     })
-    if (!outcome.ok) {
-      notifyAgentFailure('gui', String(outcome.error || 'gui step failed'))
-    }
     const outcomeMeta =
       outcome.meta && typeof outcome.meta === 'object' ? (outcome.meta as Record<string, unknown>) : {}
     const agentResult =
       outcomeMeta.agentResult && typeof outcomeMeta.agentResult === 'object'
         ? (outcomeMeta.agentResult as Record<string, unknown>)
         : null
-    const needsClarify = Boolean(outcomeMeta.needsClarify || agentResult?.needs_clarify)
     const semanticBlock = detectGuiSemanticBlockFromState({
       evidence: [guiEvidence],
       results: { gui: answer },
       meta: outcomeMeta,
     })
+    const failureCode = String(
+      outcome.error || agentResult?.error_code || semanticBlock.failureType || '',
+    )
+      .trim()
+      .toLowerCase()
+    const handoffBlocked =
+      semanticBlock.blocked ||
+      isGuiHumanHandoffFailure(failureCode) ||
+      failureCode === 'task_blocked'
+    // 缺槽澄清 ≠ GUI handoff；后者不得写 needsClarify
+    const needsClarify =
+      !handoffBlocked && Boolean(outcomeMeta.needsClarify || agentResult?.needs_clarify)
     const metaPatch: Record<string, unknown> = {}
-    if (needsClarify || semanticBlock.blocked) metaPatch.needsClarify = true
+    if (needsClarify) metaPatch.needsClarify = true
     if (outcomeMeta.guiSemanticBlocked) {
       metaPatch.guiSemanticBlocked = outcomeMeta.guiSemanticBlocked
     } else if (semanticBlock.failureType) {
       metaPatch.guiSemanticBlocked = semanticBlock.failureType
     }
     if (outcomeMeta.guiHandoffAttempted) metaPatch.guiHandoffAttempted = true
+    if (!outcome.ok) {
+      const toastCode =
+        failureCode === 'empty_result' || !failureCode
+          ? handoffBlocked
+            ? String(semanticBlock.failureType || 'task_blocked')
+            : 'task_blocked'
+          : String(outcome.error || agentResult?.error_code || 'gui step failed')
+      notifyAgentFailure('gui', toastCode)
+    }
     return {
       results: { gui: answer },
       evidence: [guiEvidence],

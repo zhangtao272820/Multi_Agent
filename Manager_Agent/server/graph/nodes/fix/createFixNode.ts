@@ -85,7 +85,6 @@ export function createFixNode(deps: CreateFixNodeDeps) {
       return {
         meta: mergeMeta(state, {
           synthOnlyRepair: true,
-          needsClarify: true,
           ...(guiSemanticBlock.failureType ? { guiSemanticBlocked: guiSemanticBlock.failureType } : {}),
         }),
       }

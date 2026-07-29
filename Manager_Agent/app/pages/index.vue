@@ -121,6 +121,8 @@
 import AppModal from '~/components/AppModal.vue'
 import ManagerTraceDrawer from '~/components/workbench/ManagerTraceDrawer.vue'
 
+useHead({ title: '天机 · Manager' })
+
 const {
   agentCosmicActive,
   workbenchMode,

@@ -57,6 +57,29 @@ assert(!fakeWf?.workflow_id, 'unknown workflow stripped')
 assert(fakeWf?.dropped_workflow_id === 'navigate-and-extract-title', 'dropped id recorded')
 assert(fakeWf?.task_kind === 'navigate', 'task_kind kept after strip')
 
+const mismatchWf = guiOperateKindFromMeta({
+  guiOperateKind: {
+    task_kind: 'navigate',
+    needs_login: false,
+    confidence: 0.95,
+    rationale: '打开网页点链接',
+    workflow_id: 'httpbin-form-fill',
+  },
+})
+assert(!mismatchWf?.workflow_id, 'navigate drops form-fill macro')
+assert(mismatchWf?.dropped_workflow_id === 'httpbin-form-fill', 'incompatible macro recorded')
+
+const extractMismatch = guiOperateKindFromMeta({
+  guiOperateKind: {
+    task_kind: 'extract',
+    needs_login: false,
+    confidence: 0.9,
+    rationale: '抽标题',
+    workflow_id: 'httpbin-form-fill',
+  },
+})
+assert(!extractMismatch?.workflow_id, 'extract drops form-fill macro')
+
 const wfSchema = GuiOperateKindSchema.safeParse({
   task_kind: 'form_fill',
   needs_login: false,

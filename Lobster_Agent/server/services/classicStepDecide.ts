@@ -13,16 +13,23 @@ import {
 } from './classicStepDecideSchema'
 import {
   gateStepByResultPage,
+  gateDoneByEnterDetail,
   maybeLeanExtractShortcut,
   maybeLeanOpenDoneShortcut,
   toIntentCall,
 } from './classicStepDecidePure'
 import type { StepDecideObservation, StepDecideTaskSpec } from './classicStepDecideTypes'
-import { isResultListUrl, isSearchOpenDestinationUrl } from './lobsterAgent/leanBrowsePolicy'
+import { isResultListUrl } from './lobsterAgent/leanBrowsePolicy'
 import { stageAllowsIntent, type PageStage } from './adapters/pageStages'
 
 export type { StepDecideObservation, StepDecideTaskSpec }
-export { gateStepByResultPage, maybeLeanExtractShortcut, maybeLeanOpenDoneShortcut, toIntentCall }
+export {
+  gateStepByResultPage,
+  gateDoneByEnterDetail,
+  maybeLeanExtractShortcut,
+  maybeLeanOpenDoneShortcut,
+  toIntentCall,
+}
 
 function extractFirstJsonObject(text: string): Record<string, unknown> | null {
   const s = String(text || '').trim()
@@ -57,12 +64,14 @@ const STEP_DECIDE_SYSTEM = [
   '允许的 intent：goto, search, open_first_result, click_candidate, type_into, scroll, wait, paginate_next, extract_items, perform, play, like, coin, follow, favorite, click_by_bbox, click_by_text, dismiss_overlays, reload, back, need_crawl, done',
   '',
   '规则：',
-  '- 未进入搜索结果页（URL 无 /s? 或 wd=/q=/search）时，禁止 open_first_result / extract_items（应先 search 或 goto 直达结果页）。',
+  '- 任务含 mustSearch 且未进入搜索结果页（URL 无 /s? 或 wd=/q=/search）时，禁止 open_first_result / extract_items（应先 search 或 goto 直达结果页）。',
+  '- 站点首页浏览（无 mustSearch，如打开教程站首页再点第一个教程）：允许 open_first_result / click_candidate；禁止把首页当成详情 done。',
   '- 已在结果列表且任务要抽第一条：优先 extract_items；要打开第一条：open_first_result（点结果区链接，勿点频道导航）。',
-  '- 已进入非搜索列表的详情页（如文章/教程页）且任务是打开第一条并取标题链接：必须立刻 done，禁止 wait / back / 再 search。',
+  '- 已进入非搜索列表的详情页（如文章/教程内页，URL 已离开任务起始页）且任务是打开第一条并取标题链接：必须立刻 done，禁止 wait / back / 再 search。',
+  '- 仍在任务起始页（仅打开首页）时禁止 done；须先 open_first_result / click_candidate 进入教程/详情。',
   '- click_candidate / type_into 必须用 candidates 里的 cid。',
   '- confidence < 0.5 表示看不清，系统会 recover，不要瞎猜。',
-  '- 已完成目标则 done。',
+  '- 已完成目标（已进详情且标题/内容可得）则 done。',
 ].join('\n')
 
 export async function classicStepDecide(input: {
@@ -74,12 +83,14 @@ export async function classicStepDecide(input: {
 }) {
   if (!isClassicStepDecideEnabled()) return null
 
+  const startUrl = String(input.taskSpec.startUrl || '').trim() || undefined
   const openDone = maybeLeanOpenDoneShortcut({
     observation: input.observation,
     task: input.task,
     goals: input.taskSpec.goals,
+    startUrl,
   })
-  if (openDone) return openDone
+  if (openDone) return gateDoneByEnterDetail(openDone, input.observation, input.taskSpec.goals, startUrl)
 
   const lean = maybeLeanExtractShortcut({
     observation: input.observation,
@@ -144,6 +155,7 @@ export async function classicStepDecide(input: {
     }
 
     step = gateStepByResultPage(step, input.observation, goals) || step
+    step = gateDoneByEnterDetail(step, input.observation, goals, startUrl)
     return step
   } catch {
     return null

@@ -106,7 +106,7 @@ export function createEvaluatorNode(deps: CreateEvaluatorNodeDeps) {
       needsClarify || hasFailedAdminEvidence
         ? 'clarify'
         : guiSemanticBlock.blocked
-          ? 'accept'
+          ? 'clarify'
           : !visualizeIntegrityOk
             ? 'retry'
             : hasFailedGuiEvidence

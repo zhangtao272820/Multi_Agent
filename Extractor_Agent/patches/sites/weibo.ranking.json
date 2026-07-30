@@ -1,8 +1,0 @@
-{
-  "id": "weibo.ranking",
-  "targetSite": "weibo",
-  "contentType": "ranking",
-  "defaultSeedUrls": ["https://s.weibo.com/top/summary?cate=realtimehot"],
-  "preferChannel": "http",
-  "antiBotRisk": "medium"
-}

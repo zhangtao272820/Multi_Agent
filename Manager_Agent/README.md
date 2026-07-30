@@ -22,7 +22,7 @@ Manager 不替代 DB、RAG、Code、Extractor 等专业能力，只负责：
 | 编排状态机 | `probe → route → plan → execute → synthesize → critic` |
 | 协作姿态 | Ask / Plan / Agent / Debug（输入区下拉，约束读写与确认） |
 | 工作台模式 | 对话 / 专业（顶栏，控制编排深度） |
-| Agent 注册表 | `GET /api/agents/registry`：能力、端点、健康快照 |
+| Agent 注册表 | `GET /api/agents/registry`：能力、端点、健康快照（调度权威；与 ClawHive 技能表边界见 [`docs/registry-boundary.md`](../docs/registry-boundary.md)） |
 | 工具健康 | `tool_health` 覆盖 db～video；`down` 不进入 `allowedAgents` |
 | 自我进化 | 向量记忆、Prompt 补丁、Planner 规则、策略金丝雀、进化看板 |
 | 媒体代理 | 音乐/视频产物同源播放（Docker 下可配 `MUSIC_AGENT_HTTP_URL` / `VIDEO_AGENT_HTTP_URL`） |
@@ -98,7 +98,7 @@ npm run smoke:preflight -- --live  # 再确认 Manager/DB/RAG 已 ready
 ## 自我进化
 
 - **向量召回**（默认开）：experience / plan_outcome → `.data/manager-memory-embeddings.jsonl`
-- **用户画像**：`.data/manager-user-profiles.json`，按 `sessionId` 注入路由 longMemory
+- **用户画像**：跨会话以 PG `mgr_user_profiles`（`user_key`）为权威；会话侧仍可写 `.data/manager-user-profiles.json`（`MANAGER_STORAGE_BACKEND` 默认 dual）
 - **Prompt 补丁**：shadow → 晋级后注入 router/planner
 - **策略金丝雀**：`MANAGER_POLICY_CANARY_PERCENT=5` 时约 5% 会话用 shadow policy
 - **Planner 硬规则**：`.data/manager-planner-rules.json`，经 `plan_lint` 强制执行
@@ -119,7 +119,7 @@ npm run smoke:preflight -- --live  # 再确认 Manager/DB/RAG 已 ready
 |-----|------|----------|
 | db | `DB_Agent` | 13101 |
 | rag | `RAG_Agent` | 13102 |
-| code | `code_assistent_Agent` | 13103 |
+| code | `CodePy_Agent`（服务 `code_assistent_agent`） | 13103 |
 | crawler | `Extractor_Agent` | 13104 |
 | admin | `AI_admin_Agent` | 13105 |
 | multimodal | `Multimodal_Agent` | 13107 |

@@ -142,11 +142,16 @@ export function tryDeterministicCodeFromDbResults(
   return tryDeterministicStructuralCode(results, extractPayload)
 }
 
-/** DB 已有结构化 facts：Code 仅字段归并（可多源 db+crawler），跳过 Code Agent WS */
+/**
+ * 单源 DB（+可选 clean）时：Code 仅字段归并，跳过 Code Agent。
+ * 多源（db+rag/crawler）必须走 Code Agent compute/对照，禁止把 clean 机械堆砌当计算结果。
+ */
 export function tryDeterministicStructuralCode(
   results: Record<string, unknown>,
   extractPayload: ExtractPayloadFn
 ): string | null {
+  if (isMultiSourceDataPipeline(results)) return null
+
   const db = dbRawFromResults(results)
   if (!db || isDbEmptyText(db)) return null
 

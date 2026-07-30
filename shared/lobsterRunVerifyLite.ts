@@ -1,5 +1,7 @@
 /** Lobster GUI run verify（Manager / Lobster / smoke 共用，无运行时依赖） */
 
+import { extractAllHttpUrls, sanitizeExtractedHttpUrl } from './extractHttpUrl'
+
 export type LobsterRunVerifyInput = {
   task: string
   status: string
@@ -25,7 +27,24 @@ const INFRA_FAILURE_RE =
 
 /** 网络/DNS 失败（工具原文或 LLM 改写后的中文失败文案）——不得当成功 answer */
 const NETWORK_FAILURE_RE =
-  /net::ERR_[A-Z0-9_]+|ERR_NAME_NOT_RESOLVED|ERR_CONNECTION_|ERR_TIMED_OUT|ERR_INTERNET_DISCONNECTED|ENOTFOUND|EAI_AGAIN|ECONNREFUSED|ECONNRESET|ETIMEDOUT|DNS_PROBE|域名解析(?:失败)?|无法访问目标页面|无法解析(?:主机|域名)|name\s*not\s*resolved|getaddrinfo\s+ENOTFOUND|network\s*(?:error|unreachable|failure)/i
+  /net::ERR_[A-Z0-9_]+|ERR_NAME_NOT_RESOLVED|ERR_CONNECTION_|ERR_TIMED_OUT|ERR_INTERNET_DISCONNECTED|ENOTFOUND|EAI_AGAIN|ECONNREFUSED|ECONNRESET|ETIMEDOUT|DNS_PROBE|域名解析(?:失败)?|无法访问目标页面|无法解析(?:主机|域名)|name\s*not\s*resolved|getaddrinfo\s+ENOTFOUND|network\s*(?:error|unreachable|failure)|chrome-error|chromewebdata|This site can'?t be reached|无法访问此网站|网页无法打开|站点无法访问/i
+
+/** Chromium/浏览器错误页 URL（非真实站点） */
+export function isUnreachableBrowseUrl(url: string): boolean {
+  const s = String(url || '').trim()
+  if (!s) return false
+  const lower = s.toLowerCase()
+  if (lower.startsWith('chrome-error:') || lower.includes('chromewebdata')) return true
+  if (/^(chrome|edge|about):/i.test(s)) return true
+  return false
+}
+
+/** 可作为浏览证据的 finalUrl：须为 http(s) 且非错误页 */
+export function isHttpBrowseUrl(url: string): boolean {
+  const s = String(url || '').trim()
+  if (!s || isUnreachableBrowseUrl(s)) return false
+  return /^https?:\/\//i.test(s)
+}
 
 const SEMANTIC_FAILURE_TYPES = new Set([
   'captcha',
@@ -95,7 +114,8 @@ function collectNetworkFailureBlob(input: {
 }): string {
   const row = resultPayload(input.result)
   const ft = String(row.failureType || row.error_code || '').trim()
-  return [input.error, input.text, collectResultText(input.result), ft].filter(Boolean).join('\n')
+  const finalUrl = String(row.finalUrl || row.url || '').trim()
+  return [input.error, input.text, collectResultText(input.result), ft, finalUrl].filter(Boolean).join('\n')
 }
 
 /**
@@ -107,9 +127,13 @@ export function looksLikeNetworkFailure(blob: unknown): boolean {
     const row = blob as Record<string, unknown>
     const ft = String(row.failureType || row.error_code || '').trim().toLowerCase()
     if (ft === 'network' || ft === 'network_unreachable') return true
+    const finalUrl = String(row.finalUrl || row.url || '').trim()
+    if (isUnreachableBrowseUrl(finalUrl)) return true
     return NETWORK_FAILURE_RE.test(collectNetworkFailureBlob({ result: blob }))
   }
-  return NETWORK_FAILURE_RE.test(String(blob || ''))
+  const s = String(blob || '')
+  if (isUnreachableBrowseUrl(s)) return true
+  return NETWORK_FAILURE_RE.test(s)
 }
 
 /** 结果是否为网络/DNS 失败（含 failureType=network） */
@@ -121,6 +145,8 @@ export function isLobsterNetworkFailure(input: {
   const row = resultPayload(input.result)
   const ft = String(row.failureType || row.error_code || '').trim().toLowerCase()
   if (ft === 'network' || ft === 'network_unreachable') return true
+  const finalUrl = String(row.finalUrl || row.url || '').trim()
+  if (isUnreachableBrowseUrl(finalUrl)) return true
   return looksLikeNetworkFailure(collectNetworkFailureBlob(input))
 }
 
@@ -157,8 +183,9 @@ function isLikelySearchNotStarted(task: string, finalUrl: string): boolean {
 function isLikelyStartPageOnly(task: string, finalUrl: string, startUrlHint?: string): boolean {
   const url = String(finalUrl || '').trim()
   if (!url || CAPTCHA_URL_RE.test(url)) return false
-  const taskUrls = String(task || '').match(/https?:\/\/[^\s)\]"']+/gi) || []
-  const candidates = [String(startUrlHint || '').trim(), ...taskUrls.map((u) => u.replace(/[.,;:!?)]+$/, ''))].filter(Boolean)
+  const taskUrls = extractAllHttpUrls(String(task || ''))
+  const hint = sanitizeExtractedHttpUrl(String(startUrlHint || '').trim()) || ''
+  const candidates = [hint, ...taskUrls].filter(Boolean)
   if (!candidates.length) return false
   try {
     const current = new URL(url)
@@ -262,14 +289,16 @@ function hasMeaningfulTaskOutput(task: string, result: unknown): boolean {
 
   if (/(打开|点击|进入|first|第一条|导航)/i.test(task)) {
     // 纯打开：停在任务 URL 即成功（勿用 isLikelyStartPageOnly 误杀）
-    if (isOpenOnlyBrowseTask(task) && finalUrl && !CAPTCHA_URL_RE.test(finalUrl)) return true
-    if (finalUrl && !CAPTCHA_URL_RE.test(finalUrl) && !isLikelyStartPageOnly(task, finalUrl)) return true
+    if (isOpenOnlyBrowseTask(task) && isHttpBrowseUrl(finalUrl) && !CAPTCHA_URL_RE.test(finalUrl)) return true
+    if (isHttpBrowseUrl(finalUrl) && !CAPTCHA_URL_RE.test(finalUrl) && !isLikelyStartPageOnly(task, finalUrl)) {
+      return true
+    }
     if (items.length > 0) return true
     // 仍在起始页：禁止仅靠 answer（首页标题冒充详情）过 verify
     if (isLikelyStartPageOnly(task, finalUrl)) return false
     if (
       answer.length > 24 &&
-      finalUrl &&
+      isHttpBrowseUrl(finalUrl) &&
       !CAPTCHA_URL_RE.test(finalUrl) &&
       !looksLikeNetworkFailure(answer)
     ) {
@@ -278,7 +307,7 @@ function hasMeaningfulTaskOutput(task: string, result: unknown): boolean {
     return false
   }
 
-  if (finalUrl && !CAPTCHA_URL_RE.test(finalUrl)) return true
+  if (isHttpBrowseUrl(finalUrl) && !CAPTCHA_URL_RE.test(finalUrl)) return true
   return false
 }
 
@@ -317,7 +346,8 @@ export function hasLobsterBrowseEvidence(result?: unknown): boolean {
   if (isLobsterNetworkFailure({ result })) return false
   const row = resultPayload(result)
   const finalUrl = String(row.finalUrl || row.url || '').trim()
-  if (finalUrl && !CAPTCHA_URL_RE.test(finalUrl)) return true
+  if (finalUrl && !isHttpBrowseUrl(finalUrl)) return false
+  if (isHttpBrowseUrl(finalUrl) && !CAPTCHA_URL_RE.test(finalUrl)) return true
   if (collectResultItems(result).length > 0) return true
   const answer = String(row.answer || row.summary || '').trim()
   if (looksLikeNetworkFailure(answer)) return false

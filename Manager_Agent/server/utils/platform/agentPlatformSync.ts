@@ -19,7 +19,9 @@ const NAME_TO_ENV: Record<string, Partial<Record<keyof ResolvedAgentEndpoints, '
   DB_Agent: { dbAgentHttpUrl: 'http', dbAgentWsUrl: 'ws' },
   RAG_Agent: { ragAgentHttpUrl: 'http' },
   code_assistent_Agent: { codeAgentWsUrl: 'ws' },
+  CodePy_Agent: { codeAgentWsUrl: 'ws' },
   Extractor_Agent: { crawlerAgentWsUrl: 'ws' },
+  ExtractorPy_Agent: { crawlerAgentWsUrl: 'ws' },
   Lobster_Agent: { lobsterAgentWsUrl: 'ws' },
   LobsterPy_Agent: { lobsterAgentWsUrl: 'ws' },
   AI_admin_Agent: { aiAdminAgentWsUrl: 'ws' },
@@ -45,7 +47,16 @@ function wsFromHttp(httpBase: string, suffix: string) {
 
 function deriveWsUrl(name: string, httpBase: string) {
   if (name === 'DB_Agent') return wsFromHttp(httpBase, '/api/chat.ws')
-  if (name === 'code_assistent_Agent' || name === 'Extractor_Agent' || name === 'Lobster_Agent' || name === 'LobsterPy_Agent') return wsFromHttp(httpBase, '/_ws')
+  if (
+    name === 'code_assistent_Agent' ||
+    name === 'CodePy_Agent' ||
+    name === 'Extractor_Agent' ||
+    name === 'ExtractorPy_Agent' ||
+    name === 'Lobster_Agent' ||
+    name === 'LobsterPy_Agent'
+  ) {
+    return wsFromHttp(httpBase, '/_ws')
+  }
   if (name === 'AI_admin_Agent') return wsFromHttp(httpBase, '/api/chat/ws')
   if (name === 'Music_Agent') return wsFromHttp(httpBase, '/ws')
   if (name === 'Video_Agent') return wsFromHttp(httpBase, '/ws/video')
@@ -56,7 +67,9 @@ const PLATFORM_OFFLINE_TO_CAPABILITY: Record<string, string[]> = {
   DB_Agent: ['db'],
   RAG_Agent: ['rag'],
   code_assistent_Agent: ['code'],
+  CodePy_Agent: ['code'],
   Extractor_Agent: ['crawler'],
+  ExtractorPy_Agent: ['crawler'],
   Lobster_Agent: ['gui'],
   LobsterPy_Agent: ['gui'],
   AI_admin_Agent: ['admin'],

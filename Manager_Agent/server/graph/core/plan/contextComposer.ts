@@ -172,13 +172,13 @@ export async function composeManagerPromptContext(
     const longMemory = skipLongMemoryForRoute
       ? { text: '', items: [], counts: { success: 0, failure: 0, similar: 0 } }
       : isLayeredMemoryEnabled()
-        ? await buildLayeredMemoryRecall(policyDir, heuristicsText, sessionId).catch(() => ({
+        ? await buildLayeredMemoryRecall(policyDir, heuristicsText, sessionId, userId).catch(() => ({
             text: '',
             items: [],
             counts: { success: 0, failure: 0, similar: 0 },
             layers: { working: false, semantic: false, experience: false, reflection: false, profile: false }
           }))
-        : await buildLongMemoryRecall(policyDir, heuristicsText, sessionId).catch(() => ({
+        : await buildLongMemoryRecall(policyDir, heuristicsText, sessionId, userId).catch(() => ({
             text: '',
             items: [],
             counts: { success: 0, failure: 0, similar: 0 }
@@ -294,7 +294,7 @@ export async function composeManagerPromptContext(
     }
 
     if (policyDir && isLayeredMemoryEnabled() && !skipLayeredMemoryForPlanner) {
-      const layered = await buildLayeredMemoryRecall(policyDir, heuristicsText, sessionId).catch(() => ({ text: '' }))
+      const layered = await buildLayeredMemoryRecall(policyDir, heuristicsText, sessionId, userId).catch(() => ({ text: '' }))
       longMemoryItemCount = Array.isArray((layered as any).items) ? (layered as any).items.length : 0
       if (trimBlock(layered.text)) blocks.push(layered.text)
     }

@@ -19,6 +19,13 @@ import { buildActionCardsFromHumanConfirm } from './actionCard'
 
 export { looksLikeExecAuditDump, stripStructuredExecReport }
 
+/** 与 synthShapePolicy / dbPipeline 对齐：≥2 个数据面专才有输出即多源 */
+function isMultiSourceDataPipeline(results?: Record<string, unknown> | null): boolean {
+  if (!results || typeof results !== 'object') return false
+  const hits = ['db', 'rag', 'crawler', 'code'].filter((k) => String(results[k] ?? '').trim().length > 0)
+  return hits.length >= 2
+}
+
 export type UserFacingOutcome = 'completed' | 'failed' | 'needs_human'
 
 export type UserFacingMetric = { label: string; value: string }
@@ -103,8 +110,161 @@ function looksLikeDeveloperDump(text: string): boolean {
   if (/#{1,3}\s*执行摘要/.test(s)) return true
   if (/关于数据来源的说明/.test(s) && /置信度|不可信/.test(s)) return true
   if (/```\s*agent_result\b/i.test(s)) return true
+  // 管线 dump 主导：多条 agent: 回显且几乎无用户叙述
+  const pipelineLines = (s.match(
+    /^(?:[-*•]\s*)?(?:✓|×|−|○|✔|✖)?\s*(db|rag|crawler|code|clean|visualize|report|admin|gui)\s*[：:]/gim
+  ) || []).length
+  if (pipelineLines >= 3 && s.length < 800) return true
   return false
 }
+
+/** 库表审计 / ORM 系统列（返回体结构清洗，非用户意图识别） */
+const SYSTEM_AUDIT_COLUMN_RE =
+  /^(创建人|创建时间|修改人|修改时间|逻辑删除|删除标志|del[_]?flag|is[_]?deleted|create[_]?by|update[_]?by|create[_]?time|update[_]?time|tenant[_]?id|created[_]?at|updated[_]?at|deleted[_]?at|gmt[_]?create|gmt[_]?modified)$/i
+
+export function isSystemAuditColumn(header: string): boolean {
+  const h = String(header || '')
+    .trim()
+    .replace(/\s+/g, '')
+  if (!h) return false
+  return SYSTEM_AUDIT_COLUMN_RE.test(h)
+}
+
+/** 从表中剥离系统列，保留业务列；若全被剥掉则返回 null */
+export function dropSystemAuditColumns(table: {
+  headers: string[]
+  rows: string[][]
+}): { headers: string[]; rows: string[][] } | null {
+  const headers = Array.isArray(table.headers) ? table.headers : []
+  const keepIdx: number[] = []
+  for (let i = 0; i < headers.length; i++) {
+    if (!isSystemAuditColumn(headers[i]!)) keepIdx.push(i)
+  }
+  if (!keepIdx.length) return null
+  if (keepIdx.length === headers.length) return table
+  return {
+    headers: keepIdx.map((i) => headers[i]!),
+    rows: (table.rows || []).map((row) => keepIdx.map((i) => String(row[i] ?? '')))
+  }
+}
+
+function formatMarkdownTable(table: { headers: string[]; rows: string[][] }): string {
+  const sep = table.headers.map(() => '---')
+  const lines = [
+    `| ${table.headers.join(' | ')} |`,
+    `| ${sep.join(' | ')} |`,
+    ...table.rows.map((r) => `| ${r.join(' | ')} |`)
+  ]
+  return lines.join('\n')
+}
+
+/**
+ * 正文内 Markdown 表：剥掉系统审计列（确定性结构清洗）。
+ * 整表仅剩系统列时删除该表。
+ */
+export function stripSystemAuditColumnsFromMarkdown(text: string): string {
+  const s = String(text || '')
+  if (!s.includes('|')) return s
+  const lines = s.split('\n')
+  const out: string[] = []
+  let i = 0
+  while (i < lines.length) {
+    const line = lines[i]!
+    const t = line.trim()
+    if (!t.includes('|') || /^[-*•]/.test(t)) {
+      out.push(line)
+      i++
+      continue
+    }
+    // 收集连续表行
+    const block: string[] = []
+    let j = i
+    while (j < lines.length && lines[j]!.trim().includes('|')) {
+      block.push(lines[j]!)
+      j++
+    }
+    const parsed = parseMarkdownTable(block.join('\n'))
+    if (parsed && parsed.headers.length) {
+      // parseMarkdownTable 已 drop 系统列；若原块含系统列则重写
+      const hadSystem = block[0] && splitPipeCells(block[0]).some((c) => isSystemAuditColumn(c))
+      if (hadSystem) {
+        out.push(formatMarkdownTable(parsed))
+      } else {
+        out.push(...block)
+      }
+      i = j
+      continue
+    }
+    // 解析失败：若表头全是系统列则丢弃整块
+    const headCells = splitPipeCells(block[0] || '')
+    if (headCells.length && headCells.every((c) => isSystemAuditColumn(c) || /^:?-{3,}:?$/.test(c))) {
+      i = j
+      continue
+    }
+    out.push(...block)
+    i = j
+  }
+  return out.join('\n').replace(/\n{3,}/g, '\n\n').trim()
+}
+
+function splitPipeCells(line: string): string[] {
+  return line
+    .replace(/^\|/, '')
+    .replace(/\|$/, '')
+    .split('|')
+    .map((c) => c.trim())
+}
+
+/** 专才 stub / JSON / 机械合并串：不得进用户主列 */
+function looksLikeHandoffStubOrBlob(text: string): boolean {
+  const s = String(text || '').trim()
+  if (!s) return true
+  if (/^(db|rag|crawler|code|clean|visualize|report|admin|gui)\s*已完成$/i.test(s)) return true
+  if (/已完成$/.test(s) && s.length <= 24) return true
+  if (/^\{[\s\S]*\}$/.test(s) && /"(answer|ok|sources|facts)"\s*:/.test(s)) return true
+  if (/已机械合并/.test(s) && s.length < 200) return true
+  if (/^deferred_to_synth$/i.test(s)) return true
+  return false
+}
+
+/** 多源 / 含报告加工步：禁止把专才 dump 拼成主回复 */
+export function isHeavyUserFacingTask(input: {
+  intent?: string
+  results?: Record<string, unknown>
+  planSteps?: Array<{ agent?: string }>
+  meta?: Record<string, unknown>
+}): boolean {
+  if (isMultiSourceDataPipeline(input.results)) return true
+  const steps = Array.isArray(input.planSteps) ? input.planSteps : []
+  const agents = steps.map((s) => String(s?.agent || '').trim()).filter(Boolean)
+  if (agents.some((a) => ['report', 'clean', 'visualize'].includes(a))) return true
+  const m = input.meta && typeof input.meta === 'object' ? input.meta : {}
+  if (Boolean((m as { wantsReportHint?: boolean }).wantsReportHint)) return true
+  if (Boolean((m as { requiresAgentPipelineHint?: boolean }).requiresAgentPipelineHint)) return true
+  const intent = String(input.intent || '').trim()
+  if (intent === 'multi' || intent === 'report') {
+    const dataHits = ['db', 'rag', 'crawler', 'code'].filter(
+      (a) => String(input.results?.[a] ?? '').trim().length > 0 || agents.includes(a)
+    )
+    if (dataHits.length >= 2) return true
+  }
+  return false
+}
+
+/** 主列是否像「步骤 dump」拼接（composeFinal 用来回退完整 synth） */
+export function looksLikeStepDumpSummary(text: string): boolean {
+  const s = String(text || '').trim()
+  if (!s) return true
+  if (looksLikeHandoffStubOrBlob(s)) return true
+  const labeled = (s.match(/^(查数据库|采集网页|清洗数据|计算数据|撰写报告|检索知识库|生成图表)[：:]/gm) || [])
+    .length
+  if (labeled >= 2) return true
+  if (/report\s*已完成/i.test(s)) return true
+  if (/已机械合并/.test(s) && /\{[\s\S]*"answer"/.test(s)) return true
+  return false
+}
+
+const SYNTH_MISSING_HINT = '汇总未生成可用正文，请重试本轮任务。'
 
 function outcomeLabelZh(outcome: UserFacingOutcome): string {
   if (outcome === 'failed') return '未完成'
@@ -133,7 +293,7 @@ function collectHandoffSummaries(input: {
   const seen = new Set<string>()
   const push = (raw: string, agent?: string) => {
     const cleaned = stripDeveloperJargon(raw)
-    if (!cleaned || looksLikeDeveloperDump(cleaned)) return
+    if (!cleaned || looksLikeDeveloperDump(cleaned) || looksLikeHandoffStubOrBlob(cleaned)) return
     const key = cleaned.slice(0, 120)
     if (seen.has(key)) return
     seen.add(key)
@@ -159,9 +319,9 @@ function collectHandoffSummaries(input: {
 
   const bag = input.results && typeof input.results === 'object' ? input.results : {}
   for (const [agent, raw] of Object.entries(bag)) {
-    if (['clean', 'visualize'].includes(agent)) continue
+    if (['clean', 'visualize', 'report'].includes(agent)) continue
     const text = String(raw ?? '').trim()
-    if (!text || looksLikeDeveloperDump(text)) continue
+    if (!text || looksLikeDeveloperDump(text) || looksLikeHandoffStubOrBlob(text)) continue
     const brief = text.length > 400 ? `${text.slice(0, 400).trim()}…` : text
     if (out.length < 4) push(brief, agent)
   }
@@ -227,7 +387,7 @@ function extractTaggedBlock(raw: string, tag: string): string {
   return s.slice(bodyStart, end).trim()
 }
 
-/** 解析 markdown 表（TABLE_DATA 或 clean.tables） */
+/** 解析 markdown 表（TABLE_DATA 或 clean.tables）；自动剥离系统审计列 */
 export function parseMarkdownTable(md: string): { headers: string[]; rows: string[][] } | null {
   const lines = String(md || '')
     .split('\n')
@@ -253,7 +413,7 @@ export function parseMarkdownTable(md: string): { headers: string[]; rows: strin
     if (rows.length >= 40) break
   }
   if (!rows.length) return null
-  return { headers, rows }
+  return dropSystemAuditColumns({ headers, rows })
 }
 
 function collectModuleSlots(input: {
@@ -292,6 +452,7 @@ function collectModuleSlots(input: {
       const label = String(f.label || '').trim() || humanizeFieldKey(String(f.key || ''))
       const value = String(f.value ?? '').trim()
       if (!label || !value) continue
+      if (isSystemAuditColumn(label) || isSystemAuditColumn(String(f.key || ''))) continue
       if (DEVELOPER_JARGON_RE.test(label) || DEVELOPER_JARGON_RE.test(value)) continue
       metrics.push({ label: label.slice(0, 40), value: value.slice(0, 80) })
     }
@@ -333,7 +494,7 @@ function collectModuleSlots(input: {
         return String(v ?? '').slice(0, 120)
       })
     )
-    if (headers.length && rows.length) table = { headers, rows }
+    if (headers.length && rows.length) table = dropSystemAuditColumns({ headers, rows })
   }
   if (table) out.table = table
 
@@ -364,7 +525,7 @@ function resolveActions(input: {
 
 /**
  * 从 graph 结果组装 UserFacingPayload。
- * 优先 synth 短结论；无 synth 时用 handoff.summary；禁止专才全文 join。
+ * 优先 synth 叙述；简单任务可回退 handoff.summary；复杂/多源禁止专才 dump join。
  */
 export function buildUserFacingPayload(input: {
   finalText?: string
@@ -373,26 +534,49 @@ export function buildUserFacingPayload(input: {
   results?: Record<string, unknown>
   evidence?: unknown[]
   meta?: Record<string, unknown>
+  planSteps?: Array<{ agent?: string }>
   actions?: UserFacingActionCard[]
 }): UserFacingPayload {
   const meta = (input.meta && typeof input.meta === 'object' ? input.meta : {}) as Record<string, unknown>
   const synth = String(input.synth || input.finalText || '').trim()
   const { summary: fromSynth, appendix } = extractAppendix(synth)
+  const heavy = isHeavyUserFacingTask({
+    intent: input.intent,
+    results: input.results,
+    planSteps: input.planSteps,
+    meta
+  })
 
   let summary = fromSynth
   if (!summary || looksLikeDeveloperDump(summary)) {
-    const handoffs = collectHandoffSummaries({
-      evidence: input.evidence,
-      meta,
-      results: input.results
-    })
-    summary = handoffs.length
-      ? handoffs.join('\n\n')
-      : '暂无结论。可查看上方进展，或换个说法再试一次。'
+    if (heavy) {
+      // 复杂任务：宁可提示重试，也不把步骤 dump / report 已完成 塞进主列
+      const light = stripStructuredExecReport(stripDeveloperJargon(stripSynthPromptLeakage(synth)))
+      summary =
+        light && !looksLikeDeveloperDump(light) && !looksLikeStepDumpSummary(light)
+          ? light
+          : SYNTH_MISSING_HINT
+    } else {
+      const handoffs = collectHandoffSummaries({
+        evidence: input.evidence,
+        meta,
+        results: input.results
+      })
+      summary = handoffs.length
+        ? handoffs.join('\n\n')
+        : '暂无结论。可查看上方进展，或换个说法再试一次。'
+    }
   }
 
-  summary = stripStructuredExecReport(stripDeveloperJargon(stripSynthPromptLeakage(summary)))
-  if (!summary) summary = '暂无结论。可查看上方进展，或换个说法再试一次。'
+  summary = stripSystemAuditColumnsFromMarkdown(
+    stripStructuredExecReport(stripDeveloperJargon(stripSynthPromptLeakage(summary)))
+  )
+  if (!summary) {
+    summary = heavy ? SYNTH_MISSING_HINT : '暂无结论。可查看上方进展，或换个说法再试一次。'
+  }
+  if (heavy && looksLikeStepDumpSummary(summary)) {
+    summary = SYNTH_MISSING_HINT
+  }
 
   const outcome = resolveOutcome(meta)
   const sources: UserFacingPayload['sources'] = []
@@ -425,7 +609,9 @@ export function buildUserFacingPayload(input: {
   const slots = collectModuleSlots({ results: input.results, meta, synth })
   const actions = resolveActions({ meta, actions: input.actions })
 
-  const cleanAppendix = appendix ? stripStructuredExecReport(appendix) : ''
+  const cleanAppendix = appendix
+    ? stripSystemAuditColumnsFromMarkdown(stripStructuredExecReport(appendix))
+    : ''
   const payload: UserFacingPayload = {
     summary,
     outcome,
@@ -455,5 +641,7 @@ export function buildUserFacingPayload(input: {
 
 /** 用户主列正文：仅 summary（附录/执行摘要不进主气泡） */
 export function formatUserFacingMainText(payload: UserFacingPayload): string {
-  return stripStructuredExecReport(stripDeveloperJargon(stripSynthPromptLeakage(payload.summary || '')))
+  return stripSystemAuditColumnsFromMarkdown(
+    stripStructuredExecReport(stripDeveloperJargon(stripSynthPromptLeakage(payload.summary || '')))
+  )
 }

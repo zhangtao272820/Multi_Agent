@@ -41,8 +41,18 @@ AGENT_LOCAL_EDITABLE: dict[str, list[str]] = {
         "AGENT_TIMEOUT_MS",
     ],
     "code_assistent_Agent": [
-        "CODE_MAX_STEPS",
-        "CODE_TIMEOUT_MS",
+        "WRITE_TOOL_ENABLED",
+        "CODE_MCP_SERVER",
+        "CODE_EDIT_MAX_ROUNDS",
+        "PROJECT_DIR",
+        "ALLOWED_ROOTS",
+    ],
+    "CodePy_Agent": [
+        "WRITE_TOOL_ENABLED",
+        "CODE_MCP_SERVER",
+        "CODE_EDIT_MAX_ROUNDS",
+        "PROJECT_DIR",
+        "ALLOWED_ROOTS",
     ],
     "Extractor_Agent": [
         "EXTRACTOR_MAX_PAGES",

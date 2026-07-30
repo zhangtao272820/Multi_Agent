@@ -73,9 +73,9 @@ assert(formMs >= 360_000, 'form timeout tier')
 const videoMs = resolveGuiTimeoutMs(60_000, 'B站播放视频')
 assert(videoMs >= 480_000, 'video timeout tier')
 
-assert(nextGuiEngineHintForRetry('auto') === 'mcp', 'auto → mcp')
-assert(nextGuiEngineHintForRetry('stagehand') === 'classic', 'stagehand → classic')
-assert(nextGuiEngineHintForRetry('mcp') === 'stagehand', 'mcp → stagehand')
+assert(nextGuiEngineHintForRetry('auto') === undefined, 'auto：no mcp cascade')
+assert(nextGuiEngineHintForRetry('stagehand') === undefined, 'stagehand：no classic cascade')
+assert(nextGuiEngineHintForRetry('mcp') === undefined, 'mcp：no stagehand cascade')
 assert(isGuiEngineRetryEnabled({}), 'engine retry default on')
 assert(LOBSTER_GUI_PROGRESS_LIMITS.maxThinkingLines === 12, 'thinking cap 12')
 

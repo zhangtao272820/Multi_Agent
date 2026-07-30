@@ -21,12 +21,14 @@
 | 运维 | 总览 / 总管 / 任务 | 健康、Token 流水、编排转发 |
 | 配置 | Agent 配置 | 模型 · MODE · agents-lan · 本地白名单 `.env` |
 | 管控 | Agent 管控 | 启停 · Drain · 滚动重启 |
-| 可观测 | 监控与日志 | Prom 大屏 · 告警 · run_id/trace_id → Loki/Tempo/Langfuse |
+| 可观测 | 监控与日志 | Prom 大屏 · **Audit**（Token/成功率，`/api/monitor/dashboard`→`audit`）· 告警 · run_id/trace_id → Loki/Tempo/Langfuse |
 | 部署 | 部署中心 | 镜像 tag · 回滚（封装 `rollback-agents`）· 离线包状态 |
 | 维护 | 备份恢复 | PG 备份/恢复（封装 scripts） |
 | 治理 | 系统设置 | 租户配额 · Vault · 审计 |
 
 API 速查：`/api/agents/config/convergence-modes`、`/api/agents/config/agents-lan`、`/api/agents/config/{name}/local-env`、`/api/ops/deploy/*`、`/api/ops/backup/*`。
+
+**天魁 Registry 边界**：技能市场 / 启停属本控制面；运行时 cap 调度属 Manager `agentRegistry`。详见 [`docs/registry-boundary.md`](../docs/registry-boundary.md)——**勿**再拆独立 Registry Agent。
 
 ## 项目简介
 
@@ -354,6 +356,8 @@ powershell -ExecutionPolicy Bypass -File .\scripts\restart-manager-stack.ps1 -Bu
 ```powershell
 docker compose --env-file .env.agents-lan -f docker-compose.agents-lan.yml up -d --build --force-recreate db_agent rag_agent code_assistent_agent extractor_agent ai_admin_agent music_agent video_agent multimodal_agent manager_agent
 ```
+
+> **Code 服务**：`code_assistent_agent` 已切换为 [`CodePy_Agent`](../CodePy_Agent/README.md)（FastAPI + React）。服务名与端口 **13103** 不变；回滚见该 README。
 
 ### 4) 控制台内重启（无需 SSH）
 

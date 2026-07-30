@@ -88,7 +88,7 @@ Write-Host ""
 Write-Host "Done. Access from other LAN devices via:" -ForegroundColor Green
 Write-Host "http://${lanHost}:13101  DB_Agent"
 Write-Host "http://${lanHost}:13102  RAG_Agent"
-Write-Host "http://${lanHost}:13103  code_assistent_Agent"
+Write-Host "http://${lanHost}:13103  CodePy_Agent (service code_assistent_agent)"
 Write-Host "http://${lanHost}:13104  Extractor_Agent"
 Write-Host "http://${lanHost}:13105  AI_admin_Agent"
 Write-Host "http://${lanHost}:13106  Manager_Agent"

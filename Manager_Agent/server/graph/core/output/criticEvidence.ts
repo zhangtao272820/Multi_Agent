@@ -1,6 +1,10 @@
 import type { AgentResult } from '../../../utils/agents/types'
 import { wrapAdminResult } from '../../../utils/agents/agentResult'
-import { looksLikeNetworkFailure } from '#agent-shared/lobsterRunVerifyLite'
+import {
+  isHttpBrowseUrl,
+  isUnreachableBrowseUrl,
+  looksLikeNetworkFailure,
+} from '#agent-shared/lobsterRunVerifyLite'
 
 function collapse(text: string, max = 900): string {
   return String(text ?? '').replace(/\s+/g, ' ').trim().slice(0, max)
@@ -74,7 +78,9 @@ export function hasSuccessfulGuiBrowseInRun(input: {
   }
   if (looksLikeNetworkFailure(guiOut)) return false
 
-  for (const e of evidence) {
+  // 从后往前：优先最新成功行（失败→重试成功时旧失败行不得否定）
+  for (let i = evidence.length - 1; i >= 0; i--) {
+    const e = evidence[i]
     if (String(e?.kind || '') !== 'gui') continue
     if (e?.failed === true) continue
     const ar = e?.agentResult as AgentResult | undefined
@@ -91,15 +97,34 @@ export function hasSuccessfulGuiBrowseInRun(input: {
     const finalUrl = String(
       e?.finalUrl || (ar as any)?.structured?.finalUrl || '',
     ).trim()
+    if (finalUrl && (isUnreachableBrowseUrl(finalUrl) || !isHttpBrowseUrl(finalUrl))) continue
+    if (looksLikeNetworkFailure({ answer: ar.answer, finalUrl })) continue
     const answer = String(ar.answer || guiOut).trim()
-    // 成功：ok=true 且有实质产物（URL 或可读 answer）；items=0 仍可算成功
-    if (finalUrl.startsWith('http') || answer.length >= 12 || Number(e?.itemCount || 0) > 0) {
+    // 须有真实 http(s) 浏览证据；禁止仅靠错误页标题/短 answer 冒充成功
+    if (isHttpBrowseUrl(finalUrl) || Number(e?.itemCount || 0) > 0) {
       return true
     }
     if (Array.isArray(ar.sources) && ar.sources.length > 0) return true
+    if (answer.length >= 12 && !looksLikeNetworkFailure(answer) && isHttpBrowseUrl(finalUrl)) {
+      return true
+    }
   }
 
   return false
+}
+
+/** 审计用：同 kind=gui 取最新成功行，否则最新失败行 */
+export function pickGuiEvidenceForAudit(
+  evidence: Array<Record<string, unknown>>,
+): Record<string, unknown> | null {
+  const guiRows = evidence.filter((e) => String(e?.kind || '') === 'gui')
+  if (!guiRows.length) return null
+  for (let i = guiRows.length - 1; i >= 0; i--) {
+    const e = guiRows[i]
+    const ar = e?.agentResult as AgentResult | undefined
+    if (e?.failed !== true && ar?.ok === true) return e
+  }
+  return guiRows[guiRows.length - 1] || null
 }
 
 /** 为 Critic 审计构造「本轮证据」摘要（rag/db/crawler/admin/code 等） */
@@ -113,6 +138,7 @@ export function formatEvidenceForCriticAudit(input: {
   const results = input.results && typeof input.results === 'object' ? input.results : {}
   const lines: string[] = []
   const seen = new Set<string>()
+  const guiPicked = pickGuiEvidenceForAudit(evidence)
 
   for (const e of evidence.slice(0, 10)) {
     const kind = String(e?.kind || '').trim()
@@ -144,14 +170,15 @@ export function formatEvidenceForCriticAudit(input: {
       const crawlerOut = collapse(String(results.crawler ?? ''), 800)
       if (crawlerOut) lines.push(`crawler 子输出：${crawlerOut}`)
     } else if (kind === 'gui') {
+      const row = guiPicked || e
       const guiOut = collapse(String(results.gui ?? ''), 1000)
-      const ar = e?.agentResult as AgentResult | undefined
+      const ar = row?.agentResult as AgentResult | undefined
       const finalUrl = String(
-        e?.finalUrl || (ar as any)?.structured?.finalUrl || ''
+        row?.finalUrl || (ar as any)?.structured?.finalUrl || ''
       ).trim()
-      const ok = e?.failed !== true && ar?.ok !== false
-      const itemCount = Number(e?.itemCount || 0)
-      const hasShot = e?.hasScreenshot === true
+      const ok = row?.failed !== true && ar?.ok === true
+      const itemCount = Number(row?.itemCount || 0)
+      const hasShot = row?.hasScreenshot === true
       const src = (ar?.sources || [])
         .slice(0, 3)
         .map((s) => String((s as any)?.ref || (s as any)?.url || (s as any)?.title || '').trim())
@@ -162,6 +189,8 @@ export function formatEvidenceForCriticAudit(input: {
       lines.push(
         '（说明：GUI 成功须 agentResult.ok=true 且完成任务目标；仅有首页 finalUrl/截图不算成功；items=0 不单独否定成功）'
       )
+      if (ar?.ok === true) lines.push('agentResult.ok=true')
+      else if (ar) lines.push(`agentResult.ok=${String(ar.ok)}`)
       if (guiOut) lines.push(`gui 子输出：${guiOut}`)
     } else if (kind === 'code') {
       lines.push(`code：threadId=${String(e?.threadId ?? '')}`)

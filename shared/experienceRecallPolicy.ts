@@ -1,5 +1,6 @@
 /**
  * 经验召回策略：联邦门控开启时，默认只召回用户已确认（👍）写入的经验。
+ * 写入侧 SSOT：`shared/experienceBridgeContract.ts`（规范化 / source / PG 门禁）。
  */
 import { isFederationFeedbackGated } from './artifactFeedbackPolicy'
 
@@ -25,6 +26,7 @@ export function isConfirmedExperienceRow(row: {
     src.includes('feedback') ||
     src.includes('federation') ||
     src.includes('manager_finalize_sync') ||
+    src.includes('manager_feedback_confirmed') ||
     src.includes('confirmed')
   )
 }

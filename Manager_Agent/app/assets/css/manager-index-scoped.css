@@ -643,22 +643,28 @@ backdrop-filter:blur(16px) saturate(1.18);border-radius:22px;padding:16px 18px;f
 .reply-panel .meta-pill.alt{background:rgba(49,46,129,.35);border-color:rgba(129,140,248,.28);color:#c7d2fe}
 .meta-pill.glow{background:linear-gradient(135deg,rgba(37,99,235,.25),rgba(124,58,237,.25));border-color:rgba(147,197,253,.25);color:#e0e7ff;box-shadow:0 0 12px rgba(139,92,246,.22)}
 .reply-tone-analytics .reply-panel-inner{border-color:rgba(168,85,247,.24);box-shadow:0 12px 40px rgba(0,0,0,.16),0 0 28px rgba(168,85,247,.09)}
-/* 主要回复分区：与图表/详细说明拉开层次 */
-.reply-primary-section{margin:0 0 14px;padding:12px 14px 14px;border-radius:14px;border:1px solid rgba(56,189,248,.18);background:linear-gradient(180deg,rgba(15,23,42,.62),rgba(8,12,28,.48));box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}
-.reply-primary-head{display:flex;align-items:center;gap:10px;margin:0 0 10px;padding-bottom:8px;border-bottom:1px solid rgba(56,189,248,.14);user-select:none}
-.reply-primary-mark{display:inline-block;width:3px;height:14px;border-radius:2px;flex-shrink:0;background:linear-gradient(180deg,#38bdf8,#6366f1)}
-.reply-primary-title{font-size:13px;font-weight:700;color:#7dd3fc;letter-spacing:.04em}
+/* 回复正文：去「主要回复」壳，像一篇文章 */
+.reply-primary-section{margin:0 0 12px;padding:0;border-radius:0;border:none;background:transparent;box-shadow:none}
+.reply-primary-section.reply-article{margin:0 0 14px;padding:0}
+.reply-primary-head{display:none}
+.reply-primary-mark{display:none}
+.reply-primary-title{display:none}
 .reply-primary-section .reply-summary{margin:0;padding:0}
 .reply-primary-section .reply-chat,.reply-primary-section .reply-chat .md-p{color:#f1f5f9;font-size:16px;line-height:1.82}
 .reply-primary-section .reply-chat .md-ul li,.reply-primary-section .reply-chat .md-ol li{color:#e2e8f0;font-size:15.5px}
 .reply-summary{margin:0 0 12px;padding:0}
 .reply-chat{color:#e8eef7;font-size:15.5px;line-height:1.78;letter-spacing:.01em}
-.reply-chat .md-p{margin:0 0 12px;color:#e8eef7;font-size:15.5px;line-height:1.78}
-.reply-chat .md-ul,.reply-chat .md-ol{margin:10px 0 14px 1.25em;padding:0}
-.reply-chat .md-ul li,.reply-chat .md-ol li{margin:6px 0;line-height:1.7;color:#dbeafe;font-size:15px}
-.reply-chat .md-h2{font-size:16px;font-weight:700;color:#e0f2fe;margin:18px 0 10px;padding-bottom:6px;border-bottom:1px solid rgba(56,189,248,.22)}
-.reply-chat .md-h3{font-size:15px;font-weight:700;color:#c7d2fe;margin:16px 0 8px}
-.reply-chat .md-h4{font-size:14px;font-weight:600;color:#a5b4fc;margin:12px 0 6px}
+.reply-chat .md-p{margin:0 0 14px;color:#e8eef7;font-size:15.5px;line-height:1.78}
+.reply-chat .md-ul,.reply-chat .md-ol{margin:8px 0 16px 1.15em;padding:0}
+.reply-chat .md-ul li,.reply-chat .md-ol li{margin:8px 0;line-height:1.72;color:#dbeafe;font-size:15px}
+.reply-chat .md-h2{font-size:17px;font-weight:700;color:#f1f5f9;margin:22px 0 12px;padding-bottom:8px;border-bottom:1px solid rgba(148,163,184,.18)}
+.reply-chat .md-h3{font-size:15.5px;font-weight:700;color:#e2e8f0;margin:20px 0 10px;letter-spacing:.01em}
+.reply-chat .md-h4{font-size:14px;font-weight:600;color:#cbd5e1;margin:14px 0 8px}
+.reply-chat .md-table-scroll{margin:12px 0 18px;border-radius:10px;border:1px solid rgba(71,85,105,.45);overflow:auto;background:rgba(15,23,42,.35)}
+.reply-chat .md-table{width:100%;border-collapse:collapse;font-size:13.5px}
+.reply-chat .md-table th{padding:8px 12px;text-align:left;color:#bae6fd;font-weight:650;background:rgba(30,41,59,.55);border-bottom:1px solid rgba(71,85,105,.5)}
+.reply-chat .md-table td{padding:8px 12px;color:#e2e8f0;border-bottom:1px solid rgba(51,65,85,.4)}
+.reply-chat .md-table tr:last-child td{border-bottom:none}
 .reply-chat strong{color:#f8fafc;font-weight:650}
 .reply-web-read-bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;margin:0 0 12px;padding:8px 12px;border-radius:12px;background:rgba(15,23,42,.55);border:1px solid rgba(56,189,248,.18)}
 .reply-web-read-icon{font-size:14px;line-height:1}

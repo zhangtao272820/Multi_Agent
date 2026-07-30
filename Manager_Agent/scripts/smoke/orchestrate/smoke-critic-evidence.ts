@@ -143,6 +143,80 @@ assert(
     !hasSuccessfulGuiBrowseInRun(stuck),
     'homepage screenshot + navigation_unverified must NOT count as success'
   )
+
+  const chromeErr = {
+    results: {
+      gui: "标题：This site can't be reached\n链接：chrome-error://chromewebdata/",
+    },
+    evidence: [
+      {
+        kind: 'gui',
+        finalUrl: 'chrome-error://chromewebdata/',
+        agentResult: {
+          ok: true,
+          agent: 'gui',
+          answer: "标题：This site can't be reached\n链接：chrome-error://chromewebdata/",
+          structured: { finalUrl: 'chrome-error://chromewebdata/' },
+        },
+      },
+    ],
+  }
+  assert(
+    !hasSuccessfulGuiBrowseInRun(chromeErr),
+    'chrome-error finalUrl must NOT count as successful browse',
+  )
+}
+
+{
+  // 先失败后成功：critic 须见最新成功行 ok=yes（非 first-wins 失败行）
+  const guiResults = {
+    gui: '标题：HTML 教程\n链接：https://www.runoob.com/html/html-tutorial.html'
+  }
+  const guiEvidence = [
+    {
+      kind: 'gui',
+      failed: true,
+      finalUrl: 'https://www.runoob.com/',
+      agentResult: {
+        ok: false,
+        agent: 'gui',
+        error_code: 'navigation_unverified',
+        answer: '仍停留在起始页',
+        structured: { finalUrl: 'https://www.runoob.com/', failureType: 'navigation_unverified' }
+      }
+    },
+    {
+      kind: 'gui',
+      itemCount: 0,
+      finalUrl: 'https://www.runoob.com/html/html-tutorial.html',
+      hasScreenshot: true,
+      agentResult: {
+        ok: true,
+        agent: 'gui',
+        answer: guiResults.gui,
+        structured: { finalUrl: 'https://www.runoob.com/html/html-tutorial.html' },
+        sources: [{ type: 'url', ref: 'https://www.runoob.com/html/html-tutorial.html' }]
+      }
+    }
+  ]
+  const audit = formatEvidenceForCriticAudit({ evidence: guiEvidence, results: guiResults })
+  assert(audit.includes('gui：ok=yes'), 'latest successful gui must win in critic audit')
+  assert(audit.includes('html-tutorial.html'), 'audit finalUrl from success row')
+  assert(
+    hasSuccessfulGuiBrowseInRun({ results: guiResults, evidence: guiEvidence }),
+    'fail-then-success must count as successful browse'
+  )
+  assert(
+    criticRetryContradictsRunEvidence({
+      evaluation: {
+        score: 1,
+        hasDataEvidence: true,
+        hasImplicitDataEvidence: true,
+        recommendation: 'accept'
+      }
+    }),
+    'success + accept should override critic retry'
+  )
 }
 
 

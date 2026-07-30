@@ -52,4 +52,33 @@ assert.equal(hasData, false, 'DNS failure must not count as dataEvidence')
 assert.ok(Number(out.evaluation?.errorCount ?? 0) >= 1, 'errorCount >= 1')
 assert.ok(rec === 'retry' || rec === 'retry_if_possible', `recommend retry-ish, got ${rec}`)
 
+// chrome-error 假成功页不得评满分
+const chromeAnswer =
+  "标题：This site can't be reached\n链接：chrome-error://chromewebdata/"
+const chromeWrapped = wrapGuiResult(chromeAnswer, {
+  task: '打开 https://www.runoob.com/，点击第一个教程链接并提取标题',
+  finalUrl: 'chrome-error://chromewebdata/',
+})
+assert.equal(chromeWrapped.ok, false, 'chrome-error wrap must not ok')
+assert.equal(
+  hasSuccessfulGuiBrowseInRun({
+    results: { gui: chromeAnswer },
+    evidence: [
+      {
+        kind: 'gui',
+        failed: false,
+        agentResult: {
+          ok: true,
+          agent: 'gui',
+          answer: chromeAnswer,
+          structured: { finalUrl: 'chrome-error://chromewebdata/' },
+        },
+        finalUrl: 'chrome-error://chromewebdata/',
+      },
+    ],
+  }),
+  false,
+  'chrome-error must not count as successful browse even if agentResult.ok spoofed',
+)
+
 console.log('smoke-gui-network-score: ok')

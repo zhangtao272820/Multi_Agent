@@ -1,6 +1,12 @@
+import { extractFirstHttpUrl, sanitizeExtractedHttpUrl } from '#agent-shared/extractHttpUrl'
+
 export function extractStartUrlFromTask(task: string): string | undefined {
-  const m = String(task || '').match(/https?:\/\/[^\s)\]"']+/i)
-  return m?.[0]?.replace(/[.,;:!?)]+$/, '')
+  return extractFirstHttpUrl(task)
+}
+
+/** 对上游传入的 startUrl 做同样消毒（防全角/CJK 粘连） */
+export function sanitizeGuiStartUrl(url?: string): string | undefined {
+  return sanitizeExtractedHttpUrl(String(url || '').trim())
 }
 
 const ENGINE_HINT_RE = /(?:engine|引擎)\s*[:：]\s*(classic|mcp|stagehand|desktop|browser_use|browser-use)\b/i

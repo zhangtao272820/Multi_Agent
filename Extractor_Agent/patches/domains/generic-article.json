@@ -1,8 +1,0 @@
-{
-  "id": "generic.article",
-  "matchHostSuffix": [],
-  "contentType": "generic",
-  "preferChannel": "http",
-  "antiBotRisk": "low",
-  "articleSelectors": ["article", "main", "[role=main]", ".article-content", ".post-content", ".entry-content", "#content", ".content"]
-}

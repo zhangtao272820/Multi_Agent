@@ -22,6 +22,16 @@ assert.equal(
   false,
 )
 assert.equal(
+  shouldAttemptGuiPlusFallback({ verifyOk: false, failureType: 'network' }),
+  false,
+  'network must not burn gui-plus',
+)
+assert.equal(
+  shouldAttemptGuiPlusFallback({ verifyOk: false, failureType: 'network_unreachable' }),
+  false,
+  'network_unreachable must not burn gui-plus',
+)
+assert.equal(
   shouldAttemptGuiPlusFallback({
     verifyOk: false,
     failureType: 'no_effect',

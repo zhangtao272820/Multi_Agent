@@ -1,5 +1,6 @@
 /** 站点 Recipe：MCP/Stagehand 提示 + 推荐引擎（P7）· 结果页契约（P3-L2） */
 
+import { extractFirstHttpUrl, sanitizeExtractedHttpUrl } from '#agent-shared/extractHttpUrl'
 import type { LobsterEngineId } from './engineSelector'
 
 /** 结果页 / 列表态契约（verify · open_first 根） */
@@ -16,7 +17,7 @@ export type SiteRecipe = {
   hosts: RegExp
   /** 站点级推荐引擎（confidence≈0.88 用于选型） */
   preferredEngine?: LobsterEngineId
-  /** Docker 无头 MCP sidecar 下应优先 classic（有头/noVNC） */
+  /** Docker 无头 MCP sidecar 下网页仍优先 stagehand 有头；仅视频/HITL 用 classic */
   headedRequiredInDocker?: boolean
   /** 是否按复杂页面处理（额外步数/恢复策略） */
   complex?: boolean
@@ -55,9 +56,12 @@ const RECIPES: SiteRecipe[] = [
     mcpHints: [
       '百度搜索：优先直达 https://www.baidu.com/s?wd=关键词；避免首页反复 type。',
       '结果列表在 #content_left；点击第一条前需 snapshot 确认 ref；禁止点频道导航（news/map/tieba）。',
-      'Docker 无头 MCP 下百度几乎必出验证码（wappass）；检测到 captcha 会 task_blocked，需 HITL 后改 classic 有头重试。'
+      'Docker 无头 MCP 下百度几乎必出验证码（wappass）；网页默认请用 stagehand 有头；captcha 会 task_blocked，HITL 后改 classic 重试。',
     ],
-    stagehandHints: ['若 MCP ref 不稳定，可用 act 点击「百度一下」后再 type 搜索词。'],
+    stagehandHints: [
+      'Docker 下用有头 Stagehand（noVNC 可见）；先 goto 搜索结果页或首页再搜索。',
+      '若出现验证码：fail-closed 为 captcha，人工确认后由总管改 classic 有头重试。',
+    ],
     resultPageHints: {
       urlIncludes: ['/s?', 'wd='],
       urlMatches: '[?&]wd=',
@@ -212,16 +216,10 @@ const RECIPES: SiteRecipe[] = [
 ]
 
 export function hostFromTaskOrUrl(task: string, startUrl?: string): string {
-  const url = String(startUrl || '').trim()
+  const url = sanitizeExtractedHttpUrl(String(startUrl || '').trim()) || extractFirstHttpUrl(task)
   if (url) {
     try {
       return new URL(url).hostname
-    } catch {}
-  }
-  const m = String(task || '').match(/https?:\/\/[^\s)\]"']+/i)
-  if (m?.[0]) {
-    try {
-      return new URL(m[0].replace(/[.,;:!?)]+$/, '')).hostname
     } catch {}
   }
   return ''

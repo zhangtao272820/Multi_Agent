@@ -6,8 +6,10 @@ import {
   composeFinalBundleFromGraphResult,
   formatAdminWriteUserFacingReply,
   formatUserFacingMainText,
+  parseMarkdownTable,
   stripDeveloperJargon,
-  stripStructuredExecReport
+  stripStructuredExecReport,
+  stripSystemAuditColumnsFromMarkdown
 } from '../../../server/graph/core/output'
 import { stripSynthPromptLeakage } from '../../../agent-repo-shared/synthOutputSanitize'
 import { shouldPassthroughAdminWriteOnly } from '../../../agent-repo-shared/deterministicPassthrough'
@@ -23,25 +25,21 @@ assert(cleaned.includes('男性'), 'keeps Chinese conclusion')
 
 const payload = buildUserFacingPayload({
   synth: '',
-  intent: 'multi',
+  intent: 'db',
   results: {
-    db: 'agent_result (ok)\n{"rows":12}',
-    rag: '制度条文很长很长很长'
+    db: 'agent_result (ok)\n{"rows":12}'
   },
+  planSteps: [{ agent: 'db' }],
   evidence: [
     {
       kind: 'db',
       handoff: { summary: '库表统计：男性 5 人、女性 3 人', evidenceRefs: ['table:t'], confidence: 0.9 }
-    },
-    {
-      kind: 'rag',
-      handoff: { summary: '制度要求按性别汇总申报', evidenceRefs: ['doc:1'], confidence: 0.8 }
     }
   ],
   meta: { lastStepRecords: [{ id: 's1', agent: 'db', status: 'ok' }] }
 })
 
-assert(payload.summary.includes('男性') || payload.summary.includes('制度'), 'uses handoff summaries')
+assert(payload.summary.includes('男性'), 'uses handoff summaries')
 assert(!/agent_result/i.test(payload.summary), 'summary has no agent_result')
 assert(!/\(ok\)/i.test(payload.summary), 'summary has no (ok)')
 assert(!/^db:/m.test(payload.summary), 'summary has no bare db:')
@@ -53,10 +51,9 @@ assert(!main.includes('## 执行摘要'), 'main text excludes exec summary')
 
 const bundle = composeFinalBundleFromGraphResult({
   final: '',
-  intent: 'multi',
+  intent: 'db',
   results: {
-    db: 'agent_result (ok)\nraw dump should not dominate',
-    clean: 'clean intermediate'
+    db: 'agent_result (ok)\nraw dump should not dominate'
   },
   evidence: [
     { kind: 'db', handoff: { summary: '查询完成：共 8 人', evidenceRefs: [], confidence: 0.88 } }
@@ -64,10 +61,7 @@ const bundle = composeFinalBundleFromGraphResult({
   meta: {
     lastStepRecords: [{ id: 'a', agent: 'db', status: 'ok', summary: '查询完成：共 8 人' }]
   },
-  plan: [
-    { id: 'a', agent: 'db', query: '查人数' },
-    { id: 'b', agent: 'rag', query: '查制度' }
-  ]
+  plan: [{ id: 'a', agent: 'db', query: '查人数' }]
 })
 
 assert(!/agent_result/i.test(bundle.userFacing.summary), 'compose bundle userFacing clean')
@@ -162,21 +156,41 @@ const leakySynth = [
 
 const strippedLeak = stripStructuredExecReport(leakySynth)
 assert(!/已执行步骤/.test(strippedLeak), 'strip drops 已执行步骤')
-assert(!/### 证据/.test(strippedLeak), 'strip drops ### 证据')
-assert(!/后续建议/.test(strippedLeak), 'strip drops 后续建议')
+assert(!/### 证据/.test(strippedLeak), 'strip drops ### 证据 nested under steps')
+assert(!/后续建议/.test(strippedLeak), 'strip drops 后续建议 nested under steps')
 assert(!/facts\(1\)/.test(strippedLeak), 'strip drops facts echo')
 assert(!/s2\s*\(clean\)/.test(strippedLeak), 'strip drops step-id echo')
 assert(strippedLeak.includes('6000') && strippedLeak.includes('月度收支'), 'keeps user analysis')
+
+/** 用户对照分析里的独立 ### 证据 不得被掏空 */
+const userEvidenceSection = [
+  '林婉清足底压力指标整体接近同龄参考区间。',
+  '',
+  '### 库内测值',
+  '- 左足弓高度：0.41',
+  '',
+  '### 证据',
+  '- 万方文献：不同年龄足底压力参数对比',
+  '- 数据库记录：平衡测量',
+  '',
+  '### 对照结论',
+  '- 多数指标在参考范围内',
+  '',
+  '**小结**：建议结合临床随访。'
+].join('\n')
+const keptEvidence = stripStructuredExecReport(userEvidenceSection)
+assert(keptEvidence.includes('### 证据'), 'keeps standalone ### 证据 in user analysis')
+assert(keptEvidence.includes('万方文献'), 'keeps evidence bullets')
+assert(keptEvidence.includes('对照结论'), 'keeps compare section')
 
 const leakPayload = buildUserFacingPayload({
   synth: leakySynth,
   intent: 'multi',
   results: { rag: 'ok', clean: 'ok' },
-  plan: undefined as any,
+  planSteps: [{ agent: 'rag' }, { agent: 'clean' }],
   meta: {}
 })
 assert(!/已执行步骤/.test(leakPayload.summary), 'userFacing summary no 已执行步骤')
-assert(!/### 证据/.test(leakPayload.summary), 'userFacing summary no ### 证据')
 assert(!/判定[：:]/.test(leakPayload.summary), 'userFacing summary no 判定')
 assert(leakPayload.summary.includes('6000') || leakPayload.summary.includes('结余'), 'keeps finance conclusion')
 
@@ -342,5 +356,176 @@ const polishedAdmin = formatAdminWriteUserFacingReply({
 assert(polishedAdmin.includes('项目周会'), 'formatAdmin keeps fact')
 assert(!/仅处理下列/.test(polishedAdmin), 'formatAdmin drops preamble')
 assert(polishedAdmin.length < 200, 'formatAdmin stays short')
+
+/** 复杂多源 + report defer：主列须是对照叙述，禁止步骤 dump / report 已完成 */
+const complexSynth = [
+  '林婉清足底压力测值整体接近同龄参考区间，左足弓高度略偏高需关注。',
+  '',
+  '### 库内测值',
+  '- 左足弓高度：0.41；左足宽：8.78',
+  '',
+  '### 公开参考',
+  '- 万方文献摘要给出同龄足底压力参数区间',
+  '',
+  '### 对照结论',
+  '- 多数指标落在参考范围内',
+  '',
+  '**小结**：建议结合临床随访。',
+  '',
+  '<!--REPORT-->',
+  '## 分析报告',
+  '',
+  '受测者林婉清足底压力与同龄参考对照如下……',
+  '<!--/REPORT-->'
+].join('\n')
+
+const complexBundle = composeFinalBundleFromGraphResult({
+  final: complexSynth,
+  intent: 'multi',
+  results: {
+    db: 'Record 1 Creator 林婉清 左足弓高度 0.41',
+    crawler: '### 网页抓取列表 (共 1 条)\n| 序号 | 标题 |\n| 1 | 不同年龄足底压力 |',
+    clean: '{"answer":"已机械合并 2 个数据源 (30 项事实)","sources":[],"facts":[]}',
+    code: '{"answer":"已机械合并 2 个数据源","sources":[]}',
+    report: ''
+  },
+  plan: [
+    { id: 's1', agent: 'db', query: '取足底压力' },
+    { id: 's2', agent: 'crawler', query: '检索参考区间' },
+    { id: 's3', agent: 'clean', query: '清洗' },
+    { id: 's4', agent: 'code', query: '对照计算' },
+    { id: 's5', agent: 'report', query: '撰写报告' }
+  ],
+  evidence: [
+    {
+      kind: 'report',
+      mode: 'deferred_to_synth',
+      handoff: { summary: 'report 已完成', evidenceRefs: [], confidence: 0.5 }
+    },
+    {
+      kind: 'clean',
+      handoff: {
+        summary: '{"answer":"已机械合并 2 个数据源 (30 项事实)","sources":[]}',
+        evidenceRefs: [],
+        confidence: 0.75
+      }
+    },
+    {
+      kind: 'db',
+      handoff: { summary: 'Record 1 Creator 林婉清', evidenceRefs: [], confidence: 0.9 }
+    },
+    {
+      kind: 'crawler',
+      handoff: { summary: '### 网页抓取列表 (共 1 条)', evidenceRefs: [], confidence: 0.8 }
+    }
+  ],
+  meta: {
+    synthStreamBody: String(complexSynth.split('<!--REPORT-->')[0] || '').trim(),
+    lastStepRecords: [
+      { id: 's1', agent: 'db', status: 'ok' },
+      { id: 's2', agent: 'crawler', status: 'ok' },
+      { id: 's3', agent: 'clean', status: 'ok' },
+      { id: 's4', agent: 'code', status: 'ok' },
+      { id: 's5', agent: 'report', status: 'ok', summary: 'deferred_to_synth' }
+    ]
+  },
+  routedQuery: '林婉清足底压力对照报告'
+})
+assert(complexBundle.userFacing.summary.includes('对照') || complexBundle.userFacing.summary.includes('参考区间'), 'complex summary keeps compare narrative')
+assert(!/report\s*已完成/i.test(complexBundle.userFacing.summary), 'complex summary no report 已完成')
+assert(!/已机械合并/.test(complexBundle.userFacing.summary), 'complex summary no clean JSON blob')
+assert(!/查数据库[：:]/.test(complexBundle.userFacing.summary), 'complex summary no labeled db dump')
+assert(
+  Boolean(complexBundle.userFacing.appendix && /分析报告|对照/.test(complexBundle.userFacing.appendix)),
+  'complex appendix has report body'
+)
+
+/** 负向：复杂任务无 synth → 不得拼步骤 dump */
+const complexEmpty = buildUserFacingPayload({
+  synth: '',
+  intent: 'multi',
+  results: {
+    db: 'Record 1',
+    crawler: '### 网页抓取列表',
+    clean: '{"answer":"已机械合并 2 个数据源","sources":[]}',
+    code: '{"answer":"ok"}'
+  },
+  planSteps: [
+    { agent: 'db' },
+    { agent: 'crawler' },
+    { agent: 'clean' },
+    { agent: 'code' },
+    { agent: 'report' }
+  ],
+  evidence: [
+    { kind: 'report', mode: 'deferred_to_synth', handoff: { summary: 'report 已完成', evidenceRefs: [], confidence: 0.5 } },
+    { kind: 'clean', handoff: { summary: '{"answer":"已机械合并"}', evidenceRefs: [], confidence: 0.7 } }
+  ],
+  meta: {}
+})
+assert(!/report\s*已完成/i.test(complexEmpty.summary), 'empty heavy no report stub')
+assert(!/已机械合并/.test(complexEmpty.summary), 'empty heavy no mechanical merge')
+assert(!/查数据库[：:]/.test(complexEmpty.summary), 'empty heavy no step dump labels')
+assert(/汇总未生成|暂无结论|重试/.test(complexEmpty.summary), 'empty heavy shows missing hint')
+
+/** 系统审计列不得进用户表 / 正文 */
+const auditTableMd = [
+  '| 指标 | 测值 | 创建人 | 逻辑删除 | 创建时间 |',
+  '| --- | --- | --- | --- | --- |',
+  '| 左足弓指数 | 0.24 | admin | 0 | 2025-11-17 |',
+  '| 右足弓指数 | 0.31 | admin | 0 | 2025-11-17 |'
+].join('\n')
+const parsedAudit = parseMarkdownTable(auditTableMd)
+assert(parsedAudit, 'audit table still parses business cols')
+assert(parsedAudit!.headers.includes('指标') && parsedAudit!.headers.includes('测值'), 'keeps business headers')
+assert(!parsedAudit!.headers.some((h) => /创建人|逻辑删除|创建时间/.test(h)), 'drops system audit headers')
+assert(parsedAudit!.rows[0]?.length === 2, 'rows trimmed to business cols')
+
+const onlyAudit = parseMarkdownTable('| 创建人 | 逻辑删除 |\n| --- | --- |\n| a | 0 |')
+assert(onlyAudit === null, 'all-system table becomes null')
+
+const bodyWithAudit = [
+  '林婉清足底压力对照如下。',
+  '',
+  auditTableMd,
+  '',
+  '### 建议',
+  '- 结合临床随访。'
+].join('\n')
+const strippedBody = stripSystemAuditColumnsFromMarkdown(bodyWithAudit)
+assert(!/创建人|逻辑删除/.test(strippedBody), 'markdown body drops audit cols')
+assert(strippedBody.includes('左足弓指数') && strippedBody.includes('测值'), 'keeps business cells')
+assert(strippedBody.includes('建议'), 'keeps advice section')
+
+const auditPayload = buildUserFacingPayload({
+  synth: [
+    '右足弓指数略高于参考上限。',
+    '',
+    '### 结论摘要',
+    '- 右足弓偏高，提示轻度扁平趋势。',
+    '',
+    auditTableMd,
+    '',
+    '## 执行摘要',
+    '- ✓ crawler：检索参考区间',
+    '- ✓ db：抽取记录'
+  ].join('\n'),
+  intent: 'multi',
+  results: {
+    db: 'x',
+    crawler: 'y',
+    visualize: ['<!--TABLE_DATA-->', auditTableMd, '<!--/TABLE_DATA-->'].join('\n')
+  },
+  planSteps: [{ agent: 'db' }, { agent: 'crawler' }, { agent: 'report' }],
+  meta: {}
+})
+assert(!/执行摘要/.test(auditPayload.summary), 'userFacing strips exec summary')
+assert(!/创建人|逻辑删除|agent_result/.test(auditPayload.summary), 'summary has no audit cols or jargon')
+assert(auditPayload.table, 'table slot present')
+assert(!auditPayload.table!.headers.some((h) => /创建人|逻辑删除|创建时间/.test(h)), 'table slot drops audit cols')
+assert(auditPayload.table!.headers.includes('指标'), 'table slot keeps 指标')
+
+const auditMain = formatUserFacingMainText(auditPayload)
+assert(!/## 执行摘要|创建人|逻辑删除/.test(auditMain), 'main text clean of audit')
 
 console.log('smoke-user-facing-payload: ok')

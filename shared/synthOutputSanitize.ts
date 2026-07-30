@@ -2,7 +2,10 @@
  * 去掉 Synth 误复述的内部上下文 / 执行摘要审计块（确定性结构剥离，非业务意图识别）。
  */
 
-const AUDIT_HEADING_RE = /^#{1,3}\s*(执行摘要|已执行步骤|证据|失败|跳过|后续建议|关于数据来源的说明)(?:\s|$)/
+/** 仅真正的执行摘要壳标题会进入审计吞段；勿单凭「证据/后续建议」掏空用户对照分析 */
+const AUDIT_SHELL_HEADING_RE = /^#{1,3}\s*(执行摘要|已执行步骤|失败|跳过|关于数据来源的说明)(?:\s|$)/
+/** 仅在已进入执行摘要语境时，才把「证据/后续建议」当审计子节 */
+const AUDIT_NESTED_HEADING_RE = /^#{1,3}\s*(证据|后续建议)(?:\s|$)/
 const AUDIT_META_LINE_RE = /^[-*•]\s*(目标|结果|判定)[：:]/
 const PIPELINE_CHECK_LINE_RE =
   /^[-*•]\s*[✓×−○✔✖]\s*(db|rag|crawler|code|clean|visualize|report|admin|gui|multi|extractor|lobster)\b/i
@@ -26,7 +29,7 @@ export function looksLikeExecAuditDump(text: string): boolean {
 
 /**
  * 剥离误入用户载荷的结构化执行摘要与管线回显。
- * 保留面向用户的分析正文（### 月度收支 等非审计标题）。
+ * 保留面向用户的分析正文（### 月度收支、### 证据 等对照标题）。
  */
 export function stripStructuredExecReport(text: string): string {
   let s = String(text || '').trim()
@@ -44,8 +47,11 @@ export function stripStructuredExecReport(text: string): string {
   let inAuditSection = false
   for (const line of lines) {
     const t = line.trim()
-    if (AUDIT_HEADING_RE.test(t)) {
+    if (AUDIT_SHELL_HEADING_RE.test(t)) {
       inAuditSection = true
+      continue
+    }
+    if (inAuditSection && AUDIT_NESTED_HEADING_RE.test(t)) {
       continue
     }
     if (inAuditSection) {
@@ -60,7 +66,7 @@ export function stripStructuredExecReport(text: string): string {
       ) {
         continue
       }
-      // 非审计列表/回显 → 恢复用户正文（如 **小结**、普通段落）
+      // 非审计列表/回显 → 恢复用户正文（如 **小结**、普通段落、用户侧 ### 标题）
       inAuditSection = false
     }
     if (AUDIT_META_LINE_RE.test(t)) continue

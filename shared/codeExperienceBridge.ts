@@ -2,9 +2,18 @@
  * Manager finalize → code_query_experience 同步（Code Agent 长期记忆联邦写入）
  */
 
-import { agentPgQuery, isAgentPgConfigured } from './agentPgClient'
+import { agentPgQuery } from './agentPgClient'
 import { shouldSyncCodeExperience, type RunOutcomeInput } from './agentOutcomePolicy'
-import { normalizeDbQuestionKey } from './dbExperienceBridge'
+import {
+  emptyQuestionResult,
+  experienceSnippet,
+  experienceSyncSource,
+  experienceSyncStatus,
+  guardExperiencePg,
+  normalizeExperienceQuestionKey,
+  type ExperienceSyncOpts,
+  type ExperienceSyncResult
+} from './experienceBridgeContract'
 
 export function isCodeExperienceBridgeEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
   return String(env.MGR_CODE_EXPERIENCE_SYNC ?? '1').trim() !== '0'
@@ -29,10 +38,7 @@ function buildCodeHint(input: {
 }): string {
   const kind = inferTaskKind(input)
   const files = (input.hintFiles || []).filter(Boolean).slice(0, 4)
-  const snippet = String(input.resultText || '')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .slice(0, 200)
+  const snippet = experienceSnippet(input.resultText)
   const filePart = files.length ? `关注文件=${files.join(',')}` : ''
   return [`路径=${kind}`, filePart, snippet ? `结果摘要=${snippet}` : ''].filter(Boolean).join('；')
 }
@@ -44,15 +50,17 @@ export async function syncCodeExperienceFromManagerRun(
     hintFiles?: string[]
   },
   env: NodeJS.ProcessEnv = process.env,
-  opts?: { force?: boolean }
-): Promise<{ synced: boolean; reason?: string }> {
+  opts?: ExperienceSyncOpts
+): Promise<ExperienceSyncResult> {
   if (!isCodeExperienceBridgeEnabled(env)) return { synced: false, reason: 'disabled' }
   if (!shouldSyncCodeExperience(input, env, opts)) return { synced: false, reason: 'not_eligible' }
-  if (!isAgentPgConfigured(env)) return { synced: false, reason: 'pg_not_configured' }
+  const pgGuard = guardExperiencePg(env)
+  if (pgGuard) return pgGuard
 
   const question = String(input.question || '').trim()
-  const question_norm = normalizeDbQuestionKey(question)
-  if (!question_norm) return { synced: false, reason: 'empty_question' }
+  const question_norm = normalizeExperienceQuestionKey(question)
+  const empty = emptyQuestionResult(question_norm)
+  if (empty) return empty
 
   const codeText = String(input.results.code ?? input.results.Code ?? '')
   const taskKind = inferTaskKind({ taskKind: input.taskKind, resultText: codeText })
@@ -66,14 +74,15 @@ export async function syncCodeExperienceFromManagerRun(
   const res = await agentPgQuery(
     `INSERT INTO code_query_experience
       (ts, question_norm, task_kind, hint_files, hint, source, status)
-     VALUES ($1, $2, $3, $4, $5, $6, 'confirmed')`,
+     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
     [
       new Date().toISOString(),
       question_norm,
       taskKind,
       JSON.stringify((input.hintFiles || []).slice(0, 8)),
       hint,
-      'manager_finalize_sync'
+      experienceSyncSource(opts),
+      experienceSyncStatus(opts)
     ],
     env
   )

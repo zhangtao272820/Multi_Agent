@@ -2,9 +2,17 @@
  * Manager finalize → lob_gui_experience 同步（Lobster/GUI Agent 长期记忆联邦写入）
  */
 
-import { agentPgQuery, isAgentPgConfigured } from './agentPgClient'
+import { agentPgQuery } from './agentPgClient'
 import { shouldSyncGuiExperience, type RunOutcomeInput } from './agentOutcomePolicy'
-import { normalizeDbQuestionKey } from './dbExperienceBridge'
+import {
+  emptyQuestionResult,
+  experienceSnippet,
+  experienceSyncSource,
+  guardExperiencePg,
+  normalizeExperienceQuestionKey,
+  type ExperienceSyncOpts,
+  type ExperienceSyncResult
+} from './experienceBridgeContract'
 
 export function isGuiExperienceBridgeEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
   return String(env.MGR_GUI_EXPERIENCE_SYNC ?? '1').trim() !== '0'
@@ -19,10 +27,7 @@ function buildGuiHint(input: {
   const parts = [
     input.scenario ? `场景=${input.scenario}` : '',
     input.executionMode ? `模式=${input.executionMode}` : '',
-    String(input.resultText || '')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .slice(0, 200)
+    experienceSnippet(input.resultText)
   ].filter(Boolean)
   return parts.join('；') || input.question.slice(0, 120)
 }
@@ -34,15 +39,17 @@ export async function syncGuiExperienceFromManagerRun(
     executionMode?: string
   },
   env: NodeJS.ProcessEnv = process.env,
-  opts?: { force?: boolean }
-): Promise<{ synced: boolean; reason?: string }> {
+  opts?: ExperienceSyncOpts
+): Promise<ExperienceSyncResult> {
   if (!isGuiExperienceBridgeEnabled(env)) return { synced: false, reason: 'disabled' }
   if (!shouldSyncGuiExperience(input, env, opts)) return { synced: false, reason: 'not_eligible' }
-  if (!isAgentPgConfigured(env)) return { synced: false, reason: 'pg_not_configured' }
+  const pgGuard = guardExperiencePg(env)
+  if (pgGuard) return pgGuard
 
   const question = String(input.question || '').trim()
-  const task_norm = normalizeDbQuestionKey(question)
-  if (!task_norm) return { synced: false, reason: 'empty_question' }
+  const task_norm = normalizeExperienceQuestionKey(question)
+  const empty = emptyQuestionResult(task_norm)
+  if (empty) return empty
 
   const guiText = String(input.results.gui ?? input.results.Gui ?? '')
   const hint = buildGuiHint({
@@ -62,7 +69,7 @@ export async function syncGuiExperienceFromManagerRun(
       input.scenario?.slice(0, 64) ?? null,
       input.executionMode?.slice(0, 16) ?? null,
       hint,
-      'manager_finalize_sync'
+      experienceSyncSource(opts)
     ],
     env
   )

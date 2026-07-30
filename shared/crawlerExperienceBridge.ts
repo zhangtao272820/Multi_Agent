@@ -2,9 +2,17 @@
  * Manager finalize → ext_crawl_experience 同步（Extractor Agent 长期记忆联邦写入）
  */
 
-import { agentPgQuery, isAgentPgConfigured } from './agentPgClient'
+import { agentPgQuery } from './agentPgClient'
 import { shouldSyncCrawlerExperience, type RunOutcomeInput } from './agentOutcomePolicy'
-import { normalizeDbQuestionKey } from './dbExperienceBridge'
+import {
+  emptyQuestionResult,
+  experienceSnippet,
+  experienceSyncSource,
+  guardExperiencePg,
+  normalizeExperienceQuestionKey,
+  type ExperienceSyncOpts,
+  type ExperienceSyncResult
+} from './experienceBridgeContract'
 
 export function isCrawlerExperienceBridgeEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
   return String(env.MGR_CRAWLER_EXPERIENCE_SYNC ?? '1').trim() !== '0'
@@ -21,10 +29,7 @@ function buildCrawlHint(input: {
     input.targetSite ? `站点=${input.targetSite}` : '',
     input.channel ? `通道=${input.channel}` : '',
     input.seedUrl ? `种子=${input.seedUrl.slice(0, 120)}` : '',
-    String(input.resultText || '')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .slice(0, 180)
+    experienceSnippet(input.resultText, 180)
   ].filter(Boolean)
   return parts.join('；') || input.question.slice(0, 120)
 }
@@ -58,15 +63,17 @@ export async function syncCrawlerExperienceFromManagerRun(
     fields?: string[]
   },
   env: NodeJS.ProcessEnv = process.env,
-  opts?: { force?: boolean }
-): Promise<{ synced: boolean; reason?: string }> {
+  opts?: ExperienceSyncOpts
+): Promise<ExperienceSyncResult> {
   if (!isCrawlerExperienceBridgeEnabled(env)) return { synced: false, reason: 'disabled' }
   if (!shouldSyncCrawlerExperience(input, env, opts)) return { synced: false, reason: 'not_eligible' }
-  if (!isAgentPgConfigured(env)) return { synced: false, reason: 'pg_not_configured' }
+  const pgGuard = guardExperiencePg(env)
+  if (pgGuard) return pgGuard
 
   const question = String(input.question || '').trim()
-  const task_norm = normalizeDbQuestionKey(question)
-  if (!task_norm) return { synced: false, reason: 'empty_question' }
+  const task_norm = normalizeExperienceQuestionKey(question)
+  const empty = emptyQuestionResult(task_norm)
+  if (empty) return empty
 
   const crawlerText = String(input.results.crawler ?? input.results.Crawler ?? '')
   const targetSite = input.targetSite || inferTargetSite(crawlerText, input.seedUrl)
@@ -91,7 +98,7 @@ export async function syncCrawlerExperienceFromManagerRun(
       input.seedUrl?.slice(0, 500) ?? null,
       JSON.stringify((input.fields || []).slice(0, 12)),
       hint,
-      'manager_finalize_sync'
+      experienceSyncSource(opts)
     ],
     env
   )

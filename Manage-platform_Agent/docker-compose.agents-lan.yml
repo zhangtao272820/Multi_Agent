@@ -333,171 +333,154 @@ services:
       retries: 8
     restart: unless-stopped
 
+  # CodePy（Python+React 轻量代码助手）；回滚：dockerfile 改回 nuxt-agent + AGENT_DIR: code_assistent_Agent
   code_assistent_agent:
     build:
       context: ..
-      dockerfile: Manage-platform_Agent/docker/nuxt-agent/Dockerfile
+      dockerfile: CodePy_Agent/docker/Dockerfile
       args:
-        NODE_BASE_IMAGE: ${AGENT_NODE_IMAGE:-docker.m.daocloud.io/library/node:20-bullseye}
+        PYTHON_BASE_IMAGE: ${AGENT_PYTHON_IMAGE:-docker.m.daocloud.io/library/python:3.12-slim-bookworm}
+        NODE_BASE_IMAGE: ${AGENT_NODE_IMAGE:-docker.m.daocloud.io/library/node:20-bookworm-slim}
         NPM_CONFIG_REGISTRY: ${NPM_REGISTRY:-https://registry.npmmirror.com}
-        AGENT_DIR: code_assistent_Agent
+        PIP_INDEX_URL: ${PIP_INDEX_URL:-https://mirrors.aliyun.com/pypi/simple/}
         DEFAULT_PORT: ${CODE_PORT:-13103}
     image: clawhive/code_assistent_agent:${CLAWHIVE_IMAGE_TAG:-prod}
     container_name: code_assistent_agent
     env_file:
-      - path: ../code_assistent_Agent/.env
+      - path: ../CodePy_Agent/.env
         required: false
       - path: .env.agents-lan
         required: false
     environment:
       PORT: ${CODE_PORT:-13103}
-      NITRO_PORT: ${CODE_PORT:-13103}
+      CODE_PORT: ${CODE_PORT:-13103}
       HOST: 0.0.0.0
-      NITRO_HOST: 0.0.0.0
       CLAWHIVE_BACKEND_URL: http://clawhive_backend:8000
       CLAWHIVE_INTERNAL_TOKEN: ${CLAWHIVE_INTERNAL_TOKEN:-}
       AGENT_LLM_REQUEST_TIMEOUT_MS: ${AGENT_LLM_REQUEST_TIMEOUT_MS:-120000}
       AGENT_LLM_MAX_RETRIES: ${AGENT_LLM_MAX_RETRIES:-0}
       AGENT_LLM_JSON_MAX_TOKENS: ${AGENT_LLM_JSON_MAX_TOKENS:-896}
-      AGENT_LLM_SYNTH_MAX_TOKENS: ${AGENT_LLM_SYNTH_MAX_TOKENS:-2048}
       CLAWHIVE_CONFIG_SYNC: ${CLAWHIVE_CONFIG_SYNC:-1}
-      EVO_VERIFY_BEFORE_PROMOTE: ${EVO_VERIFY_BEFORE_PROMOTE:-1}
-      EVO_AGENT_PROMPT_EXECUTION_ONLY: ${EVO_AGENT_PROMPT_EXECUTION_ONLY:-1}
-      EVO_PROMOTE_REQUIRES_VERIFY: ${EVO_PROMOTE_REQUIRES_VERIFY:-1}
-      # Agent 矩阵升级 Wave 3（Code MCP + understand）
       CODE_MCP_SERVER: ${CODE_MCP_SERVER:-1}
-      CODE_TASK_UNDERSTAND: ${CODE_TASK_UNDERSTAND:-1}
-      COMMAND_TOOL_ENABLED: ${COMMAND_TOOL_ENABLED:-1}
       WRITE_TOOL_ENABLED: ${WRITE_TOOL_ENABLED:-1}
-      CODE_REPO_MAP_TOKENS: ${CODE_REPO_MAP_TOKENS:-1024}
-      CODE_EDIT_VALIDATE_REQUIRED: ${CODE_EDIT_VALIDATE_REQUIRED:-1}
-      CODE_EDIT_FORMAT: ${CODE_EDIT_FORMAT:-search_replace}
       # 宿主 monorepo → 容器内 /workspace（Workbench「项目根目录」填 /workspace）
       PROJECT_DIR: ${CODE_PROJECT_DIR:-/workspace}
       ALLOWED_ROOTS: ${CODE_ALLOWED_ROOTS:-/workspace,/app}
-      # LLM 模型/API：由 env_file（code_assistent_Agent/.env + .env.agents-lan）注入，勿在此覆盖
+      # OPENAI_* / 模型：由 env_file（CodePy_Agent/.env + .env.agents-lan）注入，勿在此覆盖
     ports:
       - "${CODE_PORT:-13103}:${CODE_PORT:-13103}"
     volumes:
       - ../:/workspace
     healthcheck:
-      test: ["CMD-SHELL", "node -e \"const p=process.env.PORT||13103;require('http').get('http://127.0.0.1:'+p+'/api/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>require('http').get('http://127.0.0.1:'+p,r2=>process.exit(r2.statusCode<500?0:1)).on('error',()=>process.exit(1)))\""]
+      test: ["CMD-SHELL", "python -c \"import os,urllib.request;p=os.environ.get('CODE_PORT') or os.environ.get('PORT') or '13103';urllib.request.urlopen('http://127.0.0.1:'+p+'/api/health',timeout=5)\""]
       interval: 10s
       timeout: 8s
       retries: 12
-      start_period: 60s
+      start_period: 40s
     restart: unless-stopped
 
+  # ExtractorPy（Python+React 轻量爬虫）；回滚：dockerfile 改回 Extractor_Agent/Dockerfile
   extractor_agent:
     build:
       context: ..
-      dockerfile: Extractor_Agent/Dockerfile
+      dockerfile: ExtractorPy_Agent/docker/Dockerfile
       args:
-        NODE_BASE_IMAGE: ${AGENT_NODE_IMAGE:-docker.m.daocloud.io/library/node:20-bullseye}
+        PYTHON_BASE_IMAGE: ${AGENT_PYTHON_IMAGE:-docker.m.daocloud.io/library/python:3.12-slim-bookworm}
+        NODE_BASE_IMAGE: ${AGENT_NODE_IMAGE:-docker.m.daocloud.io/library/node:20-bookworm-slim}
         NPM_CONFIG_REGISTRY: ${NPM_REGISTRY:-https://registry.npmmirror.com}
-        DEBIAN_APT_MIRROR: ${DEBIAN_APT_MIRROR:-mirrors.aliyun.com}
+        PIP_INDEX_URL: ${PIP_INDEX_URL:-https://mirrors.aliyun.com/pypi/simple/}
         DEFAULT_PORT: ${CRAWLER_PORT:-13104}
-        PLAYWRIGHT_VERSION: ${EXTRACTOR_PLAYWRIGHT_VERSION:-1.59.1}
     image: clawhive/extractor_agent:${CLAWHIVE_IMAGE_TAG:-prod}
     container_name: extractor_agent
     env_file:
-      - path: ../Extractor_Agent/.env
-        required: false
+      - path: ../ExtractorPy_Agent/.env
+        required: true
       - path: .env.agents-lan
         required: false
     environment:
       PORT: ${CRAWLER_PORT:-13104}
       CRAWLER_PORT: ${CRAWLER_PORT:-13104}
-      NUXT_TELEMETRY_DISABLED: "1"
       HOST: 0.0.0.0
-      NITRO_HOST: 0.0.0.0
       HTTP_PROXY: ${HTTP_PROXY:-}
       HTTPS_PROXY: ${HTTPS_PROXY:-}
-      NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,extractor_agent,manager_agent,db_agent,rag_agent,code_assistent_agent,ai_admin_agent,video_agent,ai_agent,searxng,crw}
+      NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,extractor_agent,manager_agent,db_agent,rag_agent,code_assistent_agent,ai_admin_agent,video_agent,ai_agent,searxng,crw,playwright_mcp}
       CLAWHIVE_BACKEND_URL: http://clawhive_backend:8000
       CLAWHIVE_INTERNAL_TOKEN: ${CLAWHIVE_INTERNAL_TOKEN:-}
-      AGENT_LLM_REQUEST_TIMEOUT_MS: ${AGENT_LLM_REQUEST_TIMEOUT_MS:-120000}
-      AGENT_LLM_MAX_RETRIES: ${AGENT_LLM_MAX_RETRIES:-0}
-      AGENT_LLM_JSON_MAX_TOKENS: ${AGENT_LLM_JSON_MAX_TOKENS:-896}
-      AGENT_LLM_SYNTH_MAX_TOKENS: ${AGENT_LLM_SYNTH_MAX_TOKENS:-2048}
       CLAWHIVE_CONFIG_SYNC: ${CLAWHIVE_CONFIG_SYNC:-1}
-      # 爬虫 LLM 对齐能力层 SSOT（T0 route / T3 vision），避免被 .env.agents-lan 全局 QWEN_MODEL 覆盖
-      QWEN_MODEL: ${CAP_ROUTE:-qwen3-14b}
-      QWEN_VL_MODEL: ${CAP_VISION:-qwen-vl-plus}
-      # 其余 LLM/API 由 env_file 注入
-      EXTRACTOR_DOMAIN_POLITE_DELAY_MS: ${EXTRACTOR_DOMAIN_POLITE_DELAY_MS:-1200}
+      # QWEN_API_KEY / QWEN_BASE_URL：仅由 env_file（ExtractorPy_Agent/.env）注入，勿在此写空 ${QWEN_API_KEY:-} 覆盖
+      # T0 CAP_ROUTE（与 .env.capability-models 对齐）；抽取勿升 CAP_REASON
+      CAP_ROUTE: ${CAP_ROUTE:-qwen-turbo}
+      QWEN_MODEL: ${CAP_ROUTE:-qwen-turbo}
+      CAP_ENABLE_THINKING: ${CAP_ENABLE_THINKING:-off}
+      QWEN_ENABLE_THINKING: ${CAP_ENABLE_THINKING:-off}
+      AGENT_LLM_JSON_MAX_TOKENS: ${AGENT_LLM_JSON_MAX_TOKENS:-512}
+      EXTRACTOR_PLAN_MAX_TOKENS: ${EXTRACTOR_PLAN_MAX_TOKENS:-384}
+      EXTRACTOR_TASK_MAX_CHARS: ${EXTRACTOR_TASK_MAX_CHARS:-2000}
+      EXTRACTOR_LLM_MAX_PAGES: ${EXTRACTOR_LLM_MAX_PAGES:-3}
+      EXTRACTOR_LLM_PAGE_CHARS: ${EXTRACTOR_LLM_PAGE_CHARS:-1200}
       CRAWLER_MAX_CONCURRENCY: ${CRAWLER_MAX_CONCURRENCY:-3}
-      REDIS_URL: ${REDIS_URL:-redis://clawhive_redis:6379/0}
-      EXTRACTOR_QUEUE_BACKEND: ${EXTRACTOR_QUEUE_BACKEND:-local}
       EXTRACTOR_ASYNC_QUEUE: ${EXTRACTOR_ASYNC_QUEUE:-1}
-      # 独立 UI 联网找页 → seed_urls（与总管 SearXNG 同源）
       EXTRACTOR_WEB_SEARCH: ${EXTRACTOR_WEB_SEARCH:-1}
       SEARXNG_BASE_URL: ${SEARXNG_BASE_URL:-http://searxng:8080}
       SEARXNG_TIMEOUT_MS: ${SEARXNG_TIMEOUT_MS:-25000}
-      # 云抓取兜底：默认 CRW 自托管（Firecrawl 兼容），不再依赖商业配额
       MCP_PROVIDER: ${MCP_PROVIDER:-firecrawl}
       MCP_BASE_URL: ${MCP_BASE_URL:-http://crw:3000/v1/scrape}
       MCP_API_KEY: ${MCP_API_KEY:-local}
       MCP_RENDER: ${MCP_RENDER:-on}
       EXTRACTOR_MCP_MAX_CALLS: ${EXTRACTOR_MCP_MAX_CALLS:-12}
-      EVO_VERIFY_BEFORE_PROMOTE: ${EVO_VERIFY_BEFORE_PROMOTE:-1}
-      EVO_AGENT_PROMPT_EXECUTION_ONLY: ${EVO_AGENT_PROMPT_EXECUTION_ONLY:-1}
-      EVO_PROMOTE_REQUIRES_VERIFY: ${EVO_PROMOTE_REQUIRES_VERIFY:-1}
-      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
-      PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH: /usr/bin/chromium
+      PLAYWRIGHT_MCP_ENABLED: ${PLAYWRIGHT_MCP_ENABLED:-1}
+      PLAYWRIGHT_MCP_URL: ${PLAYWRIGHT_MCP_URL:-http://playwright_mcp:8931/mcp}
     ports:
       - "${CRAWLER_PORT:-13104}:${CRAWLER_PORT:-13104}"
     depends_on:
       crw:
         condition: service_started
+      searxng:
+        condition: service_started
+      playwright_mcp:
+        condition: service_started
     healthcheck:
       test:
         [
           "CMD-SHELL",
-          "node -e \"const p=process.env.CRAWLER_PORT||13104;require('http').get('http://127.0.0.1:'+p+'/api/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))\""
+          "python -c \"import os,urllib.request;p=os.environ.get('CRAWLER_PORT','13104');urllib.request.urlopen('http://127.0.0.1:'+p+'/api/health',timeout=5)\"",
         ]
       interval: 15s
       timeout: 8s
       retries: 12
-      start_period: 120s
+      start_period: 60s
     restart: unless-stopped
 
-  # 本地热更新开发：docker compose --profile extractor-dev up extractor_agent_dev
+  # 本地热更新：docker compose --profile extractor-dev up extractor_agent_dev
+  # 旧 Node Extractor 对照：改 volumes 指向 ../Extractor_Agent 并换回 Node 镜像
   extractor_agent_dev:
     profiles: ["extractor-dev"]
-    image: docker.1ms.run/library/node:20-bullseye
+    image: ${AGENT_PYTHON_IMAGE:-docker.m.daocloud.io/library/python:3.12-slim-bookworm}
     container_name: extractor_agent_dev
     working_dir: /app
     env_file:
-      - path: ../Extractor_Agent/.env
-        required: false
+      - path: ../ExtractorPy_Agent/.env
+        required: true
       - path: .env.agents-lan
         required: false
     volumes:
-      - ../Extractor_Agent:/app
-      - extractor_agent_node_modules:/app/node_modules
-      - extractor_agent_nuxt:/app/.nuxt
-      - extractor_agent_playwright:/ms-playwright
+      - ../ExtractorPy_Agent:/app
     environment:
       PORT: ${CRAWLER_PORT:-13104}
       CRAWLER_PORT: ${CRAWLER_PORT:-13104}
-      NPM_CONFIG_REGISTRY: ${NPM_REGISTRY:-https://registry.npmmirror.com}
-      PLAYWRIGHT_DOWNLOAD_HOST: ${PLAYWRIGHT_DOWNLOAD_HOST:-https://npmmirror.com/mirrors/playwright}
-      PLAYWRIGHT_DOWNLOAD_CONNECTION_TIMEOUT: ${PLAYWRIGHT_DOWNLOAD_CONNECTION_TIMEOUT:-180000}
-      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
+      HOST: 0.0.0.0
       HTTP_PROXY: ${HTTP_PROXY:-}
       HTTPS_PROXY: ${HTTPS_PROXY:-}
-      NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,extractor_agent,manager_agent,db_agent,rag_agent,code_assistent_agent,ai_admin_agent,video_agent,ai_agent,searxng,crw}
-      CHOKIDAR_USEPOLLING: "true"
-      WATCHPACK_POLLING: "true"
-      NUXT_TELEMETRY_DISABLED: "1"
+      NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,extractor_agent,manager_agent,db_agent,rag_agent,code_assistent_agent,ai_admin_agent,video_agent,ai_agent,searxng,crw,playwright_mcp}
       CLAWHIVE_BACKEND_URL: http://clawhive_backend:8000
       CLAWHIVE_INTERNAL_TOKEN: ${CLAWHIVE_INTERNAL_TOKEN:-}
-      AGENT_LLM_REQUEST_TIMEOUT_MS: ${AGENT_LLM_REQUEST_TIMEOUT_MS:-120000}
-      AGENT_LLM_MAX_RETRIES: ${AGENT_LLM_MAX_RETRIES:-0}
-      AGENT_LLM_JSON_MAX_TOKENS: ${AGENT_LLM_JSON_MAX_TOKENS:-896}
-      AGENT_LLM_SYNTH_MAX_TOKENS: ${AGENT_LLM_SYNTH_MAX_TOKENS:-2048}
-      CLAWHIVE_CONFIG_SYNC: ${CLAWHIVE_CONFIG_SYNC:-1}
+      CAP_ROUTE: ${CAP_ROUTE:-qwen-turbo}
+      QWEN_MODEL: ${CAP_ROUTE:-qwen-turbo}
+      CAP_ENABLE_THINKING: ${CAP_ENABLE_THINKING:-off}
+      QWEN_ENABLE_THINKING: ${CAP_ENABLE_THINKING:-off}
+      AGENT_LLM_JSON_MAX_TOKENS: ${AGENT_LLM_JSON_MAX_TOKENS:-512}
+      EXTRACTOR_LLM_MAX_PAGES: ${EXTRACTOR_LLM_MAX_PAGES:-3}
+      EXTRACTOR_LLM_PAGE_CHARS: ${EXTRACTOR_LLM_PAGE_CHARS:-1200}
       EXTRACTOR_WEB_SEARCH: ${EXTRACTOR_WEB_SEARCH:-1}
       SEARXNG_BASE_URL: ${SEARXNG_BASE_URL:-http://searxng:8080}
       SEARXNG_TIMEOUT_MS: ${SEARXNG_TIMEOUT_MS:-25000}
@@ -505,22 +488,35 @@ services:
       MCP_BASE_URL: ${MCP_BASE_URL:-http://crw:3000/v1/scrape}
       MCP_API_KEY: ${MCP_API_KEY:-local}
       MCP_RENDER: ${MCP_RENDER:-on}
-    command: ["sh", "/app/scripts/docker-entrypoint.sh"]
+      EXTRACTOR_MCP_MAX_CALLS: ${EXTRACTOR_MCP_MAX_CALLS:-12}
+      PLAYWRIGHT_MCP_ENABLED: ${PLAYWRIGHT_MCP_ENABLED:-1}
+      PLAYWRIGHT_MCP_URL: ${PLAYWRIGHT_MCP_URL:-http://playwright_mcp:8931/mcp}
+      EXTRACTOR_RELOAD: "1"
+    command:
+      [
+        "sh",
+        "-c",
+        "pip install -q -r requirements.txt && sh docker/entrypoint.sh",
+      ]
     ports:
       - "${CRAWLER_PORT:-13104}:${CRAWLER_PORT:-13104}"
     depends_on:
       crw:
         condition: service_started
+      searxng:
+        condition: service_started
+      playwright_mcp:
+        condition: service_started
     healthcheck:
       test:
         [
           "CMD-SHELL",
-          "node -e \"const p=process.env.CRAWLER_PORT||13104;require('http').get('http://127.0.0.1:'+p+'/api/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))\""
+          "python -c \"import urllib.request,os;p=os.environ.get('CRAWLER_PORT','13104');urllib.request.urlopen('http://127.0.0.1:'+p+'/api/health')\"",
         ]
       interval: 10s
       timeout: 8s
       retries: 24
-      start_period: 900s
+      start_period: 120s
     restart: unless-stopped
 
   ai_admin_agent:
@@ -935,11 +931,15 @@ services:
         CHROME=$$(find /ms-playwright -path '*/chrome-linux64/chrome' -type f 2>/dev/null | head -1)
         if [ -z "$$CHROME" ]; then echo "playwright_mcp: chromium binary not found under /ms-playwright" >&2; exit 1; fi
         exec npx -y @playwright/mcp@latest --port 8931 --host 0.0.0.0 --allowed-hosts '*' --headless --executable-path="$$CHROME"
+    environment:
+      HTTP_PROXY: ${HTTP_PROXY:-}
+      HTTPS_PROXY: ${HTTPS_PROXY:-}
+      NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,extractor_agent,manager_agent,db_agent,rag_agent,code_assistent_agent,ai_admin_agent,video_agent,ai_agent,searxng,crw,playwright_mcp,lobster_agent,clawhive_backend}
     ports:
       - "${PLAYWRIGHT_MCP_PORT:-18931}:8931"
     restart: unless-stopped
 
-  # Lobster_Agent（Nuxt + Playwright；Stagehand / MCP / classic）
+  # Lobster_Agent（Nuxt + Playwright；Stagehand 主 / MCP 旁路 / classic=视频·HITL）
   lobster_agent:
     build:
       context: ..
@@ -954,6 +954,9 @@ services:
       - path: .env.agents-lan
         required: false
     environment:
+      HTTP_PROXY: ${HTTP_PROXY:-}
+      HTTPS_PROXY: ${HTTPS_PROXY:-}
+      NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,extractor_agent,manager_agent,db_agent,rag_agent,code_assistent_agent,ai_admin_agent,video_agent,ai_agent,searxng,crw,playwright_mcp,lobster_agent,clawhive_backend}
       LOBSTER_HEADLESS: "false"
       LOBSTER_BROWSER_PROFILE: ${LOBSTER_BROWSER_PROFILE:-managed}
       LOBSTER_BROWSER_CDP_URL: ${LOBSTER_BROWSER_CDP_URL:-}

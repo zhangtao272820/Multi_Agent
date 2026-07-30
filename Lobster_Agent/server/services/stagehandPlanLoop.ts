@@ -3,6 +3,7 @@
  */
 import type { LobsterPlanStep, LobsterTaskGoals, LobsterTaskSpec } from './lobsterTaskUnderstandSchema'
 import { defaultPlanStepsForTask } from './lobsterTaskUnderstandSchema'
+import { isUnreachableBrowseUrl, looksLikeNetworkFailure } from '#agent-shared/lobsterRunVerifyLite'
 
 /** 短计划硬上限（goto + act* + extract） */
 export const STAGEHAND_PLAN_MAX_STEPS = 6
@@ -105,6 +106,19 @@ export async function gotoStagehandUrl(stagehand: any, url: string): Promise<voi
     return
   }
   await stagehand.act(`打开页面 ${u}`)
+}
+
+/** goto 后是否落在浏览器错误页（chrome-error / 无法访问） */
+export async function detectStagehandNetworkErrorPage(
+  stagehand: any,
+  fallbackUrl = '',
+): Promise<{ unreachable: boolean; url: string; title: string }> {
+  const url = await readStagehandPageUrl(stagehand, fallbackUrl)
+  const title = await readStagehandPageTitle(stagehand)
+  const blob = `${url}\n${title}`
+  const unreachable =
+    isUnreachableBrowseUrl(url) || looksLikeNetworkFailure(blob) || looksLikeNetworkFailure(title)
+  return { unreachable, url, title }
 }
 
 export function goalsNeedLeaveStart(goals?: LobsterTaskGoals | null, task = ''): boolean {

@@ -49,9 +49,9 @@ def managed_agent_specs() -> list[dict[str, str]]:
             "docker_service": "code_assistent_agent",
             "k8s_deployment": "code_assistent_agent",
             "port": settings.code_agent_port,
-            "cwd": os.path.join(base, "code_assistent_Agent"),
-            "run": f"npm run dev -- --port {settings.code_agent_port}",
-            "runner": "node",
+            "cwd": os.path.join(base, "CodePy_Agent"),
+            "run": f"python -m uvicorn app.main:app --host 0.0.0.0 --port {settings.code_agent_port}",
+            "runner": "python",
         },
         {
             "name": "Extractor_Agent",

@@ -56,10 +56,10 @@
         <label class="field">
           <span class="field-label">引擎 hint</span>
           <select v-model="engineHint" class="inp engine-select">
-            <option value="">auto（自动判断）</option>
-            <option value="mcp">mcp（搜索/点击）</option>
-            <option value="stagehand">stagehand（填表/SPA）</option>
-            <option value="classic">classic（视频/互动）</option>
+            <option value="">auto（默认 Stagehand）</option>
+            <option value="stagehand">stagehand（网页主路径）</option>
+            <option value="mcp">mcp（Playwright MCP 旁路）</option>
+            <option value="classic">classic（仅视频/人工接管）</option>
             <option value="desktop">desktop（Windows 原生应用）</option>
           </select>
           <span v-if="!engineHint && engineAutoPreview" class="hint">{{ engineAutoPreview }}</span>
@@ -427,15 +427,15 @@ const taskPresets: TaskPreset[] = [
   {
     id: 'runoob-search',
     label: 'Runoob 搜索',
-    hint: 'G3 · mcp 低风控',
+    hint: 'G3 · stagehand 主路径',
     task: '打开 https://www.runoob.com/ ，搜索 Python 教程，提取第一条结果标题与链接，输出 JSON。',
     startUrl: 'https://www.runoob.com/',
-    engine: 'mcp'
+    engine: 'stagehand'
   },
   {
     id: 'baidu-search',
     label: '百度站内搜',
-    hint: 'auto · Docker 优先 classic 有头',
+    hint: 'auto · Stagehand 有头（noVNC）；验证码走 HITL→classic',
     task: '打开 https://www.baidu.com/ ，搜索「Python 教程」，点击第一条搜索结果，提取标题与链接，输出 JSON。',
     startUrl: 'https://www.baidu.com/',
     engine: ''
@@ -453,10 +453,10 @@ const taskPresets: TaskPreset[] = [
   {
     id: 'gov-news',
     label: '政府网资讯',
-    hint: 'mcp · 列表抽取',
+    hint: 'stagehand · 列表抽取',
     task: '打开 https://www.gov.cn/ ，提取首页至少 3 条资讯标题和链接，输出 JSON。',
     startUrl: 'https://www.gov.cn/',
-    engine: 'mcp'
+    engine: 'stagehand'
   },
   {
     id: 'httpbin-form',

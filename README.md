@@ -29,6 +29,8 @@
 - [常见问题](#常见问题)
 - [参与贡献](#参与贡献)
 
+注册表边界（Manager 调度 vs ClawHive 技能）：[`docs/registry-boundary.md`](docs/registry-boundary.md)。
+
 ---
 
 ## 这个仓库是什么
@@ -127,7 +129,7 @@ cd Manager_Agent && npm i && cp .env.example .env && npm run dev
 |------|------|-----|------|--------|
 | [RAG_Agent](RAG_Agent/README.md) | **文曲** | `rag` | **13102** | 私有文档 Hybrid RAG：父子块、引用门禁、澄清/拒答 |
 | [DB_Agent](DB_Agent/README.md) | **禄存** | `db` | **13101** | 单库只读 NL2SQL：Schema 接地 + 多路径统计/SQL |
-| [code_assistent_Agent](code_assistent_Agent/README.md) | **武曲** | `code` | **13103** | 仓库助手：语义搜索、Diff、受控写盘 |
+| [CodePy_Agent](CodePy_Agent/README.md) | **武曲** | `code` | **13103** | 轻量代码助手：compute / Diff 确认写盘（旧 Nuxt `code_assistent_Agent` 保留） |
 | [Extractor_Agent](Extractor_Agent/README.md) | **巨门** | `crawler` | **13104** | 结构化采集：HTTP/Playwright、质量门禁；总管 SERP 种子精抓 |
 | [Lobster_Agent](Lobster_Agent/README.md) | **七杀** | `gui` | **13108** | GUI RPA：plan → act → verify → recover（classic/mcp/auto） |
 | [AI_admin_Agent](AI_admin_Agent/README.md) | **天梁** | `admin` | **13105** | 办公助理：天气/地图/日程/邮件（总管仅编排这四类） |
@@ -161,7 +163,7 @@ cd Manager_Agent && npm i && cp .env.example .env && npm run dev
 |------|------------|
 | 知识库问答 | `RAG_Agent` + `Manager_Agent` |
 | NL2SQL 问数 | `DB_Agent` |
-| 改真实仓库 | `code_assistent_Agent` |
+| 改真实仓库 | `CodePy_Agent`（服务名仍 `code_assistent_agent`） |
 | 网页采集 | `Extractor_Agent` |
 | 浏览器操作 | `Lobster_Agent` |
 | 办公助理 | `AI_admin_Agent` |
@@ -198,7 +200,8 @@ agent/
 ├── Manager_Agent/           # 总管 13106
 ├── RAG_Agent/               # 13102
 ├── DB_Agent/                # 13101
-├── code_assistent_Agent/    # 13103
+├── CodePy_Agent/            # 13103（compose: code_assistent_agent）
+├── code_assistent_Agent/    # 旧 Nuxt 对照/回滚
 ├── Extractor_Agent/         # 13104
 ├── Lobster_Agent/           # 13108
 ├── AI_admin_Agent/          # 13105

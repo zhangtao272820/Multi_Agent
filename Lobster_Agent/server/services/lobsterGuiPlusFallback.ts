@@ -32,7 +32,10 @@ export function shouldAttemptGuiPlusFallback(opts: {
   if (!isGuiPlusFallbackEnabled(opts.env)) return false
   if (opts.verifyOk) return false
   const ft = String(opts.failureType || '').toLowerCase()
-  if (/captcha|login_wall|login_required|user_cancelled|auth_wall/.test(ft)) return false
+  // captcha/登录墙走 HITL；network 无法靠 computer_use 在 about:blank 修复
+  if (/captcha|login_wall|login_required|user_cancelled|auth_wall|network_unreachable|^network$/.test(ft)) {
+    return false
+  }
   return true
 }
 

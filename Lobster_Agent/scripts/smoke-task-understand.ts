@@ -204,4 +204,30 @@ const fallbackPlan = defaultPlanStepsForTask({
 assert(fallbackPlan[0]?.op === 'goto', 'default plan starts goto')
 assert(fallbackPlan.some((s) => s.op === 'extract'), 'default plan has extract')
 
+const placeholderSpec = toLobsterTaskSpec(
+  {
+    canonical_task: '用户要求打开指定网站，点击第一个教程链接，并提取跳转页面的标题',
+    start_url: 'https://...',
+    engine_hint: 'auto',
+    task_kind: 'navigate',
+    browser_profile: 'auto',
+    needs_login: false,
+    explicitly_avoid_login: false,
+    confidence: 0.9,
+    rationale: 'placeholder must be stripped',
+    plan_steps: [
+      { op: 'goto', target: 'https://...', done_when: '首页打开' },
+      { op: 'click', target: '第一个教程链接', done_when: '进入教程页' },
+      { op: 'extract', target: '标题', done_when: '得到标题' },
+    ],
+  },
+  'llm',
+  'managed',
+)
+assert(placeholderSpec.start_url === undefined, 'reject https://... start_url')
+assert(
+  !placeholderSpec.plan_steps.some((s) => s.op === 'goto' && String(s.target || '').includes('...')),
+  'reject placeholder goto target',
+)
+
 console.log('smoke-task-understand: PASS (TaskSpec + stagehand default + plan_steps + manager hand)')

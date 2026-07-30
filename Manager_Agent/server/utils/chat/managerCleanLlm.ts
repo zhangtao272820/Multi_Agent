@@ -46,7 +46,10 @@ export function isCleanAlignLlmEnabled(): boolean {
   return String(process.env.MANAGER_CLEAN_ALIGN_LLM ?? '1').trim() !== '0'
 }
 
-/** 默认开：多源先结构层机械合并，冲突过多或无事实时再调 LLM */
+/**
+ * 默认开：多源先尝试结构层合并；仅当 isStructuralCleanSufficient（含跨源键重叠门槛）时跳过 LLM。
+ * 异构多源（如 DB 测量值 vs 网页参考区间）会判不足并走对齐 LLM。
+ */
 export function isCleanStructuralFirstEnabled(): boolean {
   return String(process.env.MANAGER_CLEAN_STRUCTURAL_FIRST ?? '1').trim() !== '0'
 }

@@ -60,10 +60,11 @@ const UNDERSTAND_SYSTEM = [
   'plan_steps：2-6 步，op=goto|click|type|submit|extract|wait|observe；含 target 与 done_when',
   'goals：must_leave_start / must_extract / must_submit / expected_url_change 布尔',
   '',
-  '输出（纯 JSON）：',
-  '{"canonical_task":"...","start_url":"https://...","engine_hint":"auto","task_kind":"navigate","browser_profile":"auto","intent_hint":"click_extract","needs_login":false,"explicitly_avoid_login":false,"completion_criteria":"...","success_criteria":"...","goals":{"must_leave_start":true,"must_extract":true,"must_submit":false,"expected_url_change":true},"plan_steps":[{"op":"goto","target":"https://...","done_when":"首页打开"},{"op":"click","target":"第一个教程链接","done_when":"进入教程页"},{"op":"extract","target":"标题","done_when":"得到标题"}],"confidence":0.0-1.0,"rationale":"..."}',
+  '输出（纯 JSON）示例（仅当任务含真实 URL 时照此填 start_url / goto.target）：',
+  '{"canonical_task":"打开菜鸟教程首页，点击第一个教程并提取标题","start_url":"https://www.runoob.com/","engine_hint":"auto","task_kind":"navigate","browser_profile":"auto","intent_hint":"click_extract","needs_login":false,"explicitly_avoid_login":false,"completion_criteria":"得到教程页标题","success_criteria":"得到教程页标题","goals":{"must_leave_start":true,"must_extract":true,"must_submit":false,"expected_url_change":true},"plan_steps":[{"op":"goto","target":"https://www.runoob.com/","done_when":"首页打开"},{"op":"click","target":"第一个教程链接","done_when":"进入教程页"},{"op":"extract","target":"标题","done_when":"得到标题"}],"confidence":0.0-1.0,"rationale":"含明确 URL 与点击抽取"}',
   '',
   '规则：confidence<0.5 表示任务不清晰；点击/进入详情类须 must_leave_start=true；抽取标题须 must_extract=true；网页任务不确定时 engine_hint=auto（勿默认 mcp）',
+  'URL：任务或「起始URL」字段无真实 http(s) 地址时，省略 start_url，goto.target 用文字描述（如「起始页」）；禁止输出 https://...、http://... 等占位符',
 ].join('\n')
 
 function forcedTaskSpec(input: {

@@ -1,6 +1,6 @@
 ﻿/**
  * 总管 ↔ Lobster_Agent 协议对齐 smoke（纯函数，无网络）
- * 多引擎：显式 engineHint 透传；失败可换引擎
+ * 多引擎：显式 engineHint 透传；网页失败不再跨引擎 mcp/classic 级联
  */
 import assert from 'node:assert/strict'
 import {
@@ -54,10 +54,10 @@ assert(LOBSTER_GUI_MCP_TOOLS.some((t) => t.name === 'run_desktop_task'), 'run_de
 assert(LOBSTER_GUI_MCP_TOOLS.some((t) => t.name === 'run_browser_task'), 'run_browser_task exported')
 
 assert(!isGuiMcpFirstEnabled({ MANAGER_GUI_MCP_FIRST: '0' }), 'MCP-first default off')
-assert(nextGuiEngineHintForRetry('auto') === 'mcp', 'auto → mcp')
-assert(nextGuiEngineHintForRetry('browser_use') === 'mcp', 'browser_use maps to mcp cascade')
-assert(nextGuiEngineHintForRetry('mcp') === 'stagehand', 'mcp → stagehand')
-assert(nextGuiEngineHintForRetry('stagehand') === 'classic', 'stagehand → classic')
+assert(nextGuiEngineHintForRetry('auto') === undefined, 'auto：no mcp cascade')
+assert(nextGuiEngineHintForRetry('browser_use') === undefined, 'browser_use：no cascade')
+assert(nextGuiEngineHintForRetry('mcp') === undefined, 'mcp：no cascade to stagehand')
+assert(nextGuiEngineHintForRetry('stagehand') === undefined, 'stagehand：no cascade to classic')
 assert(LOBSTER_GUI_PROGRESS_LIMITS.maxThinkingLines <= 12, 'progress ≤12')
 assert(!shouldForwardGuiThinking('actualEngine=mcp'), 'filter engine truth noise')
 

@@ -1,1 +1,0 @@
-export { detectBugs } from './analysis'

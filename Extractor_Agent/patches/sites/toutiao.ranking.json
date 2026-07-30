@@ -1,8 +1,0 @@
-{
-  "id": "toutiao.ranking",
-  "targetSite": "toutiao",
-  "contentType": "ranking",
-  "defaultSeedUrls": ["https://www.toutiao.com/hot-event/hot-board/"],
-  "preferChannel": "http",
-  "antiBotRisk": "medium"
-}

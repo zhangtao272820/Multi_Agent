@@ -491,6 +491,16 @@ export default function App() {
       },
       registry: { data: mgr.registry },
     });
+    const prom = data.prometheus || {};
+    const audit = data.audit || {};
+    setPromSnapshot({
+      managerRuns: prom.manager_runs ?? audit.manager_runs ?? null,
+      managerTokens: prom.manager_tokens ?? audit.total_tokens ?? null,
+      searchHitRate: prom.search_hit_rate ?? audit.search_hit_rate ?? null,
+      firstPassSuccessRate: prom.first_pass_success_rate ?? audit.first_pass_success_rate ?? null,
+      agentsHealthy: prom.agents_healthy ?? audit.agents_healthy ?? null,
+      agentsTotal: prom.agents_total ?? audit.agents_total ?? null,
+    });
     setMonitorSummary({
       ok: data.ok,
       overall_status: data.overall_status,
@@ -501,17 +511,12 @@ export default function App() {
       manager_phases: mgr.phases,
       manager_token_summary: mgr.token_summary,
       manager_evolution: mgr.evolution,
+      audit,
       registry_count: Array.isArray(mgr.registry?.registry?.entries)
         ? mgr.registry.registry.entries.length
         : Array.isArray(mgr.registry?.entries)
           ? mgr.registry.entries.length
           : 0,
-    });
-    const prom = data.prometheus || {};
-    setPromSnapshot({
-      managerRuns: prom.manager_runs ?? null,
-      managerTokens: prom.manager_tokens ?? null,
-      searchHitRate: prom.search_hit_rate ?? null,
     });
     return true;
   }
@@ -519,16 +524,19 @@ export default function App() {
   async function fetchPromSnapshot() {
     if (!token) return true;
     try {
-      const [managerRuns, managerTokens, searchHitRate] = await Promise.all([
+      const [managerRuns, managerTokens, searchHitRate, firstPassSuccessRate] = await Promise.all([
         promInstant("manager_runs_total").catch(() => null),
         promInstant("manager_tokens_total").catch(() => null),
         promInstant("manager_search_hit_rate").catch(() => null),
+        promInstant("manager_first_pass_success_rate").catch(() => null),
       ]);
-      setPromSnapshot({
+      setPromSnapshot((prev) => ({
+        ...(prev || {}),
         managerRuns,
         managerTokens,
         searchHitRate,
-      });
+        firstPassSuccessRate,
+      }));
       return true;
     } catch {
       setPromSnapshot(null);

@@ -1,0 +1,17 @@
+[project]
+name = "codepy-agent"
+version = "0.1.0"
+description = "Lean Code Agent (FastAPI + React) for Manager compute + lite IDE"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.115.0",
+  "uvicorn[standard]>=0.32.0",
+  "httpx>=0.27.0",
+  "pydantic>=2.9.0",
+  "websockets>=13.0",
+  "python-multipart>=0.0.9",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*"]

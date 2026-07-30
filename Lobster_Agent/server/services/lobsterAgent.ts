@@ -11,6 +11,7 @@ import dns from 'node:dns/promises'
 import fs from 'node:fs/promises'
 import net from 'node:net'
 import path from 'node:path'
+import { extractFirstHttpUrl, sanitizeExtractedHttpUrl } from '#agent-shared/extractHttpUrl'
 import { extractFirstJsonObject, extractFirstJsonValue } from './lobster/json'
 import { createQwenChatModel } from './lobster/model'
 import { sanitizeStepMetaForEmit } from './lobster/stepMeta'
@@ -330,14 +331,18 @@ async function mapWithConcurrency<T, R>(
 }
 
 function normalizeStartUrl(task: string, startUrl?: string) {
-  const raw = String(startUrl ?? '').trim()
-  if (raw) {
-    if (/^https?:\/\//i.test(raw)) return raw
-    if (/^[a-z0-9.-]+\.[a-z]{2,}(\/|$)/i.test(raw)) return `https://${raw}`
+  const cleaned = (() => {
+    const raw = String(startUrl ?? '').trim()
+    if (!raw) return ''
+    if (/^https?:\/\//i.test(raw)) return sanitizeExtractedHttpUrl(raw) || ''
+    if (/^[a-z0-9.-]+\.[a-z]{2,}(\/|$)/i.test(raw)) {
+      return sanitizeExtractedHttpUrl(`https://${raw}`) || `https://${raw}`
+    }
     return raw
-  }
-  const m = String(task || '').match(/https?:\/\/[^\s]+/i)
-  if (m) return m[0]
+  })()
+  if (cleaned) return cleaned
+  const fromTask = extractFirstHttpUrl(task)
+  if (fromTask) return fromTask
   const t = String(task || '')
   const sitePresets: Array<{ re: RegExp; url: string }> = [
     { re: /(菜鸟教程|runoob)/i, url: 'https://www.runoob.com/' },

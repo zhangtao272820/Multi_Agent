@@ -1,5 +1,4 @@
 import type { AgentResult } from '../agents/types'
-import { detectLobsterSemanticBlock } from '#agent-shared/lobsterRunVerifyLite'
 import { waitGuiConfirm } from './guiConfirmBridge'
 import { gateCopy, resolveRiskExecutionPolicy } from '../../graph/core/policy/riskExecutionPolicy'
 
@@ -168,7 +167,8 @@ export function normalizeGuiVerifyReasonForTask(task: string, reason: string): s
   return r
 }
 
-/** 从 graph state 检测 GUI 语义阻塞（验证码/登录墙），用于阻断 fix→multi 重跑 */
+/** 从 graph state 检测 GUI 语义阻塞（验证码/登录墙），用于阻断 fix→multi 重跑。
+ * 只信结构化 failureType / agentResult.ok===false；禁止对成功 answer 空 task 扫「登录/验证码」。 */
 export function detectGuiSemanticBlockFromState(state: {
   evidence?: unknown[]
   results?: Record<string, unknown>
@@ -180,29 +180,39 @@ export function detectGuiSemanticBlockFromState(state: {
     return { blocked: true, failureType: preset }
   }
   const evidence = Array.isArray(state.evidence) ? state.evidence : []
-  for (const raw of evidence) {
+  // 从后往前：最新成功 gui（ok===true）优先解除误伤；仅失败行可触发 handoff 阻断
+  for (let i = evidence.length - 1; i >= 0; i--) {
+    const raw = evidence[i]
     const e = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}
     if (String(e.kind || '') !== 'gui') continue
     const agentResult = e.agentResult as AgentResult | undefined
+    if (agentResult?.ok === true && e.failed !== true) {
+      return { blocked: false }
+    }
     const ft = resolveGuiFailureType({ agentResult })
     const failed = e.failed === true || agentResult?.ok === false
     const verifyReason = String(e.verifyReason || '').trim()
-    if (failed && (isGuiHumanHandoffFailure(ft) || verifyReason === 'task_blocked')) {
+    const structuredFt = String(
+      (agentResult as any)?.structured?.failureType || agentResult?.error_code || '',
+    )
+      .trim()
+      .toLowerCase()
+    if (
+      failed &&
+      (isGuiHumanHandoffFailure(ft) ||
+        isGuiHumanHandoffFailure(structuredFt) ||
+        verifyReason === 'task_blocked')
+    ) {
       const structured =
         agentResult?.structured && typeof agentResult.structured === 'object'
           ? (agentResult.structured as Record<string, unknown>)
           : {}
       return {
         blocked: true,
-        failureType: ft || 'need_human',
+        failureType: ft || structuredFt || 'need_human',
         finalUrl: String(structured.finalUrl || '').trim() || undefined,
       }
     }
-  }
-  const guiText = String(state.results?.gui || '').trim()
-  const block = detectLobsterSemanticBlock({ task: '', text: guiText })
-  if (block) {
-    return { blocked: true, failureType: block.failureType }
   }
   return { blocked: false }
 }

@@ -1,9 +1,0 @@
-{
-  "id": "douban.ranking",
-  "targetSite": "douban",
-  "contentType": "ranking",
-  "defaultSeedUrls": ["https://movie.douban.com/top250"],
-  "preferChannel": "http",
-  "antiBotRisk": "low",
-  "builtinHandler": "douban_top250"
-}

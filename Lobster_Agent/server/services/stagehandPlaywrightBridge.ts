@@ -39,20 +39,71 @@ function hrefLooksNavigable(href: string, startUrl: string): boolean {
   }
 }
 
+/** 从 plan target / 任务中提取可用于文本匹配的短语（非站点关键词表） */
+function hintTokens(hint: string): string[] {
+  const raw = String(hint || '')
+    .replace(/https?:\/\/\S+/gi, ' ')
+    .replace(/[，。；：！？、,.!?;:()[\]{}「」『』【】]/g, ' ')
+  const parts = raw
+    .split(/\s+/)
+    .map((p) => p.trim())
+    .filter((p) => p.length >= 2 && p.length <= 24)
+  // 中文连续 2～6 字片断（从较长短语再切）
+  const cjkChunks: string[] = []
+  for (const p of parts) {
+    if (/^[\u4e00-\u9fff]+$/.test(p) && p.length >= 4) {
+      for (let i = 0; i <= p.length - 2 && i < 8; i++) {
+        cjkChunks.push(p.slice(i, Math.min(i + 4, p.length)))
+      }
+    }
+  }
+  const out = [...parts, ...cjkChunks]
+  const seen = new Set<string>()
+  const uniq: string[] = []
+  for (const t of out) {
+    const k = t.toLowerCase()
+    if (seen.has(k)) continue
+    seen.add(k)
+    uniq.push(t)
+    if (uniq.length >= 24) break
+  }
+  return uniq
+}
+
+function scoreLinkAgainstHints(text: string, href: string, tokens: string[]): number {
+  if (!tokens.length) return 0
+  const blob = `${text} ${href}`.toLowerCase()
+  let bonus = 0
+  for (const t of tokens) {
+    if (blob.includes(t.toLowerCase())) bonus += Math.min(6, 2 + Math.floor(t.length / 2))
+  }
+  return bonus
+}
+
+export type PlaywrightClickOpts = {
+  task?: string
+  target?: string
+  startUrl?: string
+  /** 扩大扫描上限（重试时） */
+  scanLimit?: number
+}
+
 /** 按计划目标/任务，点第一个像「内容入口」的链接（非导航栏噪音） */
 export async function playwrightClickContentLink(
   stagehand: any,
-  input: { task?: string; target?: string; startUrl?: string },
+  input: PlaywrightClickOpts,
 ): Promise<{ ok: boolean; url?: string; text?: string; reason?: string }> {
   const page = getPage(stagehand)
   if (!page) return { ok: false, reason: 'no_page' }
 
   const startUrl = String(input.startUrl || (typeof page.url === 'function' ? page.url() : page.url) || '')
-  const hint = `${input.target || ''} ${input.task || ''}`.slice(0, 200)
+  const hint = `${input.target || ''} ${input.task || ''}`.slice(0, 280)
+  const tokens = hintTokens(hint)
   const preferTutorial = /教程|学习|入门|第一个|第一条|链接|文档|手册/.test(hint)
+  const scanLimit = Math.min(Math.max(Number(input.scanLimit) || 72, 24), 160)
 
   const links = linkLocator(page)
-  const n = Math.min(Math.max(0, await links.count()), 48)
+  const n = Math.min(Math.max(0, await links.count()), scanLimit)
   if (n === 0) return { ok: false, reason: 'no_links' }
 
   type Cand = { i: number; text: string; href: string; score: number }
@@ -80,6 +131,7 @@ export async function playwrightClickContentLink(
 
     let score = 1
     if (!text) score -= 1
+    score += scoreLinkAgainstHints(text, href, tokens)
     if (preferTutorial && /学习|教程|入门|Python|Java|HTML|CSS|JS|前端|后端/.test(text)) score += 5
     if (/【学习/.test(text)) score += 4
     try {
@@ -179,34 +231,50 @@ export async function playwrightFillAndSubmit(
 /** 确定性抽取：title + h1 + url（不依赖 Stagehand LLM JSON） */
 export async function playwrightExtractBasics(stagehand: any): Promise<{
   title: string
-  h1: string
   url: string
   summary: string
 }> {
   const page = getPage(stagehand)
+  if (!page) return { title: '', url: '', summary: '' }
   let url = ''
   let title = ''
   let h1 = ''
   try {
-    url = page ? (typeof page.url === 'function' ? String(page.url() || '') : String(page.url || '')) : ''
+    url = typeof page.url === 'function' ? String(page.url() || '') : String(page.url || '')
   } catch {
     /* ignore */
   }
   try {
-    title = page?.title ? String((await page.title()) || '').trim() : ''
+    title = String((await page.title?.()) || '').trim()
   } catch {
     /* ignore */
   }
   try {
-    h1 = page ? String((await page.locator('h1').first().innerText({ timeout: 2000 })) || '').trim() : ''
+    const el = page.locator('h1').first()
+    h1 = String((await el.innerText().catch(() => '')) || '').replace(/\s+/g, ' ').trim()
   } catch {
     /* ignore */
   }
   const best = h1 || title
-  const summary = best
-    ? `标题：${best}${url ? `\n链接：${url}` : ''}`
-    : url
-      ? `页面：${url}`
-      : ''
-  return { title: best || title, h1, url, summary }
+  const summary = best && url ? `标题：${best}\n链接：${url}` : best || url
+  return { title: best, url, summary }
+}
+
+function sameHomeUrl(a: string, b: string): boolean {
+  try {
+    const ua = new URL(a)
+    const ub = new URL(b)
+    return (
+      ua.hostname.replace(/^www\./, '') === ub.hostname.replace(/^www\./, '') &&
+      (ua.pathname.replace(/\/$/, '') || '/') === (ub.pathname.replace(/\/$/, '') || '/')
+    )
+  } catch {
+    return false
+  }
+}
+
+/** 是否仍停在起始页（供 mustLeave fail-closed） */
+export function isStillOnStartUrl(currentUrl: string, startUrl: string): boolean {
+  if (!currentUrl || !startUrl) return false
+  return sameHomeUrl(currentUrl, startUrl)
 }

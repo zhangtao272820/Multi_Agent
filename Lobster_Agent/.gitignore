@@ -21,3 +21,6 @@ logs
 # Local env files
 .env
 .env.*
+
+# Docker/local mirror of ../shared (Nuxt #agent-shared)
+agent-repo-shared/

@@ -47,8 +47,12 @@ AGENT_MODE_BINDINGS: dict[str, dict[str, Any]] = {
         "keys": ["EVO_MODE", "ARTIFACT_FEEDBACK_MODE", "RAG_CORPUS_TIER", "RAG_NLU_MODE"],
     },
     "code_assistent_Agent": {
-        "env_file": "code_assistent_Agent/.env",
-        "keys": ["EVO_MODE", "CODE_LEARNING_MODE"],
+        "env_file": "CodePy_Agent/.env",
+        "keys": ["EVO_MODE", "WRITE_TOOL_ENABLED", "CODE_MCP_SERVER"],
+    },
+    "CodePy_Agent": {
+        "env_file": "CodePy_Agent/.env",
+        "keys": ["WRITE_TOOL_ENABLED", "CODE_MCP_SERVER"],
     },
     "Extractor_Agent": {
         "env_file": "Extractor_Agent/.env",

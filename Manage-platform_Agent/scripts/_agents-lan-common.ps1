@@ -39,6 +39,7 @@ $Script:AgentDockerServiceMap = @{
     "DB_Agent"             = "db_agent"
     "RAG_Agent"            = "rag_agent"
     "code_assistent_Agent" = "code_assistent_agent"
+    "CodePy_Agent"         = "code_assistent_agent"
     "Extractor_Agent"      = "extractor_agent"
     "AI_admin_Agent"       = "ai_admin_agent"
     "Manager_Agent"        = "manager_agent"

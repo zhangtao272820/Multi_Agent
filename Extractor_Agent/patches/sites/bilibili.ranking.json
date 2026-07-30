@@ -1,9 +1,0 @@
-{
-  "id": "bilibili.ranking",
-  "targetSite": "bilibili",
-  "contentType": "ranking",
-  "defaultSeedUrls": ["https://www.bilibili.com/v/popular/rank/all"],
-  "preferChannel": "browser",
-  "antiBotRisk": "medium",
-  "apiSeedUrl": "https://api.bilibili.com/x/web-interface/ranking/v2?rid=0&type=all"
-}

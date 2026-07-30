@@ -1,9 +1,0 @@
-{
-  "id": "zhihu.ranking",
-  "targetSite": "zhihu",
-  "contentType": "ranking",
-  "defaultSeedUrls": ["https://www.zhihu.com/hot"],
-  "preferChannel": "browser",
-  "antiBotRisk": "medium",
-  "apiSeedUrl": "https://www.zhihu.com/api/v3/feed/topstory/hot-lists/total"
-}

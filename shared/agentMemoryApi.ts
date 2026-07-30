@@ -107,6 +107,18 @@ export async function recordMemory(
     return { ok: true }
   }
 
+  if (event.type === 'user_preference' && event.agent === 'manager') {
+    const userKey = event.userKey || resolveUserKey({ sessionId: event.sessionId })
+    await agentPgQuery(
+      `INSERT INTO mgr_user_profiles (user_key, payload, updated_at)
+       VALUES ($1, $2::jsonb, NOW())
+       ON CONFLICT (user_key) DO UPDATE SET payload = EXCLUDED.payload, updated_at = NOW()`,
+      [userKey, JSON.stringify(event.payload)],
+      env
+    )
+    return { ok: true }
+  }
+
   return { ok: true, reason: 'no_pg_route' }
 }
 

@@ -45,7 +45,7 @@ import {
   validateMcpBrowserAction,
 } from './mcpComplexRecovery'
 import { isRecipeComplexPage } from './siteRecipes'
-import { detectLobsterSemanticBlock, looksLikeNetworkFailure } from '#agent-shared/lobsterRunVerifyLite'
+import { detectLobsterSemanticBlock, looksLikeNetworkFailure, verifyLobsterRunResult } from '#agent-shared/lobsterRunVerifyLite'
 import {
   classifyLeanBrowseKind,
   extractSearchQueryFromTask,
@@ -462,6 +462,49 @@ export async function runLobsterMcpAgent(params: RunParams) {
             new HumanMessage(
               `finish.answer 过短（至少 ${lobsterMcpFinishMinAnswerChars()} 字）。请继续操作或给出完整结论后再 finish。`
             )
+          )
+          continue
+        }
+        const finishUrl = String(action.finalUrl || finalUrl || '').trim()
+        const finishCandidate = {
+          answer: action.answer,
+          finalUrl: finishUrl || undefined,
+          data: Array.isArray(action.data) ? action.data : undefined,
+        }
+        if (
+          looksLikeNetworkFailure(finishCandidate) ||
+          looksLikeNetworkFailure(action.answer) ||
+          looksLikeNetworkFailure(finishUrl)
+        ) {
+          finalAnswer = action.answer
+          if (action.finalUrl) finalUrl = action.finalUrl
+          if (action.data) structuredData = action.data
+          semanticFailureType = 'network'
+          emitLog('warn', 'MCP finish 判定为网络失败，fail-closed')
+          break
+        }
+        const finishVerify = verifyLobsterRunResult({
+          task: params.task,
+          status: 'done',
+          result: finishCandidate,
+        })
+        if (!finishVerify.ok) {
+          if (
+            finishVerify.reason === 'network_unreachable' ||
+            finishVerify.failureType === 'network' ||
+            finishVerify.failureType === 'network_unreachable'
+          ) {
+            finalAnswer = action.answer
+            if (action.finalUrl) finalUrl = action.finalUrl
+            if (action.data) structuredData = action.data
+            semanticFailureType = 'network'
+            emitLog('warn', 'MCP finish verify=network_unreachable，fail-closed')
+            break
+          }
+          messages.push(
+            new HumanMessage(
+              `finish 未通过校验（${finishVerify.reason}）。请继续操作，或给出真实失败原因后再 finish；禁止用错误页标题冒充成功。`,
+            ),
           )
           continue
         }

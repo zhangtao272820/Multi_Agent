@@ -30,6 +30,14 @@ export default function OpsOverview({
   const phases = managerCluster?.metrics?.data?.phases || monitorSummary?.manager_phases || {};
   const tokenSummary =
     managerCluster?.metrics?.data?.tokenSummary || monitorSummary?.manager_token_summary || {};
+  const evolution =
+    managerCluster?.metrics?.data?.evolution || monitorSummary?.manager_evolution || {};
+  const audit = monitorSummary?.audit || {};
+  const firstPass =
+    promSnapshot?.firstPassSuccessRate ??
+    audit.first_pass_success_rate ??
+    evolution.firstPassSuccessRate ??
+    null;
   const phaseRows = Object.entries(phases)
     .sort((a, b) => (b[1]?.avgMs || 0) - (a[1]?.avgMs || 0))
     .slice(0, 8);
@@ -44,7 +52,7 @@ export default function OpsOverview({
         <div>
           <p className="panel-eyebrow">运维总览</p>
           <h2 className="ops-title">Control Plane Health</h2>
-          <p className="panel-desc">健康探活 · Manager 集群 · 编排指标</p>
+          <p className="panel-desc">健康探活 · Manager 集群 · Token / 成功率审计</p>
         </div>
         <div className="ops-header__right">
           <div className={`health-ring health-ring--${statusClass(healthOverview?.overall_status)}`} title={healthOverview?.overall_status || ""}>
@@ -89,12 +97,19 @@ export default function OpsOverview({
         </div>
         <div className="kpi-tile">
           <span className="kpi-label">Token（窗口）</span>
-          <span className="kpi-value">{tokenSummary?.totalTokens ?? "—"}</span>
-          <span className="kpi-meta">Manager metrics.jsonl</span>
+          <span className="kpi-value">
+            {tokenSummary?.totalTokens ?? audit.total_tokens ?? promSnapshot?.managerTokens ?? "—"}
+          </span>
+          <span className="kpi-meta">
+            Prom {promSnapshot?.managerTokens ?? "—"} · jsonl {tokenSummary?.totalTokens ?? "—"}
+          </span>
         </div>
         <div className="kpi-tile">
-          <span className="kpi-label">Prometheus Token</span>
-          <span className="kpi-value">{promSnapshot?.managerTokens ?? "—"}</span>
+          <span className="kpi-label">首遍成功率</span>
+          <span className="kpi-value">
+            {firstPass != null ? `${(Number(firstPass) * 100).toFixed(1)}%` : "—"}
+          </span>
+          <span className="kpi-meta">Audit · Prometheus / evolution</span>
         </div>
         <div className="kpi-tile">
           <span className="kpi-label">异常 Agent</span>

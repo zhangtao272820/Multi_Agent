@@ -15,6 +15,8 @@ import {
 import {
   buildUserFacingPayload,
   formatUserFacingMainText,
+  isHeavyUserFacingTask,
+  looksLikeStepDumpSummary,
   type UserFacingPayload
 } from './userFacingPayload'
 import { assessEvidenceGate } from '../db/evidenceGate'
@@ -132,17 +134,33 @@ export function composeFinalBundleFromGraphResult(result: unknown): ComposeFinal
     else if (!clarifyQs.some((q) => rawBody.includes(q))) rawBody = `${rawBody.trim()}\n\n---\n\n${block}`
   }
 
+  const planSteps = Array.isArray(r?.plan) ? r.plan : []
   const userFacing = buildUserFacingPayload({
     finalText: rawBody,
     synth: mediaPath ? rawBody : synth,
     intent,
     results: bag,
     evidence: Array.isArray(r?.evidence) ? r.evidence : [],
-    meta
+    meta,
+    planSteps
   })
 
   const userMain = formatUserFacingMainText(userFacing)
-  const bodyForAudit = mediaPath ? rawBody || userMain : userMain || rawBody
+  const heavy = isHeavyUserFacingTask({
+    intent,
+    results: bag,
+    planSteps,
+    meta
+  })
+  // 复杂任务：userMain 若劣质（步骤 dump / 缺失提示）仍用完整 synth+REPORT 做审计正文
+  let bodyForAudit = mediaPath ? rawBody || userMain : userMain || rawBody
+  if (!mediaPath && heavy && rawBody.trim()) {
+    if (!userMain.trim() || looksLikeStepDumpSummary(userMain) || /汇总未生成可用正文/.test(userMain)) {
+      bodyForAudit = rawBody
+    } else if (rawBody.length > userMain.length * 1.2 && /<!--\s*REPORT\s*-->/i.test(rawBody)) {
+      bodyForAudit = pickRicherNarrativeWithAuxBlocks(userMain, rawBody)
+    }
+  }
 
   const stepRecords = Array.isArray(meta.lastStepRecords)
     ? (meta.lastStepRecords as Array<{ id?: string; agent?: string; status?: string; error?: string }>)
@@ -151,7 +169,7 @@ export function composeFinalBundleFromGraphResult(result: unknown): ComposeFinal
     goal: String(r?.routedQuery || r?.meta?.routedQuery || '').trim(),
     intent,
     finalText: bodyForAudit,
-    plan: Array.isArray(r?.plan) ? r.plan : [],
+    plan: planSteps,
     stepRecords,
     evidence: Array.isArray(r?.evidence) ? r.evidence : [],
     meta,

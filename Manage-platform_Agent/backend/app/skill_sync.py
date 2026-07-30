@@ -43,8 +43,12 @@ AGENT_SKILL_SPECS: dict[str, dict[str, str]] = {
         "reload_path": "/api/internal/skills/reload",
     },
     "code_assistent_Agent": {
-        "skills_dir": "code_assistent_Agent/skills",
-        "reload_path": "/api/internal/skills/reload",
+        "skills_dir": "CodePy_Agent/skills",
+        "reload_path": "/api/health",
+    },
+    "CodePy_Agent": {
+        "skills_dir": "CodePy_Agent/skills",
+        "reload_path": "/api/health",
     },
     "Extractor_Agent": {
         "skills_dir": "Extractor_Agent/skills",

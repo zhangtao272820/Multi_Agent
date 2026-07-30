@@ -614,7 +614,9 @@ export function buildSynthNodeRun(deps: CreateFinalNodesDeps) {
                   : plannedAdmin
                   ? '\n\n[说明] 计划含 admin 步骤，但当前无 admin 子输出；勿编造已创建提醒/日程。'
                   : '\n\n[说明] 本任务计划未含 admin 步骤；禁止声称已创建提醒/日程/会议/待办。') +
-              '\n\n请用对话口吻直接回答（不要报告章节标题）：'
+              (canShowAuxOutputs || multiSourceSynth
+                ? '\n\n请按系统要求写完整对照分析：首段结论 → ### 分段展开 → 末段 **小结**；禁止复述 CTX/HANDOFF/JSON/管线回显。'
+                : '\n\n请用对话口吻直接回答（不要报告章节标题）：')
           )
         ]
 

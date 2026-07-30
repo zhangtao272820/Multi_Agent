@@ -45,14 +45,14 @@ export default defineEventHandler(async (event) => {
     authRequired: Boolean(adminToken),
     headless,
     vncUrl,
-    /** MCP 在独立 sidecar 无头运行，noVNC 看不到；播放/互动/百度等请用 classic */
+    /** MCP 在独立 sidecar 无头运行，noVNC 看不到；网页默认 Stagehand（有头/noVNC）；视频/HITL 用 classic */
     mcpSidecar,
     mcpTransport,
     localHeadedMcp,
     mcpSidecarHint: localHeadedMcp
       ? '本地有头 MCP：浏览器与 noVNC 共用 DISPLAY，调试低风控站点可用。'
       : mcpSidecar
-        ? 'Docker 无头 MCP sidecar：浏览器不在 noVNC 画面内；百度等强风控站点已自动优先 classic 有头引擎。调试请开「调试模式」看 MCP 截图，或点「打开浏览器画面」。'
+        ? 'Docker 无头 MCP sidecar：浏览器不在 noVNC 画面内。网页任务请用 auto/stagehand（有头）；验证码 HITL 后可改 classic。调试 MCP 请开「调试模式」看截图。'
         : undefined,
     browserProfile,
     browserProfileLabel: browserProfileLabel(browserProfile, browserCdpUrl || undefined),

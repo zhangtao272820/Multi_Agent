@@ -40,7 +40,8 @@ function summarizeUser(text: string, max = 120) {
 export async function buildLongMemoryRecall(
   policyDir: string,
   queryText: string,
-  sessionId?: string
+  sessionId?: string,
+  userId?: string
 ): Promise<{ text: string; items: LongMemoryItem[]; counts: { success: number; failure: number; similar: number } }> {
   const q = String(queryText || '').trim()
   if (!q) return { text: '', items: [], counts: { success: 0, failure: 0, similar: 0 } }
@@ -120,7 +121,10 @@ export async function buildLongMemoryRecall(
   }
   let text = lines.length ? lines.join('\n') : ''
   if (sessionId) {
-    const profileRecall = await buildUserProfileRecall(policyDir, sessionId).catch(() => ({ text: '', profile: null }))
+    const profileRecall = await buildUserProfileRecall(policyDir, sessionId, userId).catch(() => ({
+      text: '',
+      profile: null
+    }))
     if (profileRecall.text) {
       text = text ? `${profileRecall.text}\n\n${text}` : profileRecall.text
     }

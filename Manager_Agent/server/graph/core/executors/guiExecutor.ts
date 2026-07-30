@@ -1,6 +1,6 @@
 import { normalizeLobsterCallResult } from '../../../utils/agents/lobsterClient'
 import type { ManagerGraphState } from '../../state/state'
-import { extractStartUrlFromTask, guiSourceHitsForEvent, isDesktopGuiTask, parseGuiTaskHints } from '../agent/guiTaskPayload'
+import { extractStartUrlFromTask, guiSourceHitsForEvent, isDesktopGuiTask, parseGuiTaskHints, sanitizeGuiStartUrl } from '../agent/guiTaskPayload'
 import { extractStructuredPayload } from '../shared'
 import type { AgentExecutorDeps, AgentExecutorOpts, AgentStepOutcome } from './types'
 import { resolveSubAgentTurnScope, resolveTurnScopeFromMeta } from '../runtime/sessionBridge'
@@ -286,12 +286,9 @@ export function isGuiEngineRetryEnabled(env: NodeJS.ProcessEnv = process.env): b
   return String(env.MANAGER_GUI_RETRY_ON_ENGINE_FAIL ?? '1').trim() !== '0'
 }
 
-/** 网页多引擎回退：auto → mcp → stagehand → classic */
-export function nextGuiEngineHintForRetry(current?: string): string | undefined {
-  const c = String(current || 'auto').trim().toLowerCase()
-  if (!c || c === 'auto' || c === 'browser_use') return 'mcp'
-  if (c === 'mcp') return 'stagehand'
-  if (c === 'stagehand') return 'classic'
+/** 网页不再跨引擎级联（mcp/classic）；依赖 Lobster 内 Stagehand + gui-plus。
+ * 返回 undefined = 不换引擎重试。desktop/mobile 不适用本函数。 */
+export function nextGuiEngineHintForRetry(_current?: string): string | undefined {
   return undefined
 }
 
@@ -308,7 +305,16 @@ export async function executeGuiStep(
   const rawTask = String(input.effQuery || deps.lastUserText(input.state.messages) || '').trim()
   const hints = parseGuiTaskHints(rawTask)
   let task = hints.task || rawTask
-  const startUrl = extractStartUrlFromTask(task)
+  const lastUser = String(deps.lastUserText(input.state.messages) || '').trim()
+  const startUrlRaw =
+    extractStartUrlFromTask(task) ||
+    extractStartUrlFromTask(rawTask) ||
+    extractStartUrlFromTask(lastUser)
+  const startUrl = sanitizeGuiStartUrl(startUrlRaw) || startUrlRaw
+  // 改写后的 queryFocus 常丢 URL；回填到 task，与 crawler→gui handoff 一致
+  if (startUrl && !task.includes(startUrl)) {
+    task = `${task}\n起始URL: ${startUrl}`
+  }
   const guiTimeoutMs = resolveGuiTimeoutMs(input.timeoutMs, task)
   let engineHint = hints.engineHint
 

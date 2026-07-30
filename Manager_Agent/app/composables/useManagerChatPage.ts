@@ -2447,9 +2447,10 @@ export function useManagerChatPage() {
         }
         return `<sup class="md-cite">[${n}]</sup>`
       })
-      x = x.replace(/(偏高|偏低|不达标|略低于标准)/g, '<span class="md-badge md-badge-warn">$1</span>')
-      x = x.replace(/(正常|良好|达标|建议)/g, '<span class="md-badge md-badge-ok">$1</span>')
+      x = x.replace(/(偏高|偏低|不达标|略低于标准|略高|略低|需关注)/g, '<span class="md-badge md-badge-warn">$1</span>')
+      x = x.replace(/(正常|良好|达标)/g, '<span class="md-badge md-badge-ok">$1</span>')
       x = x.replace(/(注意|风险|警告|缺失)/g, '<span class="md-badge md-badge-warn">$1</span>')
+      // 「建议」作节标题时不整词徽章化；仅短标签语境由 Synth 用状态词
       return x
     }
   
@@ -2531,7 +2532,7 @@ export function useManagerChatPage() {
     const decorateTableCell = (raw: string) => {
       let s = escapeHtml(normalizeModelReplyHtml(stripInlineHtml(raw)))
       s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-      s = s.replace(/(偏高|偏低|不达标|略低于标准)/g, '<span class="md-badge md-badge-warn">$1</span>')
+      s = s.replace(/(偏高|偏低|不达标|略低于标准|略高|略低|需关注)/g, '<span class="md-badge md-badge-warn">$1</span>')
       s = s.replace(/(正常|良好|达标)/g, '<span class="md-badge md-badge-ok">$1</span>')
       s = s.replace(/([\d,.]+)\s*元/g, '<span class="md-num">$1</span> 元')
       return s

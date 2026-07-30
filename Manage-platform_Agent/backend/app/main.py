@@ -2617,6 +2617,11 @@ async def monitor_summary(
         }
         if isinstance(evolution, dict)
         else None,
+        "audit": {
+            "total_tokens": (token_summary or {}).get("totalTokens") if isinstance(token_summary, dict) else None,
+            "first_pass_success_rate": evolution.get("firstPassSuccessRate") if isinstance(evolution, dict) else None,
+            "down_count": len(down),
+        },
         "registry_count": len(
             (cluster.get("registry", {}) or {}).get("data", {}).get("registry", {}).get("entries", [])
             if isinstance(cluster.get("registry"), dict)

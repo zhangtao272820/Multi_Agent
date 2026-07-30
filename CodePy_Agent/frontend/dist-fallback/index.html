@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>武曲 · 代码助手</title>
+  <style>
+    :root { --bg:#1a1108; --ink:#f6e7d0; --muted:rgba(246,231,208,.62); --accent:#e08a3c; --border:rgba(240,171,91,.28); }
+    *{box-sizing:border-box} body{margin:0;min-height:100vh;background:linear-gradient(165deg,#2a1708,#1a1108);color:var(--ink);font-family:Georgia,'PingFang SC',sans-serif}
+    .wrap{max-width:900px;margin:0 auto;padding:40px 20px}
+    h1{font-size:36px;margin:0 0 8px} p{color:var(--muted)}
+    .card{border:1px solid var(--border);border-radius:12px;padding:20px;background:rgba(0,0,0,.28);margin-top:20px}
+    code{color:var(--accent)}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>武曲 · 代码助手</h1>
+    <p>CodePy_Agent · FastAPI + React。完整 IDE 需构建 frontend/dist。</p>
+    <div class="card">
+      <p>健康检查：<code>GET /api/health</code></p>
+      <p>总管 compute：<code>POST /api/compute</code></p>
+      <p>WebSocket：<code>/_ws</code>（type=agent-chat）</p>
+      <p>本地构建：<code>cd frontend && npm install && npm run build</code></p>
+    </div>
+  </div>
+</body>
+</html>

@@ -2,9 +2,11 @@
 export {
   detectLobsterSemanticBlock,
   hasLobsterBrowseEvidence,
+  isHttpBrowseUrl,
   isLobsterInfrastructureFailure,
   isLobsterNetworkFailure,
   isLobsterRetryableFailure,
+  isUnreachableBrowseUrl,
   looksLikeNetworkFailure,
   verifyLobsterRunResult,
   type LobsterRunVerifyInput,

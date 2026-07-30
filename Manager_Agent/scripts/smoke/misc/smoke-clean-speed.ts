@@ -9,7 +9,7 @@ function assert(cond: unknown, msg: string): void {
   if (!cond) throw new Error(msg)
 }
 
-const snapshots: SourceSnapshot[] = [
+const hetero: SourceSnapshot[] = [
   {
     agent: 'db',
     raw: '{"facts":[{"key":"left_length","value":17.83}]}',
@@ -24,9 +24,30 @@ const snapshots: SourceSnapshot[] = [
   }
 ]
 
-const structural = assembleCleanPayloadStructural(snapshots)
-assert(structural && isStructuralCleanSufficient(structural), 'structural clean sufficient for multi-source')
-const serialized = serializeCleanPayload(structural!)
+const heteroStructural = assembleCleanPayloadStructural(hetero)
+assert(heteroStructural?.data.mode === 'multi_source_structural', 'hetero structural assemble')
+assert(!isStructuralCleanSufficient(heteroStructural!), 'hetero multi-source must NOT skip clean LLM')
+
+const overlap: SourceSnapshot[] = [
+  {
+    agent: 'db',
+    raw: '{"facts":[{"key":"pressure_avg","value":12.1},{"key":"age","value":28}]}',
+    answer: 'db',
+    facts: [
+      { key: 'pressure_avg', value: 12.1, sourcePath: 'db.pressure_avg' },
+      { key: 'age', value: 28, sourcePath: 'db.age' }
+    ]
+  },
+  {
+    agent: 'crawler',
+    raw: '{"facts":[{"key":"pressure_avg","value":13.35}]}',
+    answer: 'crawler',
+    facts: [{ key: 'pressure_avg', value: 13.35, sourcePath: 'crawler.pressure_avg' }]
+  }
+]
+const overlapStructural = assembleCleanPayloadStructural(overlap)
+assert(overlapStructural && isStructuralCleanSufficient(overlapStructural), 'overlapping keys may stay structural')
+const serialized = serializeCleanPayload(overlapStructural!)
 assert(serialized.includes('multi_source_structural'), 'serialized clean payload mode')
 
 const dupPlan: Step[] = [

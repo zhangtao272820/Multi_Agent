@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { sanitizeExtractedHttpUrl } from '#agent-shared/extractHttpUrl'
 
 export const LobsterTaskKindSchema = z.enum([
   'search',
@@ -200,6 +201,21 @@ export function defaultGoalsForTaskKind(kind: LobsterTaskKind, task?: string): L
   return { must_leave_start: false, must_extract: false, must_submit: false, expected_url_change: false }
 }
 
+function sanitizePlanSteps(steps: LobsterPlanStep[], fallbackStartUrl?: string): LobsterPlanStep[] {
+  const safeStart = fallbackStartUrl ? sanitizeExtractedHttpUrl(fallbackStartUrl) : undefined
+  return steps.map((step) => {
+    if (step.op !== 'goto') return step
+    const raw = String(step.target || '').trim()
+    if (!raw) return step
+    if (!/^https?:\/\//i.test(raw)) return step
+    const clean = sanitizeExtractedHttpUrl(raw) || safeStart
+    if (clean) return { ...step, target: clean }
+    // 占位/非法 URL：清空 target，避免 goto https://...
+    const { target: _drop, ...rest } = step
+    return rest
+  })
+}
+
 export function toLobsterTaskSpec(
   understood: LobsterTaskUnderstandParsed,
   source: LobsterTaskSpec['source'],
@@ -224,20 +240,25 @@ export function toLobsterTaskSpec(
   const completion =
     String(understood.success_criteria || understood.completion_criteria || '').trim() || undefined
 
-  const plan_steps =
+  const start_url =
+    sanitizeExtractedHttpUrl(String(understood.start_url || '').trim()) || undefined
+
+  const plan_steps = sanitizePlanSteps(
     Array.isArray(understood.plan_steps) && understood.plan_steps.length > 0
       ? understood.plan_steps
       : defaultPlanStepsForTask({
           task: understood.canonical_task,
-          startUrl: understood.start_url,
+          startUrl: start_url,
           taskKind: task_kind,
           goals,
           completionCriteria: completion,
-        })
+        }),
+    start_url,
+  )
 
   return {
     canonical_task: understood.canonical_task,
-    start_url: understood.start_url,
+    start_url,
     engine_hint: softEngine,
     task_kind,
     browser_profile: profile,
@@ -266,9 +287,11 @@ export function applyLobsterTaskUnderstand(
   understood: LobsterTaskUnderstandParsed | null,
 ): { task: string; startUrl?: string; engineHint?: string } {
   if (!understood) return base
+  const fromUnderstood = sanitizeExtractedHttpUrl(String(understood.start_url || '').trim())
+  const fromBase = sanitizeExtractedHttpUrl(String(base.startUrl || '').trim())
   return {
     task: understood.canonical_task || base.task,
-    startUrl: understood.start_url || base.startUrl,
+    startUrl: fromUnderstood || fromBase || undefined,
     engineHint: base.engineHint,
   }
 }

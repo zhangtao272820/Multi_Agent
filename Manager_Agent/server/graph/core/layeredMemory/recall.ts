@@ -135,13 +135,14 @@ export type LayeredMemoryRecall = {
 export async function buildLayeredMemoryRecall(
   policyDir: string,
   queryText: string,
-  sessionId?: string
+  sessionId?: string,
+  userId?: string
 ): Promise<LayeredMemoryRecall> {
   if (!isLayeredMemoryEnabled()) {
-    const base = await buildLongMemoryRecall(policyDir, queryText, sessionId)
+    const base = await buildLongMemoryRecall(policyDir, queryText, sessionId, userId)
     return {
       ...base,
-      layers: { working: false, semantic: false, experience: true, reflection: false, profile: Boolean(sessionId) }
+      layers: { working: false, semantic: false, experience: true, reflection: false, profile: Boolean(sessionId || userId) }
     }
   }
 
@@ -162,12 +163,12 @@ export async function buildLayeredMemoryRecall(
   const reflection = await buildReflectionBlock(policyDir, q, scenarioKey)
   if (reflection) blocks.push(reflection)
 
-  const experience = await buildLongMemoryRecall(policyDir, q, sessionId)
+  const experience = await buildLongMemoryRecall(policyDir, q, sessionId, userId)
   if (experience.text) blocks.push(experience.text)
 
   let profileText = ''
-  if (sessionId) {
-    const pr = await buildUserProfileRecall(policyDir, sessionId).catch(() => ({ text: '' }))
+  if (sessionId || userId) {
+    const pr = await buildUserProfileRecall(policyDir, sessionId || '', userId).catch(() => ({ text: '' }))
     profileText = pr.text
     if (profileText && !experience.text.includes('用户画像')) blocks.push(profileText)
   }

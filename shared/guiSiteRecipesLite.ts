@@ -1,5 +1,7 @@
 /** 轻量站点 Recipe 匹配（总管 enrich gui payload，无 Lobster 运行时依赖） */
 
+import { extractFirstHttpUrl, sanitizeExtractedHttpUrl } from './extractHttpUrl'
+
 export type GuiSiteRecipeLite = {
   id: string
   hosts: RegExp
@@ -35,16 +37,10 @@ const LITE_RECIPES: GuiSiteRecipeLite[] = [
 ]
 
 export function hostFromGuiTask(task: string, startUrl?: string): string {
-  const url = String(startUrl || '').trim()
+  const url = sanitizeExtractedHttpUrl(String(startUrl || '').trim()) || extractFirstHttpUrl(task)
   if (url) {
     try {
       return new URL(url).hostname
-    } catch {}
-  }
-  const m = String(task || '').match(/https?:\/\/[^\s)\]"']+/i)
-  if (m?.[0]) {
-    try {
-      return new URL(m[0].replace(/[.,;:!?)]+$/, '')).hostname
     } catch {}
   }
   return ''

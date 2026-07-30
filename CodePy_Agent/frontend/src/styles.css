@@ -1,0 +1,443 @@
+:root {
+  --bg: #1a1108;
+  --ink: #f6e7d0;
+  --muted: rgba(246, 231, 208, 0.62);
+  --accent: #e08a3c;
+  --accent-2: #c45a22;
+  --card: rgba(28, 18, 10, 0.72);
+  --border: rgba(240, 171, 91, 0.28);
+  --danger: #ff7a6e;
+  --font-display: 'Cormorant Garamond', Georgia, serif;
+  --font-body: 'Source Sans 3', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+}
+
+.layout {
+  position: relative;
+  min-height: 100vh;
+}
+
+.bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.autumn-sky {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 18% 18%, rgba(255, 196, 120, 0.35), transparent 42%),
+    radial-gradient(circle at 78% 12%, rgba(255, 140, 70, 0.22), transparent 40%),
+    linear-gradient(165deg, #2a1708 0%, #1a1108 48%, #120c07 100%);
+}
+
+.sun-haze {
+  position: absolute;
+  width: 42vmin;
+  height: 42vmin;
+  left: 12%;
+  top: 8%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 210, 140, 0.45), transparent 70%);
+  filter: blur(8px);
+  animation: hazePulse 10s ease-in-out infinite alternate;
+}
+
+.sun-beam {
+  position: absolute;
+  left: 18%;
+  top: -10%;
+  width: 18vmin;
+  height: 120%;
+  background: linear-gradient(180deg, rgba(255, 200, 120, 0.18), transparent 70%);
+  transform-origin: top center;
+  filter: blur(10px);
+}
+
+.sun-beam-1 {
+  transform: rotate(-12deg);
+  animation: beamDrift 14s ease-in-out infinite alternate;
+}
+
+.sun-beam-2 {
+  transform: rotate(8deg);
+  opacity: 0.7;
+  animation: beamDrift 18s ease-in-out infinite alternate-reverse;
+}
+
+.distant-tree-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 28%;
+  background: linear-gradient(180deg, transparent, rgba(40, 20, 8, 0.85));
+}
+
+.leaf-layer {
+  position: absolute;
+  inset: 0;
+}
+
+.leaf-layer-back {
+  opacity: 0.55;
+}
+
+.leaf-layer-front {
+  opacity: 0.9;
+}
+
+.leaf {
+  position: absolute;
+  top: -8%;
+  border-radius: 70% 15% 60% 20%;
+  background: linear-gradient(164deg, var(--leaf-c3) 0%, var(--leaf-c1) 34%, #a6491c 62%, var(--leaf-c2) 100%);
+  animation-name: leaf-fall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+.ground-mist {
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 22%;
+  background: linear-gradient(180deg, transparent, rgba(20, 10, 4, 0.55));
+}
+
+.cursor-gust {
+  position: absolute;
+  width: 280px;
+  height: 280px;
+  margin: -140px 0 0 -140px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 180, 90, 0.16), transparent 70%);
+  filter: blur(12px);
+  transition: transform 160ms ease-out;
+}
+
+.film-grain {
+  position: absolute;
+  inset: 0;
+  opacity: 0.08;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E");
+}
+
+@keyframes leaf-fall {
+  from {
+    transform: translate3d(0, -10vh, 0) rotate(0deg);
+  }
+  to {
+    transform: translate3d(var(--drift, 20px), 120vh, 0) rotate(320deg);
+  }
+}
+
+@keyframes hazePulse {
+  from {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  to {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+}
+
+@keyframes beamDrift {
+  from {
+    opacity: 0.45;
+  }
+  to {
+    opacity: 0.85;
+  }
+}
+
+.shell {
+  position: relative;
+  z-index: 1;
+  padding: 16px 18px 24px;
+  max-width: 1600px;
+  margin: 0 auto;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  backdrop-filter: blur(10px) saturate(120%);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+}
+
+.topbar {
+  padding: 14px 16px;
+  display: grid;
+  gap: 10px;
+}
+
+.brand .title {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.brand .subtitle {
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: end;
+}
+
+.label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.rootInput,
+.select,
+textarea {
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid var(--border);
+  color: var(--ink);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font: inherit;
+}
+
+.rootInput {
+  min-width: 280px;
+}
+
+.button {
+  border: 1px solid rgba(240, 171, 91, 0.55);
+  background: linear-gradient(180deg, rgba(224, 138, 60, 0.28), rgba(196, 90, 34, 0.18));
+  color: var(--ink);
+  border-radius: 8px;
+  padding: 8px 14px;
+  cursor: pointer;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.button.secondary {
+  background: transparent;
+}
+
+.button.tiny {
+  padding: 4px 8px;
+  font-size: 11px;
+}
+
+.actionsTop {
+  display: flex;
+  gap: 8px;
+}
+
+.infraStatus {
+  font-size: 11px;
+  color: var(--muted);
+  font-family: ui-monospace, monospace;
+}
+
+.workspace {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1.4fr) minmax(280px, 0.95fr);
+  gap: 12px;
+  min-height: 0;
+}
+
+.panel {
+  min-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.file-tree {
+  overflow: auto;
+  padding: 8px;
+  flex: 1;
+}
+
+.file-tree ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.tree-item {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: var(--ink);
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  gap: 8px;
+  font: inherit;
+}
+
+.tree-item:hover,
+.tree-item.active {
+  background: rgba(224, 138, 60, 0.16);
+}
+
+.tree-icon {
+  color: var(--accent);
+  width: 12px;
+}
+
+.monaco-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.pane-caption {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--muted);
+  font-family: ui-monospace, monospace;
+}
+
+.chat-log {
+  flex: 1;
+  overflow: auto;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 34vh;
+}
+
+.chat-line pre {
+  margin: 4px 0 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.chat-line .role {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+}
+
+.chat-line.system .role {
+  color: var(--danger);
+}
+
+.chat-compose {
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.chat-compose textarea {
+  width: 100%;
+  resize: vertical;
+}
+
+.diff-viewer {
+  flex: 1;
+  overflow: auto;
+  padding: 8px 10px 12px;
+}
+
+.diff-files {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.chip {
+  font-size: 11px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 8px;
+  color: var(--muted);
+}
+
+.diff-pre {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  color: #d8ecff;
+  font-family: ui-monospace, monospace;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.pad {
+  padding: 12px;
+}
+
+@media (max-width: 1100px) {
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+  .panel {
+    min-height: 40vh;
+  }
+}

@@ -41,19 +41,19 @@ services:
     build: !override
       context: ..
       dockerfile_inline: |
-        FROM docker.m.daocloud.io/library/node:20-bullseye
+        FROM docker.m.daocloud.io/library/python:3.12-slim-bookworm
         WORKDIR /app
+        RUN pip install --no-cache-dir -r /tmp/requirements.txt -i https://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com || true
     image: clawhive/code_assistent_agent:dev
     volumes:
-      - ../code_assistent_Agent:/app
-      - ../shared:/app/agent-repo-shared
+      - ../CodePy_Agent:/app
       - ../:/workspace
     environment:
       PROJECT_DIR: /workspace
       ALLOWED_ROOTS: /workspace,/app
       WRITE_TOOL_ENABLED: "1"
-      COMMAND_TOOL_ENABLED: "1"
-    command: sh -c "npm install --legacy-peer-deps && npm run dev -- --host 0.0.0.0 --port ${CODE_PORT:-13103}"
+      CODE_PORT: ${CODE_PORT:-13103}
+    command: sh -c "pip install -r requirements.txt -i https://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com && python -m uvicorn app.main:app --host 0.0.0.0 --port ${CODE_PORT:-13103} --reload"
 
   manager_agent:
     build: !override

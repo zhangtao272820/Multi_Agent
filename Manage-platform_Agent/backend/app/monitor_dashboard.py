@@ -1,4 +1,6 @@
-"""企业监控总览：单次请求聚合 health + cluster + summary（共享探活缓存）。"""
+"""企业监控总览：单次请求聚合 health + cluster + summary（共享探活缓存）。
+天相 Audit：Token / 成功率 / 全链路就绪度收口到 audit 字段，供 ClawHive 看板。
+"""
 
 from __future__ import annotations
 
@@ -37,6 +39,19 @@ def _prom_instant(expr: str, timeout_sec: float = 3.0) -> float | None:
         return None
 
 
+def _first_number(*values) -> float | None:
+    for v in values:
+        if v is None:
+            continue
+        try:
+            n = float(v)
+        except (TypeError, ValueError):
+            continue
+        if n == n:
+            return n
+    return None
+
+
 def build_monitor_dashboard() -> dict:
     health = build_health_overview(use_cache=True)
     cluster = build_manager_cluster_status(use_cache=True)
@@ -58,8 +73,39 @@ def build_monitor_dashboard() -> dict:
         "first_pass_success_rate": _prom_instant("manager_first_pass_success_rate"),
         "nlu_sample_count": _prom_instant("manager_nlu_sample_count"),
         "avg_final_confidence": _prom_instant("manager_avg_final_confidence"),
-        "agents_healthy": _prom_instant('count(clawhive_agent_up == 1)'),
+        "agents_healthy": _prom_instant("count(clawhive_agent_up == 1)"),
         "agents_total": _prom_instant("count(clawhive_agent_up)"),
+    }
+
+    evo_first_pass = (
+        evolution.get("firstPassSuccessRate") if isinstance(evolution, dict) else None
+    )
+    evo_search = evolution.get("searchHitRate") if isinstance(evolution, dict) else None
+    token_total = None
+    if isinstance(token_summary, dict):
+        token_total = token_summary.get("totalTokens")
+
+    first_pass = _first_number(prom.get("first_pass_success_rate"), evo_first_pass)
+    tokens = _first_number(prom.get("manager_tokens"), token_total)
+    runs = _first_number(
+        prom.get("manager_runs"),
+        metrics_data.get("runs") if isinstance(metrics_data, dict) else None,
+    )
+
+    audit = {
+        "total_tokens": tokens,
+        "manager_runs": runs,
+        "first_pass_success_rate": first_pass,
+        "search_hit_rate": _first_number(prom.get("search_hit_rate"), evo_search),
+        "avg_final_confidence": prom.get("avg_final_confidence"),
+        "agents_healthy": prom.get("agents_healthy"),
+        "agents_total": prom.get("agents_total"),
+        "down_count": len(down),
+        "sources": {
+            "prometheus": True,
+            "manager_metrics": bool(metrics_data),
+            "health": True,
+        },
     }
 
     return {
@@ -79,4 +125,5 @@ def build_monitor_dashboard() -> dict:
         },
         "down_agents": [{"name": c.get("name"), "target": c.get("target")} for c in down],
         "prometheus": prom,
+        "audit": audit,
     }

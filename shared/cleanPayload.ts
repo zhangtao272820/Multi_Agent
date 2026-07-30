@@ -400,13 +400,63 @@ export function assembleCleanPayloadStructural(snapshots: SourceSnapshot[]): Cle
   }
 }
 
-/** 结构层合并是否足够供 Code/图表消费（冲突过多时再走 LLM） */
+function agentFromFactSource(source: string): string {
+  const s = String(source ?? '').trim()
+  if (!s) return '_'
+  const dot = s.indexOf('.')
+  return dot > 0 ? s.slice(0, dot) : s
+}
+
+/** 多源 facts 按取数 Agent 分组后的最大键 Jaccard（0=完全异构堆砌） */
+export function maxCrossAgentFactKeyOverlap(
+  facts: Array<{ key?: string; source?: string }>
+): number {
+  const byAgent = new Map<string, Set<string>>()
+  for (const f of facts) {
+    const key = normKey(String(f?.key ?? ''))
+    if (!key) continue
+    const agent = agentFromFactSource(String(f?.source ?? ''))
+    if (!byAgent.has(agent)) byAgent.set(agent, new Set())
+    byAgent.get(agent)!.add(key)
+  }
+  const sets = [...byAgent.values()]
+  if (sets.length < 2) return 1
+  let maxJ = 0
+  for (let i = 0; i < sets.length; i++) {
+    for (let j = i + 1; j < sets.length; j++) {
+      const a = sets[i]!
+      const b = sets[j]!
+      let inter = 0
+      for (const k of a) if (b.has(k)) inter++
+      const union = a.size + b.size - inter
+      const jacc = union > 0 ? inter / union : 0
+      if (jacc > maxJ) maxJ = jacc
+    }
+  }
+  return maxJ
+}
+
+/**
+ * 结构层合并是否足够供下游消费。
+ * 冲突过多、或异构多源（键几乎无交）时不算洗净——应交 LLM 对齐/过滤，避免把 30 项堆砌当清洗结果。
+ */
 export function isStructuralCleanSufficient(payload: CleanPayload): boolean {
-  const facts = Array.isArray(payload.facts) ? payload.facts.length : 0
+  const factList = Array.isArray(payload.facts) ? payload.facts : []
+  const facts = factList.length
   const conflicts = Array.isArray(payload.quality?.conflicts) ? payload.quality!.conflicts.length : 0
   const minFacts = Math.max(1, Number(process.env.MANAGER_CLEAN_STRUCTURAL_MIN_FACTS ?? 1))
   const maxConflicts = Math.max(0, Number(process.env.MANAGER_CLEAN_STRUCTURAL_MAX_CONFLICTS ?? 6))
-  return facts >= minFacts && conflicts <= maxConflicts
+  if (facts < minFacts || conflicts > maxConflicts) return false
+
+  const sourceCount = Array.isArray(payload.sources) ? payload.sources.length : 0
+  const multi =
+    sourceCount >= 2 || String((payload.data as { mode?: string } | undefined)?.mode || '') === 'multi_source_structural'
+  if (multi) {
+    const minOverlap = Number(process.env.MANAGER_CLEAN_STRUCTURAL_MIN_KEY_OVERLAP ?? 0.12)
+    const threshold = Number.isFinite(minOverlap) ? Math.min(1, Math.max(0, minOverlap)) : 0.12
+    if (maxCrossAgentFactKeyOverlap(factList) < threshold) return false
+  }
+  return true
 }
 
 /** 结构层数据充足性（非业务语义 regex） */

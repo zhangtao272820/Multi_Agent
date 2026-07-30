@@ -21,8 +21,17 @@ COPY --chown=pwuser:pwuser Lobster_Agent/package.json Lobster_Agent/package-lock
 USER pwuser
 RUN npm install --legacy-peer-deps --no-audit --no-fund
 
-COPY --chown=pwuser:pwuser shared /app/agent-repo-shared
 COPY --chown=pwuser:pwuser Lobster_Agent /app
+# 稀疏 shared：仅 Lobster 运行时 7 个模块（勿整包拷贝 shared/）
+USER root
+RUN mkdir -p /app/agent-repo-shared && chown pwuser:pwuser /app/agent-repo-shared
+COPY --chown=pwuser:pwuser shared/extractHttpUrl.ts /app/agent-repo-shared/
+COPY --chown=pwuser:pwuser shared/lobsterRunVerifyLite.ts /app/agent-repo-shared/
+COPY --chown=pwuser:pwuser shared/qwenModelKwargs.ts /app/agent-repo-shared/
+COPY --chown=pwuser:pwuser shared/contentTrust.ts /app/agent-repo-shared/
+COPY --chown=pwuser:pwuser shared/mcpJsonRpc.ts /app/agent-repo-shared/
+COPY --chown=pwuser:pwuser shared/lobsterGuiProgressContract.ts /app/agent-repo-shared/
+COPY --chown=pwuser:pwuser shared/managerTaskEnvelope.ts /app/agent-repo-shared/
 
 USER pwuser
 ENV NODE_ENV=production

@@ -1,6 +1,7 @@
 import crypto from 'node:crypto'
 import { Stagehand } from '@browserbasehq/stagehand'
 import { z } from 'zod'
+import { extractFirstHttpUrl, sanitizeExtractedHttpUrl } from '#agent-shared/extractHttpUrl'
 import { sanitize } from './lobster/text'
 import type { RunParams } from './lobster/types'
 import { wrapLobsterOutput } from './lobsterResultEnvelope'
@@ -16,6 +17,7 @@ import { resolveBrowserCdpUrl } from './browserProfiles'
 import { buildChromiumLaunchOptions } from '../utils/chromiumLaunch'
 import { verifyLobsterRunResult } from './lobsterRunVerify'
 import {
+  detectStagehandNetworkErrorPage,
   gotoStagehandUrl,
   goalsNeedLeaveStart,
   readStagehandPageTitle,
@@ -24,10 +26,12 @@ import {
   stagehandStepInstruction
 } from './stagehandPlanLoop'
 import {
+  isStillOnStartUrl,
   playwrightClickContentLink,
   playwrightExtractBasics,
   playwrightFillAndSubmit,
 } from './stagehandPlaywrightBridge'
+import { isHttpBrowseUrl, isUnreachableBrowseUrl, looksLikeNetworkFailure } from '#agent-shared/lobsterRunVerifyLite'
 
 const RISKY_TASK_PATTERN =
   /(支付|下单|购买|删除|注销|上传|投稿|checkout|pay\b|delete|remove|upload|purchase)/i
@@ -131,7 +135,11 @@ export async function runLobsterStagehandAgent(params: RunParams) {
     }
   })
 
-  const startUrl = String(params.startUrl || params.taskSpec?.start_url || '').trim()
+  const startUrl =
+    sanitizeExtractedHttpUrl(String(params.startUrl || '').trim()) ||
+    sanitizeExtractedHttpUrl(String(params.taskSpec?.start_url || '').trim()) ||
+    extractFirstHttpUrl(params.task) ||
+    ''
   const planSteps = resolveStagehandPlanSteps({
     task: params.task,
     startUrl,
@@ -139,6 +147,9 @@ export async function runLobsterStagehandAgent(params: RunParams) {
   })
   const goals = params.taskSpec?.goals
   const mustLeave = goalsNeedLeaveStart(goals, params.task)
+  let leaveStartOk = !mustLeave
+  let clickAttempted = false
+  let lastClickFailReason = ''
 
   try {
     emitMilestoneLog('Stagehand：初始化…')
@@ -190,20 +201,58 @@ export async function runLobsterStagehandAgent(params: RunParams) {
     const recipeHint = stagehandHintsForPrompt(params.task, startUrl)
     const actTpl = recipeActTemplate(params.task, startUrl)
 
-    // 1) 可靠导航
+    // 1) 可靠导航；错误页 / goto 失败 → fail-closed（禁止继续 click/extract）
     if (startUrl) {
       emitThinking('step', `1/${planSteps.length || 1} goto`)
+      let navFailed = false
+      let navErrMsg = ''
       try {
         await gotoStagehandUrl(stagehand, startUrl)
         stepCount++
       } catch (e: any) {
-        emitLog('warn', `goto 失败，改 act：${String(e?.message || e).slice(0, 120)}`)
+        navErrMsg = String(e?.message || e).slice(0, 160)
+        emitLog('warn', `goto 失败，改 act：${navErrMsg}`)
         try {
           await stagehand.act(`打开页面 ${startUrl}`)
           stepCount++
         } catch (e2: any) {
-          emitLog('warn', `导航失败：${String(e2?.message || e2).slice(0, 120)}`)
+          navFailed = true
+          navErrMsg = String(e2?.message || e2).slice(0, 160)
+          emitLog('warn', `导航失败：${navErrMsg}`)
         }
+      }
+      const netPage = await detectStagehandNetworkErrorPage(stagehand, startUrl)
+      if (navFailed || netPage.unreachable) {
+        const failureType = 'network'
+        const pageHint = netPage.url || startUrl
+        const titleHint = netPage.title ? `，标题：${netPage.title}` : ''
+        const failAnswer = `无法访问目标页面（网络/DNS 或浏览器错误页）${
+          navErrMsg ? `：${navErrMsg}` : ''
+        }。当前页：${pageHint}${titleHint}`
+        emitLog('error', `导航 fail-closed：${failureType} @ ${pageHint}`)
+        const output = wrapLobsterOutput(
+          {
+            traceId,
+            task: params.task,
+            finalUrl: pageHint,
+            plan: planSteps,
+            goals: goals || undefined,
+            stats: {
+              stepCount,
+              planSteps: planSteps.length,
+              latency_ms: Date.now() - startedAt,
+              enginePath: 'playwright_first',
+            },
+            data: [{ via: 'stagehand+playwright', text: failAnswer, url: pageHint }],
+            answer: failAnswer,
+            verify: { ok: false, reason: 'network_unreachable' },
+            failureType,
+          },
+          'stagehand',
+          { confirmCount, answer: failAnswer, failureType },
+        )
+        params.emit({ type: 'result', payload: output })
+        return output
       }
     }
 
@@ -251,6 +300,7 @@ export async function runLobsterStagehandAgent(params: RunParams) {
 
       // Playwright-first：click/type/submit 不依赖 Stagehand LLM JSON（Qwen 常 Bad Request / 长文解析失败）
       if (step.op === 'click') {
+        clickAttempted = true
         let clicked = false
         if (preferLlmAct) {
           try {
@@ -271,16 +321,43 @@ export async function runLobsterStagehandAgent(params: RunParams) {
           if (pw.ok) {
             lastActNote = `点击：${pw.text || ''}`.slice(0, 200)
             stepCount++
+            clicked = true
             emitThinking('step', `已点 ${String(pw.text || '').slice(0, 40)}`)
           } else {
-            emitLog('warn', `Playwright click 失败：${pw.reason || 'unknown'}`)
+            lastClickFailReason = String(pw.reason || 'unknown')
+            emitLog('warn', `Playwright click 失败：${lastClickFailReason}`)
+            // 扩扫描重试一次（仍按 plan target 排序，非站点补丁）
+            const retry = await playwrightClickContentLink(stagehand, {
+              task: params.task,
+              target: String(step.target || ''),
+              startUrl,
+              scanLimit: 140,
+            })
+            if (retry.ok) {
+              lastActNote = `点击：${retry.text || ''}`.slice(0, 200)
+              stepCount++
+              clicked = true
+              lastClickFailReason = ''
+              emitThinking('step', `重试已点 ${String(retry.text || '').slice(0, 40)}`)
+            } else {
+              lastClickFailReason = String(retry.reason || lastClickFailReason || 'unknown')
+            }
           }
         }
         const urlNow = await readStagehandPageUrl(stagehand, startUrl)
+        if (clicked && mustLeave && startUrl && !isStillOnStartUrl(urlNow, startUrl)) {
+          leaveStartOk = true
+        }
+        if (clicked && !mustLeave) leaveStartOk = true
         params.emit({
           type: 'state',
           payload: { phase: 'stagehand_execute', stepCount, pageUrl: urlNow },
         })
+        // mustLeave 且仍未离开：停止后续 extract 当成功产物，交 verify / gui-plus
+        if (mustLeave && !leaveStartOk) {
+          emitLog('warn', `离开首页未完成，跳过后续步骤（${lastClickFailReason || 'still_on_start'}）`)
+          break
+        }
         continue
       }
 
@@ -316,19 +393,59 @@ export async function runLobsterStagehandAgent(params: RunParams) {
     }
 
     // 若计划无交互步且要求离开首页：补一次 Playwright 点击
-    if (actionSteps.length === 0 && mustLeave) {
+    if (actionSteps.length === 0 && mustLeave && !leaveStartOk) {
+      clickAttempted = true
       emitThinking('step', 'playwright click')
       const pw = await playwrightClickContentLink(stagehand, {
         task: params.task,
         startUrl,
+        scanLimit: 140,
       })
       if (pw.ok) {
         lastActNote = `点击：${pw.text || ''}`.slice(0, 200)
         stepCount++
+        const urlNow = await readStagehandPageUrl(stagehand, startUrl)
+        if (startUrl && !isStillOnStartUrl(urlNow, startUrl)) leaveStartOk = true
+      } else {
+        lastClickFailReason = String(pw.reason || 'unknown')
       }
     }
 
     let finalUrl = await readStagehandPageUrl(stagehand, startUrl)
+
+    // mustLeave 失败：禁止把首页 extract 当成功产物，直接 navigation_unverified → router gui-plus
+    if (mustLeave && startUrl && isStillOnStartUrl(finalUrl || startUrl, startUrl)) {
+      leaveStartOk = false
+      const failureType = 'navigation_unverified'
+      const failAnswer = `浏览器任务未完成（${failureType}）：仍停留在起始页${
+        lastClickFailReason ? `（click=${lastClickFailReason}）` : clickAttempted ? '' : '（未执行点击）'
+      }。当前页：${finalUrl || startUrl}`
+      const output = wrapLobsterOutput(
+        {
+          traceId,
+          task: params.task,
+          finalUrl: finalUrl || startUrl,
+          plan: planSteps,
+          goals: goals || undefined,
+          stats: {
+            stepCount,
+            planSteps: planSteps.length,
+            latency_ms: Date.now() - startedAt,
+            enginePath: 'playwright_first',
+          },
+          data: [{ via: 'stagehand+playwright', text: failAnswer, url: finalUrl || startUrl }],
+          answer: failAnswer,
+          verify: { ok: false, reason: failureType },
+          failureType,
+        },
+        'stagehand',
+        { confirmCount, answer: failAnswer, failureType },
+      )
+      emitLog('warn', `verify 失败：${failureType}`)
+      params.emit({ type: 'result', payload: output })
+      return output
+    }
+
     const basics = await playwrightExtractBasics(stagehand)
     const pageTitle = basics.title || (await readStagehandPageTitle(stagehand))
 

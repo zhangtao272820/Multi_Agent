@@ -464,19 +464,19 @@
   box-sizing: border-box !important;
 }
 
-/* 主要回复分区：突出结论，与图表/附录区分 */
+/* 回复正文：去仪表盘壳，分段标题承担层次 */
 .spring-root.cursor-workbench.cosmic-theme .reply-primary-section {
   margin: 0 0 14px !important;
-  padding: 12px 14px 14px !important;
-  border-radius: 14px !important;
-  border: 1px solid rgba(56, 189, 248, 0.2) !important;
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.68), rgba(8, 12, 28, 0.5)) !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
 }
 
-.spring-root.cursor-workbench.cosmic-theme .reply-primary-title {
-  color: #7dd3fc !important;
-  font-size: 13px !important;
-  font-weight: 700 !important;
+.spring-root.cursor-workbench.cosmic-theme .reply-primary-title,
+.spring-root.cursor-workbench.cosmic-theme .reply-primary-head {
+  display: none !important;
 }
 
 .spring-root.cursor-workbench.cosmic-theme .reply-primary-section .reply-chat .md-p,
@@ -484,6 +484,20 @@
   color: #f1f5f9 !important;
   font-size: 16px !important;
   line-height: 1.82 !important;
+}
+
+.spring-root.cursor-workbench.cosmic-theme .reply-primary-section .reply-chat .md-h3,
+.spring-root.cursor-workbench.cosmic-theme .reply-chat .md-h3 {
+  color: #e2e8f0 !important;
+  font-size: 15.5px !important;
+  margin: 20px 0 10px !important;
+}
+
+.spring-root.cursor-workbench.cosmic-theme .reply-chat .md-table-scroll {
+  margin: 12px 0 18px !important;
+  border-radius: 10px !important;
+  border: 1px solid rgba(71, 85, 105, 0.45) !important;
+  background: rgba(15, 23, 42, 0.35) !important;
 }
 
 .spring-root.cursor-workbench.cosmic-theme .chart-details.reply-inline-analytics {

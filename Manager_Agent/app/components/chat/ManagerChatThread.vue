@@ -577,12 +577,8 @@ watch(streamingSynthText, async () => {
 
               <AmapReplyCards v-if="adminUiCardsFromTurn(t).length" :cards="adminUiCardsFromTurn(t) as any" />
 
-              <!-- 主要回复：常显分区，与图表/详细说明拉开层次 -->
-              <section v-if="replyMarkdownBody(r.text, t)" class="reply-primary-section" aria-label="主要回复">
-                <header class="reply-primary-head">
-                  <span class="reply-primary-mark" aria-hidden="true"></span>
-                  <span class="reply-primary-title">主要回复</span>
-                </header>
+              <!-- 正文：无「主要回复」壳，像连贯文章直接落在气泡内 -->
+              <section v-if="replyMarkdownBody(r.text, t)" class="reply-primary-section reply-article" aria-label="回复正文">
                 <div
                   class="reply-summary md-body reply-chat"
                   v-html="renderAssistantMarkdown(replyMarkdownBody(r.text, t), turnSearchSources(t))"
@@ -758,11 +754,15 @@ watch(streamingSynthText, async () => {
                 {{ t.userFacing.badgeLabel || (t.userFacing.badge === 'evidence_rejected' ? '无证据拒答' : '需补充信息') }}
               </div>
 
-              <!-- U3：有引用时证据上移（正文前默认展开） -->
+              <!-- 依据与引用：用户视图若已有「已阅读 N 来源」条则不重复展开，避免与顶栏/文末来源叠三层 -->
               <details
-                v-if="t.ragEvidence.length || t.userFacing?.sources?.length"
+                v-if="
+                  t.ragEvidence.length ||
+                  (t.userFacing?.sources?.length &&
+                    !(thoughtViewMode === 'user' && turnSearchSources(t).length))
+                "
                 class="reply-evidence-first"
-                open
+                :open="thoughtViewMode !== 'user' || !turnSearchSources(t).length"
               >
                 <summary>
                   依据与引用

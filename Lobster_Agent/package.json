@@ -2,14 +2,18 @@
   "name": "Lobster_agent",
   "type": "module",
   "private": true,
+  "imports": {
+    "#agent-shared/*": "./agent-repo-shared/*"
+  },
   "scripts": {
     "build": "nuxt build",
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
+    "sync:shared": "node scripts/sync-agent-shared.mjs",
+    "diag:egress": "node scripts/diag-egress.mjs",
     "regression:smoke": "node scripts/regression-smoke.mjs",
     "smoke:mcp": "npx tsx scripts/smoke-mcp.ts",
-    "smoke:engine": "npx tsx scripts/smoke-engine-classifier.ts",
     "smoke:lean": "npx tsx scripts/smoke-lean-browse-policy.ts",
     "smoke:workflow": "npx tsx scripts/smoke-workflow-macro.ts",
     "smoke:complex": "npx tsx scripts/smoke-complex-recovery.ts",

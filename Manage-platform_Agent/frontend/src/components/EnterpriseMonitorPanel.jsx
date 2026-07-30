@@ -38,10 +38,11 @@ export default function EnterpriseMonitorPanel({
       <div className="ops-header">
         <div>
           <p className="panel-eyebrow">企业监控</p>
-          <h2 className="ops-title">观测指标条</h2>
-          <p className="panel-desc">
-            Prometheus + Tempo + Loki + Langfuse · <code>/api/manager/observability</code>
-          </p>
+            <h2 className="ops-title">观测指标条</h2>
+            <p className="panel-desc">
+              天相 Audit：Token · 成功率 · Tempo/Loki/Langfuse ·{" "}
+              <code>/api/monitor/dashboard</code> · <code>audit</code>
+            </p>
         </div>
         <button type="button" className="btn-secondary" disabled={loading} onClick={onRefresh}>
           刷新
@@ -79,8 +80,13 @@ export default function EnterpriseMonitorPanel({
         <div className="kpi-tile">
           <span className="kpi-label">首遍成功率</span>
           <span className="kpi-value">
-            {evo.firstPassSuccessRate != null ? `${(evo.firstPassSuccessRate * 100).toFixed(1)}%` : "—"}
+            {prom.firstPassSuccessRate != null
+              ? `${(prom.firstPassSuccessRate * 100).toFixed(1)}%`
+              : evo.firstPassSuccessRate != null
+                ? `${(evo.firstPassSuccessRate * 100).toFixed(1)}%`
+                : "—"}
           </span>
+          <span className="kpi-meta">Audit 聚合</span>
         </div>
       </div>
 

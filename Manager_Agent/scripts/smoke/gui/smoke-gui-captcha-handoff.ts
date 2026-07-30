@@ -154,5 +154,36 @@ const netMsg = buildGuiFailureUserMessage({
 assert.ok(netMsg.includes('网络') || netMsg.includes('域名'), 'network user message')
 assert.ok(!netMsg.includes('站点拦截'), 'network must not use site-block copy')
 
+// chrome-error / 错误页标题不得当成功
+const chromeErrorVerify = verifyLobsterRunResult({
+  task: '打开 https://www.runoob.com/，点击第一个教程链接并提取标题',
+  status: 'done',
+  result: {
+    answer: '标题：This site can\'t be reached\n链接：chrome-error://chromewebdata/',
+    finalUrl: 'chrome-error://chromewebdata/',
+  },
+})
+assert.equal(chromeErrorVerify.ok, false, 'chrome-error must not verify ok')
+assert.equal(chromeErrorVerify.reason, 'network_unreachable', 'chrome-error → network_unreachable')
+assert.equal(
+  hasLobsterBrowseEvidence({
+    answer: '标题：This site can\'t be reached\n链接：chrome-error://chromewebdata/',
+    finalUrl: 'chrome-error://chromewebdata/',
+  }),
+  false,
+  'chrome-error ≠ browse evidence',
+)
+
+const errTitleVerify = verifyLobsterRunResult({
+  task: '打开 https://www.runoob.com/',
+  status: 'done',
+  result: {
+    answer: '无法访问此网站',
+    finalUrl: 'https://www.runoob.com/',
+  },
+})
+assert.equal(errTitleVerify.ok, false, 'error-page title must not verify ok')
+assert.equal(errTitleVerify.reason, 'network_unreachable')
+
 console.log('smoke: gui captcha handoff protocol ok')
 

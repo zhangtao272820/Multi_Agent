@@ -48,6 +48,7 @@ export function taskSpecFromManagerHints(input: {
       : task_kind !== 'unknown'
         ? `manager_envelope:${task_kind}`
         : 'manager_envelope',
+    // plan_steps/goals 由 toLobsterTaskSpec 按 task_kind 兜底生成
   }
   return toLobsterTaskSpec(row, 'manager', defaultProfile)
 }
@@ -66,6 +67,9 @@ export function mergeManagerAndUnderstoodTaskSpec(
       ...understood,
       start_url: understood.start_url || managerSpec.start_url,
       needs_login: understood.needs_login || managerSpec.needs_login,
+      plan_steps:
+        understood.plan_steps?.length > 0 ? understood.plan_steps : managerSpec.plan_steps || [],
+      goals: { ...managerSpec.goals, ...understood.goals },
     }
   }
   return {
@@ -79,5 +83,8 @@ export function mergeManagerAndUnderstoodTaskSpec(
     start_url: understood.start_url || managerSpec.start_url,
     // 操作类：engine_hint 保持 auto，由 resolveEngineFromTaskSpec 按 task_kind 软选 stagehand
     engine_hint: managerSpec.engine_hint !== 'auto' ? managerSpec.engine_hint : 'auto',
+    plan_steps:
+      understood.plan_steps?.length > 0 ? understood.plan_steps : managerSpec.plan_steps || [],
+    goals: { ...managerSpec.goals, ...understood.goals },
   }
 }

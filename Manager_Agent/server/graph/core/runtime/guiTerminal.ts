@@ -1,6 +1,7 @@
 /**
  * GUI 基建/配置类终态失败：workflow 不存在等 → 禁止 quality_repair / 改道其它 Agent。
  */
+import { looksLikeNetworkFailure } from '#agent-shared/lobsterRunVerifyLite'
 
 export const GUI_TERMINAL_ERROR_MARKERS = [
   'lobster_workflow_not_found',
@@ -98,5 +99,41 @@ export function hasFailedGuiEvidenceInRun(state: {
   }
   const guiOut = String(state.results?.gui || '')
   if (/GUI 自动化失败|lobster_workflow_not_found|gui.*failed/i.test(guiOut)) return true
+  if (looksLikeNetworkFailure(guiOut)) return true
+  return false
+}
+
+const INCOMPLETE_GUI_RETRY_RE =
+  /navigation_unverified|incomplete_|search_no_results|search_extract_empty|empty_result|仍停留在起始页/i
+
+/** incomplete / navigation_unverified：Lobster 引擎链已尽力，禁止总管 pinGui 整段空转重跑 */
+export function shouldSkipGuiGraphRetry(state: {
+  evidence?: unknown[]
+  results?: Record<string, unknown>
+  meta?: Record<string, unknown>
+}): boolean {
+  if (!hasFailedGuiEvidenceInRun(state)) return false
+  const evidence = Array.isArray(state.evidence) ? state.evidence : []
+  for (const e of evidence) {
+    if (!e || typeof e !== 'object') continue
+    const row = e as {
+      kind?: string
+      agentResult?: { ok?: boolean; error_code?: string; structured?: { failureType?: string } }
+      failureType?: string
+      error?: string
+    }
+    if (String(row.kind || '').toLowerCase() !== 'gui') continue
+    const code = String(
+      row.agentResult?.error_code ||
+        row.agentResult?.structured?.failureType ||
+        row.failureType ||
+        row.error ||
+        '',
+    )
+    if (INCOMPLETE_GUI_RETRY_RE.test(code)) return true
+  }
+  const guiOut = String(state.results?.gui || '')
+  if (INCOMPLETE_GUI_RETRY_RE.test(guiOut)) return true
+  if (state.meta?.guiIncompleteNoRetry === true) return true
   return false
 }

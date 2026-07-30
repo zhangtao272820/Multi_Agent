@@ -28,9 +28,9 @@ owner: ai_admin_agent
 
 澄清规则（重要）：
 - 如果 intent 是「天气」：必须具备城市（slots.city）才能调用工具；若缺失，needs_clarification=true。
-- 如果 intent 是「日程」：创建日程需要标题与开始时间表达；缺任何一个就 needs_clarification=true。
+- 如果 intent 是「日程」：创建日程需要标题与开始时间表达；缺任何一个就 needs_clarification=true；详细内容可选写入 event_description（勿用标题顶替）。
 - 如果用户明确「删除/取消所有/全部」会议提醒或日程：needs_clarification=false，禁止问「哪个会议」；后续规划用 delete_all_meeting_reminders。
-- 如果 intent 是「待办」：创建待办至少需要标题。
+- 如果 intent 是「待办」：创建待办至少需要标题；详细说明可选写入 task_description（勿用标题顶替）。
 - 如果 intent 是「联系人」：创建联系人需要 contact_name 与 contact_email；缺任一 → needs_clarification=true；has_time_reference=false。
 - 如果 intent 是「邮件」：发送/回复需要收件人或邮件编号、主题、正文等；缺失就 needs_clarification=true。
 
@@ -85,13 +85,14 @@ feishu_notify | minutes_to_tasks | reminder_notify | integrations_status | add_c
 
 规则：
 - 天气：缺 city → needs_clarification=true；句中城市名（如「天津气温如何」→ city=天津）必须写入 slots.city；天气不是地图查询 → has_location_query=false
-- 日程：创建需 event_title + start_time_expression；缺则 needs_clarification=true
+- 日程：创建需 event_title + start_time_expression；缺则 needs_clarification=true；用户给出的详细内容/说明 → event_description（禁止用标题顶替；未给则可空）
 - 日程批量删除：用户明确「删除/取消所有/全部」会议提醒或日程 → needs_clarification=false，禁止问哪个会议
-- 待办：创建需 task_title
+- 待办：创建需 task_title；用户给出的详细说明 → task_description（禁止用标题顶替；未给则可空）
 - 联系人：创建需 contact_name + contact_email；缺则 needs_clarification=true；勿填 task_*；has_time_reference=false
-- 邮件：发送/回复缺收件人/主题/正文 → needs_clarification=true
+- 邮件：发送/回复缺收件人/主题/正文 → needs_clarification=true；正文 → email_content
 - 时间/地图：只摘录用户原话到 slots 与 time_expression，不要换算 ISO
-- slots 字段：city, day, event_title, start_time_expression, task_title, task_due_time_expression,
+- slots 字段：city, day, event_title, event_description, start_time_expression,
+  task_title, task_description, task_due_time_expression,
   contact_name, contact_email, contact_description,
   email_to_name_or_email, email_subject, email_content, route_origin, route_destination, travel_mode,
   poi_keywords, near_place, geocode_address

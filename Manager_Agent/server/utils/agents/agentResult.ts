@@ -1,5 +1,5 @@
 import type { AgentResult, AgentSource, CodeAgentMeta, DbResult } from './types'
-import { detectLobsterSemanticBlock } from '#agent-shared/lobsterRunVerifyLite'
+import { detectLobsterSemanticBlock, isLobsterNetworkFailure } from '#agent-shared/lobsterRunVerifyLite'
 import { enforceAgentResultContract } from '#agent-shared/agentResultContract'
 import { isAdminResultProtocolGarbage } from '../route/managerSubAgentHelpers'
 
@@ -209,16 +209,24 @@ export function wrapGuiResult(answer: string, raw?: unknown, traceId?: string): 
   }
   const stepCount = Number(stats.stepCount || 0)
   const text = String(answer || '').trim()
+  const networkFail = isLobsterNetworkFailure({
+    result: { ...row, answer: text, finalUrl },
+    text,
+  })
   const semanticBlock = detectLobsterSemanticBlock({
     task: String(row.task || ''),
     result: raw,
     text,
   })
   const failureType =
-    semanticBlock?.failureType || String(row.failureType || '').trim() || undefined
+    (networkFail ? 'network' : undefined) ||
+    semanticBlock?.failureType ||
+    String(row.failureType || '').trim() ||
+    undefined
   const hasPayload = Boolean(text) || sources.length > 0 || stepCount > 0 || data.length > 0
+  const ok = !networkFail && !semanticBlock && hasPayload
   return {
-    ok: !semanticBlock && hasPayload,
+    ok,
     agent: 'gui',
     trace_id: tid,
     answer: text || undefined,
@@ -230,7 +238,11 @@ export function wrapGuiResult(answer: string, raw?: unknown, traceId?: string): 
       stats,
       ...(failureType ? { failureType } : {}),
     },
-    error_code: semanticBlock ? semanticBlock.failureType : undefined,
+    error_code: networkFail
+      ? 'network'
+      : semanticBlock
+        ? semanticBlock.failureType
+        : undefined,
     needs_clarify:
       Boolean(semanticBlock) &&
       (failureType === 'captcha' || failureType === 'need_human' || failureType === 'need_login'),

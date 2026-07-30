@@ -1,10 +1,18 @@
 /**
  * P0-E：GUI vs 爬虫路由结构 smoke（无 LLM 调用）
+ * 含 prompt 契约：边界/网页执行模式文案须区分「点击→gui」与「有 URL≠crawl_direct」。
  */
-import { applyWebExecutionModeToRoute } from '../../../server/utils/search/managerWebExecutionModeLlm'
+import {
+  applyWebExecutionModeToRoute,
+  formatWebExecutionModeSystemPrompt
+} from '../../../server/utils/search/managerWebExecutionModeLlm'
 import { agentsForWebExecutionHeuristic } from '../../../server/utils/gui/managerGuiAgentAvailability'
 import { isCrawlerRequireSerpEnabled } from '../../../server/utils/crawler/managerCrawlerSerpEnhance'
 import { applyOrchestratorWebRoutePatch } from '../../../server/graph/orchestrate/orchestratorWebExecutionAlign'
+import {
+  formatAgentBoundaryPrompt,
+  formatGuiCrawlerDisambiguationPrompt
+} from '../../../server/graph/orchestrate/unifiedRouting'
 
 process.env.LOBSTER_AGENT_WS_URL = 'ws://localhost:13108/_ws'
 
@@ -119,5 +127,17 @@ assert(orchPatched.allowedAgents.includes('gui'), 'orchestrator patch includes g
 assert(!orchPatched.allowedAgents.includes('crawler'), 'orchestrator patch strips crawler')
 assert(orchPatched.needsWebSearch === false, 'orchestrator patch needsWebSearch false')
 assert(orchPatched.planBlueprint?.steps?.[0]?.agent === 'gui', 'orchestrator patch blueprint gui')
+
+const boundary = formatAgentBoundaryPrompt()
+assert(!/需登录填表的浏览器交互/.test(boundary), 'boundary must not narrow gui to login/form only')
+assert(boundary.includes('打开站点') || boundary.includes('点选'), 'boundary mentions open/click gui scope')
+const guiVsCrawl = formatGuiCrawlerDisambiguationPrompt()
+assert(guiVsCrawl.includes('禁止') && guiVsCrawl.includes('gui'), 'gui vs crawler disambiguation present')
+assert(guiVsCrawl.includes('crawl_direct') || guiVsCrawl.includes('有 URL'), 'disambiguation: URL ≠ crawl_direct')
+
+const webModeSys = formatWebExecutionModeSystemPrompt()
+assert(webModeSys.includes('必须 gui') || webModeSys.includes('必须用 gui'), 'webMode: click tasks must gui')
+assert(webModeSys.includes('crawl_direct') && webModeSys.includes('不是 crawl_direct'), 'webMode: URL+click ≠ crawl_direct')
+assert(webModeSys.includes('search_then_crawl') && /禁止/.test(webModeSys), 'webMode forbids search_then_crawl for click')
 
 console.log(`smoke-gui-vs-crawler-route ok (${g1.slice(0, 12)}…)`)

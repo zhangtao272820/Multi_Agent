@@ -31,6 +31,16 @@ const GraphState = Annotation.Root({
     },
     default: () => null
   }),
+  /** Admin 写确认后续跑：metacog 直达 admin_confirm_resume，禁止整图重路由 */
+  resumeAdminConfirm: Annotation<boolean>({
+    reducer: (_x, y) => (typeof y === 'boolean' ? y : Boolean(y)),
+    default: () => false
+  }),
+  /** 确认后仅重 synth（不重新编排） */
+  resumeToSynth: Annotation<boolean>({
+    reducer: (_x, y) => (typeof y === 'boolean' ? y : Boolean(y)),
+    default: () => false
+  }),
   forceIntent: Annotation<ForceIntent>({
     reducer: (_x, y) => (ForceIntentSchema.safeParse(y).success ? (y as ForceIntent) : 'auto'),
     default: () => 'auto'

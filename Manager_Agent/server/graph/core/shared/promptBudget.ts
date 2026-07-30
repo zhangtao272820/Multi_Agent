@@ -32,6 +32,31 @@ export function handoffSummaryMaxChars(): number {
   return envInt('MANAGER_HANDOFF_SUMMARY_MAX_CHARS', 600, 120, 2000)
 }
 
+/** Synth / Critic 等 SystemMessage 软上限（字符）；超限应拆 profile 而非 silent 截断正文语义 */
+export function promptBudgetSystemChars(): number {
+  return envInt('MANAGER_PROMPT_BUDGET_SYSTEM_CHARS', 4500, 1200, 16000)
+}
+
+export function assertSystemPromptWithinBudget(text: string, context: string): void {
+  const max = promptBudgetSystemChars()
+  const n = String(text || '').length
+  if (n > max) {
+    throw new Error(`${context}: system prompt ${n} chars exceeds budget ${max}`)
+  }
+}
+
+/**
+ * 运行时软守卫：超预算只 warn，不截断语义（避免 silent 砍规则）。
+ * @returns true 表示在预算内
+ */
+export function warnIfSystemPromptOverBudget(text: string, context: string): boolean {
+  const max = promptBudgetSystemChars()
+  const n = String(text || '').length
+  if (n <= max) return true
+  console.warn(`[promptBudget] ${context}: system prompt ${n} chars exceeds budget ${max} (not truncated)`)
+  return false
+}
+
 /** 软字符截断（按字符，非 tokenizer） */
 export function clipChars(text: string, max: number): string {
   const s = String(text || '')
@@ -51,7 +76,8 @@ export function clipSkillBlock(text: string): string {
 export function clipObsSummary(text: string): string {
   const max = obsSummaryMaxChars()
   const cleaned = String(text || '').replace(/\s+/g, ' ').trim()
-  return redactObservation(cleaned, max)
+  // redactObservation 的 truncate 后缀可能超过 max；再硬截断以守住预算
+  return clipChars(redactObservation(cleaned, max), max)
 }
 
 export function clipHandoffSummary(text: string): string {
@@ -72,6 +98,7 @@ export type PromptBudgetSnapshot = {
   obsSummaryChars: number
   obsKeepLast: number
   handoffSummaryChars: number
+  systemChars: number
 }
 
 export function promptBudgetSnapshot(): PromptBudgetSnapshot {
@@ -80,6 +107,7 @@ export function promptBudgetSnapshot(): PromptBudgetSnapshot {
     skillChars: promptBudgetSkillChars(),
     obsSummaryChars: obsSummaryMaxChars(),
     obsKeepLast: obsKeepLast(),
-    handoffSummaryChars: handoffSummaryMaxChars()
+    handoffSummaryChars: handoffSummaryMaxChars(),
+    systemChars: promptBudgetSystemChars()
   }
 }

@@ -8,6 +8,8 @@ import {
 import { detectGuiSemanticBlockFromState } from '../../../utils/gui/guiHumanConfirm'
 import { wrapAdminResult } from '../../../utils/agents/agentResult'
 import { hasSuccessfulGuiBrowseInRun } from '../../core/output/criticEvidence'
+import { hasFailedGuiEvidenceInRun } from '../../core/runtime/guiTerminal'
+import { looksLikeNetworkFailure } from '#agent-shared/lobsterRunVerifyLite'
 import type { CreateEvaluatorNodeDeps } from './types'
 import { evaluatorModel } from './types'
 
@@ -18,17 +20,22 @@ export function createEvaluatorNode(deps: CreateEvaluatorNodeDeps) {
     opts.sendEvent({ event: 'phase', data: 'evaluator', from: 'manager' })
     const evidence = Array.isArray(state.evidence) ? state.evidence : []
     const results = state?.results && typeof state.results === 'object' ? state.results : {}
+    const guiOut = String((results as any)?.gui || '').trim()
+    const guiNetworkFail = looksLikeNetworkFailure(guiOut)
     const errorCount =
       evidence.filter((e: any) => String(e?.kind || '') === 'error').length +
-      evidence.filter((e: any) => e?.agentResult?.ok === false || e?.failed === true).length
+      evidence.filter((e: any) => e?.agentResult?.ok === false || e?.failed === true).length +
+      (guiNetworkFail ? 1 : 0)
     const guiBrowseOk = hasSuccessfulGuiBrowseInRun({ results, evidence })
     const hasFailedGuiEvidence =
-      !guiBrowseOk &&
-      evidence.some(
-        (e: any) =>
-          String(e?.kind || '') === 'gui' &&
-          (e?.agentResult?.ok === false || e?.failed === true)
-      )
+      (!guiBrowseOk &&
+        (hasFailedGuiEvidenceInRun(state) ||
+          evidence.some(
+            (e: any) =>
+              String(e?.kind || '') === 'gui' &&
+              (e?.agentResult?.ok === false || e?.failed === true || looksLikeNetworkFailure(e?.agentResult?.answer || e?.output || ''))
+          ))) ||
+      guiNetworkFail
     const adminOut = String(results?.admin || '').trim()
     const adminWrapped = adminOut ? wrapAdminResult(adminOut) : null
     const hasFailedAdminEvidence =
@@ -41,19 +48,22 @@ export function createEvaluatorNode(deps: CreateEvaluatorNodeDeps) {
       const kind = String(e?.kind || '')
       if (kind === 'gui') {
         if (guiBrowseOk) return true
-        if (e?.agentResult?.ok === false || e?.failed === true) return false
+        // 失败或未达成：不得因 kind=gui 记作数据证据
+        return false
       }
       if (kind === 'admin' && (e?.agentResult?.ok === false || e?.failed === true)) return false
-      return ['rag', 'db', 'crawler', 'gui', 'admin'].includes(kind)
+      return ['rag', 'db', 'crawler', 'admin'].includes(kind)
     })
     const timeoutErrorCount = countTimeoutErrors(evidence)
     const finalText = String(state.final || '').trim()
-    const hasAnswer = finalText.length > 0
+    const hasAnswer = finalText.length > 0 && !looksLikeNetworkFailure(finalText)
     const hasImplicitDataEvidence = ['db', 'rag', 'crawler', 'gui', 'code', 'clean', 'visualize', 'report', 'admin']
       .some((k) => {
-        if (k === 'gui' && hasFailedGuiEvidence && !guiBrowseOk) return false
+        if (k === 'gui' && (hasFailedGuiEvidence || !guiBrowseOk)) return false
         if (k === 'admin' && hasFailedAdminEvidence) return false
-        return String((results as any)?.[k] || '').trim().length > 0
+        const text = String((results as any)?.[k] || '').trim()
+        if (k === 'gui' && looksLikeNetworkFailure(text)) return false
+        return text.length > 0
       }) || guiBrowseOk
     const hasEffectiveDataFoundation = hasDataEvidence || hasImplicitDataEvidence
     const visualizeText = String(results?.visualize || '').trim()
@@ -99,6 +109,8 @@ export function createEvaluatorNode(deps: CreateEvaluatorNodeDeps) {
           ? 'accept'
           : !visualizeIntegrityOk
             ? 'retry'
+            : hasFailedGuiEvidence
+              ? 'retry'
             : score < 0.45
               ? 'retry'
               : score < 0.65

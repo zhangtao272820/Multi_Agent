@@ -2,6 +2,7 @@
  * B2 Prompt 预算 + B3 修订叙事：不拉 LLM。
  */
 import {
+  assertSystemPromptWithinBudget,
   clipChars,
   clipHandoffSummary,
   clipObsSummary,
@@ -10,7 +11,9 @@ import {
   handoffSummaryMaxChars,
   keepLastObservations,
   obsKeepLast,
-  promptBudgetSnapshot
+  promptBudgetSnapshot,
+  promptBudgetSystemChars,
+  warnIfSystemPromptOverBudget
 } from '../../../server/graph/core/shared/promptBudget'
 import { formatLocalReplanNarrative } from '../../../server/graph/orchestrate/orchestrationNarrative'
 import { buildSpecialistHandoffFromStep } from '../../../server/utils/agents/specialistHandoff'
@@ -28,6 +31,7 @@ process.env.MANAGER_PROMPT_BUDGET_SKILL_CHARS = '450'
 process.env.MANAGER_OBS_SUMMARY_MAX_CHARS = '120'
 process.env.MANAGER_HANDOFF_SUMMARY_MAX_CHARS = '150'
 process.env.MANAGER_OBS_KEEP_LAST = '2'
+process.env.MANAGER_PROMPT_BUDGET_SYSTEM_CHARS = '3200'
 
 const snap = promptBudgetSnapshot()
 assert(snap.rulesChars === 500, 'rules budget from env')
@@ -35,6 +39,34 @@ assert(snap.skillChars === 450, 'skill budget from env')
 assert(snap.obsSummaryChars === 120, 'obs budget from env')
 assert(snap.handoffSummaryChars === 150, 'handoff budget from env')
 assert(snap.obsKeepLast === 2, 'obs keep last from env')
+assert(snap.systemChars === 3200, 'system budget from env')
+assert(promptBudgetSystemChars() === 3200, 'system chars helper')
+assertSystemPromptWithinBudget('短', 'test')
+let threw = false
+try {
+  assertSystemPromptWithinBudget('X'.repeat(4000), 'test-over')
+} catch {
+  threw = true
+}
+assert(threw, 'over-budget system prompt throws')
+
+let warned = false
+const origWarn = console.warn
+console.warn = (...args: unknown[]) => {
+  if (String(args[0] || '').includes('[promptBudget]')) warned = true
+  origWarn.apply(console, args as [any?, ...any[]])
+}
+assert(warnIfSystemPromptOverBudget('短', 'test-ok') === true, 'under budget returns true')
+assert(!warned, 'under budget no warn')
+assert(warnIfSystemPromptOverBudget('Y'.repeat(4000), 'test-soft') === false, 'over budget soft returns false')
+assert(warned, 'over budget warns')
+console.warn = origWarn
+const stillLong = 'Y'.repeat(4000)
+assert(stillLong.length === 4000, 'warn path must not truncate')
+
+const plannerAddonLike = '## playbook\n' + ('agent-addon-rule\n'.repeat(80))
+assert(clipSkillBlock(plannerAddonLike).length <= 450, 'planner playbook+addon clipped to skill budget')
+assert(clipSkillBlock(plannerAddonLike).endsWith('…') || clipSkillBlock(plannerAddonLike).length < plannerAddonLike.length, 'long addon clipped')
 
 const long = 'A'.repeat(800)
 assert(clipRulesBlock(long).length <= 500, 'rules clipped')

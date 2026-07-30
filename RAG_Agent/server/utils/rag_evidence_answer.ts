@@ -11,6 +11,10 @@ import {
   buildEvidenceOnlyFallback,
   checkAnswerGroundedInEvidence,
 } from "./citation_guard";
+import {
+  RAG_UNTRUSTED_POLICY,
+  wrapRagUntrustedContext,
+} from "./rag_playbook_prompts";
 
 /** 模型常误判「无结果」的表述（字符串包含检测，非业务 regex 扩词） */
 const NEGATIVE_ANSWER_MARKERS = [
@@ -192,6 +196,7 @@ export async function focusEvidenceForGeneration(
 
 const EXTRACT_SYSTEM = [
   "你是文档问答助手。仅根据【检索证据】回答【用户问题】，输出自然、口语化的中文。",
+  RAG_UNTRUSTED_POLICY,
   "规则：",
   "1) 用户问法与文档字段/文件名表述不同时，只要证据语义相关就必须作答（抽象问法 ↔ 具体字段名视为同一主题）；",
   "2) 只写证据中可核对的事实（数字、日期、实体），不要编造；",
@@ -211,6 +216,11 @@ export async function extractAnswerFromEvidence(input: {
   const context = items
     .map((e) => `[内容] ${String(e.content ?? "").trim()}\n[来源] ${String(e.source ?? "unknown")}`)
     .join("\n\n");
+  const wrappedEvidence = wrapRagUntrustedContext(
+    "rag_evidence",
+    context.slice(0, env.maxContextChars),
+    env.maxContextChars + 200,
+  );
   const model = createRagChatOpenAI({
     modelName: env.queryPlanModel ?? ragFastJudgeModelName(),
     maxTokens: 720,
@@ -221,7 +231,7 @@ export async function extractAnswerFromEvidence(input: {
       [
         `【用户问题】${String(input.question || "").trim().slice(0, 400)}`,
         `【检索焦点】${String(input.effectiveQuery || input.question || "").trim().slice(0, 400)}`,
-        `【检索证据】\n${context.slice(0, env.maxContextChars)}`,
+        wrappedEvidence,
       ].join("\n\n"),
     ),
   ]);

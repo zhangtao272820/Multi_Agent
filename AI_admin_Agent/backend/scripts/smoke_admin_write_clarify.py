@@ -72,8 +72,8 @@ def main() -> None:
         f"composite title must become 项目周会, got {fixed_plan[0]['args']}",
     )
     assert_true(
-        str(fixed_plan[0]["args"].get("description") or "") == "项目周会",
-        f"composite description must not keep dump, got {fixed_plan[0]['args']}",
+        not str(fixed_plan[0]["args"].get("description") or "").strip(),
+        f"composite description must clear (no title substitute), got {fixed_plan[0]['args']}",
     )
 
     # preamble 包裹的 action：剥净后回填不得再缺槽

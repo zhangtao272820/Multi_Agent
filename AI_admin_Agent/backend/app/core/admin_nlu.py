@@ -47,8 +47,10 @@ _EMPTY_SLOTS: dict[str, str] = {
     "city": "",
     "day": "",
     "event_title": "",
+    "event_description": "",
     "start_time_expression": "",
     "task_title": "",
+    "task_description": "",
     "task_due_time_expression": "",
     "contact_name": "",
     "contact_email": "",
@@ -438,10 +440,19 @@ def fill_admin_slots(
 - 联系人操作不是待办：不要填 task_title / task_due_time_expression；has_time_reference=false。
 - 「列出联系人/通讯录」不必填 name/email。
 """
+    writable_addon = ""
+    if intent in ("日程", "待办", "邮件"):
+        writable_addon = """
+【可写字段专规】
+- 日程：用户给出的详细内容/详细说明 → slots.event_description；禁止用 event_title 顶替；未给则可空。
+- 待办：用户给出的详细说明/描述 → slots.task_description；禁止用 task_title 顶替；未给则可空。
+- 邮件：用户给出的正文 → slots.email_content；未给则可空（勿把整段「发邮件给…」指令当正文）。
+"""
     prompt = f"""
 {get_slot_fill_rules(intent)}
 {weather_addon}
 {contact_addon}
+{writable_addon}
 
 {_now_context_block()}
 

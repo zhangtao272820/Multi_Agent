@@ -14,9 +14,11 @@ const denylist: string[] = JSON.parse(
 const SCAN_DIRS = [
   'DB_Agent/utils/nlu',
   'Manager_Agent/server/utils',
+  'Manager_Agent/server/graph/llm',
   'Manager_Agent/skills',
   'RAG_Agent/server/utils',
   'AI_admin_Agent/backend/app/core',
+  'Lobster_Agent/server/services',
   'shared',
 ]
 
@@ -35,7 +37,7 @@ const SKIP_PARTS = [
 
 const FILE_RE = /\.(ts|py|md)$/
 const PROMPT_HINT =
-  /playbook|prompt|FALLBACK|QUERY_PLAN|_PROMPT|skill\.md|orchestrat|intentPlaybook/i
+  /playbook|prompt|FALLBACK|QUERY_PLAN|_PROMPT|skill\.md|orchestrat|intentPlaybook|UNDERSTAND_SYSTEM|STEP_DECIDE_SYSTEM|_SYSTEM\s*=/i
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {

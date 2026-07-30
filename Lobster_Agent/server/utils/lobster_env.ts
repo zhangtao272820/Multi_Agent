@@ -40,15 +40,38 @@ export function isStagehandEnabled(): boolean {
 /** Stagehand v3 要求 provider/model（如 openai/gpt-4o）；DashScope 兼容模式用 openai/qwen-* */
 export function formatStagehandModelName(raw: string): string {
   const s = String(raw || '').trim()
-  if (!s) return 'openai/gpt-4o-mini'
-  if (s.includes('/')) return s
-  return `openai/${s}`
+  if (!s) return 'openai/qwen-plus'
+  if (s.includes('/')) {
+    const [prov, ...rest] = s.split('/')
+    const name = sanitizeStagehandModelId(rest.join('/'))
+    return `${prov}/${name}`
+  }
+  return `openai/${sanitizeStagehandModelId(s)}`
+}
+
+/**
+ * DashScope + Stagehand(AI SDK) 对带日期的快照 id 常报 Unsupported model。
+ * 网页 act 需要稳定模型 id（如 qwen-plus），而非 qwen-plus-2025-04-28。
+ */
+export function sanitizeStagehandModelId(raw: string): string {
+  const s = String(raw || '').trim()
+  if (!s) return 'qwen-plus'
+  // qwen-plus-2025-04-28 → qwen-plus；qwen-turbo-latest 等保留
+  const dated = s.match(/^(qwen-(?:plus|turbo|max|flash))-\d{4}-\d{2}-\d{2}$/i)
+  if (dated) return dated[1]!.toLowerCase()
+  if (/^qwen-plus-/i.test(s)) return 'qwen-plus'
+  return s
 }
 
 export function resolveStagehandModelName(config?: { lobster?: { decisionModel?: string; plannerModel?: string } }): string {
   const fromCfg = String(config?.lobster?.decisionModel || config?.lobster?.plannerModel || '').trim()
-  const raw = fromCfg || String(process.env.LOBSTER_STAGEHAND_MODEL || process.env.LOBSTER_DECISION_MODEL || process.env.OPENAI_MODEL || 'gpt-4o-mini').trim()
+  const raw = fromCfg || String(process.env.LOBSTER_STAGEHAND_MODEL || process.env.LOBSTER_DECISION_MODEL || process.env.OPENAI_MODEL || 'qwen-plus').trim()
   return formatStagehandModelName(raw)
+}
+
+/** 默认 Playwright-first；设 1 时优先 Stagehand LLM act（Qwen 常解析失败，不推荐） */
+export function isStagehandLlmActPreferred(env: NodeJS.ProcessEnv = process.env): boolean {
+  return String(env.LOBSTER_STAGEHAND_LLM_ACT ?? '0').trim() === '1'
 }
 
 function isX11DisplayReachable(): boolean {

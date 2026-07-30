@@ -59,6 +59,25 @@ type ClientLocation = {
 
 type LocationStatus = 'pending' | 'granted' | 'denied' | 'unavailable';
 
+function extractMailDraftFromAgentResult(agentResult: unknown): { content: string; emailId?: number } | null {
+  const ar = agentResult as {
+    structured?: { draft_content?: string; mail_draft?: { content?: string; draft_content?: string; email_id?: number } };
+    draft_content?: string;
+  } | null;
+  if (!ar || typeof ar !== 'object') return null;
+  const md = ar.structured?.mail_draft;
+  const content = String(
+    ar.structured?.draft_content || md?.draft_content || md?.content || ar.draft_content || '',
+  ).trim();
+  if (!content) return null;
+  const emailIdRaw = md?.email_id;
+  const emailId = typeof emailIdRaw === 'number' ? emailIdRaw : Number(emailIdRaw);
+  return {
+    content,
+    ...(Number.isFinite(emailId) && emailId > 0 ? { emailId } : {}),
+  };
+}
+
 function buildClientContext(location: ClientLocation | null): { location?: ClientLocation } {
   if (!location) return {};
   return { location };
@@ -1531,6 +1550,12 @@ function App() {
             if (data.type === 'final') {
               const pendingId = pendingAgentIdRef.current;
               const cards = parseAdminUiCards(data.cards ?? data.agentResult?.structured?.ui_cards);
+              const mailDraft = extractMailDraftFromAgentResult(data.agentResult);
+              if (mailDraft) {
+                setReplyContent(mailDraft.content);
+                if (mailDraft.emailId) setReplyTargetId(mailDraft.emailId);
+                setActiveTab('Mail');
+              }
               if (pendingId) {
                 setMessages((prev) =>
                   prev.map((msg) =>
@@ -3041,12 +3066,16 @@ function App() {
                             <button
                               type="button"
                               onClick={() => {
-                                setActiveTab('Chat');
-                                void sendMessage(`帮我回复邮件 #${selectedMail.id}，大意是：${replyContent || '（请根据上下文起草）'}`);
+                                const hint = replyContent.trim();
+                                void sendMessage(
+                                  hint
+                                    ? `请用 draft_email_reply 起草邮件 #${selectedMail.id} 的回复（只起草不发送），大意是：${hint}`
+                                    : `请用 draft_email_reply 根据上下文起草邮件 #${selectedMail.id} 的回复正文（只起草不发送）`,
+                                );
                               }}
                               className="app-btn-ghost"
                             >
-                              交给助理起草
+                              生成详细内容
                             </button>
                   <button
                     type="button"

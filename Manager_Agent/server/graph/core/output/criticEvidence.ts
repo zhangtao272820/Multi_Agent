@@ -1,5 +1,6 @@
 import type { AgentResult } from '../../../utils/agents/types'
 import { wrapAdminResult } from '../../../utils/agents/agentResult'
+import { looksLikeNetworkFailure } from '#agent-shared/lobsterRunVerifyLite'
 
 function collapse(text: string, max = 900): string {
   return String(text ?? '').replace(/\s+/g, ' ').trim().slice(0, max)
@@ -58,8 +59,8 @@ export function hasSuccessfulAdminReadInRun(input: {
 }
 
 /**
- * 本轮 GUI 是否已有可用浏览证据（finalUrl / sources / 实质子输出）。
- * items=0 不否定浏览成功（打开站常无结构化链接列表）。
+ * 本轮 GUI 是否任务目标已达成（须 agentResult.ok===true）。
+ * 仅有 finalUrl / 截图 / 首页文案不算成功（打开≠完成点击/抽取）。
  */
 export function hasSuccessfulGuiBrowseInRun(input: {
   results?: Record<string, unknown> | null
@@ -68,26 +69,36 @@ export function hasSuccessfulGuiBrowseInRun(input: {
   const evidence = Array.isArray(input.evidence) ? input.evidence : []
   const results = input.results && typeof input.results === 'object' ? input.results : {}
   const guiOut = String((results as any)?.gui || '').trim()
-  if (/GUI 自动化失败|lobster_workflow_not_found/i.test(guiOut)) return false
+  if (/GUI 自动化失败|lobster_workflow_not_found|仍停留在起始页|navigation_unverified/i.test(guiOut)) {
+    return false
+  }
+  if (looksLikeNetworkFailure(guiOut)) return false
 
   for (const e of evidence) {
     if (String(e?.kind || '') !== 'gui') continue
-    if (e?.failed === true && !String(e?.finalUrl || '').trim()) {
-      const ar = e?.agentResult as AgentResult | undefined
-      if (ar?.ok === false && !ar.sources?.length) continue
+    if (e?.failed === true) continue
+    const ar = e?.agentResult as AgentResult | undefined
+    if (!ar || ar.ok !== true) continue
+    if (looksLikeNetworkFailure(ar.answer || '')) continue
+    const errCode = String(ar.error_code || (ar as any)?.structured?.failureType || '').trim()
+    if (
+      /^(navigation_unverified|incomplete_|search_no_results|search_extract_empty|empty_result|network)/i.test(
+        errCode,
+      )
+    ) {
+      continue
     }
     const finalUrl = String(
-      e?.finalUrl || (e?.agentResult as any)?.structured?.finalUrl || ''
+      e?.finalUrl || (ar as any)?.structured?.finalUrl || '',
     ).trim()
-    if (finalUrl.startsWith('http')) return true
-    const ar = e?.agentResult as AgentResult | undefined
-    if (ar?.ok !== false && Array.isArray(ar?.sources) && ar!.sources!.length > 0) return true
-    if (Number(e?.itemCount || 0) > 0) return true
-    if (e?.hasScreenshot === true && guiOut.length >= 12) return true
-    if (ar?.ok !== false && String(ar?.answer || guiOut).trim().length >= 24) return true
+    const answer = String(ar.answer || guiOut).trim()
+    // 成功：ok=true 且有实质产物（URL 或可读 answer）；items=0 仍可算成功
+    if (finalUrl.startsWith('http') || answer.length >= 12 || Number(e?.itemCount || 0) > 0) {
+      return true
+    }
+    if (Array.isArray(ar.sources) && ar.sources.length > 0) return true
   }
 
-  if (guiOut.length >= 24 && !/GUI 自动化失败|验证码|需人工|登录墙/i.test(guiOut)) return true
   return false
 }
 
@@ -149,7 +160,7 @@ export function formatEvidenceForCriticAudit(input: {
         `gui：ok=${ok ? 'yes' : 'no'}；finalUrl=${finalUrl || 'n/a'}；items=${itemCount}${hasShot ? '；hasScreenshot=yes' : ''}${src.length ? `；sources=${src.join(' | ')}` : ''}`
       )
       lines.push(
-        '（说明：浏览/打开类任务以 finalUrl/截图/实质 answer 为成功信号；items=0 不等于 GUI 失败，勿按爬虫抽取口径误杀）'
+        '（说明：GUI 成功须 agentResult.ok=true 且完成任务目标；仅有首页 finalUrl/截图不算成功；items=0 不单独否定成功）'
       )
       if (guiOut) lines.push(`gui 子输出：${guiOut}`)
     } else if (kind === 'code') {

@@ -64,14 +64,37 @@ export const ADMIN_CAPABILITY_GROUPS: ReadonlyArray<{
   {
     intent: '待办',
     label: '待办任务',
-    tools: ['add_task', 'add_task_with_due', 'list_tasks', 'complete_task', 'delete_task', 'add_tasks_from_minutes'],
+    tools: ['add_task', 'add_task_with_due', 'modify_task', 'list_tasks', 'complete_task', 'delete_task', 'add_tasks_from_minutes'],
     routeTerms: ['待办', '任务', 'todo', '完成待办', '删任务']
+  },
+  {
+    intent: '文件',
+    label: '文件/目录/Office',
+    tools: [
+      'list_files',
+      'read_file_content',
+      'write_file',
+      'move_file',
+      'create_directory',
+      'read_office_document',
+      'write_office_document'
+    ],
+    routeTerms: ['文件', '文件夹', '目录', '读取文件', '保存文件', '写入文件', 'docx', 'xlsx', 'Word', 'Excel']
   },
   {
     intent: '邮件',
     label: '邮件',
-    tools: ['send_email', 'list_emails', 'reply_email', 'classify_emails', 'triage_emails'],
-    routeTerms: ['邮件', '发邮件', '写邮件', '收件箱', '回信', '分拣邮件', '未读邮件']
+    tools: [
+      'send_email',
+      'list_emails',
+      'reply_email',
+      'draft_email_reply',
+      'classify_emails',
+      'triage_emails',
+      'list_email_attachments',
+      'save_email_attachment'
+    ],
+    routeTerms: ['邮件', '发邮件', '写邮件', '收件箱', '回信', '分拣邮件', '未读邮件', '附件']
   },
   {
     intent: '天气',
@@ -90,12 +113,6 @@ export const ADMIN_CAPABILITY_GROUPS: ReadonlyArray<{
     label: '会前准备',
     tools: ['prepare_meeting', 'extract_meeting_actions'],
     routeTerms: ['会前', '准备会议', '会议材料', '会议纪要', '纪要']
-  },
-  {
-    intent: '文件',
-    label: '文件/目录',
-    tools: ['list_files', 'read_file_content', 'write_file', 'move_file', 'create_directory'],
-    routeTerms: ['文件', '文件夹', '目录', '读取文件', '保存文件', '写入文件']
   },
   {
     intent: '搜索',
@@ -180,7 +197,8 @@ export const ADMIN_TOOL_NAMES: ReadonlySet<string> = new Set(
 
 /**
  * 总管可编排的 Admin 工具子集（与直连 Admin 全量 registry 分离）。
- * 仅：邮件、联系人、待办、日程、天气、高德、飞书发消息。
+ * 办公六类：邮件、联系人、待办、日程、天气、高德、飞书 + 简报/会前/工作区文件。
+ * 不含：联网搜索、链接精读、问数、玩法台 MCP、浏览器自动化。
  */
 export const MANAGER_ADMIN_ROUTE_GROUPS: ReadonlyArray<{
   key: string
@@ -190,7 +208,7 @@ export const MANAGER_ADMIN_ROUTE_GROUPS: ReadonlyArray<{
   {
     key: '邮件',
     label: '发信/收件/分拣',
-    tools: ['send_email', 'list_emails', 'reply_email', 'classify_emails', 'triage_emails']
+    tools: ['send_email', 'list_emails', 'reply_email', 'draft_email_reply', 'classify_emails', 'triage_emails']
   },
   {
     key: '联系人',
@@ -200,7 +218,7 @@ export const MANAGER_ADMIN_ROUTE_GROUPS: ReadonlyArray<{
   {
     key: '待办',
     label: '待办任务',
-    tools: ['add_task', 'add_task_with_due', 'list_tasks', 'complete_task', 'delete_task']
+    tools: ['add_task', 'add_task_with_due', 'modify_task', 'list_tasks', 'complete_task', 'delete_task']
   },
   {
     key: '日程',
@@ -243,6 +261,34 @@ export const MANAGER_ADMIN_ROUTE_GROUPS: ReadonlyArray<{
     key: '飞书',
     label: '飞书发消息',
     tools: ['send_feishu_message']
+  },
+  {
+    key: '简报',
+    label: '每日简报/周报',
+    tools: ['daily_briefing', 'weekly_report']
+  },
+  {
+    key: '会前',
+    label: '会前准备/纪要待办',
+    tools: ['prepare_meeting', 'extract_meeting_actions', 'add_tasks_from_minutes']
+  },
+  {
+    key: '文件',
+    label: '工作区文件/Office',
+    tools: [
+      'list_files',
+      'read_file_content',
+      'write_file',
+      'move_file',
+      'create_directory',
+      'read_office_document',
+      'write_office_document'
+    ]
+  },
+  {
+    key: '邮件附件',
+    label: '附件落盘到工作区',
+    tools: ['list_email_attachments', 'save_email_attachment']
   }
 ]
 
@@ -250,7 +296,7 @@ export const MANAGER_ADMIN_TOOL_NAMES: ReadonlySet<string> = new Set(
   MANAGER_ADMIN_ROUTE_GROUPS.flatMap((g) => g.tools)
 )
 
-/** 总管路由相关词表（不含搜索/问数/玩法/文件等） */
+/** 总管路由相关词表（不含搜索/问数/玩法；含简报/会前/工作区文件） */
 export const MANAGER_ADMIN_ROUTE_TERMS: readonly string[] = [
   '邮件',
   '发邮件',
@@ -291,7 +337,25 @@ export const MANAGER_ADMIN_ROUTE_TERMS: readonly string[] = [
   '出行',
   '高德',
   'POI',
-  '飞书'
+  '飞书',
+  '简报',
+  '日报',
+  '晨报',
+  '今日安排',
+  '周报',
+  '今日概览',
+  '会前',
+  '准备会议',
+  '会议材料',
+  '会议纪要',
+  '纪要',
+  '文件',
+  '文件夹',
+  '目录',
+  '读取文件',
+  '保存文件',
+  '写入文件',
+  '工作区'
 ]
 
 /** 路由/步骤切分用词表：总管侧用编排子集（去重） */
@@ -300,14 +364,18 @@ export const ADMIN_ROUTE_TERMS: readonly string[] = [...new Set(MANAGER_ADMIN_RO
 /** admin 步骤 query 前缀：告知个人助手可用能力边界（总管编排范围） */
 export function adminStepQueryPreamble(): string {
   return [
-    '仅处理下列个人助理能力（勿混入知识库检索/搜索/问数/玩法/画图/报告）：',
-    '· 邮件：发信、收件箱、分拣、回复',
+    '仅处理下列个人助理能力（勿混入知识库检索/搜索/问数/玩法/画图/报告/浏览器自动化）：',
+    '· 邮件：发信、收件箱、分拣、回复；起草回信用 draft_email_reply（不发信）',
     '· 联系人：添加/查询通讯录',
-    '· 待办：创建/列出/完成待办',
-    '· 日程：会议/日历（须 add_event 落库）；纯闹钟提醒可用 add_reminder',
+    '· 待办：创建/列出/完成/修改待办（modify_task 可改详细说明）',
+    '· 日程：会议/日历（须 add_event 落库，description 填详细内容）；纯闹钟提醒可用 add_reminder',
     '· 天气：城市天气预报（get_weather）',
     '· 高德：路线与耗时、周边/POI、地址解析与补全、坐标定位',
     '· 飞书：发送飞书消息（send_feishu_message）',
+    '· 简报：每日简报、周报（daily_briefing / weekly_report）',
+    '· 会前：会前准备、纪要提取待办（prepare_meeting / extract_meeting_actions / add_tasks_from_minutes）',
+    '· 文件：工作区 list_files / read_file_content / write_file / move_file / create_directory；Office read_office_document / write_office_document（docx/xlsx）',
+    '· 邮件附件：list_email_attachments / save_email_attachment（落盘到 workspace）',
     '路线/地图必须调用高德 API 返回真实结果，禁止凭记忆编造耗时或换乘。',
     '用户说「从这/这里/当前位置」时保留原话；个人助手会结合浏览器定位（若已授权）。',
     '若已给出会议标题与时间或邮件要点，直接执行，勿追问知识库或图表相关缺失项。'
@@ -354,12 +422,24 @@ export function isManagerAdminTool(name: string): boolean {
 
 /** 各工具允许的 args 键（与 AI_admin registry / time_parse 对齐） */
 const ADMIN_TOOL_ALLOWED_ARGS: Record<string, readonly string[]> = {
-  add_event: ['title', 'description', 'start_time_str', 'start_time_local', 'start_time_expression'],
-  modify_event: ['event_id', 'title', 'description', 'start_time_str', 'start_time_local', 'start_time_expression'],
+  add_event: ['title', 'description', 'start_time_str', 'start_time_local', 'start_time_expression', 'end_time_str', 'end_time_local'],
+  modify_event: [
+    'event_id',
+    'title',
+    'description',
+    'start_time_str',
+    'start_time_local',
+    'start_time_expression',
+    'end_time_str',
+    'end_time_local'
+  ],
   add_reminder: ['content', 'remind_time_str', 'remind_time_local', 'time_expression'],
   add_task: ['title', 'description'],
   add_task_with_due: ['title', 'description', 'due_time_str', 'due_time_local', 'task_due_time_expression'],
+  modify_task: ['task_id', 'title', 'description', 'due_time_str', 'due_time_local'],
   send_email: ['to', 'subject', 'content', 'cc', 'bcc'],
+  reply_email: ['email_id', 'content', 'session_id'],
+  draft_email_reply: ['email_id', 'hint', 'tone', 'session_id'],
   list_emails: ['limit', 'unread_only'],
   get_weather: ['city', 'day'],
   get_travel_route: ['origin', 'destination', 'mode', 'compare_modes'],
@@ -369,12 +449,21 @@ const ADMIN_TOOL_ALLOWED_ARGS: Record<string, readonly string[]> = {
   suggest_address_amap: ['keywords', 'city'],
   locate_coordinates_amap: ['address'],
   prepare_meeting: ['query'],
-  daily_briefing: [],
+  daily_briefing: ['city', 'include_emails'],
   weekly_report: [],
+  extract_meeting_actions: ['text', 'minutes_text'],
+  add_tasks_from_minutes: ['text', 'minutes_text'],
   list_events: [],
   list_tasks: [],
-  list_files: [],
-  read_file_content: ['path']
+  list_files: ['directory'],
+  read_file_content: ['file_path', 'path'],
+  write_file: ['file_path', 'content'],
+  move_file: ['src_path', 'dst_path'],
+  create_directory: ['directory', 'dir_path', 'dirname'],
+  read_office_document: ['file_path', 'sheet'],
+  write_office_document: ['file_path', 'content', 'format', 'rows', 'sheet'],
+  list_email_attachments: ['email_id', 'session_id'],
+  save_email_attachment: ['email_id', 'attachment_index', 'filename', 'dest_path', 'session_id']
 }
 
 const REMINDER_ONLY_ARG_KEYS = new Set([
@@ -594,9 +683,9 @@ export function inferAdminTaskFromActionText(actionText: string): {
     const eventTitle = extractTitleFromAction(action) || title || action
     const args: Record<string, unknown> = {
       title: eventTitle,
-      description: action,
       start_time_str: hasTimeHint(action) ? action : ''
     }
+    // description 由 Admin 规划 LLM 从 source_user_task 填写；legacy 不塞整段 action
     return { intent_hint: '日程', tool_plan: [{ name: 'add_event', args }] }
   }
   if (includesAny(action, ['提醒', '闹钟', '叫我', '通知我'])) {
@@ -656,7 +745,11 @@ export function normalizeAdminToolPlan(
       args = filterToolArgs(name, args)
       if (!String(args.title || '').trim() && titleHint) args.title = titleHint
       if (!String(args.start_time_str || '').trim() && timeHint) args.start_time_str = timeHint
-      if (!String(args.description || '').trim() && action) args.description = action.slice(0, 240)
+      // 可写字段：禁止用标题顶替 description；勿把整段 action 塞进 description
+      const desc = String(args.description || '').trim()
+      const title = String(args.title || '').trim()
+      if (desc && title && desc === title) delete args.description
+      else if (!desc) delete args.description
       normalized.push({ name, args })
       continue
     }
@@ -674,6 +767,15 @@ export function normalizeAdminToolPlan(
       continue
     }
 
+    if (name === 'add_task' || name === 'add_task_with_due' || name === 'modify_task') {
+      args = filterToolArgs(name, args)
+      const desc = String(args.description || '').trim()
+      const title = String(args.title || '').trim()
+      if (desc && title && desc === title) delete args.description
+      normalized.push({ name, args })
+      continue
+    }
+
     normalized.push({ name, args: filterToolArgs(name, args) })
   }
 
@@ -685,7 +787,6 @@ export function normalizeAdminToolPlan(
       String(fromReminder.remind_time_str || fromReminder.start_time_str || '').trim() || timeHint
     const eventArgs: Record<string, unknown> = filterToolArgs('add_event', {
       title: synTitle,
-      description: action.slice(0, 240) || synTitle,
       start_time_str: synTime
     })
     if (!String(eventArgs.title || '').trim() && synTitle) eventArgs.title = synTitle

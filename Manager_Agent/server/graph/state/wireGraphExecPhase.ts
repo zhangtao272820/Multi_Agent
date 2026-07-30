@@ -169,7 +169,7 @@ export function wireGraphExecPhase(ctx: WireCtx, route: RoutePhase) {
     llmInvoke
   })
 
-  const { synthNode, criticNode, verifierNode, finalizeNode } = createFinalNodes({
+  const { synthNode, criticNode, verifierNode, finalizeNode, emitUserAnswerNode } = createFinalNodes({
     ensureNotAborted,
     opts,
     llmInvoke,
@@ -259,6 +259,7 @@ export function wireGraphExecPhase(ctx: WireCtx, route: RoutePhase) {
     criticNode,
     verifierNode,
     finalizeNode,
+    emitUserAnswerNode,
     evaluatorNode,
     optimizerNode,
     monitorNode,

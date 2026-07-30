@@ -15,12 +15,6 @@ import { enrichGuiLobsterMeta } from '#agent-shared/guiSiteRecipesLite'
 import { executeMcpToolStep } from './mcpToolExecutor'
 import { isManagerMcpToolNodeEnabled, resolveMcpDirectCallFromMeta } from '../../../utils/mcp/resolveMcpDirectCall'
 import {
-  guiOperateKindFromMeta,
-  isGuiOperateKind,
-  resolveGuiOperateKindByLlm,
-} from '../../../utils/gui/guiOperateKindLlm'
-import { resolveGuiWorkflowForTaskKind, sanitizeGuiWorkflowId } from '../../../utils/gui/guiWorkflowAllowlist'
-import {
   buildGuiFailureUserMessage,
   detectGuiSemanticBlockFromState,
   extractGuiObservationFromRaw,
@@ -34,7 +28,11 @@ import {
 } from '../../../utils/gui/guiHumanConfirm'
 import { hasLobsterBrowseEvidence } from '#agent-shared/lobsterRunVerifyLite'
 
-const DOCKER_CLASSIC_BROWSE_KINDS = new Set(['navigate', 'extract', 'search', 'multi_step'])
+import {
+  guiOperateKindFromMeta,
+  resolveGuiOperateKindByLlm,
+} from '../../../utils/gui/guiOperateKindLlm'
+import { resolveGuiWorkflowForTaskKind, sanitizeGuiWorkflowId } from '../../../utils/gui/guiWorkflowAllowlist'
 
 function parseMcpGuiRun(
   mcpOut: { ok: boolean; text: string; raw?: unknown },
@@ -167,7 +165,7 @@ function buildGuiSemanticBlockMeta(failureType: string, handoffAttempted: boolea
   }
 }
 
-/** 验证码/登录墙人工确认后：无头 MCP 重跑必再触发风控，改走 WS + classic 有头引擎 */
+/** 验证码/登录墙人工确认后：无头 MCP 重跑易再触发风控，改走 WS + classic 有头引擎 */
 function resolveGuiHandoffRetryEngine(failureType: string): string {
   return isGuiHumanHandoffFailure(failureType) ? 'classic' : 'mcp'
 }
@@ -288,9 +286,10 @@ export function isGuiEngineRetryEnabled(env: NodeJS.ProcessEnv = process.env): b
   return String(env.MANAGER_GUI_RETRY_ON_ENGINE_FAIL ?? '1').trim() !== '0'
 }
 
+/** 网页多引擎回退：auto → mcp → stagehand → classic */
 export function nextGuiEngineHintForRetry(current?: string): string | undefined {
   const c = String(current || 'auto').trim().toLowerCase()
-  if (!c || c === 'auto') return 'mcp'
+  if (!c || c === 'auto' || c === 'browser_use') return 'mcp'
   if (c === 'mcp') return 'stagehand'
   if (c === 'stagehand') return 'classic'
   return undefined
@@ -335,20 +334,8 @@ export async function executeGuiStep(
     }
   }
 
-  // 操作类（form_fill/login）靠 soft task_kind 选型，禁止经验引擎写成 forced engineHint
-  if (!engineHint && !isGuiOperateKind(taskKind)) {
-    try {
-      const { recallGuiExperience } = await import('#agent-shared/guiExperienceRetrieve')
-      const exp = await recallGuiExperience(task, { limit: 1 })
-      const mode = String(exp[0]?.executionMode || '').trim().toLowerCase()
-      if (mode === 'mcp' || mode === 'stagehand' || mode === 'classic') {
-        engineHint = mode
-        input.sendThinking(`GUI Agent：复用历史经验引擎 ${mode}`)
-      }
-    } catch {
-      /* optional */
-    }
-  }
+  // 禁止经验召回写入 forced engineHint（软偏好仅留 lobster meta）
+  // 用户显式「引擎:xxx」仍走 hints.engineHint
 
   // workflow：LLM 优先；显式 `工作流:` hint 仅作 overlay。未知/与 task_kind 不兼容的宏丢弃。
   const rawWorkflowId =
@@ -368,19 +355,7 @@ export async function executeGuiStep(
     )
   }
 
-  // Docker 无头 MCP：浏览类（打开/抽取/搜索）优先 classic，与 noVNC 同屏
-  // 仅尊重用户显式「引擎:」hint；历史经验 mcp 不挡 classic
-  if (
-    !hints.engineHint &&
-    isDockerHeadlessMcpGui() &&
-    taskKind &&
-    DOCKER_CLASSIC_BROWSE_KINDS.has(String(taskKind)) &&
-    !needsLogin &&
-    !workflowId
-  ) {
-    engineHint = 'classic'
-    input.sendThinking('GUI Agent：Docker 无头 MCP 下浏览类任务改走 classic（与 noVNC 同屏）')
-  }
+  // Docker / 网页：透传用户显式引擎 hint；Lobster_Agent 多引擎路由
   const storageProfile =
     hints.storageProfile ||
     (opts.userId && opts.sessionId ? `${opts.userId}_${opts.sessionId}` : opts.sessionId || opts.userId)
@@ -409,13 +384,11 @@ export async function executeGuiStep(
       meta: buildGuiSemanticBlockMeta(priorBlock.failureType || 'captcha', true),
     }
   }
-  const lobsterMeta = enrichGuiLobsterMeta(task, startUrl, engineHint || hints.engineHint)
-  // soft prefer 仅在 lobster meta；禁止 preferred_engine → forced engineHint
+  const lobsterMeta = enrichGuiLobsterMeta(task, startUrl, hints.engineHint)
+  // 仅用户显式引擎 hint 或 desktop 可 forced；禁止经验/recipe → engineHint
   const forcedEngineHint = isDesktopTask
     ? 'desktop'
-    : isGuiOperateKind(taskKind)
-      ? hints.engineHint
-      : engineHint || hints.engineHint || undefined
+    : hints.engineHint || undefined
 
   const workflowArgs: Record<string, unknown> = {
     ...(operateKind?.workflow_args || {}),
@@ -541,16 +514,6 @@ export async function executeGuiStep(
     }
 
     if (isGuiMcpFirstEnabled() && !isDesktopTask) {
-      const classicForced =
-        String(forcedEngineHint || engineHint || hints.engineHint || '')
-          .trim()
-          .toLowerCase() === 'classic'
-      if (classicForced) {
-        input.sendThinking(
-          'GUI Agent：engineHint=classic，跳过 MCP 主路径，直走 WebSocket classic（与 noVNC 同屏）…',
-        )
-        engineHint = 'classic'
-      } else {
       try {
         input.sendThinking('GUI Agent：MCP 主路径（lobster-gui run_browser_task）…')
         let mcpOut = await callLobsterGuiMcpTask({
@@ -574,7 +537,7 @@ export async function executeGuiStep(
         })
         let parsed = parseMcpGuiRun(mcpOut, task, opts.runId)
         if (mcpOut.retryable === true && !mcpOut.ok) {
-          // 已有页面/截图证据：落 outcome，禁止 classic 整段双跑
+          // 已有页面/截图证据：落 outcome，禁止整段双跑
           if (mcpRawHasBrowseEvidence(mcpOut) || parsed.finalUrl || parsed.semanticOk) {
             input.sendThinking(
               `GUI Agent：MCP 标记可回退，但已有浏览证据，直接采纳（${mcpGuiFailureSummary(mcpOut)}）`
@@ -655,7 +618,11 @@ export async function executeGuiStep(
                 kind: 'gui',
                 query: task,
                 transport: 'websocket',
-                engine: wsHint,
+                engine: String(
+                  (normalized.raw as Record<string, unknown>)?.engine ||
+                    (normalized.raw as Record<string, unknown>)?.executionEngine ||
+                    'classic'
+                ),
                 failed: true,
               },
               rawResult: normalized.raw,
@@ -683,7 +650,7 @@ export async function executeGuiStep(
               engine: String(
                 (normalized.raw as Record<string, unknown>)?.engine ||
                   (normalized.raw as Record<string, unknown>)?.executionEngine ||
-                  wsHint
+                  'classic'
               ),
             },
             rawResult: normalized.raw,
@@ -795,11 +762,10 @@ export async function executeGuiStep(
         return buildMcpGuiStepOutcome({ task, mcpOut, parsed, ok: true })
       } catch (mcpErr) {
         input.sendThinking(
-          `GUI Agent：MCP 失败，回退 WebSocket（${String((mcpErr as Error)?.message || mcpErr).slice(0, 160)}）`
+          `GUI Agent：MCP 传输失败，回退 WebSocket（${String((mcpErr as Error)?.message || mcpErr).slice(0, 160)}）`
         )
-        engineHint = 'classic'
+        engineHint = engineHint || hints.engineHint || 'classic'
       }
-      } // end else !classicForced
     }
 
     let res = await runOnce(isDesktopTask ? 'desktop' : engineHint || hints.engineHint, undefined, 'initial')
@@ -856,6 +822,7 @@ export async function executeGuiStep(
         input.sendThinking(`GUI Agent：换引擎重试（${retryHint}）…`)
         res = await runOnce(retryHint)
         normalized = normalizeLobsterCallResult(res, task, opts.runId)
+        wsFailureType = resolveGuiFailureType({ agentResult: normalized.agentResult })
       }
     }
     const sourceHits = guiSourceHitsForEvent(normalized.raw)

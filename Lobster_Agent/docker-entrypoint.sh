@@ -49,9 +49,25 @@ x11vnc -display "${DISPLAY}" -forever -shared -nopw -rfbport "${VNC_PORT}" >/tmp
 websockify --web=/usr/share/novnc "${NOVNC_PORT}" "127.0.0.1:${VNC_PORT}" >/tmp/novnc.log 2>&1 &
 
 echo "[lobster] production server ${HOST}:${APP_PORT} DISPLAY=${DISPLAY}"
-# pwuser 的 HOME 必须可写，否则 headed Chromium crashpad 会立即退出
+
+# Stagehand/chrome-launcher：指向 Playwright 镜像内置 Chromium（若未显式设置）
+if [ -z "${CHROME_PATH:-}" ]; then
+  CHROME_CANDIDATE="$(find /ms-playwright -path '*/chrome-linux64/chrome' -type f 2>/dev/null | head -1 || true)"
+  if [ -z "${CHROME_CANDIDATE}" ]; then
+    CHROME_CANDIDATE="$(find /ms-playwright -path '*/chrome-linux/chrome' -type f 2>/dev/null | head -1 || true)"
+  fi
+  if [ -n "${CHROME_CANDIDATE}" ]; then
+    export CHROME_PATH="${CHROME_CANDIDATE}"
+    echo "[lobster] CHROME_PATH=${CHROME_PATH}"
+  else
+    echo "[lobster] WARN: no Chromium under /ms-playwright; Stagehand may fail without CHROME_PATH" >&2
+  fi
+fi
+
+# pwuser 的 HOME 必须可写，否则 headed Chromium crashpad 会立刻退出
 exec runuser -p -u pwuser -- env \
   HOME=/app/.data/pw-home \
   XDG_CONFIG_HOME=/app/.data/pw-home/.config \
   XDG_CACHE_HOME=/app/.data/pw-home/.cache \
+  CHROME_PATH="${CHROME_PATH:-}" \
   node .output/server/index.mjs

@@ -41,8 +41,9 @@ const adminCapSrc = readSource('shared/adminCapabilities.ts')
 assert(adminCapSrc.includes('get_weather'), 'admin SSOT has get_weather')
 assert(adminCapSrc.includes("intent: '天气'"), 'admin SSOT has weather intent group')
 
-const orchSrc = readSource('Manager_Agent/server/graph/llm/taskOrchestrator/resolve.ts')
+const orchSrc = readSource('Manager_Agent/server/graph/llm/orchestratorPromptProfiles.ts')
 assert(orchSrc.includes('RAG+DB+天气+简报'), 'orchestrator has weather compound example')
+assert(orchSrc.includes('gui_interact') || orchSrc.includes('ORCH_PACK:gui_interact'), 'orchestrator has gui_interact pack')
 
 const alignSrc = readSource('Manager_Agent/server/graph/llm/userIntentAlignLlm.ts')
 assert(alignSrc.includes('formatAdminCrawlerDisambiguationPrompt'), 'user intent align uses disambig prompt')

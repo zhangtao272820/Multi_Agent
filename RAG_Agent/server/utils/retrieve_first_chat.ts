@@ -4,7 +4,7 @@ import { isUnsafeStreamToken } from "./answer_sanitize";
 import { runDocumentRetrieval, type DocumentRetrievalResult } from "./document_retrieval";
 import { getRagAgentEnv, chatModelName } from "./rag_agent_env";
 import { createRagChatOpenAI } from "./rag_chat_openai";
-import { buildGeneratePromptTemplate } from "./rag_playbook_prompts";
+import { buildGeneratePromptTemplate, wrapRagUntrustedContext } from "./rag_playbook_prompts";
 import { getRagPromptPatchesForStage } from "./prompt_evolution";
 import { resolvePromptAbVariant } from "./prompt_ab_router";
 import type { EvidenceItem } from "./retrieval_shared";
@@ -203,7 +203,7 @@ async function streamGenerateAnswer(
   let answer = "";
   let usage: unknown = null;
   const stream = await chain.stream({
-    context: contextText,
+    context: wrapRagUntrustedContext("rag_evidence", contextText, env.maxContextChars + 400),
     question: questionForGenerate,
   });
   for await (const chunk of stream) {

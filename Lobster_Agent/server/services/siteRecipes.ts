@@ -32,12 +32,16 @@ const RECIPES: SiteRecipe[] = [
   {
     id: 'runoob',
     hosts: /runoob\.com/i,
-    preferredEngine: 'mcp',
+    preferredEngine: 'stagehand',
     mcpHints: [
       '菜鸟教程首页有教程卡片链接，可直接 browser_snapshot 后点击第一个教程链接。',
       '站内搜索框通常在顶部；遮罩较少。'
     ],
-    stagehandHints: ['教程列表页结构简单，extract 标题与链接即可。'],
+    stagehandHints: [
+      '先 goto 首页，再 act 点击第一个教程链接，extract 页面标题与 URL。',
+      '须离开 runoob 首页进入教程详情后再结束。',
+    ],
+    actTemplate: '点击首页第一个教程链接，进入教程页并提取标题',
     resultPageHints: {
       resultRootSelector: '.container, #content',
       listSelector: 'a[href*="/"]',
@@ -46,7 +50,7 @@ const RECIPES: SiteRecipe[] = [
   {
     id: 'baidu',
     hosts: /baidu\.com/i,
-    preferredEngine: 'mcp',
+    preferredEngine: 'stagehand',
     headedRequiredInDocker: true,
     mcpHints: [
       '百度搜索：优先直达 https://www.baidu.com/s?wd=关键词；避免首页反复 type。',
@@ -65,7 +69,7 @@ const RECIPES: SiteRecipe[] = [
   {
     id: 'gov',
     hosts: /gov\.cn/i,
-    preferredEngine: 'mcp',
+    preferredEngine: 'stagehand',
     mcpHints: ['政府站点结构较稳定，资讯列表多为 a[href] 链接，适合 extract 标题与 URL。'],
     stagehandHints: ['列表页 extract items 数组，含 title 与 url。']
   },
@@ -95,14 +99,14 @@ const RECIPES: SiteRecipe[] = [
   {
     id: 'example',
     hosts: /example\.(com|org)/i,
-    preferredEngine: 'mcp',
+    preferredEngine: 'stagehand',
     mcpHints: ['example.com 极简页面，标题在 h1，第一个链接在 main 区域。'],
     stagehandHints: ['单页 extract title 与第一个 a 标签。']
   },
   {
     id: 'w3schools',
     hosts: /w3schools\.com/i,
-    preferredEngine: 'mcp',
+    preferredEngine: 'stagehand',
     complex: true,
     mcpHints: [
       'W3Schools 有 cookie 同意条，先点 Accept all / 同意。',
@@ -113,7 +117,7 @@ const RECIPES: SiteRecipe[] = [
   {
     id: 'github',
     hosts: /github\.com/i,
-    preferredEngine: 'mcp',
+    preferredEngine: 'stagehand',
     complex: true,
     mcpHints: [
       'GitHub 为重度 SPA；搜索仓库用顶栏 search，结果需 wait 后 snapshot。',
@@ -128,7 +132,7 @@ const RECIPES: SiteRecipe[] = [
   {
     id: 'mdn',
     hosts: /developer\.mozilla\.org/i,
-    preferredEngine: 'mcp',
+    preferredEngine: 'stagehand',
     complex: true,
     mcpHints: ['MDN 文档有侧边栏导航；搜索用顶栏，结果列表在 main。'],
     stagehandHints: ['extract 文档标题与章节链接。'],
@@ -179,7 +183,7 @@ const RECIPES: SiteRecipe[] = [
   {
     id: 'google',
     hosts: /google\.com/i,
-    preferredEngine: 'mcp',
+    preferredEngine: 'stagehand',
     mcpHints: [
       'Google：先处理 cookie/consent 横幅（Accept all / 同意）。',
       '搜索框可 browser_type 查询词后 Enter；结果在 main 区域。'
@@ -193,7 +197,7 @@ const RECIPES: SiteRecipe[] = [
   {
     id: 'zhihu',
     hosts: /zhihu\.com/i,
-    preferredEngine: 'mcp',
+    preferredEngine: 'stagehand',
     complex: true,
     mcpHints: [
       '知乎顶栏搜索；登录墙出现则 finish 说明需登录态。',

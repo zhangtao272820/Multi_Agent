@@ -137,12 +137,15 @@ export function buildGuiAgentResult(params: {
     error_code: ok
       ? undefined
       : semanticBlock?.failureType ||
+        (verify.reason === 'network_unreachable' || verify.failureType === 'network'
+          ? 'network'
+          : undefined) ||
         (verify.reason === 'task_blocked' ? verify.failureType || 'task_blocked' : undefined) ||
         (verify.reason &&
-        /^(navigation_unverified|incomplete_|search_no_results|search_extract_empty|empty_result)/.test(
+        /^(navigation_unverified|incomplete_|search_no_results|search_extract_empty|empty_result|network_unreachable)/.test(
           String(verify.reason),
         )
-          ? String(verify.reason)
+          ? String(verify.reason === 'network_unreachable' ? 'network' : verify.reason)
           : undefined) ||
         params.error_code ||
         (failureType && failureType !== 'empty_result' ? failureType : undefined) ||

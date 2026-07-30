@@ -163,6 +163,7 @@ export async function runMultiNodeBody(state: any, deps: any) {
       const carryPriorRunResults =
         Boolean(String(state.fixQuery || '').trim()) ||
         Number(state.retryCount || 0) > 0 ||
+        Boolean((state as { resumeAdminConfirm?: boolean }).resumeAdminConfirm) ||
         Boolean((state.meta as { resumeAdminConfirm?: boolean } | undefined)?.resumeAdminConfirm)
       const out: Record<string, string> = carryPriorRunResults ? { ...(state.results || {}) } : {}
       const evidences: any[] = carryPriorRunResults ? [...(state.evidence || [])] : []

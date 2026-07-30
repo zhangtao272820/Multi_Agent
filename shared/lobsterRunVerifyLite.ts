@@ -23,6 +23,10 @@ export type LobsterSemanticBlock = {
 const INFRA_FAILURE_RE =
   /Chromium distribution|playwright install|install-browser|Browser .* is not installed|executable doesn't exist|async initializeServer|Connection closed|playwright_mcp_browser_unavailable|浏览器启动失败|浏览器环境缺少|无法执行任务.*(?:未安装|Chrome|Chromium|WebKit)/i
 
+/** 网络/DNS 失败（工具原文或 LLM 改写后的中文失败文案）——不得当成功 answer */
+const NETWORK_FAILURE_RE =
+  /net::ERR_[A-Z0-9_]+|ERR_NAME_NOT_RESOLVED|ERR_CONNECTION_|ERR_TIMED_OUT|ERR_INTERNET_DISCONNECTED|ENOTFOUND|EAI_AGAIN|ECONNREFUSED|ECONNRESET|ETIMEDOUT|DNS_PROBE|域名解析(?:失败)?|无法访问目标页面|无法解析(?:主机|域名)|name\s*not\s*resolved|getaddrinfo\s+ENOTFOUND|network\s*(?:error|unreachable|failure)/i
+
 const SEMANTIC_FAILURE_TYPES = new Set([
   'captcha',
   'need_login',
@@ -82,6 +86,42 @@ function isIncompleteRunAnswer(text: string): boolean {
   const s = String(text || '').trim()
   if (!s) return false
   return INCOMPLETE_ANSWER_RE.test(s)
+}
+
+function collectNetworkFailureBlob(input: {
+  error?: string | null
+  text?: string
+  result?: unknown
+}): string {
+  const row = resultPayload(input.result)
+  const ft = String(row.failureType || row.error_code || '').trim()
+  return [input.error, input.text, collectResultText(input.result), ft].filter(Boolean).join('\n')
+}
+
+/**
+ * 网络/DNS 失败文案检测（字符串或 result 对象）。
+ * 供 Manager wrap/evaluator 与 Lobster verify 共用。
+ */
+export function looksLikeNetworkFailure(blob: unknown): boolean {
+  if (blob && typeof blob === 'object') {
+    const row = blob as Record<string, unknown>
+    const ft = String(row.failureType || row.error_code || '').trim().toLowerCase()
+    if (ft === 'network' || ft === 'network_unreachable') return true
+    return NETWORK_FAILURE_RE.test(collectNetworkFailureBlob({ result: blob }))
+  }
+  return NETWORK_FAILURE_RE.test(String(blob || ''))
+}
+
+/** 结果是否为网络/DNS 失败（含 failureType=network） */
+export function isLobsterNetworkFailure(input: {
+  error?: string | null
+  text?: string
+  result?: unknown
+}): boolean {
+  const row = resultPayload(input.result)
+  const ft = String(row.failureType || row.error_code || '').trim().toLowerCase()
+  if (ft === 'network' || ft === 'network_unreachable') return true
+  return looksLikeNetworkFailure(collectNetworkFailureBlob(input))
 }
 
 function isSearchResultsPage(finalUrl: string): boolean {
@@ -180,7 +220,9 @@ function hasMeaningfulTaskOutput(task: string, result: unknown): boolean {
   const finalUrl = String(row.finalUrl || row.url || '').trim()
   const answer = String(row.answer || row.summary || '').trim()
   const failureType = String(row.failureType || '').trim().toLowerCase()
+  if (failureType === 'network' || failureType === 'network_unreachable') return false
   if (failureType.startsWith('incomplete')) return false
+  if (isLobsterNetworkFailure({ result, text: answer })) return false
   if (isIncompleteRunAnswer(answer) || isIncompleteRunAnswer(collectResultText(result))) return false
 
   if (isDesktopAppTask(task, result)) {
@@ -195,14 +237,26 @@ function hasMeaningfulTaskOutput(task: string, result: unknown): boolean {
     const wantsExtract = /(抽取|提取|获取|输出|列表|结果|items|前\s*\d+\s*条|top\s*\d+)/i.test(task)
     if (wantsExtract) {
       if (items.length > 0) return true
-      if (answer.length > 24 && !SEMANTIC_BLOCK_TEXT_RE.test(answer) && !INCOMPLETE_ANSWER_RE.test(answer)) {
+      if (
+        answer.length > 24 &&
+        !SEMANTIC_BLOCK_TEXT_RE.test(answer) &&
+        !INCOMPLETE_ANSWER_RE.test(answer) &&
+        !looksLikeNetworkFailure(answer)
+      ) {
         return true
       }
       return false
     }
     if (SEARCH_RESULT_URL_RE.test(finalUrl) && !CAPTCHA_URL_RE.test(finalUrl)) return true
     if (items.length > 0) return true
-    if (answer.length > 24 && !SEMANTIC_BLOCK_TEXT_RE.test(answer) && !INCOMPLETE_ANSWER_RE.test(answer)) return true
+    if (
+      answer.length > 24 &&
+      !SEMANTIC_BLOCK_TEXT_RE.test(answer) &&
+      !INCOMPLETE_ANSWER_RE.test(answer) &&
+      !looksLikeNetworkFailure(answer)
+    ) {
+      return true
+    }
     return false
   }
 
@@ -213,7 +267,14 @@ function hasMeaningfulTaskOutput(task: string, result: unknown): boolean {
     if (items.length > 0) return true
     // 仍在起始页：禁止仅靠 answer（首页标题冒充详情）过 verify
     if (isLikelyStartPageOnly(task, finalUrl)) return false
-    if (answer.length > 24 && finalUrl && !CAPTCHA_URL_RE.test(finalUrl)) return true
+    if (
+      answer.length > 24 &&
+      finalUrl &&
+      !CAPTCHA_URL_RE.test(finalUrl) &&
+      !looksLikeNetworkFailure(answer)
+    ) {
+      return true
+    }
     return false
   }
 
@@ -253,11 +314,13 @@ export function detectLobsterSemanticBlock(input: {
 
 /** 结果是否已含可用浏览证据（finalUrl / 实质 answer / items） */
 export function hasLobsterBrowseEvidence(result?: unknown): boolean {
+  if (isLobsterNetworkFailure({ result })) return false
   const row = resultPayload(result)
   const finalUrl = String(row.finalUrl || row.url || '').trim()
   if (finalUrl && !CAPTCHA_URL_RE.test(finalUrl)) return true
   if (collectResultItems(result).length > 0) return true
   const answer = String(row.answer || row.summary || '').trim()
+  if (looksLikeNetworkFailure(answer)) return false
   return answer.length > 12 && !INCOMPLETE_ANSWER_RE.test(answer)
 }
 
@@ -274,15 +337,18 @@ export function isLobsterRetryableFailure(input: {
   const verifyReason = String(input.verify?.reason || '').trim()
   if (verifyReason === 'canceled' || verifyReason === 'task_blocked') return false
   if (isLobsterInfrastructureFailure(input)) return true
-  // 已有可用浏览证据时，不再因 empty/navigation 等触发引擎整段回退
+  if (verifyReason === 'network_unreachable' || isLobsterNetworkFailure(input)) return true
+  // 未离开起始页：即使已有 homepage finalUrl，仍应允许引擎回退
+  if (verifyReason === 'navigation_unverified') return true
+  // 已有可用浏览证据时，不再因 empty 等触发引擎整段回退
   if (hasLobsterBrowseEvidence(input.result)) return false
   return (
     verifyReason === 'browser_infra_unavailable' ||
+    verifyReason === 'network_unreachable' ||
     /^incomplete_/.test(verifyReason) ||
     verifyReason === 'empty_result' ||
     verifyReason === 'search_no_results' ||
     verifyReason === 'search_extract_empty' ||
-    verifyReason === 'navigation_unverified' ||
     verifyReason === 'error'
   )
 }
@@ -290,6 +356,7 @@ export function isLobsterRetryableFailure(input: {
 /**
  * 真基建/连接失败才算 infrastructure。
  * 禁止把任意 status=error/canceled 一律当成基建（否则 MCP poll 已出截图仍强制 classic 双跑）。
+ * 网络/DNS 走 isLobsterNetworkFailure，不并入本函数（避免与 verify 早退顺序冲突）。
  */
 export function isLobsterInfrastructureFailure(input: {
   status?: string
@@ -306,6 +373,23 @@ export function isLobsterInfrastructureFailure(input: {
 export function verifyLobsterRunResult(input: LobsterRunVerifyInput): LobsterRunVerifyOutcome {
   const task = String(input.task || '').trim()
   const status = String(input.status || '').trim().toLowerCase()
+
+  if (
+    isLobsterNetworkFailure({
+      error: input.error,
+      result: input.result,
+      text: input.error || undefined,
+    })
+  ) {
+    return {
+      ok: false,
+      reason: 'network_unreachable',
+      failureType: 'network',
+      hints: [
+        collectResultText(input.result).slice(0, 240) || String(input.error || '').slice(0, 240) || '网络/DNS 不可达',
+      ],
+    }
+  }
 
   if (isLobsterInfrastructureFailure({ status, error: input.error, result: input.result, text: input.error || undefined })) {
     return {

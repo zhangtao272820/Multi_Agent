@@ -3,7 +3,7 @@ export function extractStartUrlFromTask(task: string): string | undefined {
   return m?.[0]?.replace(/[.,;:!?)]+$/, '')
 }
 
-const ENGINE_HINT_RE = /(?:engine|引擎)\s*[:：]\s*(classic|mcp|stagehand|desktop)\b/i
+const ENGINE_HINT_RE = /(?:engine|引擎)\s*[:：]\s*(classic|mcp|stagehand|desktop|browser_use|browser-use)\b/i
 const BROWSER_PROFILE_RE = /(?:browser[_\s-]?profile|浏览器\s*profile|profile)\s*[:：]\s*(managed|user)\b/i
 
 const DESKTOP_TASK_RE =
@@ -41,7 +41,9 @@ export function parseGuiTaskHints(task: string): {
 
   const engineMatch = t.match(ENGINE_HINT_RE)
   if (engineMatch?.[1]) {
-    engineHint = engineMatch[1].toLowerCase()
+    const raw = engineMatch[1].toLowerCase().replace(/-/g, '_')
+    if (raw === 'browser_use') engineHint = undefined
+    else engineHint = raw
     t = t.replace(ENGINE_HINT_RE, '').trim()
   }
 

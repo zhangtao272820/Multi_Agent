@@ -15,6 +15,7 @@
     "smoke:html": "npx --yes tsx scripts/smoke-html.ts",
     "smoke:pptx": "npx --yes tsx scripts/smoke-pptx.ts",
     "smoke:nlu": "node --experimental-strip-types scripts/smoke-rag-nlu.ts",
+    "smoke:prompt-untrusted": "npx --yes tsx scripts/smoke-rag-prompt-untrusted.ts",
     "smoke:stage4": "node --experimental-strip-types scripts/smoke-rag-stage4.ts",
     "smoke:enterprise-h": "npx --yes tsx scripts/smoke-rag-enterprise-h.ts",
     "reindex": "npx --yes tsx scripts/reindex-from-store.ts"

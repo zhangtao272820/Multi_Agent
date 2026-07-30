@@ -6,6 +6,8 @@
 import assert from 'node:assert/strict'
 import {
   detectLobsterSemanticBlock,
+  hasLobsterBrowseEvidence,
+  isLobsterRetryableFailure,
   verifyLobsterRunResult,
 } from '#agent-shared/lobsterRunVerifyLite'
 import {
@@ -20,6 +22,7 @@ import {
   resolveGuiHandoffTimeoutMs,
   resolveGuiTimeoutMs,
 } from '../../../server/graph/core/executors/guiExecutor'
+import { shouldSkipGuiGraphRetry } from '../../../server/graph/core/runtime/guiTerminal'
 
 // captcha URL 应被 verify 判为 task_blocked
 const captchaVerify = verifyLobsterRunResult({
@@ -101,9 +104,55 @@ const runoobFakeTitle = verifyLobsterRunResult({
 assert.equal(runoobFakeTitle.ok, false)
 assert.equal(runoobFakeTitle.reason, 'navigation_unverified', 'explicit failureType wins over fake title answer')
 
+assert.equal(
+  shouldSkipGuiGraphRetry({
+    evidence: [
+      {
+        kind: 'gui',
+        failed: true,
+        agentResult: { ok: false, error_code: 'navigation_unverified' },
+      },
+    ],
+    results: { gui: '仍停留在起始页' },
+  }),
+  true,
+  'navigation_unverified skips pinGui retry',
+)
+
 const baseTimeout = resolveGuiTimeoutMs(90_000, '打开百度搜索')
 assert(baseTimeout >= 360_000, 'default gui timeout >= 360s')
 const handoffTimeout = resolveGuiHandoffTimeoutMs(baseTimeout, '打开百度搜索')
 assert(handoffTimeout >= 480_000, 'handoff timeout >= 480s')
 
+// 网络/DNS 失败不得当成功证据，且须可触发引擎回退
+const dnsFailAnswer =
+  '无法访问目标页面，域名解析失败。请检查连接是否正确或网络环境是否正常。页面：https://www.runoob.com/'
+const dnsVerify = verifyLobsterRunResult({
+  task: '打开 https://www.runoob.com/ ，点击第一个教程链接并提取标题',
+  status: 'done',
+  result: { answer: dnsFailAnswer, finalUrl: 'https://www.runoob.com/' },
+})
+assert.equal(dnsVerify.ok, false, 'DNS failure answer must not verify ok')
+assert.equal(dnsVerify.reason, 'network_unreachable', 'DNS → network_unreachable')
+assert.equal(dnsVerify.failureType, 'network')
+assert.equal(hasLobsterBrowseEvidence({ answer: dnsFailAnswer }), false, 'DNS answer ≠ browse evidence')
+assert.equal(
+  isLobsterRetryableFailure({
+    status: 'done',
+    result: { answer: dnsFailAnswer },
+    verify: dnsVerify,
+  }),
+  true,
+  'DNS failure must be engine-retryable',
+)
+assert.ok(isGuiIncompleteFailure('network'))
+const netMsg = buildGuiFailureUserMessage({
+  failureTypeOrReason: 'network',
+  task: '打开 https://www.runoob.com/',
+  finalUrl: 'https://www.runoob.com/',
+})
+assert.ok(netMsg.includes('网络') || netMsg.includes('域名'), 'network user message')
+assert.ok(!netMsg.includes('站点拦截'), 'network must not use site-block copy')
+
 console.log('smoke: gui captcha handoff protocol ok')
+

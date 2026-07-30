@@ -4,13 +4,16 @@
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath, pathToFileURL } from 'node:url'
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const repoRoot = path.resolve(root, '..')
+import { fileURLToPath } from 'node:url'
+const here = path.dirname(fileURLToPath(import.meta.url))
+const managerRoot = path.resolve(here, '../../..')
+const repoRoot = path.resolve(managerRoot, '..')
 
-const { formatGuiExperienceBlock, isGuiExperienceReadEnabled, recallGuiExperience } = await import(
-  pathToFileURL(path.join(repoRoot, 'shared/guiExperienceRetrieve.ts')).href
-)
+import {
+  formatGuiExperienceBlock,
+  isGuiExperienceReadEnabled,
+  recallGuiExperience,
+} from '#agent-shared/guiExperienceRetrieve'
 import {
   buildGuiHandoffStep,
   buildGuiHandoffTask,
@@ -18,34 +21,18 @@ import {
   shouldInjectGuiAfterCrawler
 } from '../../../server/graph/core/agent/guiCrawlerHandoff'
 import { getGuiAutomationAddon } from '../../../server/graph/core/evolution/playbookPrompts'
+import {
+  isGuiEngineRetryEnabled,
+  nextGuiEngineHintForRetry,
+  resolveGuiTimeoutMs,
+} from '../../../server/graph/core/executors/guiExecutor'
+import { LOBSTER_GUI_PROGRESS_LIMITS } from '#agent-shared/lobsterGuiProgressContract'
 
-function resolveGuiTimeoutMs(fallbackMs: number, task?: string): number {
-  const base = Number(process.env.MANAGER_GUI_TIMEOUT_MS ?? 360_000)
-  const configured = Number.isFinite(base) && base > 0 ? Math.floor(base) : 360_000
-  const formMs = Number(process.env.MANAGER_GUI_TIMEOUT_FORM_MS ?? 360_000)
-  const videoMs = Number(process.env.MANAGER_GUI_TIMEOUT_VIDEO_MS ?? 480_000)
-  const t = String(task || '')
-  const isForm = /(登录|填表|提交|OA|后台|表单)/i.test(t)
-  const isVideo = /(播放|观看|视频|弹幕|B站|bilibili|哔哩)/i.test(t)
-  let picked = configured
-  if (isForm && Number.isFinite(formMs) && formMs > 0) picked = Math.max(picked, Math.floor(formMs))
-  if (isVideo && Number.isFinite(videoMs) && videoMs > 0) picked = Math.max(picked, Math.floor(videoMs))
-  return Math.max(picked, fallbackMs)
-}
-
-function nextGuiEngineHintForRetry(current?: string): string | undefined {
-  const c = String(current || 'auto').trim().toLowerCase()
-  if (!c || c === 'auto') return 'mcp'
-  if (c === 'mcp') return 'stagehand'
-  if (c === 'stagehand') return 'classic'
-  return undefined
-}
-
-assert(fs.existsSync(path.join(root, 'skills/gui_automation/skill.md')), 'gui_automation skill exists')
+assert(fs.existsSync(path.join(managerRoot, 'skills/gui_automation/skill.md')), 'gui_automation skill exists')
 assert(fs.existsSync(path.join(repoRoot, 'shared/guiExperienceRetrieve.ts')), 'guiExperienceRetrieve exists')
 
 const addon = getGuiAutomationAddon()
-assert(addon.includes('何时选 gui'), 'gui automation addon loads Route section')
+assert(addon.includes('操作 vs 检索') || addon.includes('何时不用 gui'), 'gui automation addon loads Route section')
 assert(addon.includes('gui 步骤'), 'gui automation addon loads Planner section')
 
 assert(isGuiExperienceReadEnabled(), 'gui experience read enabled by default')
@@ -86,10 +73,11 @@ assert(formMs >= 360_000, 'form timeout tier')
 const videoMs = resolveGuiTimeoutMs(60_000, 'B站播放视频')
 assert(videoMs >= 480_000, 'video timeout tier')
 
-assert(nextGuiEngineHintForRetry('mcp') === 'stagehand', 'mcp→stagehand retry chain')
-assert(nextGuiEngineHintForRetry('stagehand') === 'classic', 'stagehand→classic retry chain')
-
-assert(String(process.env.MANAGER_GUI_RETRY_ON_ENGINE_FAIL ?? '1').trim() !== '0', 'engine retry env default on')
+assert(nextGuiEngineHintForRetry('auto') === 'mcp', 'auto → mcp')
+assert(nextGuiEngineHintForRetry('stagehand') === 'classic', 'stagehand → classic')
+assert(nextGuiEngineHintForRetry('mcp') === 'stagehand', 'mcp → stagehand')
+assert(isGuiEngineRetryEnabled({}), 'engine retry default on')
+assert(LOBSTER_GUI_PROGRESS_LIMITS.maxThinkingLines === 12, 'thinking cap 12')
 
 assert(isGuiCrawlerHandoffEnabled(), 'crawler handoff enabled by default')
 

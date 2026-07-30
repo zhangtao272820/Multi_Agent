@@ -1,6 +1,6 @@
 import type { WsHandlerContext, ParsedWsMessage } from './types'
 import { tryAcquireRunSlot, releaseRunSlot } from '../../../graph/core/runtime/backpressure'
-import { crypto, RunIdSchema, createManagerGraph, buildManagerGraphInvokeConfig, buildManagerTurnInvokeState, composeFinalBundleFromGraphResult, buildHumanConfirmCheckpoint, pickRicherFinalText, saveHumanConfirmCheckpoint, isSynthRejectingMedia, resolveManagerLlmConfig, resolveAgentEndpointsWithPlatform, buildCompactedHistoryWithStats, buildSummarizeWithLlmFn, graphAgentEndpoints, buildRagHistoryForRun, sanitizeHistoryText, detectClarifyFollowUp, clarifyReplanMetaPatch, ingestTaskStackFromUserMessage, withAgentTraceContext, emitRunObservability, emitAdminHumanConfirmRequest, isHumanConfirmClarification, pauseAdminConfirmMessage, loadTaskStack, path, runs, runMeta, sessionMeta, sessions, readSession, writeSession, buildUserContent, stripAttachmentSuffix, resolveUserMessageSessionIndex, pruneAutoUserTasksOnEditResend, policyDataDir, emitImplicitLearning, allowRate, nowMs, isRunAbortError, useRuntimeConfig } from './wsBarrel'
+import { crypto, RunIdSchema, createManagerGraph, buildManagerGraphInvokeConfig, buildManagerTurnInvokeState, composeFinalBundleFromGraphResult, buildHumanConfirmCheckpoint, pickRicherFinalText, saveHumanConfirmCheckpoint, isSynthRejectingMedia, resolveManagerLlmConfig, resolveAgentEndpointsWithPlatform, buildCompactedHistoryWithStats, buildSummarizeWithLlmFn, graphAgentEndpoints, buildRagHistoryForRun, sanitizeHistoryText, detectClarifyFollowUp, clarifyReplanMetaPatch, ingestTaskStackFromUserMessage, withAgentTraceContext, emitRunObservability, emitAdminHumanConfirmRequest, shouldPauseForPostGraphAdminConfirm, pauseAdminConfirmMessage, loadTaskStack, path, runs, runMeta, sessionMeta, sessions, readSession, writeSession, buildUserContent, stripAttachmentSuffix, resolveUserMessageSessionIndex, pruneAutoUserTasksOnEditResend, policyDataDir, emitImplicitLearning, allowRate, nowMs, isRunAbortError, useRuntimeConfig } from './wsBarrel'
 
 export async function handleChat(ctx: WsHandlerContext, payload: ParsedWsMessage) {
   const { peer, peerKey, send, sessionId, boundUserId, tenantId, explicitUserId, platformTraceId, payloadRaw } = ctx
@@ -239,7 +239,7 @@ if (!allowRate(`${peerKey}:chat`, 8, 30_000)) {
       finalText = mmOut
     }
     if (!finalText) finalText = '任务已结束，但未生成可展示的回复文本；请查看思考过程或重试。'
-     // 写操作待确认：图已结束，发确认条（带 confirmId）+ checkpoint；不发 final，避免确认前后两条回复
+     // 写操作待确认：仅结构化 Admin pending；GUI 成功不得弹「个人事务」卡后整图重跑
     try {
       const rawMeta = ((result as any)?.meta ?? {}) as Record<string, unknown>
       const resultsBag = (result as any)?.results
@@ -247,9 +247,19 @@ if (!allowRate(`${peerKey}:chat`, 8, 30_000)) {
         ...rawMeta,
         ...(resultsBag && typeof resultsBag === 'object' ? { results: resultsBag } : {})
       }
-      const adminBlob = String((resultsBag as { admin?: string } | undefined)?.admin || '')
-      const confirmProbe = [finalText, adminBlob].filter(Boolean).join('\n')
-      if (Boolean(meta.needsHumanConfirm) || isHumanConfirmClarification(meta, confirmProbe)) {
+      const plan = Array.isArray((result as any)?.plan) ? (result as any).plan : []
+      const intent = String((result as any)?.intent || meta.intent || '').trim()
+      const evaluation = (result as any)?.evaluation
+      if (
+        shouldPauseForPostGraphAdminConfirm({
+          meta,
+          finalText,
+          results: resultsBag,
+          intent,
+          plan,
+          evaluation
+        })
+      ) {
         void saveHumanConfirmCheckpoint(sessionId, buildHumanConfirmCheckpoint(result))
         emitAdminHumanConfirmRequest(send, runId, pauseAdminConfirmMessage(result), {
           checkpointResume: true,

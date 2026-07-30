@@ -233,14 +233,22 @@ def backfill_manager_write_plan_from_action(
             if title:
                 args["title"] = title
                 slots["event_title"] = title
-                desc = _clean_slot_value(args.get("description") or "")
-                if not desc or _looks_like_composite_manager_dump(desc):
-                    args["description"] = title
+                desc = _clean_slot_value(args.get("description") or slots.get("event_description") or "")
+                # 禁止用 title 顶替详细内容；复合 dump 清空
+                if desc and _looks_like_composite_manager_dump(desc):
+                    desc = ""
+                if desc and desc == title:
+                    desc = ""
+                if desc:
+                    args["description"] = desc
+                    slots["event_description"] = desc
+                else:
+                    args.pop("description", None)
             if time_raw:
                 args["start_time_str"] = time_raw
                 if not _clean_slot_value(slots.get("start_time_expression")):
                     slots["start_time_expression"] = time_raw
-        elif name in ("add_task", "add_task_with_due"):
+        elif name in ("add_task", "add_task_with_due", "modify_task"):
             title = _clean_slot_value(
                 args.get("title") or args.get("content") or slots.get("task_title") or ""
             )
@@ -250,6 +258,14 @@ def backfill_manager_write_plan_from_action(
                 args["title"] = title
                 if not _clean_slot_value(slots.get("task_title")):
                     slots["task_title"] = title
+            desc = _clean_slot_value(args.get("description") or slots.get("task_description") or "")
+            if desc and desc == title:
+                desc = ""
+            if desc:
+                args["description"] = desc
+                slots["task_description"] = desc
+            else:
+                args.pop("description", None)
             if name == "add_task_with_due":
                 due = _clean_slot_value(
                     args.get("due_time_str")

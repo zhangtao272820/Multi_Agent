@@ -11,9 +11,23 @@ import {
   stagehandCookiesFromStorage
 } from './sessionStorageBridge'
 import { stagehandHintsForPrompt, recipeActTemplate, isRecipeComplexPage } from './siteRecipes'
-import { isStagehandEnabled, resolveEffectiveHeadless, resolveStagehandModelName } from '../utils/lobster_env'
+import { isStagehandEnabled, resolveEffectiveHeadless, resolveStagehandModelName, isStagehandLlmActPreferred } from '../utils/lobster_env'
 import { resolveBrowserCdpUrl } from './browserProfiles'
 import { buildChromiumLaunchOptions } from '../utils/chromiumLaunch'
+import { verifyLobsterRunResult } from './lobsterRunVerify'
+import {
+  gotoStagehandUrl,
+  goalsNeedLeaveStart,
+  readStagehandPageTitle,
+  readStagehandPageUrl,
+  resolveStagehandPlanSteps,
+  stagehandStepInstruction
+} from './stagehandPlanLoop'
+import {
+  playwrightClickContentLink,
+  playwrightExtractBasics,
+  playwrightFillAndSubmit,
+} from './stagehandPlaywrightBridge'
 
 const RISKY_TASK_PATTERN =
   /(支付|下单|购买|删除|注销|上传|投稿|checkout|pay\b|delete|remove|upload|purchase)/i
@@ -36,13 +50,27 @@ export async function runLobsterStagehandAgent(params: RunParams) {
   let confirmCount = 0
   let stepCount = 0
 
+  let milestoneCount = 0
+  const MAX_MILESTONES = 10
   const emitLog = (level: 'info' | 'warn' | 'error', message: string) => {
-    params.emit({ type: 'log', payload: { level, message: sanitize(message), ts: Date.now() } })
+    // 仅 warn/error 与关键里程碑进 log；info 降噪
+    if (level === 'info') return
+    params.emit({ type: 'log', payload: { level, message: sanitize(message).slice(0, 240), ts: Date.now() } })
   }
   const emitThinking = (stage: string, text: string) => {
-    const s = sanitize(String(text || '').trim())
+    if (milestoneCount >= MAX_MILESTONES) return
+    const s = sanitize(String(text || '').trim()).slice(0, 200)
     if (!s) return
+    milestoneCount++
     params.emit({ type: 'thinking', payload: { stage, text: s, ts: Date.now() } })
+  }
+  const emitMilestoneLog = (message: string) => {
+    if (milestoneCount >= MAX_MILESTONES) return
+    milestoneCount++
+    params.emit({
+      type: 'log',
+      payload: { level: 'info', message: sanitize(message).slice(0, 240), ts: Date.now() },
+    })
   }
 
   const requestConfirm = async (title: string, message: string) => {
@@ -66,6 +94,11 @@ export async function runLobsterStagehandAgent(params: RunParams) {
   }
   const cdpUrl = resolveBrowserCdpUrl()
   const browserLaunch = buildChromiumLaunchOptions(headless)
+  if (!browserLaunch.executablePath && !cdpUrl) {
+    throw new Error(
+      'stagehand_chrome_unavailable: 未找到 Chrome/Chromium。请设置 CHROME_PATH，或使用 Playwright 镜像（/ms-playwright）。',
+    )
+  }
   const storage = await resolveRunStoragePaths({
     startUrl: params.startUrl,
     sessionId: params.sessionId,
@@ -89,17 +122,27 @@ export async function runLobsterStagehandAgent(params: RunParams) {
       viewport: { width: 1280, height: 720 },
       args: browserLaunch.args,
       env: browserLaunch.env,
+      chromiumSandbox: false,
+      ...(browserLaunch.executablePath ? { executablePath: browserLaunch.executablePath } : {}),
       ...(cdpUrl ? { cdpUrl } : {})
     },
-    logger: (line) => {
-      const msg = String((line as any)?.message || line || '').trim()
-      if (msg) emitLog('info', `[stagehand] ${msg.slice(0, 500)}`)
+    logger: () => {
+      /* 禁 Stagehand 内部 verbose → 总管日志洪水 */
     }
   })
 
+  const startUrl = String(params.startUrl || params.taskSpec?.start_url || '').trim()
+  const planSteps = resolveStagehandPlanSteps({
+    task: params.task,
+    startUrl,
+    taskSpec: params.taskSpec,
+  })
+  const goals = params.taskSpec?.goals
+  const mustLeave = goalsNeedLeaveStart(goals, params.task)
+
   try {
-    emitLog('info', 'Stagehand：初始化本地浏览器…')
-    params.emit({ type: 'state', payload: { phase: 'stagehand_init', stepCount: 0, pageUrl: params.startUrl || '' } })
+    emitMilestoneLog('Stagehand：初始化…')
+    params.emit({ type: 'state', payload: { phase: 'stagehand_init', stepCount: 0, pageUrl: startUrl || '' } })
     await stagehand.init()
     stepCount++
 
@@ -108,20 +151,9 @@ export async function runLobsterStagehandAgent(params: RunParams) {
       if (cookies.length) {
         try {
           await stagehand.context.addCookies(cookies as any)
-          emitLog('info', `Stagehand：已加载 ${cookies.length} 条 cookie（storage profile）`)
         } catch (e: any) {
-          emitLog('warn', `Stagehand：加载 cookie 失败：${e?.message || e}`)
+          emitLog('warn', `加载 cookie 失败：${e?.message || e}`)
         }
-      }
-    }
-
-    if (params.startUrl) {
-      emitThinking('stagehand', `导航到 ${params.startUrl}`)
-      try {
-        await stagehand.act(`打开页面 ${params.startUrl}`)
-        stepCount++
-      } catch (e: any) {
-        emitLog('warn', `Stagehand 导航失败：${e?.message || e}`)
       }
     }
 
@@ -132,107 +164,317 @@ export async function runLobsterStagehandAgent(params: RunParams) {
           {
             traceId,
             task: params.task,
-            finalUrl: params.startUrl || '',
+            finalUrl: startUrl || '',
             stats: { stepCount, latency_ms: Date.now() - startedAt },
             data: [{ via: 'stagehand', text: '已中止：高风险操作未获确认。' }],
-            answer: '已中止：高风险操作未获确认。'
+            answer: '已中止：高风险操作未获确认。',
+            failureType: 'canceled',
           },
           'stagehand',
-          { confirmCount }
+          { confirmCount, failureType: 'canceled', answer: '已中止：高风险操作未获确认。' }
         )
         params.emit({ type: 'result', payload: output })
         return output
       }
     }
 
-    params.emit({ type: 'state', payload: { phase: 'stagehand_execute', stepCount, pageUrl: params.startUrl || '' } })
-    emitThinking('stagehand', '执行 Agent 任务…')
+    params.emit({
+      type: 'state',
+      payload: { phase: 'stagehand_execute', stepCount, pageUrl: startUrl || '' },
+    })
+    emitThinking(
+      'plan',
+      `${planSteps.length} 步：${planSteps.map((s) => s.op).join(' → ')}`,
+    )
 
-    const complex = isRecipeComplexPage(params.task, params.startUrl)
-    if (complex) {
+    const recipeHint = stagehandHintsForPrompt(params.task, startUrl)
+    const actTpl = recipeActTemplate(params.task, startUrl)
+
+    // 1) 可靠导航
+    if (startUrl) {
+      emitThinking('step', `1/${planSteps.length || 1} goto`)
       try {
-        emitThinking('stagehand_observe', '复杂页面：先 observe 可交互元素…')
-        const observed = await stagehand.observe('列出当前页面可点击按钮、输入框、链接（前 12 个）')
+        await gotoStagehandUrl(stagehand, startUrl)
         stepCount++
-        if (observed) {
-          emitLog('info', `Stagehand observe：${JSON.stringify(observed).slice(0, 500)}`)
-        }
       } catch (e: any) {
-        emitLog('warn', `Stagehand observe 跳过：${e?.message || e}`)
+        emitLog('warn', `goto 失败，改 act：${String(e?.message || e).slice(0, 120)}`)
+        try {
+          await stagehand.act(`打开页面 ${startUrl}`)
+          stepCount++
+        } catch (e2: any) {
+          emitLog('warn', `导航失败：${String(e2?.message || e2).slice(0, 120)}`)
+        }
       }
     }
 
-    const agent = stagehand.agent({
-      model: { modelName, apiKey, ...(baseURL ? { baseURL } : {}) }
-    })
-
-    const recipeHint = stagehandHintsForPrompt(params.task, params.startUrl)
-    const actTpl = recipeActTemplate(params.task, params.startUrl)
-    const instructionParts = [
-      actTpl ? `操作提示：${actTpl}` : '',
-      recipeHint || '',
-      params.startUrl ? `当前应在 ${params.startUrl}。请完成：${params.task}` : params.task
-    ].filter(Boolean)
-    const instruction = instructionParts.join('\n')
-
-    const agentResult = await agent.execute(instruction)
-    stepCount++
-
-    let finalUrl = params.startUrl || ''
-    try {
-      finalUrl = stagehand.connectURL() ? params.startUrl || finalUrl : finalUrl
-    } catch {}
-
-    const answerText =
-      String((agentResult as any)?.message ?? (agentResult as any)?.text ?? '').trim() ||
-      JSON.stringify(agentResult).slice(0, 4000)
-
-    let extracted: unknown = null
-    try {
-      extracted = await stagehand.extract(
-        '提取与用户任务相关的结构化结果（标题、链接、表单状态等）',
-        z.object({
-          summary: z.string(),
-          items: z
-            .array(
-              z.object({
-                title: z.string().optional(),
-                url: z.string().optional(),
-                text: z.string().optional()
-              })
-            )
-            .optional()
-        })
-      )
-      stepCount++
-    } catch {
-      extracted = null
+    // 复杂页可选 observe（LLM）；失败不影响主路径
+    const complex = isRecipeComplexPage(params.task, startUrl)
+    const preferLlmAct = isStagehandLlmActPreferred()
+    if (complex && preferLlmAct) {
+      try {
+        await stagehand.observe('列出当前页面主要可点击链接与按钮（最多 8 个）')
+        stepCount++
+      } catch {
+        /* skip */
+      }
     }
 
-    const output = wrapLobsterOutput(
+    let lastActNote = ''
+    const actionSteps = planSteps.filter((s) => s.op !== 'goto' && s.op !== 'extract')
+    const extractStep = planSteps.find((s) => s.op === 'extract')
+    let stepIdx = startUrl ? 1 : 0
+
+    for (const step of actionSteps) {
+      if (params.signal?.aborted) throw new Error('canceled')
+      stepIdx++
+      const instruction = stagehandStepInstruction(step, params.task)
+      const withHint = [actTpl && step.op === 'click' ? `操作提示：${actTpl}` : '', instruction]
+        .filter(Boolean)
+        .join('\n')
+
+      if (step.op === 'observe' || step.op === 'wait') {
+        emitThinking('step', `${stepIdx}/${planSteps.length} ${step.op}`)
+        try {
+          if (step.op === 'wait') {
+            await new Promise((r) => setTimeout(r, 800))
+          } else if (preferLlmAct) {
+            await stagehand.observe(withHint)
+          }
+          stepCount++
+        } catch (e: any) {
+          emitLog('warn', `${step.op} 跳过：${String(e?.message || e).slice(0, 100)}`)
+        }
+        continue
+      }
+
+      emitThinking('step', `${stepIdx}/${planSteps.length} ${step.op}`)
+
+      // Playwright-first：click/type/submit 不依赖 Stagehand LLM JSON（Qwen 常 Bad Request / 长文解析失败）
+      if (step.op === 'click') {
+        let clicked = false
+        if (preferLlmAct) {
+          try {
+            const actResult = await stagehand.act(withHint)
+            lastActNote = String((actResult as any)?.message || (actResult as any)?.success || '').slice(0, 200)
+            clicked = true
+            stepCount++
+          } catch (e: any) {
+            emitLog('warn', `LLM act 失败，改 Playwright：${String(e?.message || e).slice(0, 100)}`)
+          }
+        }
+        if (!clicked) {
+          const pw = await playwrightClickContentLink(stagehand, {
+            task: params.task,
+            target: String(step.target || ''),
+            startUrl,
+          })
+          if (pw.ok) {
+            lastActNote = `点击：${pw.text || ''}`.slice(0, 200)
+            stepCount++
+            emitThinking('step', `已点 ${String(pw.text || '').slice(0, 40)}`)
+          } else {
+            emitLog('warn', `Playwright click 失败：${pw.reason || 'unknown'}`)
+          }
+        }
+        const urlNow = await readStagehandPageUrl(stagehand, startUrl)
+        params.emit({
+          type: 'state',
+          payload: { phase: 'stagehand_execute', stepCount, pageUrl: urlNow },
+        })
+        continue
+      }
+
+      if (step.op === 'type' || step.op === 'submit') {
+        const filled = await playwrightFillAndSubmit(stagehand, step)
+        if (filled.ok) {
+          stepCount++
+          lastActNote = `${step.op} ok`
+        } else if (preferLlmAct) {
+          try {
+            const actResult = await stagehand.act(withHint)
+            lastActNote = String((actResult as any)?.message || '').slice(0, 200)
+            stepCount++
+          } catch (e: any) {
+            emitLog('warn', `act(${step.op}) 失败：${String(e?.message || e).slice(0, 120)}`)
+          }
+        } else {
+          emitLog('warn', `Playwright ${step.op} 失败：${filled.reason || 'unknown'}`)
+        }
+        continue
+      }
+
+      // 其它 op：可选 LLM act
+      if (preferLlmAct) {
+        try {
+          const actResult = await stagehand.act(withHint)
+          lastActNote = String((actResult as any)?.message || (actResult as any)?.success || '').slice(0, 200)
+          stepCount++
+        } catch (e: any) {
+          emitLog('warn', `act(${step.op}) 失败：${String(e?.message || e).slice(0, 120)}`)
+        }
+      }
+    }
+
+    // 若计划无交互步且要求离开首页：补一次 Playwright 点击
+    if (actionSteps.length === 0 && mustLeave) {
+      emitThinking('step', 'playwright click')
+      const pw = await playwrightClickContentLink(stagehand, {
+        task: params.task,
+        startUrl,
+      })
+      if (pw.ok) {
+        lastActNote = `点击：${pw.text || ''}`.slice(0, 200)
+        stepCount++
+      }
+    }
+
+    let finalUrl = await readStagehandPageUrl(stagehand, startUrl)
+    const basics = await playwrightExtractBasics(stagehand)
+    const pageTitle = basics.title || (await readStagehandPageTitle(stagehand))
+
+    let extracted: {
+      summary?: string
+      title?: string
+      url?: string
+      items?: Array<{ title?: string; url?: string; text?: string }>
+    } | null = null
+
+    // 默认用 Playwright 抽标题；仅显式开启 LLM act 时才走 Stagehand extract
+    emitThinking('step', 'extract')
+    if (preferLlmAct) {
+      const extractTarget =
+        extractStep?.target ||
+        params.taskSpec?.success_criteria ||
+        params.taskSpec?.completion_criteria ||
+        '提取与用户任务相关的结构化结果（标题、链接、表单状态等）'
+      try {
+        extracted = await stagehand.extract(
+          `${extractTarget}\n当前URL：${finalUrl}\n页面标题提示：${pageTitle || '未知'}\n任务：${params.task}`,
+          z.object({
+            summary: z.string(),
+            title: z.string().optional(),
+            url: z.string().optional(),
+            items: z
+              .array(
+                z.object({
+                  title: z.string().optional(),
+                  url: z.string().optional(),
+                  text: z.string().optional(),
+                }),
+              )
+              .optional(),
+          }),
+        )
+        stepCount++
+      } catch (e: any) {
+        emitLog('warn', `LLM extract 跳过：${String(e?.message || e).slice(0, 120)}`)
+        extracted = null
+      }
+    }
+
+    if (!extracted?.summary && !extracted?.title) {
+      extracted = {
+        summary: basics.summary,
+        title: basics.title || pageTitle,
+        url: basics.url || finalUrl,
+        items: basics.title
+          ? [{ title: basics.title, url: basics.url || finalUrl }]
+          : [],
+      }
+      stepCount++
+    }
+
+    finalUrl = basics.url || (await readStagehandPageUrl(stagehand, finalUrl)) || finalUrl
+
+    const titleOut =
+      String(extracted?.title || extracted?.items?.[0]?.title || pageTitle || '').trim()
+    const answerText =
+      String(extracted?.summary || '').trim() ||
+      (titleOut && finalUrl ? `标题：${titleOut}\n链接：${finalUrl}` : '') ||
+      lastActNote ||
+      (pageTitle ? `标题：${pageTitle}\n链接：${finalUrl}` : '')
+
+    const rawOutput = wrapLobsterOutput(
       {
         traceId,
         task: params.task,
         finalUrl,
+        pageTitle: titleOut || pageTitle || undefined,
+        plan: planSteps,
+        goals: goals || undefined,
         stats: {
           stepCount,
-          agentSteps: Number((agentResult as any)?.steps?.length ?? 0),
-          latency_ms: Date.now() - startedAt
+          planSteps: planSteps.length,
+          latency_ms: Date.now() - startedAt,
+          enginePath: 'playwright_first',
         },
         data: [
           {
-            via: 'stagehand',
+            via: 'stagehand+playwright',
             text: answerText,
             url: finalUrl || undefined,
-            items: (extracted as any)?.items || [],
-            summary: (extracted as any)?.summary
-          }
+            items:
+              extracted?.items ||
+              (titleOut
+                ? [{ title: titleOut, url: finalUrl || extracted?.url || undefined }]
+                : []),
+            summary: extracted?.summary,
+          },
         ],
-        answer: (extracted as any)?.summary || answerText
+        answer: answerText,
       },
       'stagehand',
-      { confirmCount, answer: (extracted as any)?.summary || answerText }
+      { confirmCount, answer: answerText },
     )
+
+    const verify = verifyLobsterRunResult({
+      task: params.task,
+      status: 'done',
+      result: rawOutput,
+    })
+
+    // 显式 goals：须离开起始页却仍停在首页
+    let failureType = verify.ok ? undefined : String(verify.failureType || verify.reason || '').trim()
+    if (mustLeave && !verify.ok && /navigation_unverified|incomplete_/i.test(String(verify.reason))) {
+      failureType = 'navigation_unverified'
+    }
+    if (mustLeave && verify.ok) {
+      // verify 可能因有 answer 放过；若 URL 仍是起始页且要求离开，强制失败
+      try {
+        const start = new URL(startUrl || finalUrl)
+        const cur = new URL(finalUrl || startUrl)
+        const same =
+          start.hostname.replace(/^www\./, '') === cur.hostname.replace(/^www\./, '') &&
+          start.pathname.replace(/\/$/, '') === cur.pathname.replace(/\/$/, '')
+        if (same && /(点击|进入|第一个|第一条|教程)/i.test(params.task)) {
+          failureType = 'navigation_unverified'
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+
+    const output = wrapLobsterOutput(
+      {
+        ...rawOutput,
+        verify: { ok: !failureType && verify.ok, reason: failureType || verify.reason },
+        failureType,
+      },
+      'stagehand',
+      {
+        confirmCount,
+        answer: failureType
+          ? `浏览器任务未完成（${failureType}）：${verify.hints?.[0] || '请检查是否已进入目标页并提取到标题'}。当前页：${finalUrl || startUrl || ''}`
+          : answerText,
+        failureType,
+      },
+    )
+
+    if (failureType) {
+      emitLog('error', `verify 失败：${failureType}`)
+    } else {
+      emitMilestoneLog(`完成 · ${String(titleOut || pageTitle || '').slice(0, 80)}`)
+    }
 
     params.emit({ type: 'result', payload: output })
     return output
@@ -246,7 +488,6 @@ export async function runLobsterStagehandAgent(params: RunParams) {
         const cookies = await stagehand.context.cookies()
         if (cookies?.length) {
           await persistCookiesStorage(storage.savePath, cookies as Array<Record<string, unknown>>)
-          emitLog('info', `Stagehand：已保存 ${cookies.length} 条 cookie 到会话文件`)
         }
       }
     } catch {}

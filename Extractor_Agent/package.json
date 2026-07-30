@@ -12,6 +12,7 @@
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "smoke": "node scripts/extractor-smoke.mjs",
+    "smoke:prompt-packs": "npx --yes tsx scripts/smoke-extractor-prompt-packs.ts",
     "smoke:strict": "node scripts/extractor-smoke.mjs --strict",
     "plan:check": "node scripts/structural-plan-check.mjs",
     "eval:extractor": "node scripts/extractor-eval.mjs",

@@ -17,8 +17,8 @@ export type LobsterGuiAgentResultLite = {
 
 /** G2 验收建议上限（思考条数；截图按 URL/指纹变） */
 export const LOBSTER_GUI_PROGRESS_LIMITS = {
-  /** 总管思考流建议上限（G2） */
-  maxThinkingLines: 40,
+  /** 总管思考流硬上限（Stagehand-first 轻装） */
+  maxThinkingLines: 12,
   /** status poll 间隔 ms */
   pollIntervalMs: 400,
 } as const
@@ -28,7 +28,7 @@ export function guiScreenshotFingerprint(dataUrl: string, pageUrl?: string): str
   return `${s.length}:${s.slice(0, 96)}:${s.slice(-48)}:${String(pageUrl || '')}`
 }
 
-/** 是否应转发到总管思考流（禁 step_end JSON / 感知刷屏） */
+/** 是否应转发到总管思考流（禁 step_end JSON / 引擎元数据 / 感知刷屏） */
 export function shouldForwardGuiThinking(text: string): boolean {
   const t = String(text || '').trim()
   if (!t) return false
@@ -36,6 +36,13 @@ export function shouldForwardGuiThinking(text: string): boolean {
   if (/^\s*\{[\s\S]*"pageContentHash"/.test(t)) return false
   if (/结果验证：继续下一轮感知/i.test(t)) return false
   if (/正在进行 OCR|正在理解界面|视觉感知|智能决策/i.test(t) && t.length < 40) return false
+  // 引擎元数据 / 链噪音
+  if (/^actualEngine=/i.test(t)) return false
+  if (/引擎链|engine_chain|run_meta|activeIndex/i.test(t)) return false
+  if (/^\[stagehand\]/i.test(t)) return false
+  if (/observe：\s*\[/i.test(t) || /observe：\s*\{/i.test(t)) return false
+  if (/已加载 \d+ 条 cookie|已保存 \d+ 条 cookie/i.test(t)) return false
+  if (/MCP=无头 sidecar|sidecarNote/i.test(t)) return false
   return true
 }
 

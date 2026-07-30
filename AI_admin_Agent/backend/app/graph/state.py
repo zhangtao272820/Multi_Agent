@@ -121,6 +121,8 @@ class AgentState(TypedDict):
     client_context: NotRequired[Dict[str, Any]]
     ui_cards: NotRequired[List[Dict[str, Any]]]
     pending_actions: NotRequired[List[Dict[str, Any]]]
+    # 邮件起草结果（不发信），供前端回填快速回复
+    mail_draft: NotRequired[Dict[str, Any]]
     # 弹窗确认续跑：覆盖最近助手回复，不新增用户轮次
     pending_decide_mode: NotRequired[bool]
 
@@ -828,94 +830,10 @@ def _compose_write_fail_reply(exec_results: str, failed_lines: list[str]) -> tup
 
 
 def _inject_slots_into_plan(plan: List[Dict[str, Any]], understanding: Dict[str, Any]) -> List[Dict[str, Any]]:
-    """
-    Fill missing tool args from model-extracted slots.
-    - Does not override args that already exist.
-    - Avoids additional regex heuristics; trusts the model slots.
-    """
-    if not isinstance(plan, list) or not isinstance(understanding, dict):
-        return plan
-    slots = understanding.get("slots") or {}
-    if not isinstance(slots, dict) or not slots:
-        return plan
+    """Fill missing tool args from model-extracted slots（实现见 admin_slot_inject）。"""
+    from app.core.admin_slot_inject import inject_slots_into_plan
 
-    def _slot(name: str) -> str:
-        v = slots.get(name)
-        return str(v).strip() if v is not None else ""
-
-    city = _slot("city")
-    day = _slot("day")
-    event_title = _slot("event_title")
-    start_time_expr = _slot("start_time_expression")
-    task_title = _slot("task_title")
-    task_due_expr = _slot("task_due_time_expression")
-    email_to = _slot("email_to_name_or_email")
-    email_subject = _slot("email_subject")
-    email_content = _slot("email_content")
-
-    injected: List[Dict[str, Any]] = []
-    for item in plan:
-        if not isinstance(item, dict):
-            continue
-        name = item.get("name")
-        args = item.get("args") if isinstance(item.get("args"), dict) else {}
-
-        if name == "get_weather":
-            if city and not str(args.get("city", "")).strip():
-                args["city"] = city
-            if day and not str(args.get("day", "")).strip():
-                args["day"] = day
-
-        if name == "add_event":
-            if event_title and not str(args.get("title", "")).strip():
-                args["title"] = event_title
-            if start_time_expr and not str(args.get("start_time_str", "")).strip():
-                args["start_time_str"] = start_time_expr
-
-        if name in ("add_task", "add_task_with_due"):
-            if task_title and not str(args.get("title", "")).strip():
-                args["title"] = task_title
-            if name == "add_task_with_due" and task_due_expr and not str(args.get("due_time_str", "")).strip():
-                args["due_time_str"] = task_due_expr
-
-        if name == "add_contact":
-            contact_name = _slot("contact_name")
-            contact_email = _slot("contact_email")
-            contact_desc = _slot("contact_description")
-            if contact_name and not str(args.get("name", "")).strip():
-                args["name"] = contact_name
-            if contact_email and not str(args.get("email", "")).strip():
-                args["email"] = contact_email
-            if contact_desc and not str(args.get("description", "")).strip():
-                args["description"] = contact_desc
-
-        if name == "search_contact":
-            contact_name = _slot("contact_name")
-            if contact_name and not str(args.get("name", "")).strip():
-                args["name"] = contact_name
-
-        if name == "send_email":
-            if email_to and not str(args.get("to", "")).strip():
-                args["to"] = email_to
-            if email_subject and not str(args.get("subject", "")).strip():
-                args["subject"] = email_subject
-            if email_content and not str(args.get("content", "")).strip():
-                args["content"] = email_content
-
-        if name == "get_travel_route":
-            origin = _slot("route_origin")
-            destination = _slot("route_destination")
-            travel_mode = _slot("travel_mode")
-            if origin and not str(args.get("origin", "")).strip():
-                args["origin"] = origin
-            if destination and not str(args.get("destination", "")).strip():
-                args["destination"] = destination
-            if travel_mode and not str(args.get("mode", "")).strip():
-                args["mode"] = travel_mode
-
-        injected.append({"name": name, "args": args})
-
-    return injected
+    return inject_slots_into_plan(plan, understanding)  # type: ignore[return-value]
 
 
 def _resolve_tool_placeholder(
@@ -1589,6 +1507,7 @@ def create_agent_graph():
         plan = _coerce_plan(state.get("plan"))
         results = []
         ui_cards: List[Dict[str, Any]] = []
+        mail_draft: Dict[str, Any] | None = None
         tool_results_by_step: Dict[int, Any] = {}
         tool_results_last_by_name: Dict[str, Any] = {}
         print(f"DEBUG: Executing plan: {plan}") # Added debug
@@ -1946,6 +1865,17 @@ def create_agent_graph():
 
                     tool_results_by_step[step_index] = res
                     tool_results_last_by_name[name] = res
+                    if name == "draft_email_reply" and res.get("ok"):
+                        data = res.get("data") if isinstance(res.get("data"), dict) else {}
+                        draft = str(data.get("draft_content") or "").strip()
+                        if draft:
+                            mail_draft = {
+                                "email_id": data.get("email_id"),
+                                "content": draft,
+                                "draft_content": draft,
+                                "to": data.get("to"),
+                                "subject": data.get("subject"),
+                            }
                     card = tool_result_to_ui_card(name, res)
                     if card:
                         ui_cards.append(card)
@@ -1963,12 +1893,15 @@ def create_agent_graph():
         state["verification_result"] = "\n".join(results)
         clear_tool_context()
 
-        return {
+        out: Dict[str, Any] = {
             "next_node": "verifying",
             "verification_result": state["verification_result"],
             "thoughts": state["thoughts"],
             "ui_cards": ui_cards,
         }
+        if mail_draft:
+            out["mail_draft"] = mail_draft
+        return out
 
     def verifying_node(state: AgentState):
         """验证与生成结果节点"""

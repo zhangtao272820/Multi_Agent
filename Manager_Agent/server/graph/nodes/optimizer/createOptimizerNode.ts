@@ -8,7 +8,8 @@ import { criticRetryContradictsRunEvidence, hasSuccessfulGuiBrowseInRun } from '
 import { detectAdminWriteTerminalFailure } from '../../core/runtime/adminWriteTerminal'
 import {
   detectGuiTerminalFailure,
-  hasFailedGuiEvidenceInRun
+  hasFailedGuiEvidenceInRun,
+  shouldSkipGuiGraphRetry
 } from '../../core/runtime/guiTerminal'
 
 import { detectGuiSemanticBlockFromState } from '../../../utils/gui/guiHumanConfirm'
@@ -53,7 +54,10 @@ export function createOptimizerNode(deps: CreateOptimizerNodeDeps) {
       if (String(results?.rag || '').trim() || String(results?.db || '').trim()) return 'code'
       if (state?.intent === 'crawler') return 'crawler'
       if (state?.intent === 'rag' || state?.intent === 'db') return state.intent
-      if (state?.intent === 'gui' || hasFailedGuiEvidenceInRun(state)) return 'gui'
+      if (state?.intent === 'gui' || hasFailedGuiEvidenceInRun(state)) {
+        if (shouldSkipGuiGraphRetry(state)) return 'multi'
+        return 'gui'
+      }
       return 'multi'
     })()
     const fixQuery = (() => {
@@ -151,29 +155,27 @@ export function createOptimizerNode(deps: CreateOptimizerNodeDeps) {
         retryCount: retryCount + 1
       }
     }
-    if (action === 'verifier' && criticRetryOverridden) {
+    // If we're already carrying a fixIntent/fixQuery, we still count the "repair attempt" to avoid retry loops.
+    if (action === 'fix') return { optimizer: { action, reason, at: new Date().toISOString() }, retryCount: retryCount + 1 }
+    if (action === 'clarify') {
       return {
         optimizer: { action, reason, at: new Date().toISOString() },
         fixQuery: '',
         fixIntent: undefined
       }
     }
-    // If we're already carrying a fixIntent/fixQuery, we still count the "repair attempt" to avoid retry loops.
-    if (action === 'fix') return { optimizer: { action, reason, at: new Date().toISOString() }, retryCount: retryCount + 1 }
-    const terminalMeta = adminTerminal.terminal
-      ? { adminWriteTerminal: true, finalSynthPass: true }
-      : guiTerminal.terminal
-        ? {
-            guiTerminal: true,
-            ...(guiTerminal.code ? { guiTerminalCode: guiTerminal.code } : {}),
-            finalSynthPass: true
-          }
-        : null
+    // verifier：审计/评估通过（或预算耗尽接受）→ 终态开流标记
+    const passMeta: Record<string, unknown> = { finalSynthPass: true }
+    if (adminTerminal.terminal) passMeta.adminWriteTerminal = true
+    if (guiTerminal.terminal) {
+      passMeta.guiTerminal = true
+      if (guiTerminal.code) passMeta.guiTerminalCode = guiTerminal.code
+    }
     return {
       optimizer: { action, reason, at: new Date().toISOString() },
       fixQuery: '',
       fixIntent: undefined,
-      ...(terminalMeta ? { meta: { ...(state?.meta || {}), ...terminalMeta } } : {})
+      meta: { ...(state?.meta || {}), ...passMeta }
     }
   }
 }

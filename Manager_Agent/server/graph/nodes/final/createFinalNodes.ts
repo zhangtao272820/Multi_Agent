@@ -96,6 +96,7 @@ import { buildSynthNode } from './synthNode'
 import { buildCriticNode } from './criticNode'
 import { buildVerifierNode } from './verifierNode'
 import { buildFinalizeNode } from './finalizeNode'
+import { buildEmitUserAnswerNode } from './emitUserAnswerNode'
 
 export type { CreateFinalNodesDeps } from './types'
 
@@ -104,6 +105,7 @@ export function createFinalNodes(deps: CreateFinalNodesDeps) {
     synthNode: buildSynthNode(deps),
     criticNode: buildCriticNode(deps),
     verifierNode: buildVerifierNode(deps),
-    finalizeNode: buildFinalizeNode(deps)
+    finalizeNode: buildFinalizeNode(deps),
+    emitUserAnswerNode: buildEmitUserAnswerNode(deps)
   }
 }

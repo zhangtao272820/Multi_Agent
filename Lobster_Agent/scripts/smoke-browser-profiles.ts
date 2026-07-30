@@ -59,15 +59,16 @@ try {
 }
 
 process.env.LOBSTER_MCP_HEADLESS_SIDECAR = '1'
+// Stagehand-only：Docker 无头不再改写引擎链
 const baiduChain = reorderChainForHeadlessMcpSidecar(
-  ['mcp', 'stagehand', 'classic'],
+  ['stagehand'],
   '打开 https://www.baidu.com/ 搜索 Python',
   'https://www.baidu.com/',
 )
-assert(baiduChain[0] === 'classic', 'baidu docker sidecar prefers classic first')
+assert(baiduChain[0] === 'stagehand' && baiduChain.length === 1, 'web chain stays stagehand-only')
 
 const loginChain = reorderChainForHeadlessMcpSidecar(
-  ['mcp', 'stagehand', 'classic'],
+  ['stagehand'],
   '登录后打开后台',
   'https://example.com/login',
   {
@@ -80,8 +81,10 @@ const loginChain = reorderChainForHeadlessMcpSidecar(
     confidence: 0.8,
     rationale: 'smoke',
     source: 'llm',
+    plan_steps: [],
+    goals: {},
   },
 )
-assert(loginChain[0] === 'classic', 'needs_login prefers classic on sidecar')
+assert(loginChain[0] === 'stagehand', 'needs_login no longer injects classic')
 
 console.log('smoke-browser-profiles: PASS')

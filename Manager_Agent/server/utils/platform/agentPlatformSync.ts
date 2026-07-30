@@ -21,6 +21,7 @@ const NAME_TO_ENV: Record<string, Partial<Record<keyof ResolvedAgentEndpoints, '
   code_assistent_Agent: { codeAgentWsUrl: 'ws' },
   Extractor_Agent: { crawlerAgentWsUrl: 'ws' },
   Lobster_Agent: { lobsterAgentWsUrl: 'ws' },
+  LobsterPy_Agent: { lobsterAgentWsUrl: 'ws' },
   AI_admin_Agent: { aiAdminAgentWsUrl: 'ws' },
   Multimodal_Agent: { multimodalAgentHttpUrl: 'http' },
   Music_Agent: { musicAgentHttpUrl: 'http', musicAgentWsUrl: 'ws' },
@@ -44,7 +45,7 @@ function wsFromHttp(httpBase: string, suffix: string) {
 
 function deriveWsUrl(name: string, httpBase: string) {
   if (name === 'DB_Agent') return wsFromHttp(httpBase, '/api/chat.ws')
-  if (name === 'code_assistent_Agent' || name === 'Extractor_Agent' || name === 'Lobster_Agent') return wsFromHttp(httpBase, '/_ws')
+  if (name === 'code_assistent_Agent' || name === 'Extractor_Agent' || name === 'Lobster_Agent' || name === 'LobsterPy_Agent') return wsFromHttp(httpBase, '/_ws')
   if (name === 'AI_admin_Agent') return wsFromHttp(httpBase, '/api/chat/ws')
   if (name === 'Music_Agent') return wsFromHttp(httpBase, '/ws')
   if (name === 'Video_Agent') return wsFromHttp(httpBase, '/ws/video')
@@ -57,6 +58,7 @@ const PLATFORM_OFFLINE_TO_CAPABILITY: Record<string, string[]> = {
   code_assistent_Agent: ['code'],
   Extractor_Agent: ['crawler'],
   Lobster_Agent: ['gui'],
+  LobsterPy_Agent: ['gui'],
   AI_admin_Agent: ['admin'],
   Multimodal_Agent: ['multimodal'],
   Music_Agent: ['music'],
@@ -134,7 +136,7 @@ export async function fetchPlatformAgentEndpoints(
       const httpOrigin = agentWsUrlToHttpOrigin(overrides.crawlerAgentWsUrl || deriveWsUrl(name, endpoint))
       if (httpOrigin) (overrides as any).crawlerAgentHttpUrl = httpOrigin
     }
-    if (name === 'Lobster_Agent') {
+    if (name === 'Lobster_Agent' || name === 'LobsterPy_Agent') {
       overrides.lobsterAgentWsUrl =
         overrides.lobsterAgentWsUrl || resolveAgentUrl(deriveWsUrl(name, endpoint), env)
     }

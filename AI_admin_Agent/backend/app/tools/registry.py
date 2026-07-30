@@ -10,11 +10,13 @@ from app.tools import (
     contacts,
     database,
     email,
+    email_attachments,
     files,
     integrations_tools,
     knowledge,
     memory_tools,
     notes,
+    office_docs,
     pending,
     playground,
     playground_warm,
@@ -37,6 +39,7 @@ AVAILABLE_TOOLS = {
     # Tasks
     "add_task": tasks.add_task,
     "add_task_with_due": tasks.add_task_with_due,
+    "modify_task": tasks.modify_task,
     "list_tasks": tasks.list_tasks,
     "complete_task": tasks.complete_task,
     "delete_task": tasks.delete_task,
@@ -54,7 +57,10 @@ AVAILABLE_TOOLS = {
     "send_email": email.send_email,
     "list_emails": email.list_emails,
     "reply_email": email.reply_email,
+    "draft_email_reply": email.draft_email_reply,
     "classify_emails": email.classify_emails,
+    "list_email_attachments": email_attachments.list_email_attachments,
+    "save_email_attachment": email_attachments.save_email_attachment,
     # Search
     "web_search": search.web_search,
     "knowledge_retrieval": knowledge.knowledge_retrieval,
@@ -66,6 +72,8 @@ AVAILABLE_TOOLS = {
     "write_file": files.write_file,
     "move_file": files.move_file,
     "create_directory": files.create_directory,
+    "read_office_document": office_docs.read_office_document,
+    "write_office_document": office_docs.write_office_document,
     # Reminders
     "add_reminder": reminders.add_reminder,
     "list_reminders": reminders.list_reminders,
@@ -137,6 +145,8 @@ RISKY_TOOLS = frozenset(
         "delete_all_meeting_reminders",
         "move_file",
         "write_file",
+        "write_office_document",
+        "save_email_attachment",
         "add_task_with_due",
         "add_event",
         "modify_event",
@@ -160,6 +170,7 @@ TIME_TOOL_EXPR_KEYS = {
     "add_event": ("start_time_str", "start_time_expression"),
     "modify_event": ("start_time_str", "start_time_expression"),
     "add_task_with_due": ("due_time_str", "task_due_time_expression"),
+    "modify_task": ("due_time_str", "task_due_time_expression"),
     "add_reminder": ("remind_time_str", "time_expression"),
 }
 
@@ -167,5 +178,6 @@ TIME_TOOL_LOCAL_KEYS = {
     "add_event": "start_time_local",
     "modify_event": "start_time_local",
     "add_task_with_due": "due_time_local",
+    "modify_task": "due_time_local",
     "add_reminder": "remind_time_local",
 }

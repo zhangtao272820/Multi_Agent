@@ -10,6 +10,7 @@ import { callLobsterGuiRunWithPoll } from '../mcp/lobsterGuiPoll'
 import {
   guiScreenshotFingerprint,
   shouldForwardGuiThinking,
+  LOBSTER_GUI_PROGRESS_LIMITS,
 } from '#agent-shared/lobsterGuiProgressContract'
 import { markAgentPayloadUntrusted } from '#agent-shared/contentTrust'
 
@@ -60,7 +61,7 @@ function emitGuiProgress(
 ) {
   const s = String(stage || '').trim()
   if (!s) return
-  params.sendThinking?.(`GUI Agent [${s}]${pageUrl ? ` · ${pageUrl.slice(0, 80)}` : ''}`)
+  // 阶段变更只走 step_status，不占思考流配额
   params.sendEvent?.({
     event: 'step_status',
     data: { agent: 'gui', status: 'running', stage: s, pageUrl: pageUrl || undefined },
@@ -104,6 +105,8 @@ async function callLobsterAgentWs(params: {
       let finished = false
       let lastScreenshotFp = ''
       let lastThinkingKey = ''
+      let thinkingForwarded = 0
+      const maxThinking = LOBSTER_GUI_PROGRESS_LIMITS.maxThinkingLines
 
       const finish = (fn: () => void) => {
         if (finished) return
@@ -126,12 +129,18 @@ async function callLobsterAgentWs(params: {
       }
       if (params.signal) params.signal.addEventListener('abort', onAbort)
 
+      const forwardThinking = (line: string) => {
+        if (thinkingForwarded >= maxThinking) return
+        thinkingForwarded++
+        params.sendThinking?.(line)
+      }
+
       const handleConfirm = async (data: any) => {
         const p = data?.payload || {}
         const confirmId = String(p.id || '').trim()
         const title = String(p.title || '需要确认').trim()
         const message = String(p.message || '').trim()
-        params.sendThinking?.(`GUI Agent：等待人工确认 — ${title}`)
+        forwardThinking(`GUI Agent：等待人工确认 — ${title}`)
         let ok = false
         if (guiAutoConfirmEnabled(process.env)) {
           ok = true
@@ -149,7 +158,7 @@ async function callLobsterAgentWs(params: {
       }
 
       ws.on('open', () => {
-        params.sendThinking?.('GUI Agent：已连接 Lobster，提交任务…')
+        forwardThinking('GUI Agent：已连接 Lobster，提交任务…')
         const manager_task_json =
           typeof params.managerTask === 'string'
             ? params.managerTask.trim() || undefined
@@ -202,7 +211,7 @@ async function callLobsterAgentWs(params: {
           const key = `log:${m.slice(0, 160)}`
           if (key === lastThinkingKey) return
           lastThinkingKey = key
-          params.sendThinking?.(`GUI Agent：${m}`)
+          forwardThinking(`GUI Agent：${m}`)
           return
         }
         if (type === 'thinking') {
@@ -213,11 +222,12 @@ async function callLobsterAgentWs(params: {
           const key = `th:${stage}:${text.slice(0, 120)}`
           if (key === lastThinkingKey) return
           lastThinkingKey = key
-          params.sendThinking?.(`GUI Agent [${stage}]：${text}`)
+          forwardThinking(`GUI Agent [${stage}]：${text}`)
           return
         }
         if (type === 'state') {
           const p = data?.payload || {}
+          // state 仅更新 step_status 事件，不占思考条配额的冗长文案
           emitGuiProgress(params, String(p.phase || 'running'), String(p.pageUrl || ''))
           return
         }
@@ -233,8 +243,8 @@ async function callLobsterAgentWs(params: {
         }
         if (type === 'status') {
           const st = String(data.payload || '')
-          if (st === 'queued') params.sendThinking?.('GUI Agent：任务排队中…')
-          if (st === 'start') params.sendThinking?.('GUI Agent：浏览器任务已启动…')
+          if (st === 'queued') forwardThinking('GUI Agent：任务排队中…')
+          if (st === 'start') forwardThinking('GUI Agent：浏览器任务已启动…')
           if (st === 'end') {
             sawEnd = true
             cleanup()

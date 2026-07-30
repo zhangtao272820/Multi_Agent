@@ -121,10 +121,25 @@ export function formatAdminCrawlerDisambiguationPrompt(): string {
     adminTaskLlmToolCatalog(),
     '- **天气预报/气温/湿度/穿衣/今日天气** → **admin**（get_weather 真实 API），**禁止** crawler/gui/needsWeb；',
     '- **地图路线/多久到/从A到B/周边POI/地铁公交耗时** → **admin**（高德 get_travel_route 等），**禁止** crawler/needsWeb；',
+    '- **简报/晨报/周报/今日安排** → **admin**（daily_briefing / weekly_report），**禁止** crawler/gui；',
+    '- **会前准备/会议材料/纪要提取待办** → **admin**（prepare_meeting / extract_meeting_actions），**禁止** crawler/gui；',
+    '- **工作区文件读写/列目录** → **admin**（list_files / read_file_content / write_file 等），**禁止** crawler/gui；',
     '- 「查一下/帮我查 + 地铁/公交/从A到B/多久」仍是 **admin 高德**，≠ 联网抓网页；禁止再挂一条 crawler 镜像步骤；',
     '- **crawler** 仅当用户要公网**网页正文**（最新政策通知、民政部公告、官网新闻、列表页字段）；',
     '- 「查天气」≠「联网检索」；复合任务中天气子句须 clauses+planBlueprint 独立 admin 一步；',
-    '- 用户说「网上查天气」仍走 admin（结构化预报），除非明确要求爬取某天气网站页面正文。'
+    '- 用户说「网上查天气」仍走 admin（结构化预报），除非明确要求爬取某天气网站页面正文；',
+    '- 联网搜索/链接精读/问数 **禁止** 经 admin；浏览器登录填表仍走 **gui**。'
+  ].join('\n')
+}
+
+/** GUI 浏览器交互 vs Crawler 静态抓取（注入编排/审查 LLM，非正则路由） */
+export function formatGuiCrawlerDisambiguationPrompt(): string {
+  return [
+    '【GUI 浏览器交互 vs Crawler 静态抓取】',
+    '- **gui**：须在真实浏览器里操作页面——打开站点、站内搜索、点选/打开第 N 条或第一个链接、登录、填表、页内提取标题/正文；allowedAgents=[gui]，needsWeb=false，**禁止** crawler/needsWeb/web_search；',
+    '- 例：「打开某站并点击第一个教程链接提取标题」「去百度搜索并打开第一条」→ **gui**；',
+    '- **crawler**：无浏览器点击/登录/填表，仅静态抓取公网正文/政策公告/列表字段；needsWeb=true，**禁止** gui；',
+    '- 用户已给出 URL **不等于** crawl_direct：若任务仍要求站内点击/跳转/点选，必须 **gui**，禁止因有 URL 改道 crawler。'
   ].join('\n')
 }
 
@@ -139,9 +154,10 @@ export function formatAgentBoundaryPrompt(): string {
     '- **db**：结构化业务库/SQL/记录/统计；**rag**：内部文档/制度/知识库；二者不可混用',
     '- **crawler**：公网网页正文/政策公告；**rag**：私有文档；用户要「网上查最新政策/通知原文」才加 crawler',
     formatAdminCrawlerDisambiguationPrompt(),
+    formatGuiCrawlerDisambiguationPrompt(),
     '- **multimodal**：理解用户上传的图片/附件（核心子 Agent）；有附件且还需其他 Agent 时 multimodal 须为前序，下游 dependsOn 它',
     '- **music/video**：基于附件或描述生成媒体（extended）',
-    '- **gui**：需登录填表的浏览器交互（extended）',
+    '- **gui**：浏览器页面交互与页内提取（打开/搜索/点选/登录填表/截图；extended）',
     '- **clean/code/visualize/report**：多源对比、出图、写报告时的加工链；单源查数可不要',
     '- planBlueprint 每步 queryFocus 须写「该 Agent 要做什么」，禁止复制整段用户原话；勿把识图写进 rag/db queryFocus',
     '- Probe/经验/读题 hint 仅供参考；与用户末轮冲突时必须以末轮为准'

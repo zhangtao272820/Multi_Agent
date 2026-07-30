@@ -824,10 +824,11 @@ services:
       MANAGER_STRUCTURED_LOG: ${MANAGER_STRUCTURED_LOG:-1}
       MANAGER_MAX_RUN_PHASES: ${MANAGER_MAX_RUN_PHASES:-3}
       MANAGER_PHASE_STEP_BUDGET: ${MANAGER_PHASE_STEP_BUDGET:-8}
-      # Agent 矩阵升级 Wave 3–4（协议 envelope + MCP 主路径）
+      # Agent 矩阵：envelope v2；GUI 默认 WS→Lobster Stagehand（MCP-first 仅显式开启）
       MANAGER_TASK_ENVELOPE_V2: ${MANAGER_TASK_ENVELOPE_V2:-1}
       MANAGER_MCP_ENABLED: ${MANAGER_MCP_ENABLED:-1}
-      MANAGER_GUI_MCP_FIRST: ${MANAGER_GUI_MCP_FIRST:-1}
+      MANAGER_GUI_MCP_FIRST: ${MANAGER_GUI_MCP_FIRST:-0}
+      MANAGER_GUI_RETRY_ON_ENGINE_FAIL: ${MANAGER_GUI_RETRY_ON_ENGINE_FAIL:-1}
       MANAGER_CODE_MCP_FIRST: ${MANAGER_CODE_MCP_FIRST:-1}
       MANAGER_RAG_MCP_FIRST: ${MANAGER_RAG_MCP_FIRST:-1}
       MANAGER_MCP_TOOL_NODE: ${MANAGER_MCP_TOOL_NODE:-1}
@@ -938,6 +939,7 @@ services:
       - "${PLAYWRIGHT_MCP_PORT:-18931}:8931"
     restart: unless-stopped
 
+  # Lobster_Agent（Nuxt + Playwright；Stagehand / MCP / classic）
   lobster_agent:
     build:
       context: ..
@@ -973,15 +975,27 @@ services:
       LOBSTER_MCP_AUTO_RECOVER: ${LOBSTER_MCP_AUTO_RECOVER:-1}
       LOBSTER_MCP_COMPLEX_STEP_BONUS: ${LOBSTER_MCP_COMPLEX_STEP_BONUS:-8}
       LOBSTER_MCP_FINISH_MIN_CHARS: ${LOBSTER_MCP_FINISH_MIN_CHARS:-8}
-      LOBSTER_MCP_MAX_STEPS_FORM: ${LOBSTER_MCP_MAX_STEPS_FORM:-32}
+      LOBSTER_MCP_MAX_STEPS: ${LOBSTER_MCP_MAX_STEPS:-16}
+      LOBSTER_MCP_MAX_STEPS_FORM: ${LOBSTER_MCP_MAX_STEPS_FORM:-24}
       LOBSTER_MCP_URL: http://playwright_mcp:8931/mcp
       LOBSTER_MCP_HEADLESS_SIDECAR: "1"
-      # 低风控 MCP 调试：设为 1 时容器内 Xvfb 有头 MCP（覆盖 sidecar，noVNC 可见）
+      # 低风险 MCP 调试：设为 1 时容器内 Xvfb 有头 MCP（覆盖 sidecar，noVNC 可见）
       LOBSTER_MCP_USE_LOCAL_HEADED: ${LOBSTER_MCP_USE_LOCAL_HEADED:-0}
       LOBSTER_CDP_URL: ${LOBSTER_CDP_URL:-}
       LOBSTER_SESSION_DIR: ${LOBSTER_SESSION_DIR:-/app/.data/sessions}
       LOBSTER_STORAGE_DIR: ${LOBSTER_STORAGE_DIR:-/app/.data/lobster}
-      LOBSTER_WORKFLOWS_DIR: /app/workflows
+      # Token 控制：文本规划/决策用 CAP_ROUTE 档（compose 默认 flash/turbo）；勿默认 gui-plus
+      LOBSTER_PLANNER_MODEL: ${LOBSTER_PLANNER_MODEL:-qwen-turbo}
+      LOBSTER_DECISION_MODEL: ${LOBSTER_DECISION_MODEL:-qwen-turbo}
+      LOBSTER_STAGEHAND_MODEL: ${LOBSTER_STAGEHAND_MODEL:-qwen-turbo}
+      LOBSTER_VISION_MODEL: ${LOBSTER_VISION_MODEL:-gui-plus-2026-02-26}
+      LOBSTER_GUI_MODEL: ${LOBSTER_GUI_MODEL:-gui-plus-2026-02-26}
+      LOBSTER_GUI_PLUS_FALLBACK: ${LOBSTER_GUI_PLUS_FALLBACK:-1}
+      LOBSTER_GUI_PLUS_MAX_STEPS: ${LOBSTER_GUI_PLUS_MAX_STEPS:-3}
+      LOBSTER_USE_VISION: ${LOBSTER_USE_VISION:-false}
+      LOBSTER_MAX_VISION_CALLS: ${LOBSTER_MAX_VISION_CALLS:-0}
+      LOBSTER_MAX_STEPS: ${LOBSTER_MAX_STEPS:-12}
+      LOBSTER_STAGEHAND_MAX_STEPS: ${LOBSTER_STAGEHAND_MAX_STEPS:-8}
       DISPLAY: ":99"
       APP_PORT: ${LOBSTER_PORT:-13108}
       HOST: "0.0.0.0"
@@ -1015,7 +1029,6 @@ services:
         condition: service_started
     volumes:
       - lobster_agent_sessions:/app/.data/sessions
-      - ../Lobster_Agent/workflows:/app/workflows:ro
     healthcheck:
       test:
         [

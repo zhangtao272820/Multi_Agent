@@ -123,7 +123,7 @@ npm run smoke:preflight -- --live  # 再确认 Manager/DB/RAG 已 ready
 | crawler | `Extractor_Agent` | 13104 |
 | admin | `AI_admin_Agent` | 13105 |
 | multimodal | `Multimodal_Agent` | 13107 |
-| gui | `Lobster_Agent` | 13108 |
+| gui | `Lobster_Agent`（Stagehand / MCP / classic） | 13108 |
 | music | `Music_Agent` | 13110 |
 | video | `Video_Agent` | 13111 |
 

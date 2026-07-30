@@ -376,6 +376,73 @@ def reply_email(email_id: int, content: str, session_id: str = "default") -> str
         )
 
 
+def draft_email_reply(
+    email_id: int,
+    hint: str = "",
+    tone: str = "",
+    session_id: str = "default",
+) -> dict:
+    """只起草回复正文，不发信、不走发送闸。返回 draft_content 供前端回填快速回复框。"""
+    from app.core.llm import qwen_llm
+
+    sid = (session_id or "default").strip() or "default"
+    cache = _MAIL_CACHE_BY_SESSION.get(sid, {})
+    meta = cache.get(int(email_id))
+    if not meta:
+        # 尝试拉详情
+        detail = get_email_detail(int(email_id), session_id=sid)
+        if isinstance(detail, dict) and detail.get("ok"):
+            data = detail.get("data") or {}
+            meta = {
+                "from_email": data.get("from_email") or data.get("sender") or "",
+                "subject": data.get("subject") or "",
+                "snippet": (data.get("body") or "")[:800],
+            }
+        else:
+            return _tool_err(
+                "起草失败：未找到该邮件编号。请先调用 list_emails 或打开邮件详情。",
+                data={"email_id": email_id, "session_id": sid},
+                code="email_not_found_in_cache",
+            )
+
+    subject = (meta.get("subject") or "").strip() or "(无主题)"
+    sender = (meta.get("from_email") or meta.get("sender") or "").strip()
+    snippet = (meta.get("snippet") or meta.get("preview") or "").strip()[:800]
+    guide = str(hint or tone or "").strip() or "根据邮件内容起草得体回复"
+    prompt = f"""你是邮件回复起草助手。根据下列邮件起草一段纯文本回复正文（不要主题行、不要解释）。
+语气/要求：{guide}
+发件人：{sender}
+主题：{subject}
+正文摘要：
+{snippet or '（无摘要）'}
+只输出回复正文。"""
+    try:
+        draft = str(qwen_llm.chat_text([{"role": "user", "content": prompt}]) or "").strip()
+    except Exception as e:
+        return _tool_err(
+            f"起草失败：{e}",
+            data={"email_id": email_id},
+            code="draft_llm_failed",
+        )
+    if not draft:
+        return _tool_err(
+            "起草失败：模型未返回正文。",
+            data={"email_id": email_id},
+            code="draft_empty",
+        )
+    return _tool_ok(
+        f"已起草邮件 #{email_id} 的回复（未发送），可在快速回复框确认后发送。",
+        data={
+            "email_id": email_id,
+            "draft_content": draft,
+            "mail_draft": {"email_id": email_id, "content": draft},
+            "subject": subject,
+            "to": sender,
+        },
+        code="mail_draft_ok",
+    )
+
+
 def classify_emails(session_id: str = "default", limit: int = 20) -> dict:
     """读取收件箱并用 LLM 打标签：工作 / 社交 / 通知 / 广告 / 其他。"""
     import json

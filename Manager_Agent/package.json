@@ -73,6 +73,8 @@
     "smoke:collab-route": "npx --yes tsx scripts/smoke/route/smoke-collab-route.ts",
     "smoke:weather-admin-route": "npx --yes tsx --tsconfig tsconfig.smoke.json scripts/smoke/route/smoke-weather-admin-route.ts",
     "smoke:map-admin-route": "npx --yes tsx --tsconfig tsconfig.smoke.json scripts/smoke/route/smoke-map-admin-route.ts",
+    "smoke:admin-office-hands": "npx --yes tsx --tsconfig tsconfig.smoke.json scripts/smoke/route/smoke-admin-office-hands.ts",
+    "smoke:admin-writable-fields": "npx --yes tsx --tsconfig tsconfig.smoke.json scripts/smoke/route/smoke-admin-writable-fields.ts",
     "smoke:search-clause-scope": "npx --yes tsx scripts/smoke/search/smoke-search-clause-scope.ts",
     "smoke:mode-isolation": "npx --yes tsx scripts/smoke/misc/smoke-mode-isolation.ts",
     "smoke:clarify-replan": "npx --yes tsx scripts/smoke/plan/smoke-clarify-replan.ts",
@@ -83,6 +85,8 @@
     "smoke:plan-mode": "npx --yes tsx scripts/smoke/plan/smoke-plan-mode.ts",
     "smoke:user-facing-payload": "npx --yes tsx scripts/smoke/plan/smoke-user-facing-payload.ts",
     "smoke:prompt-budget-action": "npx --yes tsx scripts/smoke/plan/smoke-prompt-budget-action.ts",
+    "smoke:synth-prompt-profiles": "npx --yes tsx --tsconfig tsconfig.smoke.json scripts/smoke/plan/smoke-synth-prompt-profiles.ts",
+    "smoke:orchestrator-prompt-profiles": "npx --yes tsx --tsconfig tsconfig.smoke.json scripts/smoke/plan/smoke-orchestrator-prompt-profiles.ts",
     "smoke:agent-circuit": "npx --yes tsx scripts/smoke/plan/smoke-agent-circuit.ts",
     "smoke:db-prefetch-align": "npx --yes tsx scripts/smoke/db/smoke-db-prefetch-align.ts",
     "smoke:admin-manager-protocol": "npx --yes tsx scripts/smoke/db/smoke-admin-manager-protocol.ts",
@@ -95,7 +99,7 @@
     "smoke:rag-query-resolve": "npx --yes tsx scripts/smoke/rag/smoke-rag-query-resolve.ts",
     "smoke:route": "npm run smoke:route-convergence && npm run smoke:route-matrix && npm run smoke:route-orchestration && npm run smoke:route-plan-card",
     "smoke:plan": "npm run smoke:clause && npm run smoke:plan-orchestrator && npm run smoke:plan-scheduler && npm run smoke:step-query-scope",
-    "smoke:cursor-upgrade": "npm run smoke:collaboration-posture && npm run smoke:specialist-handoff && npm run smoke:plan-mode && npm run smoke:plan-rollback-threshold && npm run smoke:user-facing-payload && npm run smoke:prompt-budget-action",
+    "smoke:cursor-upgrade": "npm run smoke:collaboration-posture && npm run smoke:specialist-handoff && npm run smoke:plan-mode && npm run smoke:plan-rollback-threshold && npm run smoke:user-facing-payload && npm run smoke:prompt-budget-action && npm run smoke:synth-prompt-profiles && npm run smoke:orchestrator-prompt-profiles",
     "vector:reindex": "node scripts/vector-reindex.mjs",
     "smoke:injection": "npx --yes tsx --tsconfig tsconfig.smoke.json scripts/smoke/misc/smoke-injection-regression.ts",
     "smoke:risk-execution-policy": "npx --yes tsx --tsconfig tsconfig.smoke.json scripts/smoke/plan/smoke-risk-execution-policy.ts",
@@ -114,7 +118,8 @@
     "capability:runtime": "node scripts/tools/print-capability-runtime.mjs",
     "smoke:expert-failover": "npx --yes tsx scripts/smoke/misc/smoke-expert-failover.ts",
     "smoke:gui-repair-no-db": "npx --yes tsx --tsconfig tsconfig.smoke.json scripts/smoke/gui/smoke-gui-repair-no-db.ts",
-    "smoke:gui-workflow-allowlist": "npx --yes tsx --tsconfig tsconfig.smoke.json scripts/smoke/gui/smoke-gui-workflow-allowlist.ts"
+    "smoke:gui-workflow-allowlist": "npx --yes tsx --tsconfig tsconfig.smoke.json scripts/smoke/gui/smoke-gui-workflow-allowlist.ts",
+    "smoke:gui-network-score": "npx --yes tsx --tsconfig tsconfig.smoke.json scripts/smoke/gui/smoke-gui-network-score.ts"
   },
   "dependencies": {
     "@langchain/core": "^1.1.32",

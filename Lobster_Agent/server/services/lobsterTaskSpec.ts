@@ -1,13 +1,16 @@
 /**
- * TaskSpec 驱动的引擎链与填表优先策略（替代 regex 意图）
+ * TaskSpec 驱动的引擎链（网页默认 Stagehand only；无 mcp/classic 自动回退）
  */
 import type { LobsterEngineId } from './engineSelector'
 import { engineFallbackChain } from './engineSelector'
-import { recipePreferredEngine, recipeRequiresHeadedInDocker } from './siteRecipes'
+import { recipePreferredEngine } from './siteRecipes'
 import { requiresClassicEngine, requiresDesktopEngine, requiresMobileEngine } from './engineSelector'
-import type { LobsterBrowserProfile, LobsterTaskSpec } from './lobsterTaskUnderstandSchema'
+import {
+  isWebTaskKind,
+  type LobsterBrowserProfile,
+  type LobsterTaskSpec,
+} from './lobsterTaskUnderstandSchema'
 import { isUserBrowserProfile } from './browserProfiles'
-import { isLobsterMcpHeadlessSidecar } from '../utils/lobster_env'
 
 /** 引擎选型结果（原 engineClassifierLlm 类型；选型真路径为本文件 resolveEngineFromTaskSpec） */
 export type EngineClassifierResult = {
@@ -71,17 +74,29 @@ export function resolveEngineFromTaskSpec(input: {
   }
 
   const spec = input.spec
+  // 软选型：网页类一律 stagehand（忽略 LLM/recipe 的 mcp 偏好）；仅 desktop/mobile/classic 硬守卫已在上方处理
   if (spec && spec.confidence >= 0.5 && spec.engine_hint !== 'auto') {
+    const soft = spec.engine_hint as LobsterEngineId
+    if (soft === 'desktop' || soft === 'mobile' || soft === 'classic') {
+      return {
+        engine: soft,
+        confidence: spec.confidence,
+        reason: spec.rationale || 'task_understand',
+        source: spec.source === 'llm' ? 'llm' : 'forced',
+      }
+    }
+    // mcp / stagehand / 其它 → 网页 stagehand
     return {
-      engine: spec.engine_hint as LobsterEngineId,
+      engine: 'stagehand',
       confidence: spec.confidence,
-      reason: spec.rationale || 'task_understand',
-      source: spec.source === 'llm' ? 'llm' : 'forced',
+      reason: soft === 'stagehand' ? spec.rationale || 'task_understand' : `web_force_stagehand(was:${soft})`,
+      source: 'llm',
     }
   }
 
   const recipeEngine = recipePreferredEngine(input.task, input.startUrl)
-  if (recipeEngine) {
+  // recipe 仅作软偏好；网页 mcp 偏好仍落到 stagehand
+  if (recipeEngine === 'desktop' || recipeEngine === 'mobile' || recipeEngine === 'classic') {
     return {
       engine: recipeEngine,
       confidence: 0.88,
@@ -90,18 +105,27 @@ export function resolveEngineFromTaskSpec(input: {
     }
   }
 
-  if (spec?.task_kind === 'form_fill' || spec?.task_kind === 'login' || spec?.needs_login) {
-    return { engine: 'stagehand', confidence: 0.75, reason: 'task_kind_form/login', source: 'llm' }
-  }
-  if (spec?.task_kind === 'search' || spec?.task_kind === 'extract' || spec?.task_kind === 'navigate') {
-    return { engine: 'mcp', confidence: 0.72, reason: 'task_kind_search/extract', source: 'llm' }
+  if (
+    spec &&
+    (isWebTaskKind(spec.task_kind) ||
+      spec.task_kind === 'form_fill' ||
+      spec.task_kind === 'login' ||
+      spec.needs_login)
+  ) {
+    return {
+      engine: 'stagehand',
+      confidence: 0.78,
+      reason: `task_kind_web:${spec.task_kind}`,
+      source: 'llm',
+    }
   }
 
-  return { engine: 'mcp', confidence: 0.55, reason: 'default_mcp', source: 'regex' }
+  return { engine: 'stagehand', confidence: 0.55, reason: 'default_stagehand', source: 'llm' }
 }
 
 export function buildEngineChainFromPick(picked: EngineClassifierResult): LobsterEngineId[] {
-  return picked.source === 'forced' ? [picked.engine] : engineFallbackChain(picked.engine)
+  // forced 与 soft 均为单引擎；网页无自动回退链
+  return engineFallbackChain(picked.engine)
 }
 
 /**
@@ -118,20 +142,14 @@ export function reorderChainForBrowserProfile(
 }
 
 /**
- * Docker 无头 MCP sidecar：强风控站点（如百度）或需登录任务优先 classic，便于 noVNC 可见 + 人工过验证码
+ * Docker 无头 sidecar：网页 Stagehand-only 后不再改写引擎链（验证码走总管 HITL → classic）。
+ * 保留函数签名供 smoke / 旧调用兼容。
  */
 export function reorderChainForHeadlessMcpSidecar(
   chain: LobsterEngineId[],
-  task: string,
-  startUrl?: string,
-  taskSpec?: LobsterTaskSpec | null,
+  _task?: string,
+  _startUrl?: string,
+  _taskSpec?: LobsterTaskSpec | null,
 ): LobsterEngineId[] {
-  if (!isLobsterMcpHeadlessSidecar()) return chain
-  const needsHeaded =
-    recipeRequiresHeadedInDocker(task, startUrl) ||
-    taskSpec?.needs_login === true ||
-    taskSpec?.task_kind === 'login'
-  if (!needsHeaded) return chain
-  const withClassic = chain.includes('classic') ? chain : [...chain, 'classic']
-  return ['classic', ...withClassic.filter((e) => e !== 'classic')]
+  return chain
 }

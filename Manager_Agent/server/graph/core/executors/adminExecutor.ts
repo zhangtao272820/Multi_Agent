@@ -87,6 +87,7 @@ function buildPendingDecideClientContext(
     manager_task: {
       source: 'manager',
       action_text: scopedAction,
+      ...(managerTask.source_user_task ? { source_user_task: managerTask.source_user_task } : {}),
       ...(managerTask.read_only ? { read_only: true } : {})
     }
   }
@@ -155,7 +156,8 @@ export async function executeAdminStep(
     const managerTask = buildManagerAdminTaskPayload({
       actionText: scopedAction || stripAdminManagerGuards(input.effQuery) || input.effQuery,
       meta: input.state.meta,
-      scopedText: scopedAction || stripAdminManagerGuards(input.effQuery) || undefined
+      scopedText: scopedAction || stripAdminManagerGuards(input.effQuery) || undefined,
+      sourceUserTask: String(lastU || '').trim() || undefined
     })
     const autoDecision = resolveAdminAutoConfirmDecision(input.state, scopedAction || input.effQuery)
     const adminMessage =

@@ -29,6 +29,8 @@ const ENV_TO_LOBSTER: Record<string, string> = {
   LOBSTER_PLANNER_MODEL: 'plannerModel',
   LOBSTER_DECISION_MODEL: 'decisionModel',
   LOBSTER_VISION_MODEL: 'visionModel',
+  LOBSTER_GUI_MODEL: 'guiModel',
+  LOBSTER_STAGEHAND_MODEL: 'stagehandModel',
 }
 
 let cache: { at: number; payload: PlatformConfigPayload | null } | null = null

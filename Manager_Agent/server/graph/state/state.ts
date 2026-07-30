@@ -57,6 +57,9 @@ export type ManagerGraphMeta = {
 export type ManagerGraphState = {
   messages: BaseMessage[]
   humanDecision?: 'confirm' | 'cancel' | null
+  /** Admin HITL 确认后续跑短路（须在 Annotation 中，否则 LangGraph 丢弃） */
+  resumeAdminConfirm?: boolean
+  resumeToSynth?: boolean
   forceIntent?: ForceIntent
   mediaAttachment?: { filePath: string; mediaType: 'image' | 'video' | 'audio'; filename?: string } | null
   intent: Intent

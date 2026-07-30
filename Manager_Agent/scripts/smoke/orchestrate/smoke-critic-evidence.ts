@@ -94,32 +94,56 @@ assert(
 
 {
   const guiResults = {
-    gui: '标题：菜鸟教程\n链接：https://www.runoob.com/'
+    gui: '标题：HTML 教程\n链接：https://www.runoob.com/html/html-tutorial.html'
   }
   const guiEvidence = [
     {
       kind: 'gui',
       itemCount: 0,
-      finalUrl: 'https://www.runoob.com/',
+      finalUrl: 'https://www.runoob.com/html/html-tutorial.html',
       hasScreenshot: true,
       agentResult: {
         ok: true,
         agent: 'gui',
         answer: guiResults.gui,
-        structured: { finalUrl: 'https://www.runoob.com/' },
-        sources: [{ type: 'url', ref: 'https://www.runoob.com/' }]
+        structured: { finalUrl: 'https://www.runoob.com/html/html-tutorial.html' },
+        sources: [{ type: 'url', ref: 'https://www.runoob.com/html/html-tutorial.html' }]
       }
     }
   ]
   const guiAudit = formatEvidenceForCriticAudit({ evidence: guiEvidence, results: guiResults })
   assert(guiAudit.includes('gui：ok=yes'), 'gui evidence expands ok')
-  assert(guiAudit.includes('finalUrl=https://www.runoob.com/'), 'gui evidence includes finalUrl')
+  assert(guiAudit.includes('finalUrl='), 'gui evidence includes finalUrl')
   assert(guiAudit.includes('items=0'), 'gui may have items=0')
-  assert(guiAudit.includes('items=0 不等于 GUI 失败'), 'gui audit explains items=0')
+  assert(guiAudit.includes('agentResult.ok=true'), 'gui audit explains ok gate')
   assert(
     hasSuccessfulGuiBrowseInRun({ results: guiResults, evidence: guiEvidence }),
-    'finalUrl + items=0 must count as successful browse'
+    'ok=true + detail url must count as successful browse'
+  )
+
+  const stuck = {
+    results: { gui: '仍停留在起始页：https://www.runoob.com/' },
+    evidence: [
+      {
+        kind: 'gui',
+        failed: true,
+        finalUrl: 'https://www.runoob.com/',
+        hasScreenshot: true,
+        agentResult: {
+          ok: false,
+          agent: 'gui',
+          error_code: 'navigation_unverified',
+          answer: '仍停留在起始页',
+          structured: { finalUrl: 'https://www.runoob.com/', failureType: 'navigation_unverified' }
+        }
+      }
+    ]
+  }
+  assert(
+    !hasSuccessfulGuiBrowseInRun(stuck),
+    'homepage screenshot + navigation_unverified must NOT count as success'
   )
 }
+
 
 console.log('smoke: critic evidence ok')

@@ -31,7 +31,8 @@ import { isFixIntentBlockedByHardDown } from '../../core/output/criticPolicy'
 import { detectGuiSemanticBlockFromState } from '../../../utils/gui/guiHumanConfirm'
 import {
   detectGuiTerminalFailure,
-  hasFailedGuiEvidenceInRun
+  hasFailedGuiEvidenceInRun,
+  shouldSkipGuiGraphRetry
 } from '../../core/runtime/guiTerminal'
 
 import type { CreateFixNodeDeps, FixStrategy } from './types'
@@ -115,6 +116,18 @@ export function createFixNode(deps: CreateFixNodeDeps) {
       String(state.intent || '') === 'gui' ||
       String(state.fixIntent || '') === 'gui' ||
       hasFailedGuiEvidenceInRun(state)
+    if (pinGui && shouldSkipGuiGraphRetry(state)) {
+      opts.sendEvent({
+        event: 'thinking',
+        data: '修复：GUI incomplete/navigation_unverified，跳过 pinGui 空转重试',
+        from: 'manager'
+      })
+      return {
+        meta: mergeMeta(state, { guiIncompleteNoRetry: true, finalSynthPass: true }),
+        fixQuery: '',
+        fixIntent: undefined
+      }
+    }
     const fixPrompt = [
       new SystemMessage(
         [

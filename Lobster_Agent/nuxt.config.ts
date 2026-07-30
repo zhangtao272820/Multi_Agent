@@ -91,6 +91,8 @@ export default defineNuxtConfig({
       plannerModel: process.env.LOBSTER_PLANNER_MODEL || process.env.OPENAI_MODEL,
       decisionModel: process.env.LOBSTER_DECISION_MODEL || process.env.OPENAI_MODEL,
       visionModel: process.env.LOBSTER_VISION_MODEL,
+      guiModel: process.env.LOBSTER_GUI_MODEL || process.env.LOBSTER_VISION_MODEL,
+      stagehandModel: process.env.LOBSTER_STAGEHAND_MODEL || process.env.LOBSTER_DECISION_MODEL || process.env.OPENAI_MODEL,
       useVision: (() => {
         const v = String(process.env.LOBSTER_USE_VISION ?? 'false').trim().toLowerCase()
         return v === '1' || v === 'true' || v === 'yes'

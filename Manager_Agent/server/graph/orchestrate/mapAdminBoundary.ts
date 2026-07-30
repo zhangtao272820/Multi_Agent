@@ -129,8 +129,8 @@ export function rematerializeMapCrawlerMisbind(
       changed = true
       const leanFocus = stripCrawlerTemplateNoise(String(s.queryFocus || '')) || String(s.queryFocus || '')
       const focus = includesAny(leanFocus, adminMapCapabilityTerms())
-        ? leanFocus.slice(0, 320)
-        : String(s.queryFocus || '').slice(0, 320)
+        ? leanFocus.slice(0, 480)
+        : String(s.queryFocus || '').slice(0, 480)
       return { ...s, agent: 'admin' as PlanBlueprint['steps'][number]['agent'], queryFocus: focus }
     })
     // 合并重复 admin 步：截图同构 crawler+admin 双出行步 → 保留一条地图焦点

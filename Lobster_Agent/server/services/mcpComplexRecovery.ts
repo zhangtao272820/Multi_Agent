@@ -125,8 +125,16 @@ export function validateMcpBrowserAction(
 ): string | null {
   if (!/browser_(click|type|hover|select_option|drag)/i.test(toolName)) return null
   const ref = String(args.ref ?? args.element ?? args.selector ?? '').trim()
-  if (ref) return null
-  return `${toolName} 缺少 ref/element：须先 browser_snapshot，从快照中取 ref 再操作。`
+  if (!ref) {
+    return `${toolName} 缺少 ref/element：须先 browser_snapshot，从快照中取 ref 再操作。`
+  }
+  if (/^browser_type$/i.test(toolName)) {
+    const text = args.text ?? args.value ?? args.input
+    if (text === undefined || text === null || String(text).length === 0) {
+      return 'browser_type 缺少非空 text：须同时提供 ref 与要输入的字符串，禁止 text=undefined。'
+    }
+  }
+  return null
 }
 
 export function findRecoveryTools(tools: McpToolDef[]) {

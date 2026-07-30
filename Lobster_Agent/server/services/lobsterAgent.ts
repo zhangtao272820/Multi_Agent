@@ -1,3 +1,8 @@
+/**
+ * Classic LangGraph 浏览器引擎（旁路）。
+ * 网页 auto 默认不再进入本文件；仅 LOBSTER_EXECUTION_MODE=classic、
+ * API forced engineHint=classic、video hard_guard、或总管验证码 HITL 后调用。
+ */
 import { StateGraph, StateSchema, START, END, type GraphNode } from '@langchain/langgraph'
 import { z } from 'zod'
 import { chromium, type Browser, type BrowserContext, type Page } from 'playwright'
@@ -3125,7 +3130,7 @@ export async function runLobsterAgent(params: RunParams) {
           reason: '无法落地：B站游客改直达搜索页'
         }
       }
-      return { type: 'wait', ms: 700, reason: '无模型可用或无法落地，保守等待后重新感知' }
+      return { type: 'wait', ms: 700, reason: 'grounding_failed：意图无法落地，短等后重新感知' }
     })()
 
     const forcedExpireAtRaw = Math.max(0, Math.floor(Number((state as any).forcedIntentsExpireAt || 0)))
@@ -3968,7 +3973,6 @@ if (!visionHasOverlay && it === 'dismiss_overlays') return true
       )
     }
 
-    const hasDecisionModel = !!modelText
     if (!modelText) {
       if (!warnedNoDecisionModel) {
         warnedNoDecisionModel = true
@@ -4002,7 +4006,9 @@ if (!visionHasOverlay && it === 'dismiss_overlays') return true
           return applyDecision(action)
         }
       }
-      return applyDecision(actionFallback)
+      // 无决策模型且启发式无法落地：立即失败，禁止 wait 空转耗步数
+      emitLog('error', 'no_decision_model：启发式无法落地，结束任务以便引擎回退')
+      throw new Error('lobster_no_decision_model')
     }
 
     const pageStage: PageStage = 'unknown'

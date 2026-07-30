@@ -12,7 +12,6 @@ import { applyLobsterTaskUnderstand } from './lobsterTaskUnderstandSchema'
 import {
   buildEngineChainFromPick,
   reorderChainForBrowserProfile,
-  reorderChainForHeadlessMcpSidecar,
   reorderChainForTaskSpec,
   resolveEngineFromTaskSpec,
 } from './lobsterTaskSpec'
@@ -25,18 +24,26 @@ import {
   isStagehandEnabled,
   isLobsterDesktopMcpEnabled,
   isLobsterAndroidMcpEnabled,
-  isLobsterMcpHeadlessSidecar,
-  shouldUseLocalHeadedMcp,
   resolveLobsterExecutionMode
 } from '../utils/lobster_env'
 import { verifyLobsterRunResult, isLobsterRetryableFailure } from './lobsterRunVerify'
 import { isLobsterWorkflowId, runLobsterWorkflowAgent } from './lobsterWorkflowRunner'
 import { listLobsterWorkflowIds } from './lobsterWorkflowLoader'
+import { runLobsterGuiPlusAgent } from './lobsterGuiPlusAgent'
+import { shouldAttemptGuiPlusFallback } from './lobsterGuiPlusFallback'
 
-function emitLog(params: RunParams, level: 'info' | 'warn' | 'error', message: string) {
+/** 里程碑日志（禁 DOM/JSON 刷屏；总管侧再硬截断） */
+function emitMilestone(params: RunParams, message: string) {
   params.emit({
     type: 'log',
-    payload: { level, message: String(message || '').slice(0, 2000), ts: Date.now() }
+    payload: { level: 'info', message: String(message || '').slice(0, 240), ts: Date.now() }
+  })
+}
+
+function emitWarn(params: RunParams, message: string) {
+  params.emit({
+    type: 'log',
+    payload: { level: 'warn', message: String(message || '').slice(0, 240), ts: Date.now() }
   })
 }
 
@@ -59,7 +66,7 @@ async function assertDesktopReady(params: RunParams) {
   if (!probe.ok) {
     throw new Error(`lobster_desktop_mcp_not_ready: ${probe.error || 'no_tools'}`)
   }
-  emitLog(params, 'info', `Desktop MCP 就绪（${probe.toolCount} 个工具）`)
+  emitMilestone(params, `Desktop MCP 就绪（${probe.toolCount} 工具）`)
 }
 
 async function assertAndroidReady(params: RunParams) {
@@ -70,52 +77,50 @@ async function assertAndroidReady(params: RunParams) {
   if (!probe.ok) {
     throw new Error(`lobster_android_not_ready: ${probe.error || 'no_device'}`)
   }
-  emitLog(
-    params,
-    'info',
-    `Android 就绪（${probe.deviceCount} 台设备${probe.toolCount ? ` · ${probe.toolCount} MCP 工具` : ''}）`,
-  )
+  emitMilestone(params, `Android 就绪（${probe.deviceCount} 设备）`)
 }
 
-async function isEngineReady(engine: LobsterEngineId): Promise<boolean> {
-  if (engine === 'classic') return true
+async function assertEngineReadyOrThrow(engine: LobsterEngineId): Promise<void> {
+  if (engine === 'classic') return
   if (engine === 'desktop') {
-    if (!isLobsterDesktopMcpEnabled()) return false
+    if (!isLobsterDesktopMcpEnabled()) throw new Error('lobster_desktop_mcp_disabled')
     const probe = await probeLobsterDesktopReady()
-    return probe.ok
+    if (!probe.ok) throw new Error(`lobster_desktop_mcp_not_ready: ${probe.error || 'no_tools'}`)
+    return
   }
   if (engine === 'mobile') {
-    if (!isLobsterAndroidMcpEnabled()) return false
+    if (!isLobsterAndroidMcpEnabled()) throw new Error('lobster_android_mcp_disabled')
     const probe = await probeLobsterAndroidReady()
-    return probe.ok
+    if (!probe.ok) throw new Error(`lobster_android_not_ready: ${probe.error || 'no_device'}`)
+    return
   }
   if (engine === 'mcp') {
-    if (!isLobsterMcpEnabled()) return false
+    if (!isLobsterMcpEnabled()) throw new Error('lobster_mcp_disabled')
     const probe = await probeLobsterMcpReady()
-    return probe.ok
+    if (!probe.ok) throw new Error(`lobster_mcp_not_ready: ${probe.error || 'no_tools'}`)
+    return
   }
   if (engine === 'stagehand') {
-    if (!isStagehandEnabled()) return false
+    if (!isStagehandEnabled()) {
+      throw new Error('stagehand_unavailable: LOBSTER_STAGEHAND 未启用，请开启 Stagehand 后重试')
+    }
     const probe = await probeStagehandReady()
-    return probe.ok
+    if (!probe.ok) {
+      throw new Error(`stagehand_unavailable: ${probe.error || 'import_failed'}`)
+    }
   }
-  return false
 }
 
-/** classic | mcp | stagehand | auto（TaskUnderstand 单点 + fallback 链） */
+/** classic | mcp | stagehand | auto（网页 = Stagehand only） */
 export async function runLobsterWithRouter(params: RunParams) {
   const workflowId = String(params.workflowId || '').trim()
   if (workflowId && isLobsterWorkflowId(workflowId)) {
     const knownIds = listLobsterWorkflowIds()
     const known = knownIds.some((id) => id.toLowerCase() === workflowId.toLowerCase())
     if (!known) {
-      emitLog(
-        params,
-        'warn',
-        `未知 Workflow Macro「${workflowId}」，回退逐步引擎（classic/mcp）`,
-      )
+      emitWarn(params, `未知 Workflow「${workflowId}」，改走 Stagehand`)
     } else {
-      emitLog(params, 'info', `路由：Workflow Macro ${workflowId}`)
+      emitMilestone(params, `路由：Workflow ${workflowId}`)
       const out = await runLobsterWorkflowAgent({ ...params, workflowId })
       return ensureLobsterGuiFinalPayload(
         { ...(out && typeof out === 'object' ? out : {}), engine: 'workflow', actualEngine: 'workflow' },
@@ -136,10 +141,6 @@ export async function runLobsterWithRouter(params: RunParams) {
       type: 'engine_active',
       payload: { ts, engine, actualEngine: engine, attemptIndex: 0 },
     })
-    params.emit({
-      type: 'run_meta',
-      payload: { ts, runId: params.runId, actualEngine: engine, engine },
-    })
   }
 
   if (mode === 'classic') {
@@ -148,10 +149,12 @@ export async function runLobsterWithRouter(params: RunParams) {
   }
   if (mode === 'mcp') {
     emitForcedEngine('mcp')
+    await assertEngineReadyOrThrow('mcp')
     return await runLobsterMcpAgent(params)
   }
   if (mode === 'stagehand') {
     emitForcedEngine('stagehand')
+    await assertEngineReadyOrThrow('stagehand')
     return await runLobsterStagehandAgent(params)
   }
 
@@ -186,7 +189,6 @@ export async function runLobsterWithRouter(params: RunParams) {
 
   const understood = mergeManagerAndUnderstoodTaskSpec(managerSpec, understoodRaw) ?? managerSpec
 
-  // engineHint 只保留调用方强制值；LLM/TaskSpec 的 engine_hint 走 resolveEngineFromTaskSpec（可回退）
   const mergedTask = understood
     ? {
         task: understood.canonical_task,
@@ -204,10 +206,9 @@ export async function runLobsterWithRouter(params: RunParams) {
     taskSpecProfile: taskSpec?.browser_profile,
   })
   if (understood?.source === 'llm' || understood?.source === 'manager') {
-    emitLog(
+    emitMilestone(
       params,
-      'info',
-      `taskUnderstand：kind=${understood.task_kind} engine=${understood.engine_hint} profile=${understood.browser_profile} conf=${understood.confidence.toFixed(2)} · ${understood.rationale.slice(0, 80)}`,
+      `understand：${understood.task_kind} · ${understood.rationale.slice(0, 80)}`,
     )
   }
 
@@ -240,14 +241,30 @@ export async function runLobsterWithRouter(params: RunParams) {
   let chain = buildEngineChainFromPick(picked)
   chain = reorderChainForTaskSpec(chain, taskSpec ?? undefined, hasStorage)
   chain = reorderChainForBrowserProfile(chain, profileMode)
-  chain = reorderChainForHeadlessMcpSidecar(chain, runParams.task, runParams.startUrl, taskSpec)
-  const sidecarNote =
-    isLobsterMcpHeadlessSidecar() && !shouldUseLocalHeadedMcp() ? '，MCP=无头 sidecar' : ''
-  emitLog(
+
+  emitMilestone(
     params,
-    'info',
-    `auto 引擎链：${chain.join(' → ')}（首选 ${picked.engine}，来源=${picked.source}，profile=${browserProfileLabel(profileMode)}${sidecarNote}，conf=${picked.confidence.toFixed(2)}：${picked.reason.slice(0, 80)}）`
+    `引擎：${chain[0] || picked.engine}（${picked.source} · ${browserProfileLabel(profileMode)}）`,
   )
+  params.emit({
+    type: 'understand',
+    payload: {
+      ts: Date.now(),
+      taskSpec: taskSpec
+        ? {
+            task_kind: taskSpec.task_kind,
+            plan_steps: (taskSpec.plan_steps || []).slice(0, 6).map((s) => s.op),
+            goals: taskSpec.goals,
+          }
+        : undefined,
+      picked: {
+        engine: picked.engine,
+        source: picked.source,
+        confidence: picked.confidence,
+      },
+      profile: browserProfileLabel(profileMode),
+    },
+  })
   params.emit({
     type: 'engine_chain',
     payload: {
@@ -255,38 +272,12 @@ export async function runLobsterWithRouter(params: RunParams) {
       chain: [...chain],
       activeIndex: 0,
       profile: browserProfileLabel(profileMode),
-      sidecarNote: sidecarNote || undefined,
       picked: {
         engine: picked.engine,
         source: picked.source,
         confidence: picked.confidence,
         reason: picked.reason,
       },
-    },
-  })
-  params.emit({
-    type: 'understand',
-    payload: {
-      ts: Date.now(),
-      taskSpec: taskSpec ? { ...taskSpec } : undefined,
-      picked: {
-        engine: picked.engine,
-        source: picked.source,
-        confidence: picked.confidence,
-        reason: picked.reason,
-      },
-      profile: browserProfileLabel(profileMode),
-      storageProfile: params.storageProfile,
-    },
-  })
-  params.emit({
-    type: 'run_meta',
-    payload: {
-      ts: Date.now(),
-      runId: params.runId,
-      storageProfile: params.storageProfile,
-      browserProfile: browserProfileLabel(profileMode),
-      profile: browserProfileLabel(profileMode),
     },
   })
 
@@ -303,102 +294,127 @@ export async function runLobsterWithRouter(params: RunParams) {
     rationale: taskSpec?.rationale?.slice(0, 200),
   })
 
-  let lastErr: unknown = null
-  for (let i = 0; i < chain.length; i++) {
-    const engine = chain[i]!
-    if (!(await isEngineReady(engine))) {
-      emitLog(params, 'warn', `${engine} 不可用，跳过`)
-      continue
-    }
-    try {
-      emitLog(params, 'info', `使用执行引擎：${engine}`)
-      if (String(process.env.LOBSTER_ENGINE_TRUTH_LOG ?? '1').trim() !== '0') {
-        emitLog(params, 'info', `actualEngine=${engine} chain=[${chain.join('→')}] attempt=${i}`)
-      }
-      params.emit({
-        type: 'engine_active',
-        payload: {
-          ts: Date.now(),
-          engine,
-          actualEngine: engine,
-          attemptIndex: i,
-          chain: [...chain],
-          activeIndex: i,
-        },
-      })
-      params.emit({
-        type: 'run_meta',
-        payload: {
-          ts: Date.now(),
-          actualEngine: engine,
-          engineChain: [...chain],
-          activeIndex: i,
-          profile: browserProfileLabel(profileMode),
-          browserProfile: browserProfileLabel(profileMode),
-        },
-      })
-      const outputRaw = await runEngine(engine, runParams)
-      const output =
-        outputRaw && typeof outputRaw === 'object'
-          ? ensureLobsterGuiFinalPayload(outputRaw as Record<string, unknown>, runParams.task)
-          : outputRaw
-      const verify = verifyLobsterRunResult({
-        task: runParams.task,
-        status: 'done',
-        result: output,
-      })
-      params.emit({
-        type: 'verify',
-        payload: {
-          ts: Date.now(),
-          engine,
-          attemptIndex: i,
-          verify: {
-            ok: verify.ok,
-            reason: verify.reason,
-            failureType: verify.failureType,
-            hints: verify.hints,
-            retryable: isLobsterRetryableFailure({ status: 'done', result: output, verify }),
-          },
-        },
-      })
-      if (!verify.ok) {
-        const finalUrl = String((output as any)?.finalUrl || '').trim()
-        const hints = recipeResultPageHints(runParams.task, runParams.startUrl)
-        const channelHit = Array.isArray(hints?.channelHomeExclude)
-          ? hints!.channelHomeExclude!.some((h) => finalUrl.includes(h.replace(/^https?:\/\//, '')))
-          : /news\.baidu\.com|map\.baidu\.com|tieba\.baidu\.com/i.test(finalUrl)
-        void appendLobsterFailureInsight({
-          ts: Date.now(),
-          run_id: params.runId,
-          kind: channelHit ? 'wrong_channel_click' : String(verify.reason || 'verify_fail'),
-          url: finalUrl,
-          stage: String(verify.reason || ''),
-          detail: String(verify.hints?.[0] || '').slice(0, 240),
-        })
-        const retryable = isLobsterRetryableFailure({ status: 'done', result: output, verify })
-        emitLog(
-          params,
-          retryable ? 'warn' : 'info',
-          `${engine} 结果未通过 verify（${verify.reason}${verify.hints?.[0] ? `：${verify.hints[0].slice(0, 100)}` : ''}）`
-        )
-        if (retryable) {
-          throw new Error(`lobster_verify_${verify.reason}`)
-        }
-      }
-      return output
-    } catch (e: any) {
-      lastErr = e
-      const msg = e?.message ? String(e.message) : String(e)
-      if (params.signal.aborted || /canceled/i.test(msg)) throw e
-      const next = chain[i + 1]
-      if (!next) break
-      emitLog(params, 'warn', `${engine} 失败（${msg.slice(0, 200)}），回退 ${next}`)
-    }
-  }
+  // 网页 Stagehand-only：单引擎，失败直接返回/抛错，禁止整链回退刷日志
+  const engine = chain[0] || picked.engine
+  await assertEngineReadyOrThrow(engine)
 
-  if (lastErr instanceof Error) throw lastErr
-  throw lastErr ?? new Error('lobster_all_engines_failed')
+  params.emit({
+    type: 'engine_active',
+    payload: {
+      ts: Date.now(),
+      engine,
+      actualEngine: engine,
+      attemptIndex: 0,
+      chain: [engine],
+      activeIndex: 0,
+    },
+  })
+
+  const outputRaw = await runEngine(engine, runParams)
+  const output =
+    outputRaw && typeof outputRaw === 'object'
+      ? ensureLobsterGuiFinalPayload(outputRaw as Record<string, unknown>, runParams.task)
+      : outputRaw
+  const verify = verifyLobsterRunResult({
+    task: runParams.task,
+    status: 'done',
+    result: output,
+  })
+  params.emit({
+    type: 'verify',
+    payload: {
+      ts: Date.now(),
+      engine,
+      attemptIndex: 0,
+      verify: {
+        ok: verify.ok,
+        reason: verify.reason,
+        failureType: verify.failureType,
+        hints: verify.hints,
+        // 网页无下一引擎；retryable 仅供总管 HITL 决策，不驱动回退
+        retryable: false,
+      },
+    },
+  })
+  if (!verify.ok) {
+    const finalUrl = String((output as any)?.finalUrl || '').trim()
+    const hints = recipeResultPageHints(runParams.task, runParams.startUrl)
+    const channelHit = Array.isArray(hints?.channelHomeExclude)
+      ? hints!.channelHomeExclude!.some((h) => finalUrl.includes(h.replace(/^https?:\/\//, '')))
+      : /news\.baidu\.com|map\.baidu\.com|tieba\.baidu\.com/i.test(finalUrl)
+    void appendLobsterFailureInsight({
+      ts: Date.now(),
+      run_id: params.runId,
+      kind: channelHit ? 'wrong_channel_click' : String(verify.reason || 'verify_fail'),
+      url: finalUrl,
+      stage: String(verify.reason || ''),
+      detail: String(verify.hints?.[0] || '').slice(0, 240),
+    })
+    emitWarn(
+      params,
+      `${engine} verify 未通过（${verify.reason}${verify.hints?.[0] ? `：${verify.hints[0].slice(0, 80)}` : ''}）`,
+    )
+
+    // DOM 主路径失败 → 有限次 gui-plus computer_use 兜底（captcha/登录墙仍走 HITL）
+    if (
+      engine !== 'desktop' &&
+      engine !== 'mobile' &&
+      shouldAttemptGuiPlusFallback({
+        verifyOk: false,
+        failureType: verify.failureType || verify.reason,
+      })
+    ) {
+      try {
+        emitMilestone(params, '改走 gui-plus 有限步兜底（截图→坐标，省 token 硬帽）…')
+        const resumeUrl = finalUrl || String(runParams.startUrl || '').trim()
+        const gpOut = await runLobsterGuiPlusAgent(runParams, {
+          resumeUrl: resumeUrl || undefined,
+          priorFailure: String(verify.failureType || verify.reason || ''),
+        })
+        const gpPayload =
+          gpOut && typeof gpOut === 'object'
+            ? ensureLobsterGuiFinalPayload(gpOut as Record<string, unknown>, runParams.task)
+            : gpOut
+        const gpVerify = verifyLobsterRunResult({
+          task: runParams.task,
+          status: 'done',
+          result: gpPayload,
+        })
+        params.emit({
+          type: 'verify',
+          payload: {
+            ts: Date.now(),
+            engine: 'gui_plus',
+            attemptIndex: 1,
+            verify: {
+              ok: gpVerify.ok,
+              reason: gpVerify.reason,
+              failureType: gpVerify.failureType,
+              hints: gpVerify.hints,
+              retryable: false,
+            },
+          },
+        })
+        if (gpVerify.ok || String((gpPayload as any)?.answer || '').trim().length >= 8) {
+          return gpPayload
+        }
+        emitWarn(params, `gui-plus 兜底未通过（${gpVerify.reason || 'incomplete'}），返回原 ${engine} 结果`)
+      } catch (e: unknown) {
+        emitWarn(
+          params,
+          `gui-plus 兜底失败：${String((e as Error)?.message || e).slice(0, 160)}`,
+        )
+      }
+    }
+
+    // 非 retryable 语义失败：仍返回结果（含 failureType），供总管 HITL / 用户面
+    if (!isLobsterRetryableFailure({ status: 'done', result: output, verify })) {
+      return output
+    }
+    // infra / navigation soft fail：返回结构化失败，不抛、不换引擎
+    return output
+  }
+  return output
 }
 
 export { probeLobsterMcpReady } from './lobsterMcpAgent'

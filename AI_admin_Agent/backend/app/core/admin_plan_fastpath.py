@@ -147,15 +147,32 @@ def resolve_event_title(action_text: str, slots: dict[str, Any] | None = None) -
     return ""
 
 
-def resolve_event_description(action_text: str, title: str) -> str:
-    """description 用短标题或会议子句，不用整段财务检索复合问句。"""
-    t = str(title or "").strip()
-    if t and not _looks_like_composite_manager_dump(t):
-        return t[:120]
-    action = str(action_text or "").strip()
-    if not action or _looks_like_composite_manager_dump(action):
-        return t[:120] if t else ""
-    return action[:120]
+def resolve_event_description(
+    action_text: str,
+    title: str,
+    slots: dict[str, Any] | None = None,
+) -> str:
+    """详细内容：优先 slots.event_description；禁止用 title 顶替；未给则空。"""
+    if isinstance(slots, dict):
+        slot_desc = str(slots.get("event_description") or "").strip()
+        t = str(title or "").strip()
+        if slot_desc and (not t or slot_desc != t) and not _looks_like_composite_manager_dump(slot_desc):
+            return slot_desc[:2000]
+    # 不再把 title / 整段 action 塞进 description（normalize 也会清掉 title==description）
+    return ""
+
+
+def resolve_task_description(
+    title: str,
+    slots: dict[str, Any] | None = None,
+) -> str:
+    """待办详细说明：优先 slots.task_description；禁止用 title 顶替。"""
+    if isinstance(slots, dict):
+        slot_desc = str(slots.get("task_description") or "").strip()
+        t = str(title or "").strip()
+        if slot_desc and (not t or slot_desc != t):
+            return slot_desc[:2000]
+    return ""
 
 
 def build_playground_plan_from_text(action_text: str) -> list[dict[str, Any]] | None:
@@ -356,18 +373,27 @@ def build_deterministic_plan_from_action_text(
                 event_title = resolve_event_title(action) or "会议"
             args: dict[str, Any] = {
                 "title": event_title or "会议",
-                "description": resolve_event_description(action, event_title),
                 "start_time_str": action,
             }
+            desc = resolve_event_description(action, event_title or "", understanding.get("slots") if isinstance(understanding, dict) else None)
+            if desc:
+                args["description"] = desc
             return _ok("add_event", args)
         return _ok("add_reminder", {"content": title or action, "remind_time_str": action})
 
     if intent == "待办":
         if list_like:
             return _ok("list_tasks", {})
+        und_slots = understanding.get("slots") if isinstance(understanding, dict) else None
+        task_title = title or action
+        task_args: dict[str, Any] = {"title": task_title}
+        task_desc = resolve_task_description(task_title, und_slots)
+        if task_desc:
+            task_args["description"] = task_desc
         if _has_time_hint(action):
-            return _ok("add_task_with_due", {"title": title or action, "due_time_str": action})
-        return _ok("add_task", {"title": title or action})
+            task_args["due_time_str"] = action
+            return _ok("add_task_with_due", task_args)
+        return _ok("add_task", task_args)
 
     if intent == "日程":
         if list_like:
@@ -375,14 +401,15 @@ def build_deterministic_plan_from_action_text(
         event_title = resolve_event_title(action) or (title if not _looks_like_composite_manager_dump(title) else "")
         if not event_title:
             event_title = "会议"
-        return _ok(
-            "add_event",
-            {
-                "title": event_title,
-                "description": resolve_event_description(action, event_title),
-                "start_time_str": action,
-            },
-        )
+        und_slots = understanding.get("slots") if isinstance(understanding, dict) else None
+        ev_args: dict[str, Any] = {
+            "title": event_title,
+            "start_time_str": action,
+        }
+        ev_desc = resolve_event_description(action, event_title, und_slots)
+        if ev_desc:
+            ev_args["description"] = ev_desc
+        return _ok("add_event", ev_args)
 
     if intent == "天气":
         return _ok("get_weather", {})
@@ -451,10 +478,10 @@ def build_deterministic_plan_from_understanding(
             start_expr = msg
         if not start_local and not start_expr:
             return None
-        args: dict[str, Any] = {
-            "title": title,
-            "description": resolve_event_description(msg, title),
-        }
+        args: dict[str, Any] = {"title": title}
+        ev_desc = resolve_event_description(msg, title, slots)
+        if ev_desc:
+            args["description"] = ev_desc
         if start_local:
             args["start_time_local"] = start_local
             args["start_time_str"] = start_expr or start_local
@@ -473,15 +500,21 @@ def build_deterministic_plan_from_understanding(
         due_local = str(resolved.get("start_time_local") or "").strip()
         if not title:
             return None
+        task_desc = resolve_task_description(title, slots)
         if due_expr or due_local or _has_time_hint(msg):
             args: dict[str, Any] = {"title": title}
+            if task_desc:
+                args["description"] = task_desc
             if due_local:
                 args["due_time_local"] = due_local
                 args["due_time_str"] = due_expr or due_local
             else:
                 args["due_time_str"] = due_expr or msg
             return [{"name": "add_task_with_due", "args": args}]
-        return [{"name": "add_task", "args": {"title": title}}]
+        task_args: dict[str, Any] = {"title": title}
+        if task_desc:
+            task_args["description"] = task_desc
+        return [{"name": "add_task", "args": task_args}]
 
     if intent == "天气":
         city = _slot_str(slots, "city")

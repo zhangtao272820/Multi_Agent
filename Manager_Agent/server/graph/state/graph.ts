@@ -77,6 +77,7 @@ type ManagerGraphNodes = {
   criticNode: NodeFn
   optimizerNode: NodeFn
   verifierNode: NodeFn
+  emitUserAnswerNode: NodeFn
   monitorNode: NodeFn
   finalizeNode: NodeFn
   fixNode: NodeFn
@@ -131,6 +132,7 @@ export function compileManagerGraph(
     .addNode('evaluator_node', nodes.evaluatorNode)
     .addNode('critic', nodes.criticNode)
     .addNode('optimizer_node', nodes.optimizerNode)
+    .addNode('emit_user_answer', nodes.emitUserAnswerNode)
     .addNode('verifier', nodes.verifierNode)
     .addNode('monitor_node', nodes.monitorNode)
     .addNode('finalize', nodes.finalizeNode)
@@ -252,10 +254,11 @@ export function compileManagerGraph(
         if (s.fixIntent === 'gui') return 'gui'
         if (s.fixIntent === 'multi') return 'multi'
         if ((s.fixQuery && s.fixIntent) || String(s?.optimizer?.action || '') === 'fix' || String(s?.optimizer?.action || '') === 'replan_multi') return 'fix'
-        return 'verifier'
+        return 'emit_user_answer'
       },
-      ['clarify', 'gui', 'multi', 'fix', 'verifier'] as any
+      ['clarify', 'gui', 'multi', 'fix', 'emit_user_answer'] as any
     )
+    .addEdge('emit_user_answer', 'verifier')
     .addEdge('verifier', 'monitor_node')
     .addEdge('monitor_node', 'finalize')
     .addNode('fix', nodes.fixNode)

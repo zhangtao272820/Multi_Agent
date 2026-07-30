@@ -24,6 +24,7 @@ import { unhealthyAgentsForPrompt } from '../../core/agent/agentRegistry'
 import type { Step } from '../../../utils/shared/taskPlan'
 import { parsePlanLlmJson, PLAN_JSON_EXAMPLE } from '../../core/shared/llmJson'
 import { PLANNER_INTRO, getPlannerPlaybookRules, getAgentScopedPlaybookAddons } from '../../core/evolution/playbookPrompts'
+import { clipSkillBlock } from '../../core/shared/promptBudget'
 import { isAdminBlockedForState } from '../../core/db/writeGate'
 import { resolveTaskConstraints, taskConstraintsFromMeta } from '../../llm/taskConstraintsLlm'
 import { intentClassifyFromMeta } from '../../llm/intentClassifyLlm'
@@ -823,15 +824,16 @@ export async function runPlanNodeBody(state: any, deps: any, helpers: any) {
         const artifactMetaPatch = composed.metaPatch
         const withPipelineMeta = (meta: any) =>
           attachPlanMeta(meta, { pipelineHints, planBlueprint, ...artifactMetaPatch })
-        const plannerPlaybookRules =
+        const plannerPlaybookRules = clipSkillBlock(
           getPlannerPlaybookRules(allowedAgents, PLANNER_RULES_FALLBACK) +
-          getAgentScopedPlaybookAddons({
-            allowedAgents: String(allowedAgents || '')
-              .split(/[,，/\s]+/)
-              .map((x) => x.trim())
-              .filter(Boolean),
-            intent: String(state.intent || '')
-          })
+            getAgentScopedPlaybookAddons({
+              allowedAgents: String(allowedAgents || '')
+                .split(/[,，/\s]+/)
+                .map((x) => x.trim())
+                .filter(Boolean),
+              intent: String(state.intent || '')
+            })
+        )
         const prompt = [
           new SystemMessage(
             [

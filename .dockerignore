@@ -5,9 +5,12 @@
 **/.nuxt
 **/node_modules
 **/dist
+!LobsterPy_Agent/frontend/dist
+!LobsterPy_Agent/frontend/dist/**
 **/.cursor
 **/terminals
 **/*.md
+!LobsterPy_Agent/README.md
 !Manage-platform_Agent/docker/**
 # 本地 junction/软链：勿覆盖镜像内 COPY shared 得到的目录
 Extractor_Agent/agent-repo-shared

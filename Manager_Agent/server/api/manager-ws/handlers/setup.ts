@@ -70,6 +70,7 @@ import {
   graphAgentEndpoints,
   ingestTaskStackFromUserMessage,
   isHumanConfirmClarification,
+  shouldPauseForPostGraphAdminConfirm,
   pauseAdminConfirmMessage,
   policyDataDir,
   pruneAutoUserTasksOnEditResend,

@@ -190,6 +190,16 @@ def _tool_items(result: Any) -> list:
     return []
 
 
+def _mail_draft_structured(final_result: Dict[str, Any]) -> dict:
+    md = final_result.get("mail_draft") if isinstance(final_result, dict) else None
+    if not isinstance(md, dict):
+        return {}
+    content = str(md.get("draft_content") or md.get("content") or "").strip()
+    if not content:
+        return {}
+    return {"mail_draft": {**md, "content": content, "draft_content": content}, "draft_content": content}
+
+
 def _calc_total_tokens(result: Dict[str, Any], request_text: str, response_text: str) -> int:
     usage_total = result.get("token_usage", {}).get("total", 0)
     if usage_total and usage_total > 0:
@@ -1046,6 +1056,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     "needs_human_confirm": bool(final_result.get("pending_actions")),
                     "turn_scope_mode": (final_result.get("turn_scope") or {}).get("mode"),
                     "context_history_turns": 0 if (final_result.get("turn_scope") or {}).get("suppress_history") else settings.ADMIN_DIALOGUE_MAX_TURNS,
+                    **_mail_draft_structured(final_result),
                 },
             )
             append_agent_trace_log(
@@ -1140,7 +1151,7 @@ async def chat_endpoint(request: ChatRequest, _: None = Depends(verify_internal_
             response_text,
             trace_id=trace_id,
             latency_ms=latency_ms,
-            structured={"tokens_used": tokens_used},
+            structured={"tokens_used": tokens_used, **_mail_draft_structured(result)},
         )
         append_agent_trace_log(
             agent="admin",

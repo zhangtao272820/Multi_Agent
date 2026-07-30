@@ -123,7 +123,7 @@ export function wireFinalGraphNodes(ctx: WireGraphNodesCtx) {
     getModel,
     traceRun
   } = ctx
-    const { synthNode, criticNode, verifierNode, finalizeNode } = createFinalNodes({
+    const { synthNode, criticNode, verifierNode, finalizeNode, emitUserAnswerNode } = createFinalNodes({
       ensureNotAborted,
       opts,
       llmInvoke,
@@ -205,6 +205,7 @@ export function wireFinalGraphNodes(ctx: WireGraphNodesCtx) {
     criticNode,
     verifierNode,
     finalizeNode,
+    emitUserAnswerNode,
     evaluatorNode,
     optimizerNode,
     monitorNode,

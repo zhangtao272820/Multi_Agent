@@ -7,6 +7,7 @@ import { z } from 'zod'
 import { safeJsonParse } from '../../graph/core/shared/llmJson'
 import type { LlmInvokeFn } from '../../graph/llm/taskConstraintsLlm'
 import type { ExecutableAgent } from '../../graph/core/routing/routeFinalize'
+import { routingDecisionLlmTier } from '../../graph/core/shared/modelTier'
 import {
   formatGuiDeployHintForRouter,
   isGuiAgentRoutable,
@@ -50,19 +51,21 @@ export function formatWebExecutionModeForPrompt(mode: WebExecutionModeDecision |
     .join('\n')
 }
 
-function modeSystemPrompt(): string {
+/** 供 Router / smoke 复用的网页执行模式 System（契约文案） */
+export function formatWebExecutionModeSystemPrompt(): string {
   return [
     '你是总管 Agent 的「网页任务执行模式」启发器。根据用户自然语言，判断应如何执行（非关键词表硬匹配）。',
     '只输出 JSON，禁止 markdown。',
     '',
     '模式说明（互斥，选最贴切的一种）：',
-    '- gui：必须在真实浏览器里**操作页面**（打开站点、站内搜索、点击结果、登录、填表、选下拉、勾选、提交表单、滚动、截图、从当前 DOM 抽取）。典型：「打开某站搜索并提取第 N 条」「在 httpbin/Ant 表单填写姓名并截图」「登录 OA」。**不需要**先走独立联网检索 API。',
+    '- gui：必须在真实浏览器里**操作页面**（打开站点、站内搜索、点击结果、点选第一个/第 N 条链接、登录、填表、选下拉、勾选、提交表单、滚动、截图、从当前 DOM 抽取）。典型：「打开某站搜索并提取第 N 条」「打开 URL 并点击第一个教程链接提取标题」「在表单填写并截图」「登录 OA」。**不需要**先走独立联网检索 API。',
+    '- **打开 URL + 点击/点选链接/第 N 条 + 提取 → 必须 gui**；禁止因已给出 URL 就选 crawl_direct 或 search_then_crawl。',
     '- **填表/登录/提交/点同意必须用 gui**，禁止用 search_chat 用文字「教用户怎么填」。',
     '- **复合 db+公网参考**：用户先从数据库取记录，再检索公开参考区间/指南摘要并对照/report → **not_web 或 search_serp_only**，intent=multi，allowed 含 db+crawler(+report)，**禁止 gui**。',
     '- search_chat：一般资讯/知识问答、对比推荐、「有哪些/怎么选/是什么/怎么学」类聊天（像 DeepSeek）；联网检索摘要即可作答，**不要** crawler 全量抓取或 GUI。**勿**把「打开网址去填/点」判成 search_chat。',
-    '- search_then_crawl：需先用联网检索发现 URL/背景，再**静态抓取/抽取**页面正文；**禁止**用于「打开搜索页并点选第 N 条」——此类必须用 gui。',
+    '- search_then_crawl：需先用联网检索发现 URL/背景，再**静态抓取/抽取**页面正文（无浏览器点击/点选）；**禁止**用于「打开站点并点选第 N 条/第一个链接」——此类必须用 gui。',
     '- search_serp_only：与 search_chat 类似，仅需 SERP 摘要（参考范围/政策要点/行情摘要等）。',
-    '- crawl_direct：用户已给出明确 URL（或只要抓指定链接），直连 Extractor，不必先搜索。',
+    '- crawl_direct：仅当对给定 URL **静态抓正文**且任务**不要求**站内点击/跳转/点选/登录填表；有 URL 仍要点击操作 → gui，不是 crawl_direct。',
     '- not_web：与公开网页无关（库内查数、知识库、办公、媒体生成等）。',
     '',
     '字段：',
@@ -72,6 +75,10 @@ function modeSystemPrompt(): string {
     '',
     'schema: {"mode":"gui|search_chat|search_then_crawl|search_serp_only|crawl_direct|not_web","primaryAgent":"gui|crawler|null","needsWebSearch":boolean,"serpSummaryEnough":boolean,"confidence":number,"rationale":string}'
   ].join('\n')
+}
+
+function modeSystemPrompt(): string {
+  return formatWebExecutionModeSystemPrompt()
 }
 
 function shouldInvokeWebMode(input: {
@@ -126,7 +133,7 @@ export async function resolveWebExecutionModeByLlm(input: {
       const r = await input.llmInvoke('route', input.state, [
         ['system', modeSystemPrompt()],
         ['human', human]
-      ], { tier: 'light' })
+      ], { tier: routingDecisionLlmTier(input.state) })
       const parsed = WebExecutionModeSchema.safeParse(safeJsonParse(String(r.text ?? '').trim()))
       if (parsed.success && Number(parsed.data.confidence ?? 0) >= 0.5) return parsed.data
     }

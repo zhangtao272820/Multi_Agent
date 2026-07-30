@@ -259,30 +259,106 @@ export function buildRagHistoryForRun(session: WsSession, currentUserText: strin
   return last
 }
 
-export function isHumanConfirmClarification(meta: Record<string, unknown> | null | undefined, finalText: string) {
-  // 写操作已成功落库：禁止再暂停确认（成功文案含 add_event 时不可误触发续跑死循环）
-  if (adminWriteAlreadyCompleted(meta, finalText)) return false
+/** 仅认 Admin 写工具的 tool[id]，避免 GUI/synth 文案里任意 ident[n] 误触发 HITL */
+const ADMIN_PENDING_TOOL_RE =
+  /^(add_event|add_reminder|add_task|add_task_with_due|send_email|delete_event|delete_reminder|delete_task|update_event|update_reminder)$/i
 
-  if (Boolean(meta?.needsHumanConfirm)) return true
-  const agentResult = meta?.agentResult
-  if (agentResult && typeof agentResult === 'object') {
-    const structured = (agentResult as { structured?: Record<string, unknown> }).structured
-    if (structured?.needs_human_confirm === true) return true
-    const pending = structured?.pending_actions
-    if (Array.isArray(pending) && pending.length > 0) return true
+export function extractKnownAdminPendingOps(text: string): string[] {
+  return extractAdminPendingOps(text).filter((op) => {
+    const name = String(op || '').replace(/\[\d+\]$/, '')
+    return ADMIN_PENDING_TOOL_RE.test(name)
+  })
+}
+
+/**
+ * 图后是否应暂停 Admin 写确认。
+ * 根因修复：禁止用最终 synth 全文做 extractAdminPendingOps（GUI 成功文案易含 foo[1] 误命中），
+ * 且 GUI-only / 无 admin 待确认结构时不得弹「个人事务」卡。
+ */
+export function shouldPauseForPostGraphAdminConfirm(input: {
+  meta?: Record<string, unknown> | null
+  finalText?: string
+  results?: Record<string, unknown> | null
+  intent?: string
+  plan?: Array<{ agent?: string }> | null
+  evaluation?: { recommendation?: string } | null
+}): boolean {
+  const meta = input.meta && typeof input.meta === 'object' ? input.meta : {}
+  const results =
+    (input.results && typeof input.results === 'object'
+      ? input.results
+      : (meta as { results?: Record<string, unknown> }).results) || {}
+  const adminBlob = String((results as { admin?: string }).admin || '').trim()
+  const guiBlob = String((results as { gui?: string }).gui || '').trim()
+  const intent = String(input.intent || (meta as { intent?: string }).intent || '').trim()
+  const plan = Array.isArray(input.plan)
+    ? input.plan
+    : Array.isArray((meta as { plan?: unknown }).plan)
+      ? ((meta as { plan: Array<{ agent?: string }> }).plan)
+      : []
+  const planAgents = plan.map((s) => String(s?.agent || '').toLowerCase()).filter(Boolean)
+  const guiOnly =
+    intent === 'gui' ||
+    (planAgents.length > 0 && planAgents.every((a) => a === 'gui')) ||
+    (guiBlob && !adminBlob && planAgents.includes('gui') && !planAgents.includes('admin'))
+
+  if (adminWriteAlreadyCompleted(meta, [input.finalText, adminBlob].filter(Boolean).join('\n'))) {
+    return false
   }
-  const qs = Array.isArray(meta?.clarifyQuestions) ? meta.clarifyQuestions : []
-  const hasAdminKeyword = qs.some((q) =>
-    /(需要人工确认|待确认的个人事务操作|请回复[“"']?确认[”"']?\s*继续|回复[“"']?确认[”"']?.*继续|取消中止|或回复[“"']?取消[”"']?\s*中止)/i.test(
-      String(q || '')
-    )
-  )
-  if (hasAdminKeyword) return true
-  // 仅认 tool[id] 形态；裸 add_* 已从 extractAdminPendingOps 移除
-  if (extractAdminPendingOps(finalText).length > 0 && !Boolean(meta?.allowRiskyWrites)) return true
-  const s = String(finalText || '')
-  if (/【待确认】/.test(s) && !Boolean(meta?.allowRiskyWrites)) return true
-  return /(需要人工确认|待确认的个人事务操作|请回复[“"']?确认[”"']?\s*继续|回复[“"']?取消[”"']?\s*中止)/i.test(s)
+
+  if (Boolean(meta.needsHumanConfirm)) {
+    // 显式闸门：仍要求不是「纯 GUI 成功却误标」
+    if (guiOnly && !adminBlob && !hasStructuralAdminPending(meta, adminBlob)) return false
+    return true
+  }
+
+  if (hasStructuralAdminPending(meta, adminBlob)) return true
+
+  // 禁止：仅凭 synth finalText / GUI 输出启发式弹 admin 确认
+  if (guiOnly) return false
+
+  // 非 GUI：仅当 admin 子输出含【待确认】或已知 tool[id]
+  if (/【待确认】/.test(adminBlob)) return true
+  if (extractKnownAdminPendingOps(adminBlob).length > 0 && !Boolean(meta.allowRiskyWrites)) return true
+
+  return false
+}
+
+function hasStructuralAdminPending(meta: Record<string, unknown>, adminBlob: string): boolean {
+  if (Array.isArray(meta.adminPendingOps) && meta.adminPendingOps.length > 0) return true
+  const agentResult = meta.agentResult
+  if (agentResult && typeof agentResult === 'object') {
+    const ar = agentResult as { agent?: string; structured?: Record<string, unknown> }
+    const agent = String(ar.agent || '').toLowerCase()
+    // meta.agentResult 可能是 gui；只有 admin 的 pending 才算
+    if (agent === 'admin' || agent === '') {
+      if (ar.structured?.needs_human_confirm === true) return true
+      const pending = ar.structured?.pending_actions
+      if (Array.isArray(pending) && pending.length > 0) return true
+    }
+  }
+  // evidence 里找 admin agentResult
+  const evidence = Array.isArray(meta.evidence) ? meta.evidence : []
+  for (const e of evidence) {
+    if (!e || typeof e !== 'object') continue
+    const row = e as { kind?: string; agentResult?: { structured?: Record<string, unknown> } }
+    if (String(row.kind || '').toLowerCase() !== 'admin') continue
+    const st = row.agentResult?.structured
+    if (st?.needs_human_confirm === true) return true
+    if (Array.isArray(st?.pending_actions) && st!.pending_actions!.length > 0) return true
+  }
+  if (/【待确认】/.test(adminBlob)) return true
+  if (extractKnownAdminPendingOps(adminBlob).length > 0) return true
+  return false
+}
+
+export function isHumanConfirmClarification(meta: Record<string, unknown> | null | undefined, finalText: string) {
+  // 兼容旧调用：转为结构化闸门（不再对任意 finalText 做 tool[id] 扫描）
+  return shouldPauseForPostGraphAdminConfirm({
+    meta,
+    finalText,
+    results: (meta as { results?: Record<string, unknown> } | null | undefined)?.results
+  })
 }
 
 /** admin 步骤已成功写入（日程/提醒等），不应再进入写确认闸门 */
@@ -375,7 +451,7 @@ export function pauseAdminConfirmMessage(result: { meta?: Record<string, unknown
   const meta = result?.meta ?? {}
   const ops = Array.isArray(meta.adminPendingOps)
     ? meta.adminPendingOps.map((x) => String(x ?? '').trim()).filter(Boolean)
-    : extractAdminPendingOps(String(result?.results?.admin || ''))
+    : extractKnownAdminPendingOps(String(result?.results?.admin || ''))
   return ops.length ? `待执行：${ops.join('、')}` : '个人事务写操作'
 }
 

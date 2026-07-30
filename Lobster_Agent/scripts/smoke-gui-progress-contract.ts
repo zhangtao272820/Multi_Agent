@@ -17,7 +17,7 @@ function assert(cond: unknown, msg: string) {
 }
 
 // --- progress contract ---
-assert(LOBSTER_GUI_PROGRESS_LIMITS.maxThinkingLines === 40, 'thinking limit')
+assert(LOBSTER_GUI_PROGRESS_LIMITS.maxThinkingLines === 12, 'thinking limit ≤12')
 assert(LOBSTER_GUI_PROGRESS_LIMITS.pollIntervalMs === 400, 'poll interval')
 const fp1 = guiScreenshotFingerprint('data:image/png;base64,aaaa', 'https://a')
 const fp2 = guiScreenshotFingerprint('data:image/png;base64,aaaa', 'https://a')
@@ -26,7 +26,11 @@ assert(fp1 === fp2, 'same screenshot fp')
 assert(fp1 !== fp3, 'diff screenshot fp')
 assert(!shouldForwardGuiThinking('step_end {...}'), 'drop step_end')
 assert(!shouldForwardGuiThinking('正在理解界面'), 'drop short vision')
+assert(!shouldForwardGuiThinking('actualEngine=stagehand chain=[stagehand]'), 'drop actualEngine noise')
+assert(!shouldForwardGuiThinking('[stagehand] verbose internals'), 'drop stagehand logger')
+assert(!shouldForwardGuiThinking('引擎链：stagehand → mcp'), 'drop engine_chain noise')
 assert(shouldForwardGuiThinking('百度直达搜索结果页'), 'keep useful log')
+assert(shouldForwardGuiThinking('3 步：goto → click → extract'), 'keep plan milestone')
 
 // --- MCP agentResult envelope ---
 const mcpPayload = {

@@ -18,6 +18,8 @@ def add_event(
     start_time_str: str,
     description: str = "",
     start_time_local: str | None = None,
+    end_time_str: str | None = None,
+    end_time_local: str | None = None,
 ) -> str:
     try:
         # Parse user expression in local time, store as UTC-naive.
@@ -29,8 +31,19 @@ def add_event(
             code="time_parse_failed",
         )
 
+    end_time = None
+    if end_time_str is not None and str(end_time_str).strip():
+        try:
+            end_time = to_utc_naive(_resolve_stored_event_time(str(end_time_str), end_time_local))
+        except ValueError as e:
+            return _tool_err(
+                str(e),
+                data={"title": title, "end_time_str": end_time_str},
+                code="end_time_parse_failed",
+            )
+
     db = SessionLocal()
-    event = Event(title=title, start_time=start_time, description=description)
+    event = Event(title=title, start_time=start_time, end_time=end_time, description=description or "")
     db.add(event)
     db.commit()
     db.refresh(event)
@@ -48,7 +61,9 @@ def add_event(
             data={
                 "event_id": event.id,
                 "title": title,
+                "description": description or "",
                 "start_time_utc_naive": start_time.strftime("%Y-%m-%d %H:%M:%S"),
+                "end_time_utc_naive": end_time.strftime("%Y-%m-%d %H:%M:%S") if end_time else None,
                 "reminder_created": False,
             },
             code="created_without_reminder",
@@ -66,8 +81,10 @@ def add_event(
         data={
             "event_id": event.id,
             "title": title,
+            "description": description or "",
             "start_time_local": reminder_local.strftime("%Y-%m-%d %H:%M:%S"),
             "start_time_utc_naive": start_time.strftime("%Y-%m-%d %H:%M:%S"),
+            "end_time_utc_naive": end_time.strftime("%Y-%m-%d %H:%M:%S") if end_time else None,
             "reminder_created": True,
             "reminder_id": reminder_id,
         },
@@ -99,6 +116,9 @@ def modify_event(
     title: str = None,
     start_time_str: str = None,
     start_time_local: str | None = None,
+    description: str | None = None,
+    end_time_str: str | None = None,
+    end_time_local: str | None = None,
 ) -> str:
     db = SessionLocal()
     event = db.query(Event).filter(Event.id == event_id).first()
@@ -111,6 +131,8 @@ def modify_event(
         )
     if title:
         event.title = title
+    if description is not None:
+        event.description = str(description)
     if start_time_str is not None and str(start_time_str).strip():
         try:
             event.start_time = to_utc_naive(
@@ -122,6 +144,16 @@ def modify_event(
                 f"修改失败：{e}",
                 data={"event_id": event_id, "start_time_str": start_time_str},
                 code="time_parse_failed",
+            )
+    if end_time_str is not None and str(end_time_str).strip():
+        try:
+            event.end_time = to_utc_naive(_resolve_stored_event_time(str(end_time_str), end_time_local))
+        except ValueError as e:
+            db.close()
+            return _tool_err(
+                f"修改结束时间失败：{e}",
+                data={"event_id": event_id, "end_time_str": end_time_str},
+                code="end_time_parse_failed",
             )
     db.commit()
     reminder_id = f"event_{event_id}"
@@ -141,7 +173,9 @@ def modify_event(
         data={
             "event_id": event_id,
             "title": event.title,
+            "description": event.description or "",
             "start_time_utc_naive": event.start_time.strftime("%Y-%m-%d %H:%M:%S") if event.start_time else None,
+            "end_time_utc_naive": event.end_time.strftime("%Y-%m-%d %H:%M:%S") if event.end_time else None,
             "reminder_id": reminder_id,
             "reminder_active": bool(event.start_time and event.start_time >= now),
         },

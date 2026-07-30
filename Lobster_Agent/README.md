@@ -3,7 +3,7 @@
 > **学习文档**：[入门](../docs/Agent学习指南-入门版.md) · [进阶](../docs/Agent学习指南-进阶版.md) · [Lobster 专篇](学习指南.md)  
 > **协议 SSOT**：[Lobster升级SSOT](doc/Lobster升级SSOT.md) · [Docker 与宿主机动手](doc/Docker与宿主机动手部署.md)
 
-基于 **Nuxt 4 + Playwright + LangGraph** 的网页 **GUI / RPA** Agent。平台能力 id 为 **`gui`**，服务名 `lobster_agent`，默认端口 **13108**（noVNC 常见 **6080**）。
+基于 **Nuxt 4 + Playwright + LangGraph** 的网页 **GUI / RPA** Agent。平台能力 id 为 **`gui`**，服务名 `lobster_agent`，默认端口 **13108**（noVNC 常见 **6080**）。compose 生产入口为本目录 Dockerfile。
 
 ## 项目简介
 
@@ -17,7 +17,7 @@
 | 候选元素 | locator / bbox / 文本等多级兜底 |
 | verify / recover | 动作后校验；失败进入恢复分支 |
 | 风控 gate | 高风险动作限制或人工确认 |
-| 执行模式 | `classic` / `mcp` / `auto`（默认 MCP 优先回退 classic） |
+| 执行模式 | `auto`=网页 **Stagehand only**；`stagehand` / `mcp` / `classic` 为单引擎锁 |
 | Workflow Macro | `workflows/*.json` + 总管 `workflow_id` |
 | MCP 导出 | 默认可暴露 `/api/mcp`（见环境变量） |
 
@@ -25,15 +25,16 @@
 
 | 模式 | 说明 |
 |------|------|
-| `classic` | 内置 LangGraph + Playwright 候选/恢复流水线 |
-| `mcp` | `@playwright/mcp` 无障碍树工具链 |
-| `auto`（默认） | MCP 优先；失败回退 classic |
+| `auto`（默认） | 网页 **Stagehand 单次**；desktop/mobile/video 硬守卫；无 mcp/classic 自动回退 |
+| `stagehand` | 仅 Stagehand Plan Loop |
+| `mcp` | 仅 Playwright MCP（显式旁路） |
+| `classic` | 仅 LangGraph classic（HITL / 视频 / 显式旁路） |
 
 ```bash
 LOBSTER_EXECUTION_MODE=auto
-LOBSTER_MCP_ENABLED=1
-# Docker / 无显示：独立 MCP HTTP
-# npx -y @playwright/mcp@latest --port 8931 --headless
+LOBSTER_STAGEHAND=1
+# 旁路（非网页默认）：
+# LOBSTER_EXECUTION_MODE=mcp
 # LOBSTER_MCP_URL=http://127.0.0.1:8931/mcp
 ```
 
@@ -72,7 +73,16 @@ npm run dev
 
 ## 环境变量
 
-常见项：`OPENAI_API_KEY`、`OPENAI_BASE_URL`、`LOBSTER_PLANNER_MODEL`、`LOBSTER_DECISION_MODEL`、`LOBSTER_VISION_MODEL`、`LOBSTER_HEADLESS`、`LOBSTER_ADMIN_TOKEN`、`LOBSTER_EXECUTION_MODE`。完整见 `.env.example`。
+模型真源：[Manage-platform_Agent/.env.capability-models](../Manage-platform_Agent/.env.capability-models)（`sync-capability-models.py`）。
+
+| 变量 | 能力层 | 说明 |
+|------|--------|------|
+| `LOBSTER_PLANNER/DECISION/STAGEHAND_MODEL` | **CAP_ROUTE**（T0） | 文本规划与决策，省 token |
+| `LOBSTER_VISION_MODEL` / `LOBSTER_GUI_MODEL` | **CAP_GUI**（gui-plus） | 界面专用；默认 `LOBSTER_USE_VISION=false` 不每步截图 |
+| `LOBSTER_GUI_PLUS_FALLBACK` / `_MAX_STEPS` | — | DOM(Stagehand/MCP) verify 失败后有限步 computer_use 兜底（默认开，≤3 步） |
+| 其它 | — | `LOBSTER_HEADLESS`、`LOBSTER_ADMIN_TOKEN`、`LOBSTER_EXECUTION_MODE` 等见 `.env.example` |
+
+网页主路径：**Stagehand / Playwright MCP**（DOM）。失败且非验证码时，自动走 **gui-plus computer_use**（截图→坐标，硬帽省 token）。
 
 ## 与 Manager 协作
 

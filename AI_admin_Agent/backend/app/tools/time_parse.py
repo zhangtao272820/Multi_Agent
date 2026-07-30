@@ -14,12 +14,14 @@ _TIME_TOOL_EXPR_KEYS: Dict[str, tuple[str, str]] = {
     "add_event": ("start_time_str", "start_time_expression"),
     "modify_event": ("start_time_str", "start_time_expression"),
     "add_task_with_due": ("due_time_str", "task_due_time_expression"),
+    "modify_task": ("due_time_str", "task_due_time_expression"),
     "add_reminder": ("remind_time_str", "time_expression"),
 }
 _TIME_TOOL_LOCAL_KEYS: Dict[str, str] = {
     "add_event": "start_time_local",
     "modify_event": "start_time_local",
     "add_task_with_due": "due_time_local",
+    "modify_task": "due_time_local",
     "add_reminder": "remind_time_local",
 }
 

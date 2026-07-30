@@ -48,10 +48,60 @@ def add_task_with_due(
         data={
             "task_id": task.id,
             "title": title,
+            "description": description or "",
             "due_at_local": due_local.strftime("%Y-%m-%d %H:%M:%S"),
             "due_at_utc_naive": due_at.strftime("%Y-%m-%d %H:%M:%S"),
         },
     )
+
+
+def modify_task(
+    task_id: int,
+    title: str | None = None,
+    description: str | None = None,
+    due_time_str: str | None = None,
+    due_time_local: str | None = None,
+) -> str:
+    """更新待办标题/详细说明/截止时间（人能改的字段 AI 也能改）。"""
+    db = SessionLocal()
+    task = db.query(Task).filter(Task.id == task_id).first()
+    if not task:
+        db.close()
+        return _tool_err(
+            f"未找到ID为 {task_id} 的待办事项。",
+            data={"task_id": task_id},
+            code="task_not_found",
+        )
+    if title is not None and str(title).strip():
+        task.title = str(title).strip()
+    if description is not None:
+        task.description = str(description)
+    if due_time_str is not None and str(due_time_str).strip():
+        try:
+            task.due_at = to_utc_naive(_resolve_stored_event_time(str(due_time_str), due_time_local))
+        except ValueError as e:
+            db.close()
+            return _tool_err(
+                str(e),
+                data={"task_id": task_id, "due_time_str": due_time_str},
+                code="time_parse_failed",
+            )
+    db.commit()
+    db.refresh(task)
+    due_local = utc_naive_to_local_naive(task.due_at) if task.due_at else None
+    title_out = task.title
+    desc_out = task.description or ""
+    db.close()
+    return _tool_ok(
+        f"已更新待办事项: {title_out}",
+        data={
+            "task_id": task_id,
+            "title": title_out,
+            "description": desc_out,
+            "due_at_local": due_local.strftime("%Y-%m-%d %H:%M:%S") if due_local else None,
+        },
+    )
+
 
 def list_tasks() -> str:
     db = SessionLocal()

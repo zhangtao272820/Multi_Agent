@@ -67,10 +67,13 @@ import {
   type EvidenceItem,
   type HybridDocRow,
 } from "./retrieval_shared";
+import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import {
+  buildEvidenceSelectHumanPrompt,
+  buildRerankHumanPrompt,
+  buildRerankSystemPrompt,
   getRetrievalEvidenceRules,
   getRetrievalExpansionRules,
-  getRetrievalRerankRules,
 } from "./rag_playbook_prompts";
 
 const withRetry = async <T>(fn: () => Promise<T>, retries = 3, delay = 1000): Promise<T> => {
@@ -1007,13 +1010,18 @@ export async function runDocumentRetrieval(input: {
     env.enableRerank &&
     rerankCandidates.length >= env.rerankMinCandidates
   ) {
-    const rerankPrompt = `你是一个文档筛选专家。请从以下文档片段中，选出与用户问题最相关的 ${maxResults} 个片段。
-用户问题: ${effectiveQuery}
-${getRetrievalRerankRules()}
-候选片段:
-${rerankCandidates.map((d, i) => `[ID ${i}] [来源 ${resolveSourceLabel(d.metadata ?? {}, routedSources)}]: ${String(d.pageContent ?? "").substring(0, env.rerankDocPreviewChars)}...`).join("\n\n")}
-请仅输出最相关的 ${maxResults} 个 ID，用逗号分隔，例如: 0, 2, 5`;
-    const rerankRes = await withRetry(() => rerankModel.invoke(rerankPrompt));
+    const candidatesBlock = rerankCandidates
+      .map(
+        (d, i) =>
+          `[ID ${i}] [来源 ${resolveSourceLabel(d.metadata ?? {}, routedSources)}]: ${String(d.pageContent ?? "").substring(0, env.rerankDocPreviewChars)}...`,
+      )
+      .join("\n\n");
+    const rerankRes = await withRetry(() =>
+      rerankModel.invoke([
+        new SystemMessage(buildRerankSystemPrompt(maxResults)),
+        new HumanMessage(buildRerankHumanPrompt(effectiveQuery, candidatesBlock)),
+      ]),
+    );
     const topIds = String(rerankRes.content)
       .split(/[,，\s]+/)
       .map((id) => parseInt(id.trim(), 10))
@@ -1109,14 +1117,12 @@ ${rerankCandidates.map((d, i) => `[ID ${i}] [来源 ${resolveSourceLabel(d.metad
         maxTokens: Math.max(640, Math.min(readAgentLlmJsonMaxTokens() * 2, maxEvidence * 220)),
         jsonTask: true,
       });
-      const selectPrompt = [
-        getRetrievalEvidenceRules(),
-        `只输出 JSON。evidence 最多 ${maxEvidence} 条，必须是原文摘录；列全/复合问句应尽量覆盖各子主题。`,
-        `用户问题：${effectiveQuery}`,
-        "候选片段：",
-        selectionText,
-      ].join("\n");
-      const selRes = await withRetry(() => selector.invoke(selectPrompt));
+      const selRes = await withRetry(() =>
+        selector.invoke([
+          new SystemMessage(getRetrievalEvidenceRules()),
+          new HumanMessage(buildEvidenceSelectHumanPrompt(effectiveQuery, selectionText, maxEvidence)),
+        ]),
+      );
       const coerced = coerceEvidenceJson(String(selRes.content ?? ""), maxEvidence);
       if (coerced?.evidence?.length) {
         evidence = await filterEvidenceByQueryFocus(effectiveQuery, coerced.evidence, evidenceFilterWithSubs);

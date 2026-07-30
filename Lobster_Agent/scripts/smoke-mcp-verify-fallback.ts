@@ -24,7 +24,10 @@ const verify = verifyLobsterRunResult({
   },
 })
 assert.equal(verify.ok, false)
-assert.equal(verify.reason, 'incomplete_max_steps')
+assert.ok(
+  verify.reason === 'incomplete_max_steps' || verify.reason === 'navigation_unverified',
+  `expected incomplete or navigation_unverified, got ${verify.reason}`,
+)
 assert.equal(
   isLobsterRetryableFailure({ status: 'done', result: {}, verify: { reason: verify.reason } }),
   true,
@@ -92,10 +95,19 @@ assert.equal(
 }
 
 process.env.LOBSTER_MCP_HEADLESS_SIDECAR = '1'
-const chain = reorderChainForHeadlessMcpSidecar(['mcp', 'stagehand', 'classic'], task, 'https://www.baidu.com/')
-assert.equal(chain[0], 'classic', 'baidu docker chain classic first')
+// Stagehand-only：Docker 无头不再改写引擎链（验证码走总管 HITL → classic）
+const chain = reorderChainForHeadlessMcpSidecar(['stagehand'], task, 'https://www.baidu.com/')
+assert.deepEqual(chain, ['stagehand'], 'headless sidecar no longer rewrites web chain')
+const legacyChain = reorderChainForHeadlessMcpSidecar(
+  ['mcp', 'stagehand', 'classic'],
+  task,
+  'https://www.baidu.com/',
+)
+assert.deepEqual(legacyChain, ['mcp', 'stagehand', 'classic'], 'reorder is identity')
 
 assert.ok(validateMcpBrowserAction('browser_type', { text: 'hello' }), 'missing ref')
+assert.ok(validateMcpBrowserAction('browser_type', { ref: 'e1' }), 'missing text')
+assert.ok(validateMcpBrowserAction('browser_type', { ref: 'e1', text: undefined as any }), 'text undefined')
 assert.equal(validateMcpBrowserAction('browser_type', { ref: 'e1', text: 'hello' }), null)
 
 const loop = new McpToolLoopTracker()

@@ -20,7 +20,7 @@ import {
 } from "./retrieval_shared";
 import { condenseRetrievalQuery } from "./query_condense";
 import { loadPlaybookBody, skillDocToToolDescription } from "./playbook_skills";
-import { buildGeneratePromptTemplate } from "./rag_playbook_prompts";
+import { buildGeneratePromptTemplate, wrapRagUntrustedContext } from "./rag_playbook_prompts";
 import { getRagPromptPatchesForStage } from "./prompt_evolution";
 import { resolvePromptAbVariant } from "./prompt_ab_router";
 import { getRetrievalUserKey, isOrchestratedByManager } from "./retrieval_context";
@@ -594,7 +594,7 @@ export const createAgent = async () => {
 
     const response = await withRetry(() =>
       chain.invoke({
-        context: effectiveContext,
+        context: wrapRagUntrustedContext("rag_evidence", effectiveContext, envGen.maxContextChars + 400),
         question: questionText,
       })
     );

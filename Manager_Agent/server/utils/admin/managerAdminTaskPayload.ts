@@ -20,9 +20,17 @@ import {
 
 export type { TurnScopePayload }
 
+/** 可写字段权威原话上限（标题/详细内容/邮件正文等） */
+export const SOURCE_USER_TASK_MAX = 2000
+
 export type ManagerAdminTaskPayload = {
   source: 'manager'
   action_text: string
+  /**
+   * 用户末轮原话（可写字段权威来源）。
+   * scoped action_text 可摘要职责；description/content 等 args 须以本字段为准。
+   */
+  source_user_task?: string
   intent_hint?: string
   tool_plan?: Array<{ name: string; args: Record<string, unknown> }>
   read_only?: boolean
@@ -46,7 +54,8 @@ const READ_ONLY_ADMIN_TOOLS = new Set([
   'list_contacts',
   'search_contact',
   'get_contact_email',
-  'list_reminders'
+  'list_reminders',
+  'draft_email_reply'
 ])
 
 function orchestratedToolPlanFromMeta(meta: unknown): Array<{ name: string; args: Record<string, unknown> }> | undefined {
@@ -95,6 +104,8 @@ export function buildManagerAdminTaskPayload(input: {
   meta?: unknown
   /** LLM/编排已选定的 scope，跳过 sync 再解析 */
   scopedText?: string
+  /** 用户末轮原话：可写字段（详细内容/邮件正文等）权威来源 */
+  sourceUserTask?: string
   /** 编排 LLM 已产出且过 Zod 的 tool_plan（优先于 legacy infer） */
   orchestratedToolPlan?: Array<{ name: string; args: Record<string, unknown> }>
   orchestratedIntentHint?: string
@@ -114,16 +125,22 @@ export function buildManagerAdminTaskPayload(input: {
     (fallbackLines.length ? fallbackLines.join('，') : '') ||
     String(input.actionText || '').trim().slice(0, 480)
 
+  const sourceUserTask = String(input.sourceUserTask || '')
+    .trim()
+    .slice(0, SOURCE_USER_TASK_MAX)
+  // 可写字段规划优先用原话；scoped action 仅作职责焦点
+  const fieldAuthority = sourceUserTask || action
+
   const fromMeta = orchestratedToolPlanFromMeta(input.meta)
   let tool_plan = normalizeAdminToolPlan(
-    action,
+    fieldAuthority,
     input.orchestratedToolPlan?.length ? input.orchestratedToolPlan : fromMeta
   )
   let intent_hint = String(input.orchestratedIntentHint || '').trim() || undefined
 
   if (!tool_plan?.length && isAdminLegacyInferEnabled()) {
-    const inferred = inferAdminTaskFromActionText(action)
-    tool_plan = normalizeAdminToolPlan(action, inferred.tool_plan)
+    const inferred = inferAdminTaskFromActionText(fieldAuthority)
+    tool_plan = normalizeAdminToolPlan(fieldAuthority, inferred.tool_plan)
     intent_hint = intent_hint || inferred.intent_hint
   }
 
@@ -137,6 +154,7 @@ export function buildManagerAdminTaskPayload(input: {
   return {
     source: 'manager',
     action_text: action,
+    ...(sourceUserTask ? { source_user_task: sourceUserTask } : {}),
     ...(intent_hint ? { intent_hint } : {}),
     ...(tool_plan?.length ? { tool_plan } : {}),
     ...(sub_queries.length >= 2 ? { sub_queries } : {}),

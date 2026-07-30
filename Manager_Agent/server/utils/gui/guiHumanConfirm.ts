@@ -75,8 +75,25 @@ export function isGuiIncompleteFailure(code: string): boolean {
     t === 'search_no_results' ||
     t === 'search_extract_empty' ||
     t === 'empty_result' ||
+    t === 'network' ||
+    t === 'network_unreachable' ||
     t.startsWith('incomplete_')
   )
+}
+
+export function buildGuiNetworkFinalMessage(input: {
+  task: string
+  finalUrl?: string
+}): string {
+  const url = String(input.finalUrl || '').trim()
+  return [
+    '浏览器任务未完成：无法访问目标页面（域名解析或网络连接失败）。',
+    url ? `目标页面：${url}` : '',
+    '请检查容器/主机网络与 DNS；稍后重试，或在任务中加 `引擎:classic` 走 Lobster 本机有头浏览器。',
+    `任务：${String(input.task || '').trim().slice(0, 240)}`,
+  ]
+    .filter(Boolean)
+    .join('\n')
 }
 
 export function buildGuiIncompleteFinalMessage(input: {
@@ -86,6 +103,9 @@ export function buildGuiIncompleteFinalMessage(input: {
   hasScreenshot?: boolean
 }): string {
   const reason = String(input.reason || 'incomplete_task_output').trim().toLowerCase()
+  if (reason === 'network' || reason === 'network_unreachable') {
+    return buildGuiNetworkFinalMessage({ task: input.task, finalUrl: input.finalUrl })
+  }
   const url = String(input.finalUrl || '').trim()
   const head =
     reason === 'navigation_unverified'
@@ -117,6 +137,9 @@ export function buildGuiFailureUserMessage(input: {
   hasScreenshot?: boolean
 }): string {
   const code = String(input.failureTypeOrReason || '').trim().toLowerCase()
+  if (code === 'network' || code === 'network_unreachable') {
+    return buildGuiNetworkFinalMessage({ task: input.task, finalUrl: input.finalUrl })
+  }
   if (isGuiHumanHandoffFailure(code)) {
     return buildGuiBlockedFinalMessage({
       failureType: code,

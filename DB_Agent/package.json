@@ -17,6 +17,7 @@
     "smoke:slot-ssot": "npx --yes tsx --tsconfig tsconfig.smoke.json scripts/smoke-slot-ssot.ts",
     "smoke:person": "npx --yes tsx --tsconfig tsconfig.smoke.json scripts/smoke-person-basic-stats.ts",
     "smoke:nlu": "npx --yes tsx --tsconfig tsconfig.smoke.json scripts/smoke-db-nlu.ts",
+    "smoke:query-plan-prompt-packs": "npx --yes tsx --tsconfig tsconfig.smoke.json scripts/smoke-query-plan-prompt-packs.ts",
     "smoke:decompose": "npx --yes tsx --tsconfig tsconfig.smoke.json scripts/smoke-decompose-regression.ts",
     "smoke:structural-link": "npx --yes tsx --tsconfig tsconfig.smoke.json scripts/smoke-structural-link.ts",
     "smoke:ws-thinking": "npx --yes tsx --tsconfig tsconfig.smoke.json scripts/smoke-ws-thinking-sender.ts",
@@ -24,7 +25,7 @@
     "smoke:nlu-mode": "npx --yes tsx --tsconfig tsconfig.smoke.json scripts/smoke-db-nlu-mode.ts",
     "smoke:domain-modules": "npx --yes tsx --tsconfig tsconfig.smoke.json scripts/smoke-domain-modules.ts",
     "smoke:split-exports": "npx --yes tsx --tsconfig tsconfig.smoke.json scripts/smoke-split-exports.ts",
-    "smoke:all": "npm run smoke:metrics && npm run smoke:slot-ssot && npm run smoke:person && npm run smoke:nlu && npm run smoke:nlu-mode && npm run smoke:sql-path && npm run smoke:domain-modules && npm run smoke:split-exports && npm run smoke:ws-thinking && npm run gate:nl2sql",
+    "smoke:all": "npm run smoke:metrics && npm run smoke:slot-ssot && npm run smoke:person && npm run smoke:nlu && npm run smoke:nlu-mode && npm run smoke:query-plan-prompt-packs && npm run smoke:sql-path && npm run smoke:domain-modules && npm run smoke:split-exports && npm run smoke:ws-thinking && npm run gate:nl2sql",
     "eval:golden": "npx --yes tsx --tsconfig tsconfig.smoke.json scripts/eval-golden-person-basic-stats.ts",
     "gate:nl2sql": "node scripts/gate-db-nl2sql-offline.mjs && npm run eval:golden"
   },

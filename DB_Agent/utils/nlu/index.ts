@@ -1,7 +1,13 @@
 export { mergeFollowupQuestionWithHistory } from "./followup";
 export { findRepeatAnswer, getMessageRole, trimChatHistoryForModel } from "./memory";
 export { getRouterRuleLines, inferIntentHeuristic, needsCondense, normalizeIntent } from "./policy";
-export { createCondenseQuestionPrompt, createQueryPlanPrompt } from "./prompts";
+export {
+  createCondenseQuestionPrompt,
+  createQueryPlanPrompt,
+  assembleQueryPlanSystemPrompt,
+  QUERY_PLAN_DOMAIN_MARKER,
+  QUERY_PLAN_SHAPE_MARKER,
+} from "./prompts";
 export { appendPlanKeywordsForStatisticsMatch, formatQueryPlanForSqlAgent, inferIntentFromPlan, parseQueryPlan, type QueryPlan } from "./query_plan";
 export { buildRouterTemplate } from "./router";
 export {

@@ -147,8 +147,8 @@ export function rematerializeWeatherCrawlerMisbind(
       const leanFocus = stripCrawlerTemplateNoise(String(s.queryFocus || '')) || String(s.queryFocus || '')
       // 优先留下含天气的 lean 焦点，避免 admin 步仍带着「从公开网页采集」套话
       const focus = includesAny(leanFocus, adminWeatherCapabilityTerms())
-        ? leanFocus.slice(0, 320)
-        : String(s.queryFocus || '').slice(0, 320)
+        ? leanFocus.slice(0, 480)
+        : String(s.queryFocus || '').slice(0, 480)
       return { ...s, agent: 'admin' as PlanBlueprint['steps'][number]['agent'], queryFocus: focus }
     })
     // 合并重复 admin 步：保留天气焦点更具体的一步

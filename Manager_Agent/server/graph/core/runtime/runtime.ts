@@ -6,7 +6,8 @@ export function isManagerSynthStreamEnabled(): boolean {
   return !(v === '0' || v === 'false' || v === 'off' || v === 'no')
 }
 
-async function emitSynthStreamChunks(
+/** 将已生成正文按块回放为 delta（审计通过后伪流） */
+export async function emitSynthStreamChunks(
   text: string,
   onDelta: (delta: string) => void,
   ensureNotAborted: () => void,

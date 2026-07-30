@@ -5,6 +5,9 @@ export type AgentConfig = {
     plannerModel?: string
     decisionModel?: string
     visionModel?: string
+    /** CAP_GUI / gui-plus computer_use */
+    guiModel?: string
+    stagehandModel?: string
     useVision?: boolean
     promptChars?: number
     plannerMaxTokens?: number

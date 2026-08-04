@@ -60,6 +60,8 @@ python scripts/smoke_batch3.py
 python scripts/smoke_batch4.py
 python scripts/smoke_batch5.py
 python scripts/smoke_content_trust.py
+python scripts/smoke_admin_write_clarify.py
+python scripts/smoke_admin_risky_hitl.py
 ```
 
 ### 后端

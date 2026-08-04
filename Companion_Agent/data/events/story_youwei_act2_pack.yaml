@@ -3,32 +3,76 @@ label: 通贩打包
 priority: 6
 once: true
 chance: 1.0
-scene_id: ""
+scene_id: ''
 trigger:
-  character_ids: [youwei]
+  character_ids:
+  - youwei
   stage_min: close_friend
   affinity_min: 70
-  flags_absent: [bond_ally_done]
-  flags_present: [studio_sketch_done]
+  flags_absent:
+  - bond_ally_done
+  flags_present:
+  - studio_sketch_done
 prompt_snippet: |
   【专属故事 · 画室里的第三支笔 · 第2幕 · 通贩打包】
 advance: on_player_turn
 beats:
-  - id: b1
-    summary: "一起帮苏晚悠打包"
-    sprite_hint: [casual, work]
-    soft_options: ["认真接话", "先观察", "轻声提问"]
-  - id: b2
-    summary: "她承认你让学姐更安定"
-    sprite_hint: [work]
-    soft_options: ["表明态度", "给她空间", "确认她的意思"]
-  - id: b3
-    summary: "收束羁绊：确认界线与同盟，禁止恋爱走向。"
-    sprite_hint: [work]
-    soft_options: ["答应站同一边", "先缓一缓", "诚实说明顾虑"]
+- id: b1
+  summary: "通贩打包台旁她把胶带抛给你：学姐又熬夜了——你是来帮忙，还是只想来沾灵感？。等你回应。"
+  sprite_hint:
+  - studio_junior
+  - work
+  soft_options:
+  - 听从指挥
+  - 分担搬运
+  - 问学姐缺什么
+  narration: "素描纸与松节油里，通贩打包台旁她把胶带抛给你：学姐又熬夜了——你是来帮忙，还是只想来沾灵感？"
+  pc_thought: 我是学妹同盟，还是挤进画框的第三人？
+  brief: "通贩打包台旁她把胶带抛给你：学姐又熬夜了——你是来帮忙，还是只想来沾灵感？。等你回应。"
+- id: b2
+  summary: "她坦白：学姐把心画进线里；你若只当素材，她会第一个把你请出画室。等你回应。"
+  sprite_hint:
+  - sketch_share
+  - studio_junior
+  soft_options:
+  - 展示你的尊重方式
+  - 接受考核
+  - 问同盟条件
+  narration: "素描纸与松节油里，她坦白：学姐把心画进线里；你若只当素材，她会第一个把你请出画室。"
+  pc_thought: 打包颜料时她看我一眼——帮忙还是越界？——想起画。
+  brief: "她坦白：学姐把心画进线里；你若只当素材，她会第一个把你请出画室。等你回应。"
+- id: b3
+  summary: "箱子封口时她点头：同盟加固。守门此前已开——小悠那边，你才有资格谈「画框外」。等你回应。"
+  sprite_hint:
+  - sketch_share
+  - casual
+  soft_options:
+  - 确认同盟定义
+  - 感谢守门
+  - 保证不越界追求她
+  narration: "素描纸与松节油里，箱子封口时她点头：同盟加固。守门此前已开——小悠那边，你才有资格谈「画框外」。"
+  pc_thought: 展示位有我的笔。晚悠会不会觉得被抢？——想起画。
+  brief: "箱子封口时她点头：同盟加固。守门此前已开——小悠那边，你才有资格谈「画框外」。等你回应。"
+- id: b4
+  summary: "她塞给你马克笔：「负责让她睡觉。」同盟不是恋爱许可，是共同守护她的交稿命。等你回应。"
+  sprite_hint:
+  - home
+  - casual
+  soft_options:
+  - 郑重接受
+  - 说会护学姐
+  - 约事后复盘工作流
+  narration: "素描纸与松节油里，她塞给你马克笔：「负责让她睡觉。」同盟不是恋爱许可，是共同守护她的交稿命。"
+  pc_thought: "开放门开了：第三支笔留下，还是自觉退出？"
+  brief: "她塞给你马克笔：「负责让她睡觉。」同盟不是恋爱许可，是共同守护她的交稿命。等你回应。"
 rewards:
-  flags_set: [bond_ally_done, studio_ally]
+  flags_set:
+  - bond_ally_done
+  - studio_ally
 choice_effects:
-  - { trust_delta: 3, affinity_delta: 3 }
-  - { trust_delta: 2, affinity_delta: 2 }
-  - { trust_delta: -2, affinity_delta: -1 }
+- trust_delta: 3
+  affinity_delta: 3
+- trust_delta: 2
+  affinity_delta: 2
+- trust_delta: -2
+  affinity_delta: -1

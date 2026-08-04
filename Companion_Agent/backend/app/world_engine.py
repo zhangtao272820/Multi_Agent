@@ -531,7 +531,13 @@ def end_day(save: WorldSave) -> tuple[WorldSave, dict[str, Any]]:
             "message": f"夜里听来一句闲话：{fresh_rumors[0].get('text') or ''}",
         }
     elif random.random() < 0.25:
-        neutrals = [cid for cid, b in save.bonds.items() if b.cast_kind in {"neutral", "npc"}]
+        from .character_lores import is_linked_cast
+
+        neutrals = [
+            cid
+            for cid, b in save.bonds.items()
+            if is_linked_cast(b.cast_kind) or b.cast_kind == "npc"
+        ]
         if neutrals:
             pick = random.choice(neutrals)
             night_event = {
@@ -825,7 +831,14 @@ def hub_public(save: WorldSave) -> dict[str, Any]:
         "week_strip": week_strip(save.calendar.day_index),
         "appointments_upcoming": public_appointments(save, limit=6),
         "week_reviews": collect_hub_week_reviews(save, limit=3),
+        "waypoints": _hub_waypoints(save),
     }
+
+
+def _hub_waypoints(save: WorldSave) -> dict[str, Any]:
+    from .season_waypoints import public_waypoints
+
+    return public_waypoints(save)
 
 
 def _hub_rumors(save: WorldSave) -> list[dict[str, Any]]:

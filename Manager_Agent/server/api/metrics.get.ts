@@ -9,6 +9,7 @@ import { isEvolutionAutoExperimentEnabled } from '../graph/core/evolution/evolut
 import { aggregateTokensByTier } from '../graph/core/agent/capabilityTier'
 import { resolveTokenAccounting } from '../graph/core/runtime/runBudget'
 import { getBackpressureSnapshot } from '../graph/core/runtime/backpressure'
+import { managerDataRoot, resolveManagerPolicyDir } from '../utils/session/managerPolicyDir'
 
 const WORKER_AGENT_PHASES = new Set([
   'db',
@@ -37,11 +38,13 @@ function resolveMetricAgent(rec: Record<string, unknown>): string | null {
 }
 
 export default defineEventHandler(async () => {
-  const policyDir = path.join(process.cwd(), '.data')
+  // phase/token 埋点仍在全局 .data；学习/经验看板读租户 policyDir（与反馈写入一致）
+  const metricsRoot = managerDataRoot()
+  const policyDir = resolveManagerPolicyDir()
   const memJsonlPath = path.join(policyDir, 'manager-memory.jsonl')
   const memJsonPath = path.join(policyDir, 'manager-memory.json')
-  const metJsonlPath = path.join(policyDir, 'manager-metrics.jsonl')
-  const metJsonPath = path.join(policyDir, 'manager-metrics.json')
+  const metJsonlPath = path.join(metricsRoot, 'manager-metrics.jsonl')
+  const metJsonPath = path.join(metricsRoot, 'manager-metrics.json')
   const fs = await import('node:fs/promises')
   const readJson = async (p: string) => {
     try {

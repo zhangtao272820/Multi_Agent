@@ -3,32 +3,88 @@ label: 出声
 priority: 7
 once: true
 chance: 1.0
-scene_id: ""
+scene_id: ''
 trigger:
-  character_ids: [shizuku]
+  character_ids:
+  - shizuku
   stage_min: crush
   affinity_min: 82
-  flags_absent: [sz_spoke_aloud]
-  flags_present: [sz_booklist]
+  flags_absent:
+  - sz_spoke_aloud
+  flags_present:
+  - sz_booklist
 prompt_snippet: |
   【专属故事 · 书脊后的声线 · 第3幕 · 出声】
 advance: on_player_turn
 beats:
-  - id: b1
-    summary: "闭馆后她第一次大声说喜欢"
-    sprite_hint: [study_carrel, date]
-    soft_options: ["认真接话", "先观察", "轻声提问"]
-  - id: b2
-    summary: "「出声」里出现犹豫或选择。"
-    sprite_hint: [date, home]
-    soft_options: ["表明态度", "给她空间", "确认她的意思"]
-  - id: b3
-    summary: "收束本幕：留下可被记住的结果，不剧透结局名。"
-    sprite_hint: [home]
-    soft_options: ["坦白心意", "先缓一缓", "诚实说明顾虑"]
+- id: b1
+  summary: 空馆只剩你们；她把书挡在脸前，呼吸比翻页更响。等你回应。
+  sprite_hint:
+  - study_carrel
+  - quiet_reading
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 轻声鼓励
+  - 把书缓缓放下
+  - 握住她袖口
+  narration: 纸页尘与闭馆灯里，空馆只剩你们；她把书挡在脸前，呼吸比翻页更响。
+  pc_thought: 书脊后的她很安全。出声一步，线上久识就露馅。
+  brief: 空馆只剩你们；她把书挡在脸前，呼吸比翻页更响。等你回应。
+- id: b2
+  summary: "第一句真声发颤：喜欢你——比任何书评都难写。等你回应。"
+  sprite_hint:
+  - study_carrel
+  - date
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 真声回应
+  - 说听得很清楚
+  - 给她拥抱空间
+  narration: "纸页尘与闭馆灯里，第一句真声发颤：喜欢你——比任何书评都难写。"
+  pc_thought: 闭馆灯一关，声线无处躲。我想听，又怕吓跑她——想起书。
+  brief: "第一句真声发颤：喜欢你——比任何书评都难写。等你回应。"
+- id: b3
+  summary: 她怕恋爱会逼她每天说话；你如何接，决定她还敢不敢出声。等你回应。
+  sprite_hint:
+  - home
+  - date
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 尊重她的节奏
+  - 约定文字与声音并存
+  - 说沉默也可以爱
+  narration: 纸页尘与闭馆灯里，她怕恋爱会逼她每天说话；你如何接，决定她还敢不敢出声。
+  pc_thought: 码书比告白容易。我别把温柔当成客服话术。
+  brief: 她怕恋爱会逼她每天说话；你如何接，决定她还敢不敢出声。等你回应。
+- id: b4
+  summary: "她把书脊转向你：从今晚起，声线不再只藏在屏幕后。等你回应。"
+  sprite_hint:
+  - date
+  - casual
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 再听她叫一次名字
+  - 牵手离开图书馆
+  - 约下次一起朗读
+  narration: "纸页尘与闭馆灯里，她把书脊转向你：从今晚起，声线不再只藏在屏幕后。"
+  pc_thought: 闭架书库像秘密。钥匙在她手里，也在我喉咙里。
+  brief: "她把书脊转向你：从今晚起，声线不再只藏在屏幕后。等你回应。"
 rewards:
-  flags_set: [sz_spoke_aloud, confessed]
+  flags_set:
+  - sz_spoke_aloud
+  - confessed
 choice_effects:
-  - { trust_delta: 3, affinity_delta: 3 }
-  - { trust_delta: 2, affinity_delta: 2 }
-  - { trust_delta: -2, affinity_delta: -1 }
+- trust_delta: 3
+  affinity_delta: 3
+- trust_delta: 2
+  affinity_delta: 2
+- trust_delta: -2
+  affinity_delta: -1

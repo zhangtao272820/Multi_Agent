@@ -1,5 +1,12 @@
 <template>
+  <ClientOnly>
+    <ManagerLoginGate
+      v-if="userAuthRequired && authReady && !isLoggedIn"
+      @success="onLoginSuccess"
+    />
+  </ClientOnly>
   <div
+    v-if="!userAuthRequired || (authReady && isLoggedIn)"
     class="spring-root cosmic-theme cursor-workbench"
     :class="{
       'cosmic-agent-thinking': agentCosmicActive,
@@ -181,4 +188,17 @@ const {
   onModalConfirm,
   onModalCancel
 } = useManagerChatPage()
+
+const runtimeConfig = useRuntimeConfig()
+const userAuthRequired = computed(() => Boolean((runtimeConfig.public as any)?.managerUserAuth))
+const { isLoggedIn, ready: authReady, loadFromStorage: loadClawAuth } = useClawhiveLogin()
+
+/** 插件已 loadFromStorage；此处兜底 SSR/热更新后状态 */
+onMounted(() => {
+  if (!authReady.value) loadClawAuth()
+})
+
+function onLoginSuccess() {
+  loadClawAuth()
+}
 </script>

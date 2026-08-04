@@ -44,6 +44,10 @@ class JudgeResult(BaseModel):
     end_scene: bool = False
     # she_leaves | busy | awkward | ""
     end_scene_reason: str = ""
+    # 系统可挂起的恋爱递进意向（空/none=无）
+    stage_offer: str = "none"
+    # 女主主动：none|confess|ask_exclusive|cool_off
+    heroine_initiative: str = "none"
 
 
 _POSITIVE = (
@@ -62,7 +66,7 @@ _BREAKUP = ("分手", "我们结束", "不当男女朋友了", "做回朋友吧"
 _MENTION_OTHER = ("和其他女生", "另一个女孩", "你情敌", "她怎么看")
 
 
-_NEUTRAL_BOND_FLAGS: dict[str, tuple[str, ...]] = {
+_LINKED_BOND_FLAGS: dict[str, tuple[str, ...]] = {
     "shuli": ("sibling_talk_done", "bond_ally_done"),
     "jingning": ("cousin_watch_done", "bond_ally_done"),
     "youwei": ("studio_sketch_done", "bond_ally_done"),
@@ -81,11 +85,13 @@ def _clip(text: str, n: int) -> str:
 
 def _infer_relation_move(user: str, *, cast_role: str) -> str:
     """规则兜底：抽出关系决策意图；正式路径以 LLM Judge 的 relation_move 为准。"""
+    from .character_lores import is_linked_cast
+
     if not user:
         return "none"
     if any(k in user for k in _BREAKUP):
         return "breakup"
-    if cast_role in {"neutral", "npc"}:
+    if is_linked_cast(cast_role) or cast_role == "npc":
         if any(p in user for p in _CONFESS):
             return "confess"
         return "none"
@@ -159,18 +165,25 @@ def _rules_judge(
         aff_delta += 1
 
     relation_move = _infer_relation_move(user, cast_role=cast_role)
-    if relation_move == "confess" and cast_role in {"neutral", "npc"}:
+    from .character_lores import is_linked_cast, linked_dating_unlocked
+
+    if relation_move == "confess" and (
+        cast_role == "npc"
+        or (is_linked_cast(cast_role) and not linked_dating_unlocked(character_id, self_flags=dict(state.flags or {})))
+    ):
+        # 未破门告白：记同盟试探，不记成功恋爱
         flags["bond_ally_done"] = True
-        aff_delta += 2
-        trust_delta += 2
+        flags["confess_blocked_gate"] = True
+        aff_delta += 1
+        trust_delta += 1
 
     if "骗" in user or "撒谎" in user:
         flags["trust_damaged"] = True
         trust_delta -= 6
 
-    if cast_role == "neutral" and character_id in _NEUTRAL_BOND_FLAGS:
+    if is_linked_cast(cast_role) and character_id in _LINKED_BOND_FLAGS:
         if state.affinity + aff_delta >= 58 and state.turns >= 4:
-            for f in _NEUTRAL_BOND_FLAGS[character_id]:
+            for f in _LINKED_BOND_FLAGS[character_id]:
                 flags[f] = True
 
     aff_delta = max(-10, min(10, aff_delta))
@@ -258,19 +271,15 @@ def _llm_judge(
 ) -> JudgeResult | None:
     # 压缩 system + 截断输入；辅模型 + 低 max_tokens
     system = (
-        "Gal 关系裁决器。只输出 JSON。"
-        "字段: affinity_delta(-10~10), trust_delta(-12~8), mood_delta(-8~8), "
-        "new_flags(可选 trust_damaged/gift_given/date_done), ending_id(常null), "
-        "on_agenda(bool), "
-        "relation_move(none|flirt|confess|ask_exclusive|propose_harem|mention_other|breakup), "
-        "social_action(闲聊必须null; 明确约见/谈话/吵架/冷战/和解才填: "
-        "{kind:schedule_date|schedule_talk|quarrel|start_cold|end_cold,"
-        "when:now|tonight|tomorrow|weekend|lunch|null,"
-        "period:morning|afternoon|evening|night|null,"
-        "location_id|date_id|note}), "
-        "end_scene(bool 她是否想结束这场见面), "
-        "end_scene_reason(she_leaves|busy|awkward|空串), "
-        f"reason(≤12字). note≤{JUDGE_NOTE_CHARS}字。"
+        "Gal关系裁决。只输出JSON。"
+        "字段:affinity_delta(-10~10),trust_delta(-12~8),mood_delta(-8~8),"
+        "new_flags(可选),ending_id(常null),on_agenda,"
+        "relation_move(none|flirt|confess|ask_exclusive|propose_harem|mention_other|breakup),"
+        "stage_offer(none|crush|dating|married),"
+        "heroine_initiative(none|confess|ask_exclusive|cool_off),"
+        "social_action(闲聊null;约见/吵架/冷战才填对象),"
+        "end_scene,end_scene_reason(she_leaves|busy|awkward|),"
+        f"reason(≤12字)。"
     )
     agenda_line = f"议程:{(agenda_goal or '闲聊')[:40]}"
     user = (
@@ -386,6 +395,9 @@ def _stage_rank(stage_id: str) -> int:
     return order.index(stage_id)
 
 
+_GENERIC_FRIEND_ENDINGS = frozenset({"ending_friend", "ending_best_friend"})
+
+
 def check_endings(
     *,
     character_id: str,
@@ -474,6 +486,22 @@ def check_endings(
                 break
         if cond.get("low_streak_min") is not None and low_streak < int(cond["low_streak_min"]):
             ok = False
+
+        # 通用朋友结局：romance 未 ready 不中途结算
+        if ok and cast_role == "romance" and str(eid) in _GENERIC_FRIEND_ENDINGS:
+            if not flags.get("ending_ready"):
+                ok = False
+
+        # 真结局守门（strict）
+        if ok:
+            from .route_difficulty import secret_gate_blocks
+
+            if secret_gate_blocks(
+                character_id,
+                flags=flags,
+                ending_type=str(ending.get("type") or ""),
+            ):
+                ok = False
 
         if ok:
             return str(eid)

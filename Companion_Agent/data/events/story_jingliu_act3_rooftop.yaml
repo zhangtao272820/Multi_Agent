@@ -3,32 +3,88 @@ label: 天台夜谈
 priority: 7
 once: true
 chance: 1.0
-scene_id: ""
+scene_id: ''
 trigger:
-  character_ids: [jingliu]
+  character_ids:
+  - jingliu
   stage_min: crush
-  affinity_min: 75
-  flags_absent: [jl_rooftop_talk]
-  flags_present: [jl_saw_fatigue]
-prompt_snippet: |
-  【专属故事 · 权力差的另一侧 · 第3幕 · 天台夜谈】
+  affinity_min: 80
+  flags_absent:
+  - jl_rooftop_talk
+  flags_present:
+  - jl_saw_fatigue
+prompt_snippet: '【专属故事 · 权力差的另一侧 · 第3幕 · 天台夜谈】
+
+  '
 advance: on_player_turn
 beats:
-  - id: b1
-    summary: "天台夜谈"
-    sprite_hint: [rooftop_night, event_glass]
-    soft_options: ["认真接话", "先观察", "轻声提问"]
-  - id: b2
-    summary: "谈升迁、流言与「我们若开始会怎样」"
-    sprite_hint: [event_glass, sample_swatch]
-    soft_options: ["表明态度", "给她空间", "确认她的意思"]
-  - id: b3
-    summary: "收束本幕：留下可被记住的结果，不剧透结局名。"
-    sprite_hint: [sample_swatch]
-    soft_options: ["坦白心意", "先缓一缓", "诚实说明顾虑"]
+- id: b1
+  summary: 天台夜风掀起她的外套；城市灯火在脚下，她却说这里才像能喘气的办公室。等你回应。
+  sprite_hint:
+  - rooftop_night
+  - casual
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 把外套给她
+  - 并排不说话
+  - 问今天哪里最累
+  narration: 天台夜风掀起她的外套；城市灯火在脚下，她却说这里才像能喘气的办公室。
+  pc_thought: 玻璃门里她是上司。门一关，我还站不站得住？——想起天台。
+  brief: 天台夜风掀起她的外套；城市灯火在脚下，她却说这里才像能喘气的办公室。等你回应。
+- id: b2
+  summary: 她递出一枚未公开的胸针样：不是品牌的，是她私人收藏——像把秘密钥匙给你。等你回应。
+  sprite_hint:
+  - rooftop_night
+  - phone_brief
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 否认功利
+  - 承认会怕但想试
+  - 问她要什么证明
+  narration: 玻璃反光与夜风里，她递出一枚未公开的胸针样：不是品牌的，是她私人收藏——像把秘密钥匙给你。
+  pc_thought: 面具摘了半寸。我想看全，又怕被职场反噬——想起钥匙。
+  brief: 她递出一枚未公开的胸针样：不是品牌的，是她私人收藏——像把秘密钥匙给你。等你回应。
+- id: b3
+  summary: 谈到家庭与继承，她声音发紧：怕恋爱变成谈判桌上的筹码，更怕你被卷进流言。等你回应。
+  sprite_hint:
+  - moodboard_pin
+  - date
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 承诺认真专一
+  - 坦诚若做不到就离开
+  - 请求时间想清楚
+  narration: 玻璃反光与夜风里，谈到家庭与继承，她声音发紧：怕恋爱变成谈判桌上的筹码，更怕你被卷进流言。
+  pc_thought: 天台夜风冷。她递来的钥匙比合同烫。
+  brief: 谈到家庭与继承，她声音发紧：怕恋爱变成谈判桌上的筹码，更怕你被卷进流言。等你回应。
+- id: b4
+  summary: 她问你愿不愿意看见「沈静流」而非总监——堂妹静宁的观察日记，其实就夹在这句问题后面。等你回应。
+  sprite_hint:
+  - rooftop_night
+  - date
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 回握
+  - 约下次还上天台
+  - 说会守秘密
+  narration: 玻璃反光与夜风里，她问你愿不愿意看见「沈静流」而非总监——堂妹静宁的观察日记，其实就夹在这句问题后面。
+  pc_thought: 对等工位——专一承诺的影子已经来了。
+  brief: 她问你愿不愿意看见「沈静流」而非总监——堂妹静宁的观察日记，其实就夹在这句问题后面。等你回应。
 rewards:
-  flags_set: [jl_rooftop_talk]
+  flags_set:
+  - jl_rooftop_talk
 choice_effects:
-  - { trust_delta: 3, affinity_delta: 3 }
-  - { trust_delta: 2, affinity_delta: 2 }
-  - { trust_delta: -2, affinity_delta: -1 }
+- trust_delta: 3
+  affinity_delta: 3
+- trust_delta: 2
+  affinity_delta: 2
+- trust_delta: -2
+  affinity_delta: -1

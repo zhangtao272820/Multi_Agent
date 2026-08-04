@@ -3,32 +3,88 @@ label: 书车与借还
 priority: 6
 once: true
 chance: 1.0
-scene_id: ""
+scene_id: ''
 trigger:
-  character_ids: [shizuku]
+  character_ids:
+  - shizuku
   stage_min: close_friend
   affinity_min: 68
-  flags_absent: [sz_booklist]
-  flags_present: [sz_first_irl]
+  flags_absent:
+  - sz_booklist
+  flags_present:
+  - sz_first_irl
 prompt_snippet: |
   【专属故事 · 书脊后的声线 · 第2幕 · 书车与借还】
 advance: on_player_turn
 beats:
-  - id: b1
-    summary: "archive_cart"
-    sprite_hint: [archive_cart, return_slot]
-    soft_options: ["认真接话", "先观察", "轻声提问"]
-  - id: b2
-    summary: "她开始把推荐书单给你"
-    sprite_hint: [return_slot, stamp_catalog]
-    soft_options: ["表明态度", "给她空间", "确认她的意思"]
-  - id: b3
-    summary: "收束本幕：留下可被记住的结果，不剧透结局名。"
-    sprite_hint: [stamp_catalog]
-    soft_options: ["坦白心意", "先缓一缓", "诚实说明顾虑"]
+- id: b1
+  summary: 还书车吱呀作响；她把你的书推进格口，耳尖发红。等你回应。
+  sprite_hint:
+  - archive_cart
+  - return_slot
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 道谢
+  - 问下一本推什么
+  - 帮她推车
+  narration: 纸页尘与闭馆灯里，还书车吱呀作响；她把你的书推进格口，耳尖发红。
+  pc_thought: 书脊后的她很安全。出声一步，线上久识就露馅。
+  brief: 还书车吱呀作响；她把你的书推进格口，耳尖发红。等你回应。
+- id: b2
+  summary: "盖章目录摊开：她开始敢把推荐书单写成「只给你的」。等你回应。"
+  sprite_hint:
+  - stamp_catalog
+  - quiet_reading
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 认真抄下
+  - 问哪本最像她
+  - 承诺读完回报
+  narration: "纸页尘与闭馆灯里，盖章目录摊开：她开始敢把推荐书单写成「只给你的」。"
+  pc_thought: 闭馆灯一关，声线无处躲。我想听，又怕吓跑她——想起书。
+  brief: "盖章目录摊开：她开始敢把推荐书单写成「只给你的」。等你回应。"
+- id: b3
+  summary: "她提起线上通话：面对面时，想试着把声音留下来。等你回应。"
+  sprite_hint:
+  - return_slot
+  - study_carrel
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 邀请她读一句
+  - 说喜欢她的声线
+  - 不催只等待
+  narration: "纸页尘与闭馆灯里，她提起线上通话：面对面时，想试着把声音留下来。"
+  pc_thought: 码书比告白容易。我别把温柔当成客服话术。
+  brief: "她提起线上通话：面对面时，想试着把声音留下来。等你回应。"
+- id: b4
+  summary: "闭馆铃前她点头：下次，用真声说「这本书送给你」。等你回应。"
+  sprite_hint:
+  - archive_cart
+  - casual
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 约闭馆后五分钟
+  - 替她抱书
+  - 微笑答应
+  narration: "纸页尘与闭馆灯里，闭馆铃前她点头：下次，用真声说「这本书送给你」。"
+  pc_thought: 闭架书库像秘密。钥匙在她手里，也在我喉咙里。
+  brief: "闭馆铃前她点头：下次，用真声说「这本书送给你」。等你回应。"
 rewards:
-  flags_set: [sz_booklist, video_call_done]
+  flags_set:
+  - sz_booklist
+  - video_call_done
 choice_effects:
-  - { trust_delta: 3, affinity_delta: 3 }
-  - { trust_delta: 2, affinity_delta: 2 }
-  - { trust_delta: -2, affinity_delta: -1 }
+- trust_delta: 3
+  affinity_delta: 3
+- trust_delta: 2
+  affinity_delta: 2
+- trust_delta: -2
+  affinity_delta: -1

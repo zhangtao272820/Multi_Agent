@@ -3,32 +3,88 @@ label: 打印室真相
 priority: 7
 once: true
 chance: 1.0
-scene_id: ""
+scene_id: ''
 trigger:
-  character_ids: [linxi]
+  character_ids:
+  - linxi
   stage_min: crush
-  affinity_min: 75
-  flags_absent: [lx_print_truth]
-  flags_present: [lx_commute_talk]
-prompt_snippet: |
-  【专属故事 · 工位之间的一步 · 第3幕 · 打印室真相】
+  affinity_min: 80
+  flags_absent:
+  - lx_print_truth
+  flags_present:
+  - lx_commute_talk
+prompt_snippet: '【专属故事 · 工位之间的一步 · 第3幕 · 打印室真相】
+
+  '
 advance: on_player_turn
 beats:
-  - id: b1
-    summary: "竞聘/转正压力"
-    sprite_hint: [print_stack, stamp_route]
-    soft_options: ["认真接话", "先观察", "轻声提问"]
-  - id: b2
-    summary: "你是否抢功或撑她"
-    sprite_hint: [stamp_route, overtime]
-    soft_options: ["表明态度", "给她空间", "确认她的意思"]
-  - id: b3
-    summary: "收束本幕：留下可被记住的结果，不剧透结局名。"
-    sprite_hint: [overtime]
-    soft_options: ["坦白心意", "先缓一缓", "诚实说明顾虑"]
+- id: b1
+  summary: 加班打印室只剩你们；纸张温热，她盯着错误页码，眼眶却先红了。等你回应。
+  sprite_hint:
+  - copier_jam
+  - print_stack
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 一起修机器
+  - 问谁催的稿
+  - 先擦她袖口
+  narration: 加班打印室只剩你们；纸张温热，她盯着错误页码，眼眶却先红了。
+  pc_thought: 对桌探头那一下，像实习期的心跳漏拍。
+  brief: 加班打印室只剩你们；纸张温热，她盯着错误页码，眼眶却先红了。等你回应。
+- id: b2
+  summary: 她承认怕被转正刷掉，也怕依赖你——依赖像违规操作，一旦被看见就写进考核。等你回应。
+  sprite_hint:
+  - filing_cabinet
+  - meeting_minutes
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 问为什么扛
+  - 提议一起澄清
+  - 先听完整经过
+  narration: 打印纸与轨道风里，她承认怕被转正刷掉，也怕依赖你——依赖像违规操作，一旦被看见就写进考核。
+  pc_thought: 末班车扶手很凉。逞强的她，其实也怕走丢。
+  brief: 她承认怕被转正刷掉，也怕依赖你——依赖像违规操作，一旦被看见就写进考核。等你回应。
+- id: b3
+  summary: 你帮她重排文档时，她忽然笑出声：原来并肩改错，比一个人硬撑更像「能干」。等你回应。
+  sprite_hint:
+  - print_stack
+  - desk_papers
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 问她想怎么做
+  - 只提供证据不做主
+  - 说你站她这边
+  narration: 打印纸与轨道风里，你帮她重排文档时，她忽然笑出声：原来并肩改错，比一个人硬撑更像「能干」。
+  pc_thought: 打印室只剩我们。我想把「同事」说成更私的词。
+  brief: 你帮她重排文档时，她忽然笑出声：原来并肩改错，比一个人硬撑更像「能干」。等你回应。
+- id: b4
+  summary: 电梯下行，她问能不能把「谢谢同事」改成更私人的话——声音小，决心却不小。等你回应。
+  sprite_hint:
+  - print_stack
+  - casual
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 分工对稿
+  - 约会后复盘
+  - 肯定她的选择
+  narration: 打印纸与轨道风里，电梯下行，她问能不能把「谢谢同事」改成更私人的话——声音小，决心却不小。
+  pc_thought: 工位之间只要一步——我迈不迈得出去？
+  brief: 电梯下行，她问能不能把「谢谢同事」改成更私人的话——声音小，决心却不小。等你回应。
 rewards:
-  flags_set: [lx_print_truth]
+  flags_set:
+  - lx_print_truth
 choice_effects:
-  - { trust_delta: 3, affinity_delta: 3 }
-  - { trust_delta: 2, affinity_delta: 2 }
-  - { trust_delta: -2, affinity_delta: -1 }
+- trust_delta: 3
+  affinity_delta: 3
+- trust_delta: 2
+  affinity_delta: 2
+- trust_delta: -2
+  affinity_delta: -1

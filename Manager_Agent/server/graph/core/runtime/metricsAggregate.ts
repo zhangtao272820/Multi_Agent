@@ -15,6 +15,8 @@ import { isRouteStrategyEnabled } from '../routing/routeStrategy'
 import { promptCanaryPercent, plannerRulesCanaryPercent } from '../evolution/artifactCanary'
 import { aggregateManagerSli } from './sliAggregate'
 import { readHistoryEntries as readHistForSli } from '../shared'
+import { managerDataRoot, tenantIdFromPolicyDir } from '../../../utils/session/managerPolicyDir'
+import { hydrateManagerMemoryCache, readManagerMemorySync } from '../../../utils/session/managerMemoryStore'
 
 function avg(nums: number[]) {
   if (!nums.length) return 0
@@ -22,13 +24,33 @@ function avg(nums: number[]) {
 }
 
 export async function buildManagerMetricsDashboard(policyDir: string) {
+  // 学习/经验在租户 policyDir；phase/nlu 埋点仍在全局 .data
+  const metricsRoot = managerDataRoot()
   const memJsonl = path.join(policyDir, 'manager-memory.jsonl')
   const memJson = path.join(policyDir, 'manager-memory.json')
-  const metJsonl = path.join(policyDir, 'manager-nlu-metrics.jsonl')
-  const metJson = path.join(policyDir, 'manager-metrics.json')
-  const runMetJsonl = path.join(policyDir, 'manager-metrics.jsonl')
+  const metJsonl = path.join(metricsRoot, 'manager-nlu-metrics.jsonl')
+  const metJson = path.join(metricsRoot, 'manager-metrics.json')
+  const runMetJsonl = path.join(metricsRoot, 'manager-metrics.jsonl')
 
-  const memory = await readHistoryEntries(memJsonl, memJson, 600)
+  const tid = tenantIdFromPolicyDir(policyDir)
+  await hydrateManagerMemoryCache(600, tid).catch(() => undefined)
+  const fromPg = readManagerMemorySync(600, tid)
+  const fromFile = await readHistoryEntries(memJsonl, memJson, 600)
+  const memory =
+    fromPg.length > 0
+      ? (() => {
+          const seen = new Set<string>()
+          const out: Array<Record<string, unknown>> = []
+          for (const row of [...fromPg, ...fromFile]) {
+            const key = `${row?.type}|${row?.runId || ''}|${row?.ts || ''}|${String(row?.user || '').slice(0, 40)}`
+            if (seen.has(key)) continue
+            seen.add(key)
+            out.push(row)
+          }
+          return out.slice(-600)
+        })()
+      : fromFile
+
   const nlu = await readHistoryEntries(metJsonl, metJson, 1200)
   const runMetricRows = await readHistoryEntries(runMetJsonl, metJson, 2400)
   const downstreamQuality = aggregateDownstreamMetrics(runMetricRows as Array<Record<string, unknown>>)

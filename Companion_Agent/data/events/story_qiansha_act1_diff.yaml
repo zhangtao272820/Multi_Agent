@@ -1,5 +1,5 @@
 id: story_qiansha_act1_diff
-label: Diff
+label: 旧 Diff
 priority: 5
 once: true
 chance: 1.0
@@ -10,21 +10,30 @@ trigger:
   affinity_min: 50
   flags_absent: [qs_remeet]
 prompt_snippet: |
-  【专属故事 · 旧 PR 与新分支 · 第1幕 · Diff】
+  【专属故事 · 旧 PR 与新分支 · 第1幕 · 旧 Diff】
 advance: on_player_turn
 beats:
   - id: b1
-    summary: "圈子重逢，客气如代码评审"
-    sprite_hint: [dual_monitor, work]
-    soft_options: ["认真接话", "先观察", "轻声提问"]
+    narration: "双屏蓝光里弹出熟悉的头像。旧 PR 标题还开着——分手归档后第一次面对面，键盘声忽然停。"
+    pc_thought: "旧 PR 还开着。Merge 还是 Close——我别当版本控制器。"
+    brief: "旧 PR 重逢；尴尬落地。等他承认尴尬、先谈工作或问能否重新认识。"
+    summary: "旧 PR 重逢；尴尬落地。等他承认尴尬、先谈工作或问能否重新认识。"
+    sprite_hint: [dual_monitor, work, season_winter, home_eating, home_sleeping]
+    soft_options: ["承认尴尬", "先谈工作", "问能不能重新认识"]
   - id: b2
-    summary: "「Diff」里出现犹豫或选择。"
-    sprite_hint: [work, hoodie_focus]
-    soft_options: ["表明态度", "给她空间", "确认她的意思"]
+    narration: "她把卫衣帽子拉低：不是来挖坑，就别碰那几行红的。diff 里旧伤像未关的 issue。"
+    pc_thought: "debug 到深夜，像把分手理由一行行编译。"
+    brief: "警告别碰旧伤行；非挖坑。等他道歉、说不是挖坑或请求复盘。"
+    summary: "警告别碰旧伤行；非挖坑。等他道歉、说不是挖坑或请求复盘。"
+    sprite_hint: [hoodie_focus, pr_review, season_winter, home_eating, home_sleeping]
+    soft_options: ["道歉旧伤", "说不是来挖坑", "请求一次复盘"]
   - id: b3
-    summary: "收束本幕：留下可被记住的结果，不剧透结局名。"
-    sprite_hint: [hoodie_focus]
-    soft_options: ["坦白心意", "先缓一缓", "诚实说明顾虑"]
+    narration: "终端滚过一行「observation only」。她说先观察期——下次 Debug 可以，施压不行。"
+    pc_thought: "分支太久会腐烂。并肩提交，还是各写各的？"
+    brief: "给出观察期规则。等他接受、约下次 Debug 或保证不施压。"
+    summary: "给出观察期规则。等他接受、约下次 Debug 或保证不施压。"
+    sprite_hint: [dual_monitor, casual, season_winter, home_eating, home_sleeping]
+    soft_options: ["接受观察期", "约下次 Debug", "保证不施压"]
 rewards:
   flags_set: [qs_remeet]
 choice_effects:

@@ -1,4 +1,4 @@
-"""流式流水线：ASR → 流式 LLM → 并行分句 TTS → 可选 wan s2v。"""
+"""流式流水线：ASR → RAG → 流式 LLM(+导演) → 分句 TTS → LiveTalking。"""
 
 from __future__ import annotations
 
@@ -9,7 +9,16 @@ from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor
 from typing import Any
 
-from . import assets, bailian, avatar_image, local_lipsync, wan_s2v
+from . import (
+    assets,
+    bailian,
+    avatar_image,
+    director,
+    livetalking_client,
+    local_lipsync,
+    product_rag,
+    wan_s2v,
+)
 from .api_errors import format_dashscope_error
 from .config import Settings
 
@@ -19,19 +28,18 @@ LOCAL_LIP_MODES = frozenset(
     {"local_ultralight", "local_wav2lip", "local_lipsync"}
 )
 S2V_LIP_MODES = frozenset({"cached_s2v", "wan_s2v"})
+# 旧路径：整段生成 MP4（已不推荐）
 ALL_DEFER_TTS_MODES = LOCAL_LIP_MODES | S2V_LIP_MODES
+LIVETALKING_MODE = "livetalking"
 
 EmitFn = Callable[[str, dict[str, Any]], None]
 
 
 def _ws_payload(data: dict[str, Any]) -> dict[str, Any]:
-    """去掉不可 JSON 序列化的字段（如 bytes）。"""
     return {k: v for k, v in data.items() if not isinstance(v, (bytes, bytearray))}
 
 
 class _DeltaThrottler:
-    """限制 reply_delta 推送频率，减轻前端卡顿。"""
-
     def __init__(self, emit: EmitFn, interval_ms: int) -> None:
         self._emit = emit
         self._interval = max(0.02, interval_ms / 1000.0)
@@ -52,15 +60,25 @@ class _DeltaThrottler:
 
 
 class _OrderedTts:
-    """并行合成 TTS，按句子顺序推送。"""
+    """并行合成 TTS；可选同步喂给 LiveTalking。"""
 
-    def __init__(self, settings: Settings, emit: EmitFn, workers: int) -> None:
+    def __init__(
+        self,
+        settings: Settings,
+        emit: EmitFn,
+        workers: int,
+        *,
+        livetalking_session: str | int | None = None,
+        feed_livetalking: bool = False,
+    ) -> None:
         self._settings = settings
         self._emit = emit
         self._pool = ThreadPoolExecutor(max_workers=max(1, workers))
         self._futures: list[tuple[int, str, Future]] = []
         self._next_index = 0
         self._chunk_seq = 0
+        self._lt_session = livetalking_session
+        self._feed_lt = feed_livetalking and livetalking_session is not None
 
     def submit(self, index: int, sentence: str) -> None:
         fut = self._pool.submit(self._synth, sentence)
@@ -71,6 +89,7 @@ class _OrderedTts:
 
     def drain(self) -> None:
         self._futures.sort(key=lambda x: x[0])
+        first = True
         for idx, sentence, fut in self._futures:
             if idx != self._next_index:
                 logger.warning("TTS 顺序错位 idx=%s expect=%s", idx, self._next_index)
@@ -89,6 +108,28 @@ class _OrderedTts:
                     "sentence": sentence,
                 },
             )
+            if self._feed_lt and self._lt_session is not None:
+                try:
+                    livetalking_client.speak_audio(
+                        self._settings,
+                        audio_bytes=raw,
+                        audio_mime=mime,
+                        session_id=self._lt_session,
+                        interrupt=first,
+                    )
+                except Exception as ex:
+                    logger.warning("LiveTalking humanaudio: %s", ex)
+                    if first:
+                        try:
+                            livetalking_client.speak_echo(
+                                self._settings,
+                                text=sentence,
+                                session_id=self._lt_session,
+                                interrupt=True,
+                            )
+                        except Exception as ex2:
+                            logger.warning("LiveTalking echo fallback: %s", ex2)
+            first = False
             self._chunk_seq += 1
             self._next_index += 1
         self._futures.clear()
@@ -116,11 +157,15 @@ def _transcribe(settings: Settings, initial: dict[str, Any]) -> dict[str, Any]:
 
 
 def _cache_expected(settings: Settings, user_text: str, reply_text: str) -> bool:
-    """相同问题且相同回复是否已有磁盘对口型缓存。"""
     ukey = assets.normalize_utterance(user_text)
     if not ukey:
         return False
     return assets.lookup_utterance(settings, user_text, reply_text=reply_text) is not None
+
+
+def _system_prompt(settings: Settings) -> str:
+    base = settings.system_prompt or ""
+    return base + director.director_system_suffix(settings)
 
 
 def _run_lip_sync_video(
@@ -133,28 +178,22 @@ def _run_lip_sync_video(
     pre_tts: tuple[bytes, str] | None = None,
     cache_expected: bool = False,
 ) -> None:
+    """遗留路径：整段 MP4（local_* / wan_s2v），新项目请用 livetalking。"""
     lip_mode = (settings.lip_sync_mode or "").strip().lower()
     if lip_mode not in ALL_DEFER_TTS_MODES:
         return
 
     local_mode = lip_mode in LOCAL_LIP_MODES
     ukey = assets.normalize_utterance(user_text)
-    if cache_expected:
-        hint = "检测到相同问题缓存，正在加载对口型视频…"
-    elif local_mode:
-        hint = "本地对口型生成中，语音已先播放…"
-        try:
-            h = local_lipsync.check_service(settings)
-            if h.get("backend") == "wav2lip":
-                hint = "Wav2Lip CPU 生成对口型中（约 1–5 分钟），语音已先播放…"
-            elif h.get("backend") == "musetalk":
-                hint = "MuseTalk 生成对口型中，语音已先播放…"
-            elif h.get("backend") == "ultralight":
-                hint = "本地 Ultralight 流式推理中，语音已先播放…"
-        except Exception:
-            pass
-    else:
-        hint = "正在生成对口型视频（首次约 5–10 分钟），语音已先播放…"
+    hint = (
+        "检测到相同问题缓存，正在加载对口型视频…"
+        if cache_expected
+        else (
+            "【遗留】本地对口型生成中…"
+            if local_mode
+            else "【遗留】万相对口型生成中…"
+        )
+    )
     emit(
         "lip_sync",
         {
@@ -162,6 +201,7 @@ def _run_lip_sync_video(
             "cache_expected": cache_expected,
             "hint": hint,
             "local": local_mode,
+            "deprecated": True,
         },
     )
     try:
@@ -268,25 +308,69 @@ def run_turn_stream(
     )
     user_text = (tr.get("transcript") or "").strip()
 
+    llm_user, rag_hits = product_rag.build_user_message(settings, user_text)
+    if rag_hits:
+        emit(
+            "rag_hits",
+            {
+                "count": len(rag_hits),
+                "paths": [h.get("path") for h in rag_hits],
+                "scores": [h.get("score") for h in rag_hits],
+            },
+        )
+
     lip_mode = (settings.lip_sync_mode or "client_rhythm").strip().lower()
     defer_tts_for_s2v = lip_mode in ALL_DEFER_TTS_MODES
+    use_livetalking = lip_mode == LIVETALKING_MODE
+    lt_session = initial.get("livetalking_sessionid")
+    if lt_session is not None and lt_session != "":
+        try:
+            lt_session = int(lt_session)
+        except (TypeError, ValueError):
+            lt_session = str(lt_session)
+    else:
+        lt_session = None
 
     emit("reply_start", {})
     throttler = _DeltaThrottler(emit, settings.stream_delta_throttle_ms)
+    sys_prompt = _system_prompt(settings)
+    # livetalking 时仍流式 TTS，并喂给 runtime；前端可静音本地 TTS 只听 WebRTC
     tts: _OrderedTts | None = None
     if settings.stream_tts and not defer_tts_for_s2v:
-        tts = _OrderedTts(settings, emit, settings.tts_parallel_workers)
+        tts = _OrderedTts(
+            settings,
+            emit,
+            settings.tts_parallel_workers,
+            livetalking_session=lt_session,
+            feed_livetalking=use_livetalking and settings.livetalking_feed_audio,
+        )
 
     full_reply = ""
     buf = ""
     got_first_tts = False
     tts_sentence_idx = 0
+    # 流式时先不把 DIRECTOR 行送进 TTS：缓冲尾部直到完整
+    speak_for_tts_done = False
 
     try:
+        max_tokens = settings.llm_max_tokens
+        if settings.director_enabled:
+            max_tokens = max(max_tokens, 128)
+
         if settings.stream_llm:
-            stream = bailian.chat_reply_stream(settings, user_text=user_text)
+            stream = bailian.chat_reply_stream(
+                settings,
+                user_text=llm_user,
+                system_prompt=sys_prompt,
+                max_tokens=max_tokens,
+            )
         else:
-            text = bailian.chat_reply(settings, user_text=user_text)
+            text = bailian.chat_reply(
+                settings,
+                user_text=llm_user,
+                system_prompt=sys_prompt,
+                max_tokens=max_tokens,
+            )
             stream = [text] if text else []
 
         for delta in stream:
@@ -297,9 +381,25 @@ def run_turn_stream(
 
             full_reply += delta
             buf += delta
-            throttler.push(delta, full_reply)
+            # 展示用：尽量隐藏未完成的 DIRECTOR 行
+            display, _ = director.parse_director_block(full_reply)
+            if "DIRECTOR:" in full_reply and not display:
+                display = full_reply.split("DIRECTOR:")[0].strip()
+            throttler.push(delta, display or full_reply)
 
             if not settings.stream_tts or not tts:
+                continue
+
+            # 若已出现 DIRECTOR 前缀，停止把后续导演 JSON 送入 TTS
+            if "DIRECTOR:" in buf:
+                before, _, after = buf.partition("DIRECTOR:")
+                if before.strip():
+                    tts.submit(tts_sentence_idx, before.strip())
+                    tts_sentence_idx += 1
+                buf = "DIRECTOR:" + after
+                speak_for_tts_done = True
+                continue
+            if speak_for_tts_done:
                 continue
 
             frags, buf, got_first_tts = bailian.pop_tts_fragments(
@@ -319,16 +419,30 @@ def run_turn_stream(
             emit("error", {"message": "模型未返回内容"})
             return
 
-        emit("reply", {"text": full_reply})
+        speak_text, director_payload = director.parse_director_block(full_reply)
+        emit("reply", {"text": speak_text or full_reply})
+        if director_payload:
+            emit("avatar_director", director_payload)
+            if use_livetalking and lt_session is not None:
+                applied = director.apply_director_to_avatar(
+                    settings, director_payload, session_id=lt_session
+                )
+                emit("avatar_action", applied)
 
         if settings.stream_tts and tts:
-            tail = buf.strip()
-            if tail:
-                tts.submit(tts_sentence_idx, tail)
+            if not speak_for_tts_done:
+                tail = buf.strip()
+                if tail and not tail.startswith("DIRECTOR:"):
+                    # 去掉可能混入的导演行
+                    clean, _ = director.parse_director_block(tail)
+                    if clean:
+                        tts.submit(tts_sentence_idx, clean)
+                        tts_sentence_idx += 1
             tts.drain()
             tts.shutdown()
         elif not settings.stream_tts:
-            raw, mime = bailian.synthesize_tts(settings, text=full_reply)
+            to_speak = speak_text or full_reply
+            raw, mime = bailian.synthesize_tts(settings, text=to_speak)
             emit(
                 "tts_audio",
                 {
@@ -336,6 +450,17 @@ def run_turn_stream(
                     "base64": base64.b64encode(raw).decode("ascii"),
                 },
             )
+            if use_livetalking and lt_session is not None and settings.livetalking_feed_audio:
+                try:
+                    livetalking_client.speak_audio(
+                        settings,
+                        audio_bytes=raw,
+                        audio_mime=mime,
+                        session_id=lt_session,
+                        interrupt=True,
+                    )
+                except Exception as ex:
+                    logger.warning("LiveTalking humanaudio (full): %s", ex)
 
         if lip_mode == "client_rhythm":
             emit(
@@ -347,14 +472,33 @@ def run_turn_stream(
                     "hint": "流式对话；假口型随 TTS 播放",
                 },
             )
+        elif use_livetalking:
+            emit(
+                "lip_sync",
+                {
+                    "mode": LIVETALKING_MODE,
+                    "status": "done",
+                    "streaming": True,
+                    "sessionid": lt_session,
+                    "hint": (
+                        "已推送至 LiveTalking（FeatherTalk 口型）"
+                        if lt_session is not None
+                        else "livetalking 模式但未提供 sessionid：请先连接 WebRTC"
+                    ),
+                    "webrtc_url": settings.livetalking_webrtc_url
+                    or settings.livetalking_url,
+                },
+            )
 
         emit("stream_done", {"tts_sentences": tts_sentence_idx})
 
         if lip_mode in ALL_DEFER_TTS_MODES:
-            cache_hit = _cache_expected(settings, user_text, full_reply)
+            cache_hit = _cache_expected(settings, user_text, speak_text or full_reply)
             pre_tts: tuple[bytes, str] | None = None
             if not cache_hit:
-                pre_tts = bailian.synthesize_tts(settings, text=full_reply)
+                pre_tts = bailian.synthesize_tts(
+                    settings, text=speak_text or full_reply
+                )
                 emit(
                     "tts_while_waiting",
                     {
@@ -365,7 +509,7 @@ def run_turn_stream(
             _run_lip_sync_video(
                 settings,
                 user_text=user_text,
-                full_reply=full_reply,
+                full_reply=speak_text or full_reply,
                 api_base=api_base,
                 emit=emit,
                 pre_tts=pre_tts,

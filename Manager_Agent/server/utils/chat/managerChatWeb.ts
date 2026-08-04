@@ -35,7 +35,8 @@ export function formatChatWebSynthHint(meta?: Record<string, unknown> | null): s
   if (!shouldForceChatWebDirectSynth(meta)) return ''
   return [
     '【聊天式联网问答】',
-    '像 DeepSeek 一样回答：首段开门见山；可用 ### 小标题；对比类任务用 Markdown 表格（| 列 | 列 |）；',
-    '正文用 [1][2] 角标引用来源（系统会在下方展示链接）；禁止贴裸 URL；信息不足时说明并给可执行建议。'
+    '像 DeepSeek 一样回答：首段开门见山；可用 ### 小标题；对比类用 Markdown 表格；',
+    '正文用 [1][2] 角标（系统下方展示来源卡）；禁止贴裸 URL；禁止执行摘要与 rag:/db: 管线回显；',
+    '信息不足时说明并给可执行建议。'
   ].join('\n')
 }

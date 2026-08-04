@@ -1,8 +1,13 @@
+import { existsSync } from 'node:fs'
+import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { isManagerWsAuthRequired } from './server/utils/platform/managerEnvModes'
 
 function agentSharedDir() {
-  return fileURLToPath(new URL('./agent-repo-shared', import.meta.url))
+  const docker = fileURLToPath(new URL('./agent-repo-shared', import.meta.url))
+  const local = fileURLToPath(new URL('../shared', import.meta.url))
+  if (existsSync(join(docker, 'clawhiveJwt.ts')) || existsSync(join(docker, 'agentPgClient.ts'))) return docker
+  return local
 }
 
 export default defineNuxtConfig({
@@ -48,7 +53,14 @@ export default defineNuxtConfig({
         process.env.NUXT_PUBLIC_MANAGER_WS_TOKEN ||
         (isManagerWsAuthRequired(process.env)
           ? String(process.env.MANAGER_WS_TOKEN || process.env.CLAWHIVE_INTERNAL_TOKEN || '').trim()
-          : '')
+          : ''),
+      clawhiveAuthUrl:
+        process.env.NUXT_PUBLIC_CLAWHIVE_AUTH_URL ||
+        process.env.CLAWHIVE_PUBLIC_URL ||
+        (process.env.MANAGER_RUNTIME === 'docker' ? 'http://127.0.0.1:18000' : 'http://127.0.0.1:18000'),
+      managerUserAuth:
+        String(process.env.NUXT_PUBLIC_MANAGER_USER_AUTH || process.env.MANAGER_USER_AUTH || process.env.AGENT_BROWSER_AUTH || '1').trim() !==
+        '0'
     },
     agents: {
       dbAgentWsUrl: process.env.DB_AGENT_WS_URL ?? 'ws://localhost:13101/api/chat.ws',

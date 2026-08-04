@@ -12,7 +12,8 @@ const PIPELINE_CHECK_LINE_RE =
 const STEP_ID_LINE_RE = /^s\d+\s*\([^)]+\)\s*[：:]/i
 const FACTS_ECHO_RE = /\bfacts\(\d+\)\s*[：:]/i
 const AGENT_PIPELINE_DUMP_RE =
-  /^(db|rag|crawler|code|clean|visualize|report|admin|gui)\s*[：:].{0,160}(检索|对齐|计算|生成|facts\(|知识库|可视化|清洗)/i
+  /^(?:[-*•]\s*)?(?:✓|×|−|○|✔|✖)?\s*(db|rag|crawler|code|clean|visualize|report|admin|gui|multi|extractor|lobster)\s*[：:].{0,200}/i
+const AGENT_RESULT_LINE_RE = /^(?:[-*•]\s*)?agent_result\b/i
 
 /** 是否像结构化执行摘要 / 开发者审计 dump（供用户视图隐藏附录） */
 export function looksLikeExecAuditDump(text: string): boolean {
@@ -29,18 +30,23 @@ export function looksLikeExecAuditDump(text: string): boolean {
 
 /**
  * 剥离误入用户载荷的结构化执行摘要与管线回显。
- * 保留面向用户的分析正文（### 月度收支、### 证据 等对照标题）。
+ * 保留面向用户的分析正文（### 月度收支、### 结论摘要 等对照标题）。
+ *
+ * 根因：Synth 常输出 ### 执行摘要（非 ##）；进入该节后直至文末均为审计，不可半途退出。
  */
 export function stripStructuredExecReport(text: string): string {
   let s = String(text || '').trim()
   if (!s) return ''
 
-  const dashSplit = s.search(/\n---\n+##\s*执行摘要(?:\s|$)/m)
+  // 任意级别「执行摘要」起整段丢弃（含其后 ### 后续建议 / 管线回显）
+  const execCut = s.search(/(?:^|\n)#{1,3}\s*执行摘要(?:\s|$)/m)
+  if (execCut >= 0) {
+    s = s.slice(0, execCut).trim()
+    if (!s) return ''
+  }
+
+  const dashSplit = s.search(/\n---\n+#{1,3}\s*已执行步骤(?:\s|$)/m)
   if (dashSplit >= 0) s = s.slice(0, dashSplit).trim()
-  // 先裁掉后半段执行摘要；勿用 /m 的 ^ 把「正文+## 执行摘要」整段判空
-  const bare = s.search(/\n##\s*执行摘要(?:\s|$)/m)
-  if (bare >= 0) s = s.slice(0, bare).trim()
-  else if (/^##\s*执行摘要(?:\s|$)/.test(s)) return ''
 
   const lines = s.split('\n')
   const out: string[] = []
@@ -48,32 +54,20 @@ export function stripStructuredExecReport(text: string): string {
   for (const line of lines) {
     const t = line.trim()
     if (AUDIT_SHELL_HEADING_RE.test(t)) {
+      // 执行摘要已在上方整段裁掉；其余壳标题起吞到文末
       inAuditSection = true
       continue
     }
-    if (inAuditSection && AUDIT_NESTED_HEADING_RE.test(t)) {
-      continue
-    }
     if (inAuditSection) {
-      if (!t) continue
-      if (
-        AUDIT_META_LINE_RE.test(t) ||
-        PIPELINE_CHECK_LINE_RE.test(t) ||
-        STEP_ID_LINE_RE.test(t) ||
-        FACTS_ECHO_RE.test(t) ||
-        AGENT_PIPELINE_DUMP_RE.test(t) ||
-        /^[-*•]/.test(t)
-      ) {
-        continue
-      }
-      // 非审计列表/回显 → 恢复用户正文（如 **小结**、普通段落、用户侧 ### 标题）
-      inAuditSection = false
+      // 审计节一旦开始，不再恢复用户正文（避免 agent_result / 管线行打断后回漏）
+      continue
     }
     if (AUDIT_META_LINE_RE.test(t)) continue
     if (PIPELINE_CHECK_LINE_RE.test(t)) continue
     if (STEP_ID_LINE_RE.test(t)) continue
     if (FACTS_ECHO_RE.test(t)) continue
     if (AGENT_PIPELINE_DUMP_RE.test(t)) continue
+    if (AGENT_RESULT_LINE_RE.test(t)) continue
     out.push(line)
   }
   return out.join('\n').replace(/\n{3,}/g, '\n\n').trim()

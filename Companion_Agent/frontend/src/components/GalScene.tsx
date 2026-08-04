@@ -29,7 +29,7 @@ type Props = {
   speaking: boolean;
   mouthLevel: number;
   choices: string[];
-  choiceKind?: "soft" | "branch";
+  choiceKind?: "soft" | "branch" | "stage_consent" | "confession_consent";
   eventLog: EventLogEntry[];
   activeEvent: GameEventInfo | null;
   storyProgress?: StoryProgressPublic | null;
@@ -37,7 +37,11 @@ type Props = {
   spriteOutfit?: string;
   spriteStyle?: SpriteStyle;
   ensemble?: EnsemblePublic | null;
-  onChoice: (text: string, index: number, kind: "soft" | "branch") => void;
+  onChoice: (
+    text: string,
+    index: number,
+    kind: "soft" | "branch" | "stage_consent" | "confession_consent",
+  ) => void;
   onBackToMenu: () => void;
   onFarewell?: () => void;
   onOpenLog: () => void;
@@ -129,8 +133,26 @@ export default function GalScene({
     : { background: fallbackCss };
   const turnsLeft = sceneRun && !sceneRun.ended ? sceneRun.turns_left : null;
   const sceneHint = sceneRun?.pool_hint || "";
+  const storyNarration =
+    storyProgress && !storyProgress.completed
+      ? (storyProgress.narration || storyProgress.beat_summary || "").trim()
+      : "";
+  const storyThought =
+    storyProgress && !storyProgress.completed ? (storyProgress.pc_thought || "").trim() : "";
+  const storyCardOpen = Boolean(storyNarration || storyThought);
+  const storyBeatLine =
+    !storyCardOpen &&
+    storyProgress &&
+    !storyProgress.completed &&
+    (storyProgress.beat_summary || "").trim()
+      ? `本拍 · ${(storyProgress.beat_summary || "").trim()}`
+      : "";
   const inputLocked = pending || Boolean(sceneRun?.ended);
   const guestReaction = (ensemble?.guest_reaction || "").trim();
+  const storySoftChoices = Boolean(
+    storyProgress && !storyProgress.completed && storyProgress.beat_total > 0 && hasChoices && choiceKind === "soft",
+  );
+  const storyHudTitle = storyNarration || storyProgress?.act_summary || "专属故事节拍";
 
   return (
     <div
@@ -169,10 +191,7 @@ export default function GalScene({
               <span className={turnsLeft <= 2 ? "gal-hud-turns--low" : undefined}>还剩 {turnsLeft} 句</span>
             ) : null}
             {storyProgress && !storyProgress.completed && storyProgress.beat_total > 0 ? (
-              <span
-                className="gal-hud-story"
-                title={storyProgress.act_summary || "专属故事节拍"}
-              >
+              <span className="gal-hud-story" title={storyHudTitle}>
                 故事 · {Math.min(storyProgress.beat_index + 1, storyProgress.beat_total)}/
                 {storyProgress.beat_total}
               </span>
@@ -198,22 +217,44 @@ export default function GalScene({
               人物
             </button>
           ) : null}
-          <button type="button" className="gal-hud-btn" onClick={onOpenLog} title="对话足迹与回退">
-            足迹
+          <button type="button" className="gal-hud-btn" onClick={onOpenLog} title="对话足迹 · 可回退到某一句">
+            足迹 · 回退
           </button>
         </div>
       </header>
 
       {hud}
-      {(questHud || storyBreath || sceneHint) && (
+      {(questHud || storyBreath || sceneHint || storyBeatLine || storyCardOpen) && (
         <div className="gal-quest-layer">
           {questHud}
+          {storyCardOpen ? (
+            <aside
+              className="gal-story-card"
+              role="status"
+              aria-label="故事叙事"
+              title={storyProgress?.act_summary || undefined}
+            >
+              <span className="gal-story-card-label">叙事</span>
+              {storyNarration ? <p className="gal-story-card-narration">{storyNarration}</p> : null}
+              {storyThought ? (
+                <p className="gal-story-card-thought">
+                  <span className="gal-story-card-thought-mark">我</span>
+                  {storyThought}
+                </p>
+              ) : null}
+            </aside>
+          ) : null}
+          {storyBeatLine ? (
+            <p className="gal-story-beat" role="status" title={storyProgress?.act_summary || undefined}>
+              {storyBeatLine}
+            </p>
+          ) : null}
           {sceneHint ? (
             <p className="gal-scene-hint" role="status">
               {sceneHint}
             </p>
           ) : null}
-          {storyBreath ? (
+          {storyBreath && !storyBeatLine && !storyCardOpen ? (
             <p className="gal-story-breath" role="status">
               {storyBreath}
             </p>
@@ -263,6 +304,11 @@ export default function GalScene({
           kind={choiceKind}
           disabled={inputLocked}
           onChoice={onChoice}
+          hint={
+            storySoftChoices
+              ? "故事软选项 · 可点可选，也可自己打字"
+              : undefined
+          }
         />
         {onInputChange && onSend ? (
           <GalInputBar

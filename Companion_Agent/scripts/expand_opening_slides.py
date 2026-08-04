@@ -89,7 +89,7 @@ SLIDES = [
         "bg": "store.png",
         "period": "night",
         "title": "夜班",
-        "sprite": {"character_id": "yeyu", "outfit": "work", "emotion": "neutral"},
+        "sprite": {"character_id": "shiori", "outfit": "work", "emotion": "neutral"},
         "lines": [
             "便利店的荧光灯整夜不熄。",
             "夜班柜台后，也有人在等一句不赶客的闲聊。",

@@ -3,32 +3,88 @@ label: Debug
 priority: 6
 once: true
 chance: 1.0
-scene_id: ""
+scene_id: ''
 trigger:
-  character_ids: [qiansha]
+  character_ids:
+  - qiansha
   stage_min: close_friend
   affinity_min: 68
-  flags_absent: [qs_debug_us]
-  flags_present: [qs_remeet]
+  flags_absent:
+  - qs_debug_us
+  flags_present:
+  - qs_remeet
 prompt_snippet: |
   【专属故事 · 旧 PR 与新分支 · 第2幕 · Debug】
 advance: on_player_turn
 beats:
-  - id: b1
-    summary: "她照顾你/你照顾她"
-    sprite_hint: [debug_mug, pr_review]
-    soft_options: ["认真接话", "先观察", "轻声提问"]
-  - id: b2
-    summary: "谈当初为什么炸"
-    sprite_hint: [pr_review, figma_compare]
-    soft_options: ["表明态度", "给她空间", "确认她的意思"]
-  - id: b3
-    summary: "收束本幕：留下可被记住的结果，不剧透结局名。"
-    sprite_hint: [figma_compare]
-    soft_options: ["坦白心意", "先缓一缓", "诚实说明顾虑"]
+- id: b1
+  summary: 咖啡杯旁堆着报错；她让你别打补丁话术，要根因。等你回应。
+  sprite_hint:
+  - debug_mug
+  - work
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 老实讲当时为什么炸
+  - 听她列问题
+  - 承认逃避
+  narration: 显示器蓝光与键盘声里，咖啡杯旁堆着报错；她让你别打补丁话术，要根因。
+  pc_thought: 旧 PR 还开着。Merge 还是 Close——我别当版本控制器。
+  brief: 咖啡杯旁堆着报错；她让你别打补丁话术，要根因。等你回应。
+- id: b2
+  summary: "PR 评论里她标红：信任崩过一次，热修不能当永久方案。等你回应。"
+  sprite_hint:
+  - pr_review
+  - figma_compare
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 提出可验证的改变
+  - 问她需要什么证据
+  - 接受暂时 fork
+  narration: "显示器蓝光与键盘声里，PR 评论里她标红：信任崩过一次，热修不能当永久方案。"
+  pc_thought: debug 到深夜，像把分手理由一行行编译——想起PR。
+  brief: "PR 评论里她标红：信任崩过一次，热修不能当永久方案。等你回应。"
+- id: b3
+  summary: "设计稿对照时她声音软一点：恨的是失控，不是你这个人。等你回应。"
+  sprite_hint:
+  - figma_compare
+  - hoodie_focus
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 区分人与错
+  - 说想修关系不是刷好感
+  - 感谢她仍谈
+  narration: "显示器蓝光与键盘声里，设计稿对照时她声音软一点：恨的是失控，不是你这个人。"
+  pc_thought: 脏 diff 里藏着没说完的话。我敢不敢 review？
+  brief: "设计稿对照时她声音软一点：恨的是失控，不是你这个人。等你回应。"
+- id: b4
+  summary: 部署手表亮起；她说今晚日志留下——下次再决定 Merge。等你回应。
+  sprite_hint:
+  - deploy_watch
+  - casual
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 约固定复盘
+  - 保证透明沟通
+  - 先送她回去
+  narration: 显示器蓝光与键盘声里，部署手表亮起；她说今晚日志留下——下次再决定 Merge。
+  pc_thought: 新年 PR 标题很甜。落地还是 revert？
+  brief: 部署手表亮起；她说今晚日志留下——下次再决定 Merge。等你回应。
 rewards:
-  flags_set: [qs_debug_us, sharp_care_done]
+  flags_set:
+  - qs_debug_us
+  - sharp_care_done
 choice_effects:
-  - { trust_delta: 3, affinity_delta: 3 }
-  - { trust_delta: 2, affinity_delta: 2 }
-  - { trust_delta: -2, affinity_delta: -1 }
+- trust_delta: 3
+  affinity_delta: 3
+- trust_delta: 2
+  affinity_delta: 2
+- trust_delta: -2
+  affinity_delta: -1

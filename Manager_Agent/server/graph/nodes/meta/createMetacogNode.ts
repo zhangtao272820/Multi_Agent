@@ -23,6 +23,7 @@ export function createMetacogNode(deps: CreateMetacogNodeDeps) {
         final: `该请求超出当前总管 Agent 的安全能力边界：${out.reason}\n\n我可以继续做两件事：\n- 给出操作步骤/风险点/需要准备的材料\n- 帮你整理需要人工执行的清单\n\n请回复你希望我做哪一种。`
       }
     }
-    return { meta: mergeMeta(state, { routeConfidence: 0, uncertainty: 'medium' }) }
+    // 勿写 routeConfidence:0 —— 会盖住后续编排置信，且 finalize 把 0 当合法值，学习信号永久记成 0
+    return { meta: mergeMeta(state, { uncertainty: 'medium' }) }
   }
 }

@@ -1,0 +1,58 @@
+# AI_Agent + LiveTalking（FeatherTalk 口型）
+# 需要 NVIDIA Container Toolkit；显存建议 ≥8GB
+#
+#   docker compose --profile avatar up -d
+#
+# 本机无 GPU 时只起对话服务，假口型：
+#   docker compose up -d ai_agent
+
+services:
+  ai_agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ai_agent
+    env_file:
+      - .env
+    environment:
+      LIP_SYNC_MODE: ${LIP_SYNC_MODE:-client_rhythm}
+      LIVETALKING_URL: ${LIVETALKING_URL:-http://livetalking:8010}
+      LIVETALKING_WEBRTC_URL: ${LIVETALKING_WEBRTC_URL:-http://127.0.0.1:8010}
+      RAG_ENABLED: ${RAG_ENABLED:-true}
+      DIRECTOR_ENABLED: ${DIRECTOR_ENABLED:-true}
+      ASSETS_DIR: /app/assets
+      AVATAR_VIDEO_PATH: /app/video/ai.mp4
+    ports:
+      - "${AI_AGENT_PORT:-8080}:8080"
+    volumes:
+      - ./assets:/app/assets
+      - ./video:/app/video
+    restart: unless-stopped
+
+  livetalking:
+    profiles: ["avatar"]
+    build:
+      context: ./services/livetalking
+      dockerfile: Dockerfile
+    container_name: ai_agent_livetalking
+    gpus: all
+    environment:
+      LIVETALKING_PORT: "8010"
+      LIVETALKING_MODEL: ${LIVETALKING_MODEL:-ultralight}
+      FEATHERTALK_CHECKPOINT: /data/feathertalk
+      NVIDIA_VISIBLE_DEVICES: all
+    ports:
+      - "${LIVETALKING_PORT:-8010}:8010"
+    volumes:
+      - ./.external/LiveTalking:/opt/LiveTalking
+      - ./.external/FeatherTalk:/opt/FeatherTalk:ro
+      - ./assets/avatar_runtime:/data
+      - ./assets/avatar_actions:/data/actions:ro
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

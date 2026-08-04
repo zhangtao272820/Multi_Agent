@@ -26,20 +26,20 @@ def main() -> int:
         for ch in base.get("characters") or []:
             chars[ch["id"]] = (base["id"], ch)
 
-    # 现行 SSOT：romance×18 + neutral×6 + npc×0 = 24（路人立绘为无名背景）
-    if len(chars) != 24:
-        errors.append(f"model_roles characters={len(chars)} want 24")
-    if len(social) != 24:
-        errors.append(f"social_graph characters={len(social)} want 24")
-    if len(routes) != 24:
-        errors.append(f"route_catalog routes={len(routes)} want 24")
+    # 现行 SSOT：romance×17 + neutral×6 + npc×0 = 23（`moran` 已删；路人立绘为无名背景）
+    if len(chars) != 23:
+        errors.append(f"model_roles characters={len(chars)} want 23")
+    if len(social) != 23:
+        errors.append(f"social_graph characters={len(social)} want 23")
+    if len(routes) != 23:
+        errors.append(f"route_catalog routes={len(routes)} want 23")
 
     romance = [cid for cid, s in social.items() if s.get("cast_kind") == "romance"]
     neutral = [cid for cid, s in social.items() if s.get("cast_kind") == "neutral"]
     npc = [cid for cid, s in social.items() if s.get("cast_kind") == "npc"]
-    if len(romance) != 18 or len(neutral) != 6 or len(npc) != 0:
+    if len(romance) != 17 or len(neutral) != 6 or len(npc) != 0:
         errors.append(f"cast counts romance={len(romance)} neutral={len(neutral)} npc={len(npc)}")
-    for banned in ("moxi", "luli"):
+    for banned in ("moxi", "luli", "moran"):
         if banned in social or banned in chars or banned in routes:
             errors.append(f"{banned}: still registered as playable cast")
 

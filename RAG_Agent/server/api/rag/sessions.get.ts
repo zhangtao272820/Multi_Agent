@@ -29,19 +29,12 @@ export default defineEventHandler(async (event) => {
   const query = getQuery(event);
   const userId = String(query.userId ?? "").trim();
   const dataRoot = path.join(process.cwd(), ".data");
-
-  const historyIdsRaw = query.historyIds ? String(query.historyIds) : "";
-  const historyIds = historyIdsRaw
-    .split(",")
-    .map((s) => s.trim())
-    .filter((s) => /^[A-Za-z0-9_-]+$/.test(s))
-    .slice(0, 80);
+  // 会话列表仅服务端权威：忽略客户端 historyIds，禁止前端拼装权威列表
 
   const sessionIdSet = new Set<string>();
   if (userId) {
     for (const id of await listRagSessionsForUser(userId)) sessionIdSet.add(id);
   }
-  for (const id of historyIds) sessionIdSet.add(id);
 
   const items: Array<{
     id: string;

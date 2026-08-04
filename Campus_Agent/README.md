@@ -19,7 +19,10 @@ npm run dev
 - 前端：http://127.0.0.1:5176  
 - 后端：http://127.0.0.1:13116  
 
-可选 `.env`（对话 LLM）：`DASHSCOPE_API_KEY`、`CAMPUS_LLM_MODEL`、`CAMPUS_AUX_LLM_MODEL`
+可选 `.env`（对话 LLM）：`DASHSCOPE_API_KEY`、`CAMPUS_LLM_MODEL`、`CAMPUS_AUX_LLM_MODEL`  
+桌面密钥：`%LOCALAPPDATA%\CampusAgent\.env`（可用 `python scripts/seed_env_from_companion.py` 从 Companion 种子）
+
+BGM：`data/bgm/` + `data/bgm_catalog.json`（CC0）；前端按标题/地图/地点/对话切曲，HUD 可静音。
 
 ## 冒烟
 

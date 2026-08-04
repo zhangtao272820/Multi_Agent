@@ -53,6 +53,11 @@ import { extractTaggedBlockFull, wrapTaggedBlock } from '../../../utils/shared/o
 import { hasCodeInResults } from '#agent-shared/codeFirstAuthority'
 import { assembleSynthSystemPrompt } from '../../llm/synthPromptProfiles'
 import { promptBudgetSystemChars } from '../../core/shared/promptBudget'
+import {
+  collectUnifiedSources,
+  formatCitationInventoryForSynth,
+  resolveReplyTier
+} from '../../core/output/userFacingPayload'
 import { parseCleanPayload } from '#agent-shared/cleanPayload'
 import {
   hasDeterministicReportEvidence,
@@ -567,6 +572,24 @@ export function buildSynthNodeRun(deps: CreateFinalNodesDeps) {
           }
         }
 
+        const replyTier = resolveReplyTier({
+          intent: String(state.intent || ''),
+          results,
+          planSteps: effectivePlanSteps,
+          meta: merged.meta,
+          multiSourceSynth,
+          canShowAuxOutputs,
+          adminSynthContext,
+          chatWebReply,
+          hasGuiResult,
+          hasDbResult
+        })
+        const citationSources = collectUnifiedSources({
+          evidence: evidences,
+          meta: merged.meta,
+          max: 12
+        })
+        const citationInventory = formatCitationInventoryForSynth(citationSources)
         const synthSystemText = assembleSynthSystemPrompt({
           multiSourceSynth,
           canShowAuxOutputs,
@@ -576,7 +599,8 @@ export function buildSynthNodeRun(deps: CreateFinalNodesDeps) {
           hasGuiResult,
           hasDbResult,
           chatWebReply,
-          chatWebHint: chatWebHint || ''
+          chatWebHint: chatWebHint || '',
+          replyTier
         })
         if (synthSystemText.length > promptBudgetSystemChars()) {
           opts.sendEvent({
@@ -585,16 +609,26 @@ export function buildSynthNodeRun(deps: CreateFinalNodesDeps) {
             from: 'manager'
           })
         }
+        const closingHint =
+          replyTier === 'lite'
+            ? '\n\n【最终指示】只输出给用户看的 2～8 句确认；禁止任何 ### 报告章节、执行摘要、管线 agent 回显。'
+            : replyTier === 'report'
+              ? '\n\n【最终指示】像 DeepSeek 一样写给用户：首段结论 → ### 关键发现 → ### 详细说明（对照表）→ ### 建议；写完建议即止。严禁「执行摘要 / rag: / db: / agent_result / 逻辑删除」等开发内容。'
+              : '\n\n【最终指示】像 DeepSeek 一样对话作答：首段结论 → 按需 ### 分段 → [n] 引用；严禁执行摘要与管线回显。'
         const synthPrompt = [
           new SystemMessage(synthSystemText),
           new HumanMessage(
-            `用户任务：${question}${critique}\n\n子步骤数据源：\n` +
+            `用户任务：${question}${critique}\n\n` +
+              `【内部参考·禁止复述进正文】下列 CTX/子步骤仅供你采信事实与数字，严禁改写成「执行摘要」或 rag:/db: 列表：\n` +
               (synthBlocks.length ? synthBlocks.join('\n\n') : '（暂无可用事实数据）') +
+              (citationInventory ? `\n\n${citationInventory}` : '') +
               (directVisualize ? '\n\n[附属] 已有可视化 Agent 输出（含图表配置），正文须与之保持一致，勿称图表未生成。' : '') +
               (directReport
-                ? '\n\n[附属] 已有报告 Agent 输出：正文仍须充分展开分析与结论（600 字以上），下方报告块为结构化附录，勿把正文缩成一两句摘要。'
-                : plannedReport
-                  ? '\n\n[说明] 报告由你汇总撰写：全部内容写在正文，用 ### 分段；勿留空壳摘要。'
+                ? replyTier === 'report'
+                  ? '\n\n[附属] 已有报告草稿：请用自己的话写成面向用户的 DeepSeek 式正文；勿整段粘贴附录，勿追加执行摘要。'
+                  : '\n\n[附属] 已有报告草稿：提炼面向用户的结论写入正文即可，勿整段复述。'
+                : plannedReport && replyTier === 'report'
+                  ? '\n\n[说明] 报告由你汇总：全部写在面向用户的正文里；写完建议即止。'
                   : '') +
               (hasAdminResult && !handoffAgents.has('admin')
                 ? `\n\n[附属] admin 已执行：${prepareUntrustedForSynth(
@@ -614,9 +648,7 @@ export function buildSynthNodeRun(deps: CreateFinalNodesDeps) {
                   : plannedAdmin
                   ? '\n\n[说明] 计划含 admin 步骤，但当前无 admin 子输出；勿编造已创建提醒/日程。'
                   : '\n\n[说明] 本任务计划未含 admin 步骤；禁止声称已创建提醒/日程/会议/待办。') +
-              (canShowAuxOutputs || multiSourceSynth
-                ? '\n\n请按系统要求写完整对照分析：首段结论 → ### 分段展开 → 末段 **小结**；禁止复述 CTX/HANDOFF/JSON/管线回显。'
-                : '\n\n请用对话口吻直接回答（不要报告章节标题）：')
+              closingHint
           )
         ]
 

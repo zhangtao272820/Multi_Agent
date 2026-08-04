@@ -1,6 +1,7 @@
 """专属故事幕：结构化节拍、当前拍注入、幕摘要（控 Token）。
 
-契约见 doc/故事与立绘拓展计划-剧本感与Token.md §4。
+契约见 doc/故事与立绘拓展计划-剧本感与Token.md §4
+与 doc/故事旁白与女主演绎升级计划.md §3。
 """
 
 from __future__ import annotations
@@ -11,6 +12,8 @@ from .event_engine import GameEvent, StoryBeat
 
 STORY_SUMMARY_MAX = 120
 BEAT_SUMMARY_MAX = 80
+BEAT_NARRATION_MAX = 120
+BEAT_THOUGHT_MAX = 80
 
 
 def is_story_event(event: GameEvent | None) -> bool:
@@ -26,6 +29,25 @@ def event_beats(event: GameEvent | None) -> list[StoryBeat]:
     if not event:
         return []
     return list(event.beats or [])
+
+
+def story_uses_soft_options(event: GameEvent | None) -> bool:
+    """有结构化 beats 的专属幕：系统 soft_options，不走 choice_effects 分支。"""
+    return bool(event_beats(event))
+
+
+def should_advance_beat(event: GameEvent | None, *, chose: bool) -> bool:
+    """是否在本轮 after_turn 推进节拍。
+
+    - on_player_turn（默认）：每玩家一轮推进
+    - on_choice：仅点了系统选项才推进
+    """
+    if not event_beats(event):
+        return False
+    mode = (getattr(event, "advance", None) or "on_player_turn").strip().lower()
+    if mode == "on_choice":
+        return bool(chose)
+    return True
 
 
 def current_beat(event: GameEvent | None, beat_index: int) -> StoryBeat | None:
@@ -44,11 +66,46 @@ def soft_options_for_beat(event: GameEvent | None, beat_index: int) -> list[str]
     return [str(x).strip() for x in (beat.soft_options or []) if str(x).strip()][:4]
 
 
+def story_outfit_hints_for_beat(event: GameEvent | None, beat_index: int) -> list[str]:
+    """当前拍 sprite_hint（供 resolve_outfit 强制换装）。"""
+    if not is_story_event(event):
+        return []
+    beat = current_beat(event, beat_index)
+    if not beat:
+        return []
+    return [str(x).strip() for x in (beat.sprite_hint or []) if str(x).strip()]
+
+
 def _clip(text: str, limit: int) -> str:
     t = (text or "").strip()
     if len(t) <= limit:
         return t
     return t[: max(0, limit - 1)] + "…"
+
+
+def beat_brief_text(beat: StoryBeat | None) -> str:
+    """女主 prompt 用：brief 优先，回退 summary。"""
+    if not beat:
+        return ""
+    return (beat.brief or beat.summary or beat.id or "").strip()
+
+
+def beat_narration_text(beat: StoryBeat | None) -> str:
+    """UI 旁白：narration 优先，回退 summary。"""
+    if not beat:
+        return ""
+    return (beat.narration or beat.summary or "").strip()
+
+
+def beat_fact_piece(beat: StoryBeat | None, *, limit: int = 40) -> str:
+    """幕滚动摘要用事实句：brief → narration → summary；不含男主思考。"""
+    if not beat:
+        return ""
+    for raw in (beat.brief, beat.narration, beat.summary, beat.id):
+        piece = _clip(raw or "", limit)
+        if piece:
+            return piece
+    return ""
 
 
 def format_story_snippet(
@@ -57,7 +114,10 @@ def format_story_snippet(
     beat_index: int = 0,
     act_summary: str = "",
 ) -> str:
-    """只拼当前拍；无 beats 时回退整段 prompt_snippet。"""
+    """只拼当前拍演职员简报；无 beats 时回退整段 prompt_snippet。
+
+    不注入 narration / pc_thought（玩家叙事层，0 Token 给女主）。
+    """
     beats = event_beats(event)
     if not beats:
         return (event.prompt_snippet or "").strip()
@@ -71,7 +131,7 @@ def format_story_snippet(
     else:
         title_line = f"【专属故事 · {event.label or event.id} · 节拍{idx + 1}/{len(beats)}】"
 
-    summary = _clip(beat.summary or beat.id, BEAT_SUMMARY_MAX)
+    brief = _clip(beat_brief_text(beat), BEAT_SUMMARY_MAX)
     hints = ", ".join(beat.sprite_hint or []) or "日常"
     opts = soft_options_for_beat(event, idx)
     opt_line = ""
@@ -85,7 +145,7 @@ def format_story_snippet(
 
     return (
         f"{title_line}\n"
-        f"当前节拍 {idx + 1}/{len(beats)}：{summary}\n"
+        f"当前节拍 {idx + 1}/{len(beats)}：{brief}\n"
         f"立绘气质参考：{hints}。"
         f"{opt_line}"
         f"{summary_block}\n"
@@ -97,7 +157,7 @@ def format_story_snippet(
 def append_act_summary(existing: str, beat: StoryBeat | None) -> str:
     if not beat:
         return _clip(existing, STORY_SUMMARY_MAX)
-    piece = _clip(beat.summary or beat.id, 40)
+    piece = beat_fact_piece(beat, limit=40)
     if not piece:
         return _clip(existing, STORY_SUMMARY_MAX)
     if not (existing or "").strip():
@@ -127,11 +187,18 @@ def public_story_progress(
         return None
     beats = event_beats(event)
     beat = current_beat(event, beat_index)
+    brief = beat_brief_text(beat) if beat else ""
+    narration = beat_narration_text(beat) if beat else ""
+    thought = (beat.pc_thought or "").strip() if beat else ""
     return {
         "event_id": event.id,
         "beat_index": beat_index,
         "beat_total": len(beats),
         "beat_id": beat.id if beat else "",
+        "beat_summary": _clip(brief, BEAT_SUMMARY_MAX),
+        "beat_brief": _clip(brief, BEAT_SUMMARY_MAX),
+        "narration": _clip(narration, BEAT_NARRATION_MAX),
+        "pc_thought": _clip(thought, BEAT_THOUGHT_MAX),
         "soft_options": soft_options_for_beat(event, beat_index),
         "act_summary": _clip(act_summary, STORY_SUMMARY_MAX),
         "completed": beat_index >= len(beats),

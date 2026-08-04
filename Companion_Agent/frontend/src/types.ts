@@ -33,7 +33,7 @@ export type CharacterProfile = {
   user_title: string;
   mbti_type?: string;
   mbti_label?: string;
-  /** romance=可攻略女主；neutral=羁绊中立（影响结局） */
+  /** romance=可攻略女主；linked=关系向难攻略（可恋爱，双门）；neutral=旧档别名→linked */
   cast_role?: "romance" | "neutral";
 };
 
@@ -61,6 +61,8 @@ export type RelationshipState = {
   flags?: Record<string, boolean>;
   low_streak?: number;
   active_ending_id?: string | null;
+  /** 好感已够、等玩家确认的恋爱阶段（crush/dating/married） */
+  pending_stage_id?: string;
 };
 
 export type MemoryFact = {
@@ -194,6 +196,13 @@ export type WorldLocation = {
   present?: { character_id: string; name: string; theme_color?: string }[];
 };
 
+export type BondLivingSoft = {
+  soft_cold?: boolean;
+  neglect_cold?: boolean;
+  fatigue_band?: string;
+  long_status?: string;
+};
+
 export type BondSummary = {
   character_id: string;
   base_id?: string;
@@ -216,6 +225,22 @@ export type BondSummary = {
   sprite_outfit?: string;
   /** 是否已交谈（后端计算） */
   met?: boolean;
+  /** 亲近难度 easy|medium|hard */
+  difficulty_band?: string;
+  difficulty_label?: string;
+  endings_unlocked_count?: number;
+  last_talk_gap_label?: string;
+  living_soft?: BondLivingSoft;
+  life_notes?: string[];
+  story_soft?: string;
+  /** 图鉴往事（已交谈） */
+  lore_codex?: string;
+  link_anchor_id?: string;
+  link_relation_label?: string;
+  link_gate_summary?: string;
+  link_self_open?: boolean;
+  link_anchor_open?: boolean;
+  link_dating_ready?: boolean;
   /** 以下字段：已交谈后才下发（看板性格区） */
   age?: number | null;
   occupation?: string;
@@ -330,6 +355,8 @@ export type EndingHint = {
   character_id: string;
   name: string;
   text: string;
+  /** Hub 可操作：settle_friend = 定在朋友结局 */
+  action?: string;
 };
 
 export type StoryHint = {
@@ -448,6 +475,28 @@ export type Day1RecommendedChar = {
   role?: string;
 };
 
+export type HubWaypoint = {
+  id?: string;
+  order?: number;
+  label?: string;
+  date?: string;
+  date_label?: string;
+  season?: string;
+  season_label?: string;
+  festival?: string;
+  outfit_hint?: string;
+  day_index?: number;
+  transition?: string[];
+};
+
+export type HubWaypoints = {
+  current?: HubWaypoint;
+  next?: HubWaypoint | null;
+  reached?: string[];
+  can_jump_next?: boolean;
+  all?: HubWaypoint[];
+};
+
 export type HubState = {
   save_id: string;
   protagonist_name: string;
@@ -481,6 +530,7 @@ export type HubState = {
   ending_hints?: EndingHint[];
   story_hints?: StoryHint[];
   copresence_note?: string;
+  waypoints?: HubWaypoints;
 };
 
 export type WorldSocialResult = {
@@ -511,6 +561,8 @@ export type WorldPublic = {
   protagonist_name: string;
   protagonist?: ProtagonistPublic;
   calendar: WorldCalendar;
+  waypoint_id?: string;
+  waypoints_reached?: string[];
   action_points: number;
   action_points_max: number;
   location_id: string;
@@ -527,10 +579,19 @@ export type WorldSaveSummary = {
   protagonist_name: string;
   day_index: number;
   period: string;
+  period_label?: string;
   location_id: string;
+  location_label?: string;
   bonds_met: number;
   bonds_total: number;
   updated_at: string;
+  season_label?: string;
+  waypoint_label?: string;
+  date_label?: string;
+  money?: number;
+  focus_names?: string[];
+  unlocked_endings_count?: number;
+  waypoint_id?: string;
 };
 
 export type DialogueTurn = {
@@ -577,6 +638,14 @@ export type StoryProgressPublic = {
   beat_index: number;
   beat_total: number;
   beat_id?: string;
+  /** 演职员简报兼容字段（brief∥summary；≤80） */
+  beat_summary?: string;
+  /** 当前拍演职员简报（调试/兼容） */
+  beat_brief?: string;
+  /** 玩家叙事旁白（≤120；不进女主 prompt） */
+  narration?: string;
+  /** 男主思考（≤80；不进女主 prompt） */
+  pc_thought?: string;
   soft_options?: string[];
   act_summary?: string;
   completed?: boolean;
@@ -595,8 +664,8 @@ export type RelationshipUpdate = {
   event?: GameEventInfo | null;
   event_applied?: GameEventInfo | null;
   pending_choices?: string[];
-  /** soft=开场提示；branch=事件分支（会影响态度） */
-  pending_choice_kind?: "soft" | "branch";
+  /** soft=开场提示；branch=事件分支；*_consent=阶段/表白确认（传 index） */
+  pending_choice_kind?: "soft" | "branch" | "stage_consent" | "confession_consent";
   message_summary_updated?: boolean;
   event_log?: EventLogEntry[];
   scene?: GalSceneInfo;
@@ -615,6 +684,10 @@ export type RelationshipUpdate = {
   hub?: HubState;
   world?: WorldPublic;
   world_social?: WorldSocialResult;
+  /** 本轮解析出的换装前缀（有图时） */
+  sprite_outfit?: string;
+  /** 同场并肩演出；null 表示清空 */
+  ensemble?: EnsemblePublic | null;
   /** 辅模型额度/降级等系统提示（非玩法错误） */
   aux_notice?: { message: string; code?: string } | null;
 };
@@ -777,7 +850,7 @@ export type WsIncoming =
         edges?: { other_id: string; relation: string }[];
         sprite_outfit?: string;
         pending_choices?: string[];
-        pending_choice_kind?: "soft" | "branch";
+        pending_choice_kind?: "soft" | "branch" | "stage_consent" | "confession_consent";
         ping_text?: string;
         scene_run?: SceneRunPublic | null;
         ensemble?: EnsemblePublic | null;
@@ -888,12 +961,39 @@ export type WsIncoming =
       };
     }
   | {
+      type: "friend_ending_settled";
+      payload: {
+        ok: boolean;
+        character_id?: string;
+        name?: string;
+        ending_ready?: boolean;
+        note?: string;
+        ending_id?: string;
+        ending?: EndingInfo;
+        hub?: HubState;
+        world?: WorldPublic;
+      };
+    }
+  | {
+      type: "waypoint_jumped";
+      payload: {
+        ok?: boolean;
+        hub?: HubState;
+        world?: WorldPublic;
+        transition?: string[];
+        waypoint?: { id?: string; label?: string };
+      };
+    }
+  | {
       type: "rollback_done";
       payload: {
         ok?: boolean;
         turn_id: number;
         messages?: DialogueTurn[];
         relationship_state?: RelationshipState;
+        sprite_outfit?: string;
+        story_progress?: StoryProgressPublic | null;
+        memories?: MemoryFact[];
       };
     }
   | {
@@ -926,7 +1026,7 @@ export type WsIncoming =
       };
     }
   | { type: "event_toast"; payload: GameEventInfo }
-  | { type: "choices"; payload: { choices: string[]; kind?: "soft" | "branch" } }
+  | { type: "choices"; payload: { choices: string[]; kind?: "soft" | "branch" | "stage_consent" | "confession_consent" } }
   | { type: "game_scene"; payload: GalSceneInfo }
   | { type: "daily_state"; payload: DailyState }
   | { type: "quest_toast"; payload: { message: string } }

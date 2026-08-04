@@ -30,3 +30,4 @@ data/companion_save.db
 data/tts_cache/
 data/tts_pregen/
 data/_tmp/
+scripts/_tmp*

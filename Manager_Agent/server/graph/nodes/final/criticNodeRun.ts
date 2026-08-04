@@ -75,6 +75,7 @@ import {
   hasSuccessfulAdminWriteInRun,
   hasSuccessfulGuiBrowseInRun
 } from '../../core/output/criticEvidence'
+import { shouldPreferSynthOnlyAfterSideEffect } from '../../core/runtime/stepReuse'
 import { shouldSkipCriticLlm, isFixIntentBlockedByHardDown } from '../../core/output/criticPolicy'
 import { loadTaskStack } from '../../core/task/taskStack'
 import { extractAndUpsertTasksFromAssistantText, isTaskStackFinalizeLlmExtractEnabled } from '../../core/task/taskStackLlmExtract'
@@ -245,17 +246,61 @@ export function buildCriticNodeRun(deps: CreateFinalNodesDeps) {
                 data: '证据门禁：GUI 已 incomplete/navigation_unverified，跳过 pinGui 空转重试',
                 from: 'manager'
               })
+            } else if (!pinGui) {
+              const side = shouldPreferSynthOnlyAfterSideEffect({
+                results: state.results,
+                evidence: state.evidence,
+                lastStepRecords: Array.isArray(state.meta?.lastStepRecords)
+                  ? state.meta.lastStepRecords
+                  : null
+              })
+              if (side.synthOnly) {
+                opts.sendEvent({
+                  event: 'thinking',
+                  data: `证据门禁：${evidenceGate.reason || '来源不足'}；admin 写已成功 → 仅重汇总，禁止整 plan 重跑`,
+                  from: 'manager'
+                })
+                return {
+                  final: '',
+                  fixIntent: 'code' as const,
+                  fixQuery: `请在保留已成功写入结果的前提下修正最终综合：${evidenceGate.reason || '缺少来源或数据'}。禁止重做 admin 写操作。`,
+                  meta: mergeMeta(state, { synthOnlyRepair: true })
+                }
+              }
+              if (side.failedStepIds.length) {
+                opts.sendEvent({
+                  event: 'thinking',
+                  data: `证据门禁：${evidenceGate.reason || '来源不足'}；定点重跑失败步 ${side.failedStepIds.join(',')}`,
+                  from: 'manager'
+                })
+                return {
+                  final: '',
+                  fixIntent: 'multi' as const,
+                  fixQuery: `请补充可核验依据后重答：${evidenceGate.reason || '缺少来源或数据'}`,
+                  meta: mergeMeta(state, { forceRerunStepIds: side.failedStepIds })
+                }
+              }
+              opts.sendEvent({
+                event: 'thinking',
+                data: `证据门禁：${evidenceGate.reason || '来源不足'}，触发重试`,
+                from: 'manager'
+              })
+              return {
+                final: '',
+                fixIntent: 'multi' as const,
+                fixQuery: `请补充可核验依据后重答：${evidenceGate.reason || '缺少来源或数据'}`
+              }
             } else {
-            opts.sendEvent({
-              event: 'thinking',
-              data: `证据门禁：${evidenceGate.reason || '来源不足'}，触发重试`,
-              from: 'manager'
-            })
-            return {
-              final: '',
-              fixIntent: (pinGui ? 'gui' : 'multi') as const,
-              fixQuery: `请补充可核验依据后重答：${evidenceGate.reason || '缺少来源或数据'}`
-            }
+              opts.sendEvent({
+                event: 'thinking',
+                data: `证据门禁：${evidenceGate.reason || '来源不足'}，触发重试`,
+                from: 'manager'
+              })
+              return {
+                final: '',
+                fixIntent: 'gui' as const,
+                fixQuery: `请补充可核验依据后重答：${evidenceGate.reason || '缺少来源或数据'}`
+              }
             }
           }
         }

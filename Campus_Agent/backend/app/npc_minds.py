@@ -7,7 +7,7 @@ from typing import Any
 from . import catalog
 from . import npc_intent
 from . import relationship as rel
-from . import sprites as sprites_mod
+from . import sprite_context as sprite_ctx
 from .campus_store import CampusSave
 from .config import llm_api_key
 from .llm_chat import NpcMindItem, run_npc_minds
@@ -18,6 +18,25 @@ VALID_MOODS = frozenset(
     {"neutral", "happy", "shy", "sad", "angry", "anxious", "excited"}
 )
 APPROACH_TYPES = frozenset({"greet", "pursuit", "comfort", "study_buddy"})
+
+
+def _mood_to_emotion(mood: str) -> str:
+    if mood in {"neutral", "happy", "shy", "sad", "angry"}:
+        return mood
+    if mood == "anxious":
+        return "sad"
+    if mood == "excited":
+        return "happy"
+    return "neutral"
+
+
+def _sprite_for(save: CampusSave, student: dict[str, Any], *, emotion: str | None = None) -> dict[str, Any]:
+    return sprite_ctx.resolve_for_student(
+        student,
+        save,
+        emotion=_mood_to_emotion(str(emotion or "neutral")),
+        prefer_scene=True,
+    )
 
 
 def _edge_affinity(save: CampusSave, sid: str) -> float:
@@ -143,7 +162,7 @@ def apply_minds_result(
                     "blurb": blurb,
                     "mood": mood,
                     "location_id": save.locations_now.get(sid),
-                    "sprite": sprites_mod.resolve_student_sprite(sid, emotion=mood),
+                    "sprite": _sprite_for(save, stu, emotion=mood),
                 }
             )
         if event_take and save.active_event:
@@ -153,7 +172,7 @@ def apply_minds_result(
                     "name": stu.get("name"),
                     "mood": mood,
                     "event_take": event_take,
-                    "sprite": sprites_mod.resolve_student_sprite(sid, emotion=mood),
+                    "sprite": _sprite_for(save, stu, emotion=mood),
                 }
             )
     save.pending_intents = intents[:3]
@@ -175,7 +194,7 @@ def rules_fallback_intents(save: CampusSave) -> None:
         intent = npc_intent.evaluate_pursuit(npc=s, edge=edge, pc_charm=pc_charm, rng=rng)
         if intent:
             intent["location_id"] = save.locations_now.get(s["id"])
-            intent["sprite"] = sprites_mod.resolve_student_sprite(s["id"])
+            intent["sprite"] = _sprite_for(save, s)
             intents.append(intent)
     save.pending_intents = intents[:3]
 
@@ -235,7 +254,7 @@ def event_reactions_public(save: CampusSave, *, limit: int = 3) -> list[dict[str
                 "name": stu.get("name"),
                 "mood": mood,
                 "event_take": take,
-                "sprite": sprites_mod.resolve_student_sprite(sid, emotion=mood),
+                "sprite": _sprite_for(save, stu, emotion=mood),
             }
         )
         if len(out) >= limit:

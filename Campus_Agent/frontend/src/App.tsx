@@ -25,6 +25,8 @@ import { PeriodRecapOverlay } from "./components/PeriodRecapOverlay";
 import { PortraitModal, type PortraitTarget } from "./components/PortraitModal";
 import { TalkScreen, type InteractVerb } from "./components/TalkScreen";
 import { CreatePcScreen, SavePickerScreen, TitleScreen } from "./components/TitleAndCreate";
+import { useBgm } from "./hooks/useBgm";
+import { loadSettings, saveSettings, type CampusSettings } from "./settings";
 import type {
   BoardState,
   CampusMeta,
@@ -47,6 +49,7 @@ function applyHub(next: HubState, setHub: (h: HubState) => void, setScreen: (s: 
 export default function App() {
   const [screen, setScreen] = useState<ScreenId>("title");
   const [backendOk, setBackendOk] = useState<boolean | null>(null);
+  const [desktopMode, setDesktopMode] = useState(false);
   const [meta, setMeta] = useState<CampusMeta | null>(null);
   const [hub, setHub] = useState<HubState | null>(null);
   const [board, setBoard] = useState<BoardState | null>(null);
@@ -61,6 +64,19 @@ export default function App() {
   const [coachOpen, setCoachOpen] = useState(false);
   const [recap, setRecap] = useState<PeriodRecap | null>(null);
   const [recapOpen, setRecapOpen] = useState(false);
+  const [settings, setSettings] = useState<CampusSettings>(() => loadSettings());
+  const bgm = useBgm({ enabled: settings.bgmEnabled, volume: settings.bgmVolume });
+  const playBgm = bgm.play;
+  const playBgmPlaylist = bgm.playPlaylist;
+  const bgmCatalog = bgm.catalog;
+
+  function patchSettings(partial: Partial<CampusSettings>) {
+    setSettings((prev) => {
+      const next = { ...prev, ...partial };
+      saveSettings(next);
+      return next;
+    });
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -69,6 +85,7 @@ export default function App() {
         const health = await fetchHealth();
         if (cancelled) return;
         setBackendOk(health.ok);
+        setDesktopMode(Boolean(health.desktop));
         const m = await fetchMeta();
         if (!cancelled) setMeta(m);
       } catch {
@@ -97,6 +114,68 @@ export default function App() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [boardOpen, portrait]);
+
+  useEffect(() => {
+    if (!bgmCatalog) return;
+    if (screen === "title" || screen === "create" || screen === "saves") {
+      const list = bgmCatalog.playlists?.title;
+      if (list?.length) void playBgmPlaylist(list);
+      else void playBgm(bgmCatalog.cues?.title || "title_theme");
+      return;
+    }
+    if (screen === "ending" && ending) {
+      const id = String(ending.ending_id || ending.kind || "");
+      const cue =
+        (id && bgmCatalog.ending_type_cues?.[id]) ||
+        (id.includes("true") && bgmCatalog.ending_type_cues?.true) ||
+        (id.includes("good") && bgmCatalog.ending_type_cues?.good) ||
+        (id.includes("bad") && bgmCatalog.ending_type_cues?.bad) ||
+        bgmCatalog.cues?.ending ||
+        "ending_soft";
+      void playBgm(String(cue));
+      return;
+    }
+    if (screen === "talk" && talk) {
+      if (talk.scene === "date") {
+        void playBgm(bgmCatalog.cues?.date || "date_soft");
+      } else {
+        void playBgm(bgmCatalog.cues?.talk || "talk_soft");
+      }
+      return;
+    }
+    if ((screen === "map" || screen === "location") && hub) {
+      const weather = hub.calendar.weather_id || "";
+      const weatherCue = weather ? bgmCatalog.weather_cues?.[weather] : undefined;
+      if (weatherCue && (weather === "rainy" || weather === "thunderstorm")) {
+        void playBgm(weatherCue);
+        return;
+      }
+      if (screen === "location") {
+        const locCue = bgmCatalog.location_cues?.[hub.location_id];
+        if (locCue) {
+          void playBgm(locCue);
+          return;
+        }
+      }
+      const periodCue = bgmCatalog.hub_cues?.[hub.calendar.period_id];
+      if (periodCue) {
+        void playBgm(periodCue);
+        return;
+      }
+      void playBgm(bgmCatalog.cues?.map || "loc_campus");
+    }
+  }, [
+    screen,
+    hub?.location_id,
+    hub?.calendar.period_id,
+    hub?.calendar.weather_id,
+    talk?.scene,
+    ending?.ending_id,
+    ending?.kind,
+    bgmCatalog,
+    playBgm,
+    playBgmPlaylist,
+  ]);
 
   async function handleCreate(payload: { name: string; grade_tier: string; mbti: string }) {
     setBusy(true);
@@ -418,6 +497,11 @@ export default function App() {
       {screen === "title" && (
         <TitleScreen
           backendOk={backendOk}
+          desktop={desktopMode}
+          bgmEnabled={settings.bgmEnabled}
+          bgmVolume={settings.bgmVolume}
+          onToggleBgm={() => patchSettings({ bgmEnabled: !settings.bgmEnabled })}
+          onBgmVolume={(v) => patchSettings({ bgmVolume: v })}
           onStart={() => {
             setError(null);
             setScreen("create");
@@ -478,6 +562,10 @@ export default function App() {
         <CampusMapScreen
           hub={hub}
           busy={busy}
+          bgmEnabled={settings.bgmEnabled}
+          bgmVolume={settings.bgmVolume}
+          onToggleBgm={() => patchSettings({ bgmEnabled: !settings.bgmEnabled })}
+          onBgmVolume={(v) => patchSettings({ bgmVolume: v })}
           onEnter={handleTravel}
           onSelectPerson={handleSelectPerson}
           onAdvance={handleAdvance}
@@ -517,6 +605,10 @@ export default function App() {
           busy={busy}
           subjects={subjects}
           initialFocusId={focusStudentId}
+          bgmEnabled={settings.bgmEnabled}
+          bgmVolume={settings.bgmVolume}
+          onToggleBgm={() => patchSettings({ bgmEnabled: !settings.bgmEnabled })}
+          onBgmVolume={(v) => patchSettings({ bgmVolume: v })}
           onBack={() => {
             setFocusStudentId(null);
             setScreen("map");

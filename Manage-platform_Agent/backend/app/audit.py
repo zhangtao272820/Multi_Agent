@@ -2,6 +2,9 @@ from sqlalchemy.orm import Session
 
 from .db_models import AuditLogRecord, UserRecord
 
+# Re-export for callers that import from audit
+from .governance import SENSITIVE_AUDIT_ACTIONS  # noqa: F401
+
 
 def write_audit(
     db: Session,

@@ -2,13 +2,15 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import {
   appendUnifiedLearningSignal,
+  attachLearnEligibility,
   computeCompositeScore,
   isUnifiedLearningEnabled,
   readSignals,
   type UnifiedLearningSignal
 } from '../unifiedLearning'
-import { isRouteBanditEnabled, recordBanditReward, shouldRecordRouteBanditReward } from '../routing/routeBandit'
+import { recordBanditReward, shouldRecordRouteBanditReward } from '../routing/routeBandit'
 import { recordRouteLearningExtensions } from '../unifiedLearning'
+import { evaluateLearnEligibility } from './learnEligibility'
 
 export type ImplicitKind = 'user_cancel' | 'new_chat_interrupt' | 'human_reject' | 'retry_penalty'
 
@@ -56,7 +58,7 @@ function buildImplicitSignal(input: {
     durationMs: input.durationMs,
     firstPassSuccess: false
   })
-  return {
+  return attachLearnEligibility({
     ts: new Date().toISOString(),
     runId: input.runId,
     sessionId: input.sessionId,
@@ -73,7 +75,7 @@ function buildImplicitSignal(input: {
     needsClarify: false,
     signalSource: 'implicit',
     implicitKind: input.kind
-  }
+  })
 }
 
 async function writeSignalLines(policyDir: string, lines: string[]) {
@@ -141,10 +143,21 @@ export async function recordImplicitLearningSignal(
         }
       })
       .find((o) => o && String(o.runId || '') === rid)
-    if (shouldRecordRouteBanditReward(patchedRow ?? undefined) && compositeScore != null) {
+    const decision = evaluateLearnEligibility({
+      intent: input.intent || 'interrupted',
+      signalSource: 'implicit',
+      implicitKind: input.kind,
+      firstPassSuccess: false,
+      compositeScore
+    })
+    if (
+      decision.eligibleForBandit &&
+      shouldRecordRouteBanditReward(patchedRow ?? undefined) &&
+      compositeScore != null
+    ) {
       await recordBanditReward(policyDir, input.intent || 'interrupted', compositeScore).catch(() => undefined)
     }
-    if (patchedRow) {
+    if (patchedRow && decision.eligibleForBandit) {
       await recordRouteLearningExtensions(policyDir, patchedRow).catch(() => undefined)
     }
     return { recorded: true, compositeScore, patched: true }
@@ -152,10 +165,12 @@ export async function recordImplicitLearningSignal(
 
   const signal = buildImplicitSignal(input)
   await appendUnifiedLearningSignal(policyDir, signal)
-  if (shouldRecordRouteBanditReward(signal)) {
+  if (signal.learnBanditEligible !== false && shouldRecordRouteBanditReward(signal)) {
     await recordBanditReward(policyDir, signal.intent, signal.compositeScore).catch(() => undefined)
   }
-  await recordRouteLearningExtensions(policyDir, signal).catch(() => undefined)
+  if (signal.learnBanditEligible !== false) {
+    await recordRouteLearningExtensions(policyDir, signal).catch(() => undefined)
+  }
   return { recorded: true, compositeScore: signal.compositeScore, patched: false }
 }
 

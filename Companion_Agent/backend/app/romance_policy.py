@@ -98,7 +98,7 @@ def list_partners(save: WorldSave, *, exclude_id: str = "") -> list[tuple[str, s
     for cid, bond in save.bonds.items():
         if exclude_id and cid == exclude_id:
             continue
-        if bond.cast_kind != "romance":
+        if bond.cast_kind not in {"romance", "linked", "neutral"}:
             continue
         if is_romantic_partner(bond) or save.world_flags.get(f"partner:{cid}"):
             out.append((cid, bond.profile.name or cid))
@@ -114,7 +114,7 @@ def sync_world_romance_flags(save: WorldSave) -> None:
     save.world_flags["romance_mode_open_harem"] = True
     partners: list[str] = []
     for cid, bond in save.bonds.items():
-        if bond.cast_kind != "romance":
+        if bond.cast_kind not in {"romance", "linked", "neutral"}:
             continue
         key = f"partner:{cid}"
         if is_romantic_partner(bond):
@@ -171,12 +171,40 @@ def apply_relation_move(
         return result
 
     if move == "confess":
+        from .route_difficulty import confess_blocked_by_resist
+        from .character_lores import is_linked_cast, linked_dating_unlocked
+
+        if character_id and is_linked_cast(
+            (save.bonds.get(character_id).cast_kind if save and character_id in save.bonds else "")
+            or ""
+        ):
+            bond = save.bonds.get(character_id) if save else None
+            self_flags = dict((bond.relationship_state.flags if bond else state.flags) or {})
+            if not linked_dating_unlocked(character_id, self_flags=self_flags):
+                result.new_flags["confess_blocked_gate"] = True
+                result.affinity_delta -= 1
+                result.trust_delta -= 2
+                result.mood_delta -= 3
+                result.note = "linked_gate_block"
+                return result
+
+        if confess_blocked_by_resist(
+            character_id,
+            affinity=int(state.affinity or 0),
+            stage_id=str(state.stage_id or ""),
+        ):
+            result.new_flags["confess_too_soon"] = True
+            result.affinity_delta -= 2
+            result.trust_delta -= 3
+            result.mood_delta -= 2
+            result.note = "confess_resist"
+            return result
         result.new_flags["confessed"] = True
         result.affinity_delta += 3
         result.trust_delta += 2
         result.mood_delta += 2
         # 告白成功且阶段已到 crush+ → 可记伴侣确认（dating 仍靠养成涨）
-        if state.stage_id in _PARTNER_STAGES or state.affinity >= 82:
+        if state.stage_id in _PARTNER_STAGES or state.affinity >= 88:
             result.new_flags["partner_confirmed"] = True
         result.note = "confess"
         return result
@@ -258,6 +286,122 @@ def apply_relation_move(
     return result
 
 
+def hang_pursuit_confession_if_needed(
+    *,
+    character_id: str,
+    state: RelationshipState,
+    agenda_source: str,
+) -> RelationshipState:
+    """pursuit 议程：系统直接挂 pending_confession（不靠 Judge 必出）。"""
+    if (agenda_source or "").strip() != "pursuit":
+        return state
+    flags = state.flags or {}
+    if flags.get("pending_confession") or flags.get("confessed"):
+        return state
+    hi = apply_heroine_initiative(
+        character_id=character_id,
+        initiative="confess",
+        state=state,
+    )
+    if not hi.new_flags.get("pending_confession"):
+        return state
+    new_flags = dict(flags)
+    new_flags.update(hi.new_flags)
+    return state.model_copy(
+        update={
+            "flags": new_flags,
+            "mood": max(-100, min(100, int(state.mood or 0) + int(hi.mood_delta or 0))),
+            "affinity": max(
+                0, min(100, int(state.affinity or 0) + int(hi.affinity_delta or 0))
+            ),
+            "trust": max(0, min(100, int(state.trust or 0) + int(hi.trust_delta or 0))),
+        }
+    )
+
+
+def apply_heroine_initiative(
+    *,
+    character_id: str,
+    initiative: str,
+    state: RelationshipState,
+    policy: RomancePolicy | None = None,
+) -> RomanceApplyResult:
+    """女主主动意向 → flag（表白挂起等）；不代替玩家应承。"""
+    move = (initiative or "none").strip().lower()
+    if move in {"", "none"}:
+        return RomanceApplyResult()
+    pol = policy or get_romance_policy(character_id)
+    result = RomanceApplyResult()
+    flags = state.flags or {}
+
+    if move == "confess":
+        if not pol.confess_init:
+            return result
+        if flags.get("confessed") or flags.get("pending_confession"):
+            return result
+        if flags.get("confess_rejected_once") and state.mood < 0:
+            return result
+        from .route_difficulty import confess_blocked_by_resist
+
+        if confess_blocked_by_resist(
+            character_id,
+            affinity=int(state.affinity or 0),
+            stage_id=str(state.stage_id or ""),
+        ):
+            # 未到暧昧：若已有 pending crush 仍可轻表白挂起
+            pending = (getattr(state, "pending_stage_id", None) or "").strip()
+            if pending not in {"crush", "dating", "married"} and int(state.affinity or 0) < 70:
+                return result
+        result.new_flags["pending_confession"] = True
+        result.mood_delta += 1
+        result.note = "heroine_confess_offer"
+        return result
+
+    if move == "ask_exclusive":
+        if pol.exclusivity == "poly_ok":
+            return result
+        result.new_flags["exclusive_offer"] = True
+        result.note = "heroine_ask_exclusive"
+        return result
+
+    if move == "cool_off":
+        result.mood_delta -= 2
+        result.affinity_delta -= 1
+        result.note = "heroine_cool_off"
+        return result
+
+    return result
+
+
+def apply_stage_offer(
+    *,
+    offer: str,
+    state: RelationshipState,
+) -> str:
+    """Judge stage_offer → 可写入的 pending_stage_id（空串=不改）。"""
+    offer = (offer or "none").strip().lower()
+    if offer in {"", "none"}:
+        return ""
+    if offer not in {"crush", "dating", "married"}:
+        return ""
+    if (getattr(state, "pending_stage_id", None) or "").strip():
+        return ""
+    from .relationship import romance_auto_cap_id, stage_for_affinity, stage_order
+
+    order = stage_order()
+
+    def _rank(sid: str) -> int:
+        return order.index(sid) if sid in order else -1
+
+    natural = stage_for_affinity(state.affinity)
+    if _rank(natural.id) < _rank(offer):
+        return ""
+    auto = romance_auto_cap_id(state.flags or {})
+    if _rank(offer) <= _rank(auto):
+        return ""
+    return offer
+
+
 def rivalry_agenda_for(
     save: WorldSave,
     *,
@@ -269,7 +413,9 @@ def rivalry_agenda_for(
     if not others:
         return None
     pol = get_romance_policy(character_id)
-    if bond.cast_kind != "romance":
+    from .character_lores import is_romanceable_cast
+
+    if not is_romanceable_cast(bond.cast_kind):
         return None
     who = "、".join(n for _, n in others[:2])
     if pol.rivalry == "withdraw":

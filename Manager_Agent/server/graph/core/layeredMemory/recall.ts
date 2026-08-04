@@ -191,6 +191,7 @@ export async function recordLayeredMemoryFromRun(
   policyDir: string,
   run: {
     sessionId?: string
+    tenantId?: string
     user: string
     scenarioKey: string
     intent?: string
@@ -208,6 +209,7 @@ export async function recordLayeredMemoryFromRun(
   }
   await appendReflectionMemory(policyDir, {
     sessionId: run.sessionId,
+    tenantId: run.tenantId,
     scenarioKey: run.scenarioKey,
     failure: run.failure,
     user: run.user,
@@ -216,6 +218,7 @@ export async function recordLayeredMemoryFromRun(
   })
   await appendSemanticMemory(policyDir, {
     sessionId: run.sessionId,
+    tenantId: run.tenantId,
     scenarioKey: run.scenarioKey,
     intent: String(run.intent || 'unknown'),
     user: run.user,

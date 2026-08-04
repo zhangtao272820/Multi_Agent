@@ -53,14 +53,18 @@ const multi: SynthPromptAssembleInput = {
   codeAuthoritative: false,
   hasGuiResult: false,
   hasDbResult: true,
-  chatWebReply: false
+  chatWebReply: false,
+  replyTier: 'report'
 }
 const multiSys = assembleSynthSystemPrompt(multi)
 assert(multiSys.includes(SYNTH_PACK_MARKERS.multi_source), 'multi has multi_source')
 assert(!multiSys.includes(SYNTH_PACK_MARKERS.admin_ack), 'multi omits admin_ack')
 assert(!multiSys.includes('禁止报告体大章节名'), 'multi omits admin short-report ban')
 assert(multiSys.includes('禁止编造写操作'), 'multi still forbids fabricating admin writes')
-assert(multiSys.includes('结论摘要'), 'multi requires 结论摘要 structure')
+assert(multiSys.includes('关键发现'), 'multi requires 关键发现 structure')
+assert(multiSys.includes('输出合同'), 'multi has user-facing output contract')
+assert(multiSys.includes('像 DeepSeek'), 'multi emphasizes DeepSeek tone')
+assert(multiSys.includes('本轮回复档位：report'), 'multi marks report tier')
 assert(!multiSys.includes('800～1200'), 'multi omits hard word-count budget')
 assert(!multiSys.includes('700～1000'), 'multi omits old hard word-count')
 
@@ -72,14 +76,16 @@ const chart: SynthPromptAssembleInput = {
   codeAuthoritative: true,
   hasGuiResult: false,
   hasDbResult: true,
-  chatWebReply: false
+  chatWebReply: false,
+  replyTier: 'report'
 }
 const chartSys = assembleSynthSystemPrompt(chart)
 assert(chartSys.includes(SYNTH_PACK_MARKERS.chart_report), 'chart has chart_report')
 assert(chartSys.includes(SYNTH_PACK_MARKERS.code_authority), 'chart+code has code_authority')
 assert(!chartSys.includes(SYNTH_PACK_MARKERS.admin_ack), 'chart omits admin_ack')
 assert(!chartSys.includes('禁止报告体大章节名'), 'chart omits admin short-report ban')
-assert(chartSys.includes('结论摘要'), 'chart requires 结论摘要 structure')
+assert(chartSys.includes('关键发现'), 'chart requires 关键发现 structure')
+assert(chartSys.includes('输出合同'), 'chart has user-facing output contract')
 assert(!chartSys.includes('800～1200'), 'chart omits hard word-count budget')
 
 const chatWeb: SynthPromptAssembleInput = {
@@ -90,12 +96,43 @@ const chatWeb: SynthPromptAssembleInput = {
   codeAuthoritative: false,
   hasGuiResult: false,
   hasDbResult: false,
-  chatWebReply: true
+  chatWebReply: true,
+  replyTier: 'standard'
 }
 const chatWebSys = assembleSynthSystemPrompt(chatWeb)
 assert(chatWebSys.includes(SYNTH_PACK_MARKERS.gui_web), 'chat_web mounts gui_web pack')
 assert(chatWebSys.includes('短开篇'), 'chat_web has knowledge intro structure')
 assert(chatWebSys.includes('简单事实题'), 'chat_web allows short answers')
+assert(chatWebSys.includes('本轮回复档位：standard'), 'chat_web marks standard tier')
+assert(chatWebSys.includes('像 DeepSeek'), 'standard tier uses DeepSeek structure')
+assert(chatWebSys.includes('输出合同'), 'chat_web has output contract')
+assert(!chatWebSys.includes('结构（必须，report 档）'), 'standard omits report-forced structure')
+
+const stdDb: SynthPromptAssembleInput = {
+  multiSourceSynth: false,
+  canShowAuxOutputs: false,
+  shouldShowCharts: false,
+  adminSynthContext: false,
+  codeAuthoritative: false,
+  hasGuiResult: false,
+  hasDbResult: true,
+  chatWebReply: false,
+  replyTier: 'standard'
+}
+const stdDbSys = assembleSynthSystemPrompt(stdDb)
+assert(stdDbSys.includes(SYNTH_PACK_MARKERS.db_interpret), 'std db has db_interpret')
+assert(stdDbSys.includes('像 DeepSeek'), 'std db uses DeepSeek structure')
+assert(stdDbSys.includes('输出合同'), 'std db has output contract')
+assert(!stdDbSys.includes('结构（必须，report 档）'), 'std db omits report structure')
+
+const liteAdmin: SynthPromptAssembleInput = {
+  ...adminOnly,
+  replyTier: 'lite'
+}
+const liteSys = assembleSynthSystemPrompt(liteAdmin)
+assert(liteSys.includes('本轮回复档位：lite'), 'lite marks tier')
+assert(!liteSys.includes('结构（必须，report 档）'), 'lite omits report structure block')
+assert(liteSys.includes('禁止报告体大章节名'), 'lite keeps admin short-report ban')
 
 const criticAdmin = assembleCriticSystemPrompt(
   criticPromptInputFromRun({
@@ -125,6 +162,8 @@ for (const [name, text] of [
   ['multi', multiSys],
   ['chart', chartSys],
   ['chatWeb', chatWebSys],
+  ['stdDb', stdDbSys],
+  ['lite', liteSys],
   ['critic-admin', criticAdmin]
 ] as const) {
   const hits = findPromptHygieneViolations(text)

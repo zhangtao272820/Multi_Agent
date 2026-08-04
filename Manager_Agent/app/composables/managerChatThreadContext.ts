@@ -67,6 +67,14 @@ export type ManagerChatThreadContext = {
   resultItemClasses: (r: LogItem) => string | Record<string, boolean> | Array<string | Record<string, boolean>>
   resultKindLabel: (r: LogItem) => string
   turnSearchSources: (t: TurnGroup) => SearchSourceItem[]
+  turnUnifiedCiteSources: (t: TurnGroup) => Array<{
+    index: number
+    title: string
+    url?: string
+    excerpt?: string
+    kind?: string
+  }>
+  citeSourcesForMarkdown: (t: TurnGroup) => SearchSourceItem[]
   webSourceHost: (hit: SearchSourceItem) => string
   mediaForReply: (r: LogItem, t: TurnGroup) => MediaBundles
   resolveMediaUrl: (url: string) => string

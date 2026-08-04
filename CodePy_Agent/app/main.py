@@ -20,6 +20,7 @@ from app.runtime.compute import run_compute
 from app.runtime.runner import run_code_task
 from app.tools.fs_sandbox import SandboxError, get_root, list_dir, list_tree, read_file, write_file
 from app.tools.search_replace import apply_search_replace, preview_search_replace
+from app.browser_auth import ClawhiveBrowserAuthMiddleware, install_auth_config_route, auth_from_websocket, ClawhiveAuthError
 
 ROOT = Path(__file__).resolve().parent.parent
 FRONTEND_DIST = ROOT / "frontend" / "dist"
@@ -33,7 +34,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
+app.add_middleware(ClawhiveBrowserAuthMiddleware, extra_public=("/api/probe",))
+install_auth_config_route(app)
 
 def _check_internal_token(request: Request) -> None:
     settings = get_settings()
@@ -316,6 +318,11 @@ async def mcp_endpoint(body: McpBody, request: Request) -> dict[str, Any]:
 
 @app.websocket("/_ws")
 async def ws_endpoint(websocket: WebSocket) -> None:
+    try:
+        auth_from_websocket(websocket)
+    except ClawhiveAuthError:
+        await websocket.close(code=1008, reason="login_required")
+        return
     await websocket.accept()
     # Manager codeClient does not require an open status; UI can ignore
 

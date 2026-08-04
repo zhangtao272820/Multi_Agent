@@ -181,10 +181,7 @@ export async function removeSessionUserMapping(
   const sid = String(sessionId || '').trim()
   if (!sid) return
 
-  if (backendEnabled(env)) {
-    await agentPgQuery(`UPDATE mgr_sessions SET user_id = NULL WHERE id = $1`, [sid], env)
-  }
-
+  // 会话删除路径会先 DROP mgr_sessions；此处只清映射，不再 UPDATE 空壳行
   const map = await readFileMap(policyDir)
   if (map[sid]) {
     delete map[sid]

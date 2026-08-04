@@ -115,6 +115,8 @@ class SecretRefRecord(Base):
     label: Mapped[str] = mapped_column(String(128), default="")
     category: Mapped[str] = mapped_column(String(32), default="general")
     env_var: Mapped[str] = mapped_column(String(128), default="")
+    # CP-G3：Fernet 封套（需 CLAWHIVE_VAULT_KEY）；明文不进日志
+    sealed_ciphertext: Mapped[str | None] = mapped_column(Text, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     updated_by: Mapped[str] = mapped_column(String(64), default="system")
     rotated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

@@ -3,32 +3,89 @@ label: 画框之外
 priority: 8
 once: true
 chance: 1.0
-scene_id: ""
+scene_id: ''
 trigger:
-  character_ids: [xiaoyou]
+  character_ids:
+  - xiaoyou
   stage_min: dating
-  affinity_min: 85
-  flags_absent: [xy_life_outside_frame]
-  flags_present: [xy_portfolio_shown]
-prompt_snippet: |
-  【专属故事 · 画框里的邻人 · 第4幕 · 画框之外】
+  affinity_min: 90
+  flags_absent:
+  - xy_life_outside_frame
+  flags_present:
+  - xy_portfolio_shown
+prompt_snippet: '【专属故事 · 画框里的邻人 · 第4幕 · 画框之外】
+
+  '
 advance: on_player_turn
 beats:
-  - id: b1
-    summary: "告白不靠甜言，靠「我要和你过没画进画里的日子」"
-    sprite_hint: [intimate_lounge, date]
-    soft_options: ["认真接话", "先观察", "轻声提问"]
-  - id: b2
-    summary: "「画框之外」里出现犹豫或选择。"
-    sprite_hint: [date, balcony]
-    soft_options: ["表明态度", "给她空间", "确认她的意思"]
-  - id: b3
-    summary: "收束本幕：留下可被记住的结果，不剧透结局名。"
-    sprite_hint: [balcony]
-    soft_options: ["坦白心意", "先缓一缓", "诚实说明顾虑"]
+- id: b1
+  summary: 同一阳台，日落把颜料桶染成金色；她说画框装不下全部生活，眼神却停在你身上。等你回应。
+  sprite_hint:
+  - balcony_sunset
+  - casual
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 问装不下什么
+  - 握住她沾色的手
+  - 先听她说完
+  narration: 松节油与暖黄灯里，同一阳台，日落把颜料桶染成金色；她说画框装不下全部生活，眼神却停在你身上。
+  pc_thought: 应门的话，邻居的壳就薄了。不应，又怕今晚只剩自己和未干的线稿——想起画。
+  brief: 同一阳台，日落把颜料桶染成金色；她说画框装不下全部生活，眼神却停在你身上。等你回应。
+- id: b2
+  summary: 画室沙发上她靠得很近，又忽然退开——怕把感情画成定稿，更怕你把她当成素材。等你回应。
+  sprite_hint:
+  - intimate_lounge
+  - home
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 先不靠近
+  - 轻声说不怕改稿
+  - 说你不是素材
+  narration: 画室沙发上她靠得很近，又忽然退开——怕把感情画成定稿，更怕你把她当成素材。
+  pc_thought: 我是来帮忙的，还是来被画进她的框里？
+  brief: 画室沙发上她靠得很近，又忽然退开——怕把感情画成定稿，更怕你把她当成素材。等你回应。
+- id: b3
+  summary: 她坦白想过没画进画里的日子——真要走到画框外，还得让守门的学妹相信你不是过客。等你回应。
+  sprite_hint:
+  - atelier_paint
+  - date
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 回应要一起过
+  - 说想当画框外的人
+  - 先确认彼此节奏
+  narration: 松节油与暖黄灯里，她坦白想过没画进画里的日子——真要走到画框外，还得让守门的学妹相信你不是过客。
+  pc_thought: 夸她的画容易；留下来才难。
+  brief: 她坦白想过没画进画里的日子——真要走到画框外，还得让守门的学妹相信你不是过客。等你回应。
+- id: b4
+  summary: 门铃不再只是邻居暗号；她笑着说——下次请进，不用隔门。门槛外的世界，终于有了你的位置。等你回应。
+  sprite_hint:
+  - date
+  - balcony_sunset
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 约定明天再来
+  - 吻她额角
+  - 认真说「我在」
+  narration: 松节油与暖黄灯里，门铃不再只是邻居暗号；她笑着说——下次请进，不用隔门。门槛外的世界，终于有了你的位置。
+  pc_thought: deadline 里掺着心动——我别把忙碌当成逃避——想起门铃。
+  brief: 门铃不再只是邻居暗号；她笑着说——下次请进，不用隔门。门槛外的世界，终于有了你的位置。等你回应。
 rewards:
-  flags_set: [xy_life_outside_frame, confessed]
+  flags_set:
+  - xy_life_outside_frame
+  - confessed
 choice_effects:
-  - { trust_delta: 3, affinity_delta: 3 }
-  - { trust_delta: 2, affinity_delta: 2 }
-  - { trust_delta: -2, affinity_delta: -1 }
+- trust_delta: 3
+  affinity_delta: 3
+- trust_delta: 2
+  affinity_delta: 2
+- trust_delta: -2
+  affinity_delta: -1

@@ -4,7 +4,7 @@
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { persistDbLearningSignal, readDbLearningSignalsSync } from "./learning_signal_store";
+import { persistDbLearningSignal, readDbLearningSignalsSync, signalsFilePath } from "./learning_signal_store";
 import { persistDbExperience, readDbExperienceForRecall } from "./experience_store";
 import { clipText } from "./nlu/text";
 import type { QueryPath } from "./query_metrics";
@@ -278,14 +278,24 @@ export function readLearningSignals(maxLines = 800): DbLearningSignal[] {
   return readDbLearningSignalsSync(maxLines) as DbLearningSignal[];
 }
 
-export function clearLearningData() {
-  for (const file of [signalsFile(), experienceFile()]) {
+export function clearLearningData(tenantId?: string) {
+  const tid = String(tenantId || "default").trim() || "default";
+  for (const file of [signalsFile(), experienceFile(), signalsFilePath(tid)]) {
     try {
       writeFileSync(file, "", "utf8");
     } catch {
       /* ignore */
     }
   }
+  void import("#agent-shared/agentPgClient")
+    .then(({ agentPgQuery }) =>
+      Promise.all([
+        agentPgQuery(`DELETE FROM db_learning_signals WHERE tenant_id = $1`, [tid]),
+        agentPgQuery(`DELETE FROM db_query_experience WHERE tenant_id = $1`, [tid]),
+        agentPgQuery(`DELETE FROM db_route_stats WHERE tenant_id = $1`, [tid])
+      ])
+    )
+    .catch(() => undefined);
   clearExperienceVectors();
 }
 

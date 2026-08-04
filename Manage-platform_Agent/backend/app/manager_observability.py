@@ -26,43 +26,41 @@ def _metrics_payload(cluster: dict) -> dict | None:
 
 def _fetch_manager_traces(limit: int = 12) -> dict:
     """Proxy Manager /api/metrics/traces when OTel export is enabled."""
+    from .internal_http import fetch_json
+
     settings = get_settings()
     host = str(settings.manager_agent_host or "localhost").strip()
     port = str(settings.manager_agent_port or "13106").strip()
     url = f"http://{host}:{port}/api/metrics/traces?limit={max(1, min(50, limit))}"
-    try:
-        req = urllib.request.Request(url, headers={"Accept": "application/json"})
-        with urllib.request.urlopen(req, timeout=3.0) as resp:  # noqa: S310
-            import json
-
-            payload = json.loads(resp.read(512_000).decode("utf-8", errors="replace") or "{}")
-            traces = payload.get("traces") if isinstance(payload, dict) else None
-            recent = []
-            if isinstance(traces, list):
-                for t in traces[-limit:]:
-                    if not isinstance(t, dict):
-                        continue
-                    run_id = str(t.get("runId") or "").strip()
-                    trace_id = str(t.get("traceId") or "").strip()
-                    spans = t.get("spans") if isinstance(t.get("spans"), list) else []
-                    rid = run_id or trace_id
-                    recent.append(
-                        {
-                            "run_id": run_id,
-                            "trace_id": trace_id or run_id,
-                            "span_count": len(spans),
-                            "grafana_explore_url": build_grafana_explore_url(trace_id or run_id),
-                            "grafana_loki_url": build_grafana_loki_explore_url(rid),
-                            "langfuse_url": build_langfuse_trace_url(trace_id or run_id),
-                        }
-                    )
-            return {
-                "ok": True,
-                "trace_count": int(payload.get("traceCount") or len(recent)) if isinstance(payload, dict) else len(recent),
-                "recent": list(reversed(recent)),
-            }
-    except Exception as exc:  # noqa: BLE001
-        return {"ok": False, "error": str(exc), "recent": []}
+    result = fetch_json(url, timeout_sec=3.0)
+    if not result.get("ok"):
+        return {"ok": False, "error": str(result.get("error") or "fetch_failed"), "recent": []}
+    payload = result.get("data") if isinstance(result.get("data"), dict) else {}
+    traces = payload.get("traces") if isinstance(payload, dict) else None
+    recent = []
+    if isinstance(traces, list):
+        for t in traces[-limit:]:
+            if not isinstance(t, dict):
+                continue
+            run_id = str(t.get("runId") or "").strip()
+            trace_id = str(t.get("traceId") or "").strip()
+            spans = t.get("spans") if isinstance(t.get("spans"), list) else []
+            rid = run_id or trace_id
+            recent.append(
+                {
+                    "run_id": run_id,
+                    "trace_id": trace_id or run_id,
+                    "span_count": len(spans),
+                    "grafana_explore_url": build_grafana_explore_url(trace_id or run_id),
+                    "grafana_loki_url": build_grafana_loki_explore_url(rid),
+                    "langfuse_url": build_langfuse_trace_url(trace_id or run_id),
+                }
+            )
+    return {
+        "ok": True,
+        "trace_count": int(payload.get("traceCount") or len(recent)) if isinstance(payload, dict) else len(recent),
+        "recent": list(reversed(recent)),
+    }
 
 
 def _tempo_reachable() -> bool:

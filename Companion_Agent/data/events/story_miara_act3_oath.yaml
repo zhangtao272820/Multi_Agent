@@ -3,32 +3,88 @@ label: 契约
 priority: 7
 once: true
 chance: 1.0
-scene_id: ""
+scene_id: ''
 trigger:
-  character_ids: [miara]
+  character_ids:
+  - miara
   stage_min: crush
   affinity_min: 82
-  flags_absent: [mi_oath_real]
-  flags_present: [mi_sew_night]
+  flags_absent:
+  - mi_oath_real
+  flags_present:
+  - mi_sew_night
 prompt_snippet: |
   【专属故事 · 谷子与星约 · 第3幕 · 契约】
 advance: on_player_turn
 beats:
-  - id: b1
-    summary: "星之契约从玩笑变承诺"
-    sprite_hint: [badge_board, date]
-    soft_options: ["认真接话", "先观察", "轻声提问"]
-  - id: b2
-    summary: "「契约」里出现犹豫或选择。"
-    sprite_hint: [date, intimate_lounge]
-    soft_options: ["表明态度", "给她空间", "确认她的意思"]
-  - id: b3
-    summary: "收束本幕：留下可被记住的结果，不剧透结局名。"
-    sprite_hint: [intimate_lounge]
-    soft_options: ["坦白心意", "先缓一缓", "诚实说明顾虑"]
+- id: b1
+  summary: "徽章墙前她摘下一枚空位：今晚要把戏言写成生效条款。等你回应。"
+  sprite_hint:
+  - badge_board
+  - merch_counter
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 问条款内容
+  - 准备真心回答
+  - 先握她的手
+  narration: "布料纤维与展会灯里，徽章墙前她摘下一枚空位：今晚要把戏言写成生效条款。"
+  pc_thought: 摊位笑很满。戏言契约当真时，我会不会退缩？
+  brief: "徽章墙前她摘下一枚空位：今晚要把戏言写成生效条款。等你回应。"
+- id: b2
+  summary: 她说喜欢你——不是展会营业，是想把你从谷子清单划进人生。等你回应。
+  sprite_hint:
+  - date
+  - badge_board
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 回应告白
+  - 说你也划她进去
+  - 确认专一与公开
+  narration: 布料纤维与展会灯里，她说喜欢你——不是展会营业，是想把你从谷子清单划进人生。
+  pc_thought: 缝纫针脚比誓言稳。我想帮她缝，不是只收谷子。
+  brief: 她说喜欢你——不是展会营业，是想把你从谷子清单划进人生。等你回应。
+- id: b3
+  summary: 她怕认真后梗会消失；你如何答，决定契约温度。等你回应。
+  sprite_hint:
+  - home
+  - date
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 说梗可以留认真不减
+  - 承诺不消费玩笑
+  - 一起定新梗边界
+  narration: 布料纤维与展会灯里，她怕认真后梗会消失；你如何答，决定契约温度。
+  pc_thought: 假发一摘，偶像壳裂了。素颜契约更重。
+  brief: 她怕认真后梗会消失；你如何答，决定契约温度。等你回应。
+- id: b4
+  summary: 空位钉上你们的徽章；星约盖章——这次，不许用撤回键。等你回应。
+  sprite_hint:
+  - date
+  - casual
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 盖章
+  - 拥抱收摊
+  - 约下次非展会见面
+  narration: 布料纤维与展会灯里，空位钉上你们的徽章；星约盖章——这次，不许用撤回键。
+  pc_thought: 冬摊位冷风灌进来。星约还作数吗？
+  brief: 空位钉上你们的徽章；星约盖章——这次，不许用撤回键。等你回应。
 rewards:
-  flags_set: [mi_oath_real, confessed]
+  flags_set:
+  - mi_oath_real
+  - confessed
 choice_effects:
-  - { trust_delta: 3, affinity_delta: 3 }
-  - { trust_delta: 2, affinity_delta: 2 }
-  - { trust_delta: -2, affinity_delta: -1 }
+- trust_delta: 3
+  affinity_delta: 3
+- trust_delta: 2
+  affinity_delta: 2
+- trust_delta: -2
+  affinity_delta: -1

@@ -15,5 +15,10 @@ data/bgs/*.png
 data/bgs/*.jpg
 data/bgs/*.jpeg
 data/bgs/*.webp
+# BGM 音频仅本地（README / ATTRIBUTION / catalog 仍跟踪）
+data/bgm/*.mp3
+data/bgm/*.ogg
+data/bgm/*.wav
 data/_prompt_cache/
 data/_tmp/
+scripts/_tmp*

@@ -3,32 +3,76 @@ label: 摊位
 priority: 6
 once: true
 chance: 1.0
-scene_id: ""
+scene_id: ''
 trigger:
-  character_ids: [xiaoyang]
+  character_ids:
+  - xiaoyang
   stage_min: close_friend
   affinity_min: 78
-  flags_absent: [xyang_stall]
-  flags_present: [xyang_club]
+  flags_absent:
+  - xyang_stall
+  flags_present:
+  - xyang_club
 prompt_snippet: |
   【专属故事 · 晒干后的系领带 · 第2幕 · 摊位】
 advance: on_player_turn
 beats:
-  - id: b1
-    summary: "文化祭摊位收摊，夕阳把领结晒得有点皱；她数着零钱笑累了。"
-    sprite_hint: [culture_stall, casual]
-    soft_options: ["帮她对账", "递水", "夸今天圆满"]
-  - id: b2
-    summary: "她问同学以上还能不能靠近——怕认真起来就回不去。"
-    sprite_hint: [date, casual]
-    soft_options: ["说想试", "尊重同学界线", "问她怕什么"]
-  - id: b3
-    summary: "摊布叠好；她要一句清楚的关系定位，不要含糊的「再说」。"
-    sprite_hint: [date, casual]
-    soft_options: ["告白", "先稳同学情", "给她考虑时间"]
+- id: b1
+  summary: 摊位烟雾里她喊你帮忙；袖口沾酱，笑得比营业更真——气氛忽然认真起来。等你回应。
+  sprite_hint:
+  - school
+  - festival_spring
+  soft_options:
+  - 立刻上手
+  - 给她擦袖口
+  - 负责收钱
+  narration: 海报胶与社团室里，摊位烟雾里她喊你帮忙；袖口沾酱，笑得比营业更真——气氛忽然认真起来。
+  pc_thought: 海报上的名字很吵。摊位旁的她其实很轻。
+  brief: 摊位烟雾里她喊你帮忙；袖口沾酱，笑得比营业更真——气氛忽然认真起来。等你回应。
+- id: b2
+  summary: "客流间隙她压低声音：同班可以，但不想永远停在「普通同学」。等你回应。"
+  sprite_hint:
+  - casual
+  - date
+  soft_options:
+  - 问想变成什么
+  - 告白回应
+  - 说海报是认真的
+  narration: "海报胶与社团室里，客流间隙她压低声音：同班可以，但不想永远停在「普通同学」。"
+  pc_thought: 同班如常最安全。告白会撕坏一张海报吗？
+  brief: "客流间隙她压低声音：同班可以，但不想永远停在「普通同学」。等你回应。"
+- id: b3
+  summary: 烤盘滋滋响；她用牙签写你名字——要你亲口承认——气氛忽然认真起来。等你回应。
+  sprite_hint:
+  - date
+  - school
+  soft_options:
+  - 亲口说喜欢
+  - 把牙签收好
+  - 当众轻轻牵手
+  narration: 海报胶与社团室里，烤盘滋滋响；她用牙签写你名字——要你亲口承认——气氛忽然认真起来。
+  pc_thought: 冬社团室胶味刺鼻。我想把名字念准。
+  brief: 烤盘滋滋响；她用牙签写你名字——要你亲口承认——气氛忽然认真起来。等你回应。
+- id: b4
+  summary: "收摊后她靠箱休息：明天教室见——座位可以照旧，关系不行——气氛忽然认真起来。等你回应。"
+  sprite_hint:
+  - date
+  - casual
+  soft_options:
+  - 约定放学一起走
+  - 碰一下肩
+  - 说「明天见」
+  narration: "海报胶与社团室里，收摊后她靠箱休息：明天教室见——座位可以照旧，关系不行——气氛忽然认真起来。"
+  pc_thought: 中秋海报边她停笔。我接不接那支马克笔？
+  brief: "收摊后她靠箱休息：明天教室见——座位可以照旧，关系不行——气氛忽然认真起来。等你回应。"
 rewards:
-  flags_set: [xyang_stall, confessed]
+  flags_set:
+  - xyang_stall
+  - confessed
 choice_effects:
-  - { trust_delta: 3, affinity_delta: 3 }
-  - { trust_delta: 2, affinity_delta: 2 }
-  - { trust_delta: -2, affinity_delta: -1 }
+- trust_delta: 3
+  affinity_delta: 3
+- trust_delta: 2
+  affinity_delta: 2
+- trust_delta: -2
+  affinity_delta: -1

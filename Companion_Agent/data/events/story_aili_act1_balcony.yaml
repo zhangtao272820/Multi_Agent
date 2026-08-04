@@ -7,24 +7,33 @@ scene_id: ""
 trigger:
   character_ids: [aili]
   stage_min: friend
-  affinity_min: 48
+  affinity_min: 55
   flags_absent: [al_balcony_remeet]
 prompt_snippet: |
   【专属故事 · 旧婚书与新花束 · 第1幕 · 阳台重逢】
 advance: on_player_turn
 beats:
   - id: b1
-    summary: "偶遇、客套、第一次递花却不谈旧事"
-    sprite_hint: [balcony, bouquet_wrap]
-    soft_options: ["认真接话", "先观察", "轻声提问"]
+    narration: "花店阳台风干花束轻晃。她修剪茎秆，动作很稳，像在整理旧婚书里未说完的句子。"
+    pc_thought: "旧婚书的影子还在。我是新选择，不是替补。"
+    brief: "阳台修剪花茎；旧痕未说完。等他打招呼、夸花或问方不方便。"
+    summary: "阳台修剪花茎；旧痕未说完。等他打招呼、夸花或问方不方便。"
+    sprite_hint: [bouquet_wrap, casual, season_winter, home_eating, home_sleeping]
+    soft_options: ["先打招呼", "夸花好看", "问方不方便"]
   - id: b2
-    summary: "「阳台重逢」里出现犹豫或选择。"
-    sprite_hint: [bouquet_wrap, casual]
-    soft_options: ["表明态度", "给她空间", "确认她的意思"]
+    narration: "你问起「前妻」二字，她手一顿：那是别人的标题——她要的是重新开花的权利。"
+    pc_thought: "别翻旧账。我想认识现在的她，不是档案里的那个称呼。"
+    brief: "被「前妻」刺到；要重新开花的权利。等他问近况、说不翻旧账或安静陪着。"
+    summary: "被「前妻」刺到；要重新开花的权利。等他问近况、说不翻旧账或安静陪着。"
+    sprite_hint: [card_write, ribbon_cut, season_winter, home_eating, home_sleeping]
+    soft_options: ["问她现在好吗", "说你不是来翻旧账", "安静陪她写完"]
   - id: b3
-    summary: "收束本幕：留下可被记住的结果，不剧透结局名。"
-    sprite_hint: [casual]
-    soft_options: ["坦白心意", "先缓一缓", "诚实说明顾虑"]
+    narration: "她递给你一支备用花材：先学会照顾活的东西，再谈要不要靠近她的温室。"
+    pc_thought: "接花像考试。告辞最安全，也最像胆小鬼。"
+    brief: "递备用花材当考验；先学会照顾再靠近。等他接花、说想认识或告辞。"
+    summary: "递备用花材当考验；先学会照顾再靠近。等他接花、说想认识或告辞。"
+    sprite_hint: [bouquet_wrap, home, season_winter, home_eating, home_sleeping]
+    soft_options: ["接花尊重界线", "说想重新认识", "告辞不打扰"]
 rewards:
   flags_set: [al_balcony_remeet, balcony_chat_done]
 choice_effects:

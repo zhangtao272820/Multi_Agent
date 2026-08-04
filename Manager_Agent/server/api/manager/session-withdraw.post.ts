@@ -3,26 +3,21 @@ import { z } from 'zod'
 import { readManagerSession, writeManagerSession } from '../../utils/session/managerSessionStore'
 import { resolveUserId } from '../../graph/core/task/userIdentity'
 import { deleteSessionFeedbackFromUserIndex } from '#agent-shared/sessionFeedbackStore'
+import {
+  resolveUserMessageAnchor,
+  type UserMessageAnchor
+} from '../manager-ws/wsSessionHelpers'
+import type { SessionMessage } from '../../utils/session/managerSessionStore'
+import { resolveManagerPolicyDir } from '../../utils/session/managerPolicyDir'
+import { supersedeLearningSignalsForRevision } from '../../graph/core/unifiedLearning'
 
 const BodySchema = z.object({
   sessionId: z.string().min(1).max(80).regex(/^[A-Za-z0-9_-]+$/),
   userId: z.string().min(1).max(64).regex(/^[A-Za-z0-9_-]+$/).optional(),
-  userMessageIndex: z.number().int().min(0).max(199)
+  userMessageIndex: z.number().int().min(0).max(199).optional(),
+  text: z.string().max(8000).optional(),
+  tenantId: z.string().min(1).max(64).optional()
 })
-
-type SessionMessage = { role: 'user' | 'assistant'; content: string }
-
-function resolveUserMessageSessionIndex(messages: SessionMessage[], userMessageIndex: number): number {
-  if (!Array.isArray(messages) || userMessageIndex < 0) return -1
-  let nth = 0
-  for (let i = 0; i < messages.length; i++) {
-    if (messages[i]?.role === 'user') {
-      if (nth === userMessageIndex) return i
-      nth++
-    }
-  }
-  return -1
-}
 
 async function readSession(sessionId: string): Promise<{ messages: SessionMessage[] }> {
   return readManagerSession(sessionId)
@@ -34,28 +29,48 @@ async function writeSession(sessionId: string, messages: SessionMessage[]) {
 
 export default defineEventHandler(async (event) => {
   const body = BodySchema.parse(await readBody(event))
+  if (typeof body.userMessageIndex !== 'number' && !String(body.text || '').trim()) {
+    throw createError({ statusCode: 400, statusMessage: '需要 userMessageIndex 或 text' })
+  }
   const policyDir = path.join(process.cwd(), '.data')
   await resolveUserId(policyDir, body.sessionId, body.userId)
 
   const session = await readSession(body.sessionId)
-  const idx = resolveUserMessageSessionIndex(session.messages, body.userMessageIndex)
-  if (idx < 0) {
+  const hit: UserMessageAnchor | null = resolveUserMessageAnchor(session.messages, {
+    userMessageIndex: body.userMessageIndex,
+    text: body.text
+  })
+  if (!hit) {
     throw createError({ statusCode: 404, statusMessage: '找不到对应用户消息，无法撤回' })
   }
 
-  session.messages = session.messages.slice(0, idx)
+  const withdrawnText =
+    hit.arrayIndex >= 0 && session.messages[hit.arrayIndex]
+      ? String(session.messages[hit.arrayIndex]?.content || '')
+      : String(body.text || '')
+  session.messages = session.messages.slice(0, hit.arrayIndex)
   await writeSession(body.sessionId, session.messages)
   const feedbackDeleted = await deleteSessionFeedbackFromUserIndex(
     'manager',
     body.sessionId,
-    body.userMessageIndex
+    hit.userMessageIndex
   )
+  const learnDir = resolveManagerPolicyDir(body.tenantId || 'default')
+  const learning = await supersedeLearningSignalsForRevision({
+    policyDir: learnDir,
+    sessionId: body.sessionId,
+    userMessageIndex: hit.userMessageIndex,
+    fromUserMessageIndex: hit.userMessageIndex,
+    userText: withdrawnText,
+    reason: 'withdraw'
+  }).catch(() => ({ superseded: 0 }))
 
   return {
     ok: true,
-    userMessageIndex: body.userMessageIndex,
+    userMessageIndex: hit.userMessageIndex,
     messageCount: session.messages.length,
     userMessageCount: session.messages.filter((m) => m.role === 'user').length,
-    feedbackDeleted
+    feedbackDeleted,
+    learningSuperseded: learning.superseded
   }
 })

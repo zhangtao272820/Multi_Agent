@@ -3,32 +3,88 @@ label: 窗边月
 priority: 6
 once: true
 chance: 1.0
-scene_id: ""
+scene_id: ''
 trigger:
-  character_ids: [shiori]
+  character_ids:
+  - shiori
   stage_min: close_friend
   affinity_min: 68
-  flags_absent: [sr_window_read]
-  flags_present: [sr_first_recommend]
+  flags_absent:
+  - sr_window_read
+  flags_present:
+  - sr_first_recommend
 prompt_snippet: |
   【专属故事 · 坡上书店的月亮 · 第2幕 · 窗边月】
 advance: on_player_turn
 beats:
-  - id: b1
-    summary: "打烊后窗边共读"
-    sprite_hint: [window_read, poetry_nook]
-    soft_options: ["认真接话", "先观察", "轻声提问"]
-  - id: b2
-    summary: "触及她的幻想/cos 爱好"
-    sprite_hint: [poetry_nook, unbox_crate]
-    soft_options: ["表明态度", "给她空间", "确认她的意思"]
-  - id: b3
-    summary: "收束本幕：留下可被记住的结果，不剧透结局名。"
-    sprite_hint: [unbox_crate]
-    soft_options: ["坦白心意", "先缓一缓", "诚实说明顾虑"]
+- id: b1
+  summary: 打烊后窗边月光；她读诗读到一半，声音发紧。等你回应。
+  sprite_hint:
+  - window_read
+  - poetry_nook
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 安静听完
+  - 问卡在哪一句
+  - 递热茶
+  narration: 纸墨与坡道夜风里，打烊后窗边月光；她读诗读到一半，声音发紧。
+  pc_thought: 她荐别人的书很准。空白页才是她自己。
+  brief: 打烊后窗边月光；她读诗读到一半，声音发紧。等你回应。
+- id: b2
+  summary: 诗角她承认常把真心藏进别人的句子，自己的页是空白。等你回应。
+  sprite_hint:
+  - poetry_nook
+  - window_read
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 鼓励她写自己
+  - 说空白也可爱
+  - 问怕被看见什么
+  narration: 纸墨与坡道夜风里，诗角她承认常把真心藏进别人的句子，自己的页是空白。
+  pc_thought: 坡上月亮很亮。我想读她未写完的那一行。
+  brief: 诗角她承认常把真心藏进别人的句子，自己的页是空白。等你回应。
+- id: b3
+  summary: 木箱里旧 cos/灵气物件露出来；她观察你是否轻笑或轻视。等你回应。
+  sprite_hint:
+  - unbox_crate
+  - recommend_stack
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 认真对待
+  - 问故事来源
+  - 保证不对外说
+  narration: 纸墨与坡道夜风里，木箱里旧 cos/灵气物件露出来；她观察你是否轻笑或轻视。
+  pc_thought: 窗边朗读像告白预演。我鼓掌还是接过笔？
+  brief: 木箱里旧 cos/灵气物件露出来；她观察你是否轻笑或轻视。等你回应。
+- id: b4
+  summary: "她把箱盖合上一半：秘密可以分享，但不许被当成笑料。等你回应。"
+  sprite_hint:
+  - unbox_crate
+  - casual
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 郑重答应
+  - 分享你的怪癖换信任
+  - 道谢她的坦白
+  narration: "纸墨与坡道夜风里，她把箱盖合上一半：秘密可以分享，但不许被当成笑料。"
+  pc_thought: 冬书架冷。书店可以关，心不能只当店员。
+  brief: "她把箱盖合上一半：秘密可以分享，但不许被当成笑料。等你回应。"
 rewards:
-  flags_set: [sr_window_read, spirit_oath_done]
+  flags_set:
+  - sr_window_read
+  - spirit_oath_done
 choice_effects:
-  - { trust_delta: 3, affinity_delta: 3 }
-  - { trust_delta: 2, affinity_delta: 2 }
-  - { trust_delta: -2, affinity_delta: -1 }
+- trust_delta: 3
+  affinity_delta: 3
+- trust_delta: 2
+  affinity_delta: 2
+- trust_delta: -2
+  affinity_delta: -1

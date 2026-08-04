@@ -179,8 +179,8 @@ def craft_pending_ping(bond: BondShelf) -> tuple[str, str]:
             ),
             "soft",
         )
-    if bond.cast_kind == "neutral":
-        sisterish = bond.social_role_to_pc in {"妹妹", "合住义妹", "义妹"}
+    if bond.cast_kind == "neutral" or bond.cast_kind == "linked":
+        sisterish = bond.social_role_to_pc in {"妹妹", "合住义妹", "义妹", "亲妹妹"}
         return (
             random.choice(
                 [
@@ -291,11 +291,14 @@ def apply_end_day_living(save: WorldSave) -> WorldSave:
     partners = list_partners(save)
     multi = len(partners) >= 1
 
+    from .character_lores import is_romanceable_cast, normalize_cast_kind
+
     ping_pool = [
         cid
         for cid, b in save.bonds.items()
-        if b.cast_kind in {"romance", "neutral"}
-        and b.relationship_state.affinity >= (55 if b.cast_kind == "romance" else 48)
+        if is_romanceable_cast(b.cast_kind)
+        and b.relationship_state.affinity
+        >= (55 if normalize_cast_kind(b.cast_kind) == "romance" else 48)
         and b.relationship_state.mood > -35
         and not b.living.pending_ping
     ]
@@ -340,8 +343,10 @@ def apply_end_day_living(save: WorldSave) -> WorldSave:
         bond.living.fatigue = max(0, int(bond.living.fatigue) - 12)
         save.bonds[cid] = bond
 
+    from .neglect import apply_end_day_neglect
     from .social_life import apply_end_day_copresence_notes, apply_end_day_rumors, roll_long_statuses
 
+    save = apply_end_day_neglect(save)
     save = roll_long_statuses(save)
     save = apply_end_day_copresence_notes(save)
     save = apply_end_day_rumors(save)
@@ -392,6 +397,10 @@ def mark_talked(bond: BondShelf, day_index: int) -> BondShelf:
     bond.living.pending_ping_kind = ""
     if not bond.living.first_met_day:
         bond.living.first_met_day = day_index
+    # 见面后清冷落 cold 旗（soft_cold_until 仍可自然到期）
+    flags = dict(bond.relationship_state.flags or {})
+    if flags.pop("neglect_cold", None) is not None:
+        bond.relationship_state = bond.relationship_state.model_copy(update={"flags": flags})
     return bond
 
 

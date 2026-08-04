@@ -1,0 +1,80 @@
+id: story_aichen_act3_display
+label: 守门人的另一枝
+priority: 7
+once: true
+chance: 1.0
+scene_id: ''
+trigger:
+  character_ids:
+  - aichen
+  stage_min: close_friend
+  affinity_min: 78
+  flags_absent:
+  - deliberate_display
+  flags_present:
+  - bond_ally_done
+  - friend_gate_done
+prompt_snippet: |
+  【专属故事 · 闺蜜的审核 · 第3幕 · 守门人的另一枝】
+advance: on_player_turn
+beats:
+- id: b1
+  summary: "花店打烊，她把备用花材塞你怀里，自己却解开围裙带，领口有意松着：「给你艾莉的——以及，给我自己看你一眼的借口。」。等你回应。"
+  sprite_hint:
+  - flower_chat
+  - girls_night
+  soft_options:
+  - 先问艾莉
+  - 承认看见了
+  - 帮她系围裙
+  narration: "花泥与温室雾里，花店打烊，她把备用花材塞你怀里，自己却解开围裙带，领口有意松着：「给你艾莉的——以及，给我自己看你一眼的借口。」。"
+  pc_thought: 夸花不算分。靠近姐姐的人先过我这关——想起围裙。
+  brief: "花店打烊，她把备用花材塞你怀里，自己却解开围裙带，领口有意松着：「给你艾莉的——以及，给我自己看你一眼的借口。」。等你回应。"
+- id: b2
+  summary: "她坦白：守门是真的，心动也是真的——不能抢闺蜜的明线，只能故意展示，把情愫藏在订单便签背面。等你回应。"
+  sprite_hint:
+  - girls_night
+  - home
+  soft_options:
+  - 约定不点破
+  - 说会护艾莉
+  - 问她要不要退出
+  narration: "花泥与温室雾里，她坦白：守门是真的，心动也是真的——不能抢闺蜜的明线，只能故意展示，把情愫藏在订单便签背面。"
+  pc_thought: 按住她的手，不是占有，是怕她再被辜负——想起门。
+  brief: "她坦白：守门是真的，心动也是真的——不能抢闺蜜的明线，只能故意展示，把情愫藏在订单便签背面。等你回应。"
+- id: b3
+  summary: "她提出影子花园：你若开后宫且艾莉咬牙或默许，她可以站在姐妹席——闺蜜与「多看一眼的人」并蒂，不改称呼。等你回应。"
+  sprite_hint:
+  - flower_chat
+  - casual
+  soft_options:
+  - 接受并蒂默契
+  - 先稳住守门
+  - 说要先问艾莉
+  narration: "花泥与温室雾里，她提出影子花园：你若开后宫且艾莉咬牙或默许，她可以站在姐妹席——闺蜜与「多看一眼的人」并蒂，不改称呼。"
+  pc_thought: 展示审核时花泥溅到鞋上。认真还是走过场？
+  brief: "她提出影子花园：你若开后宫且艾莉咬牙或默许，她可以站在姐妹席——闺蜜与「多看一眼的人」并蒂，不改称呼。等你回应。"
+- id: b4
+  summary: "她挥手：「下次再让她哭，花圈我仍备着。至于我——偶尔也想当收件人。」。等你回应。"
+  sprite_hint:
+  - casual
+  - work
+  soft_options:
+  - 郑重承诺
+  - 接过便签
+  - 道晚安
+  narration: "花泥与温室雾里，她挥手：「下次再让她哭，花圈我仍备着。至于我——偶尔也想当收件人。」。"
+  pc_thought: "开放门：cleared，还是把门摔上？——想起花。"
+  brief: "她挥手：「下次再让她哭，花圈我仍备着。至于我——偶尔也想当收件人。」。等你回应。"
+rewards:
+  flags_set:
+  - deliberate_display
+  - aichen_soft_bloom
+  - kin_garden_ready
+choice_effects:
+- trust_delta: 3
+  affinity_delta: 4
+- trust_delta: 2
+  affinity_delta: 3
+- trust_delta: 1
+  affinity_delta: 1

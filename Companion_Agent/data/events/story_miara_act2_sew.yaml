@@ -3,32 +3,88 @@ label: 缝纫夜
 priority: 6
 once: true
 chance: 1.0
-scene_id: ""
+scene_id: ''
 trigger:
-  character_ids: [miara]
+  character_ids:
+  - miara
   stage_min: close_friend
   affinity_min: 68
-  flags_absent: [mi_sew_night]
-  flags_present: [mi_booth_met]
+  flags_absent:
+  - mi_sew_night
+  flags_present:
+  - mi_booth_met
 prompt_snippet: |
   【专属故事 · 谷子与星约 · 第2幕 · 缝纫夜】
 advance: on_player_turn
 beats:
-  - id: b1
-    summary: "帮她赶 cos"
-    sprite_hint: [sewing_cos, figure_restock]
-    soft_options: ["认真接话", "先观察", "轻声提问"]
-  - id: b2
-    summary: "森林夜谈"
-    sprite_hint: [figure_restock, forest]
-    soft_options: ["表明态度", "给她空间", "确认她的意思"]
-  - id: b3
-    summary: "收束本幕：留下可被记住的结果，不剧透结局名。"
-    sprite_hint: [forest]
-    soft_options: ["坦白心意", "先缓一缓", "诚实说明顾虑"]
+- id: b1
+  summary: 针线穿进布料；她让你按住布边，说今晚的契约要缝牢。等你回应。
+  sprite_hint:
+  - sewing_cos
+  - work
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 帮忙按布
+  - 问怕散的是什么
+  - 夸针脚细
+  narration: 针线穿进布料；她让你按住布边，说今晚的契约要缝牢。
+  pc_thought: 摊位笑很满。戏言契约当真时，我会不会退缩？
+  brief: 针线穿进布料；她让你按住布边，说今晚的契约要缝牢。等你回应。
+- id: b2
+  summary: "补货手办时她叹气：玩梗容易，被当真反而慌。等你回应。"
+  sprite_hint:
+  - figure_restock
+  - price_tag
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 问哪句是认真的
+  - 说你可以当真
+  - 给她反悔权
+  narration: "布料纤维与展会灯里，补货手办时她叹气：玩梗容易，被当真反而慌。"
+  pc_thought: 缝纫针脚比誓言稳。我想帮她缝，不是只收谷子。
+  brief: "补货手办时她叹气：玩梗容易，被当真反而慌。等你回应。"
+- id: b3
+  summary: 雨打棚顶；她承认星约起初是玩笑，看见你后就不想只是玩笑。等你回应。
+  sprite_hint:
+  - rain
+  - sewing_cos
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 接住这份认真
+  - 确认彼此节奏
+  - 约雨停再谈
+  narration: 布料纤维与展会灯里，雨打棚顶；她承认星约起初是玩笑，看见你后就不想只是玩笑。
+  pc_thought: 假发一摘，偶像壳裂了。素颜契约更重。
+  brief: 雨打棚顶；她承认星约起初是玩笑，看见你后就不想只是玩笑。等你回应。
+- id: b4
+  summary: "价签背面她写新规则：可以玩梗，不许拿心当周边打折。等你回应。"
+  sprite_hint:
+  - price_tag
+  - casual
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 签字同意
+  - 加一条互相坦白
+  - 笑着认真盖章
+  narration: "布料纤维与展会灯里，价签背面她写新规则：可以玩梗，不许拿心当周边打折。"
+  pc_thought: 冬摊位冷风灌进来。星约还作数吗？
+  brief: "价签背面她写新规则：可以玩梗，不许拿心当周边打折。等你回应。"
 rewards:
-  flags_set: [mi_sew_night, spirit_oath_done]
+  flags_set:
+  - mi_sew_night
+  - spirit_oath_done
 choice_effects:
-  - { trust_delta: 3, affinity_delta: 3 }
-  - { trust_delta: 2, affinity_delta: 2 }
-  - { trust_delta: -2, affinity_delta: -1 }
+- trust_delta: 3
+  affinity_delta: 3
+- trust_delta: 2
+  affinity_delta: 2
+- trust_delta: -2
+  affinity_delta: -1

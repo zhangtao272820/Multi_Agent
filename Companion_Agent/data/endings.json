@@ -1,6 +1,60 @@
 {
   "endings": [
     {
+      "id": "ending_aichen_cleared_true",
+      "type": "secret",
+      "title": "过审之后",
+      "subtitle": "Cleared",
+      "description": "闺蜜审核通过；她把心从防线上挪开。",
+      "cg_hint": "备用花材 · 放行",
+      "character_ids": [
+        "aichen"
+      ],
+      "cast_roles": [
+        "linked"
+      ],
+      "conditions": {
+        "stage_min": "dating",
+        "affinity_min": 88,
+        "trust_min": 80,
+        "flags_all": [
+          "aichen_clear",
+          "friend_gate_done"
+        ]
+      },
+      "presentation_id": "ending_aichen_cleared_true"
+    },
+    {
+      "id": "ending_aichen_shadow_garden",
+      "type": "secret",
+      "title": "影子花园 · 并蒂",
+      "subtitle": "Bestie Twin Bloom",
+      "description": "闺蜜守门仍在；她把自己也放进收件人栏——与艾莉并蒂，称呼不改，故意展示只给你。",
+      "cg_hint": "花束 · 双名便签",
+      "character_ids": [
+        "aichen"
+      ],
+      "cast_roles": [
+        "linked"
+      ],
+      "conditions": {
+        "stage_min": "close_friend",
+        "affinity_min": 85,
+        "trust_min": 78,
+        "flags_all": [
+          "friend_gate_done",
+          "bond_ally_done",
+          "deliberate_display",
+          "aichen_soft_bloom"
+        ],
+        "flags_any": [
+          "harem_accepted",
+          "world_harem_ready",
+          "kin_garden_ready"
+        ]
+      }
+    },
+    {
       "id": "ending_aili_second_bloom_true",
       "type": "secret",
       "title": "真结局 · 第二次开花",
@@ -49,6 +103,112 @@
           "jl_equal_choice",
           "jl_saw_fatigue",
           "cousin_watch_done"
+        ]
+      }
+    },
+    {
+      "id": "ending_jingning_own_voice_true",
+      "type": "secret",
+      "title": "自己的声音",
+      "subtitle": "Own Voice",
+      "description": "观察日记合上；她用自己的声音站到你身边。",
+      "cg_hint": "合上的日记",
+      "character_ids": [
+        "jingning"
+      ],
+      "cast_roles": [
+        "linked"
+      ],
+      "conditions": {
+        "stage_min": "dating",
+        "affinity_min": 88,
+        "trust_min": 80,
+        "flags_all": [
+          "jingning_soft_open",
+          "cousin_watch_done"
+        ]
+      },
+      "presentation_id": "ending_jingning_own_voice_true"
+    },
+    {
+      "id": "ending_jingning_shadow_garden",
+      "type": "secret",
+      "title": "影子花园 · 空白页",
+      "subtitle": "Cousin Shadow",
+      "description": "观察日记最后一页写着你的名字，却没有恋爱栏。族里她仍是堂姐；私下她占一个影子席。",
+      "cg_hint": "茶席 · 日记",
+      "character_ids": [
+        "jingning"
+      ],
+      "cast_roles": [
+        "linked"
+      ],
+      "conditions": {
+        "stage_min": "close_friend",
+        "affinity_min": 85,
+        "trust_min": 78,
+        "flags_all": [
+          "bond_ally_done",
+          "deliberate_display",
+          "jingning_soft_bloom"
+        ],
+        "flags_any": [
+          "harem_accepted",
+          "world_harem_ready",
+          "kin_garden_ready"
+        ]
+      }
+    },
+    {
+      "id": "ending_lingke_peer_true",
+      "type": "secret",
+      "title": "对等的红笔",
+      "subtitle": "Peer Pen",
+      "description": "边界守门之后，她允许你把她当对等的人。",
+      "cg_hint": "红笔 · 并排批改",
+      "character_ids": [
+        "lingke"
+      ],
+      "cast_roles": [
+        "linked"
+      ],
+      "conditions": {
+        "stage_min": "dating",
+        "affinity_min": 88,
+        "trust_min": 80,
+        "flags_all": [
+          "lingke_peer_ok",
+          "boundary_guard_done"
+        ]
+      },
+      "presentation_id": "ending_lingke_peer_true"
+    },
+    {
+      "id": "ending_lingke_shadow_garden",
+      "type": "secret",
+      "title": "影子花园 · 红笔帽",
+      "subtitle": "TA Shadow",
+      "description": "走廊上她仍是助教；门关上，规则外的默契占一个不被登记的席位。",
+      "cg_hint": "办公室半掩门",
+      "character_ids": [
+        "lingke"
+      ],
+      "cast_roles": [
+        "linked"
+      ],
+      "conditions": {
+        "stage_min": "close_friend",
+        "affinity_min": 85,
+        "trust_min": 78,
+        "flags_all": [
+          "bond_ally_done",
+          "deliberate_display",
+          "lingke_soft_bloom"
+        ],
+        "flags_any": [
+          "harem_accepted",
+          "world_harem_ready",
+          "kin_garden_ready"
         ]
       }
     },
@@ -221,6 +381,64 @@
       }
     },
     {
+      "id": "ending_shuli_shadow_garden",
+      "type": "secret",
+      "title": "影子花园 · 日程夹层",
+      "subtitle": "Sister Shadow",
+      "description": "她仍叫你哥哥，仍盯你吃饭；日程本夹层多了一句「只给你看」。家规不改，席位却在。",
+      "cg_hint": "浴室灯 · 日程本",
+      "character_ids": [
+        "shuli"
+      ],
+      "cast_roles": [
+        "linked"
+      ],
+      "conditions": {
+        "stage_min": "close_friend",
+        "affinity_min": 85,
+        "trust_min": 78,
+        "flags_all": [
+          "sibling_talk_done",
+          "bond_ally_done",
+          "deliberate_display",
+          "shuli_soft_bloom"
+        ],
+        "flags_any": [
+          "harem_accepted",
+          "world_harem_ready",
+          "kin_garden_ready"
+        ]
+      }
+    },
+    {
+      "id": "ending_shuli_taboo_true",
+      "type": "secret",
+      "title": "日程本外的名字",
+      "subtitle": "Taboo Vow",
+      "description": "嫉妒撕裂与伦理正视之后，你们在薄墙另一侧交换秘密承诺：公开仍是兄妹，私下共担后果。",
+      "cg_hint": "夜灯 · 虚掩的门 · 日程夹层",
+      "character_ids": [
+        "shuli"
+      ],
+      "cast_roles": [
+        "linked"
+      ],
+      "conditions": {
+        "stage_min": "dating",
+        "affinity_min": 90,
+        "trust_min": 85,
+        "flags_all": [
+          "shuli_jealous_break",
+          "taboo_romance_ok",
+          "shuli_secret_roof"
+        ],
+        "flags_absent": [
+          "shuli_exposed_by_fengyin"
+        ]
+      },
+      "presentation_id": "ending_shuli_taboo_true"
+    },
+    {
       "id": "ending_taotao_plain_true",
       "type": "secret",
       "title": "真结局 · 灯牌放下之后",
@@ -318,28 +536,110 @@
       }
     },
     {
-      "id": "ending_yeyu_hem_true",
+      "id": "ending_youwei_shadow_garden",
       "type": "secret",
-      "title": "真结局 · 为你留的折边",
-      "subtitle": "Hemmed for You",
-      "description": "她把成衣挂到你身上，别针还没拔：「别动。我量的不是尺寸——是你会不会逃。」你没逃。",
-      "cg_hint": "人台旁 · 软尺",
+      "title": "影子花园 · 第三支笔",
+      "subtitle": "Studio Shadow",
+      "description": "学姐的线她改不了；她只在调色盘边给自己留了一格影子席——故意展示，不抢姓氏。",
+      "cg_hint": "画室夜灯 · 速写本",
       "character_ids": [
-        "yeyu"
+        "youwei"
       ],
       "cast_roles": [
-        "romance"
+        "linked"
+      ],
+      "conditions": {
+        "stage_min": "close_friend",
+        "affinity_min": 85,
+        "trust_min": 78,
+        "flags_all": [
+          "bond_ally_done",
+          "deliberate_display",
+          "youwei_soft_bloom"
+        ],
+        "flags_any": [
+          "harem_accepted",
+          "world_harem_ready",
+          "kin_garden_ready"
+        ]
+      }
+    },
+    {
+      "id": "ending_youwei_third_pen_true",
+      "type": "secret",
+      "title": "第三支笔",
+      "subtitle": "Third Pen",
+      "description": "画室同盟与本人开放之后，她把线稿外的自己交给你。",
+      "cg_hint": "笔筒 · 两支并排",
+      "character_ids": [
+        "youwei"
+      ],
+      "cast_roles": [
+        "linked"
       ],
       "conditions": {
         "stage_min": "dating",
         "affinity_min": 88,
         "trust_min": 80,
         "flags_all": [
-          "confessed",
-          "yy_atelier_in",
-          "yy_hem_for_you"
+          "youwei_open_heart",
+          "studio_sketch_done"
+        ]
+      },
+      "presentation_id": "ending_youwei_third_pen_true"
+    },
+    {
+      "id": "ending_yuxi_shadow_garden",
+      "type": "secret",
+      "title": "影子花园 · 排班备注",
+      "subtitle": "Shift Shadow",
+      "description": "死党仍护晚雨；备注里多了一行「影子席」。顶班间隙的故意展示，只给你一个人看。",
+      "cg_hint": "打烊灯 · 围裙",
+      "character_ids": [
+        "yuxi"
+      ],
+      "cast_roles": [
+        "linked"
+      ],
+      "conditions": {
+        "stage_min": "close_friend",
+        "affinity_min": 85,
+        "trust_min": 78,
+        "flags_all": [
+          "bond_ally_done",
+          "deliberate_display",
+          "yuxi_soft_bloom"
+        ],
+        "flags_any": [
+          "harem_accepted",
+          "world_harem_ready",
+          "kin_garden_ready"
         ]
       }
+    },
+    {
+      "id": "ending_yuxi_side_by_side_true",
+      "type": "secret",
+      "title": "并排打烊",
+      "subtitle": "Side by Side",
+      "description": "顶班同盟之后，她允许并排坐下，而不只护晚雨。",
+      "cg_hint": "打烊灯 · 并排椅",
+      "character_ids": [
+        "yuxi"
+      ],
+      "cast_roles": [
+        "linked"
+      ],
+      "conditions": {
+        "stage_min": "dating",
+        "affinity_min": 88,
+        "trust_min": 80,
+        "flags_all": [
+          "yuxi_shift_confess_ok",
+          "shift_cover_done"
+        ]
+      },
+      "presentation_id": "ending_yuxi_side_by_side_true"
     },
     {
       "id": "ending_aichen_gate_ally",
@@ -352,7 +652,7 @@
         "aichen"
       ],
       "cast_roles": [
-        "neutral"
+        "linked"
       ],
       "conditions": {
         "stage_min": "close_friend",
@@ -462,6 +762,31 @@
       }
     },
     {
+      "id": "ending_harem_kin_bloom",
+      "type": "good",
+      "title": "后宫结局 · 影子花园",
+      "subtitle": "Kin Bloom",
+      "description": "名义上仍是家人或挚友；花园开了之后，她站在不被登记的席位——故意展示只给你，称呼却从不改口。",
+      "cg_hint": "并蒂灯火 · 影子席",
+      "cast_roles": [
+        "neutral"
+      ],
+      "conditions": {
+        "stage_min": "close_friend",
+        "affinity_min": 82,
+        "trust_min": 75,
+        "flags_all": [
+          "deliberate_display",
+          "kin_garden_ready",
+          "bond_ally_done"
+        ],
+        "flags_any": [
+          "harem_accepted",
+          "world_harem_ready"
+        ]
+      }
+    },
+    {
       "id": "ending_harem_open",
       "type": "good",
       "title": "后宫结局 · 并蒂",
@@ -519,7 +844,7 @@
         "jingning"
       ],
       "cast_roles": [
-        "neutral"
+        "linked"
       ],
       "conditions": {
         "stage_min": "close_friend",
@@ -545,7 +870,7 @@
         "lingke"
       ],
       "cast_roles": [
-        "neutral"
+        "linked"
       ],
       "conditions": {
         "stage_min": "close_friend",
@@ -797,6 +1122,34 @@
       }
     },
     {
+      "id": "ending_shuli_careful_good",
+      "type": "good",
+      "title": "对枫音说一半",
+      "subtitle": "Careful Step",
+      "description": "伦理破限后，你们选择对义妹部分坦白：家没有散，秘密少了一半重量。",
+      "cg_hint": "客厅灯 · 三人对坐",
+      "character_ids": [
+        "shuli"
+      ],
+      "cast_roles": [
+        "linked"
+      ],
+      "conditions": {
+        "stage_min": "dating",
+        "affinity_min": 85,
+        "affinity_max": 89,
+        "trust_min": 80,
+        "flags_all": [
+          "taboo_romance_ok",
+          "shuli_secret_roof"
+        ],
+        "flags_absent": [
+          "shuli_exposed_by_fengyin"
+        ]
+      },
+      "presentation_id": "ending_shuli_careful_good"
+    },
+    {
       "id": "ending_shuli_family_ally",
       "type": "good",
       "title": "家人同盟",
@@ -807,7 +1160,7 @@
         "shuli"
       ],
       "cast_roles": [
-        "neutral"
+        "linked"
       ],
       "conditions": {
         "stage_min": "close_friend",
@@ -954,32 +1307,6 @@
       }
     },
     {
-      "id": "ending_yeyu_sharp_heart",
-      "type": "good",
-      "title": "毒舌真心",
-      "subtitle": "Sharp Heart",
-      "description": "她用最锋利的话护着最软的心。便利店暖灯下，你终于听懂。",
-      "cg_hint": "便利店 · 暖灯",
-      "character_ids": [
-        "yeyu"
-      ],
-      "cast_roles": [
-        "romance"
-      ],
-      "conditions": {
-        "stage_min": "dating",
-        "trust_min": 78,
-        "flags_all": [
-          "confessed"
-        ],
-        "flags_any": [
-          "sharp_care_done",
-          "late_night_store_done",
-          "yy_night_counter"
-        ]
-      }
-    },
-    {
       "id": "ending_youwei_studio_ally",
       "type": "good",
       "title": "第三支笔",
@@ -990,7 +1317,7 @@
         "youwei"
       ],
       "cast_roles": [
-        "neutral"
+        "linked"
       ],
       "conditions": {
         "stage_min": "close_friend",
@@ -1016,7 +1343,7 @@
         "yuxi"
       ],
       "cast_roles": [
-        "neutral"
+        "linked"
       ],
       "conditions": {
         "stage_min": "close_friend",
@@ -1042,7 +1369,7 @@
         "aichen"
       ],
       "cast_roles": [
-        "neutral"
+        "linked"
       ],
       "conditions": {
         "affinity_min": 50,
@@ -1200,7 +1527,7 @@
         "jingning"
       ],
       "cast_roles": [
-        "neutral"
+        "linked"
       ],
       "conditions": {
         "affinity_min": 52,
@@ -1225,7 +1552,7 @@
         "lingke"
       ],
       "cast_roles": [
-        "neutral"
+        "linked"
       ],
       "conditions": {
         "affinity_min": 48,
@@ -1449,7 +1776,7 @@
         "shuli"
       ],
       "cast_roles": [
-        "neutral"
+        "linked"
       ],
       "conditions": {
         "affinity_min": 55,
@@ -1588,31 +1915,6 @@
       }
     },
     {
-      "id": "ending_yeyu_counter_soft",
-      "type": "normal",
-      "title": "软结局 · 夜班损友",
-      "subtitle": "Night Counter",
-      "description": "她继续损你，你继续买关东煮。针线在别处，友情在柜台。",
-      "cg_hint": "关东煮蒸汽 · 工牌",
-      "character_ids": [
-        "yeyu"
-      ],
-      "cast_roles": [
-        "romance"
-      ],
-      "conditions": {
-        "affinity_min": 60,
-        "stage_max": "close_friend",
-        "flags_any": [
-          "yy_night_counter",
-          "late_night_store_done"
-        ],
-        "flags_absent": [
-          "confessed"
-        ]
-      }
-    },
-    {
       "id": "ending_youwei_borrow_soft",
       "type": "normal",
       "title": "软结局 · 借颜料的人",
@@ -1623,7 +1925,7 @@
         "youwei"
       ],
       "cast_roles": [
-        "neutral"
+        "linked"
       ],
       "conditions": {
         "affinity_min": 50,
@@ -1648,7 +1950,7 @@
         "yuxi"
       ],
       "cast_roles": [
-        "neutral"
+        "linked"
       ],
       "conditions": {
         "affinity_min": 52,
@@ -1660,6 +1962,50 @@
           "confessed",
           "bond_ally_done"
         ]
+      }
+    },
+    {
+      "id": "ending_aichen_gate_slam",
+      "type": "bad",
+      "title": "审核否决",
+      "subtitle": "Gate Slam",
+      "description": "闺蜜关闸；门砰地关上。",
+      "cg_hint": "关上的活动门",
+      "character_ids": [
+        "aichen"
+      ],
+      "cast_roles": [
+        "linked"
+      ],
+      "conditions": {
+        "flags_any": [
+          "ending_hint_aichen_bad"
+        ],
+        "flags_absent": [
+          "aichen_clear"
+        ]
+      },
+      "presentation_id": "ending_aichen_gate_slam"
+    },
+    {
+      "id": "ending_aili_wilted_stem",
+      "type": "bad",
+      "title": "枯茎",
+      "subtitle": "Bad End",
+      "description": "她仍礼貌点头，却不再把花束递出。重建停在邻里寒暄，旧伤也结成痂。",
+      "cg_hint": "雨窗 · 背影",
+      "character_ids": [
+        "aili"
+      ],
+      "cast_roles": [
+        "romance"
+      ],
+      "conditions": {
+        "flags_present": [
+          "aili_route_bad"
+        ],
+        "affinity_max": 55,
+        "trust_max": 45
       }
     },
     {
@@ -1697,6 +2043,459 @@
         "romance",
         "neutral"
       ]
+    },
+    {
+      "id": "ending_fengyin_no_knock",
+      "type": "bad",
+      "title": "再不敲门",
+      "subtitle": "Bad End",
+      "description": "同一屋檐下你们成了平行线。她的房门关死，你再也没有资格敲门。",
+      "cg_hint": "雨窗 · 背影",
+      "character_ids": [
+        "fengyin"
+      ],
+      "cast_roles": [
+        "romance"
+      ],
+      "conditions": {
+        "flags_present": [
+          "fengyin_route_bad"
+        ],
+        "affinity_max": 55,
+        "trust_max": 45
+      }
+    },
+    {
+      "id": "ending_jingliu_glass_door",
+      "type": "bad",
+      "title": "玻璃门内",
+      "subtitle": "Bad End",
+      "description": "她把私人夜谈收进抽屉。你仍是可靠下属——只是再也走不进天台。",
+      "cg_hint": "雨窗 · 背影",
+      "character_ids": [
+        "jingliu"
+      ],
+      "cast_roles": [
+        "romance"
+      ],
+      "conditions": {
+        "flags_present": [
+          "jingliu_route_bad"
+        ],
+        "affinity_max": 55,
+        "trust_max": 45
+      }
+    },
+    {
+      "id": "ending_jingning_family_chill",
+      "type": "bad",
+      "title": "家族冷场",
+      "subtitle": "Family Chill",
+      "description": "家族席上沉默；旁观变成疏离。",
+      "cg_hint": "空茶席",
+      "character_ids": [
+        "jingning"
+      ],
+      "cast_roles": [
+        "linked"
+      ],
+      "conditions": {
+        "flags_any": [
+          "ending_hint_jingning_bad"
+        ],
+        "flags_absent": [
+          "jingning_soft_open"
+        ]
+      },
+      "presentation_id": "ending_jingning_family_chill"
+    },
+    {
+      "id": "ending_lingke_boundary_fail",
+      "type": "bad",
+      "title": "红笔折断",
+      "subtitle": "Boundary Fail",
+      "description": "边界失守；助教线冷掉。",
+      "cg_hint": "折断的红笔",
+      "character_ids": [
+        "lingke"
+      ],
+      "cast_roles": [
+        "linked"
+      ],
+      "conditions": {
+        "flags_any": [
+          "ending_hint_lingke_bad"
+        ],
+        "flags_absent": [
+          "lingke_peer_ok"
+        ]
+      },
+      "presentation_id": "ending_lingke_boundary_fail"
+    },
+    {
+      "id": "ending_linxi_missed_train",
+      "type": "bad",
+      "title": "错过末班",
+      "subtitle": "Bad End",
+      "description": "她仍对桌加班，却不再等你一起走。工位之间那一步，被她自己收回。",
+      "cg_hint": "雨窗 · 背影",
+      "character_ids": [
+        "linxi"
+      ],
+      "cast_roles": [
+        "romance"
+      ],
+      "conditions": {
+        "flags_present": [
+          "linxi_route_bad"
+        ],
+        "affinity_max": 55,
+        "trust_max": 45
+      }
+    },
+    {
+      "id": "ending_luna_false_charm",
+      "type": "bad",
+      "title": "玩笑落空",
+      "subtitle": "Bad End",
+      "description": "塔罗与护符都成了再也当真不了的玩笑。月亮班次还在，她却不再翻给你看牌。",
+      "cg_hint": "雨窗 · 背影",
+      "character_ids": [
+        "luna"
+      ],
+      "cast_roles": [
+        "romance"
+      ],
+      "conditions": {
+        "flags_present": [
+          "luna_route_bad"
+        ],
+        "affinity_max": 55,
+        "trust_max": 45
+      }
+    },
+    {
+      "id": "ending_miara_void_contract",
+      "type": "bad",
+      "title": "契约作废",
+      "subtitle": "Bad End",
+      "description": "契约作废成戏言。摊位帘还在，印章却被她收进再也不打开的抽屉。",
+      "cg_hint": "雨窗 · 背影",
+      "character_ids": [
+        "miara"
+      ],
+      "cast_roles": [
+        "romance"
+      ],
+      "conditions": {
+        "flags_present": [
+          "miara_route_bad"
+        ],
+        "affinity_max": 55,
+        "trust_max": 45
+      }
+    },
+    {
+      "id": "ending_qiansha_closed_pr",
+      "type": "bad",
+      "title": "永久 Archive",
+      "subtitle": "Bad End",
+      "description": "PR 永久 Archive。注释清空，分支删除——她不再 @ 你 review 任何心事。",
+      "cg_hint": "雨窗 · 背影",
+      "character_ids": [
+        "qiansha"
+      ],
+      "cast_roles": [
+        "romance"
+      ],
+      "conditions": {
+        "flags_present": [
+          "qiansha_route_bad"
+        ],
+        "affinity_max": 55,
+        "trust_max": 45
+      }
+    },
+    {
+      "id": "ending_qingcai_empty_stage",
+      "type": "bad",
+      "title": "空舞台",
+      "subtitle": "Bad End",
+      "description": "舞台亮灯时你不在。她把直球收回胸口，观众席第一排永远空着。",
+      "cg_hint": "雨窗 · 背影",
+      "character_ids": [
+        "qingcai"
+      ],
+      "cast_roles": [
+        "romance"
+      ],
+      "conditions": {
+        "flags_present": [
+          "qingcai_route_bad"
+        ],
+        "affinity_max": 55,
+        "trust_max": 45
+      }
+    },
+    {
+      "id": "ending_ruolin_red_pen",
+      "type": "bad",
+      "title": "红笔判回",
+      "subtitle": "Bad End",
+      "description": "她把师生边界重新划死。答疑室门锁上，你的名字只剩学号。",
+      "cg_hint": "雨窗 · 背影",
+      "character_ids": [
+        "ruolin"
+      ],
+      "cast_roles": [
+        "romance"
+      ],
+      "conditions": {
+        "flags_present": [
+          "ruolin_route_bad"
+        ],
+        "affinity_max": 55,
+        "trust_max": 45
+      }
+    },
+    {
+      "id": "ending_shiori_unread_page",
+      "type": "bad",
+      "title": "未读空白",
+      "subtitle": "Bad End",
+      "description": "空白页永远不写你。荐书单还在，收件人栏却被她用修正带盖住。",
+      "cg_hint": "雨窗 · 背影",
+      "character_ids": [
+        "shiori"
+      ],
+      "cast_roles": [
+        "romance"
+      ],
+      "conditions": {
+        "flags_present": [
+          "shiori_route_bad"
+        ],
+        "affinity_max": 55,
+        "trust_max": 45
+      }
+    },
+    {
+      "id": "ending_shizuku_closed_stack",
+      "type": "bad",
+      "title": "闭馆之后",
+      "subtitle": "Bad End",
+      "description": "闭馆广播后她不再出声。借书证还在，声音却收进了最里层的闭架。",
+      "cg_hint": "雨窗 · 背影",
+      "character_ids": [
+        "shizuku"
+      ],
+      "cast_roles": [
+        "romance"
+      ],
+      "conditions": {
+        "flags_present": [
+          "shizuku_route_bad"
+        ],
+        "affinity_max": 55,
+        "trust_max": 45
+      }
+    },
+    {
+      "id": "ending_shuli_ethics_rift",
+      "type": "bad",
+      "title": "撕裂的称呼",
+      "subtitle": "Ethics Rift",
+      "description": "嫉妒砸开了家，却没人敢把禁忌说完整；称呼卡住，晚饭也冷了。",
+      "cg_hint": "撕页日程 · 空餐桌",
+      "character_ids": [
+        "shuli"
+      ],
+      "cast_roles": [
+        "linked"
+      ],
+      "conditions": {
+        "stage_max": "close_friend",
+        "affinity_max": 70,
+        "flags_all": [
+          "shuli_jealous_break"
+        ],
+        "flags_absent": [
+          "taboo_romance_ok"
+        ]
+      },
+      "presentation_id": "ending_shuli_ethics_rift"
+    },
+    {
+      "id": "ending_shuli_roof_exposed",
+      "type": "bad",
+      "title": "薄墙倒塌",
+      "subtitle": "Roof Exposed",
+      "description": "秘密被枫音撞破，家散了一角，称呼再也回不去。",
+      "cg_hint": "打开的门 · 三人沉默",
+      "character_ids": [
+        "shuli"
+      ],
+      "cast_roles": [
+        "linked"
+      ],
+      "conditions": {
+        "flags_all": [
+          "shuli_secret_roof",
+          "shuli_exposed_by_fengyin"
+        ]
+      },
+      "presentation_id": "ending_shuli_roof_exposed"
+    },
+    {
+      "id": "ending_taotao_lights_out",
+      "type": "bad",
+      "title": "灯牌熄灭",
+      "subtitle": "Bad End",
+      "description": "灯牌放下后你不在前排。安可灯亮起，她的视线掠过空位，不再停留。",
+      "cg_hint": "雨窗 · 背影",
+      "character_ids": [
+        "taotao"
+      ],
+      "cast_roles": [
+        "romance"
+      ],
+      "conditions": {
+        "flags_present": [
+          "taotao_route_bad"
+        ],
+        "affinity_max": 55,
+        "trust_max": 45
+      }
+    },
+    {
+      "id": "ending_wanyu_cold_counter",
+      "type": "bad",
+      "title": "冷柜台",
+      "subtitle": "Bad End",
+      "description": "她仍为你留位，却不再倒第二杯。蒸汽散尽，熟客也成了过客。",
+      "cg_hint": "雨窗 · 背影",
+      "character_ids": [
+        "wanyu"
+      ],
+      "cast_roles": [
+        "romance"
+      ],
+      "conditions": {
+        "flags_present": [
+          "wanyu_route_bad"
+        ],
+        "affinity_max": 55,
+        "trust_max": 45
+      }
+    },
+    {
+      "id": "ending_xiaoyang_poster_torn",
+      "type": "bad",
+      "title": "撕掉的名字",
+      "subtitle": "Bad End",
+      "description": "海报上你的名字被撕掉。同班还在，她却再也不把你写进社团栏。",
+      "cg_hint": "雨窗 · 背影",
+      "character_ids": [
+        "xiaoyang"
+      ],
+      "cast_roles": [
+        "romance"
+      ],
+      "conditions": {
+        "flags_present": [
+          "xiaoyang_route_bad"
+        ],
+        "affinity_max": 55,
+        "trust_max": 45
+      }
+    },
+    {
+      "id": "ending_xiaoyou_blank_canvas",
+      "type": "bad",
+      "title": "空白画布",
+      "subtitle": "Bad End",
+      "description": "她把速写本合上，说邻居之间最好只剩门铃。颜料干了，窗也关了。",
+      "cg_hint": "雨窗 · 背影",
+      "character_ids": [
+        "xiaoyou"
+      ],
+      "cast_roles": [
+        "romance"
+      ],
+      "conditions": {
+        "flags_present": [
+          "xiaoyou_route_bad"
+        ],
+        "affinity_max": 55,
+        "trust_max": 45
+      }
+    },
+    {
+      "id": "ending_xingnai_blank_gap",
+      "type": "bad",
+      "title": "永远的缺口",
+      "subtitle": "Bad End",
+      "description": "合影缺口永远空着。旧相册还在，那一格却被她贴上了空白贴纸。",
+      "cg_hint": "雨窗 · 背影",
+      "character_ids": [
+        "xingnai"
+      ],
+      "cast_roles": [
+        "romance"
+      ],
+      "conditions": {
+        "flags_present": [
+          "xingnai_route_bad"
+        ],
+        "affinity_max": 55,
+        "trust_max": 45
+      }
+    },
+    {
+      "id": "ending_youwei_studio_break",
+      "type": "bad",
+      "title": "笔筒空了",
+      "subtitle": "Studio Break",
+      "description": "画室决裂；第三支笔被收回。",
+      "cg_hint": "空笔筒",
+      "character_ids": [
+        "youwei"
+      ],
+      "cast_roles": [
+        "linked"
+      ],
+      "conditions": {
+        "flags_any": [
+          "ending_hint_youwei_bad"
+        ],
+        "flags_absent": [
+          "youwei_open_heart"
+        ]
+      },
+      "presentation_id": "ending_youwei_studio_break"
+    },
+    {
+      "id": "ending_yuxi_friend_rift",
+      "type": "bad",
+      "title": "护短反噬",
+      "subtitle": "Friend Rift",
+      "description": "死党反目；护短变成墙。",
+      "cg_hint": "翻倒的托盘",
+      "character_ids": [
+        "yuxi"
+      ],
+      "cast_roles": [
+        "linked"
+      ],
+      "conditions": {
+        "flags_any": [
+          "ending_hint_yuxi_bad"
+        ],
+        "flags_absent": [
+          "yuxi_shift_confess_ok"
+        ]
+      },
+      "presentation_id": "ending_yuxi_friend_rift"
     }
   ]
 }

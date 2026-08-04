@@ -1,0 +1,67 @@
+id: story_luna_act5_winter_tarot
+label: 冬夜塔罗
+priority: 6
+once: true
+chance: 1.0
+scene_id: ''
+trigger:
+  character_ids:
+  - luna
+  stage_min: crush
+  affinity_min: 70
+  flags_present:
+  - ln_moon_shift
+  flags_absent:
+  - ln_winter_tarot
+  waypoint_min: q_winter_onset
+  season: winter
+prompt_snippet: |
+  【专属故事 · 月露宁 · 冬季加幕 · 冬夜塔罗】
+advance: on_player_turn
+beats:
+- id: b1
+  summary: 入冬休息室暖气薄；她把塔罗牌摊开，却少了那张「恋人」。等你回应。
+  sprite_hint:
+  - season_winter
+  - home
+  soft_options:
+  - 扶塔罗盒
+  - 问冷不冷
+  - 先点灯
+  narration: 入冬休息室暖气薄；她把塔罗牌摊开，却少了那张「恋人」。
+  pc_thought: 月咒护符像玩笑。当真时，班次就不是班次。
+  brief: 入冬休息室暖气薄；她把塔罗牌摊开，却少了那张「恋人」。等你回应。
+- id: b2
+  summary: "魔女壳卸下一半：冬天适合问一句——你还愿不愿意当真。等你回应。"
+  sprite_hint:
+  - season_winter
+  - casual
+  soft_options:
+  - 听牌意
+  - 不抢解读
+  - 约再抽一张
+  narration: "塔罗牌与夜班灯里，魔女壳卸下一半：冬天适合问一句——你还愿不愿意当真。"
+  pc_thought: 星夜柜台很静。假护符一拆，她还肯看我吗？
+  brief: "魔女壳卸下一半：冬天适合问一句——你还愿不愿意当真。等你回应。"
+- id: b3
+  summary: 你是接住牌面，还是笑着推开；预言会被兑现或永久落空。等你回应。
+  sprite_hint:
+  - season_winter
+  - date
+  soft_options:
+  - 说我不急答案
+  - 帮她收牌
+  - 送她回家
+  narration: 塔罗牌与夜班灯里，你是接住牌面，还是笑着推开；预言会被兑现或永久落空。
+  pc_thought: 冬塔罗冷。我想听解读，也想听她本人。
+  brief: 你是接住牌面，还是笑着推开；预言会被兑现或永久落空。等你回应。
+rewards:
+  flags_set:
+  - ln_winter_tarot
+choice_effects:
+- trust_delta: 3
+  affinity_delta: 3
+- trust_delta: 2
+  affinity_delta: 1
+- trust_delta: -3
+  affinity_delta: -2

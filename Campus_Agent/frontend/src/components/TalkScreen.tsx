@@ -1,7 +1,14 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FaceChip } from "./FaceChip";
 import { SpriteStage } from "./SpriteStage";
 import type { ChatResult, TalkPrep } from "../types";
+
+/** Soft “speaking” window after an NPC line; scales lightly with length. */
+function speakingMsForLine(line: string): number {
+  const n = line.trim().length;
+  if (!n) return 0;
+  return Math.min(5200, Math.max(1200, 700 + n * 42));
+}
 
 const STAGE_LABEL: Record<string, string> = {
   stranger: "陌生",
@@ -76,6 +83,17 @@ export function TalkScreen({
   const [deltaNote, setDeltaNote] = useState<string | null>(null);
   const [prevStage, setPrevStage] = useState(prep.edge.stage);
   const [dateEnded, setDateEnded] = useState(false);
+  const [lineSpeaking, setLineSpeaking] = useState(Boolean(prep.opening_line));
+
+  useEffect(() => {
+    if (!lastLine.trim()) {
+      setLineSpeaking(false);
+      return;
+    }
+    setLineSpeaking(true);
+    const t = window.setTimeout(() => setLineSpeaking(false), speakingMsForLine(lastLine));
+    return () => window.clearTimeout(t);
+  }, [lastLine]);
 
   async function send(msg: string, verb?: InteractVerb) {
     const t = msg.trim();
@@ -176,7 +194,12 @@ export function TalkScreen({
 
       <div className="talk-stage sprite-stage">
         <div className="sprite-stage-figure is-focus">
-          <SpriteStage src={sprite} name={prep.target.name} size="talk" />
+          <SpriteStage
+            src={sprite}
+            name={prep.target.name}
+            size="talk"
+            speaking={pending || lineSpeaking}
+          />
         </div>
       </div>
 

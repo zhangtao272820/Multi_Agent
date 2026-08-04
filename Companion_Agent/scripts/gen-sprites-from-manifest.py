@@ -288,9 +288,9 @@ def build_tasks(
             is_main = cid in draft_mains
         else:
             is_main = cast_kind in {"romance", "main_candidate"}
-        if mains_only and not is_main:
-            continue
-        if not is_main:
+        # Explicit --character always wins; otherwise mains-only skips neutral/npc.
+        # (--all-cast sets mains_only=False so full cast is enumerated.)
+        if not character_filter and mains_only and not is_main:
             continue
 
         existing = set(row.get("existing_files") or [])

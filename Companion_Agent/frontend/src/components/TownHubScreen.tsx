@@ -13,6 +13,8 @@ type Props = {
   onGoLocation: (locationId: string) => void;
   onEndDay: () => void;
   onAdvancePeriod?: () => void;
+  onJumpNextSeason?: () => void;
+  onSettleFriendEnding?: (characterId: string) => void;
   onReplyPing?: (characterId: string) => void;
   onCodex: () => void;
   onMenu: () => void;
@@ -112,6 +114,8 @@ export default function TownHubScreen({
   onGoLocation,
   onEndDay,
   onAdvancePeriod,
+  onJumpNextSeason,
+  onSettleFriendEnding,
   onReplyPing,
   onCodex,
   onMenu,
@@ -137,6 +141,8 @@ export default function TownHubScreen({
   const weather = hub.weather;
   const season = cal.season_label || china?.season_label || "";
   const weekdayCn = china?.weekday_label ? `周${china.weekday_label}` : "";
+  const nextWp = hub.waypoints?.next;
+  const canJumpSeason = !!hub.waypoints?.can_jump_next && !!onJumpNextSeason;
   const hereLabel = hub.locations.find((l) => l.id === hub.location_id)?.label || hub.location_id;
   const present = hub.present_here || [];
   const gate = !!hub.onboarding_gate;
@@ -271,6 +277,46 @@ export default function TownHubScreen({
         ))}
       </div>
 
+      {hub.waypoints?.all && hub.waypoints.all.length > 0 ? (
+        <div className="gal-hub-waypoint-strip" aria-label="季节航点">
+          <ol className="gal-hub-waypoint-track">
+            {hub.waypoints.all.map((wp) => {
+              const id = wp.id || "";
+              const reached = (hub.waypoints?.reached || []).includes(id);
+              const isCurrent = (hub.waypoints?.current?.id || "") === id;
+              const isNext = (hub.waypoints?.next?.id || "") === id;
+              return (
+                <li
+                  key={id || wp.label}
+                  className={`gal-hub-waypoint-dot${reached ? " is-reached" : ""}${
+                    isCurrent ? " is-now" : ""
+                  }${isNext ? " is-next" : ""}`}
+                  title={
+                    [wp.label, wp.date_label || wp.date, wp.season_label]
+                      .filter(Boolean)
+                      .join(" · ") || id
+                  }
+                >
+                  <span className="gal-hub-waypoint-mark" aria-hidden />
+                  <em>{wp.label || id}</em>
+                </li>
+              );
+            })}
+          </ol>
+          <div className="gal-hub-waypoint-caption">
+            <strong>{hub.waypoints.current?.label || "此刻"}</strong>
+            {hub.waypoints.next ? (
+              <span>
+                下一站 · {hub.waypoints.next.label}
+                {canJumpSeason ? "（可跳过）" : ""}
+              </span>
+            ) : (
+              <span>已到航线尽头</span>
+            )}
+          </div>
+        </div>
+      ) : null}
+
       {challengeToast ? (
         <p className="gal-hub-challenge-toast" role="status">
           {challengeToast}
@@ -367,6 +413,17 @@ export default function TownHubScreen({
               onClick={onAdvancePeriod}
             >
               度过此时段
+            </button>
+          )}
+          {canJumpSeason && nextWp && (
+            <button
+              type="button"
+              className="gal-text-btn gal-text-btn--accent"
+              disabled={busy || !connected}
+              onClick={onJumpNextSeason}
+              title={nextWp.date_label || nextWp.date || ""}
+            >
+              进入{nextWp.label || "下一季"}
             </button>
           )}
           <button
@@ -467,8 +524,20 @@ export default function TownHubScreen({
             <ul className="gal-hub-suggest gal-hub-ending-hints">
               {endingHints.map((h) => (
                 <li key={h.character_id}>
-                  <span className="gal-hub-suggest-kind">线索</span>
+                  <span className="gal-hub-suggest-kind">
+                    {h.action === "settle_friend" ? "结算" : "线索"}
+                  </span>
                   <span>{h.text}</span>
+                  {h.action === "settle_friend" && onSettleFriendEnding ? (
+                    <button
+                      type="button"
+                      className="gal-hub-inline-btn"
+                      disabled={busy || !connected}
+                      onClick={() => onSettleFriendEnding(h.character_id)}
+                    >
+                      定在朋友
+                    </button>
+                  ) : null}
                 </li>
               ))}
             </ul>

@@ -114,7 +114,14 @@ const PHASE_LABEL: Record<string, string> = {
 
 function wsUrl(): string {
   const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
-  return `${proto}//${window.location.host}/ws`;
+  const u = new URL(`${proto}//${window.location.host}/ws`);
+  try {
+    const t = String(localStorage.getItem("clawhive_access_token") || "").trim();
+    if (t) u.searchParams.set("access_token", t);
+  } catch {
+    /* ignore */
+  }
+  return u.toString();
 }
 
 const PLAYBACK_INSIGHT_WS_MS = 120_000;

@@ -3,32 +3,88 @@ label: 西装下的疲倦
 priority: 6
 once: true
 chance: 1.0
-scene_id: ""
+scene_id: ''
 trigger:
-  character_ids: [jingliu]
+  character_ids:
+  - jingliu
   stage_min: close_friend
-  affinity_min: 62
-  flags_absent: [jl_saw_fatigue]
-  flags_present: [jl_kept_after_meeting]
-prompt_snippet: |
-  【专属故事 · 权力差的另一侧 · 第2幕 · 西装下的疲倦】
+  affinity_min: 68
+  flags_absent:
+  - jl_saw_fatigue
+  flags_present:
+  - jl_kept_after_meeting
+prompt_snippet: '【专属故事 · 权力差的另一侧 · 第2幕 · 西装下的疲倦】
+
+  '
 advance: on_player_turn
 beats:
-  - id: b1
-    summary: "加班、车内简报"
-    sprite_hint: [overtime, car_brief]
-    soft_options: ["认真接话", "先观察", "轻声提问"]
-  - id: b2
-    summary: "她罕见地抱怨行业虚伪"
-    sprite_hint: [car_brief, phone_brief]
-    soft_options: ["表明态度", "给她空间", "确认她的意思"]
-  - id: b3
-    summary: "收束本幕：留下可被记住的结果，不剧透结局名。"
-    sprite_hint: [phone_brief]
-    soft_options: ["坦白心意", "先缓一缓", "诚实说明顾虑"]
+- id: b1
+  summary: 发布会后台，她对着镜子练微笑；妆镜里的完美，比台上更累人。等你回应。
+  sprite_hint:
+  - client_pitch
+  - work
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 递水
+  - 夸她漂亮撑场
+  - 问要不要推迟下一场
+  narration: 玻璃反光与夜风里，发布会后台，她对着镜子练微笑；妆镜里的完美，比台上更累人。
+  pc_thought: 玻璃门里她是上司。门一关，我还站不站得住？
+  brief: 发布会后台，她对着镜子练微笑；妆镜里的完美，比台上更累人。等你回应。
+- id: b2
+  summary: 她把样衣夹递给你：帮我看领口——近到能闻见香水，却仍用工作语气掩护。等你回应。
+  sprite_hint:
+  - lipstick_touch
+  - fitting_mirror
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 说这里只有你
+  - 帮她拿纸巾
+  - 别追问只陪着
+  narration: 玻璃反光与夜风里，她把样衣夹递给你：帮我看领口——近到能闻见香水，却仍用工作语气掩护。
+  pc_thought: 面具摘了半寸。我想看全，又怕被职场反噬。
+  brief: 她把样衣夹递给你：帮我看领口——近到能闻见香水，却仍用工作语气掩护。等你回应。
+- id: b3
+  summary: 酒会角落她承认：面具戴久了，连自己都分不清哪句是真心。目光第一次躲开镜头。等你回应。
+  sprite_hint:
+  - phone_brief
+  - event_glass
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 建议推迟回复
+  - 说你可以挡一轮
+  - 约天台透气
+  narration: 玻璃反光与夜风里，酒会角落她承认：面具戴久了，连自己都分不清哪句是真心。目光第一次躲开镜头。
+  pc_thought: 天台夜风冷。她递来的钥匙比合同烫。
+  brief: 酒会角落她承认：面具戴久了，连自己都分不清哪句是真心。目光第一次躲开镜头。等你回应。
+- id: b4
+  summary: 夜风里她问：如果摘下面具，你还会站在这吗？问题比合同条款更重。等你回应。
+  sprite_hint:
+  - fitting_mirror
+  - casual
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 叫她静流
+  - 护送她下楼
+  - 约定保密
+  narration: 玻璃反光与夜风里，夜风里她问：如果摘下面具，你还会站在这吗？问题比合同条款更重。
+  pc_thought: 对等工位——专一承诺的影子已经来了。
+  brief: 夜风里她问：如果摘下面具，你还会站在这吗？问题比合同条款更重。等你回应。
 rewards:
-  flags_set: [jl_saw_fatigue]
+  flags_set:
+  - jl_saw_fatigue
 choice_effects:
-  - { trust_delta: 3, affinity_delta: 3 }
-  - { trust_delta: 2, affinity_delta: 2 }
-  - { trust_delta: -2, affinity_delta: -1 }
+- trust_delta: 3
+  affinity_delta: 3
+- trust_delta: 2
+  affinity_delta: 2
+- trust_delta: -2
+  affinity_delta: -1

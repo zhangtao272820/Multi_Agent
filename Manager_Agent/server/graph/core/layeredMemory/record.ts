@@ -189,6 +189,7 @@ export async function appendReflectionMemory(
   policyDir: string,
   entry: {
     sessionId?: string
+    tenantId?: string
     scenarioKey: string
     failure: FailureAttribution
     user: string
@@ -216,9 +217,10 @@ export async function appendReflectionMemory(
     {
       type: 'reflection',
       agent: 'manager',
+      tenantId: entry.tenantId,
       sessionId: entry.sessionId,
       successScore: entry.successScore,
-      payload: row as unknown as Record<string, unknown>
+      payload: { ...row, tenantId: entry.tenantId } as unknown as Record<string, unknown>
     },
     process.env
   ).catch(() => undefined)
@@ -247,6 +249,7 @@ export async function appendSemanticMemory(
   policyDir: string,
   entry: {
     sessionId?: string
+    tenantId?: string
     scenarioKey: string
     intent: string
     user: string
@@ -271,9 +274,10 @@ export async function appendSemanticMemory(
     {
       type: 'semantic',
       agent: 'manager',
+      tenantId: entry.tenantId,
       sessionId: entry.sessionId,
       successScore: entry.successScore,
-      payload: row as unknown as Record<string, unknown>
+      payload: { ...row, tenantId: entry.tenantId } as unknown as Record<string, unknown>
     },
     process.env
   ).catch(() => undefined)

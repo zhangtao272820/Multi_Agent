@@ -1,0 +1,68 @@
+id: story_luna_act5b_midautumn_charm
+label: 中秋·护符
+priority: 6
+once: true
+chance: 1.0
+scene_id: ''
+trigger:
+  character_ids:
+  - luna
+  stage_min: crush
+  affinity_min: 72
+  flags_present:
+  - ln_winter_tarot
+  flags_absent:
+  - ln_midautumn_charm
+  waypoint_min: q_autumn_midautumn
+prompt_snippet: |
+  【专属故事 · 月露宁 · 节日加幕 · 中秋·护符】
+advance: on_player_turn
+beats:
+- id: b1
+  summary: 中秋她穿节日装坐在店后门，月饼旁放着一枚未系绳的护符。等你回应。
+  sprite_hint:
+  - festival_midautumn
+  - season_winter
+  soft_options:
+  - 夸她
+  - 点头
+  - 沉默
+  narration: 塔罗牌与夜班灯里，中秋她穿节日装坐在店后门，月饼旁放着一枚未系绳的护符。
+  pc_thought: 月咒护符像玩笑。当真时，班次就不是班次。
+  brief: 中秋她穿节日装坐在店后门，月饼旁放着一枚未系绳的护符。等你回应。
+- id: b2
+  summary: "她轻声说：护符只给一个名字——写你，或收进抽屉。等你回应。"
+  sprite_hint:
+  - festival_midautumn
+  - date
+  soft_options:
+  - 接住
+  - 问清楚
+  - 退一步
+  narration: "塔罗牌与夜班灯里，她轻声说：护符只给一个名字——写你，或收进抽屉。"
+  pc_thought: 星夜柜台很静。假护符一拆，她还肯看我吗？
+  brief: "她轻声说：护符只给一个名字——写你，或收进抽屉。等你回应。"
+- id: b3
+  summary: 月圆将尽；当真或当玩笑，会决定月亮班次是恋人，还是客人。等你回应。
+  sprite_hint:
+  - festival_midautumn
+  - home
+  soft_options:
+  - 承诺
+  - 诚实犹豫
+  - 拒绝
+  narration: 塔罗牌与夜班灯里，月圆将尽；当真或当玩笑，会决定月亮班次是恋人，还是客人。
+  pc_thought: 冬塔罗冷。我想听解读，也想听她本人。
+  brief: 月圆将尽；当真或当玩笑，会决定月亮班次是恋人，还是客人。等你回应。
+rewards:
+  flags_set:
+  - ln_midautumn_charm
+choice_effects:
+- trust_delta: 4
+  affinity_delta: 3
+- trust_delta: 1
+  affinity_delta: 1
+- trust_delta: -4
+  affinity_delta: -3
+  flags:
+    luna_route_bad: true

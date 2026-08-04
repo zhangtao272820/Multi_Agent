@@ -14,17 +14,26 @@ prompt_snippet: |
 advance: on_player_turn
 beats:
   - id: b1
-    summary: "雨夜她替温晚雨收工，顺便盘问你"
-    sprite_hint: [work, casual]
-    soft_options: ["认真接话", "先观察", "轻声提问"]
+    narration: "换班口她把围裙抛来：晚雨今天状态不对——你是来喝杯就走，还是愿意顶半班？蒸汽糊住玻璃。"
+    pc_thought: "死党位很硬。接围裙像介入，也像被审查。"
+    brief: "抛围裙要你顶半班；晚雨状态不对。等你说明来意、收杯或问晚雨。"
+    summary: "抛围裙要你顶半班；晚雨状态不对。等你说明来意、收杯或问晚雨。"
+    sprite_hint: [cafe_bestie, work]
+    soft_options: ["说明来意", "帮忙收杯", "问晚雨是否还好"]
   - id: b2
-    summary: "「顶班」里出现犹豫或选择。"
-    sprite_hint: [casual, rain]
-    soft_options: ["表明态度", "给她空间", "确认她的意思"]
+    narration: "顶班时她观察你如何对熟客：对晚雨好，不是多点单，是别把她的停靠当成理所当然。"
+    pc_thought: "顶班信任不是恋爱通行证——我别搞混。"
+    brief: "观察你对熟客；别消费晚雨的停靠。等你否认消费、问真心或接受审查。"
+    summary: "观察你对熟客；别消费晚雨的停靠。等你否认消费、问真心或接受审查。"
+    sprite_hint: [school_memory, cafe_bestie]
+    soft_options: ["否认消费", "问怎样算真心", "接受死党审查"]
   - id: b3
-    summary: "收束羁绊：确认界线与同盟，禁止恋爱走向。"
-    sprite_hint: [rain]
-    soft_options: ["答应站同一边", "先缓一缓", "诚实说明顾虑"]
+    narration: "收工她在小本记下「可观察」。晚雨真结局的店门，从这一刻可以推开——她只说「别添班次乱」。"
+    pc_thought: "道谢放行。保证不添乱——死党账本比菜单重。"
+    brief: "记下可观察；店门可开。等你道谢、约转告保重或保证不添乱。"
+    summary: "记下可观察；店门可开。等你道谢、约转告保重或保证不添乱。"
+    sprite_hint: [cafe_bestie, casual]
+    soft_options: ["道谢放行", "约她转告保重", "保证不添班次乱"]
 rewards:
   flags_set: [shift_cover_done]
 choice_effects:

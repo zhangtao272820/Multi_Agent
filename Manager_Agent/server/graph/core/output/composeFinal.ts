@@ -179,6 +179,7 @@ export function composeFinalBundleFromGraphResult(result: unknown): ComposeFinal
         : null
   })
   const text = appendStructuredReportIfNeeded(bodyForAudit, report)
+  // userFacing 已在 buildUserFacingPayload 隔离：无执行摘要；appendix 已消重
   return { text, userFacing }
 }
 

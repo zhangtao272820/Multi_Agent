@@ -3,10 +3,33 @@ function fmtNum(n) {
   return Number(n).toLocaleString();
 }
 
+function fmtPct(n) {
+  if (n == null || Number.isNaN(Number(n))) return "—";
+  return `${(Number(n) * 100).toFixed(1)}%`;
+}
+
 function statusClass(status) {
   if (status === "healthy" || status === "online") return "online";
   if (status === "degraded" || status === "unknown") return "degraded";
   return "offline";
+}
+
+function flagOn(v) {
+  if (typeof v === "boolean") return v;
+  if (v && typeof v === "object" && "enabled" in v) return Boolean(v.enabled);
+  return null;
+}
+
+function flagLabel(v) {
+  const on = flagOn(v);
+  if (on == null) return "—";
+  return on ? "开" : "关";
+}
+
+function flagStatusClass(v) {
+  const on = flagOn(v);
+  if (on == null) return "degraded";
+  return on ? "online" : "offline";
 }
 
 function summarizeAgentMetrics(data) {
@@ -30,15 +53,43 @@ export default function ManagerObservability({ data, loading, onRefresh }) {
   const byAgent = Object.entries(mgr.by_agent_success || {}).sort((a, b) => (b[1]?.count || 0) - (a[1]?.count || 0));
   const recent = Array.isArray(mgr.recent_metrics) ? mgr.recent_metrics : [];
   const evo = mgr.evolution || {};
+  const regEvo = mgr.registry?.evolution || {};
   const healthAgents = data?.agents_health || [];
   const metricsAgents = data?.agents_metrics || [];
+
+  const unified = evo.unifiedLearning || {};
+  const vector = evo.vectorIndex || {};
+  const patches = evo.promptPatches || {};
+  const plannerRules = evo.plannerRules || {};
+  const experiments = evo.experiments || {};
+  const byIntent = Object.entries(evo.byIntent || {}).sort((a, b) => (b[1]?.count || 0) - (a[1]?.count || 0));
+  const policyCanaryPct =
+    regEvo.policyCanaryPercent != null
+      ? regEvo.policyCanaryPercent
+      : evo.policyCanary?.share != null
+        ? Math.round(Number(evo.policyCanary.share) * 100)
+        : null;
+
+  const learnFlags = [
+    { key: "routeStrategy", label: "Route Strategy", value: evo.routeStrategy ?? regEvo.routeStrategy },
+    { key: "routeBandit", label: "Route Bandit", value: regEvo.routeBandit },
+    { key: "unifiedLearning", label: "统一学习", value: unified.enabled ?? regEvo.unifiedLearning },
+    { key: "promptEvolve", label: "Prompt 进化", value: regEvo.promptEvolve },
+    { key: "implicitLearning", label: "隐式学习", value: regEvo.implicitLearning },
+    {
+      key: "policyCanary",
+      label: "策略金丝雀",
+      value: regEvo.policyCanaryEnabled ?? (policyCanaryPct != null && policyCanaryPct > 0),
+      meta: policyCanaryPct != null ? `${policyCanaryPct}%` : null,
+    },
+  ];
 
   return (
     <div className="obs-page">
       <div className="obs-toolbar">
         <p className="card-lead">
           对接 Manager <code>/api/metrics</code> 与 Prometheus；子 Agent 并行拉取 <code>/api/metrics</code>。
-          Token 分 phase 汇总（P4 台账，见升级.md §8）。
+          Token 分 phase 汇总（P4 台账，见升级.md §8）。路由学习为弱参考，编排 LLM 仍为权威。
         </p>
         <button type="button" className="btn-secondary" disabled={loading} onClick={onRefresh}>
           {loading ? "刷新中…" : "立即刷新"}
@@ -67,19 +118,98 @@ export default function ManagerObservability({ data, loading, onRefresh }) {
         </div>
         <div className="kpi-tile">
           <span className="kpi-label">首遍成功率</span>
-          <span className="kpi-value">
-            {evo.firstPassSuccessRate != null ? `${(evo.firstPassSuccessRate * 100).toFixed(1)}%` : "—"}
-          </span>
+          <span className="kpi-value">{fmtPct(evo.firstPassSuccessRate)}</span>
         </div>
         <div className="kpi-tile">
           <span className="kpi-label">经验回放使用率</span>
-          <span className="kpi-value">
-            {evo.experienceReplayUsageRate != null ? `${(evo.experienceReplayUsageRate * 100).toFixed(1)}%` : "—"}
-          </span>
+          <span className="kpi-value">{fmtPct(evo.experienceReplayUsageRate)}</span>
         </div>
       </div>
 
       <div className="obs-grid">
+        <section className="card card--wide">
+          <h2>学习情况</h2>
+          <p className="muted" style={{ marginTop: 0 }}>
+            路由优先学习，但只作编排弱参考（Bandit / Strategy / 经验 hint）；矩阵门与 strict 反馈防污染。数据来自 Manager{" "}
+            <code>evolution</code> / <code>registry.evolution</code>。
+          </p>
+
+          <div className="kpi-grid kpi-grid--6" style={{ marginBottom: 16 }}>
+            {learnFlags.map((f) => (
+              <div className="kpi-tile" key={f.key}>
+                <span className="kpi-label">{f.label}</span>
+                <span className={`status ${flagStatusClass(f.value)}`}>{flagLabel(f.value)}</span>
+                {f.meta ? <span className="kpi-meta">{f.meta}</span> : null}
+              </div>
+            ))}
+          </div>
+
+          <div className="kpi-grid kpi-grid--6" style={{ marginBottom: 16 }}>
+            <div className="kpi-tile">
+              <span className="kpi-label">学习样本</span>
+              <span className="kpi-value">{fmtNum(unified.sampleCount)}</span>
+                  <span className="kpi-meta">
+                    avg composite {unified.avgComposite != null ? Number(unified.avgComposite).toFixed(3) : "—"}
+                    {unified.supersededCount ? ` · 已作废 ${unified.supersededCount}` : ""}
+                  </span>
+            </div>
+            <div className="kpi-tile">
+              <span className="kpi-label">经验条数</span>
+              <span className="kpi-value">{fmtNum(evo.experienceCount)}</span>
+            </div>
+            <div className="kpi-tile">
+              <span className="kpi-label">向量索引</span>
+              <span className="kpi-value">{fmtNum(vector.total)}</span>
+              <span className="kpi-meta">
+                exp {fmtNum(vector.experience)} · plan {fmtNum(vector.planOutcome)}
+              </span>
+            </div>
+            <div className="kpi-tile">
+              <span className="kpi-label">Prompt 补丁</span>
+              <span className="kpi-value">
+                {patches.activePresent ? "active" : patches.shadowPresent ? "shadow" : "无"}
+              </span>
+              <span className="kpi-meta">
+                router {fmtNum(patches.routerActive)}/{fmtNum(patches.routerShadow)} · planner{" "}
+                {fmtNum(patches.plannerActive)}/{fmtNum(patches.plannerShadow)}
+              </span>
+            </div>
+            <div className="kpi-tile">
+              <span className="kpi-label">Planner 规则</span>
+              <span className="kpi-value">{fmtNum(plannerRules.activeCount)}</span>
+              <span className="kpi-meta">shadow {fmtNum(plannerRules.shadowCount)}</span>
+            </div>
+            <div className="kpi-tile">
+              <span className="kpi-label">进化实验</span>
+              <span className="kpi-value">{fmtNum(experiments.experimentCount)}</span>
+              <span className="kpi-meta">
+                假设 {fmtNum(experiments.hypothesisCount)} · 运行中 {fmtNum(experiments.runningCount)}
+                {experiments.autoExperimentEnabled === false ? " · 自动关" : ""}
+              </span>
+            </div>
+          </div>
+
+          <h3 style={{ fontSize: "0.95rem", margin: "8px 0" }}>按意图成功率（byIntent）</h3>
+          {!byIntent.length ? (
+            <p className="muted">尚无 intent 经验统计；多跑真实题并写入 experience 后出现。</p>
+          ) : (
+            <div className="data-table">
+              <div className="data-table__head data-table__head--3">
+                <span>Intent</span>
+                <span>样本</span>
+                <span>平均成功率</span>
+              </div>
+              {byIntent.slice(0, 20).map(([name, v]) => (
+                <div className="data-table__row data-table__row--3" key={name}>
+                  <span>{name}</span>
+                  <span>{v.count}</span>
+                  <span>{fmtPct(v.avgSuccess)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
         <section className="card">
           <h2>总管阶段耗时</h2>
           {!phases.length ? <p className="muted">暂无 phase 数据（需 Manager 产生编排 run）</p> : null}
@@ -120,7 +250,11 @@ export default function ManagerObservability({ data, loading, onRefresh }) {
 
         <section className="card card--wide">
           <h2>子 Agent 路径成功率（Manager 经验统计）</h2>
-          {!byAgent.length ? <p className="muted">暂无 byAgent 统计</p> : null}
+          {!byAgent.length ? (
+            <p className="muted">
+              尚无 experience 路径统计；多跑真实业务题并点「有用」写入经验后，此处会出现 byAgent 成功率。
+            </p>
+          ) : null}
           <div className="data-table">
             <div className="data-table__head data-table__head--3">
               <span>Agent / 路径</span>
@@ -131,7 +265,7 @@ export default function ManagerObservability({ data, loading, onRefresh }) {
               <div className="data-table__row data-table__row--3" key={name}>
                 <span>{name}</span>
                 <span>{v.count}</span>
-                <span>{v.avgSuccess != null ? `${(v.avgSuccess * 100).toFixed(1)}%` : "—"}</span>
+                <span>{fmtPct(v.avgSuccess)}</span>
               </div>
             ))}
           </div>

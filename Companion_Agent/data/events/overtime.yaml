@@ -5,7 +5,7 @@ once: true
 scene_id: office
 trigger:
   stage_min: acquaintance
-  character_ids: [qiansha, yeyu, jingliu, linhua]
+  character_ids: [qiansha, jingliu, linhua]
   flags_absent: [overtime_care_done]
 prompt_snippet: |
   【当前事件 · 加班夜归】

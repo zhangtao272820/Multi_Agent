@@ -4,6 +4,7 @@ import { buildAgentRegistry } from '../../graph/core/agent/agentRegistry'
 import { queryMemoryPgStats } from '#agent-shared/memoryDashboard'
 import { queryToolMemoryTop } from '#agent-shared/toolMemoryStore'
 import { getBackpressureSnapshot } from '../../graph/core/runtime/backpressure'
+import { managerDataRoot, resolveManagerPolicyDir } from '../../utils/session/managerPolicyDir'
 
 function escLabel(v: string) {
   return String(v || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, ' ')
@@ -22,9 +23,10 @@ function line(name: string, value: number, labels?: Record<string, string>) {
 }
 
 export default defineEventHandler(async (event) => {
-  const policyDir = path.join(process.cwd(), '.data')
+  const metricsRoot = managerDataRoot()
+  const policyDir = resolveManagerPolicyDir()
   const fs = await import('node:fs/promises')
-  const metJsonlPath = path.join(policyDir, 'manager-metrics.jsonl')
+  const metJsonlPath = path.join(metricsRoot, 'manager-metrics.jsonl')
 
   const phaseAgg: Record<string, { count: number; totalMs: number }> = {}
   const tokensByPhase: Record<string, number> = {}

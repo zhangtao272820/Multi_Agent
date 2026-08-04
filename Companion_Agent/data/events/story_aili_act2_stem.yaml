@@ -3,32 +3,88 @@ label: 修剪
 priority: 6
 once: true
 chance: 1.0
-scene_id: ""
+scene_id: ''
 trigger:
-  character_ids: [aili]
+  character_ids:
+  - aili
   stage_min: close_friend
-  affinity_min: 62
-  flags_absent: [al_talked_divorce]
-  flags_present: [al_balcony_remeet]
-prompt_snippet: |
-  【专属故事 · 旧婚书与新花束 · 第2幕 · 修剪】
+  affinity_min: 68
+  flags_absent:
+  - al_talked_divorce
+  flags_present:
+  - al_balcony_remeet
+prompt_snippet: '【专属故事 · 旧婚书与新花束 · 第2幕 · 修剪】
+
+  '
 advance: on_player_turn
 beats:
-  - id: b1
-    summary: "一起修枝"
-    sprite_hint: [stem_trim, greenhouse_mist]
-    soft_options: ["认真接话", "先观察", "轻声提问"]
-  - id: b2
-    summary: "谈当初为什么散——不互相审判"
-    sprite_hint: [greenhouse_mist, vase_arrange]
-    soft_options: ["表明态度", "给她空间", "确认她的意思"]
-  - id: b3
-    summary: "收束本幕：留下可被记住的结果，不剧透结局名。"
-    sprite_hint: [vase_arrange]
-    soft_options: ["坦白心意", "先缓一缓", "诚实说明顾虑"]
+- id: b1
+  summary: 温室雾气里，她示范如何扶正折茎——手法温柔，像在教你如何对待曾受伤的人。等你回应。
+  sprite_hint:
+  - greenhouse_mist
+  - work
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 问哪枝最难剪
+  - 帮忙递剪刀
+  - 说比喻听懂了
+  narration: 泥土与花茎汁里，温室雾气里，她示范如何扶正折茎——手法温柔，像在教你如何对待曾受伤的人。
+  pc_thought: 旧婚书的影子还在。我是新选择，不是替补。
+  brief: 温室雾气里，她示范如何扶正折茎——手法温柔，像在教你如何对待曾受伤的人。等你回应。
+- id: b2
+  summary: 订单簿上写满婚礼与葬礼；她说花材不问故事，人却会把故事插进花瓶。等你回应。
+  sprite_hint:
+  - balm_hands
+  - petal_sweep
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 认真倾听
+  - 问需要什么支持
+  - 别急着给建议
+  narration: 泥土与花茎汁里，订单簿上写满婚礼与葬礼；她说花材不问故事，人却会把故事插进花瓶。
+  pc_thought: 修剪茎的声音很稳。我想学照顾她，不只是看花。
+  brief: 订单簿上写满婚礼与葬礼；她说花材不问故事，人却会把故事插进花瓶。等你回应。
+- id: b3
+  summary: 她坦白怕再婚变成笑话；闺蜜艾辰若觉得你轻浮，温室的门会比花茎折断更快。等你回应。
+  sprite_hint:
+  - greenhouse_mist
+  - bouquet_wrap
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 否认拯救叙事
+  - 说看见的是现在的她
+  - 保证不猎奇追问
+  narration: 泥土与花茎汁里，她坦白怕再婚变成笑话；闺蜜艾辰若觉得你轻浮，温室的门会比花茎折断更快。
+  pc_thought: 外送袋破了也好。弄脏的是完美人设，不是我们——想起花。
+  brief: 她坦白怕再婚变成笑话；闺蜜艾辰若觉得你轻浮，温室的门会比花茎折断更快。等你回应。
+- id: b4
+  summary: 收工时她把剪刀洗净：今晚的茎都扶正了——问你，人是不是也能再试一次。等你回应。
+  sprite_hint:
+  - ladder_hang
+  - casual
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 帮她扶梯子
+  - 约下次进货一起
+  - 说想见证新花季
+  narration: 泥土与花茎汁里，收工时她把剪刀洗净：今晚的茎都扶正了——问你，人是不是也能再试一次。
+  pc_thought: 再选择不是复合回档——我别踩进旧剧本。
+  brief: 收工时她把剪刀洗净：今晚的茎都扶正了——问你，人是不是也能再试一次。等你回应。
 rewards:
-  flags_set: [al_talked_divorce]
+  flags_set:
+  - al_talked_divorce
 choice_effects:
-  - { trust_delta: 3, affinity_delta: 3 }
-  - { trust_delta: 2, affinity_delta: 2 }
-  - { trust_delta: -2, affinity_delta: -1 }
+- trust_delta: 3
+  affinity_delta: 3
+- trust_delta: 2
+  affinity_delta: 2
+- trust_delta: -2
+  affinity_delta: -1

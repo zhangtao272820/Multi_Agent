@@ -1,5 +1,6 @@
 /**
  * Agent Memory Policy 统一写入/召回 API（存储可换、契约不变）
+ * 多租户：tenantId 贯穿读写；fail-closed 时缺 scope 拒绝召回。
  */
 
 import { agentPgQuery } from './agentPgClient'
@@ -7,6 +8,7 @@ import { AMP_EXPERIENCE_SUCCESS_THRESHOLD } from './agentMemoryPolicy'
 import { rankRecallCandidates, type RecallCandidate } from './agentMemoryRecall'
 import { resolveUserKey, type UserKeyInput } from './resolveUserKey'
 import { isPostgresStorageEnabled, resolveStorageBackend } from './storageBackend'
+import { normalizeTenantId, requireTenantId, ScopeRequiredError } from './tenantScope'
 
 export type MemoryAgent = 'manager' | 'db' | 'rag' | 'admin'
 
@@ -22,6 +24,8 @@ export type MemoryEventType =
 export type MemoryEvent = {
   type: MemoryEventType
   agent: MemoryAgent
+  /** 鉴权派生；缺省时按 fail-closed / default 规则解析 */
+  tenantId?: string
   userKey?: string
   sessionId?: string
   successScore?: number
@@ -30,6 +34,7 @@ export type MemoryEvent = {
 
 export type RecallScope = {
   agent: MemoryAgent
+  tenantId?: string
   userKey?: string
   sessionId?: string
   query?: string
@@ -53,6 +58,11 @@ export function shouldWriteExperience(successScore?: number): boolean {
   return Number.isFinite(score) && score >= AMP_EXPERIENCE_SUCCESS_THRESHOLD
 }
 
+function resolveEventTenantId(event: { tenantId?: string; payload?: Record<string, unknown> }, env: NodeJS.ProcessEnv): string {
+  const fromEvent = event.tenantId ?? event.payload?.tenantId ?? event.payload?.tenant_id
+  return requireTenantId(fromEvent, env)
+}
+
 /** 统一写入门槛 + PG 路由（各 Agent 适配器可再包一层） */
 export async function recordMemory(
   event: MemoryEvent,
@@ -67,11 +77,20 @@ export async function recordMemory(
     return { ok: true, reason: 'file_backend_delegated' }
   }
 
+  let tenantId: string
+  try {
+    tenantId = resolveEventTenantId(event, env)
+  } catch (e) {
+    if (e instanceof ScopeRequiredError) return { ok: false, reason: 'tenant_scope_required' }
+    throw e
+  }
+
   if (event.agent === 'manager' && (event.type === 'experience' || event.type === 'working' || event.type === 'semantic' || event.type === 'reflection')) {
     const ts = String(event.payload.ts || new Date().toISOString())
+    const userId = String(event.userKey || event.payload.userId || event.payload.user_id || '').trim() || null
     await agentPgQuery(
-      `INSERT INTO mgr_memory_entries (ts, entry_type, payload) VALUES ($1, $2, $3)`,
-      [ts, event.type, JSON.stringify(event.payload)],
+      `INSERT INTO mgr_memory_entries (ts, entry_type, payload, tenant_id, user_id) VALUES ($1, $2, $3, $4, $5)`,
+      [ts, event.type, JSON.stringify({ ...event.payload, tenantId }), tenantId, userId],
       env
     )
     return { ok: true }
@@ -80,15 +99,16 @@ export async function recordMemory(
   if (event.agent === 'db' && event.type === 'experience') {
     const p = event.payload
     await agentPgQuery(
-      `INSERT INTO db_query_experience (ts, question_norm, path, data_domain, tables, hint)
-       VALUES ($1,$2,$3,$4,$5,$6)`,
+      `INSERT INTO db_query_experience (ts, question_norm, path, data_domain, tables, hint, tenant_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
       [
         String(p.ts || new Date().toISOString()),
         String(p.question_norm || ''),
         p.path ?? null,
         p.data_domain ?? null,
         p.tables ? JSON.stringify(p.tables) : null,
-        String(p.hint || '')
+        String(p.hint || ''),
+        tenantId
       ],
       env
     )
@@ -98,10 +118,13 @@ export async function recordMemory(
   if (event.type === 'user_preference' && event.agent === 'db') {
     const userKey = event.userKey || resolveUserKey({ sessionId: event.sessionId })
     await agentPgQuery(
-      `INSERT INTO db_user_preferences (user_key, payload, updated_at)
-       VALUES ($1, $2, NOW())
-       ON CONFLICT (user_key) DO UPDATE SET payload = EXCLUDED.payload, updated_at = NOW()`,
-      [userKey, JSON.stringify(event.payload)],
+      `INSERT INTO db_user_preferences (user_key, payload, tenant_id, updated_at)
+       VALUES ($1, $2, $3, NOW())
+       ON CONFLICT (user_key) DO UPDATE SET
+         payload = EXCLUDED.payload,
+         tenant_id = EXCLUDED.tenant_id,
+         updated_at = NOW()`,
+      [userKey, JSON.stringify(event.payload), tenantId],
       env
     )
     return { ok: true }
@@ -110,10 +133,13 @@ export async function recordMemory(
   if (event.type === 'user_preference' && event.agent === 'manager') {
     const userKey = event.userKey || resolveUserKey({ sessionId: event.sessionId })
     await agentPgQuery(
-      `INSERT INTO mgr_user_profiles (user_key, payload, updated_at)
-       VALUES ($1, $2::jsonb, NOW())
-       ON CONFLICT (user_key) DO UPDATE SET payload = EXCLUDED.payload, updated_at = NOW()`,
-      [userKey, JSON.stringify(event.payload)],
+      `INSERT INTO mgr_user_profiles (user_key, payload, tenant_id, updated_at)
+       VALUES ($1, $2::jsonb, $3, NOW())
+       ON CONFLICT (user_key) DO UPDATE SET
+         payload = EXCLUDED.payload,
+         tenant_id = EXCLUDED.tenant_id,
+         updated_at = NOW()`,
+      [userKey, JSON.stringify(event.payload), tenantId],
       env
     )
     return { ok: true }
@@ -122,7 +148,7 @@ export async function recordMemory(
   return { ok: true, reason: 'no_pg_route' }
 }
 
-/** 统一召回：Manager experience PG + 混合排序 */
+/** 统一召回：Manager experience PG + 混合排序（强制 tenant 过滤） */
 export async function recallMemory(
   scope: RecallScope,
   env: NodeJS.ProcessEnv = process.env
@@ -130,13 +156,20 @@ export async function recallMemory(
   const limit = Math.max(1, Math.min(20, scope.limit ?? 4))
   const backend = resolveAgentBackend(scope.agent, env)
 
+  let tenantId: string
+  try {
+    tenantId = requireTenantId(scope.tenantId, env)
+  } catch {
+    return { items: [] }
+  }
+
   if (scope.agent === 'manager' && isPostgresStorageEnabled(backend)) {
     const types = scope.types?.length ? scope.types : (['experience'] as MemoryEventType[])
     const res = await agentPgQuery<{ entry_type: string; ts: string; payload: Record<string, unknown> }>(
       `SELECT entry_type, ts, payload FROM mgr_memory_entries
-       WHERE entry_type = ANY($1)
-       ORDER BY ts DESC LIMIT $2`,
-      [types, Math.min(200, limit * 20)],
+       WHERE tenant_id = $1 AND entry_type = ANY($2)
+       ORDER BY ts DESC LIMIT $3`,
+      [tenantId, types, Math.min(200, limit * 20)],
       env
     )
     const rows = res?.rows ?? []
@@ -156,10 +189,11 @@ export async function recallMemory(
     const res = await agentPgQuery<{ ts: string; question_norm: string; hint: string }>(
       q
         ? `SELECT ts, question_norm, hint FROM db_query_experience
-           WHERE question_norm ILIKE $1 OR hint ILIKE $1
-           ORDER BY ts DESC LIMIT $2`
-        : `SELECT ts, question_norm, hint FROM db_query_experience ORDER BY ts DESC LIMIT $1`,
-      q ? [`%${q.slice(0, 40)}%`, limit] : [limit],
+           WHERE tenant_id = $1 AND (question_norm ILIKE $2 OR hint ILIKE $2)
+           ORDER BY ts DESC LIMIT $3`
+        : `SELECT ts, question_norm, hint FROM db_query_experience
+           WHERE tenant_id = $1 ORDER BY ts DESC LIMIT $2`,
+      q ? [tenantId, `%${q.slice(0, 40)}%`, limit] : [tenantId, limit],
       env
     )
     return { items: (res?.rows ?? []).map((r) => ({ ...r })) }
@@ -167,3 +201,5 @@ export async function recallMemory(
 
   return { items: [] }
 }
+
+export { normalizeTenantId, requireTenantId, ScopeRequiredError }

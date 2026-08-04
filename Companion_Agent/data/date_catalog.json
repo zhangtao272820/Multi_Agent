@@ -12,7 +12,12 @@
   "daily_scene_limit": 2,
   "scene_settle_affinity_cap": 8,
   "scene_settle_trust_cap": 6,
-  "periods": ["morning", "afternoon", "evening", "night"],
+  "periods": [
+    "morning",
+    "afternoon",
+    "evening",
+    "night"
+  ],
   "period_labels": {
     "morning": "早晨",
     "afternoon": "下午",
@@ -26,14 +31,25 @@
       "location_id": "campus",
       "affinity_min": 55,
       "stage_min": "friend",
-      "cast_kinds": ["romance"],
+      "cast_kinds": [
+        "romance"
+      ],
       "character_ids": [],
       "scene_id": "campus",
-      "tags": ["quiet", "casual"],
+      "tags": [
+        "quiet",
+        "casual"
+      ],
       "avoid_tags": [],
       "money_cost": 20,
       "prompt_snippet": "【约会·校园散步】轻松、留意对方心情，给出 2~3 个自然选项。",
-      "rewards": { "affinity_delta": 4, "trust_delta": 2, "flags_set": ["dated_once"] }
+      "rewards": {
+        "affinity_delta": 4,
+        "trust_delta": 2,
+        "flags_set": [
+          "dated_once"
+        ]
+      }
     },
     {
       "id": "date_cafe",
@@ -41,14 +57,28 @@
       "location_id": "cafe",
       "affinity_min": 48,
       "stage_min": "acquaintance",
-      "cast_kinds": ["romance"],
+      "cast_kinds": [
+        "romance"
+      ],
       "character_ids": [],
       "scene_id": "cafe_evening",
-      "tags": ["quiet", "sweet", "coffee"],
-      "avoid_tags": ["noisy"],
+      "tags": [
+        "quiet",
+        "sweet",
+        "coffee"
+      ],
+      "avoid_tags": [
+        "noisy"
+      ],
       "money_cost": 90,
       "prompt_snippet": "【约会·咖啡店】气氛偏暖，可试探心意，给 2~3 个选项。",
-      "rewards": { "affinity_delta": 3, "trust_delta": 2, "flags_set": ["cafe_date_done"] }
+      "rewards": {
+        "affinity_delta": 3,
+        "trust_delta": 2,
+        "flags_set": [
+          "cafe_date_done"
+        ]
+      }
     },
     {
       "id": "date_lunch_quick",
@@ -56,14 +86,26 @@
       "location_id": "cafe",
       "affinity_min": 42,
       "stage_min": "acquaintance",
-      "cast_kinds": ["romance"],
+      "cast_kinds": [
+        "romance"
+      ],
       "character_ids": [],
       "scene_id": "cafe",
-      "tags": ["lunch", "casual", "quiet"],
+      "tags": [
+        "lunch",
+        "casual",
+        "quiet"
+      ],
       "avoid_tags": [],
       "money_cost": 35,
       "prompt_snippet": "【约会·午饭短约】只有一小段午休时间，轻松、别拖太长，给 2 个短选项。",
-      "rewards": { "affinity_delta": 2, "trust_delta": 1, "flags_set": ["lunch_date_done"] }
+      "rewards": {
+        "affinity_delta": 2,
+        "trust_delta": 1,
+        "flags_set": [
+          "lunch_date_done"
+        ]
+      }
     },
     {
       "id": "date_stargaze",
@@ -71,14 +113,32 @@
       "location_id": "park",
       "affinity_min": 65,
       "stage_min": "crush",
-      "cast_kinds": ["romance"],
-      "character_ids": ["shiori", "miara", "qingcai"],
+      "cast_kinds": [
+        "romance"
+      ],
+      "character_ids": [
+        "shiori",
+        "miara",
+        "qingcai"
+      ],
       "scene_id": "starry_hill",
-      "tags": ["quiet", "romantic", "night"],
-      "avoid_tags": ["noisy"],
+      "tags": [
+        "quiet",
+        "romantic",
+        "night"
+      ],
+      "avoid_tags": [
+        "noisy"
+      ],
       "money_cost": 40,
       "prompt_snippet": "【约会·星空】安静而浪漫，语气放柔，给 2~3 个选项。",
-      "rewards": { "affinity_delta": 6, "trust_delta": 3, "flags_set": ["stargaze_date"] }
+      "rewards": {
+        "affinity_delta": 6,
+        "trust_delta": 3,
+        "flags_set": [
+          "stargaze_date"
+        ]
+      }
     },
     {
       "id": "date_home_dinner",
@@ -86,14 +146,30 @@
       "location_id": "home",
       "affinity_min": 70,
       "stage_min": "dating",
-      "cast_kinds": ["romance"],
-      "character_ids": ["xiaoyou", "aili", "qingcai"],
+      "cast_kinds": [
+        "romance"
+      ],
+      "character_ids": [
+        "xiaoyou",
+        "aili",
+        "qingcai"
+      ],
       "scene_id": "home_night",
-      "tags": ["sweet", "home", "quiet"],
+      "tags": [
+        "sweet",
+        "home",
+        "quiet"
+      ],
       "avoid_tags": [],
       "money_cost": 60,
       "prompt_snippet": "【约会·家常饭】亲密日常，给 2~3 个选项。",
-      "rewards": { "affinity_delta": 5, "trust_delta": 4, "flags_set": ["home_dinner"] }
+      "rewards": {
+        "affinity_delta": 5,
+        "trust_delta": 4,
+        "flags_set": [
+          "home_dinner"
+        ]
+      }
     },
     {
       "id": "date_night_store",
@@ -101,14 +177,29 @@
       "location_id": "store",
       "affinity_min": 40,
       "stage_min": "stranger",
-      "cast_kinds": ["romance"],
-      "character_ids": ["qiansha", "yeyu"],
+      "cast_kinds": [
+        "romance"
+      ],
+      "character_ids": [
+        "qiansha"
+      ],
       "scene_id": "convenience_night",
-      "tags": ["casual", "night"],
-      "avoid_tags": ["sweet"],
+      "tags": [
+        "casual",
+        "night"
+      ],
+      "avoid_tags": [
+        "sweet"
+      ],
       "money_cost": 35,
       "prompt_snippet": "【约会·夜宵】慵懒夜色，语气可以犀利但带温度。",
-      "rewards": { "affinity_delta": 4, "trust_delta": 2, "flags_set": ["night_snack_date"] }
+      "rewards": {
+        "affinity_delta": 4,
+        "trust_delta": 2,
+        "flags_set": [
+          "night_snack_date"
+        ]
+      }
     },
     {
       "id": "date_office_overtime",
@@ -116,14 +207,31 @@
       "location_id": "office",
       "affinity_min": 60,
       "stage_min": "friend",
-      "cast_kinds": ["romance"],
-      "character_ids": ["jingliu", "qiansha", "linxi"],
+      "cast_kinds": [
+        "romance"
+      ],
+      "character_ids": [
+        "jingliu",
+        "qiansha",
+        "linxi"
+      ],
       "scene_id": "office",
-      "tags": ["overtime", "night"],
-      "avoid_tags": ["overtime"],
+      "tags": [
+        "overtime",
+        "night"
+      ],
+      "avoid_tags": [
+        "overtime"
+      ],
       "money_cost": 55,
       "prompt_snippet": "【约会·加班后】卸下职业面具，给彼此一点真实。",
-      "rewards": { "affinity_delta": 5, "trust_delta": 3, "flags_set": ["overtime_date"] }
+      "rewards": {
+        "affinity_delta": 5,
+        "trust_delta": 3,
+        "flags_set": [
+          "overtime_date"
+        ]
+      }
     },
     {
       "id": "date_forest",
@@ -131,14 +239,31 @@
       "location_id": "forest",
       "affinity_min": 50,
       "stage_min": "acquaintance",
-      "cast_kinds": ["romance"],
-      "character_ids": ["miara", "shiori"],
+      "cast_kinds": [
+        "romance"
+      ],
+      "character_ids": [
+        "miara",
+        "shiori"
+      ],
       "scene_id": "forest_clearing",
-      "tags": ["quiet", "nature"],
-      "avoid_tags": ["noisy", "crowd"],
+      "tags": [
+        "quiet",
+        "nature"
+      ],
+      "avoid_tags": [
+        "noisy",
+        "crowd"
+      ],
       "money_cost": 25,
       "prompt_snippet": "【约会·林间】略带奇幻与秘密感。",
-      "rewards": { "affinity_delta": 5, "trust_delta": 3, "flags_set": ["forest_date"] }
+      "rewards": {
+        "affinity_delta": 5,
+        "trust_delta": 3,
+        "flags_set": [
+          "forest_date"
+        ]
+      }
     }
   ]
 }

@@ -113,9 +113,31 @@ export async function runRouterNodeBody(state: any, deps: CreateRouterNodeDeps) 
       normalizeEntities
     } = deps
       if (isUnifiedRoutingActive(state) && Array.isArray(state.allowedAgents) && state.allowedAgents.length > 0) {
+        const metaRoute = Number(state.meta?.routeConfidence)
+        const classifyConf = Number(state.meta?.intentClassify?.confidence)
+        if (!(Number.isFinite(metaRoute) && metaRoute > 0) && Number.isFinite(classifyConf) && classifyConf > 0) {
+          const routeConfidence = Math.min(1, Math.max(0.35, classifyConf))
+          return {
+            meta: mergeMeta(state, {
+              routeConfidence,
+              uncertainty: routeConfidence >= 0.75 ? 'low' : routeConfidence >= 0.5 ? 'medium' : 'high'
+            })
+          }
+        }
         return {}
       }
       if (shouldSkipLegacyRoutingNodes(state) && state?.meta?.orchestratorSource) {
+        const metaRoute = Number(state.meta?.routeConfidence)
+        const classifyConf = Number(state.meta?.intentClassify?.confidence)
+        if (!(Number.isFinite(metaRoute) && metaRoute > 0) && Number.isFinite(classifyConf) && classifyConf > 0) {
+          const routeConfidence = Math.min(1, Math.max(0.35, classifyConf))
+          return {
+            meta: mergeMeta(state, {
+              routeConfidence,
+              uncertainty: routeConfidence >= 0.75 ? 'low' : routeConfidence >= 0.5 ? 'medium' : 'high'
+            })
+          }
+        }
         return {}
       }
 

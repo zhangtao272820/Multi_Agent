@@ -8,13 +8,14 @@ import { isRouteBanditEnabled, recordBanditReward, shouldRecordRouteBanditReward
 import { isRoutePolicyRlEnabled, recordPolicyRlUpdate } from '../routing/routePolicyRl'
 import { isRouteCausalEnabled, touchRouteCausalDirty } from '../routing/routeCausal'
 import { interactionModeFromMeta } from '../runtime/modeIsolate'
-
-
+import { evaluateLearnEligibility } from '../evolution/learnEligibility'
 
 export type UnifiedLearningSignal = {
   ts: string
   runId: string
   sessionId?: string
+  /** 会话内用户消息序号；重新生成时用于作废同轮旧信号 */
+  userMessageIndex?: number
   intent: string
   /** 综合质量分 0..1 */
   compositeScore: number
@@ -39,6 +40,10 @@ export type UnifiedLearningSignal = {
   signalSource?: 'run' | 'explicit_feedback' | 'implicit'
   /** 隐式负向类型（cancel/interrupt/reject/retry） */
   implicitKind?: 'user_cancel' | 'new_chat_interrupt' | 'human_reject' | 'retry_penalty'
+  /** 被重新生成 / 编辑重发 / 撤回作废，不参与看板平均与权重调参 */
+  superseded?: boolean
+  supersededReason?: 'regenerate' | 'edit_resend' | 'withdraw' | string
+  supersededAt?: string
   /** P3：联网搜索指标 */
   webSearchMode?: string
   needsWebSearch?: boolean
@@ -55,6 +60,24 @@ export type UnifiedLearningSignal = {
   orchestratorReflexRetries?: number
   /** P1：工作台 interactionMode 分桶 */
   interactionMode?: 'chat' | 'professional'
+  /** 门 1：是否可进策略进化 */
+  learnEligible?: boolean
+  /** 门 1：是否可写 Bandit */
+  learnBanditEligible?: boolean
+  learnEligibilityReason?: string
+  learnWeight?: number
+}
+
+const ELIGIBILITY_AUDIT = 'manager-learn-eligibility.jsonl'
+
+async function appendEligibilityAudit(
+  policyDir: string,
+  row: Record<string, unknown>
+) {
+  await fs.mkdir(policyDir, { recursive: true }).catch(() => undefined)
+  await fs
+    .appendFile(path.join(policyDir, ELIGIBILITY_AUDIT), `${JSON.stringify(row)}\n`, 'utf8')
+    .catch(() => undefined)
 }
 
 export const SIGNAL_FILE = 'manager-learning-signals.jsonl'
@@ -215,11 +238,45 @@ async function phaseStatsForRun(policyDir: string, runId: string) {
   return { avgPhaseMs: count ? Math.round(total / count) : undefined, slowestPhase: slowest }
 }
 
+export function attachLearnEligibility(signal: UnifiedLearningSignal): UnifiedLearningSignal {
+  const decision = evaluateLearnEligibility({
+    failureCategory: signal.failureCategory,
+    intent: signal.intent,
+    needsClarify: signal.needsClarify,
+    signalSource: signal.signalSource,
+    implicitKind: signal.implicitKind,
+    firstPassSuccess: signal.firstPassSuccess,
+    compositeScore: signal.compositeScore,
+    feedbackScore: signal.feedbackScore
+  })
+  return {
+    ...signal,
+    learnEligible: decision.eligibleForEvolution,
+    learnBanditEligible: decision.eligibleForBandit,
+    learnEligibilityReason: decision.reason,
+    learnWeight: decision.weight
+  }
+}
+
 export async function appendUnifiedLearningSignal(policyDir: string, signal: UnifiedLearningSignal) {
   if (!isUnifiedLearningEnabled()) return
+  const enriched =
+    signal.learnEligibilityReason != null ? signal : attachLearnEligibility(signal)
   await fs.mkdir(policyDir, { recursive: true }).catch(() => undefined)
   const p = path.join(policyDir, SIGNAL_FILE)
-  await fs.appendFile(p, `${JSON.stringify(signal)}\n`, 'utf8')
+  await fs.appendFile(p, `${JSON.stringify(enriched)}\n`, 'utf8')
+  if (!enriched.learnEligible) {
+    await appendEligibilityAudit(policyDir, {
+      ts: enriched.ts || new Date().toISOString(),
+      runId: enriched.runId,
+      intent: enriched.intent,
+      failureCategory: enriched.failureCategory,
+      reason: enriched.learnEligibilityReason,
+      signalSource: enriched.signalSource,
+      implicitKind: enriched.implicitKind,
+      rejected: true
+    })
+  }
 }
 
 /** P5-a：学习信号写入后更新策略梯度，并标记因果图待刷新 */
@@ -240,6 +297,7 @@ export async function recordUnifiedLearningFromRun(
   run: {
     runId: string
     sessionId?: string
+    userMessageIndex?: number | null
     intent: string
     finalConfidence: number
     routeConfidence: number
@@ -281,10 +339,18 @@ export async function recordUnifiedLearningFromRun(
     implicitKind = penalized.implicitKind
   }
   const interactionMode = run.interactionMode ?? interactionModeFromMeta(run.meta)
-  await appendUnifiedLearningSignal(policyDir, {
+  const metaUidx = Number((run.meta as any)?.userMessageIndex)
+  const userMessageIndex =
+    typeof run.userMessageIndex === 'number' && Number.isFinite(run.userMessageIndex)
+      ? Math.floor(run.userMessageIndex)
+      : Number.isFinite(metaUidx)
+        ? Math.floor(metaUidx)
+        : undefined
+  const baseSignal: UnifiedLearningSignal = attachLearnEligibility({
     ts: new Date().toISOString(),
     runId: run.runId,
     sessionId: run.sessionId,
+    userMessageIndex,
     intent: run.intent,
     compositeScore,
     signalSource: 'run',
@@ -317,36 +383,32 @@ export async function recordUnifiedLearningFromRun(
     interactionMode,
     ...phase
   })
-  const signalForBandit: UnifiedLearningSignal = {
-    ts: new Date().toISOString(),
-    runId: run.runId,
-    sessionId: run.sessionId,
-    intent: run.intent,
-    compositeScore,
-    signalSource: 'run',
-    implicitKind,
-    finalConfidence: run.finalConfidence,
-    routeConfidence: run.routeConfidence,
-    successScore: run.successScore,
-    feedbackScore: run.feedbackScore ?? undefined,
-    durationMs: run.durationMs,
-    usedTokens: run.usedTokens,
-    usedUsd: run.usedUsd,
-    firstPassSuccess: run.firstPassSuccess,
-    needsClarify: run.needsClarify,
-    failureCategory: run.failureCategory,
-    policyVersion: run.policyVersion,
-    policyCanary: run.policyCanary,
-    promptCanary: run.promptCanary,
-    plannerRulesCanary: run.plannerRulesCanary,
-    routeMatrixPass: run.routeMatrixPass,
-    orchestratorSource: run.orchestratorSource,
-    orchestratorJudgeAccept: run.orchestratorJudgeAccept,
-    orchestratorReflexRetries: run.orchestratorReflexRetries,
-    ...phase
+  // 同轮新答案落地前作废旧样本（覆盖未走 regenerate 入口的重复写入）
+  if (run.sessionId && typeof userMessageIndex === 'number') {
+    try {
+      const { supersedeLearningSignalsForRevision } = await import('./indexers')
+      await supersedeLearningSignalsForRevision({
+        policyDir,
+        sessionId: String(run.sessionId),
+        userMessageIndex,
+        reason: 'regenerate'
+      })
+    } catch {
+      /* optional */
+    }
   }
-  if (shouldRecordRouteBanditReward(signalForBandit)) {
-    await recordBanditReward(policyDir, run.intent, compositeScore).catch(() => undefined)
+  await appendUnifiedLearningSignal(policyDir, baseSignal)
+  if (
+    baseSignal.learnBanditEligible !== false &&
+    shouldRecordRouteBanditReward(baseSignal)
+  ) {
+    const reward =
+      typeof baseSignal.learnWeight === 'number' && baseSignal.learnWeight > 0
+        ? Math.min(1, compositeScore * (0.7 + 0.3 * baseSignal.learnWeight))
+        : compositeScore
+    await recordBanditReward(policyDir, run.intent, reward).catch(() => undefined)
   }
-  await recordRouteLearningExtensions(policyDir, signalForBandit).catch(() => undefined)
+  if (baseSignal.learnBanditEligible !== false || baseSignal.learnEligible) {
+    await recordRouteLearningExtensions(policyDir, baseSignal).catch(() => undefined)
+  }
 }

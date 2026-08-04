@@ -1,6 +1,11 @@
-# AI_Agent 本地对口型服务
+# AI_Agent 本地对口型服务（遗留）
 
-Ultralight **流式真对口型**（优先）+ MuseTalk / Wav2Lip **回退**。
+> **已废弃作为主路径。** 新部署请用 [LiveTalking + FeatherTalk](../../doc/realtime-digital-human.md)。  
+> 本目录仅作旧 Ultralight/MuseTalk/Wav2Lip 迁移参考，勿再扩展。
+
+---
+
+Ultralight **流式真对口型**（优先）+ MuseTalk / Wav2Lip **回退**（历史说明如下）。
 
 **Docker 部署**（推荐）：见 [`doc/ultralight-docker-setup.md`](../../doc/ultralight-docker-setup.md)。
 

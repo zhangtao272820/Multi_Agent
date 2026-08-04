@@ -3,32 +3,76 @@ label: 月班
 priority: 6
 once: true
 chance: 1.0
-scene_id: ""
+scene_id: ''
 trigger:
-  character_ids: [luna]
+  character_ids:
+  - luna
   stage_min: close_friend
   affinity_min: 78
-  flags_absent: [ln_moon_shift]
-  flags_present: [ln_tarot]
+  flags_absent:
+  - ln_moon_shift
+  flags_present:
+  - ln_tarot
 prompt_snippet: |
   【专属故事 · 深夜魔女的咖啡 · 第2幕 · 月班】
 advance: on_player_turn
 beats:
-  - id: b1
-    summary: "打烊后只留一盏灯；她拉出「月班」座位，说今晚不赶客。"
-    sprite_hint: [latte_moon, date]
-    soft_options: ["坐下陪她收尾", "问累不累", "提议明天再聊"]
-  - id: b2
-    summary: "她谈夜班孤独与被凝视的感觉；想确认你是客，还是会留下来的人。"
-    sprite_hint: [latte_moon, casual]
-    soft_options: ["说想常来", "承认心动", "坦诚怕耽误她"]
-  - id: b3
-    summary: "杯底泡沫散尽；她等一句不戏剧的承诺或体面的退出。"
-    sprite_hint: [date, casual]
-    soft_options: ["告白", "约下次月班", "先做常客"]
+- id: b1
+  summary: "月圆她提早收摊，拉你到后巷：今晚不卖预言，只谈人——气氛忽然认真起来。等你回应。"
+  sprite_hint:
+  - work
+  - home
+  soft_options:
+  - 跟她出去
+  - 问为何选今天
+  - 先听她说
+  narration: "塔罗牌与夜班灯里，月圆她提早收摊，拉你到后巷：今晚不卖预言，只谈人——气氛忽然认真起来。"
+  pc_thought: 月咒护符像玩笑。当真时，班次就不是班次。
+  brief: "月圆她提早收摊，拉你到后巷：今晚不卖预言，只谈人——气氛忽然认真起来。等你回应。"
+- id: b2
+  summary: "她摘下帽子：喜欢你，不想再用「魔女设定」挡在前面——气氛忽然认真起来。等你回应。"
+  sprite_hint:
+  - casual
+  - date
+  soft_options:
+  - 回应告白
+  - 说设定可爱但更爱本人
+  - 问能否交往
+  narration: "塔罗牌与夜班灯里，她摘下帽子：喜欢你，不想再用「魔女设定」挡在前面——气氛忽然认真起来。"
+  pc_thought: 星夜柜台很静。假护符一拆，她还肯看我吗？
+  brief: "她摘下帽子：喜欢你，不想再用「魔女设定」挡在前面——气氛忽然认真起来。等你回应。"
+- id: b3
+  summary: 她怕日常太素会让你失望；月亮班次之外，她也只是人——气氛忽然认真起来。等你回应。
+  sprite_hint:
+  - home
+  - date
+  soft_options:
+  - 说素颜也留下
+  - 承诺不消费人设
+  - 约白天见面
+  narration: 塔罗牌与夜班灯里，她怕日常太素会让你失望；月亮班次之外，她也只是人——气氛忽然认真起来。
+  pc_thought: 冬塔罗冷。我想听解读，也想听她本人。
+  brief: 她怕日常太素会让你失望；月亮班次之外，她也只是人——气氛忽然认真起来。等你回应。
+- id: b4
+  summary: 护符绳系在你腕上；她说——月亮班次，从今晚起有固定客人——气氛忽然认真起来。等你回应。
+  sprite_hint:
+  - date
+  - casual
+  soft_options:
+  - 系紧回礼
+  - 吻她指尖
+  - 说「我签到了」
+  narration: 塔罗牌与夜班灯里，护符绳系在你腕上；她说——月亮班次，从今晚起有固定客人——气氛忽然认真起来。
+  pc_thought: 中秋护符线缠着手指。戏言与认真只差一句。
+  brief: 护符绳系在你腕上；她说——月亮班次，从今晚起有固定客人——气氛忽然认真起来。等你回应。
 rewards:
-  flags_set: [ln_moon_shift, confessed]
+  flags_set:
+  - ln_moon_shift
+  - confessed
 choice_effects:
-  - { trust_delta: 3, affinity_delta: 3 }
-  - { trust_delta: 2, affinity_delta: 2 }
-  - { trust_delta: -2, affinity_delta: -1 }
+- trust_delta: 3
+  affinity_delta: 3
+- trust_delta: 2
+  affinity_delta: 2
+- trust_delta: -2
+  affinity_delta: -1

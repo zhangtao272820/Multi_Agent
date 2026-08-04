@@ -28,7 +28,8 @@ const MIGRATION_FILES = [
   '012_agent_memory_phase15_p2.sql',
   '013_embedding_dim_v1_1536.sql',
   '014_agent_memory_phase16_p3.sql',
-  '015_mgr_user_profiles.sql'
+  '015_mgr_user_profiles.sql',
+  '016_agent_memory_multitenant.sql'
 ]
 
 function applyViaDocker(fileName: string, sql: string): boolean {

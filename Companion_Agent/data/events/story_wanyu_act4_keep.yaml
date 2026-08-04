@@ -3,32 +3,89 @@ label: 为你留的那杯
 priority: 8
 once: true
 chance: 1.0
-scene_id: ""
+scene_id: ''
 trigger:
-  character_ids: [wanyu]
+  character_ids:
+  - wanyu
   stage_min: dating
-  affinity_min: 85
-  flags_absent: [wy_last_cup]
-  flags_present: [wy_heard_her_night]
-prompt_snippet: |
-  【专属故事 · 关店之后的温度 · 第4幕 · 为你留的那杯】
+  affinity_min: 90
+  flags_absent:
+  - wy_last_cup
+  flags_present:
+  - wy_heard_her_night
+prompt_snippet: '【专属故事 · 关店之后的温度 · 第4幕 · 为你留的那杯】
+
+  '
 advance: on_player_turn
 beats:
-  - id: b1
-    summary: "告白发生在关店后的黑暗里，只开一盏吧台灯"
-    sprite_hint: [latte_share, date]
-    soft_options: ["认真接话", "先观察", "轻声提问"]
-  - id: b2
-    summary: "「为你留的那杯」里出现犹豫或选择。"
-    sprite_hint: [date, home]
-    soft_options: ["表明态度", "给她空间", "确认她的意思"]
-  - id: b3
-    summary: "收束本幕：留下可被记住的结果，不剧透结局名。"
-    sprite_hint: [home]
-    soft_options: ["坦白心意", "先缓一缓", "诚实说明顾虑"]
+- id: b1
+  summary: 全店熄灯，只留吧台一盏；她拉出两只杯子，动作很慢，像在给告白排练开场。等你回应。
+  sprite_hint:
+  - espresso_pull
+  - closing_wipe
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 问今晚特调叫什么
+  - 帮她擦最后的台
+  - 坐到吧台内侧
+  narration: 全店熄灯，只留吧台一盏；她拉出两只杯子，动作很慢，像在给告白排练开场。
+  pc_thought: 熟客位很安全。再近一步，营业笑就撑不住——想起吧台。
+  brief: 全店熄灯，只留吧台一盏；她拉出两只杯子，动作很慢，像在给告白排练开场。等你回应。
+- id: b2
+  summary: 她说这杯不是菜单上的——是「为你留的」，怕你听成营业话，又更怕你听懂后逃走。等你回应。
+  sprite_hint:
+  - espresso_pull
+  - date
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 认真接过
+  - 问为什么是我
+  - 笑说听成告白了
+  narration: 蒸汽与咖啡渣里，她说这杯不是菜单上的——是「为你留的」，怕你听成营业话，又更怕你听懂后逃走。
+  pc_thought: 我想听她卸妆后的声音，不只是菜单上的温度。
+  brief: 她说这杯不是菜单上的——是「为你留的」，怕你听成营业话，又更怕你听懂后逃走。等你回应。
+- id: b3
+  summary: 黑暗里她想被照料、也想不为谁服务——这杯「为你留的」，也需要死党同盟不拆台才站得住。等你回应。
+  sprite_hint:
+  - date
+  - home
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 告白回应
+  - 说想照顾她
+  - 先确认去留意向
+  narration: 蒸汽与咖啡渣里，黑暗里她想被照料、也想不为谁服务——这杯「为你留的」，也需要死党同盟不拆台才站得住。
+  pc_thought: 真心洒出来时，我是接住，还是假装没看见？
+  brief: 黑暗里她想被照料、也想不为谁服务——这杯「为你留的」，也需要死党同盟不拆台才站得住。等你回应。
+- id: b4
+  summary: 温度留在掌心；她把钥匙放进抽屉——明天的店，你们一起开门也行，像把生活交一半给你。等你回应。
+  sprite_hint:
+  - home
+  - casual
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 约明天接她下班
+  - 吻她指尖
+  - 说先送她回家
+  narration: 蒸汽与咖啡渣里，温度留在掌心；她把钥匙放进抽屉——明天的店，你们一起开门也行，像把生活交一半给你。
+  pc_thought: 留杯像约会。我怕自己把照料当成理所当然——想起钥匙。
+  brief: 温度留在掌心；她把钥匙放进抽屉——明天的店，你们一起开门也行，像把生活交一半给你。等你回应。
 rewards:
-  flags_set: [wy_last_cup, confessed]
+  flags_set:
+  - wy_last_cup
+  - confessed
 choice_effects:
-  - { trust_delta: 3, affinity_delta: 3 }
-  - { trust_delta: 2, affinity_delta: 2 }
-  - { trust_delta: -2, affinity_delta: -1 }
+- trust_delta: 3
+  affinity_delta: 3
+- trust_delta: 2
+  affinity_delta: 2
+- trust_delta: -2
+  affinity_delta: -1

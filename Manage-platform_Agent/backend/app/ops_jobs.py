@@ -112,6 +112,8 @@ def get_deploy_status() -> dict[str, Any]:
     return {
         "ok": True,
         "image_tag": image_tag,
+        "image_tag_scope": "global",
+        "image_tag_note": "全集群共用 CLAWHIVE_IMAGE_TAG；非 per-service digest/canary（P3-CP1 未开）",
         "control_mode": settings.agent_control_mode,
         "compose_file": settings.compose_file_path,
         "offline": {

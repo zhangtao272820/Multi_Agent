@@ -1,10 +1,10 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { verifyBeforePromote } from '#agent-shared/evolutionVerify'
-import { promoteEvoPolicy, writeEvoShadowPolicy } from '#agent-shared/evoPolicyStore'
 import { resolveManagerEnvBool } from '../../../utils/platform/managerEnvModes'
 import { unifiedRoutingEnvEnabled } from '../../orchestrate/unifiedRouting'
 import { isEvolutionRoutingHintEnabled } from './evolutionRoutingGate'
+import { syncEvoPolicyPromote, syncEvoPolicyShadowWrite } from './evoPolicySync'
 
 export type PromptPatchSet = {
   version: number
@@ -103,7 +103,9 @@ export async function writeShadowPromptPatches(policyDir: string, patches: Promp
   await fs.mkdir(policyDir, { recursive: true }).catch(() => undefined)
   const body: PromptPatchSet = { ...patches, active: true, updatedAt: new Date().toISOString() }
   await fs.writeFile(path.join(policyDir, SHADOW_FILE), JSON.stringify(body, null, 2), 'utf8')
-  void writeEvoShadowPolicy('manager', 'prompt_patches', body as unknown as Record<string, unknown>).catch(() => undefined)
+  await syncEvoPolicyShadowWrite(policyDir, 'prompt_patches', body as unknown as Record<string, unknown>).catch(
+    () => undefined
+  )
   await fs
     .appendFile(
       path.join(policyDir, AUDIT_FILE),
@@ -133,9 +135,8 @@ export async function promoteShadowPromptPatches(policyDir: string, opts?: { min
     updatedAt: new Date().toISOString()
   }
   await fs.writeFile(path.join(policyDir, ACTIVE_FILE), JSON.stringify(next, null, 2), 'utf8')
-  await promoteEvoPolicy('manager', 'prompt_patches', {
-    verifyOk: true,
-    shadowPayload: next as unknown as Record<string, unknown>
+  await syncEvoPolicyPromote(policyDir, 'prompt_patches', next as unknown as Record<string, unknown>, {
+    verifyOk: true
   }).catch(() => undefined)
   await fs
     .appendFile(

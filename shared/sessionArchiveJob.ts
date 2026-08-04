@@ -23,13 +23,13 @@ export async function runSessionArchiveJob(env: NodeJS.ProcessEnv = process.env)
 
   const moved = await agentPgQuery<{ cnt: string }>(
     `WITH stale AS (
-       SELECT session_id, turn_index, role, content
+       SELECT session_id, turn_index, role, content, run_id, ui_meta
        FROM mgr_session_turns
        WHERE created_at < NOW() - ($1 || ' days')::interval
      ),
      ins AS (
-       INSERT INTO mgr_session_turns_archive (session_id, turn_index, role, content)
-       SELECT session_id, turn_index, role, content FROM stale
+       INSERT INTO mgr_session_turns_archive (session_id, turn_index, role, content, run_id, ui_meta)
+       SELECT session_id, turn_index, role, content, run_id, ui_meta FROM stale
        RETURNING session_id
      ),
      del AS (

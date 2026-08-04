@@ -45,6 +45,18 @@ export type UserFacingActionCard = {
   failureReasonZh?: string
 }
 
+/** 与正文 [n] 角标对齐的统一来源卡 */
+export type UserFacingSource = {
+  index: number
+  title: string
+  url?: string
+  excerpt?: string
+  kind?: 'web' | 'rag' | 'db' | 'doc'
+}
+
+/** 用户态回复文体档位（由 plan/results/meta 确定性推导） */
+export type ReplyTier = 'lite' | 'standard' | 'report'
+
 export type UserFacingPayload = {
   summary: string
   metrics?: UserFacingMetric[]
@@ -52,12 +64,14 @@ export type UserFacingPayload = {
   table?: { headers: string[]; rows: string[][] }
   actions?: UserFacingActionCard[]
   appendix?: string
-  sources?: Array<{ title: string; url?: string }>
+  sources?: UserFacingSource[]
   outcome?: UserFacingOutcome
   outcomeLabel?: string
   /** U3：无证据拒答徽章 */
   badge?: 'evidence_rejected' | 'needs_clarify'
   badgeLabel?: string
+  /** 本轮用户态回复档位（可选，供前端/观测） */
+  replyTier?: ReplyTier
 }
 
 const DEVELOPER_JARGON_RE =
@@ -120,14 +134,19 @@ function looksLikeDeveloperDump(text: string): boolean {
 
 /** 库表审计 / ORM 系统列（返回体结构清洗，非用户意图识别） */
 const SYSTEM_AUDIT_COLUMN_RE =
-  /^(创建人|创建时间|修改人|修改时间|逻辑删除|删除标志|del[_]?flag|is[_]?deleted|create[_]?by|update[_]?by|create[_]?time|update[_]?time|tenant[_]?id|created[_]?at|updated[_]?at|deleted[_]?at|gmt[_]?create|gmt[_]?modified)$/i
+  /^(创建人|创建时间|修改人|修改时间|逻辑删除|逻辑删除标志|删除标志|del[_]?flag|is[_]?deleted|create[_]?by|update[_]?by|create[_]?time|update[_]?time|tenant[_]?id|created[_]?at|updated[_]?at|deleted[_]?at|gmt[_]?create|gmt[_]?modified)$/i
+
+/** 标题含子串也视为系统列（如「逻辑删除标志」「是否删除」） */
+const SYSTEM_AUDIT_COLUMN_SUBSTR_RE =
+  /(逻辑删除|删除标志|del[_]?flag|is[_]?deleted|create[_]?by|update[_]?by|create[_]?time|update[_]?time|tenant[_]?id|created[_]?at|updated[_]?at|deleted[_]?at|gmt[_]?create|gmt[_]?modified)/i
 
 export function isSystemAuditColumn(header: string): boolean {
   const h = String(header || '')
     .trim()
     .replace(/\s+/g, '')
   if (!h) return false
-  return SYSTEM_AUDIT_COLUMN_RE.test(h)
+  if (SYSTEM_AUDIT_COLUMN_RE.test(h)) return true
+  return SYSTEM_AUDIT_COLUMN_SUBSTR_RE.test(h)
 }
 
 /** 从表中剥离系统列，保留业务列；若全被剥掉则返回 null */
@@ -249,6 +268,67 @@ export function isHeavyUserFacingTask(input: {
     if (dataHits.length >= 2) return true
   }
   return false
+}
+
+/**
+ * 用户态回复档位：lite 短确认 / standard DeepSeek 分段 / report 对照分析。
+ * 读 plan·results·meta 结构，禁止用户原话关键词分支。
+ */
+export function resolveReplyTier(input: {
+  intent?: string
+  results?: Record<string, unknown>
+  planSteps?: Array<{ agent?: string }>
+  meta?: Record<string, unknown>
+  multiSourceSynth?: boolean
+  canShowAuxOutputs?: boolean
+  adminSynthContext?: boolean
+  chatWebReply?: boolean
+  hasGuiResult?: boolean
+  hasDbResult?: boolean
+}): ReplyTier {
+  const meta = input.meta && typeof input.meta === 'object' ? input.meta : {}
+  const steps = Array.isArray(input.planSteps) ? input.planSteps : []
+  const agents = steps.map((s) => String(s?.agent || '').trim()).filter(Boolean)
+  const bag = input.results && typeof input.results === 'object' ? input.results : {}
+  const hasAdmin =
+    Boolean(input.adminSynthContext) ||
+    agents.includes('admin') ||
+    Boolean(String(bag.admin ?? '').trim())
+  const hasHeavyAux =
+    Boolean(input.canShowAuxOutputs) ||
+    agents.some((a) => ['report', 'clean', 'visualize'].includes(a)) ||
+    Boolean(String(bag.report ?? '').trim()) ||
+    Boolean(String(bag.clean ?? '').trim()) ||
+    Boolean(String(bag.visualize ?? '').trim())
+  const multi =
+    Boolean(input.multiSourceSynth) ||
+    isHeavyUserFacingTask({
+      intent: input.intent,
+      results: bag,
+      planSteps: steps,
+      meta
+    })
+
+  const adminOnly =
+    hasAdmin &&
+    !multi &&
+    !hasHeavyAux &&
+    agents.every((a) => !a || a === 'admin') &&
+    !['db', 'rag', 'crawler', 'code'].some((k) => String(bag[k] ?? '').trim())
+
+  if (adminOnly) return 'lite'
+
+  const guiOnly =
+    Boolean(input.hasGuiResult) &&
+    !Boolean(input.hasDbResult) &&
+    !multi &&
+    !hasHeavyAux &&
+    agents.length > 0 &&
+    agents.every((a) => a === 'gui')
+  if (guiOnly) return 'lite'
+
+  if (multi || hasHeavyAux) return 'report'
+  return 'standard'
 }
 
 /** 主列是否像「步骤 dump」拼接（composeFinal 用来回退完整 synth） */
@@ -496,7 +576,15 @@ function collectModuleSlots(input: {
     )
     if (headers.length && rows.length) table = dropSystemAuditColumns({ headers, rows })
   }
-  if (table) out.table = table
+  // 单行 ORM 实体宽表（无指标/测值/状态）不进用户看板——那是库表回显，不是对照分析表
+  if (table) {
+    const headers = table.headers
+    const looksLikeEntityDump =
+      table.rows.length <= 2 &&
+      headers.length >= 3 &&
+      !headers.some((h) => /指标|测值|测量|参考|状态|标准|结论/.test(String(h)))
+    if (!looksLikeEntityDump) out.table = table
+  }
 
   return out
 }
@@ -523,6 +611,158 @@ function resolveActions(input: {
   return cards.length ? cards : undefined
 }
 
+function sourceDedupeKey(title: string, url?: string): string {
+  const u = String(url || '')
+    .trim()
+    .toLowerCase()
+  if (u) return `u:${u}`
+  return `t:${String(title || '')
+    .trim()
+    .toLowerCase()
+    .slice(0, 80)}`
+}
+
+/** 合并 crawler / SERP / RAG 等为统一编号来源（供 userFacing 与 Synth 引用表） */
+export function collectUnifiedSources(input: {
+  evidence?: unknown[]
+  meta?: Record<string, unknown>
+  max?: number
+}): UserFacingSource[] {
+  const max = Math.max(1, Math.min(Number(input.max) || 12, 20))
+  const meta = input.meta && typeof input.meta === 'object' ? input.meta : {}
+  const raw: Array<{ title: string; url?: string; excerpt?: string; kind: UserFacingSource['kind'] }> =
+    []
+  const seen = new Set<string>()
+  const push = (title: string, opts?: { url?: string; excerpt?: string; kind?: UserFacingSource['kind'] }) => {
+    const t = String(title || '').trim()
+    if (!t) return
+    const url = opts?.url ? String(opts.url).trim() : undefined
+    const key = sourceDedupeKey(t, url)
+    if (seen.has(key)) return
+    seen.add(key)
+    raw.push({
+      title: t.slice(0, 120),
+      url: url || undefined,
+      excerpt: opts?.excerpt ? String(opts.excerpt).trim().slice(0, 240) : undefined,
+      kind: opts?.kind || 'doc'
+    })
+  }
+
+  if (Array.isArray(meta.crawlerSources)) {
+    for (const s of meta.crawlerSources as Array<{
+      title?: string
+      url?: string
+      name?: string
+      excerpt?: string
+      snippet?: string
+    }>) {
+      push(String(s?.title || s?.name || s?.url || ''), {
+        url: s?.url ? String(s.url) : undefined,
+        excerpt: String(s?.excerpt || s?.snippet || '').trim() || undefined,
+        kind: 'web'
+      })
+    }
+  }
+
+  if (Array.isArray(meta.searchHits)) {
+    for (const h of meta.searchHits as Array<{
+      title?: string
+      url?: string
+      snippet?: string
+      excerpt?: string
+    }>) {
+      push(String(h?.title || h?.url || ''), {
+        url: h?.url ? String(h.url) : undefined,
+        excerpt: String(h?.excerpt || h?.snippet || '').trim() || undefined,
+        kind: 'web'
+      })
+    }
+  }
+
+  for (const ev of Array.isArray(input.evidence) ? input.evidence : []) {
+    const e = ev as Record<string, unknown>
+    const kindHint = String(e?.kind || e?.agent || '').toLowerCase()
+    const sourceKind: UserFacingSource['kind'] =
+      kindHint === 'rag' ? 'rag' : kindHint === 'db' ? 'db' : kindHint === 'crawler' ? 'web' : 'doc'
+
+    const ar = e?.agentResult as
+      | {
+          sources?: Array<{ type?: string; ref?: string; title?: string; url?: string; excerpt?: string }>
+        }
+      | undefined
+    for (const s of ar?.sources || []) {
+      push(String(s?.title || s?.ref || ''), {
+        url: s?.url ? String(s.url) : undefined,
+        excerpt: s?.excerpt ? String(s.excerpt) : undefined,
+        kind: sourceKind
+      })
+    }
+
+    const citations = e?.citations as
+      | Array<{ source?: string; title?: string; url?: string; excerpt?: string; snippet?: string }>
+      | undefined
+    if (Array.isArray(citations)) {
+      for (const c of citations.slice(0, 8)) {
+        push(String(c?.title || c?.source || ''), {
+          url: c?.url ? String(c.url) : undefined,
+          excerpt: String(c?.excerpt || c?.snippet || '').trim() || undefined,
+          kind: sourceKind
+        })
+      }
+    }
+  }
+
+  return raw.slice(0, max).map((s, i) => ({
+    index: i + 1,
+    title: s.title,
+    url: s.url,
+    excerpt: s.excerpt,
+    kind: s.kind
+  }))
+}
+
+/** 供 Synth HumanMessage：可引用编号清单 */
+export function formatCitationInventoryForSynth(sources: UserFacingSource[]): string {
+  if (!sources.length) return ''
+  const lines = sources.map((s) => {
+    const bits = [`[${s.index}] ${s.title}`]
+    if (s.excerpt) bits.push(`摘录：${s.excerpt.slice(0, 160)}`)
+    if (s.url) bits.push(`链接：${s.url.slice(0, 120)}`)
+    return `- ${bits.join(' | ')}`
+  })
+  return [
+    '可引用来源（正文用 [1][2] 角标对应下列编号；禁止贴裸 URL 墙；系统会在下方展示可点来源卡）：',
+    ...lines
+  ].join('\n')
+}
+
+/** summary 与 appendix 是否高度重复（确定性结构消重） */
+export function appendixOverlapsSummary(summary: string, appendix: string): boolean {
+  const norm = (t: string) =>
+    String(t || '')
+      .replace(/#{1,4}\s*/g, '')
+      .replace(/\s+/g, '')
+      .slice(0, 500)
+  const a = norm(summary)
+  const b = norm(appendix)
+  if (!a || !b) return false
+  // 短文：正文前缀已出现在附录
+  const probeLen = Math.min(80, Math.max(16, Math.floor(a.length * 0.5)))
+  if (probeLen >= 16 && b.includes(a.slice(0, probeLen))) return true
+  if (a.length >= 48 && b.length >= 48) {
+    const aHead = a.slice(0, 200)
+    const bHead = b.slice(0, 200)
+    let hit = 0
+    const step = 12
+    for (let i = 0; i + step <= aHead.length; i += step) {
+      if (bHead.includes(aHead.slice(i, i + step))) hit += 1
+    }
+    const slots = Math.floor(aHead.length / step)
+    if (slots > 0 && hit / slots >= 0.55) return true
+  }
+  return false
+}
+
 /**
  * 从 graph 结果组装 UserFacingPayload。
  * 优先 synth 叙述；简单任务可回退 handoff.summary；复杂/多源禁止专才 dump join。
@@ -545,6 +785,21 @@ export function buildUserFacingPayload(input: {
     results: input.results,
     planSteps: input.planSteps,
     meta
+  })
+  const replyTier = resolveReplyTier({
+    intent: input.intent,
+    results: input.results,
+    planSteps: input.planSteps,
+    meta,
+    multiSourceSynth: heavy,
+    canShowAuxOutputs: heavy,
+    adminSynthContext:
+      Boolean(String(input.results?.admin ?? '').trim()) ||
+      (Array.isArray(input.planSteps) &&
+        input.planSteps.some((s) => String(s?.agent || '') === 'admin')),
+    hasGuiResult: Boolean(String(input.results?.gui ?? '').trim()),
+    hasDbResult: Boolean(String(input.results?.db ?? '').trim()),
+    chatWebReply: Boolean(meta.chatWebOnly) || String(meta.webExecutionMode || '') === 'search_chat'
   })
 
   let summary = fromSynth
@@ -579,32 +834,7 @@ export function buildUserFacingPayload(input: {
   }
 
   const outcome = resolveOutcome(meta)
-  const sources: UserFacingPayload['sources'] = []
-  if (Array.isArray(meta.crawlerSources)) {
-    for (const s of meta.crawlerSources.slice(0, 8) as Array<{ title?: string; url?: string; name?: string }>) {
-      const title = String(s?.title || s?.name || s?.url || '').trim()
-      if (title) sources.push({ title: title.slice(0, 120), url: s?.url ? String(s.url) : undefined })
-    }
-  }
-  // U3：从 evidence 提取 RAG/doc 引用，供前端证据优先展示
-  if (Array.isArray(input.evidence)) {
-    for (const ev of input.evidence as Array<Record<string, unknown>>) {
-      const ar = ev?.agentResult as { sources?: Array<{ type?: string; ref?: string }> } | undefined
-      for (const s of ar?.sources || []) {
-        const ref = String(s?.ref || '').trim()
-        if (ref && !sources.some((x) => x.title === ref)) {
-          sources.push({ title: ref.slice(0, 120) })
-        }
-      }
-      const citations = (ev as { citations?: Array<{ source?: string }> })?.citations
-      if (Array.isArray(citations)) {
-        for (const c of citations.slice(0, 6)) {
-          const title = String(c?.source || '').trim()
-          if (title && !sources.some((x) => x.title === title)) sources.push({ title: title.slice(0, 120) })
-        }
-      }
-    }
-  }
+  const sources = collectUnifiedSources({ evidence: input.evidence, meta, max: 12 })
 
   const slots = collectModuleSlots({ results: input.results, meta, synth })
   const actions = resolveActions({ meta, actions: input.actions })
@@ -615,7 +845,8 @@ export function buildUserFacingPayload(input: {
   const payload: UserFacingPayload = {
     summary,
     outcome,
-    outcomeLabel: outcomeLabelZh(outcome)
+    outcomeLabel: outcomeLabelZh(outcome),
+    replyTier
   }
   if (meta.evidenceGatePassed === false) {
     payload.badge = 'evidence_rejected'
@@ -627,11 +858,17 @@ export function buildUserFacingPayload(input: {
     payload.badge = 'needs_clarify'
     payload.badgeLabel = '需补充信息'
   }
-  // 执行摘要类 dump 不进用户附录（开发者视图看 composeFinal.text）
-  if (cleanAppendix && cleanAppendix.length >= 40 && !looksLikeExecAuditDump(cleanAppendix)) {
+  // 执行摘要类 dump / lite·standard / 与正文重复 → 不进用户附录
+  const allowAppendix =
+    replyTier === 'report' &&
+    cleanAppendix &&
+    cleanAppendix.length >= 40 &&
+    !looksLikeExecAuditDump(cleanAppendix) &&
+    !appendixOverlapsSummary(summary, cleanAppendix)
+  if (allowAppendix) {
     payload.appendix = cleanAppendix
   }
-  if (sources.length) payload.sources = sources.slice(0, 12)
+  if (sources.length) payload.sources = sources
   if (slots.metrics?.length) payload.metrics = slots.metrics
   if (slots.chart) payload.chart = slots.chart
   if (slots.table) payload.table = slots.table

@@ -39,7 +39,13 @@ const NAV_GROUPS = [
   {
     id: "gov",
     label: "治理",
-    items: [{ id: "settings", label: "系统设置", desc: "配额 · 密钥 · 审计 · 租户" }],
+    items: [
+      { id: "users", label: "用户与角色", desc: "账号 · 三角色 · RBAC 矩阵" },
+      { id: "tenants", label: "租户与配额", desc: "租户实体 · Token 硬配额" },
+      { id: "audit", label: "审计", desc: "敏感清单 · 筛选导出" },
+      { id: "secrets", label: "密钥与通知", desc: "Vault · webhook · Fernet 写回" },
+      { id: "settings", label: "系统设置", desc: "环境快照 · 进化审核入口" },
+    ],
   },
 ];
 
@@ -52,8 +58,12 @@ const WS_LABEL = {
   error: "异常",
 };
 
+const GROUP_BY_ROUTE = Object.fromEntries(
+  NAV_GROUPS.flatMap((g) => g.items.map((item) => [item.id, g.label]))
+);
+
 const WIDE_ROUTES = new Set(["monitor"]);
-const FILL_ROUTES = new Set(["monitor", "config", "agents", "deploy", "maintain"]);
+const FILL_ROUTES = new Set(["monitor", "config", "agents", "deploy", "maintain", "users", "tenants", "audit", "secrets"]);
 
 export default function AdminShell({
   route,
@@ -68,6 +78,7 @@ export default function AdminShell({
   const isWide = WIDE_ROUTES.has(route);
   const isFill = FILL_ROUTES.has(route);
   const summary = clusterSummary || {};
+  const groupLabel = GROUP_BY_ROUTE[current.id] || "紫微";
 
   const frameMods = [
     isWide ? "admin-content__frame--wide" : "",
@@ -85,9 +96,9 @@ export default function AdminShell({
           <span className="admin-brand__mark" aria-hidden>
             紫
           </span>
-          <div>
+          <div className="admin-brand__text">
             <strong>紫微</strong>
-            <span>Agent 控制面</span>
+            <span className="admin-brand__tag">Agent 控制面</span>
           </div>
         </div>
         <nav className="admin-nav" aria-label="主导航">
@@ -108,16 +119,15 @@ export default function AdminShell({
           ))}
         </nav>
         <div className="admin-sidebar__foot">
-          <span className={`badge badge--ws ${wsState}`}>
-            {WS_LABEL[wsState] || wsState}
-          </span>
-          <span className="admin-role">{role}</span>
+          <span className={`badge badge--ws ${wsState}`}>{WS_LABEL[wsState] || wsState}</span>
+          <span className="admin-role">{role || "—"}</span>
         </div>
       </aside>
       <div className="admin-main">
         <header className="admin-topbar">
           <div className={`admin-topbar__frame ${topbarFrameMods}`}>
             <div className="admin-topbar__text">
+              <p className="admin-topbar__kicker">{groupLabel}</p>
               <h1 className="admin-topbar__title">{current.label}</h1>
               <p className="admin-topbar__sub">{current.desc}</p>
             </div>

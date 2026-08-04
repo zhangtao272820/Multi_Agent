@@ -48,7 +48,7 @@
     {
       "cast": "romance",
       "character_id": "aili",
-      "total_png": 242,
+      "total_png": 290,
       "emotion_base": {
         "have": [
           "neutral",
@@ -139,7 +139,7 @@
     {
       "cast": "romance",
       "character_id": "fengyin",
-      "total_png": 100,
+      "total_png": 139,
       "emotion_base": {
         "have": [
           "neutral",
@@ -262,7 +262,7 @@
     {
       "cast": "romance",
       "character_id": "jingliu",
-      "total_png": 246,
+      "total_png": 294,
       "emotion_base": {
         "have": [
           "neutral",
@@ -353,7 +353,7 @@
     {
       "cast": "romance",
       "character_id": "linxi",
-      "total_png": 242,
+      "total_png": 290,
       "emotion_base": {
         "have": [
           "neutral",
@@ -444,7 +444,7 @@
     {
       "cast": "romance",
       "character_id": "luna",
-      "total_png": 70,
+      "total_png": 138,
       "emotion_base": {
         "have": [
           "neutral",
@@ -567,7 +567,7 @@
     {
       "cast": "romance",
       "character_id": "miara",
-      "total_png": 171,
+      "total_png": 219,
       "emotion_base": {
         "have": [
           "neutral",
@@ -658,7 +658,7 @@
     {
       "cast": "romance",
       "character_id": "qiansha",
-      "total_png": 170,
+      "total_png": 218,
       "emotion_base": {
         "have": [
           "neutral",
@@ -749,7 +749,7 @@
     {
       "cast": "romance",
       "character_id": "qingcai",
-      "total_png": 70,
+      "total_png": 138,
       "emotion_base": {
         "have": [
           "neutral",
@@ -872,7 +872,7 @@
     {
       "cast": "romance",
       "character_id": "ruolin",
-      "total_png": 242,
+      "total_png": 290,
       "emotion_base": {
         "have": [
           "neutral",
@@ -963,7 +963,7 @@
     {
       "cast": "romance",
       "character_id": "shiori",
-      "total_png": 170,
+      "total_png": 218,
       "emotion_base": {
         "have": [
           "neutral",
@@ -1054,7 +1054,7 @@
     {
       "cast": "romance",
       "character_id": "shizuku",
-      "total_png": 170,
+      "total_png": 218,
       "emotion_base": {
         "have": [
           "neutral",
@@ -1145,7 +1145,7 @@
     {
       "cast": "romance",
       "character_id": "taotao",
-      "total_png": 170,
+      "total_png": 218,
       "emotion_base": {
         "have": [
           "neutral",
@@ -1236,7 +1236,7 @@
     {
       "cast": "romance",
       "character_id": "wanyu",
-      "total_png": 252,
+      "total_png": 300,
       "emotion_base": {
         "have": [
           "neutral",
@@ -1327,7 +1327,7 @@
     {
       "cast": "romance",
       "character_id": "xiaoyang",
-      "total_png": 70,
+      "total_png": 138,
       "emotion_base": {
         "have": [
           "neutral",
@@ -1450,7 +1450,7 @@
     {
       "cast": "romance",
       "character_id": "xiaoyou",
-      "total_png": 242,
+      "total_png": 290,
       "emotion_base": {
         "have": [
           "neutral",
@@ -1541,7 +1541,7 @@
     {
       "cast": "romance",
       "character_id": "xingnai",
-      "total_png": 83,
+      "total_png": 138,
       "emotion_base": {
         "have": [
           "neutral",
@@ -1664,7 +1664,7 @@
     {
       "cast": "romance",
       "character_id": "yeyu",
-      "total_png": 170,
+      "total_png": 218,
       "emotion_base": {
         "have": [
           "neutral",
@@ -1755,7 +1755,7 @@
     {
       "cast": "neutral",
       "character_id": "aichen",
-      "total_png": 41,
+      "total_png": 156,
       "emotion_base": {
         "have": [
           "neutral",
@@ -1875,7 +1875,7 @@
     {
       "cast": "neutral",
       "character_id": "jingning",
-      "total_png": 41,
+      "total_png": 88,
       "emotion_base": {
         "have": [
           "neutral",
@@ -1995,7 +1995,7 @@
     {
       "cast": "neutral",
       "character_id": "lingke",
-      "total_png": 41,
+      "total_png": 156,
       "emotion_base": {
         "have": [
           "neutral",
@@ -2115,7 +2115,7 @@
     {
       "cast": "neutral",
       "character_id": "shuli",
-      "total_png": 41,
+      "total_png": 204,
       "emotion_base": {
         "have": [
           "neutral",
@@ -2235,7 +2235,7 @@
     {
       "cast": "neutral",
       "character_id": "youwei",
-      "total_png": 41,
+      "total_png": 88,
       "emotion_base": {
         "have": [
           "neutral",
@@ -2355,7 +2355,7 @@
     {
       "cast": "neutral",
       "character_id": "yuxi",
-      "total_png": 41,
+      "total_png": 88,
       "emotion_base": {
         "have": [
           "neutral",

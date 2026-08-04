@@ -1,6 +1,7 @@
 import type { WsHandlerContext, ParsedWsMessage } from './types'
 import { tryAcquireRunSlot, releaseRunSlot } from '../../../graph/core/runtime/backpressure'
-import { crypto, RunIdSchema, createManagerGraph, buildManagerGraphInvokeConfig, buildManagerTurnInvokeState, composeFinalBundleFromGraphResult, buildHumanConfirmCheckpoint, pickRicherFinalText, saveHumanConfirmCheckpoint, isSynthRejectingMedia, resolveManagerLlmConfig, resolveAgentEndpointsWithPlatform, buildCompactedHistoryWithStats, buildSummarizeWithLlmFn, graphAgentEndpoints, buildRagHistoryForRun, sanitizeHistoryText, detectClarifyFollowUp, clarifyReplanMetaPatch, ingestTaskStackFromUserMessage, withAgentTraceContext, emitRunObservability, emitAdminHumanConfirmRequest, shouldPauseForPostGraphAdminConfirm, pauseAdminConfirmMessage, loadTaskStack, path, runs, runMeta, sessionMeta, sessions, readSession, writeSession, buildUserContent, stripAttachmentSuffix, resolveUserMessageSessionIndex, pruneAutoUserTasksOnEditResend, policyDataDir, emitImplicitLearning, allowRate, nowMs, isRunAbortError, useRuntimeConfig } from './wsBarrel'
+import { crypto, RunIdSchema, createManagerGraph, buildManagerGraphInvokeConfig, buildManagerTurnInvokeState, composeFinalBundleFromGraphResult, buildHumanConfirmCheckpoint, pickRicherFinalText, saveHumanConfirmCheckpoint, isSynthRejectingMedia, resolveManagerLlmConfig, resolveAgentEndpointsWithPlatform, buildCompactedHistoryWithStats, buildSummarizeWithLlmFn, graphAgentEndpoints, buildRagHistoryForRun, sanitizeHistoryText, detectClarifyFollowUp, clarifyReplanMetaPatch, ingestTaskStackFromUserMessage, withAgentTraceContext, emitRunObservability, emitAdminHumanConfirmRequest, shouldPauseForPostGraphAdminConfirm, pauseAdminConfirmMessage, loadTaskStack, path, runs, runMeta, sessionMeta, sessions, readSession, writeSession, buildUserContent, stripAttachmentSuffix, resolveUserMessageAnchor, pruneAutoUserTasksOnEditResend, policyDataDir, emitImplicitLearning, allowRate, nowMs, isRunAbortError, useRuntimeConfig } from './wsBarrel'
+import { takeRunProcessUiMeta, clearRunProcess } from '../../../utils/session/runProcessAccumulator'
 
 export async function handleChat(ctx: WsHandlerContext, payload: ParsedWsMessage) {
   const { peer, peerKey, send, sessionId, boundUserId, tenantId, explicitUserId, platformTraceId, payloadRaw } = ctx
@@ -15,16 +16,24 @@ if (!allowRate(`${peerKey}:chat`, 8, 30_000)) {
   const chatMode = 'mode' in payload && payload.mode ? payload.mode : 'normal'
   const userMessageIndex =
     'userMessageIndex' in payload && typeof payload.userMessageIndex === 'number' ? payload.userMessageIndex : undefined
+  const anchorText =
+    'anchorText' in payload && typeof (payload as { anchorText?: unknown }).anchorText === 'string'
+      ? String((payload as { anchorText?: string }).anchorText || '').trim()
+      : ''
    if (chatMode === 'normal' && !text && !mediaAttachment) {
     send('error', '请输入问题或上传附件', 'manager')
     return
   }
-  if ((chatMode === 'regenerate' || chatMode === 'edit_resend') && typeof userMessageIndex !== 'number') {
-    send('error', '重新生成/编辑重发需要 userMessageIndex', 'manager')
-    return
-  }
   if (chatMode === 'edit_resend' && !text) {
     send('error', '编辑后内容不能为空', 'manager')
+    return
+  }
+  if (chatMode === 'regenerate' && typeof userMessageIndex !== 'number' && !text) {
+    send('error', '重新生成需要 userMessageIndex 或原文', 'manager')
+    return
+  }
+  if (chatMode === 'edit_resend' && typeof userMessageIndex !== 'number' && !anchorText) {
+    send('error', '编辑重发需要 userMessageIndex 或原消息锚点', 'manager')
     return
   }
    const runtimeConfig = useRuntimeConfig() as any
@@ -53,15 +62,28 @@ if (!allowRate(`${peerKey}:chat`, 8, 30_000)) {
    let effectiveText = text
   let effectiveAttachment = mediaAttachment
    if (chatMode === 'regenerate' || chatMode === 'edit_resend') {
-    const idx = resolveUserMessageSessionIndex(session.messages, userMessageIndex as number)
+    const hit = resolveUserMessageAnchor(session.messages, {
+      userMessageIndex: typeof userMessageIndex === 'number' ? userMessageIndex : undefined,
+      // regenerate：text 即原文；edit_resend：text 是新内容，用 anchorText 定位旧锚点
+      text: chatMode === 'regenerate' ? text || undefined : anchorText || undefined
+    })
+    const idx = hit?.arrayIndex ?? -1
     const anchor = idx >= 0 ? session.messages[idx] : undefined
-    if (!anchor || anchor.role !== 'user') {
-      send('error', '找不到对应用户消息，无法重新生成', 'manager')
+    if (!hit || !anchor || anchor.role !== 'user') {
+      send(
+        'error',
+        chatMode === 'edit_resend' ? '找不到对应用户消息，无法编辑重发' : '找不到对应用户消息，无法重新生成',
+        'manager'
+      )
       return
     }
+    const resolvedUserIndex = hit.userMessageIndex
     if (chatMode === 'regenerate') {
       session.messages = session.messages.slice(0, idx + 1)
       effectiveText = stripAttachmentSuffix(anchor.content)
+      // 客户端若带了原文且与锚点一致，优先用客户端（已 strip）；否则用服务端锚点
+      const clientText = stripAttachmentSuffix(text)
+      if (clientText && clientText === effectiveText) effectiveText = clientText
       effectiveAttachment = null
       if (!effectiveText) {
         send('error', '该轮仅有附件，请使用编辑重发补充文字说明', 'manager')
@@ -71,9 +93,31 @@ if (!allowRate(`${peerKey}:chat`, 8, 30_000)) {
         const { deleteSessionFeedbackAtUserMessageIndex } = await import(
           '#agent-shared/sessionFeedbackStore'
         )
-        await deleteSessionFeedbackAtUserMessageIndex('manager', sessionId, userMessageIndex as number)
+        await deleteSessionFeedbackAtUserMessageIndex('manager', sessionId, resolvedUserIndex)
       } catch {
         /* optional PG */
+      }
+      try {
+        const { resolveManagerPolicyDir } = await import('../../../utils/session/managerPolicyDir')
+        const { supersedeLearningSignalsForRevision } = await import(
+          '../../../graph/core/unifiedLearning'
+        )
+        const r = await supersedeLearningSignalsForRevision({
+          policyDir: resolveManagerPolicyDir(tenantId),
+          sessionId,
+          userMessageIndex: resolvedUserIndex,
+          userText: effectiveText,
+          reason: 'regenerate'
+        })
+        if (r.superseded > 0) {
+          send(
+            'thinking',
+            `学习信号：已作废同轮旧样本 ${r.superseded} 条（重新生成）`,
+            'manager'
+          )
+        }
+      } catch {
+        /* optional */
       }
     } else {
       session.messages = session.messages.slice(0, idx)
@@ -81,6 +125,21 @@ if (!allowRate(`${peerKey}:chat`, 8, 30_000)) {
       session.messages.push({ role: 'user', content: userContent })
       effectiveText = text
       await pruneAutoUserTasksOnEditResend(policyDataDir(), sessionId)
+      try {
+        const { resolveManagerPolicyDir } = await import('../../../utils/session/managerPolicyDir')
+        const { supersedeLearningSignalsForRevision } = await import(
+          '../../../graph/core/unifiedLearning'
+        )
+        await supersedeLearningSignalsForRevision({
+          policyDir: resolveManagerPolicyDir(tenantId),
+          sessionId,
+          userMessageIndex: resolvedUserIndex,
+          userText: stripAttachmentSuffix(anchorText || anchor.content),
+          reason: 'edit_resend'
+        })
+      } catch {
+        /* optional */
+      }
     }
     sessions.set(sessionId, session)
     void writeSession(sessionId, session)
@@ -193,6 +252,13 @@ if (!allowRate(`${peerKey}:chat`, 8, 30_000)) {
             meta: {
               platformOffline: endpointResolved.platformOffline,
               turnRunId: runId,
+              userMessageIndex: (() => {
+                let n = 0
+                for (const m of session.messages) {
+                  if (m?.role === 'user') n += 1
+                }
+                return Math.max(0, n - 1)
+              })(),
               ...(chatMode === 'edit_resend' || chatMode === 'regenerate'
                 ? { chatRevision: chatMode, revisionUserText: effectiveText }
                 : {}),
@@ -267,10 +333,18 @@ if (!allowRate(`${peerKey}:chat`, 8, 30_000)) {
           adminPendingOps: Array.isArray(meta.adminPendingOps) ? meta.adminPendingOps : undefined
         })
         send('status', { status: 'awaiting_human_confirm', runId }, 'manager', runId)
+        // 确认续跑会新开 runId；本轮过程暂不落库，避免 byRun 泄漏
+        clearRunProcess(runId)
         return
       }
     } catch {}
-     session.messages.push({ role: 'assistant', content: finalText })
+     const uiMeta = takeRunProcessUiMeta(runId)
+    session.messages.push({
+      role: 'assistant',
+      content: finalText,
+      runId,
+      ...(uiMeta ? { uiMeta } : {})
+    })
     void writeSession(sessionId, session)
     const reportOut = String((result as any)?.results?.report || '').trim()
     const finalFrom =
@@ -278,11 +352,13 @@ if (!allowRate(`${peerKey}:chat`, 8, 30_000)) {
     await emitRunObservability(send, runId)
     send('user_facing', composedBundle.userFacing, 'manager', runId)
     send('final', finalText, finalFrom, runId)
+    clearRunProcess(runId)
     try {
       const stack = await loadTaskStack(path.join(process.cwd(), '.data'), sessionId)
       send('task_stack', { stack }, 'manager', runId)
     } catch {}
   } catch (e: any) {
+    clearRunProcess(runId)
     if (isRunAbortError(ctrl, e)) {
       send('status', { status: 'canceled', runId, detail: '任务已取消' }, 'manager', runId)
     } else {

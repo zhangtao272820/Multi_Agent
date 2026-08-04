@@ -23,7 +23,8 @@
 - 详设见 [`doc/角色活人感与功能增强.md`](doc/角色活人感与功能增强.md)
 - **系统总览（推荐先看）**：[`doc/游戏系统框架与玩法.md`](doc/游戏系统框架与玩法.md) — 玩法环、开放后宫、自由对话如何定关系/结局；**§3.1 美德×LLM 三层契约**
 - **角色故事与结局（T0/T1/T2）**：[`doc/角色故事与结局圣经.md`](doc/角色故事与结局圣经.md) — 每人独有路线、幕节拍与结局；数据 SSOT `data/story_routes.json`
-- **故事加厚 · Token · 分批立绘**：[`doc/故事与立绘拓展计划-剧本感与Token.md`](doc/故事与立绘拓展计划-剧本感与Token.md) — 节拍渐进注入、故事场轮数、T2 `end_*`、中立精修；**不做** dialog×30
+- **日历叙事 · 结局后续（Phase 2）**：[`doc/日历叙事与结局后续计划.md`](doc/日历叙事与结局后续计划.md) — 航点/关系已落地后的 T1·T2·N 故事加厚、soft/坏结局演出；**不含立绘补图**
+- **故事加厚 · Token · 分批立绘**：[`doc/故事与立绘拓展计划-剧本感与Token.md`](doc/故事与立绘拓展计划-剧本感与Token.md) — 当前拍注入 / soft 解耦 / Bond 节拍落盘 / `scene_story_turns=8`；T2 `end_*` 已齐；中立精修可选；**不做** dialog×30
 - **立绘扩展（romance 包齐）**：[`doc/立绘资源扩展计划.md`](doc/立绘资源扩展计划.md) — T0 私密+魅力 / T1·T2 魅力已完成；本轮补 T2 结局 CG + 中立轻度精修
 - **立绘手册 + 全员缺口**：[`doc/立绘资源手册.md`](doc/立绘资源手册.md) · [`doc/立绘资源缺口.md`](doc/立绘资源缺口.md)（含中立；`python scripts/build_sprite_inventory.py`）
 - **开局 / 结局演出 · 场景 · 音乐**：[`doc/开局结局演出与场景音乐.md`](doc/开局结局演出与场景音乐.md) — 序章、全屏结局 CG、BGM 槽位、季节底图
@@ -88,7 +89,7 @@ cd Companion_Agent
 powershell -ExecutionPolicy Bypass -File desktop/build_exe.ps1
 ```
 
-产物：`desktop_dist/CompanionAgent/CompanionAgent.exe`（onedir，含前端 dist 与 data）。
+产物：`desktop_dist/CompanionAgent/CompanionAgent.exe`（onedir，含前端 dist 与 data）。详见 [`desktop/README.md`](desktop/README.md)。
 
 ### 带回家游玩（模型可用）
 

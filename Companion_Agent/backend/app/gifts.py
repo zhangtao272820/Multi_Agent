@@ -94,6 +94,10 @@ def buy_gift(
     else:
         impression = f"她轻轻点头，收下了「{gift.label}」。"
 
+    from .route_difficulty import scale_positive_affinity
+
+    aff = scale_positive_affinity(bond.character_id, aff)
+
     bond.relationship_state = rel.model_copy(
         update={
             "affinity": min(100, rel.affinity + aff),

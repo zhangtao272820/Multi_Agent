@@ -142,7 +142,14 @@ export function buildFinalizeNodeRun(deps: CreateFinalNodesDeps) {
         const question = effectiveUserTask(state.messages as any, state.routedQuery)
         const policy = await policyPromise.catch(() => defaultPolicy())
         const scenarioKey = deriveScenarioKey(question)
-        const routeConf = typeof state.meta?.routeConfidence === 'number' ? state.meta.routeConfidence : 0.6
+        const classifyConf = Number((state.meta as any)?.intentClassify?.confidence)
+        const rawRouteConf = state.meta?.routeConfidence
+        const routeConf =
+          typeof rawRouteConf === 'number' && Number.isFinite(rawRouteConf) && rawRouteConf > 0
+            ? rawRouteConf
+            : Number.isFinite(classifyConf) && classifyConf > 0
+              ? Math.min(1, Math.max(0.35, classifyConf))
+              : 0.6
         const evidenceKinds = new Set<string>()
         for (const e of Array.isArray(state.evidence) ? state.evidence : []) {
           const k = String(e?.kind ?? '').trim()
@@ -240,7 +247,10 @@ export function buildFinalizeNodeRun(deps: CreateFinalNodesDeps) {
           learningCapped: refined.cappedForLearning,
           evidenceGatePassed: evidenceGate.pass,
           ...(replayN > 0 ? { routeReplayHintsUsed: replayN } : {}),
-          ...(clauseCount > 0 ? { clauseCount, clauseDecomposeMode: clauseDecomposeMode || undefined } : {})
+          ...(clauseCount > 0 ? { clauseCount, clauseDecomposeMode: clauseDecomposeMode || undefined } : {}),
+          tenantId: String(state.tenantId || state.meta?.tenantId || opts.tenantId || ''),
+          userId: opts.userId,
+          sessionId: opts.sessionId
         }
         if (replayItems.length > 0) {
           experienceEntry.replayTopMatches = replayItems.slice(0, 3)
@@ -456,10 +466,12 @@ export function buildFinalizeNodeRun(deps: CreateFinalNodesDeps) {
             successScore,
             probeRagHits: experienceEntry.probeRagHits,
             probeDbMatched: experienceEntry.probeDbMatched,
-            userId: opts.userId
+            userId: opts.userId,
+            tenantId: String(state.tenantId || state.meta?.tenantId || opts.tenantId || '')
           }).catch(() => undefined)
           await recordLayeredMemoryFromRun(policyDir, {
             sessionId: opts.sessionId,
+            tenantId: String(state.tenantId || state.meta?.tenantId || opts.tenantId || ''),
             user: question,
             scenarioKey,
             intent: state.intent,

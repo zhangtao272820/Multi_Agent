@@ -204,17 +204,49 @@ class Settings(BaseModel):
 
 
 def _default_cors_allow_origin_regex() -> Optional[str]:
-    """Docker/LAN：浏览器可能用局域网 IP 访问管理平台，需放行对应 Origin（前端 :18073 / 直连后端 :18000）。"""
+    """Docker/LAN：放行管理台与 1A Agent UI Origin（本地登录跨域调 /api/auth/login）。"""
     explicit = getenv("CLAWHIVE_CORS_ALLOW_ORIGIN_REGEX", "").strip()
     if explicit.lower() == "none":
         return None
     if explicit:
         return explicit
     if getenv("DEPLOY_MODE", "local").lower() != "docker":
-        return None
+        # 本机直连各 Agent 端口登录时也放行常见端口
+        ports = (
+            getenv("CLAWHIVE_FRONTEND_PORT", "18073"),
+            getenv("CLAWHIVE_BACKEND_PORT", "18000"),
+            getenv("DB_PORT", "13101"),
+            getenv("RAG_PORT", "13102"),
+            getenv("CODE_PORT", "13103"),
+            getenv("CRAWLER_PORT", "13104"),
+            getenv("AI_ADMIN_PORT", "13105"),
+            getenv("MANAGER_PORT", "13106"),
+            getenv("MULTIMODAL_PORT", "13107"),
+            getenv("LOBSTER_PORT", "13108"),
+            getenv("MUSIC_AGENT_PORT", "13110"),
+            getenv("VIDEO_AGENT_PORT", "13111"),
+        )
+        joined = "|".join(dict.fromkeys(str(p).strip() for p in ports if str(p).strip()))
+        return rf"^https?://(localhost|127\.0\.0\.1|[\w.-]+):({joined})$"
     fe = getenv("CLAWHIVE_FRONTEND_PORT", "18073")
     be = getenv("CLAWHIVE_BACKEND_PORT", "18000")
-    return rf"^https?://[\w.-]+:({fe}|{be})$"
+    agent_ports = "|".join(
+        [
+            fe,
+            be,
+            getenv("DB_PORT", "13101"),
+            getenv("RAG_PORT", "13102"),
+            getenv("CODE_PORT", "13103"),
+            getenv("CRAWLER_PORT", "13104"),
+            getenv("AI_ADMIN_PORT", "13105"),
+            getenv("MANAGER_PORT", "13106"),
+            getenv("MULTIMODAL_PORT", "13107"),
+            getenv("LOBSTER_PORT", "13108"),
+            getenv("MUSIC_AGENT_PORT", "13110"),
+            getenv("VIDEO_AGENT_PORT", "13111"),
+        ]
+    )
+    return rf"^https?://[\w.-]+:({agent_ports})$"
 
 
 @lru_cache

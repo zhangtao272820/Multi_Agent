@@ -73,7 +73,17 @@ def _session_talk_extras(session: Any) -> dict[str, Any]:
         "quest_state": pub.get("quest_state"),
         "scene_run": pub.get("scene_run"),
         "ensemble": pub.get("ensemble"),
+        "story_progress": pub.get("story_progress"),
+        "sprite_outfit": pub.get("sprite_outfit") or "",
     }
+
+
+def _sprite_outfit_for_session(session: Any, save: Any | None = None) -> str:
+    """会话立绘：含专属故事当前拍 sprite_hint 强制换装。"""
+    try:
+        return str(session.resolve_sprite_outfit(save) or "")
+    except Exception:
+        return ""
 
 
 def _season_for_save(save: Any) -> str:
@@ -263,10 +273,14 @@ def daily_encounters_api(
 
 
 @app.get("/api/sprites/gallery")
-def sprites_gallery():
+def sprites_gallery(
+    save_id: str = "",
+    user_id: str = "default",
+    mode: str = "pick",
+):
     from .cast_pick import build_gallery_payload
 
-    return build_gallery_payload()
+    return build_gallery_payload(save_id=save_id, user_id=user_id, mode=mode)
 
 
 @app.get("/api/cast-pick")
@@ -805,6 +819,64 @@ async def websocket_chat(ws: WebSocket):
                 )
                 continue
 
+            if mtype == "jump_waypoint":
+                user_id = str(payload.get("user_id") or "").strip()
+                save_id = str(payload.get("save_id") or "").strip()
+                waypoint_id = str(payload.get("waypoint_id") or "").strip()
+                save = get_world_save_for_user(save_id, user_id) if user_id else None
+                if not save:
+                    await ws.send_json({"type": "error", "payload": {"message": "存档无效"}})
+                    continue
+                from .season_waypoints import jump_to_next_waypoint, jump_to_waypoint
+
+                if waypoint_id:
+                    save, result = jump_to_waypoint(save, waypoint_id)
+                else:
+                    save, result = jump_to_next_waypoint(save)
+                if not result.get("ok"):
+                    await ws.send_json(
+                        {
+                            "type": "error",
+                            "payload": {"message": result.get("error") or "无法跳到下一季"},
+                        }
+                    )
+                    continue
+                await ws.send_json(
+                    {
+                        "type": "waypoint_jumped",
+                        "payload": {**result, "hub": hub_public(save), "world": public_world(save)},
+                    }
+                )
+                continue
+
+            if mtype == "settle_friend_ending":
+                user_id = str(payload.get("user_id") or "").strip()
+                save_id = str(payload.get("save_id") or "").strip()
+                character_id = str(payload.get("character_id") or "").strip()
+                save = get_world_save_for_user(save_id, user_id) if user_id else None
+                if not save:
+                    await ws.send_json({"type": "error", "payload": {"message": "存档无效"}})
+                    continue
+                from .life_friction import settle_friend_ending
+
+                save, result = settle_friend_ending(save, character_id)
+                if not result.get("ok"):
+                    await ws.send_json(
+                        {
+                            "type": "error",
+                            "payload": {"message": result.get("error") or "无法结算"},
+                        }
+                    )
+                    continue
+                out: dict = {
+                    "type": "friend_ending_settled",
+                    "payload": {**result, "hub": hub_public(save), "world": public_world(save)},
+                }
+                await ws.send_json(out)
+                if result.get("ending"):
+                    await ws.send_json({"type": "game_ending", "payload": result["ending"]})
+                continue
+
             if mtype == "leave_scene":
                 sid = str(payload.get("session_id") or "").strip()
                 reason = str(payload.get("reason") or "farewell").strip() or "farewell"
@@ -943,37 +1015,7 @@ async def websocket_chat(ws: WebSocket):
                     scene = _resolve_scene_seasoned(
                         save, scene_id=(loc.scene_id if loc else "") or save.location_id
                     )
-                    from .sprite_outfit import meal_context_from_save, resolve_outfit_for_world
-
-                    bond_for_sprite = save.bonds.get(character_id)
-                    outfit = resolve_outfit_for_world(
-                        day_index=save.calendar.day_index,
-                        period=save.calendar.period,
-                        location_id=save.location_id,
-                        character_id=character_id,
-                        mood=int(session.relationship_state.mood or 0),
-                        on_date=False,
-                        affinity=int(
-                            (bond_for_sprite.relationship_state.affinity if bond_for_sprite else 0)
-                            or 0
-                        ),
-                        fatigue=int(
-                            (bond_for_sprite.living.fatigue if bond_for_sprite else 0) or 0
-                        ),
-                        meal_context=meal_context_from_save(save),
-                        long_status=str(
-                            (bond_for_sprite.living.long_status if bond_for_sprite else "")
-                            or ""
-                        ),
-                        stage_id=str(
-                            (
-                                bond_for_sprite.relationship_state.stage_id
-                                if bond_for_sprite
-                                else ""
-                            )
-                            or ""
-                        ),
-                    )
+                    outfit = _sprite_outfit_for_session(session, save)
                     await ws.send_json(
                         {
                             "type": "session_created",
@@ -1050,33 +1092,7 @@ async def websocket_chat(ws: WebSocket):
                 scene = _resolve_scene_seasoned(
                     save, scene_id=date_def.scene_id or date_def.location_id
                 )
-                from .sprite_outfit import meal_context_from_save, resolve_outfit_for_world
-
-                bond_for_sprite = save.bonds.get(character_id)
-                outfit = resolve_outfit_for_world(
-                    day_index=save.calendar.day_index,
-                    period=save.calendar.period,
-                    location_id=date_def.location_id or save.location_id,
-                    character_id=character_id,
-                    mood=int(session.relationship_state.mood or 0),
-                    on_date=True,
-                    affinity=int(
-                        (bond_for_sprite.relationship_state.affinity if bond_for_sprite else 0) or 0
-                    ),
-                    fatigue=int((bond_for_sprite.living.fatigue if bond_for_sprite else 0) or 0),
-                    meal_context=meal_context_from_save(save),
-                    long_status=str(
-                        (bond_for_sprite.living.long_status if bond_for_sprite else "") or ""
-                    ),
-                    stage_id=str(
-                        (
-                            bond_for_sprite.relationship_state.stage_id
-                            if bond_for_sprite
-                            else ""
-                        )
-                        or ""
-                    ),
-                )
+                outfit = _sprite_outfit_for_session(session, save)
                 await ws.send_json(
                     {
                         "type": "session_created",
@@ -1163,33 +1179,7 @@ async def websocket_chat(ws: WebSocket):
                     save,
                     scene_id=(loc.scene_id if loc else "") or save.location_id,
                 )
-                from .sprite_outfit import meal_context_from_save, resolve_outfit_for_world
-
-                bond_for_sprite = save.bonds.get(character_id)
-                outfit = resolve_outfit_for_world(
-                    day_index=save.calendar.day_index,
-                    period=save.calendar.period,
-                    location_id=save.location_id,
-                    character_id=character_id,
-                    mood=int(session.relationship_state.mood or 0),
-                    on_date=False,
-                    affinity=int(
-                        (bond_for_sprite.relationship_state.affinity if bond_for_sprite else 0) or 0
-                    ),
-                    fatigue=int((bond_for_sprite.living.fatigue if bond_for_sprite else 0) or 0),
-                    meal_context=meal_context_from_save(save),
-                    long_status=str(
-                        (bond_for_sprite.living.long_status if bond_for_sprite else "") or ""
-                    ),
-                    stage_id=str(
-                        (
-                            bond_for_sprite.relationship_state.stage_id
-                            if bond_for_sprite
-                            else ""
-                        )
-                        or ""
-                    ),
-                )
+                outfit = _sprite_outfit_for_session(session, save)
                 await ws.send_json(
                     {
                         "type": "session_created",
@@ -1254,36 +1244,11 @@ async def websocket_chat(ws: WebSocket):
                 parsed = _avatar_for_world(opening, save, character_id)
                 from .social_graph import location_index
                 from .sprite_outfit import meal_context_from_save, resolve_outfit_for_world
-
                 loc = location_index().get(save.location_id)
                 scene = _resolve_scene_seasoned(
                     save, scene_id=(loc.scene_id if loc else "") or save.location_id
                 )
-                bond_for_sprite = save.bonds.get(character_id)
-                outfit = resolve_outfit_for_world(
-                    day_index=save.calendar.day_index,
-                    period=save.calendar.period,
-                    location_id=save.location_id,
-                    character_id=character_id,
-                    mood=int(session.relationship_state.mood or 0),
-                    on_date=False,
-                    affinity=int(
-                        (bond_for_sprite.relationship_state.affinity if bond_for_sprite else 0) or 0
-                    ),
-                    fatigue=int((bond_for_sprite.living.fatigue if bond_for_sprite else 0) or 0),
-                    meal_context=meal_context_from_save(save),
-                    long_status=str(
-                        (bond_for_sprite.living.long_status if bond_for_sprite else "") or ""
-                    ),
-                    stage_id=str(
-                        (
-                            bond_for_sprite.relationship_state.stage_id
-                            if bond_for_sprite
-                            else ""
-                        )
-                        or ""
-                    ),
-                )
+                outfit = _sprite_outfit_for_session(session, save)
                 await ws.send_json(
                     {
                         "type": "session_created",
@@ -1438,33 +1403,7 @@ async def websocket_chat(ws: WebSocket):
                 scene = _resolve_scene_seasoned(
                     save, scene_id=date_def.scene_id or date_def.location_id
                 )
-                from .sprite_outfit import meal_context_from_save, resolve_outfit_for_world
-
-                bond_for_sprite = save.bonds.get(character_id)
-                outfit = resolve_outfit_for_world(
-                    day_index=save.calendar.day_index,
-                    period=save.calendar.period,
-                    location_id=date_def.location_id or save.location_id,
-                    character_id=character_id,
-                    mood=int(session.relationship_state.mood or 0),
-                    on_date=True,
-                    affinity=int(
-                        (bond_for_sprite.relationship_state.affinity if bond_for_sprite else 0) or 0
-                    ),
-                    fatigue=int((bond_for_sprite.living.fatigue if bond_for_sprite else 0) or 0),
-                    meal_context=meal_context_from_save(save),
-                    long_status=str(
-                        (bond_for_sprite.living.long_status if bond_for_sprite else "") or ""
-                    ),
-                    stage_id=str(
-                        (
-                            bond_for_sprite.relationship_state.stage_id
-                            if bond_for_sprite
-                            else ""
-                        )
-                        or ""
-                    ),
-                )
+                outfit = _sprite_outfit_for_session(session, save)
                 await ws.send_json(
                     {
                         "type": "session_created",

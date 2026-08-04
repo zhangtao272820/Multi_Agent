@@ -41,10 +41,6 @@
       "kind": "romance",
       "note": "18主角·高质量立绘基图"
     },
-    "yeyu": {
-      "kind": "romance",
-      "note": "18主角·高质量立绘基图"
-    },
     "aili": {
       "kind": "romance",
       "note": "18主角·高质量立绘基图"
@@ -71,27 +67,27 @@
     },
     "shuli": {
       "kind": "neutral",
-      "note": "亲妹妹（挚友线·禁恋爱）"
+      "note": "亲妹妹（关系向·难攻略可恋爱）"
     },
     "jingning": {
       "kind": "neutral",
-      "note": "江静流堂妹（挚友线·禁恋爱）"
+      "note": "江静流堂妹（关系向·难攻略可恋爱）"
     },
     "youwei": {
       "kind": "neutral",
-      "note": "工作室学妹（挚友线·禁恋爱）"
+      "note": "工作室学妹（关系向·难攻略可恋爱）"
     },
     "yuxi": {
       "kind": "neutral",
-      "note": "温晚雨死党（挚友线·禁恋爱）"
+      "note": "温晚雨死党（关系向·难攻略可恋爱）"
     },
     "lingke": {
       "kind": "neutral",
-      "note": "顾若铃助教（挚友线·禁恋爱）"
+      "note": "顾若铃助教（关系向·难攻略可恋爱）"
     },
     "aichen": {
       "kind": "neutral",
-      "note": "夏艾黎闺蜜（挚友线·禁恋爱）"
+      "note": "夏艾黎闺蜜（关系向·难攻略可恋爱）"
     }
   },
   "updated_at": "2026-07-18T00:00:00+00:00",

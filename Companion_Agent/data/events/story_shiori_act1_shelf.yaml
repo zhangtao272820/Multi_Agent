@@ -1,5 +1,5 @@
 id: story_shiori_act1_shelf
-label: 梯子
+label: 坡上书架
 priority: 5
 once: true
 chance: 1.0
@@ -10,21 +10,30 @@ trigger:
   affinity_min: 50
   flags_absent: [sr_first_recommend]
 prompt_snippet: |
-  【专属故事 · 坡上书店的月亮 · 第1幕 · 梯子】
+  【专属故事 · 坡上书店的月亮 · 第1幕 · 坡上书架】
 advance: on_player_turn
 beats:
   - id: b1
-    summary: "书店初识，她为你抽一本「刚好」的书"
-    sprite_hint: [shelf_ladder, recommend_stack]
-    soft_options: ["认真接话", "先观察", "轻声提问"]
+    narration: "梯子微晃，她递下一本刚好厚度的书。纸墨味里混着坡道夜风——像早知道你会伸手。"
+    pc_thought: "她荐别人的书很准。空白页才是她自己。"
+    brief: "梯子递书刚好；像早知道。等他接住、问为何刚好或扶稳梯子。"
+    summary: "梯子递书刚好；像早知道。等他接住、问为何刚好或扶稳梯子。"
+    sprite_hint: [shelf_ladder, work, season_winter, home_eating, home_sleeping]
+    soft_options: ["接住书", "问为何刚好", "扶稳梯子"]
   - id: b2
-    summary: "「梯子」里出现犹豫或选择。"
-    sprite_hint: [recommend_stack, work]
-    soft_options: ["表明态度", "给她空间", "确认她的意思"]
+    narration: "推荐理由说得很流利，说到「作者」时却顿住。柜台灯光照出她没写完的那一行空白。"
+    pc_thought: "坡上月亮很亮。我想读她未写完的那一行。"
+    brief: "荐书流利却顿在作者；空白未写。等他问自己的故事、听理由或买下第一本。"
+    summary: "荐书流利却顿在作者；空白未写。等他问自己的故事、听理由或买下第一本。"
+    sprite_hint: [recommend_stack, catalog_stamp, season_winter, home_eating, home_sleeping]
+    soft_options: ["问有没有自己的故事", "认真听推荐理由", "买下第一本"]
   - id: b3
-    summary: "收束本幕：留下可被记住的结果，不剧透结局名。"
-    sprite_hint: [work]
-    soft_options: ["坦白心意", "先缓一缓", "诚实说明顾虑"]
+    narration: "盖章时她报了名字，声音比荐书轻。月亮从橱窗斜进来，像等一句下周还来的约定。"
+    pc_thought: "写自己比卖书难。我想当第一个读者，不是顾客。"
+    brief: "报出名字比荐书轻。等他记住名字、约下周闲聊或夸眼光。"
+    summary: "报出名字比荐书轻。等他记住名字、约下周闲聊或夸眼光。"
+    sprite_hint: [catalog_stamp, casual, season_winter, home_eating, home_sleeping]
+    soft_options: ["记住她的名字", "约下周还书闲聊", "夸她眼光好"]
 rewards:
   flags_set: [sr_first_recommend]
 choice_effects:

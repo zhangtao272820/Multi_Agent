@@ -3,32 +3,88 @@ label: 边界课
 priority: 6
 once: true
 chance: 1.0
-scene_id: ""
+scene_id: ''
 trigger:
-  character_ids: [ruolin]
+  character_ids:
+  - ruolin
   stage_min: close_friend
-  affinity_min: 62
-  flags_absent: [rl_boundary_kept]
-  flags_present: [rl_office_hours]
-prompt_snippet: |
-  【专属故事 · 讲台下的一年 · 第2幕 · 边界课】
+  affinity_min: 68
+  flags_absent:
+  - rl_boundary_kept
+  flags_present:
+  - rl_office_hours
+prompt_snippet: '【专属故事 · 讲台下的一年 · 第2幕 · 边界课】
+
+  '
 advance: on_player_turn
 beats:
-  - id: b1
-    summary: "她主动谈伦理与流言"
-    sprite_hint: [grading, evening_tea]
-    soft_options: ["认真接话", "先观察", "轻声提问"]
-  - id: b2
-    summary: "你是否尊重「课结束前不越线」"
-    sprite_hint: [evening_tea, corridor_qa]
-    soft_options: ["表明态度", "给她空间", "确认她的意思"]
-  - id: b3
-    summary: "收束本幕：留下可被记住的结果，不剧透结局名。"
-    sprite_hint: [corridor_qa]
-    soft_options: ["坦白心意", "先缓一缓", "诚实说明顾虑"]
+- id: b1
+  summary: 沙发上堆着试卷，她揉眉心：今天改到想把红笔扔了，却仍把最后一份分数算得分毫不差。等你回应。
+  sprite_hint:
+  - grading_sofa
+  - scantron_grade
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 帮忙递茶
+  - 问截止日
+  - 劝她歇十分钟
+  narration: 粉笔灰与纸页里，沙发上堆着试卷，她揉眉心：今天改到想把红笔扔了，却仍把最后一份分数算得分毫不差。
+  pc_thought: 粉笔灰落在袖口。我想叫她名字，又怕越界——想起红笔。
+  brief: 沙发上堆着试卷，她揉眉心：今天改到想把红笔扔了，却仍把最后一份分数算得分毫不差。等你回应。
+- id: b2
+  summary: 晚茶蒸汽里她主动谈伦理与流言：迷恋可以，越线不行——把选择权交还给你，也交给时间。等你回应。
+  sprite_hint:
+  - evening_tea
+  - office_hours
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 郑重答应守界
+  - 问界线具体在哪
+  - 承认心动但会等
+  narration: 粉笔灰与纸页里，晚茶蒸汽里她主动谈伦理与流言：迷恋可以，越线不行——把选择权交还给你，也交给时间。
+  pc_thought: 边界课是给两个人的——我也在被考试。
+  brief: 晚茶蒸汽里她主动谈伦理与流言：迷恋可以，越线不行——把选择权交还给你，也交给时间。等你回应。
+- id: b3
+  summary: 走廊有人侧目；她放慢脚步，把师生距离重新量给你看，像在公共场合练习克制。等你回应。
+  sprite_hint:
+  - corridor_advise
+  - school
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 拉开半步
+  - 改口称老师
+  - 低声说理解
+  narration: 粉笔灰与纸页里，走廊有人侧目；她放慢脚步，把师生距离重新量给你看，像在公共场合练习克制。
+  pc_thought: 摘掉工牌的那一秒，师生戏就松了。我敢不敢对等？
+  brief: 走廊有人侧目；她放慢脚步，把师生距离重新量给你看，像在公共场合练习克制。等你回应。
+- id: b4
+  summary: 她留下一句：课结束前请把我当负责人。走廊外助教铃可的红笔，正等着看你是否守界。等你回应。
+  sprite_hint:
+  - evening_tea
+  - casual
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 答应做到
+  - 说值得等
+  - 问学期结束后呢
+  narration: 粉笔灰与纸页里，她留下一句：课结束前请把我当负责人。走廊外助教铃可的红笔，正等着看你是否守界。
+  pc_thought: 同学名比情话更烫。接住还是退回老师？——想起红笔。
+  brief: 她留下一句：课结束前请把我当负责人。走廊外助教铃可的红笔，正等着看你是否守界。等你回应。
 rewards:
-  flags_set: [rl_boundary_kept]
+  flags_set:
+  - rl_boundary_kept
 choice_effects:
-  - { trust_delta: 3, affinity_delta: 3 }
-  - { trust_delta: 2, affinity_delta: 2 }
-  - { trust_delta: -2, affinity_delta: -1 }
+- trust_delta: 3
+  affinity_delta: 3
+- trust_delta: 2
+  affinity_delta: 2
+- trust_delta: -2
+  affinity_delta: -1

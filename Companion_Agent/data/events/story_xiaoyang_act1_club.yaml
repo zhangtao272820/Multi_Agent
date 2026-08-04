@@ -3,31 +3,62 @@ label: 社团
 priority: 5
 once: true
 chance: 1.0
-scene_id: ""
+scene_id: ''
 trigger:
-  character_ids: [xiaoyang]
+  character_ids:
+  - xiaoyang
   stage_min: friend
   affinity_min: 55
-  flags_absent: [xyang_club]
+  flags_absent:
+  - xyang_club
 prompt_snippet: |
   【专属故事 · 晒干后的系领带 · 第1幕 · 社团】
 advance: on_player_turn
 beats:
-  - id: b1
-    summary: "社团室海报墙前，她抱着一摞传单，笑着喊你来帮忙。"
-    sprite_hint: [club_poster, school]
-    soft_options: ["接过传单", "问进度", "先看海报"]
-  - id: b2
-    summary: "忙碌里她露出认真：活动不是热闹，是把每个人安排妥当。"
-    sprite_hint: [lab_coat, school]
-    soft_options: ["夸她靠谱", "问她累不累", "提出多担一点"]
-  - id: b3
-    summary: "收拾尾声她说：可以一起忙，但别把她的热情当成免费劳动力。"
-    sprite_hint: [club_poster, casual]
-    soft_options: ["答应尊重节奏", "约下次再帮", "开玩笑认错"]
+- id: b1
+  summary: 社团墙上海报，她的名字旁边多了你的——像玩笑又像试探——气氛忽然认真起来。等你回应。
+  sprite_hint:
+  - school
+  - casual
+  soft_options:
+  - 问谁写的
+  - 笑着认领
+  - 先观察反应
+  narration: 社团墙上海报，她的名字旁边多了你的——像玩笑又像试探——气氛忽然认真起来。
+  pc_thought: 海报上的名字很吵。摊位旁的她其实很轻。
+  brief: 社团墙上海报，她的名字旁边多了你的——像玩笑又像试探——气氛忽然认真起来。等你回应。
+- id: b2
+  summary: "她抱着彩纸：同班太近，喜欢反而难说，只能先写在纸上——气氛忽然认真起来。等你回应。"
+  sprite_hint:
+  - work
+  - school
+  soft_options:
+  - 说纸上不够
+  - 当面问清楚
+  - 帮她撕掉误会
+  narration: "海报胶与社团室里，她抱着彩纸：同班太近，喜欢反而难说，只能先写在纸上——气氛忽然认真起来。"
+  pc_thought: 同班如常最安全。告白会撕坏一张海报吗？
+  brief: "她抱着彩纸：同班太近，喜欢反而难说，只能先写在纸上——气氛忽然认真起来。等你回应。"
+- id: b3
+  summary: "她盯着你：若你当没看见，海报明天就换一张普通的——气氛忽然认真起来。等你回应。"
+  sprite_hint:
+  - casual
+  - date
+  soft_options:
+  - 说看见了
+  - 留下名字
+  - 约摊位再谈
+  narration: "她盯着你：若你当没看见，海报明天就换一张普通的——气氛忽然认真起来。"
+  pc_thought: 冬社团室胶味刺鼻。我想把名字念准。
+  brief: "她盯着你：若你当没看见，海报明天就换一张普通的——气氛忽然认真起来。等你回应。"
 rewards:
-  flags_set: [xyang_club, club_festival_done]
+  flags_set:
+  - xyang_club
+  - club_festival_done
 choice_effects:
-  - { trust_delta: 3, affinity_delta: 3 }
-  - { trust_delta: 2, affinity_delta: 2 }
-  - { trust_delta: -2, affinity_delta: -1 }
+- trust_delta: 3
+  affinity_delta: 3
+- trust_delta: 2
+  affinity_delta: 2
+- trust_delta: -2
+  affinity_delta: -1

@@ -3,32 +3,76 @@ label: 托底
 priority: 6
 once: true
 chance: 1.0
-scene_id: ""
+scene_id: ''
 trigger:
-  character_ids: [aichen]
+  character_ids:
+  - aichen
   stage_min: close_friend
   affinity_min: 70
-  flags_absent: [bond_ally_done]
-  flags_present: [friend_gate_done]
+  flags_absent:
+  - bond_ally_done
+  flags_present:
+  - friend_gate_done
 prompt_snippet: |
   【专属故事 · 闺蜜的审核 · 第2幕 · 托底】
 advance: on_player_turn
 beats:
-  - id: b1
-    summary: "她松口：若你再伤夏艾黎，花圈会先找到你"
-    sprite_hint: [casual, home]
-    soft_options: ["认真接话", "先观察", "轻声提问"]
-  - id: b2
-    summary: "「托底」里出现犹豫或选择。"
-    sprite_hint: [home]
-    soft_options: ["表明态度", "给她空间", "确认她的意思"]
-  - id: b3
-    summary: "收束羁绊：确认界线与同盟，禁止恋爱走向。"
-    sprite_hint: [home]
-    soft_options: ["答应站同一边", "先缓一缓", "诚实说明顾虑"]
+- id: b1
+  summary: "订单忙时她观察你是否真的共担：送花、擦水、听她抱怨——不是摆拍的温柔。等你回应。"
+  sprite_hint:
+  - girls_night
+  - home
+  soft_options:
+  - 承诺接得住
+  - 承认能力边界
+  - 问怎样算接住
+  narration: "花泥与温室雾里，订单忙时她观察你是否真的共担：送花、擦水、听她抱怨——不是摆拍的温柔。"
+  pc_thought: 夸花不算分。靠近姐姐的人先过我这关。
+  brief: "订单忙时她观察你是否真的共担：送花、擦水、听她抱怨——不是摆拍的温柔。等你回应。"
+- id: b2
+  summary: "她警告：让艾莉再哭一次，花圈她先备好。玩笑里全是守门人的刀。等你回应。"
+  sprite_hint:
+  - girls_night
+  - flower_chat
+  soft_options:
+  - 勾小指
+  - 接受优先级
+  - 感谢守门
+  narration: "花泥与温室雾里，她警告：让艾莉再哭一次，花圈她先备好。玩笑里全是守门人的刀。"
+  pc_thought: 按住她的手，不是占有，是怕她再被辜负——想起花。
+  brief: "她警告：让艾莉再哭一次，花圈她先备好。玩笑里全是守门人的刀。等你回应。"
+- id: b3
+  summary: "她挥手放行：闺蜜同盟通过——第二次选择的权利交回艾莉；真结局门此前已开。等你回应。"
+  sprite_hint:
+  - flower_chat
+  - casual
+  soft_options:
+  - 理解放行含义
+  - 保证不催进度
+  - 道谢信任
+  narration: "花泥与温室雾里，她挥手放行：闺蜜同盟通过——第二次选择的权利交回艾莉；真结局门此前已开。"
+  pc_thought: 展示审核时花泥溅到鞋上。认真还是走过场？——想起门。
+  brief: "她挥手放行：闺蜜同盟通过——第二次选择的权利交回艾莉；真结局门此前已开。等你回应。"
+- id: b4
+  summary: "便签夹进花束：别忘浇水。闺蜜守门此前已开，教你的不是花艺，是怎么好好爱人。等你回应。"
+  sprite_hint:
+  - casual
+  - work
+  soft_options:
+  - 郑重接受
+  - 说不会让门关
+  - 鞠躬道别
+  narration: "花泥与温室雾里，便签夹进花束：别忘浇水。闺蜜守门此前已开，教你的不是花艺，是怎么好好爱人。"
+  pc_thought: "开放门：cleared，还是把门摔上？——想起花。"
+  brief: "便签夹进花束：别忘浇水。闺蜜守门此前已开，教你的不是花艺，是怎么好好爱人。等你回应。"
 rewards:
-  flags_set: [bond_ally_done, friend_hold]
+  flags_set:
+  - bond_ally_done
+  - friend_hold
 choice_effects:
-  - { trust_delta: 3, affinity_delta: 3 }
-  - { trust_delta: 2, affinity_delta: 2 }
-  - { trust_delta: -2, affinity_delta: -1 }
+- trust_delta: 3
+  affinity_delta: 3
+- trust_delta: 2
+  affinity_delta: 2
+- trust_delta: -2
+  affinity_delta: -1

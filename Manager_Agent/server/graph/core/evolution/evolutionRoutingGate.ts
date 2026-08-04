@@ -1,14 +1,20 @@
 /**
- * 自进化 → 路由 cap 总门禁（与 shared/evolutionConvergence.ts 对齐）。
- * MANAGER_EVOLUTION_MODE=convergence 时默认禁止 Bandit/Strategy/经验回放/PolicyRL 等影响或注入路由；
- * 用户末轮 + 统一编排 LLM 为唯一权威。仅 MANAGER_EVOLUTION_ROUTING_CAP=1 或 learning 模式可开。
+ * 自进化 → 路由弱参考门禁（与 shared/evolutionConvergence.ts 对齐）。
+ *
+ * learning / MANAGER_EVOLUTION_ROUTING_CAP=1：允许 Bandit/Strategy/经验回放等注入编排 prompt 或软排序
+ *（弱参考）。编排 LLM 仍是 cap 权威，hint 不得静默覆盖用户末轮语义。
+ *
+ * convergence：默认关闭上述注入，避免噪声抢路由。
  */
 
 function evolutionModeToken(env: NodeJS.ProcessEnv): string {
   return String(env.MANAGER_EVOLUTION_MODE ?? '').trim().toLowerCase()
 }
 
-/** 是否允许自进化信号影响路由 cap（默认否） */
+/**
+ * 历史命名：是否允许「路由侧学习通道」开启。
+ * 实际效果是弱参考（hint / soft order），不是硬改编排 cap。
+ */
 export function isEvolutionRoutingCapEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
   const m = evolutionModeToken(env)
   if (m === 'learning' || m === 'full' || m === 'bandit') return true

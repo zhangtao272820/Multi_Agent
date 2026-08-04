@@ -37,7 +37,7 @@ def main() -> int:
 
     char_ids = {
         "xiaoyou", "shizuku", "xingnai", "fengyin", "qingcai", "xiaoyang",
-        "qiansha", "yeyu", "jingliu", "aili", "miara", "shiori",
+        "qiansha", "jingliu", "aili", "miara", "shiori", "taotao",
     }
     covered: set[str] = set()
     for ev in events:

@@ -85,26 +85,42 @@ function coerceProfile(raw: unknown, fallbackSessionId = ''): UserProfile | null
   }
 }
 
-async function loadPgUserProfile(uid: string, env: NodeJS.ProcessEnv = process.env): Promise<UserProfile | null> {
+async function loadPgUserProfile(
+  uid: string,
+  tenantId?: string,
+  env: NodeJS.ProcessEnv = process.env
+): Promise<UserProfile | null> {
   if (!uid || !isPgProfileEnabled(env)) return null
+  const { normalizeTenantId } = await import('#agent-shared/tenantScope')
+  const tid = normalizeTenantId(tenantId, env)
   const key = resolveUserKey({ userId: uid })
   const res = await agentPgQuery<{ payload: unknown }>(
-    `SELECT payload FROM mgr_user_profiles WHERE user_key = $1 LIMIT 1`,
-    [key],
+    `SELECT payload FROM mgr_user_profiles WHERE user_key = $1 AND tenant_id = $2 LIMIT 1`,
+    [key, tid],
     env
   ).catch(() => null)
   const row = res?.rows?.[0]
   return coerceProfile(row?.payload)
 }
 
-async function savePgUserProfile(uid: string, profile: UserProfile, env: NodeJS.ProcessEnv = process.env) {
+async function savePgUserProfile(
+  uid: string,
+  profile: UserProfile,
+  tenantId?: string,
+  env: NodeJS.ProcessEnv = process.env
+) {
   if (!uid || !isPgProfileEnabled(env)) return
+  const { normalizeTenantId } = await import('#agent-shared/tenantScope')
+  const tid = normalizeTenantId(tenantId, env)
   const key = resolveUserKey({ userId: uid })
   await agentPgQuery(
-    `INSERT INTO mgr_user_profiles (user_key, payload, updated_at)
-     VALUES ($1, $2::jsonb, NOW())
-     ON CONFLICT (user_key) DO UPDATE SET payload = EXCLUDED.payload, updated_at = NOW()`,
-    [key, JSON.stringify(profile)],
+    `INSERT INTO mgr_user_profiles (user_key, payload, tenant_id, updated_at)
+     VALUES ($1, $2::jsonb, $3, NOW())
+     ON CONFLICT (user_key) DO UPDATE SET
+       payload = EXCLUDED.payload,
+       tenant_id = EXCLUDED.tenant_id,
+       updated_at = NOW()`,
+    [key, JSON.stringify(profile), tid],
     env
   ).catch(() => undefined)
 }
@@ -182,7 +198,8 @@ function applyRunToProfile(
 export async function loadUserProfile(
   policyDir: string,
   sessionId: string,
-  userId?: string
+  userId?: string,
+  tenantId?: string
 ): Promise<UserProfile | null> {
   const sid = String(sessionId || '').trim()
   if (!sid && !userId) return null
@@ -191,7 +208,7 @@ export async function loadUserProfile(
   const session = sid ? all[sessionKey(sid)] || legacy : undefined
   const uid = sanitizeUserId(userId || '')
   const fileUser = uid ? all[userKey(uid)] : undefined
-  const pgUser = uid ? await loadPgUserProfile(uid) : null
+  const pgUser = uid ? await loadPgUserProfile(uid, tenantId) : null
   // PG 为跨会话权威；文件仅作回退 / dual 镜像
   const user = pgUser || fileUser || null
   return mergeProfiles(session || null, user)
@@ -209,6 +226,7 @@ export async function updateUserProfileFromRun(
     probeRagHits?: number
     probeDbMatched?: boolean
     userId?: string
+    tenantId?: string
   }
 ) {
   const sid = String(sessionId || '').trim()
@@ -223,12 +241,12 @@ export async function updateUserProfileFromRun(
 
   if (uid) {
     const uk = userKey(uid)
-    const prevPg = await loadPgUserProfile(uid)
+    const prevPg = await loadPgUserProfile(uid, run.tenantId)
     const prev = prevPg || all[uk]
     const next = applyRunToProfile(prev, sid, uid, run)
     all[uk] = next
     if (shouldWritePostgres(backend)) {
-      await savePgUserProfile(uid, next)
+      await savePgUserProfile(uid, next, run.tenantId)
     }
   }
 
@@ -268,9 +286,10 @@ export function formatUserProfileBlock(profile: UserProfile | null, scope?: 'ses
 export async function buildUserProfileRecall(
   policyDir: string,
   sessionId: string,
-  userId?: string
+  userId?: string,
+  tenantId?: string
 ): Promise<{ text: string; profile: UserProfile | null }> {
-  const profile = await loadUserProfile(policyDir, sessionId, userId)
+  const profile = await loadUserProfile(policyDir, sessionId, userId, tenantId)
   const text = formatUserProfileBlock(profile, userId ? 'merged' : 'session')
   return { text, profile }
 }

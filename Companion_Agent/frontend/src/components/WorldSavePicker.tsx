@@ -80,12 +80,25 @@ export default function WorldSavePicker({
                   <strong>{s.label || s.protagonist_name || "旅人"}</strong>
                   <span className="muted">
                     {" "}
-                    · 第 {s.day_index} 天 · {PERIOD_CN[s.period] || s.period}
+                    · {s.date_label || `第 ${s.day_index} 天`}
+                    {" · "}
+                    {s.period_label || PERIOD_CN[s.period] || s.period}
+                    {s.season_label ? ` · ${s.season_label}` : ""}
                   </span>
                   <p className="gal-save-meta">
+                    {s.waypoint_label ? `${s.waypoint_label} · ` : ""}
                     相识 {s.bonds_met}/{s.bonds_total}
-                    {s.location_id ? ` · 在 ${s.location_id}` : ""}
+                    {s.location_label || s.location_id
+                      ? ` · 在 ${s.location_label || s.location_id}`
+                      : ""}
+                    {typeof s.money === "number" ? ` · 钱 ${s.money}` : ""}
                   </p>
+                  {s.focus_names && s.focus_names.length > 0 ? (
+                    <p className="gal-save-focus">焦点 · {s.focus_names.join("、")}</p>
+                  ) : null}
+                  {typeof s.unlocked_endings_count === "number" && s.unlocked_endings_count > 0 ? (
+                    <p className="gal-save-endings">已窥见结局 {s.unlocked_endings_count}</p>
+                  ) : null}
                 </div>
                 <span className="gal-save-date">
                   {s.updated_at?.slice(0, 16).replace("T", " ") || ""}

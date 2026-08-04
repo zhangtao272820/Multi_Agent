@@ -13,8 +13,10 @@ Write-Host "==> Frontend build" -ForegroundColor Cyan
 Push-Location frontend
 if (-not (Test-Path "node_modules")) {
   npm install
+  if ($LASTEXITCODE -ne 0) { Pop-Location; throw "npm install failed ($LASTEXITCODE)" }
 }
 npm run build
+if ($LASTEXITCODE -ne 0) { Pop-Location; throw "frontend build failed ($LASTEXITCODE)" }
 Pop-Location
 
 Write-Host "==> Python desktop deps" -ForegroundColor Cyan

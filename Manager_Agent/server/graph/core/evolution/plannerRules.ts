@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { effectiveUserTask } from '../text'
+import { syncEvoPolicyPromote, syncEvoPolicyShadowWrite } from './evoPolicySync'
 
 export type PlannerRule = {
   id: string
@@ -105,7 +106,11 @@ export async function loadShadowPlannerRules(policyDir: string): Promise<Planner
 
 export async function writeShadowPlannerRules(policyDir: string, set: PlannerRuleSet) {
   await fs.mkdir(policyDir, { recursive: true }).catch(() => undefined)
-  await fs.writeFile(path.join(policyDir, SHADOW_FILE), JSON.stringify({ ...set, active: false }, null, 2), 'utf8')
+  const body = { ...set, active: false }
+  await fs.writeFile(path.join(policyDir, SHADOW_FILE), JSON.stringify(body, null, 2), 'utf8')
+  await syncEvoPolicyShadowWrite(policyDir, 'planner_rules', body as unknown as Record<string, unknown>).catch(
+    () => undefined
+  )
 }
 
 export async function promoteShadowPlannerRules(
@@ -120,6 +125,9 @@ export async function promoteShadowPlannerRules(
   }
   const active = { ...shadow, active: true, source: 'promoted' as const, updatedAt: new Date().toISOString() }
   await fs.writeFile(path.join(policyDir, ACTIVE_FILE), JSON.stringify(active, null, 2), 'utf8')
+  await syncEvoPolicyPromote(policyDir, 'planner_rules', active as unknown as Record<string, unknown>, {
+    verifyOk: true
+  }).catch(() => undefined)
   return { promoted: true, message: `已晋级 planner 规则 v${active.version}` }
 }
 

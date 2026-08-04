@@ -3,32 +3,76 @@ label: 平等
 priority: 6
 once: true
 chance: 1.0
-scene_id: ""
+scene_id: ''
 trigger:
-  character_ids: [fengyin]
+  character_ids:
+  - fengyin
   stage_min: close_friend
   affinity_min: 78
-  flags_absent: [fy_equal]
-  flags_present: [fy_knock]
+  flags_absent:
+  - fy_equal
+  flags_present:
+  - fy_knock
 prompt_snippet: |
   【专属故事 · 同居屋檐下 · 第2幕 · 平等】
 advance: on_player_turn
 beats:
-  - id: b1
-    summary: "校园跑步后她放慢步子：别把她当成要被照顾的小孩。"
-    sprite_hint: [campus_run, casual]
-    soft_options: ["认真听完", "否认自己有架子", "岔开话题"]
-  - id: b2
-    summary: "她要平等——同屋、同责；告白或继续当家人，她都要你说清楚。"
-    sprite_hint: [date, casual]
-    soft_options: ["承认把她当平等的人", "说还没准备好", "问她想要什么"]
-  - id: b3
-    summary: "收束：她要一句不居高临下的回应；你可以告白，也可先守界线。"
-    sprite_hint: [date, casual]
-    soft_options: ["坦白心意", "约定先做家人", "需要再想想"]
+- id: b1
+  summary: "客厅里她收起玩笑：想被当成年人，不是「住一起就方便」的选项。等你回应。"
+  sprite_hint:
+  - home
+  - casual
+  soft_options:
+  - 承认曾图方便
+  - 说尊重她的独立
+  - 问怎样才算平视
+  narration: "门轴与耳机低音里，客厅里她收起玩笑：想被当成年人，不是「住一起就方便」的选项。"
+  pc_thought: 先敲门才是喜欢。不敲，就只是同屋檐的室友。
+  brief: "客厅里她收起玩笑：想被当成年人，不是「住一起就方便」的选项。等你回应。"
+- id: b2
+  summary: "她强调：喜欢可以，但每次进入她的世界，都要先敲门——气氛忽然认真起来。等你回应。"
+  sprite_hint:
+  - school
+  - date
+  soft_options:
+  - 承诺先敲门
+  - 把告白说清楚
+  - 接受被拒绝的可能
+  narration: "门轴与耳机低音里，她强调：喜欢可以，但每次进入她的世界，都要先敲门——气氛忽然认真起来。"
+  pc_thought: 隔墙有没有声响？书璃那边的夜灯，我装没看见。
+  brief: "她强调：喜欢可以，但每次进入她的世界，都要先敲门——气氛忽然认真起来。等你回应。"
+- id: b3
+  summary: "门框边她点头：你若愿意平视，她也愿意把喜欢说出口——气氛忽然认真起来。等你回应。"
+  sprite_hint:
+  - date
+  - home
+  soft_options:
+  - 平视告白
+  - 回握她的手
+  - 约正式约会出门
+  narration: "门轴与耳机低音里，门框边她点头：你若愿意平视，她也愿意把喜欢说出口——气氛忽然认真起来。"
+  pc_thought: 冬天门缝漏风。边界比暖气更重要。
+  brief: "门框边她点头：你若愿意平视，她也愿意把喜欢说出口——气氛忽然认真起来。等你回应。"
+- id: b4
+  summary: 同一屋檐下，她把房门钥匙放回自己口袋——界线仍在，心却开了。等你回应。
+  sprite_hint:
+  - casual
+  - date
+  soft_options:
+  - 尊重钥匙归属
+  - 说明天还敲门
+  - 轻轻碰拳
+  narration: 门轴与耳机低音里，同一屋檐下，她把房门钥匙放回自己口袋——界线仍在，心却开了。
+  pc_thought: 春檐下她等我敲门——我别用钥匙直接推。
+  brief: 同一屋檐下，她把房门钥匙放回自己口袋——界线仍在，心却开了。等你回应。
 rewards:
-  flags_set: [fy_equal, confessed]
+  flags_set:
+  - fy_equal
+  - confessed
 choice_effects:
-  - { trust_delta: 3, affinity_delta: 3 }
-  - { trust_delta: 2, affinity_delta: 2 }
-  - { trust_delta: -2, affinity_delta: -1 }
+- trust_delta: 3
+  affinity_delta: 3
+- trust_delta: 2
+  affinity_delta: 2
+- trust_delta: -2
+  affinity_delta: -1

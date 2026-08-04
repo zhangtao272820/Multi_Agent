@@ -27,6 +27,10 @@ class EventTrigger(BaseModel):
     flags_absent: list[str] = Field(default_factory=list)
     character_ids: list[str] = Field(default_factory=list)
     base_ids: list[str] = Field(default_factory=list)
+    # 社会式日历门：须已到达该航点（顺序）；可选季节/节日精确匹配
+    waypoint_min: str = ""
+    season: str = ""
+    festival: str = ""
 
 
 class ChoiceEffect(BaseModel):
@@ -38,10 +42,18 @@ class ChoiceEffect(BaseModel):
 
 
 class StoryBeat(BaseModel):
-    """专属故事幕单拍；进 prompt 只用 summary（≤80 字），不塞整幕。"""
+    """专属故事幕单拍。
+
+    - narration / pc_thought：玩家 UI 叙事层（0 Token 给女主）
+    - brief：进女主 prompt（≤80）；空则回退 summary
+    - summary：兼容旧幕；新稿与 brief 对齐
+    """
 
     id: str = ""
     summary: str = ""
+    narration: str = ""
+    pc_thought: str = ""
+    brief: str = ""
     sprite_hint: list[str] = Field(default_factory=list)
     soft_options: list[str] = Field(default_factory=list)
 
@@ -58,7 +70,7 @@ class GameEvent(BaseModel):
     prompt_snippet: str = ""
     """结构化节拍；有则运行时只注入当前拍。无则回退 prompt_snippet。"""
     beats: list[StoryBeat] = Field(default_factory=list)
-    """on_player_turn=每玩家一轮推进一拍；on_choice=点选项才推进（预留）。"""
+    """on_player_turn=每玩家一轮推进一拍；on_choice=点选项才推进。"""
     advance: str = "on_player_turn"
     rewards: dict[str, Any] = Field(default_factory=dict)
     choice_effects: list[ChoiceEffect] = Field(default_factory=list)
@@ -106,6 +118,9 @@ def _matches_trigger(
     state: RelationshipState,
     character_id: str,
     base_id: str = "",
+    day_index: int | None = None,
+    waypoint_id: str = "",
+    waypoints_reached: list[str] | None = None,
 ) -> bool:
     t = event.trigger
     flags = state.flags or {}
@@ -126,7 +141,11 @@ def _matches_trigger(
         return False
     if t.stage_max and _stage_rank(state.stage_id) > _stage_rank(t.stage_max):
         return False
-    if t.affinity_min is not None and state.affinity < t.affinity_min:
+
+    from .route_difficulty import effective_story_affinity_min
+
+    aff_min = effective_story_affinity_min(character_id, t.affinity_min)
+    if aff_min is not None and state.affinity < aff_min:
         return False
     if t.affinity_max is not None and state.affinity > t.affinity_max:
         return False
@@ -141,6 +160,34 @@ def _matches_trigger(
     for flag in t.flags_absent:
         if flags.get(flag):
             return False
+
+    # 日历/航点门
+    info: dict[str, Any] = {}
+    if day_index is not None:
+        try:
+            from .china_calendar import day_info
+
+            info = day_info(day_index)
+        except Exception:
+            info = {}
+    if t.season:
+        if str(info.get("season") or "").lower() != str(t.season).lower():
+            return False
+    if t.festival:
+        fest = str(info.get("festival") or "")
+        need = str(t.festival).strip()
+        if need and need not in fest and fest != need:
+            return False
+    if t.waypoint_min:
+        from .season_waypoints import has_reached_ids
+
+        if not has_reached_ids(
+            waypoint_id=waypoint_id or "q_summer_start",
+            waypoints_reached=list(waypoints_reached or []),
+            target_id=t.waypoint_min,
+        ):
+            return False
+
     return True
 
 
@@ -150,6 +197,8 @@ def pick_active_event(
     character_id: str,
     base_id: str = "",
     day_index: int | None = None,
+    waypoint_id: str = "",
+    waypoints_reached: list[str] | None = None,
 ) -> GameEvent | None:
     festival = ""
     if day_index is not None:
@@ -162,7 +211,15 @@ def pick_active_event(
 
     matched: list[GameEvent] = []
     for event in load_events():
-        if not _matches_trigger(event, state=state, character_id=character_id, base_id=base_id):
+        if not _matches_trigger(
+            event,
+            state=state,
+            character_id=character_id,
+            base_id=base_id,
+            day_index=day_index,
+            waypoint_id=waypoint_id,
+            waypoints_reached=waypoints_reached,
+        ):
             continue
         matched.append(event)
 
@@ -237,7 +294,22 @@ def choice_effect_for_index(event: GameEvent | None, index: int) -> ChoiceEffect
 
 
 def event_has_branch_choices(event: GameEvent | None) -> bool:
-    return bool(event and event.choice_effects)
+    """无 beats 的旧分支事件才走 choice_effects；有 beats 时由 soft_options 接管。"""
+    if not event or not event.choice_effects:
+        return False
+    if event.beats:
+        return False
+    return True
+
+
+def get_event_by_id(event_id: str) -> GameEvent | None:
+    eid = (event_id or "").strip()
+    if not eid:
+        return None
+    for event in load_events():
+        if event.id == eid:
+            return event
+    return None
 
 
 def public_events_catalog() -> list[dict[str, Any]]:

@@ -19,6 +19,10 @@ export type GalleryChar = {
   appearance?: string;
   emotions: string[];
   outfits?: string[];
+  unlocked_outfits?: string[];
+  locked_outfits?: string[];
+  outfit_locks?: Record<string, string>;
+  met?: boolean;
   thumb?: string;
   pick: string;
   note?: string;
@@ -30,17 +34,22 @@ type GalleryPayload = {
   main_target: number;
   draft_updated_at?: string;
   applied?: boolean;
+  mode?: string;
+  save_id?: string;
 };
 
 type Props = {
   onBack: () => void;
-  /** browse = 只看立绘；pick = 选角台（开发/调配） */
+  /** browse = 玩家图鉴；pick = 选角台（开发） */
   mode?: "browse" | "pick";
+  saveId?: string | null;
+  userId?: string | null;
 };
 
 const KIND_OPTS = [
   { id: "romance", label: "主候选" },
-  { id: "neutral", label: "中立" },
+  { id: "linked", label: "关系向" },
+  { id: "neutral", label: "关系向(旧)" },
 ] as const;
 
 const EMOTION_LABELS: Record<string, string> = {
@@ -88,6 +97,30 @@ const OUTFIT_LABELS: Record<string, string> = {
   max_over_shoulder: "魅力·回眸露背",
   max_sofa_lie: "魅力·沙发半躺",
   max_ribbon_cover: "魅力·缎带遮挡",
+  bath_foam: "私密·浴缸泡沫",
+  shower_foam: "私密·淋浴泡沫",
+  foam_chest: "私密·泡沫捂胸",
+  bath_scrub: "私密·擦背",
+  pr_bath_foam: "真人浴·浴缸泡沫",
+  pr_shower_foam: "真人浴·淋浴泡沫",
+  pr_foam_chest: "真人浴·泡沫捂胸",
+  pr_bath_scrub: "真人浴·擦背",
+  pr_wrap_low: "真人浴·低领裹身",
+  pr_foam_slide: "真人浴·泡沫下滑",
+  pr_tub_lean: "真人浴·俯身桶沿",
+  pr_steam_close: "真人浴·近景水雾",
+  pr_kneel_foam: "真人浴·跪坐仰视",
+  pr_wet_cling: "真人浴·湿裹贴身",
+  pr_shoulder_slip: "真人浴·肩带将落",
+  pr_back_glance: "真人浴·湿背回眸",
+  pr_edge_sit: "真人浴·坐桶沿",
+  pr_rinse_up: "真人浴·举手冲洗",
+  pr_foam_hug: "真人浴·环抱泡沫",
+  q_cleavage: "Q版·性感",
+  ad_bra_set: "广告·成套内衣",
+  ad_lace_campaign: "广告·蕾丝企划",
+  ad_silk_lookbook: "广告·丝质 lookbook",
+  ad_editorial: "广告·杂志写真",
   end_lingerie_set: "结局·成套内衣",
   end_deep_v: "结局·深V",
   end_lace_bra: "结局·蕾丝文胸",
@@ -135,6 +168,45 @@ function outfitLabel(id: string): string {
   return OUTFIT_LABELS[id] || id.replace(/_/g, " ");
 }
 
+function outfitTier(id: string): "base" | "season" | "signature" | "intimate" | "other" {
+  const root = id.replace(/_(sleeping|eating|working_focus)$/, "");
+  if (
+    ["casual", "home", "work", "school", "date", "rain", "overtime", "sleepy", "sick", "party"].includes(
+      root,
+    ) ||
+    root.startsWith("menu_")
+  ) {
+    return "base";
+  }
+  if (root.startsWith("season_") || root.startsWith("festival_")) return "season";
+  if (
+    root.startsWith("intimate_") ||
+    root.startsWith("max_") ||
+    root.startsWith("bath_") ||
+    root.startsWith("shower_") ||
+    root.startsWith("foam_") ||
+    root.startsWith("pr_") ||
+    root.startsWith("end_") ||
+    root.startsWith("ad_") ||
+    root.startsWith("q_") ||
+    ["silk_slip", "after_bath", "morning_shirt", "lace_night", "towel_wrap", "backless_home", "bedside_hug", "window_night", "bridal", "maternity"].includes(
+      root,
+    )
+  ) {
+    return "intimate";
+  }
+  if (["casual", "home", "work"].some((b) => root.startsWith(`${b}_`))) return "base";
+  return "signature";
+}
+
+const TIER_LABELS: Record<string, string> = {
+  base: "基础换装",
+  season: "季节",
+  signature: "签名",
+  intimate: "亲密 / 特写",
+  other: "其他",
+};
+
 type ViewerState = {
   cid: string;
   emotion: string;
@@ -145,7 +217,12 @@ type ViewerState = {
   panY: number;
 };
 
-export default function SpriteGalleryScreen({ onBack, mode = "browse" }: Props) {
+export default function SpriteGalleryScreen({
+  onBack,
+  mode = "browse",
+  saveId = null,
+  userId = null,
+}: Props) {
   const pickMode = mode === "pick";
   const [data, setData] = useState<GalleryPayload | null>(null);
   const [picks, setPicks] = useState<Record<string, string>>({});
@@ -161,7 +238,11 @@ export default function SpriteGalleryScreen({ onBack, mode = "browse" }: Props) 
     setBusy(true);
     setMsg("");
     try {
-      const r = await fetch("/api/sprites/gallery");
+      const qs = new URLSearchParams();
+      qs.set("mode", pickMode ? "pick" : "browse");
+      if (userId) qs.set("user_id", userId);
+      if (saveId) qs.set("save_id", saveId);
+      const r = await fetch(`/api/sprites/gallery?${qs.toString()}`);
       if (!r.ok) throw new Error("加载失败");
       const payload = (await r.json()) as GalleryPayload;
       setData(payload);
@@ -175,7 +256,7 @@ export default function SpriteGalleryScreen({ onBack, mode = "browse" }: Props) 
     } finally {
       setBusy(false);
     }
-  }, []);
+  }, [pickMode, saveId, userId]);
 
   useEffect(() => {
     void load();
@@ -199,6 +280,7 @@ export default function SpriteGalleryScreen({ onBack, mode = "browse" }: Props) 
   }, [viewer, data]);
 
   const openViewer = (c: GalleryChar) => {
+    if (!pickMode && c.met === false) return;
     const emos = c.emotions?.length ? c.emotions : ["neutral"];
     setChromeHidden(false);
     setViewer({
@@ -393,7 +475,7 @@ export default function SpriteGalleryScreen({ onBack, mode = "browse" }: Props) 
   };
 
   const kindLabel = (kind: string) =>
-    kind === "romance" ? "恋爱" : kind === "neutral" ? "中立" : "NPC";
+    kind === "romance" ? "恋爱" : kind === "linked" || kind === "neutral" ? "关系向" : "NPC";
 
   return (
     <div className="gal-sprite-gallery">
@@ -413,8 +495,10 @@ export default function SpriteGalleryScreen({ onBack, mode = "browse" }: Props) 
 
       <p className="gal-gallery-blurb">
         {pickMode
-          ? "调配主候选 / 中立 / NPC。先保存草稿，确认后再应用选角（不改立绘文件）。"
-          : "点角色全屏查看立绘；滚轮缩放、拖拽平移；H 隐藏面板，F 适配窗口。"}
+          ? "调配主候选 / 关系向 / NPC。先保存草稿，确认后再应用选角（不改立绘文件）。"
+          : saveId
+            ? "按当前存档解锁服装与相识角色；未相识为剪影。滚轮缩放、拖拽平移；H 隐藏面板。"
+            : "浏览立绘；载入存档后可按进度解锁服装。滚轮缩放、拖拽平移；H 隐藏面板。"}
       </p>
 
       <div className="gal-sprite-toolbar">
@@ -423,7 +507,8 @@ export default function SpriteGalleryScreen({ onBack, mode = "browse" }: Props) 
             [
               ["all", "全部"],
               ["romance", "恋爱"],
-              ["neutral", "中立"],
+              ["linked", "关系向"],
+              ["neutral", "关系向(旧)"],
             ] as const
           ).map(([id, label]) => (
             <button
@@ -459,33 +544,57 @@ export default function SpriteGalleryScreen({ onBack, mode = "browse" }: Props) 
       <div className="gal-sprite-grid">
         {rows.map((c) => {
           const kind = picks[c.character_id] || c.pick;
-          const thumb = c.thumb || spriteUrl(c.character_id, "neutral");
+          const locked = !pickMode && c.met === false;
+          const thumb = locked ? "" : c.thumb || spriteUrl(c.character_id, "neutral");
+          const unlockedN = (c.unlocked_outfits || []).length;
+          const totalN = (c.outfits || []).length;
           return (
             <article
               key={c.character_id}
-              className={`gal-sprite-card gal-sprite-card--${kind}`}
+              className={`gal-sprite-card gal-sprite-card--${kind}${locked ? " gal-sprite-card--locked" : ""}`}
               style={{ ["--gal-card-accent" as string]: c.theme_color || "#fda4c8" }}
             >
-              <button type="button" className="gal-sprite-card-portrait" onClick={() => openViewer(c)}>
-                <img
-                  src={thumb}
-                  alt={c.name}
-                  loading="lazy"
-                  decoding="async"
-                  onError={(e) => {
-                    e.currentTarget.src = spriteUrl(c.character_id, "neutral");
-                  }}
-                />
-                <span className="gal-sprite-card-zoom-hint">全屏查看</span>
+              <button
+                type="button"
+                className="gal-sprite-card-portrait"
+                disabled={locked}
+                onClick={() => openViewer(c)}
+              >
+                {locked ? (
+                  <span className="gal-sprite-card-silhouette" aria-hidden />
+                ) : (
+                  <img
+                    src={thumb}
+                    alt={c.name}
+                    loading="lazy"
+                    decoding="async"
+                    onError={(e) => {
+                      e.currentTarget.src = spriteUrl(c.character_id, "neutral");
+                    }}
+                  />
+                )}
+                <span className="gal-sprite-card-zoom-hint">
+                  {locked ? "尚未相识" : "全屏查看"}
+                </span>
               </button>
               <div className="gal-sprite-card-meta">
                 <strong>{c.name}</strong>
                 <span className="muted">
-                  {kindLabel(kind)} · {c.role_to_pc || "—"}
+                  {kindLabel(kind)} · {locked ? "？？？" : c.role_to_pc || "—"}
                 </span>
-                <em>{c.role_hint || c.appearance || ""}</em>
-                <button type="button" className="gal-sprite-card-open" onClick={() => openViewer(c)}>
-                  查看立绘
+                {!locked ? <em>{c.role_hint || c.appearance || ""}</em> : <em>见面交谈后才会揭开面纱</em>}
+                {!locked && totalN > 0 ? (
+                  <span className="gal-sprite-unlock-count">
+                    服装 {unlockedN}/{totalN}
+                  </span>
+                ) : null}
+                <button
+                  type="button"
+                  className="gal-sprite-card-open"
+                  disabled={locked}
+                  onClick={() => openViewer(c)}
+                >
+                  {locked ? "尚未相识" : "查看立绘"}
                 </button>
               </div>
               {pickMode && (
@@ -625,35 +734,95 @@ export default function SpriteGalleryScreen({ onBack, mode = "browse" }: Props) 
 
                   <section>
                     <h3>服装</h3>
-                    <div className="gal-sprite-chip-row gal-sprite-chip-row--outfits">
-                      <button
-                        type="button"
-                        className={`gal-sprite-chip${viewer.outfit === "" ? " gal-sprite-chip--active" : ""}`}
-                        onClick={() => patchViewer({ outfit: "", panX: 0, panY: 0 })}
-                      >
-                        <img src={spriteUrl(viewing.character_id, viewer.emotion)} alt="" loading="lazy" />
-                        <span>基图</span>
-                      </button>
-                      {(viewing.outfits || []).map((outfit) => (
+                    {(["base", "season", "signature", "intimate"] as const).map((tier) => {
+                      const locks = viewing.outfit_locks || {};
+                      const unlockedSet = new Set(viewing.unlocked_outfits || []);
+                      const all = viewing.outfits || [];
+                      const inTier = all.filter((o) => outfitTier(o) === tier);
+                      if (inTier.length === 0) return null;
+                      const display = pickMode
+                        ? inTier
+                        : [
+                            ...inTier.filter((o) => unlockedSet.has(o)),
+                            ...inTier.filter((o) => !unlockedSet.has(o)).slice(0, 6),
+                          ];
+                      if (display.length === 0) return null;
+                      return (
+                        <div key={tier} className="gal-sprite-outfit-tier">
+                          <h4>{TIER_LABELS[tier]}</h4>
+                          <div className="gal-sprite-chip-row gal-sprite-chip-row--outfits">
+                            {tier === "base" ? (
+                              <button
+                                type="button"
+                                className={`gal-sprite-chip${viewer.outfit === "" ? " gal-sprite-chip--active" : ""}`}
+                                onClick={() => patchViewer({ outfit: "", panX: 0, panY: 0 })}
+                              >
+                                <img
+                                  src={spriteUrl(viewing.character_id, viewer.emotion)}
+                                  alt=""
+                                  loading="lazy"
+                                />
+                                <span>基图</span>
+                              </button>
+                            ) : null}
+                            {display.map((outfit) => {
+                              const isLocked = !pickMode && !unlockedSet.has(outfit);
+                              return (
+                                <button
+                                  key={outfit}
+                                  type="button"
+                                  className={`gal-sprite-chip${viewer.outfit === outfit ? " gal-sprite-chip--active" : ""}${isLocked ? " gal-sprite-chip--locked" : ""}`}
+                                  disabled={isLocked}
+                                  onClick={() => {
+                                    if (isLocked) return;
+                                    patchViewer({ outfit, panX: 0, panY: 0 });
+                                  }}
+                                  title={isLocked ? locks[outfit] || "尚未解锁" : outfit}
+                                >
+                                  {isLocked ? (
+                                    <span className="gal-sprite-chip-silhouette" aria-hidden />
+                                  ) : (
+                                    <img
+                                      src={spriteUrl(viewing.character_id, viewer.emotion, outfit)}
+                                      alt=""
+                                      loading="lazy"
+                                      onError={(e) => {
+                                        e.currentTarget.src = spriteUrl(
+                                          viewing.character_id,
+                                          "neutral",
+                                          outfit,
+                                        );
+                                      }}
+                                    />
+                                  )}
+                                  <span>
+                                    {isLocked
+                                      ? locks[outfit] || "未解锁"
+                                      : outfitLabel(outfit)}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {(viewing.outfits || []).length === 0 ? (
+                      <div className="gal-sprite-chip-row gal-sprite-chip-row--outfits">
                         <button
-                          key={outfit}
                           type="button"
-                          className={`gal-sprite-chip${viewer.outfit === outfit ? " gal-sprite-chip--active" : ""}`}
-                          onClick={() => patchViewer({ outfit, panX: 0, panY: 0 })}
-                          title={outfit}
+                          className={`gal-sprite-chip${viewer.outfit === "" ? " gal-sprite-chip--active" : ""}`}
+                          onClick={() => patchViewer({ outfit: "", panX: 0, panY: 0 })}
                         >
                           <img
-                            src={spriteUrl(viewing.character_id, viewer.emotion, outfit)}
+                            src={spriteUrl(viewing.character_id, viewer.emotion)}
                             alt=""
                             loading="lazy"
-                            onError={(e) => {
-                              e.currentTarget.src = spriteUrl(viewing.character_id, "neutral", outfit);
-                            }}
                           />
-                          <span>{outfitLabel(outfit)}</span>
+                          <span>基图</span>
                         </button>
-                      ))}
-                    </div>
+                      </div>
+                    ) : null}
                   </section>
 
                   {(viewing.role_hint || viewing.appearance) && (

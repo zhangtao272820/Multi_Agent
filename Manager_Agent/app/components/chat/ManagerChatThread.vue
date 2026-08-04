@@ -62,6 +62,8 @@ const {
   resultItemClasses,
   resultKindLabel,
   turnSearchSources,
+  turnUnifiedCiteSources,
+  citeSourcesForMarkdown,
   webSourceHost,
   mediaForReply,
   resolveMediaUrl,
@@ -516,22 +518,42 @@ watch(streamingSynthText, async () => {
               </header>
               <div class="reply-panel-body" @click="onReplyMarkdownClick">
 
-              <div v-if="turnSearchSources(t).length" class="reply-web-read-bar">
-                <span class="reply-web-read-icon" aria-hidden="true">🌐</span>
-                <span class="reply-web-read-label">已阅读 {{ turnSearchSources(t).length }} 个来源</span>
-                <span class="reply-web-read-chips">
-                  <a
-                    v-for="(hit, wi) in turnSearchSources(t).slice(0, 8)"
-                    :key="`web-${wi}`"
-                    class="reply-web-read-chip"
-                    :href="hit.url || undefined"
-                    :title="hit.title"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    @click.stop
-                  >{{ webSourceHost(hit) }}</a>
-                </span>
-              </div>
+              <details
+                v-if="turnUnifiedCiteSources(t).length"
+                class="reply-sources-panel"
+              >
+                <summary class="reply-sources-summary">
+                  <span class="reply-web-read-icon" aria-hidden="true">依据</span>
+                  <span class="reply-web-read-label"
+                    >已阅读 {{ turnUnifiedCiteSources(t).length }} 个来源</span
+                  >
+                </summary>
+                <ol class="reply-source-cards">
+                  <li
+                    v-for="src in turnUnifiedCiteSources(t)"
+                    :key="`cite-${src.index}-${src.title.slice(0, 24)}`"
+                    class="reply-source-card"
+                  >
+                    <span class="reply-source-index">[{{ src.index }}]</span>
+                    <div class="reply-source-body">
+                      <a
+                        v-if="src.url"
+                        class="reply-source-title"
+                        :href="src.url"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        @click.stop
+                        >{{ src.title }}</a
+                      >
+                      <span v-else class="reply-source-title">{{ src.title }}</span>
+                      <span v-if="src.url" class="reply-source-host">{{
+                        webSourceHost({ title: src.title, url: src.url })
+                      }}</span>
+                      <p v-if="src.excerpt" class="reply-source-excerpt">{{ src.excerpt }}</p>
+                    </div>
+                  </li>
+                </ol>
+              </details>
 
               <div v-if="mediaForReply(r, t).videos.length" class="media-block media-block-grid">
                 <div v-for="(v, vi) in mediaForReply(r, t).videos" :key="`v-${vi}`" class="media-card media-card-video">
@@ -581,7 +603,7 @@ watch(streamingSynthText, async () => {
               <section v-if="replyMarkdownBody(r.text, t)" class="reply-primary-section reply-article" aria-label="回复正文">
                 <div
                   class="reply-summary md-body reply-chat"
-                  v-html="renderAssistantMarkdown(replyMarkdownBody(r.text, t), turnSearchSources(t))"
+                  v-html="renderAssistantMarkdown(replyMarkdownBody(r.text, t), citeSourcesForMarkdown(t))"
                 ></div>
               </section>
 
@@ -754,32 +776,20 @@ watch(streamingSynthText, async () => {
                 {{ t.userFacing.badgeLabel || (t.userFacing.badge === 'evidence_rejected' ? '无证据拒答' : '需补充信息') }}
               </div>
 
-              <!-- 依据与引用：用户视图若已有「已阅读 N 来源」条则不重复展开，避免与顶栏/文末来源叠三层 -->
+              <!-- 开发视图保留知识库/联网分栏；用户视图统一走上方「依据与来源」 -->
               <details
-                v-if="
-                  t.ragEvidence.length ||
-                  (t.userFacing?.sources?.length &&
-                    !(thoughtViewMode === 'user' && turnSearchSources(t).length))
-                "
+                v-if="thoughtViewMode === 'developer' && t.ragEvidence.length"
                 class="reply-evidence-first"
-                :open="thoughtViewMode !== 'user' || !turnSearchSources(t).length"
+                open
               >
                 <summary>
                   依据与引用
-                  <span class="reply-attachments-badge">
-                    {{ t.ragEvidence.length || t.userFacing?.sources?.length || 0 }}
-                  </span>
+                  <span class="reply-attachments-badge">{{ t.ragEvidence.length }}</span>
                 </summary>
-                <ul v-if="t.ragEvidence.length" class="spring-search-sources-list">
+                <ul class="spring-search-sources-list">
                   <li v-for="(hit, ri) in t.ragEvidence" :key="'rag-' + ri">
                     <strong>{{ hit.source || '文档' }}</strong>
                     <span v-if="hit.excerpt" class="rag-evidence-excerpt">{{ hit.excerpt.slice(0, 160) }}</span>
-                  </li>
-                </ul>
-                <ul v-else-if="t.userFacing?.sources?.length" class="spring-search-sources-list">
-                  <li v-for="(s, si) in t.userFacing.sources" :key="'src-' + si">
-                    <a v-if="s.url" :href="s.url" target="_blank" rel="noopener">{{ s.title }}</a>
-                    <span v-else>{{ s.title }}</span>
                   </li>
                 </ul>
               </details>
@@ -844,7 +854,7 @@ watch(streamingSynthText, async () => {
               </details>
 
               <details
-                v-if="t.userFacing?.sources?.length || replyHasCollapsibleSources(r.text, t)"
+                v-if="thoughtViewMode === 'developer' && (t.userFacing?.sources?.length || replyHasCollapsibleSources(r.text, t))"
                 class="reply-attachments"
               >
                 <summary class="reply-attachments-summary">
@@ -873,6 +883,10 @@ watch(streamingSynthText, async () => {
                   </details>
                 </div>
               </details>
+
+              <div v-else-if="thoughtViewMode === 'user'" class="reply-toolbar reply-toolbar-inline">
+                <button type="button" class="reply-tool-btn" @click="downloadMarkdown(`report_${t.id}_${idx}.md`, r.text)">下载完整回复 .md</button>
+              </div>
 
               <p
                 v-if="

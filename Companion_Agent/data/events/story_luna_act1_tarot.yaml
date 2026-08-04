@@ -3,31 +3,62 @@ label: 休息室塔罗
 priority: 5
 once: true
 chance: 1.0
-scene_id: ""
+scene_id: ''
 trigger:
-  character_ids: [luna]
+  character_ids:
+  - luna
   stage_min: friend
   affinity_min: 55
-  flags_absent: [ln_tarot]
+  flags_absent:
+  - ln_tarot
 prompt_snippet: |
   【专属故事 · 深夜魔女的咖啡 · 第1幕 · 休息室塔罗】
 advance: on_player_turn
 beats:
-  - id: b1
-    summary: "店休时段，她洗牌：说只是玩玩，眼神却比牌面认真。"
-    sprite_hint: [break_tarot, work]
-    soft_options: ["抽一张", "先看她洗牌", "说不信这个"]
-  - id: b2
-    summary: "牌意偏暧昧；她用半真半假的口吻解读你，又怕自己说太满。"
-    sprite_hint: [break_tarot, astro_apron]
-    soft_options: ["追问她自己怎么看", "开玩笑破功", "安静听完"]
-  - id: b3
-    summary: "收牌时她塞你一枚小护符：不是绑定，是「今晚可以再来」的许可。"
-    sprite_hint: [work, casual]
-    soft_options: ["收下并道谢", "问意义", "说改天再聊牌"]
+- id: b1
+  summary: "夜班柜台她摊开塔罗：抽到恋人牌时，耳尖先红了——气氛忽然认真起来。等你回应。"
+  sprite_hint:
+  - work
+  - casual
+  soft_options:
+  - 问是营业话术吗
+  - 认真听解牌
+  - 笑她破功
+  narration: "夜班柜台她摊开塔罗：抽到恋人牌时，耳尖先红了——气氛忽然认真起来。"
+  pc_thought: 月咒护符像玩笑。当真时，班次就不是班次。
+  brief: "夜班柜台她摊开塔罗：抽到恋人牌时，耳尖先红了——气氛忽然认真起来。等你回应。"
+- id: b2
+  summary: "她收起戏腔：预言可以假，但想被你留下的心情是真的——气氛忽然认真起来。等你回应。"
+  sprite_hint:
+  - home
+  - work
+  soft_options:
+  - 说想留下
+  - 问怕被看穿什么
+  - 买一杯续摊
+  narration: "塔罗牌与夜班灯里，她收起戏腔：预言可以假，但想被你留下的心情是真的——气氛忽然认真起来。"
+  pc_thought: 星夜柜台很静。假护符一拆，她还肯看我吗？
+  brief: "她收起戏腔：预言可以假，但想被你留下的心情是真的——气氛忽然认真起来。等你回应。"
+- id: b3
+  summary: 打烊灯暗；她把护符推过来——不是诅咒，是想被记住——气氛忽然认真起来。等你回应。
+  sprite_hint:
+  - casual
+  - date
+  soft_options:
+  - 收下护符
+  - 问下次什么班
+  - 保证会再来
+  narration: 塔罗牌与夜班灯里，打烊灯暗；她把护符推过来——不是诅咒，是想被记住——气氛忽然认真起来。
+  pc_thought: 冬塔罗冷。我想听解读，也想听她本人。
+  brief: 打烊灯暗；她把护符推过来——不是诅咒，是想被记住——气氛忽然认真起来。等你回应。
 rewards:
-  flags_set: [ln_tarot, witch_charm_done]
+  flags_set:
+  - ln_tarot
+  - witch_charm_done
 choice_effects:
-  - { trust_delta: 3, affinity_delta: 3 }
-  - { trust_delta: 2, affinity_delta: 2 }
-  - { trust_delta: -2, affinity_delta: -1 }
+- trust_delta: 3
+  affinity_delta: 3
+- trust_delta: 2
+  affinity_delta: 2
+- trust_delta: -2
+  affinity_delta: -1

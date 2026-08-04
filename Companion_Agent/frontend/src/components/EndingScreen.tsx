@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { EndingInfo } from "../types";
-import { spriteUrl } from "../hooks/useBgm";
+import { menuSpriteUrl, spriteCandidates, spriteUrl } from "../spriteUrl";
 
 type Props = {
   ending: EndingInfo;
@@ -15,9 +15,29 @@ function resolveSprite(ending: EndingInfo, characterId?: string) {
   const present = ending.presentation;
   const sp = present?.sprite;
   const cid = sp?.character_id || characterId || ending.character_ids?.[0] || "";
-  const emotion = sp?.emotion || (ending.type === "bad" ? "sad" : ending.type === "secret" ? "love" : "happy");
+  const emotion = sp?.emotion || (ending.type === "bad" ? "sad" : ending.type === "secret" ? "love" : "love");
   const outfit = sp?.outfit || "";
   return { cid, emotion, outfit };
+}
+
+/** 结局 CG 缺图回退：精确 outfit → love/shy 同 outfit → casual → menu_portrait → 情绪基图 */
+function endingSpriteFallbackChain(cid: string, emotion: string, outfit: string): string[] {
+  const chain = spriteCandidates(cid, { outfit, emotion, style: "anime" });
+  if (outfit) {
+    for (const em of ["love", "shy", "happy", "neutral"]) {
+      if (em === emotion) continue;
+      chain.push(spriteUrl(cid, { outfit, emotion: em }));
+    }
+  }
+  chain.push(spriteUrl(cid, { outfit: "casual", emotion: emotion || "happy" }));
+  chain.push(spriteUrl(cid, { outfit: "casual", emotion: "neutral" }));
+  chain.push(menuSpriteUrl(cid, "portrait"));
+  chain.push(spriteUrl(cid, { emotion: "neutral" }));
+  const out: string[] = [];
+  for (const u of chain) {
+    if (u && !out.includes(u)) out.push(u);
+  }
+  return out;
 }
 
 function narrationPages(ending: EndingInfo): string[] {
@@ -57,24 +77,27 @@ export default function EndingScreen({
 
   const atLast = pageIdx >= pages.length - 1;
   const body = pages[Math.min(pageIdx, pages.length - 1)] || "";
+  const spriteChain = useMemo(
+    () => (cid ? endingSpriteFallbackChain(cid, emotion, outfit) : []),
+    [cid, emotion, outfit],
+  );
+  const [spriteIdx, setSpriteIdx] = useState(0);
+  useEffect(() => {
+    setSpriteIdx(0);
+  }, [cid, emotion, outfit, ending.id]);
 
   return (
     <div className={`ending-screen ending-screen--cinema ${typeClass}`}>
       <div className="ending-screen-bg" style={{ backgroundImage: `url(/api/bgs/${bg})` }} />
       <div className="ending-screen-shade" />
 
-      {cid && (
+      {cid && spriteChain.length > 0 && (
         <div className="ending-screen-sprite">
           <img
-            src={spriteUrl(cid, emotion, outfit)}
+            src={spriteChain[Math.min(spriteIdx, spriteChain.length - 1)]}
             alt=""
-            onError={(e) => {
-              const img = e.currentTarget;
-              if (outfit) {
-                img.src = spriteUrl(cid, emotion);
-              } else {
-                img.src = spriteUrl(cid, "neutral");
-              }
+            onError={() => {
+              setSpriteIdx((i) => (i + 1 < spriteChain.length ? i + 1 : i));
             }}
           />
         </div>

@@ -8,6 +8,7 @@ import {
   shouldWritePostgres
 } from '#agent-shared/storageBackend'
 import { isExperienceRecallConfirmedOnly, isConfirmedExperienceRow } from '#agent-shared/experienceRecallPolicy'
+import { normalizeTenantId, tenantPolicyDir } from '#agent-shared/tenantScope'
 
 export type DbExperienceRow = {
   ts: string
@@ -20,12 +21,14 @@ export type DbExperienceRow = {
   source?: string
   userConfirmed?: boolean
   status?: string
+  tenantId?: string
 }
 
-let experienceCache: DbExperienceRow[] | null = null
+const experienceCacheByTenant = new Map<string, DbExperienceRow[]>()
 
-function experienceFile() {
-  return join(process.cwd(), '.data', 'db-query-experience.jsonl')
+function experienceFile(tenantId?: string) {
+  const dir = tenantPolicyDir(join(process.cwd(), '.data'), normalizeTenantId(tenantId))
+  return join(dir, 'db-query-experience.jsonl')
 }
 
 function resolveBackend() {
@@ -45,7 +48,8 @@ function readJsonl<T>(file: string, max = 500): T[] {
   }
 }
 
-export async function hydrateDbExperienceCache(maxLines = 500): Promise<void> {
+export async function hydrateDbExperienceCache(maxLines = 500, tenantId?: string): Promise<void> {
+  const tid = normalizeTenantId(tenantId)
   const backend = resolveBackend()
   if (isPostgresStorageEnabled(backend)) {
     const res = await agentPgQuery<{
@@ -57,62 +61,73 @@ export async function hydrateDbExperienceCache(maxLines = 500): Promise<void> {
       hint: string
     }>(
       `SELECT ts, question_norm, path, data_domain, tables, hint
-       FROM db_query_experience ORDER BY id DESC LIMIT $1`,
-      [maxLines]
+       FROM db_query_experience WHERE tenant_id = $1 ORDER BY id DESC LIMIT $2`,
+      [tid, maxLines]
     )
     if (res) {
-      experienceCache = res.rows.reverse().map((r) => ({
-        ts: r.ts instanceof Date ? r.ts.toISOString() : String(r.ts),
-        question_norm: r.question_norm,
-        path: r.path ?? undefined,
-        data_domain: r.data_domain ?? undefined,
-        tables: Array.isArray(r.tables) ? r.tables : undefined,
-        hint: r.hint
-      }))
+      experienceCacheByTenant.set(
+        tid,
+        res.rows.reverse().map((r) => ({
+          ts: r.ts instanceof Date ? r.ts.toISOString() : String(r.ts),
+          question_norm: r.question_norm,
+          path: r.path ?? undefined,
+          data_domain: r.data_domain ?? undefined,
+          tables: Array.isArray(r.tables) ? r.tables : undefined,
+          hint: r.hint,
+          tenantId: tid
+        }))
+      )
       return
     }
   }
-  experienceCache = readJsonl<DbExperienceRow>(experienceFile(), maxLines)
+  experienceCacheByTenant.set(tid, readJsonl<DbExperienceRow>(experienceFile(tid), maxLines))
 }
 
-export function readDbExperienceSync(maxLines = 500): DbExperienceRow[] {
-  if (experienceCache?.length) return experienceCache.slice(-maxLines)
-  return readJsonl<DbExperienceRow>(experienceFile(), maxLines)
+export function readDbExperienceSync(maxLines = 500, tenantId?: string): DbExperienceRow[] {
+  const tid = normalizeTenantId(tenantId)
+  const cache = experienceCacheByTenant.get(tid)
+  if (cache?.length) return cache.slice(-maxLines)
+  return readJsonl<DbExperienceRow>(experienceFile(tid), maxLines)
 }
 
 /** 召回专用：联邦门控时仅 confirmed 来源 */
-export function readDbExperienceForRecall(maxLines = 500): DbExperienceRow[] {
-  const all = readDbExperienceSync(maxLines)
+export function readDbExperienceForRecall(maxLines = 500, tenantId?: string): DbExperienceRow[] {
+  const all = readDbExperienceSync(maxLines, tenantId)
   if (!isExperienceRecallConfirmedOnly()) return all
   return all.filter((r) => isConfirmedExperienceRow(r))
 }
 
 export async function persistDbExperience(row: DbExperienceRow): Promise<void> {
+  const tid = normalizeTenantId(row.tenantId)
+  const withTenant = { ...row, tenantId: tid }
   const backend = resolveBackend()
   if (shouldWritePostgres(backend)) {
     await agentPgQuery(
-      `INSERT INTO db_query_experience (ts, question_norm, path, data_domain, tables, hint)
-       VALUES ($1,$2,$3,$4,$5,$6)`,
+      `INSERT INTO db_query_experience (ts, question_norm, path, data_domain, tables, hint, tenant_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
       [
-        row.ts,
-        row.question_norm,
-        row.path ?? null,
-        row.data_domain ?? null,
-        row.tables ? JSON.stringify(row.tables) : null,
-        row.hint
+        withTenant.ts,
+        withTenant.question_norm,
+        withTenant.path ?? null,
+        withTenant.data_domain ?? null,
+        withTenant.tables ? JSON.stringify(withTenant.tables) : null,
+        withTenant.hint,
+        tid
       ]
     )
   }
   if (shouldWriteFile(backend)) {
     try {
-      const dir = join(process.cwd(), '.data')
+      const dir = tenantPolicyDir(join(process.cwd(), '.data'), tid)
       if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
-      appendFileSync(experienceFile(), `${JSON.stringify(row)}\n`, 'utf8')
+      appendFileSync(experienceFile(tid), `${JSON.stringify(withTenant)}\n`, 'utf8')
     } catch {
       /* ignore */
     }
   }
-  if (!experienceCache) experienceCache = []
-  experienceCache.push(row)
-  if (experienceCache.length > 600) experienceCache = experienceCache.slice(-500)
+  let cache = experienceCacheByTenant.get(tid)
+  if (!cache) cache = []
+  cache.push(withTenant)
+  if (cache.length > 600) cache = cache.slice(-500)
+  experienceCacheByTenant.set(tid, cache)
 }

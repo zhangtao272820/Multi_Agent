@@ -236,6 +236,62 @@ export function resolveUserMessageSessionIndex(messages: WsSession['messages'], 
   return -1
 }
 
+/** 与 stripAttachmentSuffix 对齐，再压空白，供 index/内容双通道定位 */
+export function normalizeUserAnchorText(content: string): string {
+  return stripAttachmentSuffix(String(content || ''))
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+export type UserMessageAnchor = {
+  /** session.messages 数组下标 */
+  arrayIndex: number
+  /** 第 N 条 user（0-based） */
+  userMessageIndex: number
+}
+
+/**
+ * 定位用户消息锚点：优先 userMessageIndex；失败时用原文内容回落（取最接近期望 index 的匹配）。
+ * 登录后前端 index 与服务端分叉时，避免 regenerate/edit/withdraw 直接 404。
+ */
+export function resolveUserMessageAnchor(
+  messages: WsSession['messages'],
+  opts: { userMessageIndex?: number; text?: string }
+): UserMessageAnchor | null {
+  if (!Array.isArray(messages) || !messages.length) return null
+  const wantIdx =
+    typeof opts.userMessageIndex === 'number' && Number.isFinite(opts.userMessageIndex)
+      ? Math.floor(opts.userMessageIndex)
+      : -1
+  if (wantIdx >= 0) {
+    const byIndex = resolveUserMessageSessionIndex(messages, wantIdx)
+    if (byIndex >= 0) return { arrayIndex: byIndex, userMessageIndex: wantIdx }
+  }
+  const needle = normalizeUserAnchorText(opts.text || '')
+  if (!needle) return null
+  const hits: UserMessageAnchor[] = []
+  let nth = 0
+  for (let i = 0; i < messages.length; i++) {
+    if (messages[i]?.role !== 'user') continue
+    if (normalizeUserAnchorText(messages[i]!.content) === needle) {
+      hits.push({ arrayIndex: i, userMessageIndex: nth })
+    }
+    nth++
+  }
+  if (!hits.length) return null
+  if (wantIdx < 0) return hits[hits.length - 1]!
+  let best = hits[0]!
+  let bestDist = Math.abs(best.userMessageIndex - wantIdx)
+  for (let i = 1; i < hits.length; i++) {
+    const d = Math.abs(hits[i]!.userMessageIndex - wantIdx)
+    if (d < bestDist) {
+      best = hits[i]!
+      bestDist = d
+    }
+  }
+  return best
+}
+
 export async function pruneAutoUserTasksOnEditResend(policyDir: string, sessionId: string) {
   try {
     const stack = await loadTaskStack(policyDir, sessionId)

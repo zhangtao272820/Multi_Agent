@@ -11,6 +11,7 @@ import {
   listBlockingDependencies,
   prioritizeOutputParallelBatch,
   scheduleWaitIntervalMs,
+  stepUpstreamTerminal,
   type StepCompletionRecord
 } from '../plan/planParallel'
 
@@ -129,7 +130,10 @@ export async function runTaskFetcherLoop(opts: TaskFetcherOpts): Promise<void> {
   const pending = new Map<string, Step>()
   for (const s of steps) {
     const id = String(s.id || '').trim()
-    if (id) pending.set(id, s)
+    if (!id) continue
+    // 图级重试 hydrate 后：已 terminal 的步不再进 pending，避免整 plan 重跑
+    if (stepUpstreamTerminal(completedById[id])) continue
+    pending.set(id, s)
   }
 
   const active = new Set<Promise<void>>()

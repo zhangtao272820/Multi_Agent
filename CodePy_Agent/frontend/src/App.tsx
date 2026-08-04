@@ -3,6 +3,7 @@ import AutumnBackground from './AutumnBackground'
 import FileTree from './FileTree'
 import MonacoPane from './MonacoPane'
 import DiffViewer from './DiffViewer'
+import { withAccessToken } from './clawhiveAuth'
 
 type Entry = { name: string; path: string; type: 'file' | 'dir'; size?: number }
 type ChatLine = { role: 'user' | 'assistant' | 'system'; text: string }
@@ -131,7 +132,7 @@ export default function App() {
     setDiffFiles([])
     setPendingPatch('')
 
-    const ws = new WebSocket(wsUrl)
+    const ws = new WebSocket(withAccessToken(wsUrl))
     wsRef.current = ws
     ws.onopen = () => {
       setStatus('running')

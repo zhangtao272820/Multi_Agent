@@ -14,6 +14,10 @@ interface Props {
   onSave?: () => void;
   onMenu?: () => void;
   extra?: ReactNode;
+  bgmEnabled?: boolean;
+  bgmVolume?: number;
+  onToggleBgm?: () => void;
+  onBgmVolume?: (v: number) => void;
 }
 
 export function PlayHud({
@@ -27,6 +31,10 @@ export function PlayHud({
   onSave,
   onMenu,
   extra,
+  bgmEnabled,
+  bgmVolume,
+  onToggleBgm,
+  onBgmVolume,
 }: Props) {
   const cal = hub.calendar;
   const daysLeft = cal.days_left ?? 101 - cal.day_index;
@@ -60,6 +68,30 @@ export function PlayHud({
       </div>
 
       <div className="play-hud-actions">
+        {onToggleBgm && (
+          <div className="bgm-controls">
+            <button
+              type="button"
+              className={`btn ghost bgm-toggle${bgmEnabled ? " is-on" : ""}`}
+              onClick={onToggleBgm}
+              title={bgmEnabled ? "静音 BGM" : "开启 BGM"}
+            >
+              {bgmEnabled ? "音乐" : "静音"}
+            </button>
+            {onBgmVolume && bgmEnabled && (
+              <input
+                className="bgm-volume"
+                type="range"
+                min={0}
+                max={1}
+                step={0.05}
+                value={bgmVolume ?? 0.85}
+                onChange={(e) => onBgmVolume(Number(e.target.value))}
+                aria-label="BGM 音量"
+              />
+            )}
+          </div>
+        )}
         {extra}
         <button type="button" className="btn primary" disabled={busy} onClick={onAdvance}>
           推进时段

@@ -134,7 +134,7 @@ class ProtagonistLife(BaseModel):
 class BondShelf(BaseModel):
     character_id: str
     base_id: str = ""
-    cast_kind: str = "romance"  # romance|neutral|npc
+    cast_kind: str = "romance"  # romance|linked|npc（旧档 neutral→linked）
     social_role_to_pc: str = "陌生人"
     role_hint: str = ""
     profile: CharacterProfile
@@ -146,6 +146,10 @@ class BondShelf(BaseModel):
     next_turn_id: int = 1
     unlocked_endings: list[str] = Field(default_factory=list)
     living: BondLiving = Field(default_factory=BondLiving)
+    # 专属故事幕进度（中途离场可恢复；幕落清空）
+    story_event_id: str = ""
+    story_beat_index: int = 0
+    story_act_summary: str = ""
 
 
 SaveKind = Literal["auto", "manual"]
@@ -155,11 +159,15 @@ MANUAL_SAVE_SOFT_LIMIT = 30
 class WorldSave(BaseModel):
     save_id: str
     user_id: str
+    tenant_id: str = "default"
     kind: SaveKind = "auto"
     label: str = ""
     protagonist_name: str = "我"
     protagonist: ProtagonistLife = Field(default_factory=ProtagonistLife)
     calendar: CalendarState = Field(default_factory=CalendarState)
+    # 季度/节日航点（season_waypoints.json）；跳过中间空日
+    waypoint_id: str = "q_summer_start"
+    waypoints_reached: list[str] = Field(default_factory=lambda: ["q_summer_start"])
     action_points: int = 5
     action_points_max: int = 5
     world_flags: dict[str, bool] = Field(default_factory=dict)
@@ -263,11 +271,18 @@ def init_world_db() -> None:
             conn.execute(
                 "ALTER TABLE world_saves ADD COLUMN kind TEXT NOT NULL DEFAULT 'auto'"
             )
+        if "tenant_id" not in cols:
+            conn.execute(
+                "ALTER TABLE world_saves ADD COLUMN tenant_id TEXT NOT NULL DEFAULT 'default'"
+            )
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_world_saves_user ON world_saves(user_id, updated_at DESC)"
         )
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_world_saves_user_kind ON world_saves(user_id, kind)"
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_world_saves_tenant_user ON world_saves(tenant_id, user_id, updated_at DESC)"
         )
         conn.execute(
             """
@@ -303,7 +318,11 @@ def _profile_for_character(character_id: str, social: CharacterSocialDef) -> tup
         for row in base.get("characters") or []:
             if str(row.get("id") or "") != character_id:
                 continue
-            cast_role = social.cast_kind if social.cast_kind in {"romance", "neutral", "npc"} else "romance"
+            from .character_lores import normalize_cast_kind
+
+            cast_role = normalize_cast_kind(social.cast_kind)
+            if cast_role not in {"romance", "linked", "npc"}:
+                cast_role = "romance"
             prof = CharacterProfile.model_validate(
                 {
                     **(row.get("profile") or {}),
@@ -314,7 +333,11 @@ def _profile_for_character(character_id: str, social: CharacterSocialDef) -> tup
             )
             return prof, str(base.get("id") or social.base_id)
     # fallback empty-ish
-    cast_role = social.cast_kind if social.cast_kind in {"romance", "neutral", "npc"} else "romance"
+    from .character_lores import normalize_cast_kind
+
+    cast_role = normalize_cast_kind(social.cast_kind)
+    if cast_role not in {"romance", "linked", "npc"}:
+        cast_role = "romance"
     prof = CharacterProfile(
         character_id=character_id,
         name=character_id,
@@ -340,8 +363,11 @@ def build_bond_from_social(character_id: str, social: CharacterSocialDef) -> Bon
                 "user_title": "你",
             }
         )
-    elif social.cast_kind in {"neutral", "npc"}:
-        # 中立/NPC：关系再亲也不能走到恋爱阶段
+    from .character_lores import is_linked_cast, normalize_cast_kind
+
+    kind = normalize_cast_kind(social.cast_kind)
+    # 关系向 / NPC 开局不上恋爱阶段（破门后由运行时 max 放开）
+    if kind == "npc" or is_linked_cast(kind):
         if rel.stage_id in {"crush", "dating", "married"}:
             rel = rel.model_copy(update={"stage_id": "close_friend", "stage_label": "挚友"})
     prefs = Preferences(
@@ -352,7 +378,7 @@ def build_bond_from_social(character_id: str, social: CharacterSocialDef) -> Bon
     return BondShelf(
         character_id=character_id,
         base_id=base_id,
-        cast_kind=social.cast_kind,
+        cast_kind=kind,
         social_role_to_pc=social.role_to_pc,
         role_hint=social.role_hint,
         profile=profile,
@@ -365,6 +391,7 @@ def _build_blank_world(
     *,
     save_id: str,
     user_id: str,
+    tenant_id: str = "default",
     protagonist_name: str = "我",
     kind: SaveKind = "auto",
     label: str = "",
@@ -384,6 +411,7 @@ def _build_blank_world(
     return WorldSave(
         save_id=save_id,
         user_id=user_id,
+        tenant_id=(tenant_id or "default").strip() or "default",
         kind=kind,
         label=(label or "").strip()[:48],
         protagonist_name=(protagonist_name or "我").strip()[:32] or "我",
@@ -393,6 +421,8 @@ def _build_blank_world(
             weekday=int(day1.get("weekday") or 1),
             period="morning",
         ),
+        waypoint_id="q_summer_start",
+        waypoints_reached=["q_summer_start"],
         action_points=ap_max,
         action_points_max=ap_max,
         location_id="home",
@@ -525,14 +555,16 @@ def load_into_auto(*, user_id: str, source_save_id: str) -> WorldSave | None:
 def upsert_world_save(save: WorldSave) -> None:
     init_world_db()
     save.kind = _normalize_kind(save.kind)
+    save.tenant_id = (save.tenant_id or "default").strip() or "default"
     save.updated_at = _now_iso()
     with _connect() as conn:
         conn.execute(
             """
-            INSERT INTO world_saves (save_id, user_id, payload_json, updated_at, kind)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO world_saves (save_id, user_id, tenant_id, payload_json, updated_at, kind)
+            VALUES (?, ?, ?, ?, ?, ?)
             ON CONFLICT(save_id) DO UPDATE SET
                 user_id=excluded.user_id,
+                tenant_id=excluded.tenant_id,
                 payload_json=excluded.payload_json,
                 updated_at=excluded.updated_at,
                 kind=excluded.kind
@@ -540,6 +572,7 @@ def upsert_world_save(save: WorldSave) -> None:
             (
                 save.save_id,
                 save.user_id,
+                save.tenant_id,
                 save.model_dump_json(),
                 save.updated_at,
                 save.kind,
@@ -559,24 +592,37 @@ def get_world_save(save_id: str) -> WorldSave | None:
     return WorldSave.model_validate_json(row["payload_json"])
 
 
-def get_world_save_for_user(save_id: str, user_id: str) -> WorldSave | None:
+def get_world_save_for_user(
+    save_id: str, user_id: str, tenant_id: str | None = None
+) -> WorldSave | None:
     save = get_world_save(save_id)
     if not save or save.user_id != user_id:
         return None
+    if tenant_id is not None:
+        tid = (tenant_id or "default").strip() or "default"
+        if (save.tenant_id or "default") != tid:
+            return None
     return save
 
 
-def list_world_saves(user_id: str) -> list[dict[str, Any]]:
+def list_world_saves(user_id: str, tenant_id: str = "default") -> list[dict[str, Any]]:
     init_world_db()
+    tid = (tenant_id or "default").strip() or "default"
     with _connect() as conn:
         rows = conn.execute(
             """
-            SELECT save_id, user_id, payload_json, updated_at, kind
-            FROM world_saves WHERE user_id = ?
+            SELECT save_id, user_id, tenant_id, payload_json, updated_at, kind
+            FROM world_saves WHERE user_id = ? AND COALESCE(tenant_id, 'default') = ?
             ORDER BY CASE kind WHEN 'auto' THEN 0 ELSE 1 END, updated_at DESC
             """,
-            (user_id,),
+            (user_id, tid),
         ).fetchall()
+    from .china_calendar import day_info
+    from .season_waypoints import current_waypoint
+    from .social_graph import load_social_graph
+    from .world_engine import period_label
+
+    loc_labels = {l.id: l.label for l in load_social_graph().locations}
     out: list[dict[str, Any]] = []
     for row in rows:
         try:
@@ -585,9 +631,25 @@ def list_world_saves(user_id: str) -> list[dict[str, Any]]:
             continue
         kind = _normalize_kind(save.kind)
         met = 0
+        focus: list[tuple[int, str]] = []
         for b in save.bonds.values():
             if b.relationship_state.turns > 0 or b.messages:
                 met += 1
+                focus.append((int(b.relationship_state.affinity or 0), b.profile.name or b.character_id))
+        focus.sort(key=lambda x: -x[0])
+        focus_names = [n for _, n in focus[:2]]
+        try:
+            cal = day_info(save.calendar.day_index)
+            season_label = str(cal.get("season_label") or "")
+            date_label = str(cal.get("label") or "")
+        except Exception:
+            season_label = ""
+            date_label = ""
+        try:
+            wp = current_waypoint(save)
+            waypoint_label = str(wp.get("label") or "")
+        except Exception:
+            waypoint_label = ""
         out.append(
             {
                 "save_id": save.save_id,
@@ -597,10 +659,19 @@ def list_world_saves(user_id: str) -> list[dict[str, Any]]:
                 "protagonist_name": save.protagonist_name,
                 "day_index": save.calendar.day_index,
                 "period": save.calendar.period,
+                "period_label": period_label(save.calendar.period),
                 "location_id": save.location_id,
+                "location_label": loc_labels.get(save.location_id, save.location_id),
                 "bonds_met": met,
                 "bonds_total": len(save.bonds),
                 "updated_at": save.updated_at,
+                "season_label": season_label,
+                "waypoint_label": waypoint_label,
+                "date_label": date_label,
+                "money": int(save.protagonist.money or 0),
+                "focus_names": focus_names,
+                "unlocked_endings_count": len(save.unlocked_endings or []),
+                "waypoint_id": save.waypoint_id or "q_summer_start",
             }
         )
     autos = [s for s in out if s["kind"] == "auto"]
@@ -612,17 +683,29 @@ def list_world_saves(user_id: str) -> list[dict[str, Any]]:
     return autos[:1] + manuals
 
 
-def delete_world_save(save_id: str, *, user_id: str | None = None) -> bool:
+def delete_world_save(
+    save_id: str, *, user_id: str | None = None, tenant_id: str | None = None
+) -> bool:
     init_world_db()
     save = get_world_save(save_id)
     if not save:
         return False
     if user_id and save.user_id != user_id:
         return False
+    if tenant_id is not None:
+        tid = (tenant_id or "default").strip() or "default"
+        if (save.tenant_id or "default") != tid:
+            return False
     if _normalize_kind(save.kind) == "auto":
         raise ValueError("自动档不可删除，请使用「新游戏」覆盖")
     with _connect() as conn:
-        if user_id:
+        if user_id and tenant_id is not None:
+            tid = (tenant_id or "default").strip() or "default"
+            cur = conn.execute(
+                "DELETE FROM world_saves WHERE save_id = ? AND user_id = ? AND COALESCE(tenant_id, 'default') = ?",
+                (save_id, user_id, tid),
+            )
+        elif user_id:
             cur = conn.execute(
                 "DELETE FROM world_saves WHERE save_id = ? AND user_id = ?",
                 (save_id, user_id),
@@ -678,13 +761,121 @@ def prune_checkpoints_after(save_id: str, character_id: str, turn_id: int) -> No
         conn.commit()
 
 
+_DIFFICULTY_LABELS = {
+    "easy": "亲近难度 · 易近",
+    "medium": "亲近难度 · 需耐心",
+    "hard": "亲近难度 · 难攻",
+    "extreme": "亲近难度 · 极难",
+    "bond": "亲近难度 · 关系向",
+}
+
+
+def _fatigue_band(fatigue: int) -> str:
+    f = int(fatigue or 0)
+    if f >= 55:
+        return "tired"
+    if f >= 31:
+        return "weary"
+    return ""
+
+
+def _fatigue_note(band: str) -> str:
+    if band == "tired":
+        return "看起来挺疲惫"
+    if band == "weary":
+        return "看起来有点累"
+    return ""
+
+
+def _last_talk_gap_label(bond: BondShelf, day_index: int) -> str:
+    talked = int(bond.living.talked_day_index or 0)
+    if talked <= 0:
+        return ""
+    gap = int(day_index) - talked
+    if gap <= 0:
+        return "今天刚聊过"
+    if gap == 1:
+        return "昨天见过面"
+    if gap <= 4:
+        return "好几天没好好聊了"
+    return "很久没找她了"
+
+
+def _story_soft_for_bond(bond: BondShelf) -> str:
+    """单角色故事幕软一句（与 Hub story_soft_hints 同源门槛）。"""
+    from .life_friction import _ACT_AFFINITY_FLOOR, _ACT_STAGE_FLOOR
+    from .route_catalog import load_story_route
+    from .world_engine import stage_rank
+
+    if bond.cast_kind not in {"romance", "linked", "neutral"}:
+        return ""
+    story = load_story_route(bond.character_id)
+    if not story:
+        return ""
+    acts = story.get("acts") or []
+    if not isinstance(acts, list) or not acts:
+        return ""
+    flags = bond.relationship_state.flags or {}
+    aff = int(bond.relationship_state.affinity or 0)
+    st = bond.relationship_state.stage_id or ""
+    next_act: dict[str, Any] | None = None
+    act_i = -1
+    for i, act in enumerate(acts):
+        if not isinstance(act, dict):
+            continue
+        need = [str(f) for f in (act.get("flags") or []) if f]
+        core = [f for f in need if f != "confessed"]
+        check = core or need
+        if check and all(flags.get(f) for f in check):
+            continue
+        next_act = act
+        act_i = i
+        break
+    if not next_act or act_i < 0:
+        return ""
+    floor_aff = _ACT_AFFINITY_FLOOR[min(act_i, len(_ACT_AFFINITY_FLOOR) - 1)]
+    floor_st = _ACT_STAGE_FLOOR[min(act_i, len(_ACT_STAGE_FLOOR) - 1)]
+    if aff < floor_aff or stage_rank(st) < stage_rank(floor_st):
+        return ""
+    title = str(next_act.get("title") or "").strip()
+    if not title:
+        return ""
+    beat = str(next_act.get("beat") or "").strip()
+    soft_beat = beat.split("；")[0].split("→")[0].strip() if beat else ""
+    if soft_beat and len(soft_beat) <= 22:
+        text = f"关于「{title}」似乎还悬着：{soft_beat}"
+    else:
+        text = f"「{title}」那一幕还没真正落定"
+    return text[:48] + ("…" if len(text) > 48 else "")
+
+
+def _bond_life_notes(bond: BondShelf, day_index: int, status_hint: str) -> list[str]:
+    from .life_friction import is_soft_cold
+
+    notes: list[str] = []
+    if status_hint:
+        notes.append(status_hint)
+    band = _fatigue_band(int(bond.living.fatigue or 0))
+    fn = _fatigue_note(band)
+    if fn and fn not in notes:
+        notes.append(fn)
+    gap = _last_talk_gap_label(bond, day_index)
+    if gap and gap not in {"今天刚聊过", "昨天见过面"} and gap not in notes:
+        # 疏忽已由 status_hint 覆盖时不重复
+        if not (is_soft_cold(bond, day_index) and "疏远" in (status_hint or "")):
+            notes.append(gap)
+    return notes[:3]
+
+
 def public_bond_summary(
     bond: BondShelf,
     *,
     day_index: int | None = None,
     save: WorldSave | None = None,
 ) -> dict[str, Any]:
-    from .social_life import soft_status_hint
+    from .life_friction import is_soft_cold
+    from .route_difficulty import get_route_difficulty
+    from .social_life import active_long_status, soft_status_hint
 
     day = int(day_index or (save.calendar.day_index if save else 0) or 0)
     outfit = ""
@@ -699,6 +890,12 @@ def public_bond_summary(
     if met and getattr(prof, "traits", None) is not None:
         raw = prof.traits
         traits = raw.model_dump() if hasattr(raw, "model_dump") else dict(raw or {})
+    status_hint = soft_status_hint(bond, day) if day else ""
+    rd = get_route_difficulty(bond.character_id)
+    band = (rd.difficulty_band or "medium").strip() or "medium"
+    flags = rel.flags or {}
+    fatigue_band = _fatigue_band(int(bond.living.fatigue or 0))
+    long_st = active_long_status(bond, day) if day else ""
     # 看板用：谈过才揭性格；关系数值始终下发（前端用印象词）
     payload: dict[str, Any] = {
         "character_id": bond.character_id,
@@ -717,11 +914,34 @@ def public_bond_summary(
         "route_label": getattr(rel, "route_label", "") or "",
         "turns": rel.turns,
         "message_count": len(bond.messages),
-        "status_hint": soft_status_hint(bond, day) if day else "",
+        "status_hint": status_hint,
         "sprite_outfit": outfit,
         "met": met,
+        "difficulty_band": band,
+        "difficulty_label": _DIFFICULTY_LABELS.get(band, _DIFFICULTY_LABELS["medium"]),
+        "endings_unlocked_count": len(bond.unlocked_endings or []),
+        "last_talk_gap_label": _last_talk_gap_label(bond, day) if day else "",
+        "living_soft": {
+            "soft_cold": bool(day and is_soft_cold(bond, day)),
+            "neglect_cold": bool(flags.get("neglect_cold")),
+            "fatigue_band": fatigue_band,
+            "long_status": long_st,
+        },
+        "life_notes": _bond_life_notes(bond, day, status_hint) if day else [],
+        "story_soft": "",
     }
+    from .character_lores import normalize_cast_kind, public_lore_for_bond
+
+    payload["cast_kind"] = normalize_cast_kind(bond.cast_kind)
+    payload.update(
+        public_lore_for_bond(
+            bond.character_id,
+            met=met,
+            flags=dict(flags),
+        )
+    )
     if met:
+        payload["story_soft"] = _story_soft_for_bond(bond)
         payload.update(
             {
                 "age": int(getattr(prof, "age", 0) or 0) or None,
@@ -763,6 +983,8 @@ def public_world(save: WorldSave, *, include_bonds_detail: bool = False) -> dict
         "protagonist_name": save.protagonist_name,
         "protagonist": public_protagonist(save),
         "calendar": save.calendar.model_dump(),
+        "waypoint_id": save.waypoint_id or "q_summer_start",
+        "waypoints_reached": list(save.waypoints_reached or []),
         "action_points": save.action_points,
         "action_points_max": save.action_points_max,
         "world_flags": save.world_flags,

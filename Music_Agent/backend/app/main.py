@@ -27,6 +27,7 @@ from .config import get_settings, resolve_proj_path
 from .intent_enrich import compose_seed_for_attempt
 from .agent_result import finalize_music_ws_done
 from .trace_log import append_agent_trace_log
+from .browser_auth import ClawhiveBrowserAuthMiddleware, install_auth_config_route, auth_from_websocket, ClawhiveAuthError
 from .export_score import export_notation
 from .llm import (
     annotate_lyrics_language,
@@ -116,6 +117,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(ClawhiveBrowserAuthMiddleware, extra_public=("/api/probe",))
+install_auth_config_route(app)
 
 out_dir = resolve_proj_path(settings.output_dir)
 out_dir.mkdir(parents=True, exist_ok=True)
@@ -2621,6 +2624,11 @@ async def _run_remix(ws: WebSocket, payload: dict) -> None:
 
 @app.websocket("/ws")
 async def websocket_compose(ws: WebSocket):
+    try:
+        auth_from_websocket(ws)
+    except ClawhiveAuthError:
+        await ws.close(code=1008, reason="login_required")
+        return
     await ws.accept()
     try:
         raw = await ws.receive_text()

@@ -16,12 +16,18 @@ CREATE TABLE IF NOT EXISTS mgr_session_turns (
   turn_index INTEGER NOT NULL,
   role VARCHAR(16) NOT NULL CHECK (role IN ('user', 'assistant')),
   content TEXT NOT NULL,
+  run_id VARCHAR(80),
+  ui_meta JSONB,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE(session_id, turn_index)
 );
 
 CREATE INDEX IF NOT EXISTS idx_mgr_session_turns_session
   ON mgr_session_turns(session_id, turn_index);
+
+CREATE INDEX IF NOT EXISTS idx_mgr_session_turns_run_id
+  ON mgr_session_turns(run_id)
+  WHERE run_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS mgr_memory_entries (
   id BIGSERIAL PRIMARY KEY,
@@ -123,6 +129,43 @@ CREATE TABLE IF NOT EXISTS rag_session_turns (
 
 CREATE INDEX IF NOT EXISTS idx_rag_session_turns_session
   ON rag_session_turns(session_id, turn_index);
+
+CREATE TABLE IF NOT EXISTS db_sessions (
+  id VARCHAR(120) PRIMARY KEY,
+  user_id VARCHAR(64),
+  title VARCHAR(120),
+  custom_title BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_db_sessions_user
+  ON db_sessions(user_id, updated_at DESC);
+
+CREATE TABLE IF NOT EXISTS db_session_turns (
+  id BIGSERIAL PRIMARY KEY,
+  session_id VARCHAR(120) NOT NULL REFERENCES db_sessions(id) ON DELETE CASCADE,
+  turn_index INTEGER NOT NULL,
+  role VARCHAR(16) NOT NULL CHECK (role IN ('user', 'assistant')),
+  content TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(session_id, turn_index)
+);
+
+CREATE INDEX IF NOT EXISTS idx_db_session_turns_session
+  ON db_session_turns(session_id, turn_index);
+
+CREATE TABLE IF NOT EXISTS adm_sessions (
+  id VARCHAR(120) PRIMARY KEY,
+  user_id VARCHAR(64),
+  title VARCHAR(120),
+  custom_title BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_adm_sessions_user
+  ON adm_sessions(user_id, updated_at DESC);
 
 CREATE TABLE IF NOT EXISTS rag_session_memory (
   session_id VARCHAR(120) PRIMARY KEY,
@@ -245,6 +288,8 @@ CREATE TABLE IF NOT EXISTS mgr_session_turns_archive (
   turn_index INTEGER NOT NULL,
   role VARCHAR(16) NOT NULL,
   content TEXT NOT NULL,
+  run_id VARCHAR(80),
+  ui_meta JSONB,
   archived_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -360,5 +405,61 @@ CREATE INDEX IF NOT EXISTS idx_agent_session_feedback_user_idx
 
 CREATE INDEX IF NOT EXISTS idx_agent_session_feedback_run
   ON agent_session_feedback (agent, run_id)
+  WHERE run_id IS NOT NULL;
+
+-- ── 多租户列（幂等；与 016_agent_memory_multitenant.sql 对齐）──
+ALTER TABLE mgr_memory_entries ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(64) NOT NULL DEFAULT 'default';
+ALTER TABLE mgr_memory_entries ADD COLUMN IF NOT EXISTS user_id VARCHAR(64);
+ALTER TABLE mgr_memory_embeddings ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(64) NOT NULL DEFAULT 'default';
+ALTER TABLE mgr_user_profiles ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(64) NOT NULL DEFAULT 'default';
+ALTER TABLE db_user_preferences ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(64) NOT NULL DEFAULT 'default';
+ALTER TABLE rag_sessions ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(64) NOT NULL DEFAULT 'default';
+ALTER TABLE rag_session_memory ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(64) NOT NULL DEFAULT 'default';
+ALTER TABLE db_sessions ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(64) NOT NULL DEFAULT 'default';
+ALTER TABLE adm_sessions ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(64) NOT NULL DEFAULT 'default';
+ALTER TABLE db_learning_signals ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(64) NOT NULL DEFAULT 'default';
+ALTER TABLE db_query_experience ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(64) NOT NULL DEFAULT 'default';
+ALTER TABLE db_route_stats ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(64) NOT NULL DEFAULT 'default';
+ALTER TABLE rag_learning_signals ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(64) NOT NULL DEFAULT 'default';
+ALTER TABLE rag_route_preferences ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(64) NOT NULL DEFAULT 'default';
+ALTER TABLE db_experience_vectors ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(64) NOT NULL DEFAULT 'default';
+ALTER TABLE mgr_tool_memory ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(64) NOT NULL DEFAULT 'default';
+ALTER TABLE evo_policy_versions ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(64) NOT NULL DEFAULT 'default';
+ALTER TABLE evo_curator_state ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(64) NOT NULL DEFAULT 'default';
+ALTER TABLE evo_audit_runs ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(64) NOT NULL DEFAULT 'default';
+ALTER TABLE mgr_sessions ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(64) NOT NULL DEFAULT 'default';
+
+CREATE INDEX IF NOT EXISTS idx_mgr_memory_entries_tenant_type_ts
+  ON mgr_memory_entries(tenant_id, entry_type, ts DESC);
+CREATE INDEX IF NOT EXISTS idx_mgr_memory_embeddings_tenant_user
+  ON mgr_memory_embeddings(tenant_id, user_key, entry_type, ts DESC);
+CREATE INDEX IF NOT EXISTS idx_evo_policy_tenant_active
+  ON evo_policy_versions(tenant_id, agent, stage, status);
+
+CREATE TABLE IF NOT EXISTS evo_global_candidates (
+  id BIGSERIAL PRIMARY KEY,
+  source_tenant_id VARCHAR(64) NOT NULL,
+  agent VARCHAR(32) NOT NULL,
+  stage VARCHAR(64) NOT NULL,
+  policy_version_id BIGINT,
+  sanitized_payload JSONB NOT NULL,
+  status VARCHAR(16) NOT NULL DEFAULT 'pending'
+    CHECK (status IN ('pending', 'approved', 'rejected')),
+  reviewer VARCHAR(128),
+  review_note TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  reviewed_at TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_evo_global_candidates_status
+  ON evo_global_candidates(status, created_at DESC);
+
+-- 018: session turn thinking/process snapshot（已有表补列）
+ALTER TABLE mgr_session_turns ADD COLUMN IF NOT EXISTS run_id VARCHAR(80);
+ALTER TABLE mgr_session_turns ADD COLUMN IF NOT EXISTS ui_meta JSONB;
+ALTER TABLE mgr_session_turns_archive ADD COLUMN IF NOT EXISTS run_id VARCHAR(80);
+ALTER TABLE mgr_session_turns_archive ADD COLUMN IF NOT EXISTS ui_meta JSONB;
+CREATE INDEX IF NOT EXISTS idx_mgr_session_turns_run_id
+  ON mgr_session_turns(run_id)
   WHERE run_id IS NOT NULL;
 `

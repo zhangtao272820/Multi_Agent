@@ -1,0 +1,50 @@
+id: story_shuli_act5_ethics
+label: 说破的名字
+priority: 8
+once: true
+chance: 1.0
+scene_id: ""
+trigger:
+  character_ids: [shuli]
+  stage_min: close_friend
+  affinity_min: 85
+  flags_absent: [taboo_romance_ok]
+  flags_present: [kin_garden_ready, deliberate_display, shuli_jealous_break]
+prompt_snippet: |
+  【专属故事 · 日程本里的禁忌 · 第5幕 · 说破的名字】
+advance: on_player_turn
+beats:
+  - id: b1
+    narration: "嫉妒之后的清晨，她把日程本推到你面前。夹层里「喜欢」写了又划掉，墨渍像没愈合的伤口。窗外枫音出门的脚步远了，屋里只剩你们两个。"
+    pc_thought: "说破不是高潮，是更沉的台阶。我想逃，手却按住了那一页。"
+    brief: "摊开夹层「喜欢」；要求正视禁忌而非玩笑。察你会不会认、会不会停。"
+    summary: "摊开夹层「喜欢」；要求正视禁忌而非玩笑。察你会不会认、会不会停。"
+    sprite_hint: [home_sibling, home_eating, home, casual]
+    soft_options: ["承认看见了那一行", "先问她最怕什么", "说可以停在家人"]
+  - id: b2
+    narration: "她说哥哥把家撑大了，也把依赖撑歪了。闲话、枫音、自我厌恶都要一起扛——不愿蒙混改称呼。声音稳，指尖却在发抖。"
+    pc_thought: "怕她为你与世界为敌。自愿承担与想逃，在同一口气里拉锯。"
+    brief: "摊开后果：闲话、枫音、自我厌恶。不愿蒙混；等你承担或退缩。"
+    summary: "摊开后果：闲话、枫音、自我厌恶。不愿蒙混；等你承担或退缩。"
+    sprite_hint: [home_sibling, home_sleeping, season_winter, casual]
+    soft_options: ["愿意共同承担后果", "需要时间想清楚", "不敢承诺那么重"]
+  - id: b3
+    narration: "她忽然站起，像给双方一条假退出：要不要停在这里？明天仍只叫哥哥，日程本撕掉那一行——也可以。沉默比告白更重。"
+    pc_thought: "假退出像刀柄朝我。接住或放下，都再也装不成无辜兄长。"
+    brief: "提出可停、可撕掉那一行的假退出。不是逼告白，是逼你选沉下去还是退。"
+    summary: "提出可停、可撕掉那一行的假退出。不是逼告白，是逼你选沉下去还是退。"
+    sprite_hint: [home_sibling, home, casual]
+    soft_options: ["说不要停", "认真考虑停一周", "先握住她的手"]
+  - id: b4
+    narration: "若你应下，她没有欢呼，只哭着笑：公开仍叫哥哥，私下允许恋人。隔壁门轴又轻响——她立刻压低声音，像秘密已经开始计时。"
+    pc_thought: "伦理突破落章了，却没有 HE 的轻。享受秘密的我，比她更可耻。"
+    brief: "应下后约定公开称呼与私下边界；听见隔墙声响立刻压声。等规则落定。"
+    summary: "应下后约定公开称呼与私下边界；听见隔墙声响立刻压声。等规则落定。"
+    sprite_hint: [home_sibling, home, home_sleeping, bath_foam]
+    soft_options: ["接住她并约定规则", "先定保密边界", "拥抱后再谈称呼"]
+rewards:
+  flags_set: [ethics_breach_talk, taboo_romance_ok]
+choice_effects:
+  - { trust_delta: 4, affinity_delta: 5 }
+  - { trust_delta: 2, affinity_delta: 2 }
+  - { trust_delta: 1, affinity_delta: 1 }

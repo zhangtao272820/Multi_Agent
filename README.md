@@ -29,7 +29,8 @@
 - [常见问题](#常见问题)
 - [参与贡献](#参与贡献)
 
-注册表边界（Manager 调度 vs ClawHive 技能）：[`docs/registry-boundary.md`](docs/registry-boundary.md)。
+注册表边界（Manager 调度 vs ClawHive 技能）：[`docs/registry-boundary.md`](docs/registry-boundary.md)。  
+统一登录（ClawHive JWT / 各 UI）：[`docs/unified-login.md`](docs/unified-login.md)。
 
 ---
 

@@ -29,6 +29,7 @@ import {
 } from '../stepIsolation'
 import { isGenericQueryFocus } from '../../../utils/route/managerSubAgentScopeLlm'
 import type { AgentExecutorDeps, AgentExecutorOpts, AgentStepOutcome } from './types'
+import { hasSuccessfulAdminWriteInRun } from '../output/criticEvidence'
 
 function adminPendingOpLabels(
   adminText: string,
@@ -124,6 +125,27 @@ export async function executeAdminStep(
   }
 ): Promise<AgentStepOutcome> {
   try {
+    // 图级重试双保险：本 run 已有成功写证据则不再 HTTP 调 Admin（resumeAdminConfirm 续跑除外）
+    const resumeConfirm =
+      Boolean((input.state as { resumeAdminConfirm?: boolean }).resumeAdminConfirm) ||
+      Boolean((input.state.meta as { resumeAdminConfirm?: boolean } | undefined)?.resumeAdminConfirm)
+    if (
+      !resumeConfirm &&
+      hasSuccessfulAdminWriteInRun({
+        results: input.state.results as Record<string, unknown> | undefined,
+        evidence: Array.isArray(input.state.evidence) ? (input.state.evidence as Array<Record<string, unknown>>) : []
+      })
+    ) {
+      const prior = String((input.state.results as Record<string, unknown> | undefined)?.admin || '').trim()
+      input.sendThinking('admin：本轮写操作已成功，跳过重复执行（side_effect_done）')
+      return {
+        ok: true,
+        agent: 'admin',
+        output: prior || '（复用上轮已成功的 admin 写结果）',
+        query: input.effQuery,
+        meta: { reusedPriorAdminWrite: true, reason: 'side_effect_done' }
+      }
+    }
     const lastU = deps.lastUserText(input.state.messages)
     const scopeSeed = resolveAdminScopeQuery({
       scopeQuery: input.scopeQuery,

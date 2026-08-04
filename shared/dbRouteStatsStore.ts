@@ -2,9 +2,9 @@ import { agentPgQuery } from './agentPgClient'
 import {
   isPostgresStorageEnabled,
   resolveStorageBackend,
-  shouldWriteFile,
   shouldWritePostgres
 } from './storageBackend'
+import { normalizeTenantId } from './tenantScope'
 
 export type RouteStatRow = {
   contextKey: string
@@ -13,15 +13,17 @@ export type RouteStatRow = {
   successes: number
   empty: number
   avgMs: number
+  tenantId?: string
 }
 
 export function resolveDbRouteStorageBackend(env: NodeJS.ProcessEnv = process.env) {
   return resolveStorageBackend(env.DB_AGENT_STORAGE_BACKEND, 'file')
 }
 
-let routeCache: RouteStatRow[] | null = null
+const routeCacheByTenant = new Map<string, RouteStatRow[]>()
 
-export async function hydrateDbRouteStatsCache(): Promise<void> {
+export async function hydrateDbRouteStatsCache(tenantId?: string): Promise<void> {
+  const tid = normalizeTenantId(tenantId)
   const res = await agentPgQuery<{
     context_key: string
     path: string
@@ -29,67 +31,84 @@ export async function hydrateDbRouteStatsCache(): Promise<void> {
     successes: number
     empty_count: number
     avg_ms: number
-  }>(`SELECT context_key, path, trials, successes, empty_count, avg_ms FROM db_route_stats`)
+  }>(`SELECT context_key, path, trials, successes, empty_count, avg_ms FROM db_route_stats WHERE tenant_id = $1`, [
+    tid
+  ])
   if (!res) {
-    routeCache = []
+    routeCacheByTenant.set(tid, [])
     return
   }
-  routeCache = res.rows.map((r) => ({
-    contextKey: r.context_key,
-    path: r.path,
-    trials: r.trials,
-    successes: r.successes,
-    empty: r.empty_count,
-    avgMs: r.avg_ms
-  }))
+  routeCacheByTenant.set(
+    tid,
+    res.rows.map((r) => ({
+      contextKey: r.context_key,
+      path: r.path,
+      trials: r.trials,
+      successes: r.successes,
+      empty: r.empty_count,
+      avgMs: r.avg_ms,
+      tenantId: tid
+    }))
+  )
 }
 
-export function readDbRouteStatsSync(): RouteStatRow[] {
-  if (routeCache) return [...routeCache]
+export function readDbRouteStatsSync(tenantId?: string): RouteStatRow[] {
+  const tid = normalizeTenantId(tenantId)
+  const cache = routeCacheByTenant.get(tid)
+  if (cache) return [...cache]
   return []
 }
 
 export async function upsertDbRouteStat(row: RouteStatRow): Promise<void> {
+  const tid = normalizeTenantId(row.tenantId)
+  const withTenant = { ...row, tenantId: tid }
   const backend = resolveDbRouteStorageBackend()
   if (shouldWritePostgres(backend)) {
     await agentPgQuery(
-      `INSERT INTO db_route_stats (context_key, path, trials, successes, empty_count, avg_ms, updated_at)
-       VALUES ($1,$2,$3,$4,$5,$6,NOW())
-       ON CONFLICT (context_key, path) DO UPDATE SET
+      `INSERT INTO db_route_stats (context_key, path, trials, successes, empty_count, avg_ms, updated_at, tenant_id)
+       VALUES ($1,$2,$3,$4,$5,$6,NOW(),$7)
+       ON CONFLICT (tenant_id, context_key, path) DO UPDATE SET
          trials = EXCLUDED.trials,
          successes = EXCLUDED.successes,
          empty_count = EXCLUDED.empty_count,
          avg_ms = EXCLUDED.avg_ms,
          updated_at = NOW()`,
-      [row.contextKey, row.path, row.trials, row.successes, row.empty, row.avgMs]
+      [withTenant.contextKey, withTenant.path, withTenant.trials, withTenant.successes, withTenant.empty, withTenant.avgMs, tid]
     )
   }
-  if (!routeCache) routeCache = []
-  const key = `${row.contextKey}|${row.path}`
-  const idx = routeCache.findIndex((r) => `${r.contextKey}|${r.path}` === key)
-  if (idx >= 0) routeCache[idx] = row
-  else routeCache.push(row)
+  let cache = routeCacheByTenant.get(tid)
+  if (!cache) cache = []
+  const key = `${withTenant.contextKey}|${withTenant.path}`
+  const idx = cache.findIndex((r) => `${r.contextKey}|${r.path}` === key)
+  if (idx >= 0) cache[idx] = withTenant
+  else cache.push(withTenant)
+  routeCacheByTenant.set(tid, cache)
 }
 
-export async function replaceDbRouteStats(rows: RouteStatRow[]): Promise<void> {
+export async function replaceDbRouteStats(rows: RouteStatRow[], tenantId?: string): Promise<void> {
+  const tid = normalizeTenantId(tenantId)
   const backend = resolveDbRouteStorageBackend()
   if (shouldWritePostgres(backend)) {
-    await agentPgQuery(`DELETE FROM db_route_stats`)
+    await agentPgQuery(`DELETE FROM db_route_stats WHERE tenant_id = $1`, [tid])
     for (const row of rows) {
-      await upsertDbRouteStat(row)
+      await upsertDbRouteStat({ ...row, tenantId: tid })
     }
-    routeCache = [...rows]
+    routeCacheByTenant.set(tid, rows.map((r) => ({ ...r, tenantId: tid })))
     return
   }
-  routeCache = [...rows]
+  routeCacheByTenant.set(
+    tid,
+    rows.map((r) => ({ ...r, tenantId: tid }))
+  )
 }
 
-export async function clearDbRouteStats(): Promise<void> {
+export async function clearDbRouteStats(tenantId?: string): Promise<void> {
+  const tid = normalizeTenantId(tenantId)
   const backend = resolveDbRouteStorageBackend()
   if (shouldWritePostgres(backend)) {
-    await agentPgQuery(`DELETE FROM db_route_stats`)
+    await agentPgQuery(`DELETE FROM db_route_stats WHERE tenant_id = $1`, [tid])
   }
-  routeCache = []
+  routeCacheByTenant.set(tid, [])
 }
 
 export function shouldUseDbRoutePg(): boolean {

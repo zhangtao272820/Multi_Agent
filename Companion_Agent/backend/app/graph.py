@@ -176,7 +176,11 @@ def _grow(state: TurnState, *, settings: Settings) -> dict[str, Any]:
     if session:
         out["profile"] = session.profile.model_dump()
     if state.get("event_info"):
-        out.setdefault("relationship_update", {})["event"] = state["event_info"]
+        rel = out.setdefault("relationship_update", {})
+        rel["event"] = state["event_info"]
+        # 开幕当轮：若 after_turn 尚未带上换装，补当前拍立绘
+        if not rel.get("sprite_outfit") and session:
+            rel["sprite_outfit"] = session.resolve_sprite_outfit()
     return out
 
 

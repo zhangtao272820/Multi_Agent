@@ -14,6 +14,7 @@ from . import npc_minds
 from . import relationship as rel
 from . import scores as scores_mod
 from . import seating as seating_mod
+from . import sprite_context as sprite_ctx
 from . import sprites as sprites_mod
 from . import weather as weather_mod
 from . import weekly_events as weekly_mod
@@ -121,11 +122,32 @@ def _sprite_emotion(mood: str) -> str:
     return "neutral"
 
 
+def _resolve_sprite(
+    student: dict[str, Any],
+    save: CampusSave,
+    *,
+    emotion: str | None = None,
+    verb: str | None = None,
+    prefer_scene: bool = True,
+) -> dict[str, Any]:
+    emo = _sprite_emotion(str(emotion or "neutral"))
+    return sprite_ctx.resolve_for_student(
+        student,
+        save,
+        emotion=emo,
+        verb=verb,
+        prefer_scene=prefer_scene,
+    )
+
+
 def _student_public(s: dict[str, Any], save: CampusSave | None = None) -> dict[str, Any]:
     mind = npc_minds.mind_public(save, s["id"]) if save else None
     mood = (mind or {}).get("mood") or "neutral"
     sprite_emotion = _sprite_emotion(str(mood))
-    sprite = sprites_mod.resolve_student_sprite(s["id"], emotion=sprite_emotion)
+    if save:
+        sprite = _resolve_sprite(s, save, emotion=sprite_emotion, prefer_scene=True)
+    else:
+        sprite = sprites_mod.resolve_student_sprite(s["id"], emotion=sprite_emotion)
     q_sprite = sprites_mod.resolve_q_sprite(s["id"], emotion=sprite_emotion)
     out: dict[str, Any] = {
         "id": s["id"],
@@ -191,7 +213,9 @@ def hub_public(save: CampusSave) -> dict[str, Any]:
         active_event = {
             **active_event,
             "talk_npc_name": (other or {}).get("name") or tid,
-            "talk_npc_q": sprites_mod.resolve_q_sprite(tid),
+            "talk_npc_q": sprites_mod.resolve_q_sprite(
+                tid, emotion=_sprite_emotion(str((save.npc_minds.get(tid) or {}).get("mood") or "neutral"))
+            ),
         }
     return {
         "save_id": save.save_id,
@@ -274,8 +298,12 @@ def compute_gaokao_ending(save: CampusSave) -> dict[str, Any]:
             "affinity": float(best.get("affinity") or 0),
             "stage": best.get("stage") or "stranger",
             "stage_label": _STAGE_LABEL_CN.get(str(best.get("stage") or "stranger"), best.get("stage")),
-            "sprite": sprites_mod.resolve_student_sprite(other_id),
-            "q_sprite": sprites_mod.resolve_q_sprite(other_id),
+            "sprite": (
+                _resolve_sprite(other, save, emotion="happy", prefer_scene=False)
+                if other
+                else sprites_mod.resolve_student_sprite(other_id, emotion="happy")
+            ),
+            "q_sprite": sprites_mod.resolve_q_sprite(other_id, emotion="happy"),
         }
 
     resolved = endings_mod.resolve_ending(pc_rank=pc_rank, pc_total=pc_total, romance=romance)
@@ -955,7 +983,9 @@ def chat_turn(*, target_id: str, text: str, verb: str | None = None) -> dict[str
     if len(save.talk_log) > 40:
         save.talk_log = save.talk_log[-40:]
 
-    sprite = sprites_mod.resolve_student_sprite(target_id, emotion=line.emotion)
+    sprite = _resolve_sprite(
+        target, save, emotion=line.emotion, verb=verb, prefer_scene=False
+    )
     q_sprite = sprites_mod.resolve_q_sprite(target_id, emotion=line.emotion)
     action_blurb = None
     if is_date and verb == "date_walk_home":
@@ -1095,7 +1125,9 @@ def interact(*, target_id: str, verb: str, text: str | None = None) -> dict[str,
                 "subject_id": subject,
             },
             "edge": rel.public_edge(edge),
-            "sprite": sprites_mod.resolve_student_sprite(target_id, emotion=line.emotion),
+            "sprite": _resolve_sprite(
+                target, save, emotion=line.emotion, verb=v, prefer_scene=False
+            ),
             "q_sprite": sprites_mod.resolve_q_sprite(target_id, emotion=line.emotion),
             "judge_ok": False,
             "chat_actions_left": save.chat_actions_left,
@@ -1152,7 +1184,9 @@ def interact(*, target_id: str, verb: str, text: str | None = None) -> dict[str,
         "soft_options": line.soft_options or ["那就一起", "再聊两句"],
         "public_deltas": {"affinity_delta": 0.6, "stage": edge["stage"]},
         "edge": rel.public_edge(edge),
-        "sprite": sprites_mod.resolve_student_sprite(target_id, emotion=line.emotion),
+        "sprite": _resolve_sprite(
+            target, save, emotion=line.emotion, verb=v, prefer_scene=False
+        ),
         "q_sprite": sprites_mod.resolve_q_sprite(target_id, emotion=line.emotion),
         "judge_ok": False,
         "chat_actions_left": save.chat_actions_left,

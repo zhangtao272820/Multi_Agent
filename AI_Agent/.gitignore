@@ -13,5 +13,15 @@ assets/avatar_image_oss.json
 assets/avatar_frame.jpg
 assets/avatar_s2v_ready.jpg
 assets/avatar_s2v_meta.json
+assets/avatar_runtime/
+# Local demo / avatar media (do not commit binaries)
+video/*.mp4
+video/*.webm
+video/*.mov
+video/*.jpg
+video/*.jpeg
+video/*.png
+video/*.webp
 services/lipsync/.venv/
 services/lipsync/__pycache__/
+.external/

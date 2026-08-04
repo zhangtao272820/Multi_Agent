@@ -19,7 +19,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export function fetchHealth() {
-  return request<{ ok: boolean; has_save: boolean }>("/api/health");
+  return request<{ ok: boolean; has_save: boolean; desktop?: boolean }>("/api/health");
 }
 
 export function fetchMeta() {

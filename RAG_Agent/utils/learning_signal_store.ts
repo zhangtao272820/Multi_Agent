@@ -7,6 +7,7 @@ import {
   shouldWriteFile,
   shouldWritePostgres
 } from '#agent-shared/storageBackend'
+import { normalizeTenantId, tenantPolicyDir } from '#agent-shared/tenantScope'
 
 export type RagLearningSignalRow = {
   question: string
@@ -16,18 +17,20 @@ export type RagLearningSignalRow = {
   path?: string
   source?: string
   at: string
+  tenantId?: string
 }
 
-let signalsCache: RagLearningSignalRow[] | null = null
+const signalsCacheByTenant = new Map<string, RagLearningSignalRow[]>()
 
-function dataDir() {
-  const dir = join(process.cwd(), '.data')
+function dataDir(tenantId?: string) {
+  const base = join(process.cwd(), '.data')
+  const dir = tenantPolicyDir(base, normalizeTenantId(tenantId))
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
   return dir
 }
 
-export function signalsFilePath() {
-  return join(dataDir(), 'rag-learning-signals.jsonl')
+export function signalsFilePath(tenantId?: string) {
+  return join(dataDir(tenantId), 'rag-learning-signals.jsonl')
 }
 
 export function resolveRagStorageBackend(env: NodeJS.ProcessEnv = process.env) {
@@ -55,17 +58,18 @@ function readJsonlLines<T>(file: string, maxLines = 500): T[] {
 
 function appendSignalToFile(row: RagLearningSignalRow): void {
   try {
-    appendFileSync(signalsFilePath(), `${JSON.stringify(row)}\n`, 'utf8')
+    appendFileSync(signalsFilePath(row.tenantId), `${JSON.stringify(row)}\n`, 'utf8')
   } catch {
     /* ignore */
   }
 }
 
 async function appendSignalToPg(row: RagLearningSignalRow): Promise<boolean> {
+  const tid = normalizeTenantId(row.tenantId)
   const res = await agentPgQuery(
     `INSERT INTO rag_learning_signals
-      (at, question, question_norm, score, comment, path, source)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      (at, question, question_norm, score, comment, path, source, tenant_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
     [
       row.at,
       row.question,
@@ -73,13 +77,15 @@ async function appendSignalToPg(row: RagLearningSignalRow): Promise<boolean> {
       row.score,
       row.comment ?? null,
       row.path ?? null,
-      row.source ?? null
+      row.source ?? null,
+      tid
     ]
   )
   return Boolean(res)
 }
 
-async function readSignalsFromPg(maxLines = 500): Promise<RagLearningSignalRow[] | null> {
+async function readSignalsFromPg(maxLines = 500, tenantId?: string): Promise<RagLearningSignalRow[] | null> {
+  const tid = normalizeTenantId(tenantId)
   const res = await agentPgQuery<{
     at: string
     question: string
@@ -91,9 +97,10 @@ async function readSignalsFromPg(maxLines = 500): Promise<RagLearningSignalRow[]
   }>(
     `SELECT at, question, question_norm, score, comment, path, source
      FROM rag_learning_signals
+     WHERE tenant_id = $1
      ORDER BY id DESC
-     LIMIT $1`,
-    [maxLines]
+     LIMIT $2`,
+    [tid, maxLines]
   )
   if (!res) return null
   return res.rows.reverse().map((r) => ({
@@ -103,52 +110,61 @@ async function readSignalsFromPg(maxLines = 500): Promise<RagLearningSignalRow[]
     score: Number(r.score),
     comment: r.comment ?? undefined,
     path: r.path ?? undefined,
-    source: r.source ?? undefined
+    source: r.source ?? undefined,
+    tenantId: tid
   }))
 }
 
-export async function readRagLearningSignalsAsync(maxLines = 500): Promise<RagLearningSignalRow[]> {
+export async function readRagLearningSignalsAsync(maxLines = 500, tenantId?: string): Promise<RagLearningSignalRow[]> {
+  const tid = normalizeTenantId(tenantId)
   const backend = resolveRagStorageBackend()
   if (isPostgresStorageEnabled(backend)) {
-    const pg = await readSignalsFromPg(maxLines)
+    const pg = await readSignalsFromPg(maxLines, tid)
     if (pg?.length) return pg
     if (backend === 'postgres' && pg) return pg
   }
-  return readJsonlLines<RagLearningSignalRow>(signalsFilePath(), maxLines)
+  return readJsonlLines<RagLearningSignalRow>(signalsFilePath(tid), maxLines)
 }
 
-export async function hydrateRagSignalsCache(maxLines = 600): Promise<void> {
-  signalsCache = await readRagLearningSignalsAsync(maxLines)
+export async function hydrateRagSignalsCache(maxLines = 600, tenantId?: string): Promise<void> {
+  const tid = normalizeTenantId(tenantId)
+  signalsCacheByTenant.set(tid, await readRagLearningSignalsAsync(maxLines, tid))
 }
 
-export function invalidateRagSignalsCache(): void {
-  signalsCache = null
+export function invalidateRagSignalsCache(tenantId?: string): void {
+  if (tenantId) signalsCacheByTenant.delete(normalizeTenantId(tenantId))
+  else signalsCacheByTenant.clear()
 }
 
-export function readRagLearningSignalsSync(maxLines = 500): RagLearningSignalRow[] {
+export function readRagLearningSignalsSync(maxLines = 500, tenantId?: string): RagLearningSignalRow[] {
+  const tid = normalizeTenantId(tenantId)
   const backend = resolveRagStorageBackend()
-  if (isPostgresStorageEnabled(backend) && signalsCache?.length) {
-    return signalsCache.slice(-maxLines)
+  const cache = signalsCacheByTenant.get(tid)
+  if (isPostgresStorageEnabled(backend) && cache?.length) {
+    return cache.slice(-maxLines)
   }
-  return readJsonlLines<RagLearningSignalRow>(signalsFilePath(), maxLines)
+  return readJsonlLines<RagLearningSignalRow>(signalsFilePath(tid), maxLines)
 }
 
 export async function persistRagLearningSignal(row: RagLearningSignalRow): Promise<void> {
+  const tid = normalizeTenantId(row.tenantId)
+  const withTenant = { ...row, tenantId: tid }
   const backend = resolveRagStorageBackend()
   if (shouldWritePostgres(backend)) {
     try {
-      await appendSignalToPg(row)
+      await appendSignalToPg(withTenant)
     } catch {
       /* fallback */
     }
   }
   if (shouldWriteFile(backend)) {
-    appendSignalToFile(row)
+    appendSignalToFile(withTenant)
   }
-  if (signalsCache) {
-    signalsCache.push(row)
-    if (signalsCache.length > 800) signalsCache = signalsCache.slice(-600)
-  }
+  let cache = signalsCacheByTenant.get(tid)
+  if (!cache) cache = []
+  cache.push(withTenant)
+  if (cache.length > 800) cache = cache.slice(-600)
+  signalsCacheByTenant.set(tid, cache)
 }
 
 export async function getRagMemoryStatus(): Promise<{

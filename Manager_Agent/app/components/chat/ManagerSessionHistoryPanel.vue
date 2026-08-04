@@ -1,7 +1,8 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { SessionHistoryItem, WorkbenchMode } from '~/composables/managerChatTypes'
 
-defineProps<{
+const props = defineProps<{
   open: boolean
   backdropVisible: boolean
   sessionId: string
@@ -24,6 +25,11 @@ function modeLabel(mode?: WorkbenchMode) {
   if (mode === 'chat') return '对话'
   return '未标注'
 }
+
+/** 对话/专业分槽：未标注会话跟随当前模式展示，避免串台 */
+const visibleItems = computed(() =>
+  props.items.filter((item) => !item.workbenchMode || item.workbenchMode === props.workbenchMode)
+)
 </script>
 
 <template>
@@ -64,7 +70,7 @@ function modeLabel(mode?: WorkbenchMode) {
           : '当前：普通对话 · 不处理专业编排功能'
       }}
     </p>
-    <div v-if="!items.length" class="spring-history-empty">
+    <div v-if="!visibleItems.length" class="spring-history-empty">
       {{
         workbenchMode === 'professional'
           ? '暂无历史记录，在专业模式发送消息后会自动保存。'
@@ -73,7 +79,7 @@ function modeLabel(mode?: WorkbenchMode) {
     </div>
     <ul v-else class="spring-history-list">
       <li
-        v-for="item in items"
+        v-for="item in visibleItems"
         :key="item.id"
         class="spring-history-row"
         :class="{ active: item.id === sessionId }"

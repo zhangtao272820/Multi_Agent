@@ -5,6 +5,7 @@ from fastapi.responses import FileResponse
 from app.core.config import settings
 from app.core.llm import qwen_llm
 from app.core.internal_auth import accept_websocket_connection, verify_internal_token
+from app.core.browser_auth import ClawhiveBrowserAuthMiddleware, install_auth_config_route
 from app.core.platform_config import refresh_platform_model_cache
 from app.core.token_control import token_controller
 from app.core.time_utils import utc_now_naive, utc_naive_to_local_iso
@@ -92,6 +93,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(ClawhiveBrowserAuthMiddleware, extra_public=("/api/probe",))
+install_auth_config_route(app)
 
 class ChatRequest(BaseModel):
     message: str
@@ -142,9 +145,14 @@ class FeedbackDeleteRequest(BaseModel):
 
 class SessionTruncateRequest(BaseModel):
     session_id: str
-    from_user_index: int
+    from_user_index: int | None = None
     from_turn_id: int | None = None
     replace_user_text: str | None = None
+    fallback_user_text: str | None = None
+
+
+class SessionDeleteRequest(BaseModel):
+    session_id: str
 
 
 class PendingDecideRequest(BaseModel):
@@ -611,6 +619,104 @@ async def delete_session_feedback(body: FeedbackDeleteRequest):
     return {"ok": True, "deleted": deleted}
 
 
+@app.post("/api/session-delete")
+async def delete_session(body: SessionDeleteRequest):
+    """删除整段会话：对话 turns + 任务上下文 + 反馈。"""
+    from app.core.admin_session_feedback import delete_all_session_feedback
+    from app.core.session_dialogue import delete_session_dialogue
+
+    sid = str(body.session_id or "").strip()
+    if not sid:
+        raise HTTPException(status_code=400, detail="session_id 不能为空")
+    dialogue = delete_session_dialogue(sid)
+    feedback_deleted = delete_all_session_feedback(sid)
+    return {"ok": True, "session_id": sid, "dialogue": dialogue, "feedback_deleted": feedback_deleted}
+
+
+@app.get("/api/sessions")
+async def list_sessions(user_id: str = ""):
+    """按用户列出会话（PG adm_sessions 权威）。"""
+    from app.core.admin_pg_store import is_admin_pg_storage, list_adm_sessions_pg
+
+    uid = str(user_id or "").strip()
+    if not uid:
+        return {"items": []}
+    if not is_admin_pg_storage():
+        return {"items": [], "warning": "ADMIN_STORAGE_BACKEND 未启用 postgres"}
+    try:
+        return {"items": list_adm_sessions_pg(uid)}
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail=f"list sessions failed: {e}") from e
+
+
+@app.get("/api/session")
+async def get_session(session_id: str):
+    """拉取单会话消息（PG adm_session_turns 权威）。"""
+    from app.core.admin_pg_store import is_admin_pg_storage, load_turns_pg
+    from app.core.session_dialogue import SessionTurn, SessionLocal, _ensure_tables
+
+    sid = str(session_id or "").strip()
+    if not sid:
+        raise HTTPException(status_code=400, detail="session_id 不能为空")
+    rows: list[dict] = []
+    if is_admin_pg_storage():
+        try:
+            rows = load_turns_pg(sid)
+        except Exception as e:  # noqa: BLE001
+            raise HTTPException(status_code=500, detail=f"get session failed: {e}") from e
+    else:
+        _ensure_tables()
+        db = SessionLocal()
+        try:
+            rows = [
+                {"role": r.role, "content": r.content}
+                for r in db.query(SessionTurn)
+                .filter(SessionTurn.session_id == sid)
+                .order_by(SessionTurn.id.asc())
+                .all()
+            ]
+        finally:
+            db.close()
+    messages = [
+        {
+            "role": "agent" if str(r.get("role") or "") == "assistant" else "user",
+            "content": str(r.get("content") or ""),
+        }
+        for r in rows
+        if str(r.get("content") or "").strip()
+    ]
+    return {"session_id": sid, "messages": messages}
+
+
+class SessionMetaRequest(BaseModel):
+    session_id: str
+    user_id: str | None = None
+    title: str | None = None
+    custom_title: bool | None = None
+
+
+@app.post("/api/session-meta")
+async def update_session_meta(body: SessionMetaRequest):
+    from app.core.admin_pg_store import is_admin_pg_storage, touch_adm_session_pg
+
+    sid = str(body.session_id or "").strip()
+    if not sid:
+        raise HTTPException(status_code=400, detail="session_id 不能为空")
+    if not is_admin_pg_storage():
+        return {"ok": False, "warning": "ADMIN_STORAGE_BACKEND 未启用 postgres"}
+    title = str(body.title or "").strip()[:80] or None
+    try:
+        touch_adm_session_pg(
+            sid,
+            user_id=body.user_id,
+            title=title,
+            custom_title=True if body.custom_title else body.custom_title,
+        )
+        return {"ok": True}
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail=f"session meta failed: {e}") from e
+
+
 @app.post("/api/session-truncate")
 async def truncate_session(body: SessionTruncateRequest):
     from app.core.admin_session_feedback import (
@@ -623,24 +729,32 @@ async def truncate_session(body: SessionTruncateRequest):
     sid = str(body.session_id or "").strip()
     if not sid:
         raise HTTPException(status_code=400, detail="session_id 不能为空")
+    fallback = str(body.fallback_user_text or body.replace_user_text or "").strip()
+    if body.from_user_index is None and not fallback:
+        raise HTTPException(status_code=400, detail="需要 from_user_index 或用户原文")
     result = truncate_session_from_user_index(
         sid,
-        int(body.from_user_index),
+        int(body.from_user_index) if body.from_user_index is not None else -1,
         replace_user_text=body.replace_user_text,
+        fallback_user_text=fallback or None,
     )
+    if not result.get("ok"):
+        raise HTTPException(status_code=404, detail="找不到对应用户消息，无法截断会话")
+    resolved_idx = int(result.get("resolved_user_index") or body.from_user_index or 0)
     feedback_deleted = 0
     if body.replace_user_text is not None and str(body.replace_user_text).strip():
-        feedback_deleted = delete_feedback_at_user_index(sid, int(body.from_user_index))
+        feedback_deleted = delete_feedback_at_user_index(sid, resolved_idx)
     else:
-        feedback_deleted = delete_feedback_from_user_index(sid, int(body.from_user_index))
+        feedback_deleted = delete_feedback_from_user_index(sid, resolved_idx)
         if body.from_turn_id is not None:
             feedback_deleted += delete_feedback_from_turn(sid, int(body.from_turn_id))
     return {
-        "ok": bool(result.get("ok")),
+        "ok": True,
         "session_id": sid,
         "user_message_count": result.get("user_message_count", 0),
         "message_count": result.get("message_count", 0),
         "feedback_deleted": feedback_deleted,
+        "resolved_user_index": resolved_idx,
     }
 
 
@@ -857,20 +971,37 @@ async def websocket_endpoint(websocket: WebSocket):
                     "pending_decide_mode": True,
                 }
             elif chat_mode in ("regenerate", "edit_resend"):
-                if not isinstance(user_message_index, int):
+                if not isinstance(user_message_index, int) and not str(user_message or "").strip():
                     await manager.send_personal_message(
                         json.dumps(
                             {
                                 "type": "error",
-                                "error": "重新生成/编辑重发需要 user_message_index",
+                                "error": "重新生成/编辑重发需要 user_message_index 或原文",
                             }
                         ),
                         websocket,
                     )
                     continue
                 if chat_mode == "regenerate":
-                    stored = get_last_user_message(session_id)
-                    user_message = str(user_message or stored or "").strip()
+                    client_text = str(user_message or "").strip()
+                    trunc = truncate_session_from_user_index(
+                        session_id,
+                        int(user_message_index) if isinstance(user_message_index, int) else -1,
+                        replace_user_text=client_text or None,
+                        fallback_user_text=client_text or None,
+                    )
+                    if not trunc.get("ok"):
+                        await manager.send_personal_message(
+                            json.dumps(
+                                {
+                                    "type": "error",
+                                    "error": "找不到对应用户消息，无法重新生成",
+                                }
+                            ),
+                            websocket,
+                        )
+                        continue
+                    user_message = client_text or get_last_user_message(session_id)
                     if not user_message:
                         await manager.send_personal_message(
                             json.dumps(
@@ -885,7 +1016,9 @@ async def websocket_endpoint(websocket: WebSocket):
                     try:
                         from app.core.admin_session_feedback import delete_feedback_at_user_index
 
-                        delete_feedback_at_user_index(session_id, int(user_message_index))
+                        delete_feedback_at_user_index(
+                            session_id, int(trunc.get("resolved_user_index") or 0)
+                        )
                     except Exception:
                         pass
                 else:
@@ -901,8 +1034,15 @@ async def websocket_endpoint(websocket: WebSocket):
                             websocket,
                         )
                         continue
-                    truncate_session_from_user_index(session_id, int(user_message_index))
-                    append_turn(session_id, "user", user_message)
+                    trunc = truncate_session_from_user_index(
+                        session_id,
+                        int(user_message_index) if isinstance(user_message_index, int) else -1,
+                        fallback_user_text=user_message,
+                    )
+                    # HTTP 侧可能已截断：index 未命中时仍追加新用户消息
+                    if not trunc.get("ok"):
+                        pass
+                    append_turn(session_id, "user", user_message, user_id=user_id)
                 initial_state = {
                     "messages": [HumanMessage(content=user_message)],
                     "session_id": session_id,
@@ -928,7 +1068,7 @@ async def websocket_endpoint(websocket: WebSocket):
                         websocket,
                     )
                     continue
-                append_turn(session_id, "user", user_message)
+                append_turn(session_id, "user", user_message, user_id=user_id)
 
                 initial_state = {
                     "messages": [HumanMessage(content=user_message)],

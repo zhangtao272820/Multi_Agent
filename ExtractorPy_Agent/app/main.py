@@ -21,6 +21,7 @@ from app.runtime.runner import run_extract
 from app.tools.crw_scrape import probe_crw
 from app.tools.playwright_mcp import probe_playwright_mcp
 from app.tools.searxng import probe_searxng
+from app.browser_auth import ClawhiveBrowserAuthMiddleware, install_auth_config_route
 
 ROOT = Path(__file__).resolve().parent.parent
 FRONTEND_DIST = ROOT / "frontend" / "dist"
@@ -33,6 +34,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(ClawhiveBrowserAuthMiddleware, extra_public=("/api/probe",))
+install_auth_config_route(app)
 
 
 def _check_internal_token(request: Request) -> None:

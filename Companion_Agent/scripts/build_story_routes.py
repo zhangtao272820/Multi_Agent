@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
-"""Generate story_routes.json, merge character endings, update route_catalog.
+"""Normalize story_routes.json (SSOT), validate endings, update route_catalog.
+
+Characters / acts live in data/story_routes.json — this script must NOT rebuild
+them from the legacy ROUTES / NEUTRAL_ROUTES tables below.
 
 Run from Companion_Agent:
   python scripts/build_story_routes.py
@@ -1832,82 +1835,103 @@ NEUTRAL_ROUTES: dict[str, dict] = {
 }
 
 
-def build_story_routes() -> dict:
-    out_chars = {}
-    for cid, row in {**ROUTES, **NEUTRAL_ROUTES}.items():
-        out_chars[cid] = {
-            "character_id": cid,
-            "name": row["name"],
-            "tier": row["tier"],
-            "route_title": row["route_title"],
-            "theme": row["theme"],
-            "logline": row["logline"],
-            "acts": row["acts"],
-            "branches": row["branches"],
-            "unique_ending_ids": [e["id"] for e in row["endings"]],
-            "cast_kind": "neutral" if cid in NEUTRAL_ROUTES else "romance",
-            "anchor": row.get("anchor") or "",
-        }
-    return {
-        "version": 2,
-        "notes": (
-            "角色故事 SSOT。romance：T0/T1 主网 + T2 轻副本；"
-            "neutral：2 幕羁绊线（禁恋爱，可守门影响绑定 T0 真结局）；"
-            "无名背景不参与结局与分支。"
-            "男主家庭轴：亲妹妹沈书璃 + 义妹沈枫音同住。"
-        ),
-        "pc": {
-            "summary": "落脚小镇的上班族；亲妹妹沈书璃、义妹沈枫音同住。",
-            "home_with": ["shuli", "fengyin"],
-        },
-        "tier_policy": {
-            "T0": {
-                "acts": 4,
-                "unique_endings": "true + good + soft (=3)",
-                "sprite_drive": "signature / season / intimate 全程可用",
-                "gate": "绑定中立同盟 flag 卡真结局",
-            },
-            "T1": {
-                "acts": 3,
-                "unique_endings": "true + good + soft (=3)",
-                "sprite_drive": "扩包签名支撑关键幕",
-                "cross_bonds": "部分女主互有 edges",
-            },
-            "T2": {
-                "acts": 2,
-                "unique_endings": "good + soft (=2)",
-                "sprite_drive": "维持站姿换装，不依赖扩包",
-                "role": "轻副本；少跨线；结局不吃其他角色 flag",
-            },
-            "N": {
-                "acts": 2,
-                "unique_endings": "bond good + soft (=2)",
-                "sprite_drive": "中立立绘即可；禁 intimate / 恋爱签名",
-                "gate": "可卡绑定 T0 真结局；戏份高于 T2",
-            },
-        },
-        "shared_romance_endings": SHARED,
-        "shared_neutral_endings": SHARED_NEUTRAL,
-        "npc_policy": {
-            "ids": [],
-            "allowed_endings": [],
-            "story_branches": False,
-            "note": "无有名 NPC；路人立绘仅地点背景装饰，不参与结局与分支",
-        },
-        "characters": out_chars,
+# ---------------------------------------------------------------------------
+# SSOT：data/story_routes.json（characters / tier_policy）
+# 上方 ROUTES / NEUTRAL_ROUTES 为历史草稿，禁止再覆盖 JSON。
+# ---------------------------------------------------------------------------
+
+TIER_POLICY_SSOT = {
+    "T0": {
+        "acts": 7,
+        "unique_endings": "true + good + soft + bad (=4)",
+        "sprite_drive": "signature / season / intimate 全程可用",
+        "gate": "绑定中立同盟 flag 卡真结局",
+        "season_acts": "winter + festival waypoint-gated",
+        "note": "原6幕+危机转折幕；sprite 挂钩签名/季节/亲密等已有包",
+    },
+    "T1": {
+        "acts": 6,
+        "unique_endings": "true + good + soft + bad (=4)",
+        "sprite_drive": "扩包签名支撑关键幕",
+        "cross_bonds": "部分女主互有 edges",
+        "season_acts": "winter + festival waypoint-gated",
+        "note": "原5幕+危机幕；充分利用立绘",
+    },
+    "T2": {
+        "acts": 4,
+        "unique_endings": "good + soft + bad (=3)",
+        "sprite_drive": "维持站姿换装，不依赖扩包",
+        "role": "轻副本；少跨线；结局不吃其他角色 flag",
+        "season_acts": "winter + festival waypoint-gated",
+    },
+    "N": {
+        "acts": 3,
+        "unique_endings": "bond good + soft + shadow garden (=3)",
+        "sprite_drive": "C档 + 日常扩装 + T2同列§2.3–§2.8（故意展示）；禁 intimate/bridal",
+        "gate": "可卡绑定 T0 真结局；戏份高于 T2；高好感可进影子花园",
+        "alias_of": "L",
+        "deprecated_note": "旧中立语义；请用 L/linked",
+    },
+    "L": {
+        "acts": 4,
+        "unique_endings": "true + good/soft + bad",
+        "sprite_drive": "中档冬装/生活态 + 签名",
+        "gate": "锚点介绍 + 本人开放 flag + 锚点同盟 flag；未破门 stage cap close_friend",
+        "role": "关系向难攻略；可卡绑定女主真结局，也被女主门卡住",
+    },
+    "L0": {
+        "acts": 6,
+        "role": "书璃主轴",
+        "unique_endings": "true+good+soft+shadow+bad×2",
+    },
+}
+
+NOTES_SSOT = (
+    "romance T0/T1 加厚含危机幕；T2 轻副本；linked 关系向；书璃 L0 主轴；"
+    "幕 sprites/事件 sprite_hint 尽量挂钩已有立绘包。"
+)
+
+
+def load_story_routes() -> dict:
+    path = DATA / "story_routes.json"
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def normalize_story_routes(payload: dict) -> dict:
+    """以现有 characters 为 SSOT，只校正外壳字段，绝不从 ROUTES 重建幕。"""
+    chars = payload.get("characters") or {}
+    if not chars:
+        raise SystemExit("story_routes.json characters empty — refuse to rebuild from legacy ROUTES")
+
+    payload["version"] = int(payload.get("version") or 2)
+    payload["notes"] = NOTES_SSOT
+    payload["pc"] = {
+        "summary": "落脚小镇的上班族；亲妹妹沈书璃、义妹沈枫音同住。",
+        "home_with": ["shuli", "fengyin"],
     }
+    payload["tier_policy"] = dict(TIER_POLICY_SSOT)
+    payload["shared_romance_endings"] = list(SHARED)
+    payload["shared_neutral_endings"] = list(SHARED_NEUTRAL)
+    payload["npc_policy"] = {
+        "ids": [],
+        "allowed_endings": [],
+        "story_branches": False,
+        "note": "无有名 NPC；路人立绘仅地点背景装饰，不参与结局与分支",
+    }
+    # 确保 character_id 字段齐全
+    for cid, row in chars.items():
+        row["character_id"] = cid
+        if cid == "shuli":
+            row["tier"] = "L0"
+            row["cast_kind"] = "linked"
+            row["prime_heroine"] = True
+            row["anchor"] = row.get("anchor") or "pc_family"
+    payload["characters"] = chars
+    return payload
 
 
-def all_unique_endings() -> list[dict]:
-    ends: list[dict] = []
-    for row in ROUTES.values():
-        ends.extend(row["endings"])
-    for row in NEUTRAL_ROUTES.values():
-        ends.extend(row["endings"])
-    return ends
-
-
-def merge_endings_json() -> None:
+def merge_endings_json(routes: dict | None = None) -> None:
+    """清理过期 id；不把 legacy ROUTES 结局覆盖进 endings.json。"""
     path = DATA / "endings.json"
     data = json.loads(path.read_text(encoding="utf-8"))
     existing = {e["id"]: e for e in data.get("endings") or []}
@@ -1926,7 +1950,6 @@ def merge_endings_json() -> None:
         "ending_mentor_guide",
         "ending_witch_omen",
         "ending_bond_boost_true",
-        # 旧中立 id 若残留
         "ending_heqing",
         "ending_xiaoke",
         "ending_lele",
@@ -1934,17 +1957,24 @@ def merge_endings_json() -> None:
     }
     for oid in obsolete:
         existing.pop(oid, None)
-    # 清掉旧中立角色专属结局（若有 character_ids 命中旧 id）
     old_neutrals = {"heqing", "xiaoke", "lele", "anran"}
     for eid, e in list(existing.items()):
         cids = set(e.get("character_ids") or [])
         if cids and cids <= old_neutrals:
             existing.pop(eid, None)
 
-    for e in all_unique_endings():
-        existing[e["id"]] = e
+    # 校验：routes 声明的 unique endings 必须已在 endings.json
+    routes = routes or load_story_routes()
+    missing: list[str] = []
+    for cid, row in (routes.get("characters") or {}).items():
+        for eid in row.get("unique_ending_ids") or []:
+            if eid not in existing:
+                missing.append(f"{cid}:{eid}")
+    if missing:
+        raise SystemExit(
+            "endings.json missing unique endings from story_routes: " + ", ".join(missing[:20])
+        )
 
-    # 共享结局：npc 不得出现在 cast_roles
     for e in existing.values():
         roles = list(e.get("cast_roles") or [])
         if "npc" in roles:
@@ -1956,25 +1986,19 @@ def merge_endings_json() -> None:
         json.dumps({"endings": merged}, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
-    print(f"endings.json -> {len(merged)} endings")
+    print(f"endings.json -> {len(merged)} endings (SSOT preserved)")
 
 
-def update_route_catalog() -> None:
+def update_route_catalog(routes: dict | None = None) -> None:
+    """按 story_routes.json characters 同步 route_catalog。"""
+    routes = routes or load_story_routes()
+    chars = routes.get("characters") or {}
     path = DATA / "route_catalog.json"
     data = json.loads(path.read_text(encoding="utf-8"))
     by_id = {r["character_id"]: r for r in data.get("routes") or []}
 
-    for cid, row in ROUTES.items():
-        route = by_id.get(cid)
-        if not route:
-            continue
-        unique = [e["id"] for e in row["endings"]]
-        route["allowed_endings"] = list(dict.fromkeys(unique + SHARED))
-        route["route_label"] = f"{row['route_title']}（{row['tier']}）"
-        route["story_tier"] = row["tier"]
-        route["cast_role"] = "romance"
-
-    for cid, row in NEUTRAL_ROUTES.items():
+    romance_n = linked_n = 0
+    for cid, row in chars.items():
         route = by_id.get(cid)
         if not route:
             route = {
@@ -1982,43 +2006,61 @@ def update_route_catalog() -> None:
                 "base_id": "gentle_lover",
                 "growth_mode": "progressive",
                 "start_stage_id": "friend",
-                "target_stage_id": "close_friend",
-                "max_stage_id": "close_friend",
-                "cast_role": "neutral",
+                "target_stage_id": "dating",
+                "max_stage_id": "married",
             }
             data.setdefault("routes", []).append(route)
             by_id[cid] = route
-        unique = [e["id"] for e in row["endings"]]
-        route["allowed_endings"] = list(dict.fromkeys(unique + SHARED_NEUTRAL))
-        route["route_label"] = f"{row['route_title']}（羁绊·禁恋爱）"
-        route["story_tier"] = "N"
-        route["cast_role"] = "neutral"
-        route["max_stage_id"] = "close_friend"
-        route["target_stage_id"] = "close_friend"
 
-    # 移除旧中立 + 已降格有名 NPC（路人仅背景，无 route）
+        tier = str(row.get("tier") or "")
+        cast_kind = str(row.get("cast_kind") or "romance")
+        unique = list(row.get("unique_ending_ids") or [])
+        title = str(row.get("route_title") or cid)
+
+        if cast_kind == "linked" or tier in ("L", "L0", "N"):
+            linked_n += 1
+            shared = list(SHARED_NEUTRAL)
+            # 关系向 / L0：可恋爱；共享中立池 + 独有
+            route["cast_role"] = "linked"
+            route["story_tier"] = tier if tier in ("L", "L0") else "L"
+            route["max_stage_id"] = "married"
+            if not route.get("target_stage_id") or route.get("target_stage_id") == "close_friend":
+                route["target_stage_id"] = "dating"
+            if tier == "L0":
+                route["route_label"] = f"{title}（L0·主轴女主）"
+            else:
+                route["route_label"] = f"{title}（关系向·可恋爱）"
+        else:
+            romance_n += 1
+            shared = list(SHARED)
+            route["cast_role"] = "romance"
+            route["story_tier"] = tier
+            route["route_label"] = f"{title}（{tier}）"
+            route["max_stage_id"] = route.get("max_stage_id") or "married"
+
+        route["allowed_endings"] = list(dict.fromkeys(unique + shared))
+
     drop_ids = {"heqing", "xiaoke", "lele", "anran", "moxi", "luli"}
     data["routes"] = [
         r for r in (data.get("routes") or []) if r.get("character_id") not in drop_ids
     ]
 
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(
-        f"route_catalog: romance={len(ROUTES)} neutral={len(NEUTRAL_ROUTES)} npc=0"
-    )
+    print(f"route_catalog: romance={romance_n} linked={linked_n} npc=0")
 
 
-def write_story_routes() -> None:
+def write_story_routes() -> dict:
     path = DATA / "story_routes.json"
-    payload = build_story_routes()
+    payload = normalize_story_routes(load_story_routes())
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(f"story_routes.json -> {len(payload['characters'])} characters")
+    print(f"story_routes.json -> {len(payload['characters'])} characters (SSOT normalized)")
+    return payload
 
 
 def main() -> None:
-    write_story_routes()
-    merge_endings_json()
-    update_route_catalog()
+    payload = write_story_routes()
+    merge_endings_json(payload)
+    update_route_catalog(payload)
 
 
 if __name__ == "__main__":

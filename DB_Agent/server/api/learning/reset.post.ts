@@ -11,10 +11,11 @@ type ResetScope = "all" | "learning" | "route" | "prompts" | "metrics" | "templa
 
 export default defineEventHandler(async (event) => {
   ensureRateLimit(event, { max: 12, refillPerSec: 2 });
-  const body = await readBody<{ scope?: ResetScope }>(event).catch(() => ({}));
+  const body = await readBody<{ scope?: ResetScope; tenant_id?: string; tenantId?: string }>(event).catch(() => ({}));
   const scope: ResetScope = body?.scope ?? "all";
+  const tenantId = String(body?.tenant_id || body?.tenantId || "").trim() || undefined;
 
-  if (scope === "all" || scope === "learning") clearLearningData();
+  if (scope === "all" || scope === "learning") clearLearningData(tenantId);
   if (scope === "all" || scope === "route") clearRoutePreferences();
   if (scope === "all" || scope === "prompts") clearPromptPatches();
   if (scope === "all" || scope === "metrics") clearQueryMetrics();
@@ -22,5 +23,5 @@ export default defineEventHandler(async (event) => {
   if (scope === "all" || scope === "evolved") clearEvolvedBlueprint();
   if (scope === "all" || scope === "preferences") clearUserPreferences();
 
-  return { ok: true, scope };
+  return { ok: true, scope, tenantId: tenantId || "default" };
 });

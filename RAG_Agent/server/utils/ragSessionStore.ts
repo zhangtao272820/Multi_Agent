@@ -169,22 +169,57 @@ export async function appendRagSessionTurns(
 export async function truncateRagSessionFromUserIndex(
   sessionId: string,
   fromUserIndex: number,
-  opts?: { userId?: string; replaceUserText?: string }
-): Promise<{ messages: RagSessionMessage[]; userCount: number }> {
+  opts?: { userId?: string; replaceUserText?: string; fallbackUserText?: string }
+): Promise<{ messages: RagSessionMessage[]; userCount: number; ok: boolean; resolvedUserIndex: number }> {
   const sid = String(sessionId || "").trim();
-  if (!sid) return { messages: [], userCount: 0 };
+  if (!sid) return { messages: [], userCount: 0, ok: false, resolvedUserIndex: -1 };
   const existing = await readRagSession(sid);
   const msgs = existing.messages;
+  const normalize = (s: string) =>
+    String(s || "")
+      .replace(/\n\[附件:[^\]]+\]\s*$/i, "")
+      .replace(/^\[附件:[^\]]+\]\s*$/i, "")
+      .replace(/\s+/g, " ")
+      .trim();
   let userIdx = 0;
-  let cutAt = msgs.length;
+  let cutAt = -1;
+  let resolvedUserIndex = -1;
+  const wantIdx = Number.isFinite(fromUserIndex) && fromUserIndex >= 0 ? Math.floor(fromUserIndex) : -1;
   for (let i = 0; i < msgs.length; i++) {
     if (msgs[i]!.role === "user") {
-      if (userIdx === fromUserIndex) {
+      if (wantIdx >= 0 && userIdx === wantIdx) {
         cutAt = i;
+        resolvedUserIndex = userIdx;
         break;
       }
       userIdx++;
     }
+  }
+  const needle = normalize(opts?.fallbackUserText || opts?.replaceUserText || "");
+  if (cutAt < 0 && needle) {
+    const hits: Array<{ i: number; uidx: number }> = [];
+    let nth = 0;
+    for (let i = 0; i < msgs.length; i++) {
+      if (msgs[i]!.role !== "user") continue;
+      if (normalize(msgs[i]!.content) === needle) hits.push({ i, uidx: nth });
+      nth++;
+    }
+    if (hits.length) {
+      const best =
+        wantIdx >= 0
+          ? hits.reduce((a, b) => (Math.abs(a.uidx - wantIdx) <= Math.abs(b.uidx - wantIdx) ? a : b))
+          : hits[hits.length - 1]!;
+      cutAt = best.i;
+      resolvedUserIndex = best.uidx;
+    }
+  }
+  if (cutAt < 0) {
+    return {
+      messages: msgs,
+      userCount: msgs.filter((m) => m.role === "user").length,
+      ok: false,
+      resolvedUserIndex: -1,
+    };
   }
   let kept = msgs.slice(0, cutAt);
   const replace = String(opts?.replaceUserText ?? "").trim();
@@ -193,7 +228,7 @@ export async function truncateRagSessionFromUserIndex(
   }
   await writeRagSession(sid, { messages: kept }, { userId: opts?.userId });
   const userCount = kept.filter((m) => m.role === "user").length;
-  return { messages: kept, userCount };
+  return { messages: kept, userCount, ok: true, resolvedUserIndex };
 }
 
 export async function deleteRagSession(sessionId: string): Promise<{ pg: boolean }> {

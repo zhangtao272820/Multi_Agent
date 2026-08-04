@@ -55,6 +55,13 @@ export default defineNuxtConfig({
       password: String(process.env.MYSQL_PASSWORD ?? process.env.NUXT_MYSQL_PASSWORD ?? '123456'),
       database: process.env.MYSQL_DATABASE ?? 'p2026'
     },
-    mcpServers
+    mcpServers,
+    public: {
+      clawhiveAuthUrl:
+        process.env.NUXT_PUBLIC_CLAWHIVE_AUTH_URL ||
+        process.env.CLAWHIVE_PUBLIC_URL ||
+        'http://127.0.0.1:18000',
+      agentBrowserAuth: process.env.NUXT_PUBLIC_AGENT_BROWSER_AUTH || process.env.AGENT_BROWSER_AUTH || '1'
+    }
   }
 })

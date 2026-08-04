@@ -1,0 +1,76 @@
+id: story_qiansha_act5_winter_diff
+label: 冬夜 Diff
+priority: 6
+once: true
+chance: 1.0
+scene_id: ''
+trigger:
+  character_ids:
+  - qiansha
+  stage_min: crush
+  affinity_min: 78
+  flags_present:
+  - qs_merge
+  flags_absent:
+  - qs_winter_diff
+  waypoint_min: q_winter_onset
+  season: winter
+prompt_snippet: |
+  【专属故事 · 沈千纱 · 冬季加幕 · 冬夜 Diff】
+advance: on_player_turn
+beats:
+- id: b1
+  summary: 入冬 CI 全绿；她把热咖啡放你桌边，diff 里却还留着未提交的情绪。等你回应。
+  sprite_hint:
+  - season_winter
+  - home
+  - home_eating
+  - home_sleeping
+  - intimate_lounge
+  soft_options:
+  - 帮她保存 diff
+  - 说先热饮
+  - 问哪行最脏
+  narration: 显示器蓝光与键盘声里，入冬 CI 全绿；她把热咖啡放你桌边，diff 里却还留着未提交的情绪。
+  pc_thought: 旧 PR 还开着。Merge 还是 Close——我别当版本控制器。
+  brief: 入冬 CI 全绿；她把热咖啡放你桌边，diff 里却还留着未提交的情绪。等你回应。
+- id: b2
+  summary: 她随口提隔壁花店有人重建订单——艾莉只是旁支一行日志，不抢本线。等你回应。
+  sprite_hint:
+  - season_winter
+  - casual
+  - home_eating
+  - home_sleeping
+  - intimate_lounge
+  soft_options:
+  - 并肩拍板
+  - 说别一个人 merge
+  - 约短休
+  narration: 显示器蓝光与键盘声里，她随口提隔壁花店有人重建订单——艾莉只是旁支一行日志，不抢本线。
+  pc_thought: debug 到深夜，像把分手理由一行行编译。
+  brief: 她随口提隔壁花店有人重建订单——艾莉只是旁支一行日志，不抢本线。等你回应。
+- id: b3
+  summary: 你是一起看完这页 conflict，还是点 Archive；仓库会被改写。等你回应。
+  sprite_hint:
+  - season_winter
+  - date
+  - home_eating
+  - home_sleeping
+  - intimate_lounge
+  soft_options:
+  - 承诺不摸键盘
+  - 夸她冷静
+  - 送她下楼
+  narration: 显示器蓝光与键盘声里，你是一起看完这页 conflict，还是点 Archive；仓库会被改写。
+  pc_thought: 脏 diff 里藏着没说完的话。我敢不敢 review？
+  brief: 你是一起看完这页 conflict，还是点 Archive；仓库会被改写。等你回应。
+rewards:
+  flags_set:
+  - qs_winter_diff
+choice_effects:
+- trust_delta: 3
+  affinity_delta: 3
+- trust_delta: 2
+  affinity_delta: 1
+- trust_delta: -3
+  affinity_delta: -2

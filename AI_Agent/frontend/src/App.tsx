@@ -1,9 +1,22 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import defaultAvatarVideo from "../../video/ai.mp4?url";
 import { playSyncedS2v, type SyncedS2vSession } from "./s2vPlayback";
+import { connectLiveTalking, type LiveTalkingSession } from "./lib/livetalkingRtc";
 
 type WsIncoming =
-  | { type: "ready"; payload: { message?: string; lip_sync_mode?: string; streaming?: boolean } }
+  | {
+      type: "ready";
+      payload: {
+        message?: string;
+        lip_sync_mode?: string;
+        streaming?: boolean;
+        livetalking_url?: string;
+        livetalking_webrtc_url?: string;
+        livetalking_offer_url?: string;
+        rag_enabled?: boolean;
+        director_enabled?: boolean;
+      };
+    }
   | { type: "pipeline_started"; payload: { mode?: string } }
   | { type: "transcript"; payload: { text: string; emotion?: string | null } }
   | { type: "reply_start"; payload: Record<string, unknown> }
@@ -11,6 +24,10 @@ type WsIncoming =
   | { type: "reply"; payload: { text: string } }
   | { type: "lip_sync"; payload: Record<string, unknown> }
   | { type: "lip_sync_frame"; payload: { index: number; jpeg_base64: string } }
+  | { type: "rag_hits"; payload: { count?: number; paths?: string[]; scores?: number[] } }
+  | { type: "avatar_director"; payload: { emotion?: string; action?: string; confidence?: number } }
+  | { type: "avatar_action"; payload: Record<string, unknown> }
+  | { type: "interrupted"; payload: { ok?: boolean } }
   | {
       type: "avatar_video";
       payload: {
@@ -109,6 +126,11 @@ export default function App() {
   const pendingAudioUserIdRef = useRef<number | null>(null);
   const [streamFrameUrl, setStreamFrameUrl] = useState<string | null>(null);
   const streamFrameUrlRef = useRef<string | null>(null);
+  const [ltConnected, setLtConnected] = useState(false);
+  const [directorHint, setDirectorHint] = useState("");
+  const ltSessionRef = useRef<LiveTalkingSession | null>(null);
+  const ltOfferUrlRef = useRef("");
+  const webrtcVideoRef = useRef<HTMLVideoElement | null>(null);
 
   const clearStreamFrame = useCallback(() => {
     if (streamFrameUrlRef.current) {
@@ -121,6 +143,38 @@ export default function App() {
   const pushLog = useCallback((line: string) => {
     setLog((p) => appendLog(p, line));
   }, []);
+
+  const ensureLiveTalking = useCallback(async (offerUrl: string) => {
+    if (!offerUrl) return;
+    if (ltSessionRef.current?.sessionid) {
+      setLtConnected(true);
+      return;
+    }
+    try {
+      ltSessionRef.current?.close();
+      const session = await connectLiveTalking({
+        offerUrl,
+        onTrack: (stream) => {
+          const v = webrtcVideoRef.current;
+          if (v) {
+            v.srcObject = stream;
+            v.muted = false;
+            void v.play().catch(() => {});
+          }
+        },
+      });
+      ltSessionRef.current = session;
+      setLtConnected(true);
+      pushLog(`LiveTalking WebRTC ok session=${String(session.sessionid)}`);
+      setStatus(`数字人画面已连接 · SID ${String(session.sessionid)}`);
+    } catch (e) {
+      setLtConnected(false);
+      pushLog(`LiveTalking WebRTC failed: ${e}`);
+      setStatus(
+        `LiveTalking 未连接（将仅语音/假口型）: ${e instanceof Error ? e.message : String(e)}`,
+      );
+    }
+  }, [pushLog]);
 
   const showStreamFrame = useCallback(
     (jpegB64: string) => {
@@ -460,9 +514,16 @@ export default function App() {
           const mode = String(msg.payload.lip_sync_mode || "");
           setLipSyncMode(mode);
           lipSyncModeRef.current = mode;
+          const offer =
+            String(msg.payload.livetalking_offer_url || "") ||
+            `${String(msg.payload.livetalking_webrtc_url || msg.payload.livetalking_url || "").replace(/\/$/, "")}/offer`;
+          ltOfferUrlRef.current = offer;
           pushLog(
-            `ready streaming=${String(msg.payload.streaming)} lip=${mode}`,
+            `ready streaming=${String(msg.payload.streaming)} lip=${mode} rag=${String(msg.payload.rag_enabled)}`,
           );
+          if (mode === "livetalking" && offer) {
+            void ensureLiveTalking(offer);
+          }
         } else if (msg.type === "pipeline_started") {
           pushLog(`pipeline_started mode=${msg.payload.mode}`);
           turnIdRef.current += 1;
@@ -534,24 +595,40 @@ export default function App() {
             setStatus("正在播放语音，对口型视频生成中…");
             void playTtsRef.current(msg.payload.mime, msg.payload.base64);
           }
+        } else if (msg.type === "rag_hits") {
+          pushLog(
+            `rag_hits n=${String(msg.payload.count)} paths=${(msg.payload.paths || []).join(",")}`,
+          );
+        } else if (msg.type === "avatar_director") {
+          const d = msg.payload;
+          setDirectorHint(`${d.emotion || "-"} / ${d.action || "-"} (${d.confidence ?? "-"})`);
+          pushLog(`director emotion=${d.emotion} action=${d.action} conf=${d.confidence}`);
+        } else if (msg.type === "avatar_action") {
+          pushLog(`avatar_action applied=${String(msg.payload.applied)} type=${String(msg.payload.audiotype)}`);
         } else if (msg.type === "tts_chunk") {
           const mode = lipSyncModeRef.current;
-          if (
+          // livetalking：音频走 WebRTC，本地不再叠播 TTS
+          if (mode === "livetalking" && ltSessionRef.current?.sessionid) {
+            if (msg.payload.index === 0) setStatus("LiveTalking 播报中…");
+            setSpeaking(true);
+          } else if (
             mode !== "cached_s2v" &&
             mode !== "wan_s2v" &&
             mode !== "local_ultralight" &&
             mode !== "local_wav2lip" &&
             mode !== "local_lipsync"
           ) {
-          if (msg.payload.index === 0) setStatus("正在播放语音…");
-          void scheduleTtsRef.current(
-            msg.payload.mime,
-            msg.payload.base64,
-            streamSessionRef.current,
-          );
+            if (msg.payload.index === 0) setStatus("正在播放语音…");
+            void scheduleTtsRef.current(
+              msg.payload.mime,
+              msg.payload.base64,
+              streamSessionRef.current,
+            );
           }
         } else if (msg.type === "tts_audio") {
-          void playTtsRef.current(msg.payload.mime, msg.payload.base64);
+          if (!(lipSyncModeRef.current === "livetalking" && ltSessionRef.current?.sessionid)) {
+            void playTtsRef.current(msg.payload.mime, msg.payload.base64);
+          }
         } else if (msg.type === "stream_done") {
           setBusy(false);
           updateChatMessage(pendingAssistantIdRef.current, { pending: false });
@@ -575,12 +652,14 @@ export default function App() {
         pushLog(`bad message: ${ev.data}`);
       }
     };
-  }, [pushLog, wsUrl, resetStreamAudio, setReplyThrottled, returnToIdleVideo, handleAvatarVideo, addChatMessage, updateChatMessage, showStreamFrame, clearStreamFrame]);
+  }, [pushLog, wsUrl, resetStreamAudio, setReplyThrottled, returnToIdleVideo, handleAvatarVideo, addChatMessage, updateChatMessage, showStreamFrame, clearStreamFrame, ensureLiveTalking]);
 
   useEffect(() => {
     connect();
     return () => {
       wsRef.current?.close();
+      ltSessionRef.current?.close();
+      ltSessionRef.current = null;
       if (animRef.current) cancelAnimationFrame(animRef.current);
       void audioCtxRef.current?.close();
       clearS2vPlayback();
@@ -594,7 +673,12 @@ export default function App() {
       setStatus("未连接，请先点击重连");
       return;
     }
-    ws.send(JSON.stringify({ type: "utterance", payload }));
+    const sid = ltSessionRef.current?.sessionid;
+    const body = {
+      ...payload,
+      ...(sid !== undefined && sid !== "" ? { livetalking_sessionid: sid } : {}),
+    };
+    ws.send(JSON.stringify({ type: "utterance", payload: body }));
   };
 
   const startRecording = async () => {
@@ -720,17 +804,21 @@ export default function App() {
 
       <div className="panel panel--fill">
         <div className="card card--avatar card--avatar-fill">
-          <div className={`avatar-wrap${useS2vVideo ? " avatar-wrap--s2v" : ""}`}>
+          <div className={`avatar-wrap${useS2vVideo || ltConnected ? " avatar-wrap--s2v" : ""}`}>
             <span className={`avatar-badge${speaking ? " speaking" : ""}`}>
               {speaking
                 ? useS2vVideo
                   ? s2vCacheHit
                     ? "对口型 · 缓存"
                     : "对口型"
-                  : "说话中"
-                : videoReady
-                  ? "待机"
-                  : "加载中"}
+                  : ltConnected
+                    ? "LiveTalking"
+                    : "说话中"
+                : ltConnected
+                  ? "数字人就绪"
+                  : videoReady
+                    ? "待机"
+                    : "加载中"}
             </span>
             <video
               ref={videoRef}
@@ -748,13 +836,27 @@ export default function App() {
                 if (!useS2vVideoRef.current) startIdleVideo();
               }}
               style={
-                useS2vVideo
-                  ? undefined
-                  : {
-                      transform: `scale(${mouthScale}, ${mouthScale})`,
-                      filter: mouthFilter,
-                    }
+                ltConnected
+                  ? { display: "none" }
+                  : useS2vVideo
+                    ? undefined
+                    : {
+                        transform: `scale(${mouthScale}, ${mouthScale})`,
+                        filter: mouthFilter,
+                      }
               }
+            />
+            <video
+              ref={webrtcVideoRef}
+              className="webrtc-avatar"
+              playsInline
+              autoPlay
+              style={{
+                display: ltConnected ? "block" : "none",
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+              }}
             />
             {streamFrameUrl && !useS2vVideo ? (
               <img className="stream-frame-overlay" src={streamFrameUrl} alt="对口型预览" />
@@ -782,7 +884,13 @@ export default function App() {
             ) : null}
           </div>
           <p className="avatar-footer">
-            {useS2vVideo ? (
+            {ltConnected ? (
+              <>
+                LiveTalking + FeatherTalk
+                {directorHint ? ` · ${directorHint}` : ""}
+                {lipSyncHint ? ` · ${lipSyncHint}` : ""}
+              </>
+            ) : useS2vVideo ? (
               <>
                 对口型播放中
                 {s2vCacheHit ? " · 本地缓存" : ""}

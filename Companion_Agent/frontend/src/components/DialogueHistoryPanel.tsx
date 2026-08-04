@@ -17,7 +17,9 @@ export default function DialogueHistoryPanel({ turns, onRollback, onClose, busy 
             ✕
           </button>
         </header>
-        <p className="muted">回退会丢掉此句之后的对话与好感变化。</p>
+        <p className="muted gal-history-hint">
+          点右侧「回退」可回到该句；之后的对话与好感变化会一并撤销。仅影响当前对话，不撤销出门/送礼。
+        </p>
         <div className="gal-history-list">
           {turns.map((t) => (
             <div key={t.turn_id} className={`gal-history-row gal-history-row--${t.role}`}>

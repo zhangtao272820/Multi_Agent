@@ -53,10 +53,26 @@ def list_outfits_for(character_id: str) -> list[str]:
     return sorted(outfits, key=lambda o: (rank.get(o, 50), o))
 
 
-def build_gallery_payload() -> dict[str, Any]:
+def build_gallery_payload(
+    *,
+    save_id: str = "",
+    user_id: str = "",
+    mode: str = "pick",
+) -> dict[str, Any]:
+    from .sprite_unlock import enrich_character_gallery
+    from .world_store import get_world_save
+
     graph = load_social_graph()
     draft = load_cast_pick_draft()
     picks = draft.get("picks") or {}
+    mode_n = (mode or "pick").strip().lower()
+    if mode_n not in {"browse", "pick"}:
+        mode_n = "pick"
+    save = None
+    if save_id:
+        save = get_world_save(save_id)
+        if save and user_id and save.user_id != user_id:
+            save = None
     characters: list[dict[str, Any]] = []
     for base in load_character_bases():
         base_id = str(base.get("id") or "")
@@ -67,26 +83,27 @@ def build_gallery_payload() -> dict[str, Any]:
             pick = picks.get(cid) or {}
             emotions = list_emotions_for(cid)
             outfits = list_outfits_for(cid)
-            characters.append(
-                {
-                    "character_id": cid,
-                    "name": profile.get("name") or row.get("label") or cid,
-                    "base_id": base_id,
-                    "base_label": base.get("label") or base_id,
-                    "theme_color": base.get("theme_color") or profile.get("theme_color") or "#f472b6",
-                    "cast_kind": (social.cast_kind if social else "romance"),
-                    "role_to_pc": social.role_to_pc if social else "",
-                    "role_hint": social.role_hint if social else "",
-                    "appearance": profile.get("appearance") or "",
-                    "emotions": emotions,
-                    "outfits": outfits,
-                    "thumb": f"/api/sprites/{cid}/neutral.png" if "neutral" in emotions else (
-                        f"/api/sprites/{cid}/{emotions[0]}.png" if emotions else ""
-                    ),
-                    "pick": pick.get("kind") or (social.cast_kind if social else "romance"),
-                    "note": pick.get("note") or "",
-                }
-            )
+            entry = {
+                "character_id": cid,
+                "name": profile.get("name") or row.get("label") or cid,
+                "base_id": base_id,
+                "base_label": base.get("label") or base_id,
+                "theme_color": base.get("theme_color") or profile.get("theme_color") or "#f472b6",
+                "cast_kind": (social.cast_kind if social else "romance"),
+                "role_to_pc": social.role_to_pc if social else "",
+                "role_hint": social.role_hint if social else "",
+                "appearance": profile.get("appearance") or "",
+                "emotions": emotions,
+                "outfits": outfits,
+                "thumb": f"/api/sprites/{cid}/neutral.png" if "neutral" in emotions else (
+                    f"/api/sprites/{cid}/{emotions[0]}.png" if emotions else ""
+                ),
+                "pick": pick.get("kind") or (social.cast_kind if social else "romance"),
+                "note": pick.get("note") or "",
+            }
+            bond = save.bonds.get(cid) if save else None
+            entry = enrich_character_gallery(entry, bond, save=save, mode=mode_n)
+            characters.append(entry)
     # normalize: UI uses romance for main
     main_count = sum(1 for c in characters if c["pick"] in {"romance", "main_candidate"})
     return {
@@ -95,6 +112,8 @@ def build_gallery_payload() -> dict[str, Any]:
         "main_target": MAIN_TARGET,
         "draft_updated_at": draft.get("updated_at") or "",
         "applied": bool(draft.get("applied")),
+        "mode": mode_n,
+        "save_id": save.save_id if save else "",
     }
 
 

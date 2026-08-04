@@ -194,6 +194,38 @@ export function wsAdvancePeriod(ws: WebSocket, opts: { userId: string; saveId: s
   );
 }
 
+export function wsJumpWaypoint(
+  ws: WebSocket,
+  opts: { userId: string; saveId: string; waypointId?: string },
+) {
+  ws.send(
+    JSON.stringify({
+      type: "jump_waypoint",
+      payload: {
+        user_id: opts.userId,
+        save_id: opts.saveId,
+        waypoint_id: opts.waypointId || "",
+      },
+    }),
+  );
+}
+
+export function wsSettleFriendEnding(
+  ws: WebSocket,
+  opts: { userId: string; saveId: string; characterId: string },
+) {
+  ws.send(
+    JSON.stringify({
+      type: "settle_friend_ending",
+      payload: {
+        user_id: opts.userId,
+        save_id: opts.saveId,
+        character_id: opts.characterId,
+      },
+    }),
+  );
+}
+
 export function wsLeaveScene(
   ws: WebSocket,
   opts: { sessionId: string; reason?: "farewell" | "turns_exhausted" | "busy" },

@@ -71,22 +71,32 @@ def _is_browser_ws_client(websocket: WebSocket) -> bool:
 def accept_websocket_connection(websocket: WebSocket) -> bool:
     """
     返回 True 表示允许建立 WS。
-    - 未配置内部 token：放行
-    - 携带正确 token：放行（Manager 等编排调用）
-    - 浏览器 Web UI（CORS 允许的来源）：放行
+    - 未配置内部 token 且未开浏览器鉴权：放行
+    - 携带正确 internal token：放行（Manager）
+    - 浏览器 JWT（query access_token / Authorization）：放行
     """
-    expected = _expected_token()
-    if not expected:
-        return True
+    from app.core.browser_auth import ClawhiveAuthError, auth_from_websocket, browser_auth_enabled
 
+    expected = _expected_token()
     got = str(
         websocket.headers.get("x-clawhive-internal-token")
         or websocket.headers.get("x-internal-token")
         or ""
     ).strip()
-    if got and got == expected:
+    if expected and got and got == expected:
+        return True
+
+    if browser_auth_enabled():
+        try:
+            auth_from_websocket(websocket)
+            return True
+        except ClawhiveAuthError:
+            return False
+
+    if not expected:
         return True
     if not got and _is_browser_ws_client(websocket):
+        # 兼容旧行为：未开 AGENT_BROWSER_AUTH 时同源 UI 仍可连
         return True
     return False
 

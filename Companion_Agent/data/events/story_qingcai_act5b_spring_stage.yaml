@@ -1,0 +1,68 @@
+id: story_qingcai_act5b_spring_stage
+label: 新春·舞台
+priority: 6
+once: true
+chance: 1.0
+scene_id: ''
+trigger:
+  character_ids:
+  - qingcai
+  stage_min: crush
+  affinity_min: 72
+  flags_present:
+  - qc_winter_mirror
+  flags_absent:
+  - qc_spring_stage
+  waypoint_min: q_spring_festival
+prompt_snippet: |
+  【专属故事 · 夏晴彩 · 节日加幕 · 新春·舞台】
+advance: on_player_turn
+beats:
+- id: b1
+  summary: 春节特别公演前，她穿节日装却把第一排座位牌写上你的名字。等你回应。
+  sprite_hint:
+  - festival_spring
+  - season_winter
+  soft_options:
+  - 夸她
+  - 点头
+  - 沉默
+  narration: 练舞镜与汗味里，春节特别公演前，她穿节日装却把第一排座位牌写上你的名字。
+  pc_thought: 镜子里她很满。固定观众很好当，恋人更难。
+  brief: 春节特别公演前，她穿节日装却把第一排座位牌写上你的名字。等你回应。
+- id: b2
+  summary: "后台她擦汗：「灯亮时我想看见你——不是观众席的任何人。」。等你回应。"
+  sprite_hint:
+  - festival_spring
+  - date
+  soft_options:
+  - 接住
+  - 问清楚
+  - 退一步
+  narration: "练舞镜与汗味里，后台她擦汗：「灯亮时我想看见你——不是观众席的任何人。」。"
+  pc_thought: 夏日祭灯光一亮，空舞台的恐惧也亮了。
+  brief: "后台她擦汗：「灯亮时我想看见你——不是观众席的任何人。」。等你回应。"
+- id: b3
+  summary: 倒计时开始；你到不到场，会决定舞台是为你亮，还是空空如也。等你回应。
+  sprite_hint:
+  - festival_spring
+  - home
+  soft_options:
+  - 承诺
+  - 诚实犹豫
+  - 拒绝
+  narration: 练舞镜与汗味里，倒计时开始；你到不到场，会决定舞台是为你亮，还是空空如也。
+  pc_thought: 冬练功室只剩回音。我想留下，不只是鼓掌。
+  brief: 倒计时开始；你到不到场，会决定舞台是为你亮，还是空空如也。等你回应。
+rewards:
+  flags_set:
+  - qc_spring_stage
+choice_effects:
+- trust_delta: 4
+  affinity_delta: 3
+- trust_delta: 1
+  affinity_delta: 1
+- trust_delta: -4
+  affinity_delta: -3
+  flags:
+    qingcai_route_bad: true

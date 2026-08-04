@@ -54,6 +54,14 @@ import type { ProbeDbSlice } from '../core/probe/probeInterpretation'
 
 const WEB_CAP_AGENTS = new Set(['crawler', 'music', 'video'])
 
+/** 编排置信 → meta.routeConfidence；禁止落成 0（会被学习看板当成「无置信」） */
+function clampRouteConfidence(raw: unknown): number {
+  const n = typeof raw === 'number' ? raw : Number(raw)
+  if (!Number.isFinite(n)) return 0.65
+  if (n < 0.35) return 0.65
+  return Math.min(1, Math.max(0.35, n))
+}
+
 /** needsWebSearch 须同时：cap 含公网 agent，且存在对应子句或 draft 绑定 */
 function resolveNeedsWebSearchFlag(input: {
   allowed: string[]
@@ -219,6 +227,7 @@ function applyFrozenPuOrchestratorDecision(input: {
     classify.needsWeb &&
     (classify.dataSources?.includes('rag') || classify.dataSources?.includes('db')) &&
     allowed.length >= 2
+  const routeConfidence = clampRouteConfidence(classify.confidence)
   const metaPatch: Record<string, unknown> = {
     unifiedOrchestrator: true,
     orchestratorMode: 'pu_stack',
@@ -237,6 +246,8 @@ function applyFrozenPuOrchestratorDecision(input: {
     orchestratorCapPolicy: 'frozen',
     needsWebSearch,
     compositeDataWebRoute: compositeDataWeb,
+    routeConfidence,
+    uncertainty: routeConfidence >= 0.75 ? 'low' : routeConfidence >= 0.5 ? 'medium' : 'high',
     ...(draftAfterWeather.length ? { stepDispatchDraft: draftAfterWeather } : {}),
     ...(input.bundle.raw.codeMode && input.bundle.raw.codeMode !== 'auto'
       ? { codeMode: input.bundle.raw.codeMode }
@@ -359,6 +370,7 @@ function applyLlmFirstOrchestratorDecision(input: {
         ? false
         : input.bundle.needsWebSearch === true
   })
+  const routeConfidence = clampRouteConfidence(classify.confidence)
   const metaPatch: Record<string, unknown> = {
     unifiedOrchestrator: true,
     orchestratorMode: 'llm_first',
@@ -376,6 +388,8 @@ function applyLlmFirstOrchestratorDecision(input: {
     nlHeuristicTask: input.bundle.coalescedTask,
     needsClarify: input.bundle.needsClarify,
     clarifyQuestions: input.bundle.needsClarify ? input.bundle.clarifyQuestions : [],
+    routeConfidence,
+    uncertainty: routeConfidence >= 0.75 ? 'low' : routeConfidence >= 0.5 ? 'medium' : 'high',
     ...(alignedDraft.length ? { stepDispatchDraft: alignedDraft } : {}),
     ...(input.bundle.raw.codeMode && input.bundle.raw.codeMode !== 'auto'
       ? { codeMode: input.bundle.raw.codeMode }
@@ -572,7 +586,7 @@ export function applyOrchestratorInvariants(input: {
     directChitchatSynth: input.bundle.directChitchatSynth,
     needsClarify: input.bundle.needsClarify,
     clarifyQuestions: input.bundle.needsClarify ? input.bundle.clarifyQuestions : [],
-    routeConfidence: classify.confidence,
+    routeConfidence: clampRouteConfidence(classify.confidence),
     ...(classicDraft.length ? { stepDispatchDraft: classicDraft } : {}),
     ...(input.bundle.raw.codeMode && input.bundle.raw.codeMode !== 'auto'
       ? { codeMode: input.bundle.raw.codeMode }

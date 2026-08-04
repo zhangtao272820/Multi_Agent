@@ -1,11 +1,13 @@
 /**
- * Manager 会话层：sessionId、历史面板、chat logs 持久化、反馈同步
- * 自 index.vue 抽出；通过 ManagerSessionHost 注入页面侧依赖
+ * Manager 会话层：sessionId、历史面板、反馈同步
+ * 会话列表与消息正文权威在服务端（PG）；前端禁止 localStorage 持久化历史/消息。
  */
 import { nextTick, ref, type ComputedRef, type Ref } from 'vue'
+import { purgeAllForbiddenClientSessionKeys } from '#agent-shared/agentSessionClientStorage'
 import type { LogItem, SessionHistoryItem, TurnGroup, WorkbenchMode } from './managerChatTypes'
 
 const USER_ID_KEY = 'manager_user_id'
+/** 本 tab 当前会话指针（sessionStorage，关 tab 即丢） */
 const SESSION_ID_KEY = 'manager_session_id'
 const SESSION_ID_BY_MODE_KEY = 'manager_session_id_by_mode'
 
@@ -181,15 +183,44 @@ export function useManagerSession(host: ManagerSessionHost) {
     return d.toLocaleDateString([], { month: '2-digit', day: '2-digit' })
   }
 
+  function adoptLoggedInUserId(nextId: string): string {
+    const next = String(nextId || '').trim()
+    if (!next) return ''
+    userId.value = next
+    try {
+      window.localStorage.setItem(USER_ID_KEY, next)
+    } catch {}
+    return next
+  }
+
   function ensureUserId() {
+    try {
+      const { user: clawUser, token: clawTok, loadFromStorage } = useClawhiveLogin()
+      if (import.meta.client && !clawTok.value) loadFromStorage()
+      const fromLogin = String(clawUser.value?.userId || '').trim()
+      if (fromLogin) return adoptLoggedInUserId(fromLogin)
+    } catch {
+      /* composable 外调用时忽略 */
+    }
     if (userId.value) return userId.value
     try {
       const existing = window.localStorage.getItem(USER_ID_KEY)
+      if (existing && !String(existing).startsWith('uid_')) {
+        userId.value = existing
+        return existing
+      }
+      // 启用用户登录时不再生成匿名 uid_
+      const cfg = useRuntimeConfig()
+      if ((cfg.public as any)?.managerUserAuth) {
+        return ''
+      }
       if (existing) {
         userId.value = existing
         return existing
       }
     } catch {}
+    const cfg = useRuntimeConfig()
+    if ((cfg.public as any)?.managerUserAuth) return ''
     const id =
       typeof crypto !== 'undefined' && typeof (crypto as Crypto).randomUUID === 'function'
         ? `uid_${(crypto as Crypto).randomUUID().replace(/-/g, '').slice(0, 16)}`
@@ -199,10 +230,6 @@ export function useManagerSession(host: ManagerSessionHost) {
       window.localStorage.setItem(USER_ID_KEY, id)
     } catch {}
     return id
-  }
-
-  function sessionHistoryStorageKey() {
-    return `manager_session_history:${ensureUserId()}`
   }
 
   function deriveSessionTitleFromLogs() {
@@ -223,10 +250,16 @@ export function useManagerSession(host: ManagerSessionHost) {
     return undefined
   }
 
+  function tabStorage(): Storage | null {
+    if (typeof window === 'undefined') return null
+    return window.sessionStorage
+  }
+
   function readSessionIdByMode(): SessionIdByMode {
-    if (typeof window === 'undefined') return {}
+    const store = tabStorage()
+    if (!store) return {}
     try {
-      const raw = window.localStorage.getItem(SESSION_ID_BY_MODE_KEY)
+      const raw = store.getItem(SESSION_ID_BY_MODE_KEY)
       if (!raw) return {}
       const parsed = JSON.parse(raw) as SessionIdByMode
       const out: SessionIdByMode = {}
@@ -241,9 +274,10 @@ export function useManagerSession(host: ManagerSessionHost) {
   }
 
   function writeSessionIdByMode(map: SessionIdByMode) {
-    if (typeof window === 'undefined') return
+    const store = tabStorage()
+    if (!store) return
     try {
-      window.localStorage.setItem(SESSION_ID_BY_MODE_KEY, JSON.stringify(map))
+      store.setItem(SESSION_ID_BY_MODE_KEY, JSON.stringify(map))
     } catch {}
   }
 
@@ -254,7 +288,7 @@ export function useManagerSession(host: ManagerSessionHost) {
     map[mode] = sid
     writeSessionIdByMode(map)
     try {
-      window.localStorage.setItem(SESSION_ID_KEY, sid)
+      tabStorage()?.setItem(SESSION_ID_KEY, sid)
     } catch {}
   }
 
@@ -262,15 +296,45 @@ export function useManagerSession(host: ManagerSessionHost) {
     return String(readSessionIdByMode()[mode] || '').trim()
   }
 
+  const modeSyncInflight = new Set<string>()
+  const modeSyncedOk = new Set<string>()
+
+  function syncSessionModeToServer(id: string, mode: WorkbenchMode) {
+    const sid = String(id || '').trim()
+    if (!sid || typeof window === 'undefined') return
+    const uid = ensureUserId()
+    if (!uid) return
+    const key = `${sid}:${mode}`
+    if (modeSyncedOk.has(key) || modeSyncInflight.has(key)) return
+    modeSyncInflight.add(key)
+    void $fetch('/api/manager/session-mode', {
+      method: 'POST',
+      body: { sessionId: sid, userId: uid, workbenchMode: mode }
+    })
+      .then(() => {
+        modeSyncedOk.add(key)
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        modeSyncInflight.delete(key)
+      })
+  }
+
   function stampSessionMode(id: string, mode: WorkbenchMode) {
     const sid = String(id || '').trim()
     if (!sid) return
     const idx = sessionHistoryItems.value.findIndex((s) => s.id === sid)
-    if (idx < 0) return
-    const row = sessionHistoryItems.value[idx]!
-    if (row.workbenchMode === mode) return
-    row.workbenchMode = mode
-    persistSessionHistoryList()
+    if (idx >= 0) {
+      const row = sessionHistoryItems.value[idx]!
+      if (row.workbenchMode !== mode) {
+        row.workbenchMode = mode
+        // 模式变更：允许重新回写
+        for (const k of [...modeSyncedOk]) {
+          if (k.startsWith(`${sid}:`)) modeSyncedOk.delete(k)
+        }
+      }
+    }
+    syncSessionModeToServer(sid, mode)
   }
 
   function stampCurrentSessionMode(mode?: WorkbenchMode) {
@@ -282,7 +346,7 @@ export function useManagerSession(host: ManagerSessionHost) {
   function persistActiveSessionId(id: string) {
     sessionId.value = id
     try {
-      window.localStorage.setItem(SESSION_ID_KEY, id)
+      tabStorage()?.setItem(SESSION_ID_KEY, id)
     } catch {}
     try {
       rememberSessionForMode(host.getWorkbenchMode(), id)
@@ -291,42 +355,17 @@ export function useManagerSession(host: ManagerSessionHost) {
     }
   }
 
+  /** 内存态列表；权威在服务端，禁止写 localStorage */
   function persistSessionHistoryList() {
-    if (typeof window === 'undefined') return
-    try {
-      window.localStorage.setItem(
-        sessionHistoryStorageKey(),
-        JSON.stringify({ items: sessionHistoryItems.value.slice(0, 80) })
-      )
-    } catch {}
+    sessionHistoryItems.value = sessionHistoryItems.value.slice(0, 80)
   }
 
   function loadSessionHistoryList() {
     if (typeof window === 'undefined') return
-    try {
-      const raw = window.localStorage.getItem(sessionHistoryStorageKey())
-      if (raw) {
-        const parsed = JSON.parse(raw)
-        if (Array.isArray(parsed?.items)) {
-          sessionHistoryItems.value = parsed.items
-            .filter((x: unknown) => x && typeof (x as SessionHistoryItem).id === 'string')
-            .map((x: SessionHistoryItem) => {
-              const mode = normalizeWorkbenchModeTag(x.workbenchMode)
-              return {
-                id: String(x.id),
-                title: String(x.title || '新会话'),
-                updatedAt: String(x.updatedAt || new Date().toISOString()),
-                messageCount: Number(x.messageCount) || 0,
-                userMessageCount: Number(x.userMessageCount) || 0,
-                customTitle: Boolean(x.customTitle),
-                ...(mode ? { workbenchMode: mode } : {})
-              }
-            })
-            .sort((a: SessionHistoryItem, b: SessionHistoryItem) => b.updatedAt.localeCompare(a.updatedAt))
-        }
-      }
-    } catch {}
+    purgeAllForbiddenClientSessionKeys()
+    // 不从 localStorage 灌历史；等 fetchServerSessionHistory
     touchCurrentSessionHistory({ bump: false })
+    void fetchServerSessionHistory()
   }
 
   function touchCurrentSessionHistory(opts?: { bump?: boolean }) {
@@ -343,13 +382,17 @@ export function useManagerSession(host: ManagerSessionHost) {
     } catch {
       mode = undefined
     }
+    // 当前空会话仍入侧栏（乐观展示）；其它空会话由 pruneEmptySessionHistory 清理
     const idx = sessionHistoryItems.value.findIndex((s) => s.id === id)
     if (idx >= 0) {
       const row = sessionHistoryItems.value[idx]!
       row.messageCount = messageCount
       row.userMessageCount = userMessageCount
       if (!row.customTitle && (title !== '新会话' || row.title === '新会话')) row.title = title
-      if (mode && !row.workbenchMode) row.workbenchMode = mode
+      if (mode && !row.workbenchMode) {
+        row.workbenchMode = mode
+        syncSessionModeToServer(id, mode)
+      }
       if (bump) {
         row.updatedAt = now
         sessionHistoryItems.value.splice(idx, 1)
@@ -364,51 +407,44 @@ export function useManagerSession(host: ManagerSessionHost) {
         userMessageCount,
         ...(mode ? { workbenchMode: mode } : {})
       })
+      if (mode) syncSessionModeToServer(id, mode)
     }
-    sessionHistoryItems.value = sessionHistoryItems.value.slice(0, 80)
     persistSessionHistoryList()
     if (mode) rememberSessionForMode(mode, id)
   }
 
   function mergeSessionHistoryFromServer(serverItems: SessionHistoryItem[]) {
-    if (!serverItems.length) return
-    const prevOrder = sessionHistoryItems.value.map((s) => s.id)
-    const map = new Map(sessionHistoryItems.value.map((s) => [s.id, s]))
-    for (const item of serverItems) {
-      const prev = map.get(item.id)
-      const mode = normalizeWorkbenchModeTag(prev?.workbenchMode ?? item.workbenchMode)
-      map.set(item.id, {
+    // 服务端列表为权威：直接替换（保留当前 tab 乐观项若服务端尚未列出，含空「新会话」）
+    const currentId = sessionId.value
+    const localById = new Map(sessionHistoryItems.value.map((s) => [s.id, s]))
+    const optimistic = sessionHistoryItems.value.find(
+      (s) => s.id === currentId && !serverItems.some((x) => x.id === currentId)
+    )
+    const next = serverItems.map((item) => {
+      const serverMode = normalizeWorkbenchModeTag(item.workbenchMode)
+      const local = localById.get(item.id)
+      const localMode = normalizeWorkbenchModeTag(local?.workbenchMode)
+      const mode = serverMode || localMode
+      if (!serverMode && localMode) syncSessionModeToServer(item.id, localMode)
+      return {
         id: item.id,
-        title: prev?.customTitle
-          ? prev.title
-          : item.customTitle && item.title
-            ? item.title
-            : prev?.title && prev.title !== '新会话'
-              ? prev.title
-              : item.title || '新会话',
-        updatedAt: String(item.updatedAt || prev?.updatedAt || new Date().toISOString()),
-        messageCount: Math.max(Number(item.messageCount) || 0, Number(prev?.messageCount) || 0),
-        userMessageCount: Math.max(Number(item.userMessageCount) || 0, Number(prev?.userMessageCount) || 0),
-        customTitle: Boolean(prev?.customTitle || item.customTitle),
+        title: item.title || '新会话',
+        updatedAt: String(item.updatedAt || new Date().toISOString()),
+        messageCount: Number(item.messageCount) || 0,
+        userMessageCount: Number(item.userMessageCount) || 0,
+        customTitle: Boolean(item.customTitle),
+        ...(mode ? { workbenchMode: mode } : {})
+      }
+    })
+    if (optimistic) {
+      const mode = normalizeWorkbenchModeTag(optimistic.workbenchMode)
+      next.unshift({
+        ...optimistic,
         ...(mode ? { workbenchMode: mode } : {})
       })
-    }
-    const seen = new Set<string>()
-    const next: SessionHistoryItem[] = []
-    for (const id of prevOrder) {
-      const row = map.get(id)
-      if (row) {
-        next.push(row)
-        seen.add(id)
-      }
-    }
-    for (const item of serverItems) {
-      if (!seen.has(item.id) && map.has(item.id)) {
-        next.push(map.get(item.id)!)
-      }
+      if (mode) syncSessionModeToServer(optimistic.id, mode)
     }
     sessionHistoryItems.value = next.slice(0, 80)
-    persistSessionHistoryList()
   }
 
   function resolveUserMessageIndexForTurn(turnId: number): number | undefined {
@@ -435,7 +471,6 @@ export function useManagerSession(host: ManagerSessionHost) {
       .map((s) => s.id)
     if (!emptyIds.length) return
     sessionHistoryItems.value = sessionHistoryItems.value.filter((s) => !emptyIds.includes(s.id))
-    persistSessionHistoryList()
   }
 
   function clearLocalSessionCaches(id: string) {
@@ -454,7 +489,6 @@ export function useManagerSession(host: ManagerSessionHost) {
       row.customTitle = true
       row.updatedAt = new Date().toISOString()
     }
-    persistSessionHistoryList()
   }
 
   async function renameSessionHistory(item: SessionHistoryItem) {
@@ -501,7 +535,6 @@ export function useManagerSession(host: ManagerSessionHost) {
 
     clearLocalSessionCaches(id)
     sessionHistoryItems.value = sessionHistoryItems.value.filter((s) => s.id !== id)
-    persistSessionHistoryList()
     try {
       const map = readSessionIdByMode()
       let changed = false
@@ -520,7 +553,7 @@ export function useManagerSession(host: ManagerSessionHost) {
 
     sessionId.value = ''
     try {
-      window.localStorage.removeItem(SESSION_ID_KEY)
+      tabStorage()?.removeItem(SESSION_ID_KEY)
     } catch {}
 
     const fallback = sessionHistoryItems.value[0]?.id
@@ -534,11 +567,16 @@ export function useManagerSession(host: ManagerSessionHost) {
   async function hydrateSessionFromServer(sid: string) {
     if (!sid) return
     try {
-      const res = await $fetch<{ messages?: Array<{ role?: string; content?: string }> }>(
-        `/api/manager/session?sessionId=${encodeURIComponent(sid)}`
-      )
+      const res = await $fetch<{
+        messages?: Array<{
+          role?: string
+          content?: string
+          runId?: string
+          uiMeta?: { process?: Array<Record<string, unknown>> }
+        }>
+      }>(`/api/manager/session?sessionId=${encodeURIComponent(sid)}`)
       if (Array.isArray(res?.messages) && res.messages.length) {
-        hydrateLogsFromServerHistory(res.messages)
+        hydrateLogsFromServerHistory(res.messages as Parameters<typeof hydrateLogsFromServerHistory>[0])
       }
     } catch {}
   }
@@ -546,24 +584,32 @@ export function useManagerSession(host: ManagerSessionHost) {
   async function fetchServerSessionHistory() {
     const sid = sessionId.value
     const uid = ensureUserId()
-    if (!sid || !uid) return
-    const historyIds = sessionHistoryItems.value.map((s) => s.id).slice(0, 80).join(',')
+    if (!uid) {
+      sessionHistoryItems.value = []
+      return
+    }
     try {
-      const res = await $fetch<{ items?: SessionHistoryItem[] }>(
-        `/api/manager/sessions?sessionId=${encodeURIComponent(sid)}&userId=${encodeURIComponent(uid)}${
-          historyIds ? `&historyIds=${encodeURIComponent(historyIds)}` : ''
-        }`
-      )
+      const qs = [
+        sid ? `sessionId=${encodeURIComponent(sid)}` : '',
+        `userId=${encodeURIComponent(uid)}`
+      ]
+        .filter(Boolean)
+        .join('&')
+      const res = await $fetch<{ items?: SessionHistoryItem[] }>(`/api/manager/sessions?${qs}`)
       const serverItems = Array.isArray(res?.items) ? res.items : []
-      if (!serverItems.length) return
       mergeSessionHistoryFromServer(serverItems)
     } catch {}
   }
 
-  async function syncWithdrawToServer(userMessageIndex: number): Promise<number | null> {
+  async function syncWithdrawToServer(
+    userMessageIndex: number | null | undefined,
+    text?: string
+  ): Promise<number | null> {
     const sid = sessionId.value
     const uid = ensureUserId()
-    if (!sid || typeof userMessageIndex !== 'number') return null
+    const anchorText = String(text || '').trim()
+    const hasIdx = typeof userMessageIndex === 'number' && userMessageIndex >= 0
+    if (!sid || (!hasIdx && !anchorText)) return null
     try {
       const socket = host.getWs()
       if (socket && host.connected.value) {
@@ -573,7 +619,8 @@ export function useManagerSession(host: ManagerSessionHost) {
               type: 'withdraw_turn',
               sessionId: sid,
               userId: uid,
-              userMessageIndex
+              ...(hasIdx ? { userMessageIndex } : {}),
+              ...(anchorText ? { text: anchorText } : {})
             })
           )
         )
@@ -581,7 +628,12 @@ export function useManagerSession(host: ManagerSessionHost) {
       }
       const res = await $fetch<{ userMessageCount?: number }>('/api/manager/session-withdraw', {
         method: 'POST',
-        body: { sessionId: sid, userId: uid, userMessageIndex }
+        body: {
+          sessionId: sid,
+          userId: uid,
+          ...(hasIdx ? { userMessageIndex } : {}),
+          ...(anchorText ? { text: anchorText } : {})
+        }
       })
       const count = Number(res?.userMessageCount)
       return Number.isFinite(count) ? count : null
@@ -901,12 +953,9 @@ export function useManagerSession(host: ManagerSessionHost) {
     return `manager_chat_logs:${sessionId.value || 'default'}`
   }
 
+  /** 消息正文权威在服务端；不再写入 sessionStorage chatLogs */
   function persistChatLogs() {
-    if (typeof window === 'undefined' || !sessionId.value) return
-    try {
-      const payload = host.logs.value.filter((m) => (typeof m.turn === 'number' ? m.turn : 0) > 0).slice(-320)
-      window.sessionStorage.setItem(chatLogsStorageKey(), JSON.stringify(payload))
-    } catch {}
+    /* no-op */
   }
 
   /** 为历史日志补全稳定的 userMessageIndex（反馈持久化键 umidx:N 依赖此字段） */
@@ -926,7 +975,7 @@ export function useManagerSession(host: ManagerSessionHost) {
       m.userMessageIndex = ++maxIdx
       changed = true
     }
-    if (changed) persistChatLogs()
+    void changed
     return maxIdx + 1
   }
 
@@ -950,19 +999,7 @@ export function useManagerSession(host: ManagerSessionHost) {
   }
 
   function restoreChatLogs() {
-    if (typeof window === 'undefined' || !sessionId.value) return
-    try {
-      const raw = window.sessionStorage.getItem(chatLogsStorageKey())
-      if (!raw) return
-      const arr = JSON.parse(raw)
-      if (!Array.isArray(arr) || !arr.length) return
-      if (host.logs.value.some((m) => (typeof m.turn === 'number' ? m.turn : 0) > 0)) return
-      host.logs.value = (arr as LogItem[]).map((m) => ({
-        ...m,
-        logId: String(m.logId || '').trim() || `log-${host.bumpNextLogId()}`
-      }))
-      rebuildTurnCountersFromLogs()
-    } catch {}
+    // 禁止从 sessionStorage 恢复消息；由 hydrateSessionFromServer 灌入
   }
 
   function sanitizeWithdrawnTurns() {
@@ -985,9 +1022,23 @@ export function useManagerSession(host: ManagerSessionHost) {
     }
   }
 
-  function hydrateLogsFromServerHistory(messages: Array<{ role?: string; content?: string }>) {
+  function hydrateLogsFromServerHistory(
+    messages: Array<{
+      role?: string
+      content?: string
+      runId?: string
+      run_id?: string
+      uiMeta?: { process?: Array<{ kind?: string; text?: string; from?: string; ts?: string; extra?: Record<string, unknown> }> }
+      ui_meta?: { process?: Array<{ kind?: string; text?: string; from?: string; ts?: string; extra?: Record<string, unknown> }> }
+    }>,
+    opts?: { forceRemapIndexes?: boolean }
+  ) {
     if (!Array.isArray(messages) || !messages.length) return
-    if (host.logs.value.some((m) => (typeof m.turn === 'number' ? m.turn : 0) > 0)) return
+    const hasLocalTurns = host.logs.value.some((m) => (typeof m.turn === 'number' ? m.turn : 0) > 0)
+    if (hasLocalTurns) {
+      if (opts?.forceRemapIndexes !== false) remapUserMessageIndexesFromServerHistory(messages)
+      return
+    }
     let turn = 0
     let uidx = 0
     for (const m of messages) {
@@ -1006,17 +1057,86 @@ export function useManagerSession(host: ManagerSessionHost) {
           userMessageIndex: uidx++
         })
       } else if (role === 'assistant' && turn > 0) {
+        const runId = String(m.runId || m.run_id || '').trim() || undefined
+        const uiMeta = m.uiMeta || m.ui_meta
+        const process = Array.isArray(uiMeta?.process) ? uiMeta!.process! : []
+        for (const p of process) {
+          const kind = String(p?.kind || '').trim()
+          if (!kind) continue
+          const text = String(p?.text || '').trim() || kind
+          const extra = p?.extra && typeof p.extra === 'object' ? p.extra : undefined
+          const item: LogItem = {
+            ts: p?.ts ? new Date(p.ts).toLocaleTimeString() : new Date().toLocaleTimeString(),
+            kind,
+            text,
+            from: p?.from ? String(p.from) : 'manager',
+            turn,
+            ...(runId ? { runId } : {}),
+            ...(extra?.routeCap ? { routeCap: extra.routeCap as LogItem['routeCap'] } : {}),
+            ...(extra?.routePlanCard ? { routePlanCard: extra.routePlanCard as LogItem['routePlanCard'] } : {}),
+            ...(extra?.planOutline ? { planOutline: extra.planOutline as LogItem['planOutline'] } : {})
+          }
+          host.logs.value.push(item)
+          if (runId) host.runIdToTurn.set(runId, turn)
+        }
         host.logs.value.push({
           ts: new Date().toLocaleTimeString(),
           kind: 'final',
           text: content,
           from: 'manager',
-          turn
+          turn,
+          ...(runId ? { runId } : {})
         })
+        if (runId) host.runIdToTurn.set(runId, turn)
       }
     }
     host.setUserMessageIndexCounter(Math.max(host.getUserMessageIndexCounter(), uidx))
     persistChatLogs()
+  }
+
+  /** 登录/Resume 后：按服务端 user 消息内容重映射本地 userMessageIndex（SSOT） */
+  function remapUserMessageIndexesFromServerHistory(messages: Array<{ role?: string; content?: string }>) {
+    if (!Array.isArray(messages) || !messages.length) return
+    const normalize = (s: string) =>
+      String(s || '')
+        .replace(/\n\[附件:[^\]]+\]\s*$/i, '')
+        .replace(/^\[附件:[^\]]+\]\s*$/i, '')
+        .replace(/\s+/g, ' ')
+        .trim()
+    const serverUsers: Array<{ index: number; text: string }> = []
+    for (const m of messages) {
+      if (String(m?.role || '').toLowerCase() !== 'user') continue
+      const text = normalize(String(m?.content || ''))
+      if (!text) continue
+      serverUsers.push({ index: serverUsers.length, text })
+    }
+    if (!serverUsers.length) return
+    const used = new Set<number>()
+    const userLogs = host.logs.value
+      .filter((m) => String(m.kind).toLowerCase() === 'user' && (typeof m.turn === 'number' ? m.turn : 0) > 0)
+      .sort((a, b) => (a.turn ?? 0) - (b.turn ?? 0))
+    let changed = false
+    for (const log of userLogs) {
+      const needle = normalize(String(log.text || ''))
+      if (!needle) continue
+      let hit = -1
+      for (let i = 0; i < serverUsers.length; i++) {
+        if (used.has(i)) continue
+        if (serverUsers[i]!.text === needle) {
+          hit = i
+          break
+        }
+      }
+      if (hit < 0) continue
+      used.add(hit)
+      const nextIdx = serverUsers[hit]!.index
+      if (log.userMessageIndex !== nextIdx) {
+        log.userMessageIndex = nextIdx
+        changed = true
+      }
+    }
+    host.setUserMessageIndexCounter(Math.max(host.getUserMessageIndexCounter(), serverUsers.length))
+    if (changed) persistChatLogs()
   }
 
   function persistWithdrawnTurns() {
@@ -1048,6 +1168,7 @@ export function useManagerSession(host: ManagerSessionHost) {
     if (!ok) return
 
     const uidx = resolveUserMessageIndexForTurn(turnId)
+    const anchorText = String(t.user?.text || '').trim()
     host.logs.value = host.logs.value.filter((m) => (typeof m.turn === 'number' ? m.turn : 0) < turnId)
     withdrawnTurns.value = new Set([...withdrawnTurns.value].filter((id) => id < turnId))
     for (const [rid, mappedTurn] of [...host.runIdToTurn.entries()]) {
@@ -1066,8 +1187,8 @@ export function useManagerSession(host: ManagerSessionHost) {
     persistWithdrawnTurns()
     touchCurrentSessionHistory({ bump: false })
 
-    if (typeof uidx === 'number') {
-      const syncedCount = await syncWithdrawToServer(uidx)
+    if (typeof uidx === 'number' || anchorText) {
+      const syncedCount = await syncWithdrawToServer(typeof uidx === 'number' ? uidx : null, anchorText)
       if (syncedCount != null) host.setUserMessageIndexCounter(syncedCount)
     } else {
       await host.showAlert('无法定位服务端消息索引，已仅删除本地显示。')
@@ -1084,7 +1205,7 @@ export function useManagerSession(host: ManagerSessionHost) {
         ensureUserId()
         return slotted
       }
-      const existing = window.localStorage.getItem(SESSION_ID_KEY)
+      const existing = String(tabStorage()?.getItem(SESSION_ID_KEY) || '').trim()
       if (existing) {
         persistActiveSessionId(existing)
         ensureUserId()
@@ -1160,9 +1281,8 @@ export function useManagerSession(host: ManagerSessionHost) {
       restoreSessionFeedback()
       sanitizeWithdrawnTurns()
 
-      if (!host.logs.value.some((m) => (typeof m.turn === 'number' ? m.turn : 0) > 0)) {
-        await hydrateSessionFromServer(id)
-      }
+      // 无本地 turn 则灌入历史；有本地则按服务端内容重映射 userMessageIndex
+      await hydrateSessionFromServer(id)
 
       reconcileTurnFeedbackKeys()
       void hydrateSessionFeedbackFromServer()

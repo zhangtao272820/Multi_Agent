@@ -1,0 +1,43 @@
+id: story_yuxi_act4_open
+label: 闸门另一侧
+priority: 8
+once: true
+chance: 1.0
+scene_id: ""
+trigger:
+  character_ids: [yuxi]
+  stage_min: close_friend
+  affinity_min: 80
+  flags_absent: [yuxi_shift_confess_ok]
+  flags_present: [shift_cover_done, bond_ally_done]
+prompt_snippet: |
+  【专属故事 · 顶班的死党 · 第4幕 · 闸门另一侧】
+advance: on_player_turn
+beats:
+  - id: b1
+    narration: "打烊后她不谈晚雨，只问：你找她，是不是只为了靠近死党。灯管嗡嗡，围裙搭在椅背。"
+    pc_thought: "开放门：并肩站柜台，还是退回死党席？"
+    brief: "打烊追问是否只为靠近死党。等你否认、承认曾经或说两边重要。"
+    summary: "打烊追问是否只为靠近死党。等你否认、承认曾经或说两边重要。"
+    sprite_hint: [casual, home, work]
+    soft_options: ["否认真心看她", "承认曾经如此", "说两边都重要"]
+  - id: b2
+    narration: "她护短惯了，怕恋爱抢走挚友；若晚雨不阻挠且你肯并排站她身边，她才松口。"
+    pc_thought: "答应并排像告白。去跟晚雨说清楚，又像把她推上审判席。"
+    brief: "怕恋爱抢挚友；要并排才松口。等你答应并排、跟晚雨说清或不敢逼选。"
+    summary: "怕恋爱抢挚友；要并排才松口。等你答应并排、跟晚雨说清或不敢逼选。"
+    sprite_hint: [casual, season_winter, home_eating, work, date]
+    soft_options: ["答应并排", "去跟晚雨说清楚", "不敢逼她选"]
+  - id: b3
+    narration: "杯垫并排放下两只。死党席可以变成并排席——她碰了碰杯沿，没看你。"
+    pc_thought: "碰杯像过闸。约下次不是顶班的见面，才算把她从配角位拉出来。"
+    brief: "并排杯垫落章。等你碰杯、送她回家或约非顶班见面。"
+    summary: "并排杯垫落章。等你碰杯、送她回家或约非顶班见面。"
+    sprite_hint: [casual, home]
+    soft_options: ["碰杯", "送她回家", "约下次不是顶班的见面"]
+rewards:
+  flags_set: [yuxi_shift_confess_ok]
+choice_effects:
+  - { trust_delta: 3, affinity_delta: 4 }
+  - { trust_delta: 2, affinity_delta: 2 }
+  - { trust_delta: 1, affinity_delta: 1 }

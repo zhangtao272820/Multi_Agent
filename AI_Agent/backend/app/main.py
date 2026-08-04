@@ -14,6 +14,7 @@ from .assets import assets_root, load_audio_cache, load_utterance_links
 from .config import get_settings, api_key
 from .graph import run_turn
 from .pipeline_stream import run_turn_stream
+from . import livetalking_client
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -61,6 +62,10 @@ async def health():
     s = get_settings()
     root = assets_root(s)
     frontend_ready = _frontend_dist.exists()
+    lip = (s.lip_sync_mode or "client_rhythm").strip().lower()
+    lt = None
+    if lip == "livetalking":
+        lt = livetalking_client.health(s)
     return {
         "ok": True,
         "has_key": bool(api_key(s)),
@@ -70,6 +75,11 @@ async def health():
         "stream_tts": s.stream_tts,
         "lipsync_service_url": s.lipsync_service_url,
         "lipsync_backend": s.lipsync_backend,
+        "livetalking_url": s.livetalking_url,
+        "livetalking_webrtc_url": s.livetalking_webrtc_url or s.livetalking_url,
+        "livetalking": lt,
+        "rag_enabled": s.rag_enabled,
+        "director_enabled": s.director_enabled,
         "llm_model": s.llm_model,
         "asr_model": s.asr_model,
         "tts_model": s.tts_model,
@@ -89,10 +99,11 @@ def _api_base_from_ws(ws: WebSocket) -> str:
 
 
 def _use_streaming_pipeline(lip_mode: str) -> bool:
-    """流式 LLM/TTS；对口型在流式结束后再异步生成。"""
+    """流式 LLM/TTS；livetalking 边合成边喂；遗留模式结束后再生成。"""
     return lip_mode in (
         "",
         "client_rhythm",
+        "livetalking",
         "cached_s2v",
         "wan_s2v",
         "local_ultralight",
@@ -117,6 +128,14 @@ async def websocket_session(ws: WebSocket):
                     "message": "已连接",
                     "lip_sync_mode": lip_mode,
                     "streaming": use_stream,
+                    "livetalking_url": settings.livetalking_url,
+                    "livetalking_webrtc_url": settings.livetalking_webrtc_url
+                    or settings.livetalking_url,
+                    "livetalking_offer_url": livetalking_client.webrtc_offer_url(
+                        settings
+                    ),
+                    "rag_enabled": settings.rag_enabled,
+                    "director_enabled": settings.director_enabled,
                 },
             }
         )
@@ -133,6 +152,18 @@ async def websocket_session(ws: WebSocket):
                 continue
 
             mtype = msg.get("type")
+            if mtype == "interrupt":
+                payload = msg.get("payload") or {}
+                sid = payload.get("livetalking_sessionid")
+                if sid is not None and sid != "":
+                    await asyncio.to_thread(
+                        livetalking_client.interrupt,
+                        settings,
+                        session_id=sid,
+                    )
+                await ws.send_json({"type": "interrupted", "payload": {"ok": True}})
+                continue
+
             if mtype != "utterance":
                 await ws.send_json(
                     {"type": "error", "payload": {"message": f"未知 type: {mtype}"}}
@@ -142,6 +173,8 @@ async def websocket_session(ws: WebSocket):
             payload = msg.get("payload") or {}
             mode = payload.get("mode", "audio")
             initial: dict[str, Any] = {"mode": mode}
+            if payload.get("livetalking_sessionid") is not None:
+                initial["livetalking_sessionid"] = payload.get("livetalking_sessionid")
 
             if mode == "text":
                 initial["user_text"] = str(payload.get("text") or "")
@@ -206,7 +239,7 @@ async def websocket_session(ws: WebSocket):
                 await forwarder
                 continue
 
-            # —— 非流式（含对口型）——
+            # —— 非流式（含对口型遗留路径）——
             if lip_mode in ("cached_s2v", "wan_s2v", "local_ultralight", "local_wav2lip", "local_lipsync"):
                 await ws.send_json(
                     {
@@ -214,6 +247,7 @@ async def websocket_session(ws: WebSocket):
                         "payload": {
                             "status": "generating",
                             "hint": "正在生成或读取对口型视频（缓存命中则较快）…",
+                            "deprecated": True,
                         },
                     }
                 )

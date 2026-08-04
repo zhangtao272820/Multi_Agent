@@ -1,0 +1,77 @@
+id: story_linxi_act5_winter_rail
+label: 冬末班车
+priority: 6
+once: true
+chance: 1.0
+scene_id: ''
+trigger:
+  character_ids:
+  - linxi
+  stage_min: crush
+  affinity_min: 78
+  flags_present:
+  - lx_one_step
+  flags_absent:
+  - lx_winter_rail
+  waypoint_min: q_winter_onset
+  season: winter
+prompt_snippet: '【专属故事 · 陆凛汐 · 冬季加幕 · 冬末班车】
+
+  '
+advance: on_player_turn
+beats:
+- id: b1
+  summary: 入冬末班车更空；她把红丝带绕在手套上，说加班可以，逞强不行。等你回应。
+  sprite_hint:
+  - season_winter
+  - home
+  - home_eating
+  - home_sleeping
+  - intimate_lounge
+  soft_options:
+  - 帮她捂杯
+  - 问末班
+  - 先坐一会
+  narration: 打印纸与轨道风里，入冬末班车更空；她把红丝带绕在手套上，说加班可以，逞强不行。
+  pc_thought: 对桌探头那一下，像实习期的心跳漏拍——想起末班。
+  brief: 入冬末班车更空；她把红丝带绕在手套上，说加班可以，逞强不行。等你回应。
+- id: b2
+  summary: 车窗结雾，她把工牌按在玻璃上：「座位之间其实只要一步。」。等你回应。
+  sprite_hint:
+  - season_winter
+  - casual
+  - home_eating
+  - home_sleeping
+  - intimate_lounge
+  soft_options:
+  - 听她说加班
+  - 不催进度
+  - 约改站台
+  narration: 打印纸与轨道风里，车窗结雾，她把工牌按在玻璃上：「座位之间其实只要一步。」。
+  pc_thought: 末班车扶手很凉。逞强的她，其实也怕走丢——想起玻璃。
+  brief: 车窗结雾，她把工牌按在玻璃上：「座位之间其实只要一步。」。等你回应。
+- id: b3
+  summary: 你并肩挤过车门，或各自下车；实习期的并肩会被改写。等你回应。
+  sprite_hint:
+  - season_winter
+  - date
+  - home_eating
+  - home_sleeping
+  - intimate_lounge
+  soft_options:
+  - 说我等得起
+  - 帮她理围巾
+  - 送她进站
+  narration: 打印纸与轨道风里，你并肩挤过车门，或各自下车；实习期的并肩会被改写。
+  pc_thought: 打印室只剩我们。我想把「同事」说成更私的词。
+  brief: 你并肩挤过车门，或各自下车；实习期的并肩会被改写。等你回应。
+rewards:
+  flags_set:
+  - lx_winter_rail
+choice_effects:
+- trust_delta: 3
+  affinity_delta: 3
+- trust_delta: 2
+  affinity_delta: 1
+- trust_delta: -3
+  affinity_delta: -2

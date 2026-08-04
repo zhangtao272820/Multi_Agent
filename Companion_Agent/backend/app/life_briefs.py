@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from .character_lores import is_romanceable_cast
 from .scene_agenda import SceneAgenda
 from .world_store import BondShelf, ProtagonistLife, WorldSave
 
@@ -91,7 +92,7 @@ def heroine_situation_card(save: WorldSave, *, character_id: str, bond: BondShel
     if status:
         bits.append(status.replace("【这阵子状态】", "").split("（")[0].strip())
     partners = list_partners(save, exclude_id=character_id)
-    if partners and bond.cast_kind == "romance":
+    if partners and bond.cast_kind in {"romance", "linked", "neutral"}:
         who = "、".join(n for _, n in partners[:2])
         pol = get_romance_policy(character_id)
         if pol.rivalry == "withdraw":
@@ -144,6 +145,8 @@ def soft_choices_for_agenda(agenda: SceneAgenda | dict[str, Any] | None) -> list
         "silence": ["……我先走了？", "你还想聊吗？", "那就这样吧。"],
         "errand": ["那件小事我办好了。", "你说的事，我记着呢。", "还要我帮什么吗？"],
         "ensemble": ["旁边那位……", "先当没看见吧。", "要不要换个安静点的地方？"],
+        "stage_consent": ["……好，我们确认这一步。", "先这样吧，我想再想想。", "你呢，怎么想？"],
+        "confession_consent": ["……我也是。", "对不起，我还没准备好。", "让我想想。"],
         "chat": list(_DEFAULT),
     }
     choices = list(by_source.get(source) or [])
@@ -185,6 +188,36 @@ def today_suggestions(save: WorldSave) -> list[dict[str, str]]:
                 "target_id": "",
             }
         )
+
+    # -0.5) 关系待确认（阶段递进 / 女主表白）— 不泄 flag 名
+    if len(out) < 3:
+        for cid, bond in save.bonds.items():
+            if bond.cast_kind != "romance":
+                continue
+            name = bond.profile.name or cid
+            pending = (getattr(bond.relationship_state, "pending_stage_id", None) or "").strip()
+            flags = bond.relationship_state.flags or {}
+            if pending:
+                lab = {"crush": "暧昧", "dating": "正式交往", "married": "更进一步"}.get(
+                    pending, "下一步"
+                )
+                out.append(
+                    {
+                        "kind": "relation",
+                        "text": f"和{name}之间，好像可以确认「{lab}」了——见面时表个态",
+                        "target_id": cid,
+                    }
+                )
+                break
+            if flags.get("pending_confession"):
+                out.append(
+                    {
+                        "kind": "relation",
+                        "text": f"{name}好像有话想对你说——见面时听听她",
+                        "target_id": cid,
+                    }
+                )
+                break
 
     # 0) 昨晚聊太晚
     if int(save.protagonist.late_night_brief_day or 0) == day and len(out) < 3:
@@ -318,7 +351,7 @@ def today_suggestions(save: WorldSave) -> list[dict[str, str]]:
             }
         elif step == "meet":
             ranked = early_meet_ranked(
-                [cid for cid, b in save.bonds.items() if b.cast_kind in {"romance", "neutral"}],
+                [cid for cid, b in save.bonds.items() if is_romanceable_cast(b.cast_kind)],
                 limit=1,
             )
             name = ""
@@ -447,7 +480,7 @@ def day1_guidance(save: WorldSave) -> dict[str, Any]:
             seen_l.add(lid)
             loc_out.append(lid)
 
-    pool = [cid for cid, b in save.bonds.items() if b.cast_kind in {"romance", "neutral"}]
+    pool = [cid for cid, b in save.bonds.items() if is_romanceable_cast(b.cast_kind)]
     ranked = early_meet_ranked(pool, limit=4)
     # 确保家人进推荐（书璃）
     for cid in ("shuli", "xiaoyou", "wanyu"):

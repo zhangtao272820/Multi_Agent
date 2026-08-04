@@ -40,6 +40,8 @@ docs/**
 
 # Cursor IDE config (all agents, local only — never push)
 **/.cursor/
+**/.cursorignore
+**/.cursorindexingignore
 
 # 各 Agent 本地 shared junction（Docker 构建时由 COPY shared 注入）
 **/agent-repo-shared/
@@ -53,3 +55,20 @@ ai-agent-interview-guide-main/
 
 # Manage-platform local postgres/runtime (large WAL / data dirs)
 Manage-platform_Agent/.local/
+
+# Media binaries — keep local; README / ATTRIBUTION / catalogs stay tracked
+**/*.mp3
+**/*.wav
+**/*.ogg
+**/*.flac
+**/*.m4a
+**/*.aac
+**/*.mp4
+**/*.webm
+**/*.mov
+**/*.avi
+**/*.mkv
+
+# Ad-hoc temp scripts / dumps (never commit)
+**/_tmp*
+**/*_tmp_*

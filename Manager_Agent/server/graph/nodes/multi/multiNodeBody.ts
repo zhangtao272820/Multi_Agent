@@ -15,6 +15,7 @@ import {
 } from '../../core/plan/planParallel'
 import { validateAndPreparePlan } from '../../core/plan/planValidate'
 import { runTaskFetcherLoop, describeParallelReadyBatch } from '../../core/task/taskFetcher'
+import { hydrateCompletedById } from '../../core/runtime/stepReuse'
 import { pipelineHintsFromMeta } from '../../llm/pipelineHintsLlm'
 import { taskConstraintsFromMeta } from '../../llm/taskConstraintsLlm'
 import { tryCodeAuthorityDownstreamOutput, repairCodeAuthorityVisualize } from '../../../utils/code/managerCodeDownstream'
@@ -181,6 +182,41 @@ export async function runMultiNodeBody(state: any, deps: any) {
         winnerReason: string
       }> = []
       const byId: Record<string, StepRunRecord> = {}
+      const forceRerunStepIds = Array.isArray((state.meta as { forceRerunStepIds?: unknown })?.forceRerunStepIds)
+        ? ((state.meta as { forceRerunStepIds: unknown[] }).forceRerunStepIds || [])
+            .map((x) => String(x || '').trim())
+            .filter(Boolean)
+        : []
+      if (carryPriorRunResults) {
+        const priorRecords = Array.isArray(state.meta?.lastStepRecords)
+          ? (state.meta.lastStepRecords as Array<{
+              id?: string
+              agent?: string
+              status?: string
+              error?: string
+              output?: string
+              summary?: string
+              query?: string
+            }>)
+          : []
+        const hydrated = hydrateCompletedById({
+          plan: steps,
+          lastStepRecords: priorRecords,
+          results: out,
+          evidence: evidences,
+          forceRerunStepIds
+        })
+        Object.assign(byId, hydrated.byId)
+        if (hydrated.reusedIds.length) {
+          opts.sendEvent({
+            event: 'thinking',
+            data: `图级重试：复用已完成步 ${hydrated.reusedIds.length} 个（${hydrated.reusedIds
+              .map((id) => `${id}:${hydrated.reasons[id] || 'reuse'}`)
+              .join('、')}），避免重复调度`,
+            from: 'manager'
+          })
+        }
+      }
       const thinkingRelayState = new Map<string, { lastText: string; lastAt: number }>()
       const relayThinking = (agent: string, text: string, minIntervalMs = 1800) => {
         const now = Date.now()
@@ -1161,6 +1197,32 @@ export async function runMultiNodeBody(state: any, deps: any) {
       }
       for (const s of steps) {
         const stepId = String(s.id)
+        const prior = byId[stepId]
+        if (prior && (prior.status === 'ok' || prior.status === 'skipped')) {
+          completedSteps += 1
+          const reason =
+            prior.status === 'skipped'
+              ? 'already_skipped_in_prior_attempt'
+              : String(s.agent) === 'admin'
+                ? 'side_effect_done'
+                : 'already_ok_in_prior_attempt'
+          emitStepStatus(stepId, String(s.agent), 'skipped', {
+            query: s.query,
+            error: reason
+          })
+          opts.sendEvent({
+            event: 'trace',
+            data: {
+              agent: String(s.agent),
+              status: 'skipped',
+              durationMs: 0,
+              reason,
+              text: `复用上轮结果（${reason}）`
+            },
+            from: 'manager'
+          })
+          continue
+        }
         emitStepStatus(stepId, String(s.agent), 'pending', { query: s.query })
       }
 

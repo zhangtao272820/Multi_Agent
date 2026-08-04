@@ -36,8 +36,18 @@ def active_long_status(bond: BondShelf, day_index: int) -> str:
 
 
 def soft_status_hint(bond: BondShelf, day_index: int) -> str:
+    """看板/Hub 一句近况：长期状态优先，其次疏忽/爽约冷淡。"""
     st = active_long_status(bond, day_index)
-    return _STATUS_HUB.get(st, "")
+    if st:
+        return _STATUS_HUB.get(st, "")
+    from .life_friction import is_soft_cold
+
+    if is_soft_cold(bond, day_index):
+        flags = bond.relationship_state.flags or {}
+        if flags.get("neglect_cold") and not flags.get("recently_stood_up"):
+            return "近来有些疏远"
+        return "这周话少了一点"
+    return ""
 
 
 def long_status_prompt_line(bond: BondShelf, day_index: int) -> str:
@@ -363,7 +373,9 @@ def apply_end_day_copresence_notes(save: WorldSave) -> WorldSave:
     graph = load_social_graph()
     loc_to_ids: dict[str, list[str]] = {}
     for cid, bond in save.bonds.items():
-        if bond.cast_kind not in {"romance", "neutral"}:
+        from .character_lores import is_romanceable_cast
+
+        if not is_romanceable_cast(bond.cast_kind):
             continue
         social = graph.characters.get(cid)
         if not social:

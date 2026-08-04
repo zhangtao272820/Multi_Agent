@@ -14,17 +14,26 @@ prompt_snippet: |
 advance: on_player_turn
 beats:
   - id: b1
-    summary: "她拉你当速写模特，笑学姐又熬夜"
-    sprite_hint: [casual, home]
-    soft_options: ["认真接话", "先观察", "轻声提问"]
+    narration: "画室门开一条缝。学妹抱着速写本：学姐出去了——你要不要当十分钟临时模特？松节油味从门缝涌出来。"
+    pc_thought: "学妹位置很安全。坐下当模特，就可能挤进别人的画框。"
+    brief: "学姐不在；邀你当临时模特。试探你会不会进门。"
+    summary: "学姐不在；邀你当临时模特。试探你会不会进门。"
+    sprite_hint: [studio_junior, casual]
+    soft_options: ["答应坐下", "问学姐何时回", "先帮她整理笔"]
   - id: b2
-    summary: "「临时模特」里出现犹豫或选择。"
-    sprite_hint: [home, work]
-    soft_options: ["表明态度", "给她空间", "确认她的意思"]
+    narration: "软尺与铅笔之间，她观察你是否尊重创作：对学姐好，不只是夸画，是不打扰她的线。"
+    pc_thought: "夸她的线容易。把她当创作者，才是同盟的门槛。"
+    brief: "观察你是否尊重创作线。等你夸线、认创作者，或问一起改。"
+    summary: "观察你是否尊重创作线。等你夸线、认创作者，或问一起改。"
+    sprite_hint: [sketch_share, studio_junior]
+    soft_options: ["夸她的线", "说把她当创作者", "问能否一起改"]
   - id: b3
-    summary: "收束羁绊：确认界线与同盟，禁止恋爱走向。"
-    sprite_hint: [work]
-    soft_options: ["答应站同一边", "先缓一缓", "诚实说明顾虑"]
+    narration: "她递出第三支笔：创作同盟入口打开。小悠真结局的门，从这一刻可以推开——她却只说「别弄乱笔筒」。"
+    pc_thought: "接笔像接信任。我别把同盟写成第三者剧本。"
+    brief: "递出第三支笔开同盟。等你答应守界、约帮忙或道谢信任。"
+    summary: "递出第三支笔开同盟。等你答应守界、约帮忙或道谢信任。"
+    sprite_hint: [sketch_share, work]
+    soft_options: ["答应守界", "约固定帮忙", "道谢信任"]
 rewards:
   flags_set: [studio_sketch_done]
 choice_effects:

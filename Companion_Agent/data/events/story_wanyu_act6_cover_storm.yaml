@@ -1,0 +1,43 @@
+id: story_wanyu_act6_cover_storm
+label: 顶班风暴
+priority: 8
+once: true
+chance: 1.0
+scene_id: ""
+trigger:
+  character_ids: [wanyu]
+  stage_min: crush
+  affinity_min: 82
+  flags_present: [wy_last_cup]
+  flags_absent: [wy_cover_storm]
+prompt_snippet: |
+  【专属故事 · 关店之后的温度 · 第6幕 · 顶班风暴】
+advance: on_player_turn
+beats:
+  - id: b1
+    narration: "雨汐把围裙摔在吧台，水珠溅开。她说：顶班不是让你把晚雨掏空的借口。"
+    pc_thought: "雨汐一摔，店里的空气就变了。我帮不帮，都会被写进死党账本。"
+    brief: "雨汐摔围裙质问顶班掏空。等他捡围裙、问原话或先关店门。"
+    summary: "雨汐摔围裙质问顶班掏空。等他捡围裙、问原话或先关店门。"
+    sprite_hint: [barista_steam, work, casual, home]
+    soft_options: ["捡起围裙", "问雨汐原话", "先关店门"]
+  - id: b2
+    narration: "打烊后只剩蒸汽与沉默。晚雨把关店钥匙放在台沿，问你要不要接。"
+    pc_thought: "接钥匙像把她的疲惫也接过来。推回去，又像只想喝免费的温度。"
+    brief: "递出关店钥匙。蒸汽里等他接、劝她睡，或推回去。"
+    summary: "递出关店钥匙。蒸汽里等他接、劝她睡，或推回去。"
+    sprite_hint: [closing_wipe, rain, home, casual]
+    soft_options: ["接过钥匙", "说你先睡", "把钥匙推回去"]
+  - id: b3
+    narration: "蒸汽散尽前，她看着你：接或不接都要一句真话——别再用熟客笑敷衍。"
+    pc_thought: "真话比拿铁烫。我说顶得住，还是承认我也累？"
+    brief: "逼一句真话；疲惫与死党门同时压来。等他扛、轮班或认累。"
+    summary: "逼一句真话；疲惫与死党门同时压来。等他扛、轮班或认累。"
+    sprite_hint: [intimate_lounge, season_winter, date, casual, home]
+    soft_options: ["说我顶得住", "约好轮班", "承认我也累"]
+rewards:
+  flags_set: [wy_cover_storm]
+choice_effects:
+  - { trust_delta: 3, affinity_delta: 4 }
+  - { trust_delta: 2, affinity_delta: 2 }
+  - { trust_delta: -2, affinity_delta: -2 }

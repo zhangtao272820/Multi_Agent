@@ -13,6 +13,7 @@ from app.tools.skills import (
     filter_tool_call_kwargs,
 )
 from app.tools.registry import RISKY_TOOLS
+from app.core.risky_hitl import requires_risky_hitl
 from app.core.memory_context import build_memory_context
 from app.core.admin_playbook_prompts import (
     get_planning_rules,
@@ -1550,6 +1551,7 @@ def create_agent_graph():
 
         understanding = state.get("understanding") or {}
         risky_tools = set(RISKY_TOOLS)
+        auto_confirm_risky = bool(state.get("auto_confirm_risky"))
 
         def _normalize_tool_output(name: str, res: Any) -> Dict[str, Any]:
             """
@@ -1670,8 +1672,8 @@ def create_agent_graph():
 
             if name in AVAILABLE_TOOLS:
                 try:
-                    # 高风险工具：默认先生成待确认 action；编排器（如 Manager_Agent）可传 auto_confirm_risky=true 直接执行
-                    if name in risky_tools and not bool(state.get("auto_confirm_risky")):
+                    # 高风险工具：默认先生成待确认 action；编排器可传 auto_confirm_risky=true 直接执行
+                    if requires_risky_hitl(name, auto_confirm_risky=auto_confirm_risky):
                         processed_args = prepare_time_sensitive_tool_args(
                             name, processed_args, user_message, understanding
                         )
@@ -1807,7 +1809,7 @@ def create_agent_graph():
                                 "pending_actions": state.get("pending_actions") or [],
                             }
 
-                    if name in risky_tools and bool(state.get("auto_confirm_risky")):
+                    if name in risky_tools and auto_confirm_risky:
                         # 整轮已超时/取消：禁止继续落库，避免 Manager 已失败后的孤儿写
                         if is_admin_turn_cancelled():
                             state["thoughts"].append(

@@ -202,11 +202,15 @@ export function createOrchestrateNode(deps: CreateOrchestrateNodeDeps) {
         meta: mergeMeta(state, {
           unifiedOrchestrator: true,
           orchestratorMode: 'chitchat',
+          orchestratorSource: 'chitchat',
           interactionMode: 'chat',
           workbenchMode: 'chat',
           directChitchatSynth: true,
           intentClassify: classify,
+          intentClassifyMode: 'orchestrator',
           turnScopeMode: turnScope.mode,
+          routeConfidence: Number(classify.confidence ?? 0.92) || 0.92,
+          uncertainty: 'low',
           useLegacyRoute: false
         })
       }

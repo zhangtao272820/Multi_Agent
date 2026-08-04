@@ -14,17 +14,26 @@ prompt_snippet: |
 advance: on_player_turn
 beats:
   - id: b1
-    summary: "咖啡桌对面的盘问：你为何回头"
-    sprite_hint: [casual, work]
-    soft_options: ["认真接话", "先观察", "轻声提问"]
+    narration: "花店后门她把你拦住：艾莉刚从旧伤里站起来——新鲜感的人，请从侧门离开。花泥气味很近。"
+    pc_thought: "夸花不算分。靠近姐姐的人先过我这关。"
+    brief: "后门拦人；拒绝新鲜感猎奇。等你坦白意图、问标准或否认猎奇离婚史。"
+    summary: "后门拦人；拒绝新鲜感猎奇。等你坦白意图、问标准或否认猎奇离婚史。"
+    sprite_hint: [flower_chat, work]
+    soft_options: ["坦白意图", "问审核标准", "否认猎奇离婚史"]
   - id: b2
-    summary: "「审核」里出现犹豫或选择。"
-    sprite_hint: [work, cafe]
-    soft_options: ["表明态度", "给她空间", "确认她的意思"]
+    narration: "闺蜜夜语气变硬：再婚不是游戏；你要靠近，先证明不会把承诺变成别人笑话。"
+    pc_thought: "否认拯救叙事。尊重重建——我别踩成旧剧本。"
+    brief: "再婚非游戏；要证明承诺。等你否认拯救叙事、说尊重重建或接受观察期。"
+    summary: "再婚非游戏；要证明承诺。等你否认拯救叙事、说尊重重建或接受观察期。"
+    sprite_hint: [girls_night, flower_chat]
+    soft_options: ["否认拯救叙事", "说尊重重建", "接受观察期"]
   - id: b3
-    summary: "收束羁绊：确认界线与同盟，禁止恋爱走向。"
-    sprite_hint: [cafe]
-    soft_options: ["答应站同一边", "先缓一缓", "诚实说明顾虑"]
+    narration: "她递给你备用花材：「先学会照顾活的。」闺蜜门打开——艾莉第二次开花的资格，从这一刻可以谈。"
+    pc_thought: "收起表演。用行动证明——观察期比情话长。"
+    brief: "递花材考验；学会照顾才开门。等你收起表演、用行动证明或约旁听规则。"
+    summary: "递花材考验；学会照顾才开门。等你收起表演、用行动证明或约旁听规则。"
+    sprite_hint: [flower_chat, casual]
+    soft_options: ["收起表演", "用行动证明", "约下次闺蜜局旁听规则"]
 rewards:
   flags_set: [friend_gate_done]
 choice_effects:

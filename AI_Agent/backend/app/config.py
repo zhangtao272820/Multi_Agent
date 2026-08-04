@@ -54,10 +54,11 @@ class Settings(BaseSettings):
         "http://localhost:5174,http://127.0.0.1:5174"
     )
 
-    # client_rhythm=假口型（默认，无 GPU）| local_ultralight=本地 Ultralight/MuseTalk/Wav2Lip | cached_s2v=万相
+    # client_rhythm=假口型（默认，无 GPU）| livetalking=真口型主路径
+    # 兼容旧值 local_* / wan_s2v（不推荐）
     lip_sync_mode: str = "client_rhythm"
     lipsync_service_url: str = "http://127.0.0.1:8091"
-    lipsync_backend: str = "ultralight"  # ultralight | musetalk | wav2lip | auto
+    lipsync_backend: str = "ultralight"
     lipsync_stream_frames: bool = False
     lipsync_timeout_sec: int = 600
     wan_s2v_model: str = "wan2.2-s2v"
@@ -67,6 +68,21 @@ class Settings(BaseSettings):
     assets_dir: str = "assets"
     avatar_video_path: str = "video/ai.mp4"
     avatar_image_path: str = ""
+
+    # LiveTalking + FeatherTalk
+    livetalking_url: str = "http://127.0.0.1:8010"
+    livetalking_webrtc_url: str = "http://127.0.0.1:8010"
+    livetalking_timeout_sec: int = 60
+    livetalking_feed_audio: bool = True
+    feathertalk_root: str = ".external/FeatherTalk"
+    feathertalk_checkpoint: str = "assets/avatar_runtime/feathertalk"
+    avatar_actions_dir: str = "assets/avatar_actions"
+
+    # 情绪/动作导演 + 产品 RAG
+    director_enabled: bool = True
+    rag_enabled: bool = True
+    rag_products_dir: str = "assets/products"
+    rag_top_k: int = 3
 
     api_host: str = "0.0.0.0"
     api_port: int = 8080

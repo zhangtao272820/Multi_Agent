@@ -7,27 +7,36 @@ scene_id: ""
 trigger:
   character_ids: [wanyu]
   stage_min: friend
-  affinity_min: 48
+  affinity_min: 55
   flags_absent: [wy_regular_seat]
 prompt_snippet: |
   【专属故事 · 关店之后的温度 · 第1幕 · 熟客的座位】
 advance: on_player_turn
 beats:
   - id: b1
-    summary: "你成了熟客座位；她把杯子放下的角度像记得糖度。"
-    sprite_hint: [work, barista_steam]
+    narration: "蒸汽贴着玻璃往上爬。她把杯子放到你惯坐的位置，糖度不用问——营业笑里多了一点「欢迎回来」。"
+    pc_thought: "熟客位很安全。再近一步，营业笑就撑不住。"
+    brief: "记得座位与糖度；营业笑里多了欢迎回来。等他点单或接住这温度。"
+    summary: "记得座位与糖度；营业笑里多了欢迎回来。等他点单或接住这温度。"
+    sprite_hint: [barista_steam, work, season_winter, home_eating, home_sleeping]
     soft_options: ["道谢点单", "开个小玩笑", "安静坐下"]
   - id: b2
-    summary: "雨敲窗；她问你是来躲雨，还是专门来找这杯味道。"
-    sprite_hint: [rain, work]
+    narration: "雨敲窗。她擦干托盘，随口问：你是来躲雨，还是专门来找这杯味道？问题轻，眼神却停住。"
+    pc_thought: "说专门来的像告白。说顺便，又怕她把心收回菜单里。"
+    brief: "雨天追问：躲雨还是专门来。问题轻，答案会改她一天心情。"
+    summary: "雨天追问：躲雨还是专门来。问题轻，答案会改她一天心情。"
+    sprite_hint: [rain, barista_steam, season_winter, home_eating, home_sleeping]
     soft_options: ["说专门来的", "说顺便", "问她歇没歇"]
   - id: b3
-    summary: "收束于「常客」被记住：她允许你把这里当成短暂停靠。"
-    sprite_hint: [barista_steam, casual]
-    soft_options: ["约定下次还坐这", "多留一会儿", "道谢离开"]
+    narration: "小票边多画了一颗笑脸。她假装忙着擦吧台，其实在余光里停住——看你会不会把这张小票收进钱包。"
+    pc_thought: "收起来像越界。丢掉又像辜负蒸汽里那点真心。"
+    brief: "小票多画笑脸；假装忙碌其实在看他会不会收下。试探熟客能否再近。"
+    summary: "小票多画笑脸；假装忙碌其实在看他会不会收下。试探熟客能否再近。"
+    sprite_hint: [barista_steam, casual, work, home_eating]
+    soft_options: ["收起小票", "夸她手绘", "把笑脸当玩笑"]
 rewards:
   flags_set: [wy_regular_seat]
 choice_effects:
   - { trust_delta: 3, affinity_delta: 3 }
   - { trust_delta: 2, affinity_delta: 2 }
-  - { trust_delta: -2, affinity_delta: -1 }
+  - { trust_delta: -1, affinity_delta: -1 }

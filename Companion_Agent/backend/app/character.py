@@ -56,8 +56,8 @@ class CharacterProfile(BaseModel):
     mbti_label: str = Field("", max_length=16, description="MBTI 中文昵称，如 调停者")
     cast_role: str = Field(
         "romance",
-        pattern="^(romance|neutral|npc)$",
-        description="romance=可攻略女主；neutral=挚友中立（禁恋爱）；npc=保留字段（现行 roster 为空，路人为无名背景）",
+        pattern="^(romance|linked|neutral|npc)$",
+        description="romance=可攻略女主；linked=关系向难攻略（旧值 neutral 兼容）；npc=路人保留",
     )
 
 
@@ -240,9 +240,16 @@ def build_system_prompt(
     )
     event_block = f"\n\n{event_snippet.strip()}" if event_snippet.strip() else ""
     quest_block = f"\n\n{quest_snippet.strip()}" if quest_snippet.strip() else ""
-    backstory = profile.backstory.strip() or (
+    from .character_lores import prompt_background_block
+
+    fallback_bg = profile.backstory.strip() or (
         f"你和对方目前是「{state.stage_label or profile.relationship}」，日常里会碰面、聊天。"
     )
+    backstory = prompt_background_block(
+        profile.character_id or "",
+        flags=dict(state.flags or {}),
+        fallback=fallback_bg,
+    ) or fallback_bg
     personality_block = _personality_block(profile)
     mbti_block = mbti_prompt_block(profile.mbti_type)
     mbti_section = f"\n\n{mbti_block}" if mbti_block else ""

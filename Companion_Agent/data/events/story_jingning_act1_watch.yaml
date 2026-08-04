@@ -14,17 +14,26 @@ prompt_snippet: |
 advance: on_player_turn
 beats:
   - id: b1
-    summary: "时尚活动上撞见"
-    sprite_hint: [casual, work]
-    soft_options: ["认真接话", "先观察", "轻声提问"]
+    narration: "时尚活动边缘她端着茶。看你看堂姐的眼神，比秀场还直白——观察日记已开页，笔尖轻点杯沿。"
+    pc_thought: "观察日记是刀。她记破例，也在记我算不算认真。"
+    brief: "端茶观察你对堂姐的眼神；日记开页。等你承认在意、寒暄或问她为何在。"
+    summary: "端茶观察你对堂姐的眼神；日记开页。等你承认在意、寒暄或问她为何在。"
+    sprite_hint: [cousin_tea, work]
+    soft_options: ["承认在意静流", "先寒暄", "问她怎么也在"]
   - id: b2
-    summary: "她点破你对堂姐的在意"
-    sprite_hint: [work, campus]
-    soft_options: ["表明态度", "给她空间", "确认她的意思"]
+    narration: "她点破：堂姐不易靠近；你若只是新鲜感，她会提前挡。计时从这一句开始。"
+    pc_thought: "接受被观察像过安检。说明认真程度，才不会被挡在玻璃外。"
+    brief: "点破新鲜感会挡；观察计时开始。等你说明认真、接受观察或问怎样不算轻浮。"
+    summary: "点破新鲜感会挡；观察计时开始。等你说明认真、接受观察或问怎样不算轻浮。"
+    sprite_hint: [family_gather, cousin_tea]
+    soft_options: ["说明认真程度", "接受被观察", "问怎样才不算轻浮"]
   - id: b3
-    summary: "收束羁绊：确认界线与同盟，禁止恋爱走向。"
-    sprite_hint: [campus]
-    soft_options: ["答应站同一边", "先缓一缓", "诚实说明顾虑"]
+    narration: "她合上小本，名字旁勾了一笔。堂妹守门打开，静流真结局的门不再虚掩——她只说「别给堂姐添乱」。"
+    pc_thought: "那道门落章后，闲话会先找到我——也找到她。"
+    brief: "合本勾名；守门打开。等你接受待审、约喝茶或保证不添乱。"
+    summary: "合本勾名；守门打开。等你接受待审、约喝茶或保证不添乱。"
+    sprite_hint: [cousin_tea, casual]
+    soft_options: ["接受待审", "约下次喝茶细聊", "保证不给堂姐添乱"]
 rewards:
   flags_set: [cousin_watch_done]
 choice_effects:

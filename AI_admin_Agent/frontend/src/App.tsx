@@ -8,7 +8,54 @@ import { PlaygroundPanel } from './PlaygroundPanel';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? '/api';
 const SESSION_KEY = 'admin_agent_session_id';
-const SESSION_HISTORY_KEY = 'admin_session_history';
+
+function adminUserId(): string {
+  try {
+    const t = String(localStorage.getItem('clawhive_access_token') || '').trim();
+    if (t) {
+      const parts = t.split('.');
+      if (parts.length >= 2) {
+        const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+        const pad = b64.length % 4 === 0 ? '' : '='.repeat(4 - (b64.length % 4));
+        const payload = JSON.parse(atob(b64 + pad)) as { sub?: string };
+        const sub = String(payload?.sub || '').trim();
+        if (sub) return sub;
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+  return 'local';
+}
+
+function tabStorage(): Storage | null {
+  if (typeof window === 'undefined') return null;
+  return window.sessionStorage;
+}
+
+function setTabSessionId(id: string) {
+  try {
+    tabStorage()?.setItem(SESSION_KEY, id);
+  } catch {
+    /* ignore */
+  }
+}
+
+function clearTabSessionId() {
+  try {
+    tabStorage()?.removeItem(SESSION_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+function readTabSessionId(): string {
+  try {
+    return tabStorage()?.getItem(SESSION_KEY) || '';
+  } catch {
+    return '';
+  }
+}
 
 type SessionHistoryItem = {
   id: string;
@@ -18,10 +65,6 @@ type SessionHistoryItem = {
   userMessageCount: number;
   customTitle?: boolean;
 };
-
-function sessionMessagesKey(id: string) {
-  return `admin_session_messages:${id}`;
-}
 
 function handledActionsStorageKey(id: string) {
   return `admin_handled_pending:${id || 'default'}`;
@@ -111,6 +154,12 @@ function getWsUrl(apiBaseUrl: string): string {
   url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
   url.pathname = '/api/chat/ws';
   url.search = '';
+  try {
+    const t = String(localStorage.getItem('clawhive_access_token') || '').trim();
+    if (t) url.searchParams.set('access_token', t);
+  } catch {
+    /* ignore */
+  }
   return url.toString();
 }
 
@@ -605,10 +654,36 @@ function App() {
   }, []);
 
   const persistSessionHistoryList = useCallback((items: SessionHistoryItem[]) => {
+    // 权威在服务端；仅截断内存列表
+    void items;
+  }, []);
+
+  const fetchServerSessionHistory = useCallback(async () => {
+    const uid = adminUserId();
+    if (!uid) {
+      setSessionHistoryItems([]);
+      return;
+    }
     try {
-      localStorage.setItem(SESSION_HISTORY_KEY, JSON.stringify({ items: items.slice(0, 80) }));
+      const res = await fetch(`${API_BASE_URL}/sessions?user_id=${encodeURIComponent(uid)}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const items = Array.isArray(data?.items) ? data.items : [];
+      setSessionHistoryItems(
+        items
+          .filter((x: SessionHistoryItem) => x && typeof x.id === 'string')
+          .map((x: SessionHistoryItem) => ({
+            id: String(x.id),
+            title: String(x.title || '新会话'),
+            updatedAt: String(x.updatedAt || new Date().toISOString()),
+            messageCount: Number(x.messageCount) || 0,
+            userMessageCount: Number(x.userMessageCount) || 0,
+            customTitle: Boolean(x.customTitle),
+          }))
+          .slice(0, 80),
+      );
     } catch {
-      /* ignore */
+      /* keep memory */
     }
   }, []);
 
@@ -708,25 +783,95 @@ function App() {
     [persistHandledActionIds],
   );
 
-  const persistSessionMessages = useCallback((msgs: Message[], cid: string) => {
-    if (!cid) return;
+  const persistSessionMessages = useCallback((_msgs: Message[], _cid: string) => {
+    // 消息权威在服务端 PG（WS append_turn）；禁止写 localStorage
+  }, []);
+
+  const clearLocalSessionCaches = useCallback((id: string) => {
     try {
-      const payload = msgs.map((m) => ({
-        id: m.id,
-        role: m.role,
-        content: m.content,
-        thoughts: m.thoughts,
-        cards: m.cards,
-        turnId: m.turnId,
-        userMessageIndex: m.userMessageIndex,
-        questionForFeedback: m.questionForFeedback,
-      }));
-      localStorage.setItem(sessionMessagesKey(cid), JSON.stringify({ messages: payload }));
+      sessionStorage.removeItem(`admin_session_feedback:${id}`);
+      sessionStorage.removeItem(handledActionsStorageKey(id));
     } catch {
       /* ignore */
     }
   }, []);
 
+  const loadSessionMessages = useCallback(async (id: string): Promise<Message[] | null> => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/session?session_id=${encodeURIComponent(id)}`);
+      if (!res.ok) return null;
+      const data = await res.json();
+      const rows = Array.isArray(data?.messages) ? data.messages : [];
+      if (!rows.length) return null;
+      let turn = 0;
+      let userIdx = 0;
+      const out: Message[] = [];
+      for (const m of rows) {
+        const role = String(m?.role || '').toLowerCase();
+        const content = String(m?.content || '').trim();
+        if (!content) continue;
+        if (role === 'user') {
+          turn += 1;
+          out.push({
+            id: `u-${turn}`,
+            role: 'user',
+            content,
+            thoughts: [],
+            turnId: turn,
+            userMessageIndex: userIdx++,
+          });
+        } else if ((role === 'agent' || role === 'assistant') && turn > 0) {
+          out.push({
+            id: `a-${turn}`,
+            role: 'agent',
+            content,
+            thoughts: [],
+            turnId: turn,
+          });
+        }
+      }
+      return out.length ? out : null;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        // 清掉历史/消息类 localStorage 脏键
+        const forbidden = /session_history|session.*messages|chat_logs/i;
+        for (let i = localStorage.length - 1; i >= 0; i--) {
+          const k = localStorage.key(i);
+          if (k && (forbidden.test(k) || k === SESSION_KEY)) localStorage.removeItem(k);
+        }
+      } catch {
+        /* ignore */
+      }
+      let id = readTabSessionId();
+      if (!id) id = generateSessionId();
+      setTabSessionId(id);
+      if (cancelled) return;
+      setConversationId(id);
+      await fetchServerSessionHistory();
+      restoreSessionFeedback(id);
+      restoreHandledActionIds(id);
+      const loaded = await loadSessionMessages(id);
+      if (cancelled) return;
+      if (loaded) {
+        setMessages(loaded);
+        setTurnSeq(loaded.reduce((max, m) => Math.max(max, m.turnId || 0), 0));
+        touchCurrentSessionHistory(loaded, id, { bump: false });
+      }
+      void hydrateSessionFeedbackFromServer(id);
+      void syncHandledActionsFromPending(id, loaded ?? []);
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const restoreSessionFeedback = useCallback((cid: string) => {
     try {
       const raw = sessionStorage.getItem(`admin_session_feedback:${cid || 'default'}`);
@@ -926,22 +1071,36 @@ function App() {
   }, []);
 
   const syncTruncateToServer = useCallback(
-    async (fromUserIndex: number, replaceUserText?: string, fromTurnId?: number) => {
+    async (
+      fromUserIndex: number | null | undefined,
+      opts?: { replaceUserText?: string; fallbackUserText?: string; fromTurnId?: number },
+    ) => {
       const sid = conversationIdRef.current;
-      if (!sid || typeof fromUserIndex !== 'number') return;
+      const fallback = String(opts?.fallbackUserText || opts?.replaceUserText || '').trim();
+      const replace = String(opts?.replaceUserText || '').trim();
+      const hasIdx = typeof fromUserIndex === 'number' && fromUserIndex >= 0;
+      if (!sid || (!hasIdx && !fallback)) return false;
       try {
-        await fetch(`${API_BASE_URL}/session-truncate`, {
+        const res = await fetch(`${API_BASE_URL}/session-truncate`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             session_id: sid,
-            from_user_index: fromUserIndex,
-            ...(typeof fromTurnId === 'number' ? { from_turn_id: fromTurnId } : {}),
-            ...(replaceUserText ? { replace_user_text: replaceUserText } : {}),
+            ...(hasIdx ? { from_user_index: fromUserIndex } : {}),
+            ...(typeof opts?.fromTurnId === 'number' ? { from_turn_id: opts.fromTurnId } : {}),
+            ...(replace ? { replace_user_text: replace } : {}),
+            ...(fallback ? { fallback_user_text: fallback } : {}),
           }),
         });
+        if (!res.ok) {
+          console.warn('session truncate failed:', res.status);
+          return false;
+        }
+        const data = (await res.json().catch(() => null)) as { ok?: boolean } | null;
+        return data?.ok !== false;
       } catch (e) {
         console.warn('session truncate failed:', e);
+        return false;
       }
     },
     [],
@@ -1003,98 +1162,6 @@ function App() {
     },
     [isTurnRunning],
   );
-
-  const clearLocalSessionCaches = useCallback((id: string) => {
-    try {
-      sessionStorage.removeItem(`admin_session_feedback:${id}`);
-      sessionStorage.removeItem(handledActionsStorageKey(id));
-      localStorage.removeItem(sessionMessagesKey(id));
-    } catch {
-      /* ignore */
-    }
-  }, []);
-
-  const loadSessionMessages = useCallback((id: string): Message[] | null => {
-    try {
-      const raw = localStorage.getItem(sessionMessagesKey(id));
-      if (!raw) return null;
-      const parsed = JSON.parse(raw);
-      const rows = Array.isArray(parsed?.messages) ? parsed.messages : [];
-      if (!rows.length) return null;
-      return rows.map((m: Message, idx: number) => {
-        let userIdx = 0;
-        for (let i = 0; i < idx; i++) {
-          if (rows[i]?.role === 'user') userIdx++;
-        }
-        return {
-          id: String(m.id),
-          role: m.role === 'agent' ? 'agent' : 'user',
-          content: String(m.content || ''),
-          thoughts: Array.isArray(m.thoughts) ? m.thoughts : [],
-          cards: m.cards,
-          turnId: typeof m.turnId === 'number' ? m.turnId : undefined,
-          userMessageIndex:
-            m.role === 'user'
-              ? typeof m.userMessageIndex === 'number'
-                ? m.userMessageIndex
-                : userIdx
-              : undefined,
-          questionForFeedback: m.questionForFeedback,
-        };
-      });
-    } catch {
-      return null;
-    }
-  }, []);
-
-  useEffect(() => {
-    let id = '';
-    try {
-      id = localStorage.getItem(SESSION_KEY) || '';
-    } catch {
-      /* ignore */
-    }
-    if (!id) id = generateSessionId();
-    try {
-      localStorage.setItem(SESSION_KEY, id);
-    } catch {
-      /* ignore */
-    }
-    setConversationId(id);
-    try {
-      const raw = localStorage.getItem(SESSION_HISTORY_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed?.items)) {
-          setSessionHistoryItems(
-            parsed.items
-              .filter((x: SessionHistoryItem) => x && typeof x.id === 'string')
-              .map((x: SessionHistoryItem) => ({
-                id: String(x.id),
-                title: String(x.title || '新会话'),
-                updatedAt: String(x.updatedAt || new Date().toISOString()),
-                messageCount: Number(x.messageCount) || 0,
-                userMessageCount: Number(x.userMessageCount) || 0,
-                customTitle: Boolean(x.customTitle),
-              }))
-              .sort((a: SessionHistoryItem, b: SessionHistoryItem) =>
-                b.updatedAt.localeCompare(a.updatedAt),
-              ),
-          );
-        }
-      }
-    } catch {
-      /* ignore */
-    }
-    restoreSessionFeedback(id);
-    restoreHandledActionIds(id);
-    const loaded = loadSessionMessages(id);
-    if (loaded) {
-      setMessages(loaded);
-      setTurnSeq(loaded.reduce((max, m) => Math.max(max, m.turnId || 0), 0));
-      void syncHandledActionsFromPending(id, loaded);
-    }
-  }, [loadSessionMessages, restoreHandledActionIds, restoreSessionFeedback, syncHandledActionsFromPending]);
 
   useEffect(() => {
     clientLocationRef.current = clientLocation;
@@ -1446,11 +1513,7 @@ function App() {
     if (!cid) {
       cid = generateSessionId();
       setConversationId(cid);
-      try {
-        localStorage.setItem(SESSION_KEY, cid);
-      } catch {
-        /* ignore */
-      }
+      setTabSessionId(cid);
     }
 
     const chatMode = opts?.mode ?? 'normal';
@@ -1523,6 +1586,7 @@ function App() {
         JSON.stringify({
           message: userText,
           session_id: cid,
+          user_id: adminUserId(),
           client_context: buildClientContext(clientLocationRef.current),
           ...(chatMode !== 'normal'
             ? { mode: chatMode, user_message_index: opts?.userMessageIndex }
@@ -1646,8 +1710,20 @@ function App() {
 
   const doWithdrawTurn = async (turnId: number) => {
     const userMsg = truncateLocalFromTurn(turnId);
-    if (userMsg && typeof userMsg.userMessageIndex === 'number') {
-      await syncTruncateToServer(userMsg.userMessageIndex, undefined, turnId);
+    const ok = await syncTruncateToServer(
+      typeof userMsg?.userMessageIndex === 'number' ? userMsg.userMessageIndex : null,
+      { fallbackUserText: String(userMsg?.content || ''), fromTurnId: turnId },
+    );
+    if (!ok) {
+      setAppModal({
+        open: true,
+        mode: 'alert',
+        title: '撤回未完全同步',
+        message: '本地已删除该轮，但服务端未能定位对应消息。请刷新会话后再试。',
+        inputValue: '',
+        inputPlaceholder: '',
+        pendingAction: null,
+      });
     }
     clearFeedbackFromTurn(turnId, conversationIdRef.current);
     setMessages((prev) => {
@@ -1663,11 +1739,31 @@ function App() {
     if (isTurnRunning(msg.turnId)) return;
     const fromIdx = msg.userMessageIndex;
     const fromTurnId = msg.turnId;
+    const oldText = String(msg.content || '').trim();
     cancelEditTurn();
     truncateLocalFromTurn(fromTurnId);
     clearFeedbackFromTurn(fromTurnId, conversationIdRef.current);
-    if (typeof fromIdx === 'number') await syncTruncateToServer(fromIdx, undefined, fromTurnId);
-    await sendMessage(text, { mode: 'edit_resend', userMessageIndex: fromIdx, turnId: fromTurnId });
+    const ok = await syncTruncateToServer(typeof fromIdx === 'number' ? fromIdx : null, {
+      fallbackUserText: oldText || text,
+      fromTurnId,
+    });
+    if (!ok) {
+      setAppModal({
+        open: true,
+        mode: 'alert',
+        title: '无法编辑重发',
+        message: '服务端找不到对应用户消息，请重新发送新问题。',
+        inputValue: '',
+        inputPlaceholder: '',
+        pendingAction: null,
+      });
+      return;
+    }
+    await sendMessage(text, {
+      mode: 'edit_resend',
+      userMessageIndex: typeof fromIdx === 'number' ? fromIdx : undefined,
+      turnId: fromTurnId,
+    });
   };
 
   const regenerateTurn = async (msg: Message) => {
@@ -1677,7 +1773,10 @@ function App() {
       return;
     }
     const uidx = msg.userMessageIndex;
-    if (typeof uidx !== 'number') {
+    cancelEditTurn();
+    const userMsg = truncateForRegenerate(msg.turnId);
+    const text = String(userMsg?.content || msg.content || '').trim();
+    if (!text && typeof uidx !== 'number') {
       setAppModal({
         open: true,
         mode: 'alert',
@@ -1689,13 +1788,30 @@ function App() {
       });
       return;
     }
-    cancelEditTurn();
-    const userMsg = truncateForRegenerate(msg.turnId);
-    const text = String(userMsg?.content || msg.content || '').trim();
     if (!text) return;
     clearFeedbackForTurnOnly(msg.turnId, conversationIdRef.current);
-    await syncTruncateToServer(uidx, text, msg.turnId);
-    await sendMessage(text, { mode: 'regenerate', userMessageIndex: uidx, turnId: msg.turnId });
+    const ok = await syncTruncateToServer(typeof uidx === 'number' ? uidx : null, {
+      replaceUserText: text,
+      fallbackUserText: text,
+      fromTurnId: msg.turnId,
+    });
+    if (!ok) {
+      setAppModal({
+        open: true,
+        mode: 'alert',
+        title: '无法重新生成',
+        message: '服务端找不到对应用户消息，请重新发送新问题。',
+        inputValue: '',
+        inputPlaceholder: '',
+        pendingAction: null,
+      });
+      return;
+    }
+    await sendMessage(text, {
+      mode: 'regenerate',
+      userMessageIndex: typeof uidx === 'number' ? uidx : undefined,
+      turnId: msg.turnId,
+    });
   };
 
   const tryHandlePendingDecisionText = async (userText: string): Promise<boolean> => {
@@ -1759,11 +1875,7 @@ function App() {
     }
     const id = generateSessionId();
     setConversationId(id);
-    try {
-      localStorage.setItem(SESSION_KEY, id);
-    } catch {
-      /* ignore */
-    }
+    setTabSessionId(id);
     setMessages([]);
     setTurnSeq(0);
     setHandledActionIds(new Set());
@@ -1771,6 +1883,7 @@ function App() {
     persistHandledActionIds(new Set(), id);
     touchCurrentSessionHistory([], id, { bump: true });
     persistSessionMessages([], id);
+    void fetchServerSessionHistory();
   };
 
   const switchSession = async (id: string) => {
@@ -1797,24 +1910,20 @@ function App() {
         });
       }
       setConversationId(id);
-      try {
-        localStorage.setItem(SESSION_KEY, id);
-      } catch {
-        /* ignore */
+      setTabSessionId(id);
+      restoreSessionFeedback(id);
+      restoreHandledActionIds(id);
+      const loaded = await loadSessionMessages(id);
+      if (loaded) {
+        setMessages(loaded);
+        setTurnSeq(loaded.reduce((max, m) => Math.max(max, m.turnId || 0), 0));
+      } else {
+        setMessages([]);
+        setTurnSeq(0);
       }
-    restoreSessionFeedback(id);
-    restoreHandledActionIds(id);
-    const loaded = loadSessionMessages(id);
-    if (loaded) {
-      setMessages(loaded);
-      setTurnSeq(loaded.reduce((max, m) => Math.max(max, m.turnId || 0), 0));
-    } else {
-      setMessages([]);
-      setTurnSeq(0);
-    }
-    void syncHandledActionsFromPending(id, loaded ?? []);
-    void hydrateSessionFeedbackFromServer(id);
-    touchCurrentSessionHistory(loaded || [], id, { bump: false });
+      void syncHandledActionsFromPending(id, loaded ?? []);
+      void hydrateSessionFeedbackFromServer(id);
+      touchCurrentSessionHistory(loaded || [], id, { bump: false });
     } finally {
       setSessionSwitching(false);
     }
@@ -1869,18 +1978,34 @@ function App() {
         persistSessionHistoryList(next);
         return next;
       });
+      void fetch(`${API_BASE_URL}/session-meta`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          session_id: action.id,
+          user_id: adminUserId(),
+          title,
+          custom_title: true,
+        }),
+      }).catch(() => undefined);
       return;
     }
     if (action && typeof action === 'object' && action.type === 'delete' && action.id) {
       const deletedId = action.id;
       try {
-        await fetch(`${API_BASE_URL}/session-feedback/delete`, {
+        const res = await fetch(`${API_BASE_URL}/session-delete`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ session_id: deletedId, delete_all: true }),
+          body: JSON.stringify({ session_id: deletedId }),
         });
-      } catch {
-        /* ignore */
+        if (!res.ok) {
+          const detail = await res.text().catch(() => '');
+          window.alert(`删除失败：HTTP ${res.status}${detail ? ` ${detail}` : ''}`);
+          return;
+        }
+      } catch (e) {
+        window.alert(`删除失败：${e instanceof Error ? e.message : String(e)}`);
+        return;
       }
       let fallbackId: string | undefined;
       setSessionHistoryItems((prev) => {
@@ -1895,18 +2020,17 @@ function App() {
           await switchSession(fallbackId);
         } else {
           setConversationId('');
-          try {
-            localStorage.removeItem(SESSION_KEY);
-          } catch {
-            /* ignore */
-          }
+          clearTabSessionId();
           setMessages([]);
           setTurnSeq(0);
           setHandledActionIds(new Set());
           restoreSessionFeedback('');
           setFeedbackByUserIndex({});
           setFeedbackAckByUserIndex({});
+          await newSession({ skipConfirm: true });
         }
+      } else {
+        void fetchServerSessionHistory();
       }
     }
   };
@@ -1979,11 +2103,7 @@ function App() {
     if (!cid) {
       cid = generateSessionId();
       setConversationId(cid);
-      try {
-        localStorage.setItem(SESSION_KEY, cid);
-      } catch {
-        /* ignore */
-      }
+      setTabSessionId(cid);
     }
 
     setDecidingActionId(actionId);
@@ -2043,6 +2163,7 @@ function App() {
         JSON.stringify({
           message: originalUserMessage || `${decision} ${actionId}`,
           session_id: cid,
+          user_id: adminUserId(),
           mode: 'pending_decide',
           action_id: Number(actionId),
           decision,

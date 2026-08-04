@@ -1177,7 +1177,7 @@ select {
   font-size: 0.82rem;
 }
 
-/* ── GAL / Visual Novel v2 ── */
+/* ?? GAL / Visual Novel v2 ?? */
 
 .gal-app-shell {
   min-height: 100vh;
@@ -1416,6 +1416,75 @@ select {
 .gal-hud-story {
   color: rgba(255, 214, 170, 0.95);
   font-variant-numeric: tabular-nums;
+}
+
+.gal-story-beat {
+  margin: 0.2rem 0 0;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: rgba(255, 236, 210, 0.92);
+  border-left: 3px solid rgba(232, 176, 110, 0.7);
+  background: linear-gradient(90deg, rgba(40, 24, 18, 0.55), transparent);
+  max-width: min(36rem, 94vw);
+  border-radius: 0 6px 6px 0;
+}
+
+.gal-story-card {
+  margin: 0.2rem 0 0;
+  padding: 0.55rem 0.75rem 0.6rem;
+  max-width: min(22rem, 88vw);
+  border: 1px solid rgba(201, 162, 99, 0.38);
+  border-radius: 4px;
+  background:
+    linear-gradient(165deg, rgba(28, 18, 22, 0.9), rgba(12, 10, 16, 0.88)),
+    rgba(8, 6, 12, 0.72);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  animation: gal-screen-in 0.35s ease-out;
+}
+
+.gal-story-card-label {
+  display: block;
+  margin-bottom: 0.3rem;
+  font-size: 0.66rem;
+  letter-spacing: 0.14em;
+  color: rgba(224, 192, 144, 0.78);
+  font-family: var(--font-display);
+}
+
+.gal-story-card-narration {
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.55;
+  color: rgba(255, 240, 220, 0.94);
+  font-family: var(--font-display);
+}
+
+.gal-story-card-thought {
+  margin: 0.45rem 0 0;
+  padding: 0.35rem 0.45rem 0.3rem 0.55rem;
+  border-left: 2px solid rgba(180, 140, 100, 0.45);
+  font-size: 0.78rem;
+  line-height: 1.45;
+  font-style: italic;
+  color: rgba(210, 195, 175, 0.86);
+}
+
+.gal-story-card-thought-mark {
+  display: inline-block;
+  margin-right: 0.35rem;
+  padding: 0 0.28rem;
+  font-size: 0.62rem;
+  font-style: normal;
+  letter-spacing: 0.06em;
+  color: rgba(224, 192, 144, 0.9);
+  border: 1px solid rgba(201, 162, 99, 0.35);
+  border-radius: 2px;
+  vertical-align: 0.05em;
+}
+
+.gal-quest-layer .gal-story-card {
+  max-width: min(22rem, 88vw);
 }
 
 .gal-event-toast--story {
@@ -1718,7 +1787,7 @@ html[data-reduced-motion="1"] .gal-title-hero-sprite {
   z-index: 5;
   display: flex;
   align-items: flex-end;
-  /* 对话中立绘偏右，不挡画面中心与左侧景深 */
+  /* ??????????????????? */
   justify-content: flex-end;
   padding-right: clamp(0.5rem, 6vw, 4.5rem);
   padding-left: clamp(2rem, 18vw, 12rem);
@@ -1980,7 +2049,7 @@ html[data-reduced-motion="1"] .gal-title-hero-sprite {
   color: #fca5a5;
 }
 
-/* 软选项：贴底矮胶囊，不挡立绘腰腹 */
+/* ???????????????? */
 .gal-choice-overlay {
   display: flex;
   flex-direction: column;
@@ -2063,7 +2132,7 @@ html[data-reduced-motion="1"] .gal-title-hero-sprite {
   bottom: 13.5rem;
 }
 
-/* 顶栏下方偏左，避开立绘脸部正中 */
+/* ??????????????? */
 .gal-float-notice {
   position: absolute;
   top: 3.6rem;
@@ -2798,7 +2867,10 @@ html[data-reduced-motion="1"] .gal-title-hero-sprite {
   top: 3.8rem;
   left: 1rem;
   z-index: 18;
-  max-width: min(280px, 42vw);
+  max-width: min(360px, 52vw);
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
 }
 
 .gal-quest-hud {
@@ -2856,7 +2928,7 @@ html[data-reduced-motion="1"] .gal-title-hero-sprite {
   font-size: 0.85rem;
 }
 
-/* —— auth gate —— */
+/* ?? auth gate ?? */
 .gal-auth-screen {
   position: relative;
   min-height: 100vh;
@@ -2981,7 +3053,7 @@ html[data-reduced-motion="1"] .gal-title-hero-sprite {
   margin-top: 0.35rem;
 }
 
-/* —— title user —— */
+/* ?? title user ?? */
 .gal-title-user {
   position: absolute;
   top: 1.1rem;
@@ -3016,7 +3088,7 @@ html[data-reduced-motion="1"] .gal-title-hero-sprite {
   color: rgba(250, 245, 255, 0.48) !important;
 }
 
-/* —— mystery roster —— */
+/* ?? mystery roster ?? */
 .gal-roster-root--mystery .gal-roster-panel--mystery {
   background: linear-gradient(180deg, rgba(8, 4, 14, 0.78), rgba(6, 3, 12, 0.88));
 }
@@ -3047,7 +3119,7 @@ html[data-reduced-motion="1"] .gal-title-hero-sprite {
   color: rgba(250, 245, 255, 0.68);
 }
 
-/* —— saves —— */
+/* ?? saves ?? */
 .gal-save-row {
   display: flex;
   align-items: stretch;
@@ -3083,7 +3155,7 @@ html[data-reduced-motion="1"] .gal-title-hero-sprite {
   opacity: 0.72;
 }
 
-/* —— town hub / location / codex —— */
+/* ?? town hub / location / codex ?? */
 .gal-hub-root,
 .gal-loc-root {
   position: relative;
@@ -3475,7 +3547,7 @@ html[data-reduced-motion="1"] .gal-title-hero-sprite {
   opacity: 0.55;
 }
 
-/* —— 立绘大全 / 选角台 —— */
+/* ?? ???? / ??? ?? */
 .gal-sprite-gallery {
   padding: 1rem 1.25rem 2.5rem;
   min-height: 100vh;
@@ -3678,7 +3750,7 @@ html[data-reduced-motion="1"] .gal-title-hero-sprite {
   background: rgba(253, 164, 200, 0.08);
 }
 
-/* 全屏立绘查看器 */
+/* ??????? */
 .gal-sprite-lightbox {
   position: fixed;
   inset: 0;
@@ -3768,7 +3840,7 @@ html[data-reduced-motion="1"] .gal-title-hero-sprite {
 }
 
 .gal-sprite-lightbox-img {
-  /* 尽量占满舞台：去掉 720px 上限，适配 exe 窗口 */
+  /* ????????? 720px ????? exe ?? */
   max-width: 100%;
   max-height: 100%;
   width: auto;
@@ -3949,6 +4021,24 @@ html[data-reduced-motion="1"] .gal-title-hero-sprite {
   border-radius: 4px;
 }
 
+.gal-hub-inline-btn {
+  flex: 0 0 auto;
+  margin-left: auto;
+  font: inherit;
+  font-size: 0.75rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  border: 1px solid rgba(253, 200, 180, 0.45);
+  background: rgba(40, 28, 36, 0.65);
+  color: rgba(250, 245, 255, 0.95);
+  cursor: pointer;
+}
+
+.gal-hub-inline-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .gal-hub-ping-kind {
   margin-left: 0.35rem;
   font-style: normal;
@@ -4025,7 +4115,7 @@ html[data-reduced-motion="1"] .gal-title-hero-sprite {
   }
 }
 
-/* ═══════════════ P8 独立游戏观感 ═══════════════ */
+/* ??????????????? P8 ?????? ??????????????? */
 
 .gal-life-bar {
   position: relative;
@@ -4202,7 +4292,7 @@ html[data-reduced-motion="1"] .gal-title-hero-sprite {
   filter: drop-shadow(0 10px 22px rgba(0, 0, 0, 0.4));
 }
 
-/* Hub 并排等槽：固定画框，全身基图底对齐；高度压低避免被 tip 栏裁切 */
+/* Hub ????????????????????????? tip ??? */
 .gal-hub-person--stage .gal-hub-person-art {
   width: auto;
   height: min(72vh, 640px);
@@ -4345,7 +4435,7 @@ html[data-reduced-motion="1"] .gal-title-hero-sprite {
     radial-gradient(ellipse 80% 50% at 50% 100%, rgba(0, 0, 0, 0.45), transparent 70%);
 }
 
-/* 后期路人/NPC 杂图：仅氛围，不可交互 */
+/* ????/NPC ??????????? */
 .gal-loc-extras {
   position: absolute;
   inset: 0;
@@ -4593,7 +4683,7 @@ html[data-reduced-motion="1"] .gal-stage-footer {
   animation: none !important;
 }
 
-/* —— settings / game menu / world saves —— */
+/* ?? settings / game menu / world saves ?? */
 .gal-settings-root {
   position: relative;
   min-height: 100vh;
@@ -4743,7 +4833,7 @@ html[data-reduced-motion="1"] .gal-stage-footer {
   color: rgba(243, 238, 228, 0.55);
 }
 
-/* —— 开局序章 —— */
+/* ?? ???? ?? */
 .gal-opening {
   position: fixed;
   inset: 0;
@@ -4839,7 +4929,7 @@ html[data-reduced-motion="1"] .gal-stage-footer {
   gap: 1rem;
 }
 
-/* —— 时段滤镜（场景底图未出晨午夜差分时） —— */
+/* ?? ?????????????????? ?? */
 .gal-period--morning .gal-scene-bg,
 .gal-period--morning .gal-hub-bg,
 .gal-period--morning.gal-opening .gal-opening-bg {
@@ -4866,7 +4956,7 @@ html[data-reduced-motion="1"] .gal-stage-footer {
   --period-tint: rgba(40, 60, 120, 0.06);
 }
 
-/* —— Hub / 地点瘦身：一屏一焦点，去掉双滚动 —— */
+/* ?? Hub / ???????????????? ?? */
 .gal-hub-root--slim {
   height: 100vh;
   max-height: 100vh;
@@ -5195,7 +5285,7 @@ html[data-reduced-motion="1"] .gal-stage-footer {
   height: 88px;
 }
 
-/* ═══════════════ P8.1 开场叙事 · Day1 · 三屏打磨 ═══════════════ */
+/* ??????????????? P8.1 ???? � Day1 � ???? ??????????????? */
 
 @keyframes gal-rec-pulse {
   0%,
@@ -5386,7 +5476,7 @@ html[data-reduced-motion="1"] .gal-hub-loc--rec {
   animation: none;
 }
 
-/* ═══════════════ 对话→世界动作 · 邀约条 ═══════════════ */
+/* ??????????????? ??????? � ??? ??????????????? */
 
 .gal-social-toast {
   position: absolute;
@@ -5540,7 +5630,7 @@ html[data-reduced-motion="1"] .gal-fulfill-pulse {
   animation: none;
 }
 
-/* ═══════════════ VN / Gal 场景壳（Hub · Location · Opening） ═══════════════ */
+/* ??????????????? VN / Gal ????Hub � Location � Opening? ??????????????? */
 
 .gal-hub-root--vn,
 .gal-loc-root--vn {
@@ -5852,7 +5942,7 @@ html[data-reduced-motion="1"] .gal-vn-actor--rec .gal-vn-sprite {
   animation: none;
 }
 
-/* ═══════════════ 地图选点 + 头像（Hub 主舞台） ═══════════════ */
+/* ??????????????? ???? + ???Hub ???? ??????????????? */
 
 .gal-hub-root--map {
   position: relative;
@@ -6383,7 +6473,7 @@ html[data-reduced-motion="1"] .gal-vn-actor--rec .gal-vn-sprite {
   font-size: 0.75rem;
 }
 
-/* 对话全身立绘：偏侧站位，高度主导、禁止拉伸 */
+/* ????????????????????? */
 .gal-scene-root .gal-sprite-wrap {
   height: auto;
   max-height: min(82vh, 760px);
@@ -6437,7 +6527,7 @@ html[data-reduced-motion="1"] .gal-vn-actor--rec .gal-vn-sprite {
 
 
 
-/* ═══════════════ Virtues MVP：对白 / 角色面板 / 线索板 ═══════════════ */
+/* ??????????????? Virtues MVP??? / ???? / ??? ??????????????? */
 
 @keyframes gal-dialogue-in {
   from { opacity: 0; transform: translateY(10px); }
@@ -6723,7 +6813,7 @@ html[data-reduced-motion="1"] .gal-vn-actor--rec .gal-vn-sprite {
   background: rgba(48, 28, 12, 0.92);
 }
 
-/* ═══════════════ Virtues 底栏 / 手机 / 背包 / 立绘舞台 ═══════════════ */
+/* ??????????????? Virtues ?? / ?? / ?? / ???? ??????????????? */
 
 .gal-hub-root--virtue,
 .gal-loc-root--virtue {
@@ -7548,3 +7638,186 @@ html[data-reduced-motion="1"] .gal-vn-actor--rec .gal-vn-sprite {
   }
 }
 
+
+/* ???? ???????????????? / ??????? / ?????? / ??????? ???? */
+.gal-hub-waypoint-strip {
+  z-index: 2;
+  margin: 0.45rem 1rem 0;
+  padding: 0.55rem 0.75rem 0.5rem;
+  border-radius: 0.65rem;
+  background: rgba(8, 12, 20, 0.42);
+  border: 1px solid rgba(224, 192, 144, 0.16);
+  animation: gal-screen-in 0.45s ease-out;
+}
+
+.gal-hub-waypoint-track {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: 0.35rem;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.gal-hub-waypoint-dot {
+  flex: 0 0 auto;
+  min-width: 3.6rem;
+  max-width: 5.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.28rem;
+  opacity: 0.42;
+}
+
+.gal-hub-waypoint-mark {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.28);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.gal-hub-waypoint-dot em {
+  font-style: normal;
+  font-size: 0.68rem;
+  letter-spacing: 0.02em;
+  color: rgba(243, 238, 228, 0.72);
+  text-align: center;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.gal-hub-waypoint-dot.is-reached {
+  opacity: 0.78;
+}
+
+.gal-hub-waypoint-dot.is-reached .gal-hub-waypoint-mark {
+  background: rgba(224, 192, 144, 0.7);
+}
+
+.gal-hub-waypoint-dot.is-now {
+  opacity: 1;
+}
+
+.gal-hub-waypoint-dot.is-now .gal-hub-waypoint-mark {
+  background: rgba(253, 186, 116, 0.98);
+  box-shadow: 0 0 10px rgba(253, 186, 116, 0.5);
+  transform: scale(1.15);
+}
+
+.gal-hub-waypoint-dot.is-next .gal-hub-waypoint-mark {
+  outline: 1px dashed rgba(253, 186, 116, 0.55);
+  outline-offset: 2px;
+}
+
+.gal-hub-waypoint-caption {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 0.85rem;
+  align-items: baseline;
+  margin-top: 0.45rem;
+  font-size: 0.78rem;
+  color: rgba(243, 238, 228, 0.62);
+}
+
+.gal-hub-waypoint-caption strong {
+  font-weight: 600;
+  color: rgba(255, 228, 186, 0.95);
+}
+
+.gal-codex-life-notes {
+  margin-top: 0.55rem;
+}
+
+.gal-codex-life-notes .gal-codex-status {
+  margin-top: 0.35rem;
+}
+
+.gal-codex-story-soft {
+  margin: 0.65rem 0 0;
+  padding: 0.45rem 0.55rem;
+  border-left: 2px solid rgba(212, 165, 116, 0.55);
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: rgba(236, 224, 206, 0.88);
+  background: rgba(212, 165, 116, 0.06);
+}
+
+.gal-save-focus,
+.gal-save-endings {
+  margin: 0.2rem 0 0;
+  font-size: 0.78rem;
+  color: rgba(224, 192, 144, 0.72);
+}
+
+.gal-history-hint {
+  margin: 0 1rem 0.75rem;
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.gal-sprite-card--locked {
+  opacity: 0.72;
+  filter: saturate(0.55);
+}
+
+.gal-sprite-card-silhouette {
+  display: block;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  background:
+    linear-gradient(180deg, rgba(40, 48, 62, 0.9), rgba(12, 16, 24, 0.95)),
+    radial-gradient(ellipse 40% 55% at 50% 42%, rgba(80, 90, 110, 0.55), transparent 70%);
+}
+
+.gal-sprite-unlock-count {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.72rem;
+  color: rgba(224, 192, 144, 0.7);
+}
+
+.gal-sprite-outfit-tier {
+  margin-top: 0.65rem;
+}
+
+.gal-sprite-outfit-tier h4 {
+  margin: 0 0 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: rgba(220, 200, 170, 0.55);
+  text-transform: none;
+}
+
+.gal-sprite-chip--locked {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.gal-sprite-chip-silhouette {
+  display: block;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  border-radius: 0.35rem;
+  background: linear-gradient(160deg, rgba(50, 58, 72, 0.95), rgba(16, 20, 28, 0.98));
+}
+
+.gal-sprite-chip--locked span:last-child {
+  font-size: 0.65rem;
+  color: rgba(180, 170, 155, 0.75);
+}
+
+@keyframes gal-unlock-fade {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.gal-sprite-chip:not(.gal-sprite-chip--locked) {
+  animation: gal-unlock-fade 0.35s ease-out;
+}

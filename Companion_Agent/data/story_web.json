@@ -1,0 +1,99 @@
+{
+  "version": 1,
+  "principle": "社会式：线与线有联系，又各自独立完整可单线通关。禁止必须收集全员 flag 才能开主线。",
+  "independence": {
+    "rule": "每条 romance/N 线有自己的 Acts、flag、难度、立绘钩子、结局；只玩一人也能闭环。",
+    "t0_true_gate": "中立守门只卡真结局；good/soft/bad 可不靠守门达成。",
+    "t2": "轻副本不依赖其他角色 flag。"
+  },
+  "shared_soil": {
+    "calendar_waypoints": "season_waypoints.json",
+    "locations": "social_graph.json locations",
+    "family": [
+      "shuli",
+      "fengyin"
+    ],
+    "weather_festival": "china_calendar_2026.json"
+  },
+  "gate_edges": [
+    {
+      "neutral": "youwei",
+      "romance": "xiaoyou",
+      "flag": "studio_sketch_done"
+    },
+    {
+      "neutral": "yuxi",
+      "romance": "wanyu",
+      "flag": "shift_cover_done"
+    },
+    {
+      "neutral": "jingning",
+      "romance": "jingliu",
+      "flag": "cousin_watch_done"
+    },
+    {
+      "neutral": "lingke",
+      "romance": "ruolin",
+      "flag": "boundary_guard_done"
+    },
+    {
+      "neutral": "aichen",
+      "romance": "aili",
+      "flag": "friend_gate_done"
+    }
+  ],
+  "cross_edges_note": "熟人边权威在 social_graph.json edges；此处只列叙事弱耦合用途：同场、传闻、Rivalry，不抢当前线剧本主权。",
+  "weak_coupling": [
+    "跨线只注入已解锁系统事实（认识过、同场过、flag）",
+    "女主 LLM 禁止编造未见面角色的秘密",
+    "个人幕 sprite_hint 只服务本线；跨线最多 Hub 偶遇一句"
+  ],
+  "batch6_narration_hooks": [
+    {
+      "event_id": "story_shuli_act4_jealous",
+      "beat_id": "b1",
+      "note": "他线气味反哺嫉妒（松节油/画室方向），不点名抢戏"
+    },
+    {
+      "event_id": "story_xiaoyou_act5_winter_frame",
+      "beat_id": "b2",
+      "note": "小镇闲话：家里日程管得紧"
+    },
+    {
+      "event_id": "story_wanyu_act5_winter_steam",
+      "beat_id": "b2",
+      "note": "熟客圈传闻：晚归被妹妹盯着"
+    },
+    {
+      "event_id": "story_qiansha_act5_winter_diff",
+      "beat_id": "b2",
+      "note": "旁支：花店艾莉一行"
+    },
+    {
+      "event_id": "story_shizuku_act5_winter_stack",
+      "beat_id": "b2",
+      "note": "旁支：若铃边界课一句"
+    },
+    {
+      "event_id": "story_taotao_act5_winter_stage",
+      "beat_id": "b2",
+      "note": "轻提醒：别让家里人等太久"
+    },
+    {
+      "event_id": "story_fengyin_act1_door",
+      "beat_id": "b1",
+      "note": "隔墙书璃夜灯悬念"
+    },
+    {
+      "event_id": "story_fengyin_act5_winter_door",
+      "beat_id": "b1",
+      "note": "冬夜隔墙暖光，服务 L0 信息差"
+    }
+  ],
+  "tier_thickness": {
+    "T0": "最长：4+季节幕；真/好/软/专属坏；满包立绘",
+    "T1": "深线 3 幕加厚；真/好/软",
+    "T2": "轻副本：2+季节幕；好/软/专属坏；少跨线",
+    "N": "守门羁绊 2 幕加厚；可卡 T0 真结局"
+  }
+}

@@ -3,32 +3,88 @@ label: 末班车
 priority: 6
 once: true
 chance: 1.0
-scene_id: ""
+scene_id: ''
 trigger:
-  character_ids: [linxi]
+  character_ids:
+  - linxi
   stage_min: close_friend
-  affinity_min: 62
-  flags_absent: [lx_commute_talk]
-  flags_present: [lx_desk_sync]
-prompt_snippet: |
-  【专属故事 · 工位之间的一步 · 第2幕 · 末班车】
+  affinity_min: 68
+  flags_absent:
+  - lx_commute_talk
+  flags_present:
+  - lx_desk_sync
+prompt_snippet: '【专属故事 · 工位之间的一步 · 第2幕 · 末班车】
+
+  '
 advance: on_player_turn
 beats:
-  - id: b1
-    summary: "通勤同路"
-    sprite_hint: [commute_rail, pantry_coffee]
-    soft_options: ["认真接话", "先观察", "轻声提问"]
-  - id: b2
-    summary: "她卸下职场壳"
-    sprite_hint: [pantry_coffee, elevator_rush]
-    soft_options: ["表明态度", "给她空间", "确认她的意思"]
-  - id: b3
-    summary: "收束本幕：留下可被记住的结果，不剧透结局名。"
-    sprite_hint: [elevator_rush]
-    soft_options: ["坦白心意", "先缓一缓", "诚实说明顾虑"]
+- id: b1
+  summary: 晚高峰车厢里她抓吊环；肩碰肩时她小声说「公司好远」，像把疲惫借你分担半寸。等你回应。
+  sprite_hint:
+  - commute_rail
+  - overtime_desk
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 让她靠座位
+  - 轻声叫站稳
+  - 分享耳机歌单
+  narration: 打印纸与轨道风里，晚高峰车厢里她抓吊环；肩碰肩时她小声说「公司好远」，像把疲惫借你分担半寸。
+  pc_thought: 对桌探头那一下，像实习期的心跳漏拍。
+  brief: 晚高峰车厢里她抓吊环；肩碰肩时她小声说「公司好远」，像把疲惫借你分担半寸。等你回应。
+- id: b2
+  summary: 换乘站风很大，她把围巾分你一半：不是暧昧，是实习生存手册里新增的互助条款。等你回应。
+  sprite_hint:
+  - lobby_umbrella
+  - rain
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 共撑一把
+  - 叫车送她
+  - 笑她嘴硬
+  narration: 打印纸与轨道风里，换乘站风很大，她把围巾分你一半：不是暧昧，是实习生存手册里新增的互助条款。
+  pc_thought: 末班车扶手很凉。逞强的她，其实也怕走丢——想起围巾。
+  brief: 换乘站风很大，她把围巾分你一半：不是暧昧，是实习生存手册里新增的互助条款。等你回应。
+- id: b3
+  summary: 她问起你当年第一份工：想听的不是成功学，是有人承认「我也慌过」。等你回应。
+  sprite_hint:
+  - lobby_umbrella
+  - casual
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 说求助不是弱
+  - 讲你也有逞强的时候
+  - 约下次一起下班
+  narration: 打印纸与轨道风里，她问起你当年第一份工：想听的不是成功学，是有人承认「我也慌过」。
+  pc_thought: 打印室只剩我们。我想把「同事」说成更私的词。
+  brief: 她问起你当年第一份工：想听的不是成功学，是有人承认「我也慌过」。等你回应。
+- id: b4
+  summary: 到站前她说：如果可以，想和你走同一段回家路——哪怕只是同方向的沉默。等你回应。
+  sprite_hint:
+  - commute_rail
+  - date
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 保密承诺
+  - 碰拳收工
+  - 说明天文件我先看
+  narration: 打印纸与轨道风里，到站前她说：如果可以，想和你走同一段回家路——哪怕只是同方向的沉默。
+  pc_thought: 工位之间只要一步——我迈不迈得出去？
+  brief: 到站前她说：如果可以，想和你走同一段回家路——哪怕只是同方向的沉默。等你回应。
 rewards:
-  flags_set: [lx_commute_talk]
+  flags_set:
+  - lx_commute_talk
 choice_effects:
-  - { trust_delta: 3, affinity_delta: 3 }
-  - { trust_delta: 2, affinity_delta: 2 }
-  - { trust_delta: -2, affinity_delta: -1 }
+- trust_delta: 3
+  affinity_delta: 3
+- trust_delta: 2
+  affinity_delta: 2
+- trust_delta: -2
+  affinity_delta: -1

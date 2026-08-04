@@ -29,14 +29,36 @@ _SEASON_BY_MONTH = {
 
 
 @lru_cache(maxsize=1)
-def load_china_calendar_2026() -> dict[str, Any]:
-    path = PROJECT_ROOT / "data" / "china_calendar_2026.json"
+def load_china_calendar_extras() -> dict[str, Any]:
+    path = PROJECT_ROOT / "data" / "china_calendar_extras.json"
     if not path.is_file():
-        return {"anchor": DEFAULT_ANCHOR.isoformat(), "days": {}}
+        return {"days": {}}
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+@lru_cache(maxsize=1)
+def load_china_calendar_2026() -> dict[str, Any]:
+    path = PROJECT_ROOT / "data" / "china_calendar_2026.json"
+    if not path.is_file():
+        base: dict[str, Any] = {"anchor": DEFAULT_ANCHOR.isoformat(), "days": {}}
+    else:
+        base = json.loads(path.read_text(encoding="utf-8"))
+    extras = load_china_calendar_extras().get("days") or {}
+    days = dict(base.get("days") or {})
+    for key, entry in extras.items():
+        if key not in days:
+            days[key] = entry
+        else:
+            merged = dict(days[key])
+            merged.update(entry or {})
+            days[key] = merged
+    base = dict(base)
+    base["days"] = days
+    return base
+
+
 def reload_china_calendar() -> dict[str, Any]:
+    load_china_calendar_extras.cache_clear()
     load_china_calendar_2026.cache_clear()
     return load_china_calendar_2026()
 

@@ -1,5 +1,8 @@
 <template>
-  <div class="rag-app-root relative min-h-screen bg-slate-950 text-slate-100">
+  <ClientOnly>
+    <ClawhiveLoginGate v-if="needAuth && authReady && !isLoggedIn" @success="onLoginOk" />
+  </ClientOnly>
+  <div v-if="!needAuth || (authReady && isLoggedIn)" class="rag-app-root relative min-h-screen bg-slate-950 text-slate-100">
     <!-- Three.js银河系背景 -->
     <div class="absolute inset-0 z-0 overflow-hidden">
       <canvas ref="starCanvas" class="w-full h-full"></canvas>
@@ -595,10 +598,54 @@
 
 <script setup>
 import { ref, reactive, onMounted, onUnmounted, nextTick, computed, watch } from 'vue';
+
+const runtimeConfig = useRuntimeConfig()
+const needAuth = computed(() => String(runtimeConfig.public?.agentBrowserAuth ?? '1') !== '0')
+const { isLoggedIn, ready: authReady, loadFromStorage, authHeaders, token: clawhiveToken } = useClawhiveLogin()
+function onLoginOk() {
+  loadFromStorage()
+}
+function withAuthHeaders(init = {}) {
+  const h = authHeaders()
+  const base = init.headers || {}
+  if (base instanceof Headers) {
+    Object.entries(h).forEach(([k, v]) => base.set(k, v))
+    return { ...init, headers: base }
+  }
+  return { ...init, headers: { ...base, ...h } }
+}
 import * as THREE from 'three';
 import MarkdownIt from 'markdown-it';
 import * as echarts from 'echarts';
 import AppModal from './components/AppModal.vue';
+import { purgeAllForbiddenClientSessionKeys } from '#agent-shared/agentSessionClientStorage';
+
+const RAG_SESSION_KEY = 'rag_session_id';
+
+function tabSessionStorage() {
+  if (typeof window === 'undefined') return null;
+  return window.sessionStorage;
+}
+
+function setTabRagSessionId(id) {
+  try {
+    tabSessionStorage()?.setItem(RAG_SESSION_KEY, id);
+  } catch {}
+}
+
+function clearTabRagSessionId() {
+  try {
+    tabSessionStorage()?.removeItem(RAG_SESSION_KEY);
+  } catch {}
+}
+
+function readTabRagSessionId() {
+  try {
+    return tabSessionStorage()?.getItem(RAG_SESSION_KEY) || '';
+  } catch {
+    return '';
+  }
+}
 
 useHead({ title: '文曲 · RAG Agent' });
 
@@ -713,6 +760,14 @@ const closeModal = () => {
 const ensureRagUserId = () => {
   if (typeof window === 'undefined') return 'anonymous';
   try {
+    const { user: clawUser, token: clawTok, loadFromStorage } = useClawhiveLogin();
+    if (!clawTok.value) loadFromStorage();
+    const fromLogin = String(clawUser.value?.userId || '').trim();
+    if (fromLogin) {
+      ragUserId.value = fromLogin;
+      window.localStorage.setItem('rag_user_id', fromLogin);
+      return fromLogin;
+    }
     const existing = window.localStorage.getItem('rag_user_id');
     if (existing) {
       ragUserId.value = existing;
@@ -728,8 +783,6 @@ const ensureRagUserId = () => {
     return 'anonymous';
   }
 };
-
-const sessionHistoryStorageKey = () => `rag_session_history:${ensureRagUserId()}`;
 
 const generateSessionId = () =>
   typeof crypto !== 'undefined' && crypto.randomUUID
@@ -757,37 +810,15 @@ const deriveSessionTitleFromMessages = () => {
 };
 
 const persistSessionHistoryList = () => {
-  if (typeof window === 'undefined') return;
-  try {
-    window.localStorage.setItem(
-      sessionHistoryStorageKey(),
-      JSON.stringify({ items: sessionHistoryItems.value.slice(0, 80) })
-    );
-  } catch {}
+  // 权威在服务端；内存列表仅截断
+  sessionHistoryItems.value = sessionHistoryItems.value.slice(0, 80);
 };
 
 const loadSessionHistoryList = () => {
   if (typeof window === 'undefined') return;
-  try {
-    const raw = window.localStorage.getItem(sessionHistoryStorageKey());
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed?.items)) {
-        sessionHistoryItems.value = parsed.items
-          .filter((x) => x && typeof x.id === 'string')
-          .map((x) => ({
-            id: String(x.id),
-            title: String(x.title || '新会话'),
-            updatedAt: String(x.updatedAt || new Date().toISOString()),
-            messageCount: Number(x.messageCount) || 0,
-            userMessageCount: Number(x.userMessageCount) || 0,
-            customTitle: Boolean(x.customTitle),
-          }))
-          .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-      }
-    }
-  } catch {}
+  purgeAllForbiddenClientSessionKeys();
   touchCurrentSessionHistory({ bump: false });
+  void fetchServerSessionHistory();
 };
 
 const touchCurrentSessionHistory = (opts = {}) => {
@@ -823,34 +854,30 @@ const touchCurrentSessionHistory = (opts = {}) => {
 };
 
 const mergeSessionHistoryFromServer = (serverItems) => {
-  if (!serverItems.length) return;
-  const prevOrder = sessionHistoryItems.value.map((s) => s.id);
-  const map = new Map(sessionHistoryItems.value.map((s) => [s.id, s]));
-  for (const it of serverItems) {
-    const prev = map.get(it.id);
-    map.set(it.id, {
-      id: it.id,
-      title: it.customTitle && it.title ? it.title : (prev?.customTitle ? prev.title : it.title),
-      updatedAt: it.updatedAt || prev?.updatedAt || new Date().toISOString(),
-      messageCount: Math.max(Number(it.messageCount) || 0, Number(prev?.messageCount) || 0),
-      userMessageCount: Math.max(Number(it.userMessageCount) || 0, Number(prev?.userMessageCount) || 0),
-      customTitle: Boolean(it.customTitle || prev?.customTitle),
-    });
-  }
-  const seen = new Set();
-  const next = [];
-  for (const id of prevOrder) {
-    const row = map.get(id);
-    if (row) {
-      next.push(row);
-      seen.add(id);
-    }
-  }
-  for (const it of serverItems) {
-    if (!seen.has(it.id) && map.has(it.id)) next.push(map.get(it.id));
+  // 服务端权威：整表替换（保留当前 tab 内存里尚未落库的空会话占位）
+  const currentId = conversationId.value;
+  const currentLocal = currentId
+    ? sessionHistoryItems.value.find((s) => s.id === currentId)
+    : null;
+  const next = (Array.isArray(serverItems) ? serverItems : [])
+    .filter((x) => x && typeof x.id === 'string')
+    .map((it) => ({
+      id: String(it.id),
+      title: String(it.title || '新会话'),
+      updatedAt: String(it.updatedAt || new Date().toISOString()),
+      messageCount: Number(it.messageCount) || 0,
+      userMessageCount: Number(it.userMessageCount) || 0,
+      customTitle: Boolean(it.customTitle),
+    }));
+  if (
+    currentLocal &&
+    currentId &&
+    !next.some((s) => s.id === currentId) &&
+    (Number(currentLocal.userMessageCount) || 0) > 0
+  ) {
+    next.unshift(currentLocal);
   }
   sessionHistoryItems.value = next.slice(0, 80);
-  persistSessionHistoryList();
 };
 
 const sessionFeedbackStorageKey = () => `rag_session_feedback:${conversationId.value || 'default'}`;
@@ -1026,10 +1053,8 @@ const clearLocalSessionCaches = (id) => {
 
 const fetchServerSessionHistory = async () => {
   const uid = ensureRagUserId();
-  const ids = sessionHistoryItems.value.map((s) => s.id).slice(0, 80);
   try {
     const qs = new URLSearchParams({ userId: uid });
-    if (ids.length) qs.set('historyIds', ids.join(','));
     const res = await fetch(`/api/rag/sessions?${qs.toString()}`);
     if (!res.ok) return;
     const data = await res.json();
@@ -1233,22 +1258,34 @@ const copyMessageText = async (text, turnId) => {
   }, 1600);
 };
 
-const syncTruncateToServer = async (fromUserIndex, replaceUserText, fromTurnId) => {
-  if (!conversationId.value || typeof fromUserIndex !== 'number') return;
+const syncTruncateToServer = async (fromUserIndex, opts = {}) => {
+  if (!conversationId.value) return false;
+  const fallback = String(opts.fallbackUserText || opts.replaceUserText || '').trim();
+  const replace = String(opts.replaceUserText || '').trim();
+  const hasIdx = typeof fromUserIndex === 'number' && fromUserIndex >= 0;
+  if (!hasIdx && !fallback) return false;
   try {
-    await fetch('/api/rag/session-truncate', {
+    const res = await fetch('/api/rag/session-truncate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         sessionId: conversationId.value,
-        fromUserIndex,
-        fromTurnId: typeof fromTurnId === 'number' ? fromTurnId : undefined,
+        ...(hasIdx ? { fromUserIndex } : {}),
+        fromTurnId: typeof opts.fromTurnId === 'number' ? opts.fromTurnId : undefined,
         userId: ensureRagUserId(),
-        ...(replaceUserText ? { replaceUserText } : {}),
+        ...(replace ? { replaceUserText: replace } : {}),
+        ...(fallback ? { fallbackUserText: fallback } : {}),
       }),
     });
+    if (!res.ok) {
+      console.warn('session truncate failed:', res.status);
+      return false;
+    }
+    const data = await res.json().catch(() => null);
+    return data?.ok !== false;
   } catch (e) {
     console.warn('session truncate failed:', e);
+    return false;
   }
 };
 
@@ -1257,11 +1294,15 @@ const withdrawTurn = async (turnId) => {
     await showAlertDialog('该轮正在生成中，请先点击「停止」再撤回。');
     return;
   }
-  const ok = await showConfirmDialog('撤回后将删除该轮及之后的对话（服务端同步更新），是否继续？', '撤回对话');
-  if (!ok) return;
+  const okConfirm = await showConfirmDialog('撤回后将删除该轮及之后的对话（服务端同步更新），是否继续？', '撤回对话');
+  if (!okConfirm) return;
   const userMsg = truncateLocalFromTurn(turnId);
-  if (userMsg && typeof userMsg.userMessageIndex === 'number') {
-    await syncTruncateToServer(userMsg.userMessageIndex, undefined, turnId);
+  const synced = await syncTruncateToServer(
+    typeof userMsg?.userMessageIndex === 'number' ? userMsg.userMessageIndex : null,
+    { fallbackUserText: String(userMsg?.content || ''), fromTurnId: turnId }
+  );
+  if (!synced) {
+    await showAlertDialog('本地已删除该轮，但服务端未能定位对应消息。请刷新会话后再试。');
   }
   const tid = turnId;
   if (tid) {
@@ -1290,10 +1331,18 @@ const submitEditResend = async (msg) => {
   }
   const fromIdx = msg.userMessageIndex;
   const fromTurnId = msg.turnId;
+  const oldText = String(msg.content || '').trim();
   cancelEditTurn();
   truncateLocalFromTurn(fromTurnId);
   clearFeedbackFromTurn(fromTurnId);
-  if (typeof fromIdx === 'number') await syncTruncateToServer(fromIdx, undefined, fromTurnId);
+  const synced = await syncTruncateToServer(typeof fromIdx === 'number' ? fromIdx : null, {
+    fallbackUserText: oldText || text,
+    fromTurnId,
+  });
+  if (!synced) {
+    await showAlertDialog('服务端找不到对应用户消息，请重新发送新问题。');
+    return;
+  }
   await sendMessage(text);
 };
 
@@ -1304,16 +1353,24 @@ const regenerateTurn = async (msg) => {
     return;
   }
   const uidx = msg.userMessageIndex;
-  if (typeof uidx !== 'number') {
-    await showAlertDialog('无法定位该轮用户消息，请重新发送新问题。');
-    return;
-  }
   cancelEditTurn();
   const userMsg = truncateForRegenerate(msg.turnId);
   const text = String(userMsg?.content || msg.content || '').trim();
+  if (!text && typeof uidx !== 'number') {
+    await showAlertDialog('无法定位该轮用户消息，请重新发送新问题。');
+    return;
+  }
   if (!text) return;
   clearFeedbackForTurnOnly(msg.turnId);
-  await syncTruncateToServer(uidx, text, msg.turnId);
+  const synced = await syncTruncateToServer(typeof uidx === 'number' ? uidx : null, {
+    replaceUserText: text,
+    fallbackUserText: text,
+    fromTurnId: msg.turnId,
+  });
+  if (!synced) {
+    await showAlertDialog('服务端找不到对应用户消息，请重新发送新问题。');
+    return;
+  }
   await sendMessage(text, { regenerateTurnId: msg.turnId });
 };
 
@@ -1378,15 +1435,10 @@ const loadSessionFromServer = async (id) => {
 
 const ensureConversationId = () => {
   if (conversationId.value) return conversationId.value;
-  let id = '';
-  try {
-    id = window.localStorage.getItem('rag_session_id') || '';
-  } catch {}
+  let id = readTabRagSessionId();
   if (!id) id = generateSessionId();
   conversationId.value = id;
-  try {
-    window.localStorage.setItem('rag_session_id', id);
-  } catch {}
+  setTabRagSessionId(id);
   touchCurrentSessionHistory({ bump: false });
   return id;
 };
@@ -1407,13 +1459,10 @@ const newSession = async (opts = {}) => {
   touchCurrentSessionHistory({ bump: false });
   const id = generateSessionId();
   conversationId.value = id;
-  try {
-    window.localStorage.setItem('rag_session_id', id);
-  } catch {}
+  setTabRagSessionId(id);
   resetChatMessages();
   restoreSessionFeedback();
   touchCurrentSessionHistory({ bump: true });
-  loadSessionHistoryList();
   void fetchServerSessionHistory();
 };
 
@@ -1435,9 +1484,7 @@ const switchSession = async (id) => {
   try {
     touchCurrentSessionHistory({ bump: false });
     conversationId.value = id;
-    try {
-      window.localStorage.setItem('rag_session_id', id);
-    } catch {}
+    setTabRagSessionId(id);
     restoreSessionFeedback();
     await loadSessionFromServer(id);
     await hydrateSessionFeedbackFromServer();
@@ -1482,13 +1529,10 @@ const onAppModalConfirm = async (inputValue) => {
     touchCurrentSessionHistory({ bump: false });
     const id = generateSessionId();
     conversationId.value = id;
-    try {
-      window.localStorage.setItem('rag_session_id', id);
-    } catch {}
+    setTabRagSessionId(id);
     resetChatMessages();
     restoreSessionFeedback();
     touchCurrentSessionHistory({ bump: true });
-    loadSessionHistoryList();
     void fetchServerSessionHistory();
     return;
   }
@@ -1516,26 +1560,34 @@ const onAppModalConfirm = async (inputValue) => {
   }
   if (action?.type === 'delete') {
     try {
-      await fetch('/api/rag/session-delete', {
+      const res = await fetch('/api/rag/session-delete', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId: action.id }),
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ sessionId: action.id, userId: ensureRagUserId() }),
       });
-    } catch {}
+      if (!res.ok) {
+        const detail = await res.text().catch(() => '');
+        openModal('删除失败', `HTTP ${res.status}${detail ? `：${detail}` : ''}`, 'error');
+        return;
+      }
+    } catch (e) {
+      openModal('删除失败', e instanceof Error ? e.message : String(e), 'error');
+      return;
+    }
     sessionHistoryItems.value = sessionHistoryItems.value.filter((s) => s.id !== action.id);
     persistSessionHistoryList();
     clearLocalSessionCaches(action.id);
     if (conversationId.value === action.id) {
       conversationId.value = '';
-      try {
-        window.localStorage.removeItem('rag_session_id');
-      } catch {}
+      clearTabRagSessionId();
       const fallback = sessionHistoryItems.value[0]?.id;
       if (fallback) {
         await switchSession(fallback);
       } else {
         await newSession({ skipConfirm: true });
       }
+    } else {
+      void fetchServerSessionHistory();
     }
   }
 };
@@ -2433,9 +2485,7 @@ const sendMessage = async (overrideText, opts = {}) => {
           } else if (data.type === 'done') {
             if (data.conversationId && typeof data.conversationId === 'string') {
               conversationId.value = data.conversationId;
-              try {
-                window.localStorage.setItem('rag_session_id', data.conversationId);
-              } catch {}
+              setTabRagSessionId(data.conversationId);
             }
             const doneAnswer = sanitizeAssistantContent(String(data.answer || '').trim());
             const streamed = sanitizeAssistantContent(String(assistantMsg.content || '').trim());
@@ -3004,27 +3054,35 @@ const cleanupThree = () => {
 };
 
 onMounted(() => {
-  ensureRagUserId();
-  loadSessionHistoryList();
-  const existingId = (() => {
-    try {
-      return window.localStorage.getItem('rag_session_id') || '';
-    } catch {
-      return '';
+  loadFromStorage();
+  const _fetch = window.fetch.bind(window);
+  window.fetch = (input, init = {}) => _fetch(input, withAuthHeaders(init));
+
+  const canTalkToServer = () => !needAuth.value || Boolean(String(clawhiveToken.value || '').trim());
+
+  function bootstrapServerSession() {
+    if (!canTalkToServer()) return;
+    ensureRagUserId();
+    loadSessionHistoryList();
+    const existingId = readTabRagSessionId();
+    if (existingId) {
+      conversationId.value = existingId;
+      restoreSessionFeedback();
+      void hydrateSessionFeedbackFromServer(existingId);
+      void loadSessionFromServer(existingId);
+    } else {
+      ensureConversationId();
+      restoreSessionFeedback();
     }
-  })();
-  if (existingId) {
-    conversationId.value = existingId;
-    restoreSessionFeedback();
-    void hydrateSessionFeedbackFromServer(existingId);
-    void loadSessionFromServer(existingId);
-  } else {
-    ensureConversationId();
-    restoreSessionFeedback();
+    void fetchServerSessionHistory();
+    fetchDocuments();
+    refreshIntel();
   }
-  void fetchServerSessionHistory();
-  fetchDocuments();
-  refreshIntel();
+
+  bootstrapServerSession();
+  watch(clawhiveToken, (t, prev) => {
+    if (t && !prev && needAuth.value) bootstrapServerSession();
+  });
   initThree();
 });
 

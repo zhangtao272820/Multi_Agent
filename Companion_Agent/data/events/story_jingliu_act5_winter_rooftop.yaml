@@ -1,0 +1,77 @@
+id: story_jingliu_act5_winter_rooftop
+label: 冬日天台
+priority: 6
+once: true
+chance: 1.0
+scene_id: ''
+trigger:
+  character_ids:
+  - jingliu
+  stage_min: crush
+  affinity_min: 78
+  flags_present:
+  - jl_equal_choice
+  flags_absent:
+  - jl_winter_rooftop
+  waypoint_min: q_winter_onset
+  season: winter
+prompt_snippet: '【专属故事 · 江静流 · 冬季加幕 · 冬日天台】
+
+  '
+advance: on_player_turn
+beats:
+- id: b1
+  summary: 入冬的天台风更大；她把大衣领竖起，工牌仍别在内侧——权力差被冷风吹薄一层。等你回应。
+  sprite_hint:
+  - season_winter
+  - home
+  - home_eating
+  - home_sleeping
+  - intimate_lounge
+  soft_options:
+  - 递围巾
+  - 问风大吗
+  - 先下楼
+  narration: 入冬的天台风更大；她把大衣领竖起，工牌仍别在内侧——权力差被冷风吹薄一层。
+  pc_thought: 玻璃门里她是上司。门一关，我还站不站得住？——想起天台。
+  brief: 入冬的天台风更大；她把大衣领竖起，工牌仍别在内侧——权力差被冷风吹薄一层。等你回应。
+- id: b2
+  summary: 她递来热饮：「汇报语气可以停了。」话短，却像把一整季职场面具摘下。等你回应。
+  sprite_hint:
+  - season_winter
+  - casual
+  - home_eating
+  - home_sleeping
+  - intimate_lounge
+  soft_options:
+  - 听她说展品
+  - 不碰玻璃
+  - 约短休
+  narration: 玻璃反光与夜风里，她递来热饮：「汇报语气可以停了。」话短，却像把一整季职场面具摘下。
+  pc_thought: 面具摘了半寸。我想看全，又怕被职场反噬。
+  brief: 她递来热饮：「汇报语气可以停了。」话短，却像把一整季职场面具摘下。等你回应。
+- id: b3
+  summary: 你接不接这杯，决定她要不要把私人夜谈写进下一年。等你回应。
+  sprite_hint:
+  - season_winter
+  - date
+  - home_eating
+  - home_sleeping
+  - intimate_lounge
+  soft_options:
+  - 说我不催揭面
+  - 并肩看夜景
+  - 送她进电梯
+  narration: 玻璃反光与夜风里，你接不接这杯，决定她要不要把私人夜谈写进下一年。
+  pc_thought: 天台夜风冷。她递来的钥匙比合同烫。
+  brief: 你接不接这杯，决定她要不要把私人夜谈写进下一年。等你回应。
+rewards:
+  flags_set:
+  - jl_winter_rooftop
+choice_effects:
+- trust_delta: 3
+  affinity_delta: 3
+- trust_delta: 2
+  affinity_delta: 1
+- trust_delta: -3
+  affinity_delta: -2

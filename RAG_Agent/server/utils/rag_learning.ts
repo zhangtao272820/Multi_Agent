@@ -204,13 +204,18 @@ export function recordLearningSignal(sig: Omit<RagLearningSignal, "at" | "questi
   void refreshArtifactPrefsCache(true).catch(() => undefined);
 }
 
-export function clearLearningSignals() {
+export function clearLearningSignals(tenantId?: string) {
+  const tid = String(tenantId || "default").trim() || "default";
   try {
     writeFileSync(signalsFile(), "", "utf8");
+    writeFileSync(ragSignalsFilePath(tid), "", "utf8");
     cachedPrefs = null;
   } catch {
     /* ignore */
   }
+  void import("#agent-shared/agentPgClient")
+    .then(({ agentPgQuery }) => agentPgQuery(`DELETE FROM rag_learning_signals WHERE tenant_id = $1`, [tid]))
+    .catch(() => undefined);
 }
 
 export function getLearningSummary() {

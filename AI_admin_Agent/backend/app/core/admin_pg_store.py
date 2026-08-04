@@ -42,17 +42,132 @@ def _connect():
     return psycopg.connect(url.replace("postgresql+psycopg2:", "postgresql:"), row_factory=dict_row)
 
 
-def append_turn_pg(session_id: str, role: str, content: str) -> None:
+def append_turn_pg(session_id: str, role: str, content: str, user_id: str | None = None) -> None:
     sid = (session_id or "default").strip() or "default"
     text = (content or "").strip()
     if not text:
         return
+    uid = (user_id or "").strip() or None
     with _connect() as conn:
         conn.execute(
             "INSERT INTO adm_session_turns (session_id, role, content) VALUES (%s, %s, %s)",
             (sid, role, text),
         )
+        conn.execute(
+            """
+            INSERT INTO adm_sessions (id, user_id, updated_at)
+            VALUES (%s, %s, NOW())
+            ON CONFLICT (id) DO UPDATE SET
+              user_id = COALESCE(EXCLUDED.user_id, adm_sessions.user_id),
+              updated_at = NOW()
+            """,
+            (sid, uid),
+        )
         conn.commit()
+
+
+def touch_adm_session_pg(
+    session_id: str,
+    *,
+    user_id: str | None = None,
+    title: str | None = None,
+    custom_title: bool | None = None,
+) -> None:
+    sid = (session_id or "default").strip() or "default"
+    if not sid:
+        return
+    uid = (user_id or "").strip() or None
+    with _connect() as conn:
+        conn.execute(
+            """
+            INSERT INTO adm_sessions (id, user_id, title, custom_title, updated_at)
+            VALUES (%s, %s, %s, COALESCE(%s, false), NOW())
+            ON CONFLICT (id) DO UPDATE SET
+              user_id = COALESCE(EXCLUDED.user_id, adm_sessions.user_id),
+              title = COALESCE(EXCLUDED.title, adm_sessions.title),
+              custom_title = COALESCE(%s, adm_sessions.custom_title),
+              updated_at = NOW()
+            """,
+            (sid, uid, title, custom_title, custom_title),
+        )
+        conn.commit()
+
+
+def list_adm_sessions_pg(user_id: str) -> list[dict[str, Any]]:
+    uid = (user_id or "").strip()
+    if not uid:
+        return []
+    with _connect() as conn:
+        rows = list(
+            conn.execute(
+                """
+                SELECT s.id, s.title, s.custom_title, s.updated_at,
+                       (SELECT COUNT(*)::int FROM adm_session_turns t WHERE t.session_id = s.id) AS message_count,
+                       (SELECT COUNT(*)::int FROM adm_session_turns t
+                         WHERE t.session_id = s.id AND t.role = 'user') AS user_message_count,
+                       (SELECT content FROM adm_session_turns t
+                         WHERE t.session_id = s.id AND t.role = 'user'
+                         ORDER BY t.id ASC LIMIT 1) AS first_user
+                FROM adm_sessions s
+                WHERE s.user_id = %s
+                ORDER BY s.updated_at DESC
+                LIMIT 80
+                """,
+                (uid,),
+            ).fetchall()
+        )
+    out: list[dict[str, Any]] = []
+    for row in rows:
+        msg_count = int(row.get("message_count") or 0)
+        custom = bool(row.get("custom_title"))
+        title = str(row.get("title") or "").strip()
+        if not custom or not title:
+            first = str(row.get("first_user") or "").replace("\n", " ").strip()
+            title = (first[:36] + "…") if len(first) > 36 else (first or "新会话")
+        if msg_count <= 0 and not (custom and row.get("title")):
+            continue
+        updated = row.get("updated_at")
+        out.append(
+            {
+                "id": str(row["id"]),
+                "title": title or "新会话",
+                "updatedAt": updated.isoformat() if hasattr(updated, "isoformat") else str(updated or ""),
+                "messageCount": msg_count,
+                "userMessageCount": int(row.get("user_message_count") or 0),
+                "customTitle": custom and bool(str(row.get("title") or "").strip()),
+            }
+        )
+    return out
+
+
+def delete_session_pg(session_id: str) -> dict[str, int]:
+    sid = (session_id or "default").strip() or "default"
+    with _connect() as conn:
+        turns = conn.execute(
+            "DELETE FROM adm_session_turns WHERE session_id = %s",
+            (sid,),
+        ).rowcount
+        ctx = conn.execute(
+            "DELETE FROM adm_session_task_contexts WHERE session_id = %s",
+            (sid,),
+        ).rowcount
+        meta = conn.execute(
+            "DELETE FROM adm_sessions WHERE id = %s",
+            (sid,),
+        ).rowcount
+        conn.commit()
+    return {"turns": int(turns or 0), "contexts": int(ctx or 0), "sessions": int(meta or 0)}
+
+
+def ping_admin_pg() -> bool:
+    if not is_admin_pg_storage() or not agent_database_url():
+        return False
+    try:
+        with _connect() as conn:
+            conn.execute("SELECT 1")
+        return True
+    except Exception:
+        return False
 
 
 def count_turns_pg(session_id: str) -> int:
@@ -169,14 +284,3 @@ def trim_turns_pg(session_id: str, keep_last: int) -> bool:
         )
         conn.commit()
     return True
-
-
-def ping_admin_pg() -> bool:
-    if not is_admin_pg_storage() or not agent_database_url():
-        return False
-    try:
-        with _connect() as conn:
-            conn.execute("SELECT 1")
-        return True
-    except Exception:
-        return False

@@ -11,21 +11,37 @@ trigger:
   flags_absent: [bond_ally_done]
   flags_present: [sibling_talk_done]
 prompt_snippet: |
-  【专属故事 · 妹妹的日程本 · 第2幕 · 站在同一边】
+  【专属故事 · 日程本里的禁忌 · 第2幕 · 站在同一边】
 advance: on_player_turn
 beats:
   - id: b1
-    summary: "你尊重边界后，她愿意在关键头替你说话"
-    sprite_hint: [library, casual]
-    soft_options: ["认真接话", "先观察", "轻声提问"]
+    narration: "她把家务与你的「外面安排」并排钉在日程上：撞车时她不愿再背锅。笔尖顿了顿，像在吃谁的醋，却只写「家务优先」。"
+    pc_thought: "同盟从分责开始——她帮我，却不准我把她写成军师告白。"
+    brief: "摊开日程谈撞车；不愿再背锅。吃醋却用家务话掩饰。"
+    summary: "摊开日程谈撞车；不愿再背锅。吃醋却用家务话掩饰。"
+    sprite_hint: [home_sibling, work]
+    soft_options: ["承认安排混乱", "一起改日程", "问她需要什么保证"]
   - id: b2
-    summary: "「站在同一边」里出现犹豫或选择。"
-    sprite_hint: [casual, home]
-    soft_options: ["表明态度", "给她空间", "确认她的意思"]
+    narration: "门外有人来找你，她先一步应门，笑称「哥哥在忙」。关上门后声音压低：可以帮你挡，别把亲妹妹工具化。"
+    pc_thought: "挡外人时她像恋人，转头又把自己按回妹妹位。感激里发冷。"
+    brief: "她替你挡外人后立刻划线：可帮说话，禁止工具化妹妹。"
+    summary: "她替你挡外人后立刻划线：可帮说话，禁止工具化妹妹。"
+    sprite_hint: [kitchen_helper, home]
+    soft_options: ["承诺不工具化", "说明具体麻烦", "先听她的条件"]
   - id: b3
-    summary: "收束羁绊：确认界线与同盟，禁止恋爱走向。"
-    sprite_hint: [home]
-    soft_options: ["答应站同一边", "先缓一缓", "诚实说明顾虑"]
+    narration: "本子中央落下「同盟」二字。她说：家人站队，不等于给你写恋爱剧本；真结局不靠她点头，靠她不拆台。"
+    pc_thought: "不拆台——像誓言，又像威胁。我该松口气，还是该怕她太懂？"
+    brief: "写下同盟：站队≠写恋爱剧本。看你会不会接受她的定义。"
+    summary: "写下同盟：站队≠写恋爱剧本。看你会不会接受她的定义。"
+    sprite_hint: [home_sibling, casual]
+    soft_options: ["接受同盟定义", "拥抱道谢（兄妹）", "约下周家庭会议"]
+  - id: b4
+    narration: "本子合上。她抬眼提枫音也在同屋檐下——别让两个妹妹一起跟着乱。走廊尽头门缝里，游戏音效忽然静了一拍。"
+    pc_thought: "枫音有没有听见？我享受被护着，又怕秘密从薄墙渗过去。"
+    brief: "提醒枫音同住；要你稳住这个家。语气像军师，眼神却在察你反应。"
+    summary: "提醒枫音同住；要你稳住这个家。语气像军师，眼神却在察你反应。"
+    sprite_hint: [casual, home]
+    soft_options: ["答应稳住", "分担家务清单", "说「靠你了，妹妹」"]
 rewards:
   flags_set: [bond_ally_done, sibling_ally]
 choice_effects:

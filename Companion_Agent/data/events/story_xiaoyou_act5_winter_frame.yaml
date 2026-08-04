@@ -1,0 +1,77 @@
+id: story_xiaoyou_act5_winter_frame
+label: 冬窗与未干的颜料
+priority: 6
+once: true
+chance: 1.0
+scene_id: ''
+trigger:
+  character_ids:
+  - xiaoyou
+  stage_min: crush
+  affinity_min: 78
+  flags_present:
+  - xy_life_outside_frame
+  flags_absent:
+  - xy_winter_frame
+  waypoint_min: q_winter_onset
+  season: winter
+prompt_snippet: '【专属故事 · 苏晚悠 · 冬季加幕 · 冬窗与未干的颜料】
+
+  '
+advance: on_player_turn
+beats:
+- id: b1
+  summary: 入冬的阳台结了薄霜；她把围巾递过来，颜料盒却还敞着——冷空气里仍在画你呵出的白气。等你回应。
+  sprite_hint:
+  - season_winter
+  - home
+  - home_eating
+  - home_sleeping
+  - intimate_lounge
+  soft_options:
+  - 帮她关窗
+  - 递手套
+  - 问要不要停画
+  narration: 松节油与暖黄灯里，入冬的阳台结了薄霜；她把围巾递过来，颜料盒却还敞着——冷空气里仍在画你呵出的白气。
+  pc_thought: 应门的话，邻居的壳就薄了。不应，又怕今晚只剩自己和未干的线稿——想起画。
+  brief: 入冬的阳台结了薄霜；她把围巾递过来，颜料盒却还敞着——冷空气里仍在画你呵出的白气。等你回应。
+- id: b2
+  summary: 雾窗写名又擦；随口提家里日程闲话一句。等你只看画框、夸颜色或约加外套。
+  sprite_hint:
+  - season_winter
+  - casual
+  - home_eating
+  - home_sleeping
+  - intimate_lounge
+  soft_options:
+  - 只看画框
+  - 夸颜色准
+  - 约加件外套
+  narration: 窗玻璃起雾。她用指尖写了又擦掉你的名字，随口说：听说你家里有人把日程管得很紧——邻居闲话一句，不追问。
+  pc_thought: 小镇闲话会传到画室。我别把妹妹的线扯进她的框。
+  brief: 雾窗写名又擦；随口提家里日程闲话一句。等你只看画框、夸颜色或约加外套。
+- id: b3
+  summary: 你选择陪她守这扇冬窗，或劝她休息；无论哪边，关系都会被冻得更清晰。等你回应。
+  sprite_hint:
+  - season_winter
+  - date
+  - home_eating
+  - home_sleeping
+  - intimate_lounge
+  soft_options:
+  - 说我不催交稿
+  - 并肩看雪
+  - 送她回家
+  narration: 松节油与暖黄灯里，你选择陪她守这扇冬窗，或劝她休息；无论哪边，关系都会被冻得更清晰。
+  pc_thought: 夸她的画容易；留下来才难。
+  brief: 你选择陪她守这扇冬窗，或劝她休息；无论哪边，关系都会被冻得更清晰。等你回应。
+rewards:
+  flags_set:
+  - xy_winter_frame
+choice_effects:
+- trust_delta: 3
+  affinity_delta: 3
+- trust_delta: 2
+  affinity_delta: 1
+- trust_delta: -3
+  affinity_delta: -2

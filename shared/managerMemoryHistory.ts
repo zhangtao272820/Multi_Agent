@@ -1,5 +1,6 @@
 /**
  * Manager 记忆统一读取：PG 优先，文件回退（dual/postgres 契约）
+ * 多租户：可选 tenantId；缺省时用 normalizeTenantId
  */
 
 import fs from 'node:fs/promises'
@@ -7,6 +8,7 @@ import path from 'node:path'
 import { agentPgQuery } from './agentPgClient'
 import type { MemoryEventType } from './agentMemoryApi'
 import { isPostgresStorageEnabled, resolveStorageBackend } from './storageBackend'
+import { normalizeTenantId } from './tenantScope'
 
 async function readJsonlTail(filePath: string, maxLines: number): Promise<Array<Record<string, unknown>>> {
   const raw = await fs.readFile(filePath, 'utf8').catch(() => '')
@@ -52,20 +54,22 @@ async function readHistoryFromFile(
 async function readHistoryFromPg(
   types: MemoryEventType[],
   maxLines: number,
+  tenantId: string,
   env: NodeJS.ProcessEnv
 ): Promise<Array<Record<string, unknown>> | null> {
   const res = await agentPgQuery<{ entry_type: string; ts: string; payload: Record<string, unknown> }>(
     `SELECT entry_type, ts, payload FROM mgr_memory_entries
-     WHERE entry_type = ANY($1)
+     WHERE tenant_id = $1 AND entry_type = ANY($2)
      ORDER BY ts DESC
-     LIMIT $2`,
-    [types, maxLines],
+     LIMIT $3`,
+    [tenantId, types, maxLines],
     env
   )
   if (!res) return null
   return res.rows.map((r) => ({
     type: r.entry_type,
     ts: r.ts instanceof Date ? r.ts.toISOString() : String(r.ts),
+    tenantId,
     ...r.payload
   }))
 }
@@ -76,16 +80,18 @@ export async function readManagerMemoryEntries(
   opts?: {
     types?: MemoryEventType[]
     maxLines?: number
+    tenantId?: string
     env?: NodeJS.ProcessEnv
   }
 ): Promise<Array<Record<string, unknown>>> {
   const env = opts?.env ?? process.env
   const maxLines = Math.max(1, opts?.maxLines ?? 900)
   const types = opts?.types?.length ? opts.types : (['experience'] as MemoryEventType[])
+  const tenantId = normalizeTenantId(opts?.tenantId, env)
   const backend = resolveStorageBackend(env.MANAGER_STORAGE_BACKEND, 'file')
 
   if (isPostgresStorageEnabled(backend)) {
-    const pgRows = await readHistoryFromPg(types, maxLines, env)
+    const pgRows = await readHistoryFromPg(types, maxLines, tenantId, env)
     if (pgRows?.length) return pgRows
   }
 
@@ -95,7 +101,8 @@ export async function readManagerMemoryEntries(
 export async function readManagerExperienceHistory(
   policyDir: string,
   maxLines = 900,
-  env: NodeJS.ProcessEnv = process.env
+  env: NodeJS.ProcessEnv = process.env,
+  tenantId?: string
 ): Promise<Array<Record<string, unknown>>> {
-  return readManagerMemoryEntries(policyDir, { types: ['experience'], maxLines, env })
+  return readManagerMemoryEntries(policyDir, { types: ['experience'], maxLines, env, tenantId })
 }

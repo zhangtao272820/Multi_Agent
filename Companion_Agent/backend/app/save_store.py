@@ -38,11 +38,16 @@ class GameRuntime(BaseModel):
     daily_encounter_id: str | None = None
     daily_encounters_done: list[str] = Field(default_factory=list)
     quest_steps_done: list[str] = Field(default_factory=list)
+    # 单机存档：专属故事幕进度（与 BondShelf 对称）
+    story_event_id: str = ""
+    story_beat_index: int = 0
+    story_act_summary: str = ""
 
 
 class GameSave(BaseModel):
     save_id: str
     user_id: str = "default"
+    tenant_id: str = "default"
     character_id: str
     base_id: str = ""
     profile: CharacterProfile
@@ -81,8 +86,16 @@ def init_db() -> None:
             )
             """
         )
+        cols = {r[1] for r in conn.execute("PRAGMA table_info(game_saves)").fetchall()}
+        if "tenant_id" not in cols:
+            conn.execute(
+                "ALTER TABLE game_saves ADD COLUMN tenant_id TEXT NOT NULL DEFAULT 'default'"
+            )
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_game_saves_user ON game_saves(user_id, updated_at DESC)"
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_game_saves_tenant_user ON game_saves(tenant_id, user_id, updated_at DESC)"
         )
         conn.commit()
 
@@ -112,6 +125,7 @@ def create_save(
     profile: CharacterProfile,
     *,
     user_id: str = "default",
+    tenant_id: str = "default",
     character_id: str = "",
     base_id: str = "",
 ) -> GameSave:
@@ -126,6 +140,7 @@ def create_save(
     save = GameSave(
         save_id=sid,
         user_id=user_id,
+        tenant_id=(tenant_id or "default").strip() or "default",
         character_id=cid,
         base_id=base_id,
         profile=profile,
@@ -140,15 +155,19 @@ def create_save(
 def upsert_save(save: GameSave) -> None:
     init_db()
     save.updated_at = _now_iso()
+    tid = (save.tenant_id or "default").strip() or "default"
+    save.tenant_id = tid
     with _connect() as conn:
         conn.execute(
             """
             INSERT INTO game_saves (
-                save_id, user_id, character_id, base_id,
+                save_id, user_id, tenant_id, character_id, base_id,
                 profile_json, runtime_json, relationship_json,
                 memories_json, message_summary, messages_json, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(save_id) DO UPDATE SET
+                user_id=excluded.user_id,
+                tenant_id=excluded.tenant_id,
                 profile_json=excluded.profile_json,
                 runtime_json=excluded.runtime_json,
                 relationship_json=excluded.relationship_json,
@@ -160,6 +179,7 @@ def upsert_save(save: GameSave) -> None:
             (
                 save.save_id,
                 save.user_id,
+                tid,
                 save.character_id,
                 save.base_id,
                 save.profile.model_dump_json(),
@@ -185,17 +205,18 @@ def get_save(save_id: str) -> GameSave | None:
     return _row_to_save(row)
 
 
-def list_saves(user_id: str = "default") -> list[dict[str, Any]]:
+def list_saves(user_id: str = "default", tenant_id: str = "default") -> list[dict[str, Any]]:
     init_db()
+    tid = (tenant_id or "default").strip() or "default"
     with _connect() as conn:
         rows = conn.execute(
             """
-            SELECT save_id, user_id, character_id, base_id, profile_json,
+            SELECT save_id, user_id, tenant_id, character_id, base_id, profile_json,
                    relationship_json, updated_at
-            FROM game_saves WHERE user_id = ?
+            FROM game_saves WHERE user_id = ? AND tenant_id = ?
             ORDER BY updated_at DESC
             """,
-            (user_id,),
+            (user_id, tid),
         ).fetchall()
     out: list[dict[str, Any]] = []
     for row in rows:
@@ -205,6 +226,7 @@ def list_saves(user_id: str = "default") -> list[dict[str, Any]]:
             {
                 "save_id": row["save_id"],
                 "user_id": row["user_id"],
+                "tenant_id": row["tenant_id"] if "tenant_id" in row.keys() else tid,
                 "character_id": row["character_id"],
                 "base_id": row["base_id"],
                 "character_name": profile.get("name", ""),
@@ -217,10 +239,18 @@ def list_saves(user_id: str = "default") -> list[dict[str, Any]]:
     return out
 
 
-def delete_save(save_id: str, *, user_id: str | None = None) -> bool:
+def delete_save(
+    save_id: str, *, user_id: str | None = None, tenant_id: str | None = None
+) -> bool:
     init_db()
+    tid = (tenant_id or "default").strip() or "default" if tenant_id is not None else None
     with _connect() as conn:
-        if user_id:
+        if user_id and tid is not None:
+            cur = conn.execute(
+                "DELETE FROM game_saves WHERE save_id = ? AND user_id = ? AND tenant_id = ?",
+                (save_id, user_id, tid),
+            )
+        elif user_id:
             cur = conn.execute(
                 "DELETE FROM game_saves WHERE save_id = ? AND user_id = ?",
                 (save_id, user_id),
@@ -231,10 +261,16 @@ def delete_save(save_id: str, *, user_id: str | None = None) -> bool:
         return cur.rowcount > 0
 
 
-def get_save_for_user(save_id: str, user_id: str) -> GameSave | None:
+def get_save_for_user(
+    save_id: str, user_id: str, tenant_id: str | None = None
+) -> GameSave | None:
     save = get_save(save_id)
     if not save or save.user_id != user_id:
         return None
+    if tenant_id is not None:
+        tid = (tenant_id or "default").strip() or "default"
+        if (save.tenant_id or "default") != tid:
+            return None
     return save
 
 
@@ -243,9 +279,12 @@ def _row_to_save(row: sqlite3.Row) -> GameSave:
     runtime = GameRuntime.model_validate(json.loads(row["runtime_json"]))
     memories_raw = json.loads(row["memories_json"] or "[]")
     messages = json.loads(row["messages_json"] or "[]")
+    keys = row.keys()
+    tid = row["tenant_id"] if "tenant_id" in keys else "default"
     return GameSave(
         save_id=row["save_id"],
         user_id=row["user_id"],
+        tenant_id=tid or "default",
         character_id=row["character_id"],
         base_id=row["base_id"] or "",
         profile=CharacterProfile.model_validate(json.loads(row["profile_json"])),
@@ -262,6 +301,7 @@ def save_to_public(save: GameSave) -> dict[str, Any]:
     return {
         "save_id": save.save_id,
         "user_id": save.user_id,
+        "tenant_id": save.tenant_id,
         "character_id": save.character_id,
         "base_id": save.base_id,
         "profile": save.profile.model_dump(),

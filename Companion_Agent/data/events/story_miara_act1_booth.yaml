@@ -1,5 +1,5 @@
 id: story_miara_act1_booth
-label: 摊位
+label: 摊位初遇
 priority: 5
 once: true
 chance: 1.0
@@ -10,21 +10,30 @@ trigger:
   affinity_min: 50
   flags_absent: [mi_booth_met]
 prompt_snippet: |
-  【专属故事 · 谷子与星约 · 第1幕 · 摊位】
+  【专属故事 · 谷子与星约 · 第1幕 · 摊位初遇】
 advance: on_player_turn
 beats:
   - id: b1
-    summary: "漫展相遇，假发与痛包"
-    sprite_hint: [merch_counter, wig_adjust]
-    soft_options: ["认真接话", "先观察", "轻声提问"]
+    narration: "展会灯下她把徽章推过来：买谷可以，交朋友另算。假发微偏，笑却很满。"
+    pc_thought: "摊位笑很满。戏言契约当真时，我会不会退缩？"
+    brief: "买谷与交朋友分开算。等他买谷并交友、只交友或问徽章含义。"
+    summary: "买谷与交朋友分开算。等他买谷并交友、只交友或问徽章含义。"
+    sprite_hint: [merch_counter, casual, season_winter, home_eating, home_sleeping]
+    soft_options: ["买谷并要朋友", "只交朋友", "问徽章含义"]
   - id: b2
-    summary: "「摊位」里出现犹豫或选择。"
-    sprite_hint: [wig_adjust, casual]
-    soft_options: ["表明态度", "给她空间", "确认她的意思"]
+    narration: "她竖起三根手指讲「星约」规矩，语气像开玩笑，眼神却在等你说算数。"
+    pc_thought: "缝纫针脚比誓言稳。我想帮她缝，不是只收谷子。"
+    brief: "戏言讲星约规矩；等算数。等他说算数、追问规则或先问清规矩。"
+    summary: "戏言讲星约规矩；等算数。等他说算数、追问规则或先问清规矩。"
+    sprite_hint: [wig_adjust, badge_board, season_winter, home_eating, home_sleeping]
+    soft_options: ["说算数", "笑着追问规则", "先把规矩问清"]
   - id: b3
-    summary: "收束本幕：留下可被记住的结果，不剧透结局名。"
-    sprite_hint: [casual]
-    soft_options: ["坦白心意", "先缓一缓", "诚实说明顾虑"]
+    narration: "收摊前她把联系方式写在贴纸背面：认真记住约定——明天可以不当真，今晚不行。"
+    pc_thought: "谷子可以买。认真的她，买不到也骗不了。"
+    brief: "贴纸留联；今晚须认真。等他留下联、约帮忙收摊或认真记住约定。"
+    summary: "贴纸留联；今晚须认真。等他留下联、约帮忙收摊或认真记住约定。"
+    sprite_hint: [badge_board, merch_counter, season_winter, home_eating, home_sleeping]
+    soft_options: ["留下联系方式", "约闭展帮忙收摊", "认真记住约定"]
 rewards:
   flags_set: [mi_booth_met]
 choice_effects:

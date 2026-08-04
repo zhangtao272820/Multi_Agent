@@ -3,32 +3,89 @@ label: 一步之遥
 priority: 8
 once: true
 chance: 1.0
-scene_id: ""
+scene_id: ''
 trigger:
-  character_ids: [linxi]
+  character_ids:
+  - linxi
   stage_min: dating
-  affinity_min: 85
-  flags_absent: [lx_one_step]
-  flags_present: [lx_print_truth]
-prompt_snippet: |
-  【专属故事 · 工位之间的一步 · 第4幕 · 一步之遥】
+  affinity_min: 90
+  flags_absent:
+  - lx_one_step
+  flags_present:
+  - lx_print_truth
+prompt_snippet: '【专属故事 · 工位之间的一步 · 第4幕 · 一步之遥】
+
+  '
 advance: on_player_turn
 beats:
-  - id: b1
-    summary: "转正酒或便利店罐头告白"
-    sprite_hint: [date, casual]
-    soft_options: ["认真接话", "先观察", "轻声提问"]
-  - id: b2
-    summary: "专一"
-    sprite_hint: [casual, home]
-    soft_options: ["表明态度", "给她空间", "确认她的意思"]
-  - id: b3
-    summary: "收束本幕：留下可被记住的结果，不剧透结局名。"
-    sprite_hint: [home]
-    soft_options: ["坦白心意", "先缓一缓", "诚实说明顾虑"]
+- id: b1
+  summary: 天台风干着她的工牌带；她说工位之间其实只要一步，却练了整个季度才敢迈。等你回应。
+  sprite_hint:
+  - elevator_rush
+  - badge_tidy
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 帮她扶工牌
+  - 笑问赶去哪
+  - 安静站她侧
+  narration: 天台风干着她的工牌带；她说工位之间其实只要一步，却练了整个季度才敢迈。
+  pc_thought: 对桌探头那一下，像实习期的心跳漏拍——想起工位。
+  brief: 天台风干着她的工牌带；她说工位之间其实只要一步，却练了整个季度才敢迈。等你回应。
+- id: b2
+  summary: 她把转正通知书折好又展开：成绩单之外，想确认你看见的是沈凛汐，不是实习生标签。等你回应。
+  sprite_hint:
+  - mentor_shadow
+  - laptop_brief
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 说你看见她本身
+  - 谈对等合作
+  - 承认早心动
+  narration: 打印纸与轨道风里，她把转正通知书折好又展开：成绩单之外，想确认你看见的是沈凛汐，不是实习生标签。
+  pc_thought: 末班车扶手很凉。逞强的她，其实也怕走丢。
+  brief: 她把转正通知书折好又展开：成绩单之外，想确认你看见的是沈凛汐，不是实习生标签。等你回应。
+- id: b3
+  summary: 告白很短：工位之间，其实只要一步。她问你迈不迈——风把红丝带吹到你手边。等你回应。
+  sprite_hint:
+  - date
+  - desk_papers
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 迈出那一步
+  - 牵她出电梯
+  - 认真说愿意
+  narration: 告白很短：工位之间，其实只要一步。她问你迈不迈——风把红丝带吹到你手边。
+  pc_thought: 打印室只剩我们。我想把「同事」说成更私的词——想起工位。
+  brief: 告白很短：工位之间，其实只要一步。她问你迈不迈——风把红丝带吹到你手边。等你回应。
+- id: b4
+  summary: 楼层叮一声；她握着你的手不放——这一步，算你们共同的绩效，也算恋爱的入职手续。等你回应。
+  sprite_hint:
+  - date
+  - elevator_rush
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 约下班一起走
+  - 碰额角
+  - 说明天对桌见
+  narration: 打印纸与轨道风里，楼层叮一声；她握着你的手不放——这一步，算你们共同的绩效，也算恋爱的入职手续。
+  pc_thought: 工位之间只要一步——我迈不迈得出去？
+  brief: 楼层叮一声；她握着你的手不放——这一步，算你们共同的绩效，也算恋爱的入职手续。等你回应。
 rewards:
-  flags_set: [lx_one_step, confessed]
+  flags_set:
+  - lx_one_step
+  - confessed
 choice_effects:
-  - { trust_delta: 3, affinity_delta: 3 }
-  - { trust_delta: 2, affinity_delta: 2 }
-  - { trust_delta: -2, affinity_delta: -1 }
+- trust_delta: 3
+  affinity_delta: 3
+- trust_delta: 2
+  affinity_delta: 2
+- trust_delta: -2
+  affinity_delta: -1

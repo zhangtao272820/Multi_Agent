@@ -39,11 +39,12 @@ import {
 export function useManagerChatPage() {
   const runtimeConfig = useRuntimeConfig()
   const managerWsToken = computed(() => String(runtimeConfig.public.managerWsToken || '').trim())
-  
+  const { withUserAuth, loadFromStorage: loadClawhiveAuth, token: clawhiveToken } = useClawhiveLogin()
+
   function withManagerWsAuth(payload: Record<string, unknown>): Record<string, unknown> {
-    return withManagerWsAuthRaw(payload, managerWsToken.value)
+    return withUserAuth(withManagerWsAuthRaw(payload, managerWsToken.value))
   }
-  
+
   function buildManagerWsUrl(): string {
     return buildManagerWsUrlRaw(managerWsToken.value)
   }
@@ -1553,6 +1554,7 @@ export function useManagerChatPage() {
   }
   
   function replyHasCollapsibleSources(text: string, turn?: TurnGroup): boolean {
+    if (turn && turnUnifiedCiteSources(turn).length) return true
     if (extractCrawlerTableData(text)) return true
     return !!(turn && turnSearchSources(turn).length)
   }
@@ -3053,8 +3055,63 @@ export function useManagerChatPage() {
     )
     return mergeSearchSources(t.searchSources, fromFinal)
   }
+
+  /** 统一编号来源：优先 userFacing.sources，否则合并 RAG + 联网 */
+  function turnUnifiedCiteSources(t: TurnGroup): Array<{
+    index: number
+    title: string
+    url?: string
+    excerpt?: string
+    kind?: string
+  }> {
+    const uf = Array.isArray(t.userFacing?.sources) ? t.userFacing!.sources! : []
+    if (uf.length) {
+      return uf.slice(0, 12).map((s, i) => ({
+        index: Number((s as { index?: number }).index) || i + 1,
+        title: String(s.title || '来源').trim().slice(0, 120),
+        url: s.url ? String(s.url).trim() : undefined,
+        excerpt: (s as { excerpt?: string }).excerpt
+          ? String((s as { excerpt?: string }).excerpt).trim().slice(0, 240)
+          : undefined,
+        kind: (s as { kind?: string }).kind
+      }))
+    }
+    const out: Array<{ index: number; title: string; url?: string; excerpt?: string; kind?: string }> = []
+    const seen = new Set<string>()
+    const push = (title: string, url?: string, excerpt?: string, kind?: string) => {
+      const t0 = String(title || '').trim()
+      if (!t0) return
+      const key = `${String(url || '').toLowerCase()}|${t0.toLowerCase().slice(0, 60)}`
+      if (seen.has(key)) return
+      seen.add(key)
+      out.push({
+        index: out.length + 1,
+        title: t0.slice(0, 120),
+        url: url || undefined,
+        excerpt: excerpt ? excerpt.slice(0, 240) : undefined,
+        kind
+      })
+    }
+    for (const hit of turnRagEvidence(t)) {
+      push(String(hit.title || hit.source || '文档'), hit.url, hit.excerpt, 'rag')
+    }
+    for (const hit of turnSearchSources(t)) {
+      push(String(hit.title || hit.url || '来源'), hit.url, undefined, 'web')
+    }
+    return out.slice(0, 12)
+  }
+
+  /** 供 Markdown [n] 角标：与 turnUnifiedCiteSources 顺序一致 */
+  function citeSourcesForMarkdown(t: TurnGroup): SearchSourceItem[] {
+    return turnUnifiedCiteSources(t).map((s) => ({
+      title: s.title,
+      url: s.url || ''
+    }))
+  }
   
   function replySourceCount(r: LogItem, t: TurnGroup): number {
+    const unified = turnUnifiedCiteSources(t).length
+    if (unified) return unified
     const fromText = crawlerSourceCount(r.text)
     if (fromText) return fromText
     return turnSearchSources(t).length + turnRagEvidence(t).length
@@ -4234,7 +4291,8 @@ export function useManagerChatPage() {
       return
     }
     const uidx = turn.user?.userMessageIndex
-    if (typeof uidx !== 'number') {
+    const text = userBubbleText(turn.user)
+    if (typeof uidx !== 'number' && !text) {
       await showAlert('无法定位该轮用户消息，请重新发送新问题。')
       return
     }
@@ -4250,9 +4308,9 @@ export function useManagerChatPage() {
     prepareTurnRerun(turn)
     sendChatPayload({
       type: 'chat',
-      text: '',
+      text,
       mode: 'regenerate',
-      userMessageIndex: uidx
+      ...(typeof uidx === 'number' ? { userMessageIndex: uidx } : {})
     })
   }
   
@@ -4320,7 +4378,8 @@ export function useManagerChatPage() {
     const text = editDraft.value.trim()
     if (!ws || !connected.value || !text || currentRunId.value) return
     const uidx = turn.user?.userMessageIndex
-    if (typeof uidx !== 'number') {
+    const anchorText = userBubbleText(turn.user)
+    if (typeof uidx !== 'number' && !anchorText) {
       await showAlert('无法定位该轮用户消息，请重新发送新问题。')
       return
     }
@@ -4334,7 +4393,8 @@ export function useManagerChatPage() {
       type: 'chat',
       text,
       mode: 'edit_resend',
-      userMessageIndex: uidx
+      ...(typeof uidx === 'number' ? { userMessageIndex: uidx } : {}),
+      ...(anchorText ? { anchorText } : {})
     })
   }
   
@@ -5444,6 +5504,8 @@ export function useManagerChatPage() {
     resultItemClasses,
     resultKindLabel,
     turnSearchSources,
+    turnUnifiedCiteSources,
+    citeSourcesForMarkdown,
     webSourceHost,
     mediaForReply,
     resolveMediaUrl,
@@ -5598,6 +5660,7 @@ export function useManagerChatPage() {
   )
 
   onMounted(() => {
+    loadClawhiveAuth()
     loadWorkbenchMode()
     loadThoughtViewMode()
     loadCollaborationPosture()
@@ -5610,15 +5673,26 @@ export function useManagerChatPage() {
     restoreSessionFeedback()
     sanitizeWithdrawnTurns()
     reconcileTurnFeedbackKeys()
-    void (async () => {
+
+    const authNeeded = Boolean((runtimeConfig.public as any)?.managerUserAuth)
+    const canTalkToServer = () => !authNeeded || Boolean(String(clawhiveToken.value || '').trim())
+
+    async function bootstrapServerSession() {
+      if (!canTalkToServer()) return
       const ready = await waitForManagerReady()
       if (!ready) {
         add('status', '记忆存储仍在初始化，历史同步可能稍后完成', undefined, 0)
       }
       void fetchServerSessionHistory()
+      const sid = sessionId.value
+      if (sid) void hydrateSessionFromServer(sid)
       connect()
-    })()
-    void hydrateSessionFeedbackFromServer()
+      void hydrateSessionFeedbackFromServer()
+      void hydrateTaskStack()
+      void hydrateUserGoals()
+    }
+
+    void bootstrapServerSession()
     if (typeof window !== 'undefined') {
       const savedOps = window.localStorage.getItem(OPS_TOKEN_KEY)
       if (savedOps) opsToken.value = savedOps
@@ -5626,8 +5700,13 @@ export function useManagerChatPage() {
     const wide = typeof window !== 'undefined' && window.innerWidth >= 960
     historyPanelOpen.value = wide
     sidebarOpen.value = false
-    void hydrateTaskStack()
-    void hydrateUserGoals()
+    const stopWatchLogin = watch(clawhiveToken, (t, prev) => {
+      if (t && !prev && authNeeded) {
+        ensureUserId()
+        loadSessionHistoryList()
+        void bootstrapServerSession()
+      }
+    })
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') closeFloatingPanels()
     }
@@ -5636,6 +5715,7 @@ export function useManagerChatPage() {
     window.addEventListener('resize', onResize)
     ;(window as any).__mgrToolsKey = onKey
     ;(window as any).__mgrResizeKey = onResize
+    ;(window as any).__mgrStopWatchLogin = stopWatchLogin
     requestBrowserLocation()
     import('echarts').then((m) => {
       echartsModule.value = m
@@ -5680,6 +5760,10 @@ export function useManagerChatPage() {
     if (wTools.__mgrResizeKey) {
       window.removeEventListener('resize', wTools.__mgrResizeKey)
       delete wTools.__mgrResizeKey
+    }
+    if (typeof wTools.__mgrStopWatchLogin === 'function') {
+      wTools.__mgrStopWatchLogin()
+      delete wTools.__mgrStopWatchLogin
     }
   })
 

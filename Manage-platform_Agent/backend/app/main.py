@@ -159,6 +159,7 @@ _STARTUP_GATE_ALLOW = frozenset(
         "/health/ready",
         "/metrics",
         "/api/auth/login",
+        "/api/auth/validate",
         "/api/auth/oidc/status",
         "/api/auth/oidc/login",
         "/api/auth/oidc/callback",
@@ -235,6 +236,10 @@ class UserCreateRequest(BaseModel):
 
 class UserRoleUpdateRequest(BaseModel):
     role: str
+
+
+class UserPasswordUpdateRequest(BaseModel):
+    password: str
 
 
 class TenantCreateRequest(BaseModel):
@@ -1608,6 +1613,11 @@ def _ensure_enterprise_schema() -> None:
             "rotated_at",
             "ALTER TABLE secret_refs ADD COLUMN rotated_at TIMESTAMP NULL",
         )
+        _add_column(
+            "secret_refs",
+            "sealed_ciphertext",
+            "ALTER TABLE secret_refs ADD COLUMN sealed_ciphertext TEXT NULL",
+        )
     except Exception as exc:  # noqa: BLE001
         raise RuntimeError(f"enterprise schema migration failed: {exc}") from exc
 
@@ -1990,9 +2000,52 @@ async def secrets_rotate(
         "secret.rotate",
         "secret_ref",
         ref_id,
-        f"applied_env={result.get('applied_env')};configured={result.get('configured')}",
+        f"applied_env={result.get('applied_env')};sealed_stored={result.get('sealed_stored')};configured={result.get('configured')}",
     )
     return result
+
+
+@app.get("/api/governance/rbac-matrix")
+async def governance_rbac_matrix(
+    _: UserRecord = Depends(require_roles("viewer", "operator", "admin")),
+):
+    from .governance import rbac_matrix_payload
+
+    api_requests_total.labels(endpoint="/api/governance/rbac-matrix", method="GET").inc()
+    return rbac_matrix_payload()
+
+
+@app.get("/api/governance/audit-checklist")
+async def governance_audit_checklist(
+    lookback_days: int = Query(default=90, ge=1, le=365),
+    _: UserRecord = Depends(require_roles("admin")),
+    db: Session = Depends(get_db),
+):
+    from .governance import audit_checklist_payload
+
+    api_requests_total.labels(endpoint="/api/governance/audit-checklist", method="GET").inc()
+    return audit_checklist_payload(db, lookback_days=lookback_days)
+
+
+@app.get("/api/governance/notify-status")
+async def governance_notify_status(
+    _: UserRecord = Depends(require_roles("operator", "admin")),
+):
+    from .governance import notify_status_payload
+
+    api_requests_total.labels(endpoint="/api/governance/notify-status", method="GET").inc()
+    return notify_status_payload()
+
+
+@app.get("/api/ops/backup/policy")
+async def ops_backup_policy(
+    _: UserRecord = Depends(require_roles("viewer", "operator", "admin")),
+):
+    from .governance import backup_policy_payload
+
+    api_requests_total.labels(endpoint="/api/ops/backup/policy", method="GET").inc()
+    listed = list_backups()
+    return backup_policy_payload(backup_items=list(listed.get("items") or []))
 
 
 @app.get("/api/tenants/usage")
@@ -2246,13 +2299,14 @@ async def agents_capability_models_update(
         result = update_capability_models(db, payload, operator=current.username)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    cfg_ver = peek_config_version(db)
     write_audit(
         db,
         current,
         "capability_models.update",
         "capability_models",
         "cluster",
-        f"sync_agents={len(result.get('synced_agents') or [])}",
+        f"sync_agents={len(result.get('synced_agents') or [])};config_version={cfg_ver};actor={current.username}",
     )
     return result
 
@@ -2344,7 +2398,15 @@ async def agents_lan_config_update(
         result = update_agents_lan_config(payload)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    write_audit(db, current, "agents_lan.update", "agents_lan", "cluster", "save")
+    cfg_ver = peek_config_version(db)
+    write_audit(
+        db,
+        current,
+        "agents_lan.update",
+        "agents_lan",
+        "cluster",
+        f"save;config_version={cfg_ver};actor={current.username}",
+    )
     return result
 
 
@@ -2548,6 +2610,77 @@ async def manager_observability(
     return build_manager_observability()
 
 
+@app.get("/api/manager/evolution/global-candidates")
+async def manager_evolution_global_candidates(
+    status: str = "pending",
+    current: UserRecord = Depends(require_roles("operator", "admin")),
+):
+    """列出脱敏后的全局进化候选（待人工审核合入 _global_ 基线）。"""
+    api_requests_total.labels(endpoint="/api/manager/evolution/global-candidates", method="GET").inc()
+    from .internal_http import fetch_json
+    from .config import get_settings
+
+    settings = get_settings()
+    host = str(settings.manager_agent_host or "localhost").strip()
+    port = str(settings.manager_agent_port or "13106").strip()
+    st = str(status or "pending").strip() or "pending"
+    url = f"http://{host}:{port}/api/manager/evolution-global-candidates?status={st}"
+    result = fetch_json(url, timeout_sec=8.0)
+    if not result.get("ok"):
+        raise HTTPException(status_code=502, detail=str(result.get("error") or "manager_unreachable"))
+    data = result.get("data") if isinstance(result.get("data"), dict) else {}
+    return {"ok": True, "tenant_id": getattr(current, "tenant_id", None), **data}
+
+
+class EvolutionGlobalReviewBody(BaseModel):
+    id: str | int
+    decision: str
+    note: str | None = None
+
+
+@app.post("/api/manager/evolution/global-review")
+async def manager_evolution_global_review(
+    body: EvolutionGlobalReviewBody,
+    current: UserRecord = Depends(require_roles("admin")),
+    db: Session = Depends(get_db),
+):
+    """人工审核合入 / 拒绝全局进化候选。"""
+    api_requests_total.labels(endpoint="/api/manager/evolution/global-review", method="POST").inc()
+    from .internal_http import post_json
+    from .config import get_settings
+
+    decision = str(body.decision or "").strip().lower()
+    if decision not in ("approved", "rejected"):
+        raise HTTPException(status_code=400, detail="decision must be approved|rejected")
+    settings = get_settings()
+    host = str(settings.manager_agent_host or "localhost").strip()
+    port = str(settings.manager_agent_port or "13106").strip()
+    url = f"http://{host}:{port}/api/manager/evolution-global-review"
+    reviewer = str(getattr(current, "username", None) or getattr(current, "user_id", None) or "platform")
+    result = post_json(
+        url,
+        {
+            "id": body.id,
+            "decision": decision,
+            "reviewer": reviewer,
+            "note": body.note or "",
+        },
+        timeout_sec=12.0,
+    )
+    if not result.get("ok"):
+        raise HTTPException(status_code=502, detail=str(result.get("error") or "manager_unreachable"))
+    data = result.get("data") if isinstance(result.get("data"), dict) else {}
+    write_audit(
+        db,
+        current,
+        "evolution.global_review",
+        "evo_global_candidate",
+        str(body.id),
+        f"decision={decision}",
+    )
+    return {"ok": True, **data}
+
+
 @app.get("/api/observability/trace-link")
 async def observability_trace_link(
     trace_id: str = "",
@@ -2663,6 +2796,14 @@ async def login(payload: LoginRequest, db: Session = Depends(get_db)):
     api_requests_total.labels(endpoint="/api/auth/login", method="POST").inc()
     user = db.query(UserRecord).filter(UserRecord.username == payload.username).first()
     if not user or not verify_password(payload.password, user.password_hash):
+        write_audit(
+            db,
+            None,
+            "auth.login_failed",
+            "user",
+            str(payload.username or "")[:64],
+            "用户名或密码错误",
+        )
         raise HTTPException(status_code=401, detail="用户名或密码错误")
     tid = str(getattr(user, "tenant_id", None) or "default").strip() or "default"
     token = create_access_token(user.username, user.role, tid)
@@ -2759,7 +2900,24 @@ async def me(user: UserRecord = Depends(get_current_user)):
         "role": user.role,
         "tenant_id": getattr(user, "tenant_id", "default") or "default",
         "auth_provider": getattr(user, "auth_provider", "local") or "local",
+        # 跨 Agent 画像 / session 绑定：userId == JWT.sub == username
+        "user_id": user.username,
     }
+
+
+@app.get("/api/auth/validate")
+async def auth_validate(user: UserRecord = Depends(get_current_user)):
+    """供各 Agent UI 探活：Bearer JWT → 用户声明（不打库写操作）。"""
+    api_requests_total.labels(endpoint="/api/auth/validate", method="GET").inc()
+    tid = getattr(user, "tenant_id", "default") or "default"
+    return {
+        "ok": True,
+        "username": user.username,
+        "user_id": user.username,
+        "role": user.role,
+        "tenant_id": tid,
+    }
+
 
 @app.get("/api/users")
 async def list_users(
@@ -2822,6 +2980,49 @@ async def update_user_role(
     db.commit()
     write_audit(db, current, "user.update_role", "user", username, f"role={payload.role}")
     return {"username": row.username, "role": row.role}
+
+
+@app.patch("/api/users/{username}/password")
+async def update_user_password(
+    username: str,
+    payload: UserPasswordUpdateRequest,
+    current: UserRecord = Depends(require_roles("admin")),
+    db: Session = Depends(get_db),
+):
+    api_requests_total.labels(endpoint="/api/users/{username}/password", method="PATCH").inc()
+    pwd = str(payload.password or "").strip()
+    if len(pwd) < 6:
+        raise HTTPException(status_code=400, detail="密码至少 6 位")
+    row = db.query(UserRecord).filter(UserRecord.username == username).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    row.password_hash = hash_password(pwd)
+    db.add(row)
+    db.commit()
+    write_audit(db, current, "user.reset_password", "user", username, "password_reset")
+    return {"username": row.username, "ok": True}
+
+
+@app.delete("/api/users/{username}")
+async def delete_user(
+    username: str,
+    current: UserRecord = Depends(require_roles("admin")),
+    db: Session = Depends(get_db),
+):
+    api_requests_total.labels(endpoint="/api/users/{username}", method="DELETE").inc()
+    if username == current.username:
+        raise HTTPException(status_code=400, detail="不能删除当前登录用户")
+    row = db.query(UserRecord).filter(UserRecord.username == username).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    if row.role == "admin":
+        admin_count = db.query(UserRecord).filter(UserRecord.role == "admin").count()
+        if admin_count <= 1:
+            raise HTTPException(status_code=400, detail="不能删除唯一的 admin 用户")
+    db.delete(row)
+    db.commit()
+    write_audit(db, current, "user.delete", "user", username, f"role={row.role}")
+    return {"ok": True, "username": username}
 
 
 @app.get("/api/audit-logs")

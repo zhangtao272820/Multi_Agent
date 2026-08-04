@@ -18,6 +18,7 @@ from .agent import MultimodalAgent
 from .agent_result import build_multimodal_agent_result
 from .config import PROJECT_ROOT, get_settings, resolve_proj_path
 from .trace_log import append_agent_trace_log
+from .browser_auth import ClawhiveBrowserAuthMiddleware, install_auth_config_route, auth_from_websocket, ClawhiveAuthError
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -34,6 +35,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(ClawhiveBrowserAuthMiddleware, extra_public=("/api/probe", "/api/multimodal/out"))
+install_auth_config_route(app)
 
 _out = resolve_proj_path(settings.output_dir)
 _out.mkdir(parents=True, exist_ok=True)
@@ -316,6 +319,11 @@ def _save_upload_bytes(data: bytes, filename: str, content_type: str = "") -> Pa
 @app.websocket("/ws/multimodal")
 async def websocket_multimodal(ws: WebSocket):
     """实时流：口述转写、生成进度推送。"""
+    try:
+        auth_from_websocket(ws)
+    except ClawhiveAuthError:
+        await ws.close(code=1008, reason="login_required")
+        return
     await ws.accept()
     try:
         raw = await ws.receive_text()

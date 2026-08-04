@@ -6,11 +6,30 @@ interface TitleProps {
   onStart: () => void;
   onSaves: () => void;
   backendOk: boolean | null;
+  desktop?: boolean;
+  bgmEnabled?: boolean;
+  bgmVolume?: number;
+  onToggleBgm?: () => void;
+  onBgmVolume?: (v: number) => void;
 }
 
-export function TitleScreen({ onStart, onSaves, backendOk }: TitleProps) {
+export function TitleScreen({
+  onStart,
+  onSaves,
+  backendOk,
+  desktop,
+  bgmEnabled,
+  bgmVolume,
+  onToggleBgm,
+  onBgmVolume,
+}: TitleProps) {
   return (
     <section className="screen title-screen">
+      <div
+        className="title-bg"
+        aria-hidden
+        style={{ backgroundImage: "url(/api/campus/assets/bgs/classroom.png)" }}
+      />
       <div className="title-atmosphere" aria-hidden />
       <div className="title-grain" aria-hidden />
       <div className="title-copy">
@@ -25,10 +44,34 @@ export function TitleScreen({ onStart, onSaves, backendOk }: TitleProps) {
             继续存档
           </button>
         </div>
+        {onToggleBgm && (
+          <div className="title-bgm">
+            <button
+              type="button"
+              className={`btn ghost bgm-toggle${bgmEnabled ? " is-on" : ""}`}
+              onClick={onToggleBgm}
+            >
+              {bgmEnabled ? "音乐开" : "音乐关"}
+            </button>
+            {onBgmVolume && bgmEnabled && (
+              <input
+                className="bgm-volume"
+                type="range"
+                min={0}
+                max={1}
+                step={0.05}
+                value={bgmVolume ?? 0.85}
+                onChange={(e) => onBgmVolume(Number(e.target.value))}
+                aria-label="BGM 音量"
+              />
+            )}
+          </div>
+        )}
         <p className="title-status">
-          {backendOk === null && "连接后端中…"}
-          {backendOk === true && "后端已就绪"}
-          {backendOk === false && "后端未连接（请启动 13116）"}
+          {backendOk === null && "连接中…"}
+          {backendOk === true && (desktop ? "本地服务已就绪" : "后端已就绪")}
+          {backendOk === false &&
+            (desktop ? "本地服务未就绪，请重启应用" : "后端未连接（请启动 13116）")}
         </p>
       </div>
     </section>

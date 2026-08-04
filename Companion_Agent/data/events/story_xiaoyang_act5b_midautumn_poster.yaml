@@ -1,0 +1,68 @@
+id: story_xiaoyang_act5b_midautumn_poster
+label: 中秋·海报
+priority: 6
+once: true
+chance: 1.0
+scene_id: ''
+trigger:
+  character_ids:
+  - xiaoyang
+  stage_min: crush
+  affinity_min: 72
+  flags_present:
+  - xyang_winter_club
+  flags_absent:
+  - xyang_midautumn_poster
+  waypoint_min: q_autumn_midautumn
+prompt_snippet: |
+  【专属故事 · 叶晓阳 · 节日加幕 · 中秋·海报】
+advance: on_player_turn
+beats:
+- id: b1
+  summary: "中秋文化祭预热，她穿节日装举着半成品海报：「名字——写你还是撕掉？」。等你回应。"
+  sprite_hint:
+  - festival_midautumn
+  - season_winter
+  soft_options:
+  - 夸她
+  - 点头
+  - 沉默
+  narration: "中秋文化祭预热，她穿节日装举着半成品海报：「名字——写你还是撕掉？」。"
+  pc_thought: 海报上的名字很吵。摊位旁的她其实很轻。
+  brief: "中秋文化祭预热，她穿节日装举着半成品海报：「名字——写你还是撕掉？」。等你回应。"
+- id: b2
+  summary: "烤盘旁她小声说：同班可以，但这一格只想留给认真的人。等你回应。"
+  sprite_hint:
+  - festival_midautumn
+  - date
+  soft_options:
+  - 接住
+  - 问清楚
+  - 退一步
+  narration: "海报胶与社团室里，烤盘旁她小声说：同班可以，但这一格只想留给认真的人。"
+  pc_thought: 同班如常最安全。告白会撕坏一张海报吗？
+  brief: "烤盘旁她小声说：同班可以，但这一格只想留给认真的人。等你回应。"
+- id: b3
+  summary: 月色进窗；写或不写，会决定海报是并肩，还是撕成两半。等你回应。
+  sprite_hint:
+  - festival_midautumn
+  - home
+  soft_options:
+  - 承诺
+  - 诚实犹豫
+  - 拒绝
+  narration: 月色进窗；写或不写，会决定海报是并肩，还是撕成两半。
+  pc_thought: 冬社团室胶味刺鼻。我想把名字念准。
+  brief: 月色进窗；写或不写，会决定海报是并肩，还是撕成两半。等你回应。
+rewards:
+  flags_set:
+  - xyang_midautumn_poster
+choice_effects:
+- trust_delta: 4
+  affinity_delta: 3
+- trust_delta: 1
+  affinity_delta: 1
+- trust_delta: -4
+  affinity_delta: -3
+  flags:
+    xiaoyang_route_bad: true

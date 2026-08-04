@@ -191,7 +191,15 @@ export default function OpsOverview({
 
       {managerCluster && !managerCluster.ok ? (
         <p className="control-message">
-          Manager 不可达：{managerCluster.error || managerCluster.metrics?.error || monitorSummary?.manager_error || "请执行 docker compose up -d manager_agent"}
+          {(() => {
+            const err = String(
+              managerCluster.error || managerCluster.metrics?.error || managerCluster.registry?.error || monitorSummary?.manager_error || ""
+            );
+            if (/login_required|401|internal token/i.test(err)) {
+              return `Manager 探测失败（服务间鉴权，不是当前账号无权限）：${err || "缺少 CLAWHIVE_INTERNAL_TOKEN"}`;
+            }
+            return `Manager 不可达：${err || "请执行 docker compose up -d manager_agent"}`;
+          })()}
         </p>
       ) : null}
 

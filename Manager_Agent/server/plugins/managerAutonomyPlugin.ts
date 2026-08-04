@@ -1,4 +1,4 @@
-import path from 'node:path'
+import { listActiveTenantIds } from '#agent-shared/evoPolicyStore'
 import { maybeCurateManagerMemory } from '../graph/core/memory/memoryCurator'
 import { analyzeFailureInsights } from '../graph/core/evolution/failureInsights'
 import { runEvolutionExperimentCycle } from '../graph/core/evolution/evolutionExperiments'
@@ -14,6 +14,8 @@ import { runSessionArchiveJob, isSessionArchiveEnabled } from '#agent-shared/ses
 import { runSemanticConsolidationJob, isSemanticConsolidationEnabled } from '#agent-shared/semanticConsolidationJob'
 import { runMemoryFoldJob, isMemoryFoldEnabled } from '#agent-shared/memoryFoldJob'
 import { runPgDailyBackup, isPgDailyBackupEnabled } from '#agent-shared/pgDailyBackupJob'
+import { resolveManagerPolicyDir, managerDataRoot } from '../utils/session/managerPolicyDir'
+import { maybeProposeGlobalCandidates } from '../graph/core/evolution/globalEvolutionBridge'
 
 function autonomyEnabled() {
   return String(process.env.MANAGER_AUTONOMY_PLUGIN ?? '1').trim() !== '0'
@@ -25,49 +27,56 @@ function tickIntervalMs() {
 }
 
 /**
- * 后台自治循环：记忆治理 + 进化实验 + 主动推进扫描 + 学习信号修剪
- * 默认开启（MANAGER_AUTONOMY_PLUGIN=1）；进化 Curator 单独开关已合并到此插件。
+ * 后台自治循环：按活跃租户隔离 policyDir 跑记忆治理 + 进化实验
  */
 export default defineNitroPlugin(() => {
   if (!autonomyEnabled()) return
 
-  const policyDir = path.join(process.cwd(), '.data')
   let running = false
   let lastEvoAuditAt = 0
   let lastArchiveAt = 0
   let lastSemanticAt = 0
   let lastFoldAt = 0
   let lastBackupAt = 0
+  let lastGlobalProposeAt = 0
+
+  const tickForTenant = async (tenantId: string) => {
+    const policyDir = resolveManagerPolicyDir(tenantId)
+    await maybeCurateManagerMemory(policyDir).catch(() => undefined)
+    if (isUnifiedLearningEnabled()) {
+      await maybeTrimLearningSignals(policyDir).catch(() => undefined)
+      await maybeTuneLearningWeights(policyDir).catch(() => undefined)
+      if (isRoutePreferenceLearnEnabled()) {
+        await maybeRefreshRoutePreferences(policyDir).catch(() => undefined)
+      }
+      if (isRouteCausalEnabled()) {
+        await maybeRefreshRouteCausalGraph(policyDir).catch(() => undefined)
+      }
+    }
+    const insights = await analyzeFailureInsights(policyDir).catch(() => ({
+      samples: 0,
+      failures: [],
+      strongestSignals: [],
+      fixSuggestions: []
+    }))
+    if (insights.samples > 0) {
+      await runEvolutionExperimentCycle(policyDir, insights, { force: false }).catch(() => undefined)
+    }
+    if (isProactiveLoopEnabled()) {
+      await runProactiveLoopTick(policyDir).catch(() => undefined)
+    }
+    if (isAutonomousRunEnabled()) {
+      await processAutonomousQueueTick(policyDir, executeHeadlessManagerRun).catch(() => undefined)
+    }
+  }
 
   const tick = async () => {
     if (running) return
     running = true
     try {
-      await maybeCurateManagerMemory(policyDir).catch(() => undefined)
-      if (isUnifiedLearningEnabled()) {
-        await maybeTrimLearningSignals(policyDir).catch(() => undefined)
-        await maybeTuneLearningWeights(policyDir).catch(() => undefined)
-        if (isRoutePreferenceLearnEnabled()) {
-          await maybeRefreshRoutePreferences(policyDir).catch(() => undefined)
-        }
-        if (isRouteCausalEnabled()) {
-          await maybeRefreshRouteCausalGraph(policyDir).catch(() => undefined)
-        }
-      }
-      const insights = await analyzeFailureInsights(policyDir).catch(() => ({
-        samples: 0,
-        failures: [],
-        strongestSignals: [],
-        fixSuggestions: []
-      }))
-      if (insights.samples > 0) {
-        await runEvolutionExperimentCycle(policyDir, insights, { force: false }).catch(() => undefined)
-      }
-      if (isProactiveLoopEnabled()) {
-        await runProactiveLoopTick(policyDir).catch(() => undefined)
-      }
-      if (isAutonomousRunEnabled()) {
-        await processAutonomousQueueTick(policyDir, executeHeadlessManagerRun).catch(() => undefined)
+      const tenants = await listActiveTenantIds().catch(() => ['default'])
+      for (const tid of tenants.slice(0, 32)) {
+        await tickForTenant(tid).catch(() => undefined)
       }
       if (isEvoAuditJobEnabled() && Date.now() - lastEvoAuditAt >= evoAuditIntervalMs()) {
         lastEvoAuditAt = Date.now()
@@ -88,6 +97,10 @@ export default defineNitroPlugin(() => {
       if (isPgDailyBackupEnabled() && Date.now() - lastBackupAt >= 86_400_000) {
         lastBackupAt = Date.now()
         await runPgDailyBackup().catch(() => undefined)
+      }
+      if (Date.now() - lastGlobalProposeAt >= 3_600_000) {
+        lastGlobalProposeAt = Date.now()
+        await maybeProposeGlobalCandidates(managerDataRoot()).catch(() => undefined)
       }
     } finally {
       running = false

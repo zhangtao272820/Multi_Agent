@@ -1,0 +1,68 @@
+id: story_fengyin_act5_winter_door
+label: 冬夜敲门
+priority: 6
+once: true
+chance: 1.0
+scene_id: ''
+trigger:
+  character_ids:
+  - fengyin
+  stage_min: crush
+  affinity_min: 70
+  flags_present:
+  - fy_equal
+  flags_absent:
+  - fy_winter_door
+  waypoint_min: q_winter_onset
+  season: winter
+prompt_snippet: '【专属故事 · 沈枫音 · 冬季加幕 · 冬夜敲门】
+
+  '
+advance: on_player_turn
+beats:
+- id: b1
+  summary: 冬夜等你敲门；隔墙有暖光却不提。等你挡风、问进屋或递热水。
+  sprite_hint:
+  - season_winter
+  - home
+  soft_options:
+  - 帮她挡风
+  - 问要不要进屋
+  - 递热水
+  narration: 入冬客厅只开小灯。她把热可可放你手边，却站在自己房门口等你敲。薄墙那侧书璃房门缝一线暖光，谁也没提。
+  pc_thought: 先敲门才是喜欢。书璃那边的光，我装没看见。
+  brief: 冬夜等你敲门；隔墙有暖光却不提。等你挡风、问进屋或递热水。
+- id: b2
+  summary: 她说冬天也要先敲门——不是赌气，是确认你把她当成年人。等你回应。
+  sprite_hint:
+  - season_winter
+  - casual
+  soft_options:
+  - 听门轴响
+  - 说我不抢钥匙
+  - 约檐下站一会
+  narration: 门轴与耳机低音里，她说冬天也要先敲门——不是赌气，是确认你把她当成年人。
+  pc_thought: 隔墙有没有声响？书璃那边的夜灯，我装没看见。
+  brief: 她说冬天也要先敲门——不是赌气，是确认你把她当成年人。等你回应。
+- id: b3
+  summary: 你是敲门进去，还是径直推开；界线会被尊重，或永远关上。等你回应。
+  sprite_hint:
+  - season_winter
+  - date
+  soft_options:
+  - 承诺不吵邻居
+  - 夸她门关得稳
+  - 告辞
+  narration: 门轴与耳机低音里，你是敲门进去，还是径直推开；界线会被尊重，或永远关上。
+  pc_thought: 冬天门缝漏风。边界比暖气更重要。
+  brief: 你是敲门进去，还是径直推开；界线会被尊重，或永远关上。等你回应。
+rewards:
+  flags_set:
+  - fy_winter_door
+choice_effects:
+- trust_delta: 3
+  affinity_delta: 3
+- trust_delta: 2
+  affinity_delta: 1
+- trust_delta: -3
+  affinity_delta: -2

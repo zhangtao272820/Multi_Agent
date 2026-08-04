@@ -1,0 +1,74 @@
+{
+  "notes": "稀疏补日：季度航点落到锚点之后的下一农历年（元旦/春节），合并进 day_info。",
+  "days": {
+    "2027-01-01": {
+      "festival": "元旦",
+      "is_holiday": true,
+      "is_workday": false,
+      "lunar": "",
+      "note": "元旦"
+    },
+    "2027-01-02": {
+      "festival": "元旦",
+      "is_holiday": true,
+      "is_workday": false,
+      "note": "元旦假期"
+    },
+    "2027-01-03": {
+      "festival": "元旦",
+      "is_holiday": true,
+      "is_workday": false,
+      "note": "元旦假期"
+    },
+    "2027-02-05": {
+      "festival": "除夕",
+      "is_holiday": true,
+      "is_workday": false,
+      "lunar": "腊月廿九",
+      "note": "除夕"
+    },
+    "2027-02-06": {
+      "festival": "春节",
+      "is_holiday": true,
+      "is_workday": false,
+      "lunar": "正月初一",
+      "note": "春节"
+    },
+    "2027-02-07": {
+      "festival": "春节",
+      "is_holiday": true,
+      "is_workday": false,
+      "note": "春节假期"
+    },
+    "2027-02-08": {
+      "festival": "春节",
+      "is_holiday": true,
+      "is_workday": false,
+      "note": "春节假期"
+    },
+    "2027-02-09": {
+      "festival": "春节",
+      "is_holiday": true,
+      "is_workday": false,
+      "note": "春节假期"
+    },
+    "2027-02-10": {
+      "festival": "春节",
+      "is_holiday": true,
+      "is_workday": false,
+      "note": "春节假期"
+    },
+    "2027-02-11": {
+      "festival": "春节",
+      "is_holiday": true,
+      "is_workday": false,
+      "note": "春节假期"
+    },
+    "2027-02-12": {
+      "festival": "春节",
+      "is_holiday": true,
+      "is_workday": false,
+      "note": "春节假期"
+    }
+  }
+}

@@ -33,7 +33,14 @@ const NODE_LABEL: Record<string, string> = {
 
 function wsUrl(path: string): string {
   const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
-  return `${proto}//${window.location.host}${path}`;
+  const u = new URL(`${proto}//${window.location.host}${path}`);
+  try {
+    const t = String(localStorage.getItem("clawhive_access_token") || "").trim();
+    if (t) u.searchParams.set("access_token", t);
+  } catch {
+    /* ignore */
+  }
+  return u.toString();
 }
 
 function fileToBase64(file: File): Promise<string> {

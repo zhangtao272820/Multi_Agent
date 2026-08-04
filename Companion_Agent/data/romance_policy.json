@@ -113,13 +113,6 @@
       "jealousy": 60,
       "confess_init": true
     },
-    "yeyu": {
-      "pursuit": "passive",
-      "exclusivity": "exclusive",
-      "rivalry": "confront",
-      "jealousy": 66,
-      "confess_init": false
-    },
     "luna": {
       "pursuit": "pursues",
       "exclusivity": "poly_ok",

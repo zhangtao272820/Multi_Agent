@@ -117,6 +117,11 @@ export function menuSpriteUrl(characterId: string, slot: string): string {
 export function spriteUrl(characterId: string, opts: SpriteUrlOpts = {}): string {
   const style = opts.style || "anime";
   if (style === "photoreal") {
+    // §2.6 pr_* 即为半写实洗浴全身图，勿映射到 menu_*
+    const outfit = (opts.outfit || "").trim().toLowerCase();
+    if (outfit.startsWith("pr_")) {
+      return spriteUrl(characterId, { ...opts, style: "anime" });
+    }
     return menuSpriteUrl(characterId, resolveMenuSlot(opts));
   }
   const emotion = (opts.emotion || "neutral").trim().toLowerCase() || "neutral";
@@ -141,12 +146,18 @@ export function spriteCandidates(
   };
 
   if (style === "photoreal") {
-    const slot = resolveMenuSlot(opts);
-    push(menuSpriteUrl(characterId, slot));
-    if (slot !== "portrait") push(menuSpriteUrl(characterId, "portrait"));
-    // soft map smile→happy style menus already on disk
-    if (emotion === "happy") push(menuSpriteUrl(characterId, "smile"));
-    if (emotion === "shy") push(menuSpriteUrl(characterId, "soft"));
+    const outfit = (opts.outfit || "").trim().toLowerCase();
+    if (outfit.startsWith("pr_")) {
+      push(spriteUrl(characterId, { outfit, emotion, style: "anime" }));
+      push(spriteUrl(characterId, { outfit, emotion: "neutral", style: "anime" }));
+    } else {
+      const slot = resolveMenuSlot(opts);
+      push(menuSpriteUrl(characterId, slot));
+      if (slot !== "portrait") push(menuSpriteUrl(characterId, "portrait"));
+      // soft map smile→happy style menus already on disk
+      if (emotion === "happy") push(menuSpriteUrl(characterId, "smile"));
+      if (emotion === "shy") push(menuSpriteUrl(characterId, "soft"));
+    }
   }
   if (outfit) {
     push(spriteUrl(characterId, { outfit, emotion, style: "anime" }));

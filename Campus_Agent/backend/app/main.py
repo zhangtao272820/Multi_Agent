@@ -10,10 +10,11 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from . import bgm as bgm_mod
 from . import campus_engine
 from . import sprites as sprites_mod
 from .campus_store import store
-from .config import data_dir, frontend_dist
+from .config import data_dir, frontend_dist, is_desktop
 
 app = FastAPI(title="Campus_Agent", version="0.2.0")
 
@@ -72,7 +73,12 @@ class LoadSaveBody(BaseModel):
 
 @app.get("/api/health")
 def health() -> dict[str, Any]:
-    return {"ok": True, "service": "Campus_Agent", "has_save": store.active is not None}
+    return {
+        "ok": True,
+        "service": "Campus_Agent",
+        "has_save": store.active is not None,
+        "desktop": is_desktop(),
+    }
 
 
 @app.get("/api/campus/meta")
@@ -279,6 +285,19 @@ def campus_sprite(
     if kind == "q":
         return sprites_mod.resolve_q_sprite(student_id, emotion=emotion, action=action)
     return sprites_mod.resolve_student_sprite(student_id, outfit=outfit, action=action, emotion=emotion)
+
+
+@app.get("/api/campus/bgm/catalog")
+def campus_bgm_catalog() -> dict[str, Any]:
+    return bgm_mod.public_bgm_catalog()
+
+
+@app.get("/api/campus/bgm/{track_id}")
+def campus_bgm_track(track_id: str) -> FileResponse:
+    path = bgm_mod.resolve_bgm_file(track_id)
+    if not path:
+        raise HTTPException(status_code=404, detail="bgm_not_found")
+    return FileResponse(path)
 
 
 @app.get("/api/campus/assets/{asset_path:path}")

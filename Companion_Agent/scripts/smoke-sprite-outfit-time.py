@@ -219,12 +219,44 @@ def main() -> None:
         affinity=75,
         stage_id="dating",
     )
-    if "after_bath" in have_xy:
+    # §2.5 洗浴泡沫优先于 after_bath / morning_shirt
+    if "bath_foam" in have_xy:
+        assert o_morning == "bath_foam", o_morning
+    elif "after_bath" in have_xy:
         assert o_morning == "after_bath", o_morning
     elif "morning_shirt" in have_xy:
         assert o_morning == "morning_shirt", o_morning
     else:
         assert o_morning in have_xy, o_morning
+
+    # §2.6：photoreal 晨间优先 pr_*（有图时）
+    o_pr_morning = resolve_outfit(
+        day_index=1,
+        period="morning",
+        location_id="home",
+        character_id=rich,
+        occupation="插画师",
+        affinity=75,
+        stage_id="dating",
+        sprite_style="photoreal",
+    )
+    if "pr_bath_foam" in have_xy:
+        assert o_pr_morning == "pr_bath_foam", o_pr_morning
+    elif "bath_foam" in have_xy:
+        assert o_pr_morning == "bath_foam", o_pr_morning
+    else:
+        assert o_pr_morning in have_xy, o_pr_morning
+
+    # anime 晨间不得因磁盘有 pr_* 而抢 anime 舞台
+    if "bath_foam" in have_xy:
+        assert o_morning == "bath_foam", o_morning
+    assert o_morning != "q_cleavage"
+    assert o_morning not in {
+        "ad_bra_set",
+        "ad_lace_campaign",
+        "ad_silk_lookbook",
+        "ad_editorial",
+    }
 
     o_bridal = resolve_outfit(
         day_index=1,
@@ -240,9 +272,10 @@ def main() -> None:
     else:
         assert o_bridal == "date", o_bridal
 
-    # --- neutral never receives romance-advance outfits ---
+    # --- neutral：禁 intimate/bridal；close_friend 高亲和可命中 max/浴装；永不 end/q/ad ---
     neu = "shuli"
-    o_neu = resolve_outfit(
+    have_neu = available_outfits(neu)
+    o_neu_wrong_stage = resolve_outfit(
         day_index=1,
         period="night",
         location_id="home",
@@ -251,7 +284,7 @@ def main() -> None:
         affinity=99,
         stage_id="married",
     )
-    assert o_neu not in {
+    assert o_neu_wrong_stage not in {
         "intimate_lounge",
         "intimate_lingerie",
         "intimate_implied",
@@ -266,16 +299,47 @@ def main() -> None:
         "bedside_hug",
         "window_night",
         "max_micro_slip",
-        "max_wet_cling",
-        "max_garter",
-        "max_kneel_pillow",
-        "max_strappy",
-        "max_choker",
-        "max_slit_gown",
-        "max_over_shoulder",
-        "max_sofa_lie",
-        "max_ribbon_cover",
-    }, o_neu
+        "bath_foam",
+        "q_cleavage",
+        "ad_bra_set",
+        "ad_lace_campaign",
+        "ad_silk_lookbook",
+        "ad_editorial",
+    }, o_neu_wrong_stage
+
+    o_neu_max = resolve_outfit(
+        day_index=1,
+        period="evening",
+        location_id="home",
+        character_id=neu,
+        occupation="学生",
+        affinity=90,
+        stage_id="close_friend",
+    )
+    assert o_neu_max not in {
+        "intimate_lingerie",
+        "intimate_lounge",
+        "bridal",
+        "maternity",
+        "end_robe_open",
+        "q_cleavage",
+        "ad_bra_set",
+    }, o_neu_max
+    if "max_micro_slip" in have_neu:
+        assert o_neu_max == "max_micro_slip", o_neu_max
+
+    o_neu_bath = resolve_outfit(
+        day_index=1,
+        period="morning",
+        location_id="home",
+        character_id=neu,
+        occupation="学生",
+        affinity=75,
+        stage_id="close_friend",
+    )
+    assert o_neu_bath not in {"after_bath", "morning_shirt", "intimate_lingerie"}, o_neu_bath
+    if "bath_foam" in have_neu:
+        assert o_neu_bath == "bath_foam", o_neu_bath
 
     o_max = resolve_outfit(
         day_index=1,
@@ -291,8 +355,8 @@ def main() -> None:
     else:
         assert o_max in have_xy, o_max
 
-    # §2.4：即使磁盘已有 end_*，日常 resolve 也不得返回
-    from app.sprite_outfit import _ENDING_CG_OUTFITS
+    # §2.4 / §2.7 / §2.8：即使磁盘已有，日常 resolve 也不得返回
+    from app.sprite_outfit import _ENDING_CG_OUTFITS, _GALLERY_ONLY_OUTFITS, normalize_story_outfit_hints
 
     for aff in (70, 85, 88, 92, 99):
         for per in ("evening", "night", "morning"):
@@ -306,13 +370,71 @@ def main() -> None:
                 stage_id="married",
             )
             assert o_end not in _ENDING_CG_OUTFITS, (aff, per, o_end)
+            assert o_end not in _GALLERY_ONLY_OUTFITS, (aff, per, o_end)
+            assert not str(o_end).startswith("ad_"), (aff, per, o_end)
+            assert not str(o_end).startswith("q_"), (aff, per, o_end)
+
+    # 专属故事：sprite_hint 优先出图
+    assert "atelier_paint" in have_r
+    o_story = resolve_outfit(
+        day_index=1,
+        period="afternoon",
+        location_id="street",
+        character_id=rich,
+        occupation="插画师",
+        story_outfit_hints=["atelier_paint", "home"],
+    )
+    assert o_story == "atelier_paint", o_story
+
+    # 缺图 hint 回退到链上下一个有图的
+    o_miss = resolve_outfit(
+        day_index=1,
+        period="afternoon",
+        location_id="home",
+        character_id=rich,
+        occupation="插画师",
+        story_outfit_hints=["no_such_outfit_zzz", "deadline_lamp", "casual"],
+    )
+    assert o_miss == "deadline_lamp", o_miss
+
+    # 误写 end_* / q_* / ad_*：normalize 过滤；resolve 不得返回
+    cleaned = normalize_story_outfit_hints(
+        ["end_robe_open", "atelier_paint", "end_choker", "q_cleavage", "ad_bra_set"]
+    )
+    assert cleaned == ["atelier_paint"], cleaned
+    o_end_hint = resolve_outfit(
+        day_index=1,
+        period="evening",
+        location_id="home",
+        character_id=rich,
+        occupation="插画师",
+        affinity=99,
+        stage_id="married",
+        story_outfit_hints=["end_robe_open", "q_cleavage", "ad_editorial", "atelier_paint"],
+    )
+    assert o_end_hint == "atelier_paint", o_end_hint
+    assert o_end_hint not in _ENDING_CG_OUTFITS
+    assert o_end_hint not in _GALLERY_ONLY_OUTFITS
+
+    from app.story_beats import story_outfit_hints_for_beat
+    from app.event_engine import GameEvent, StoryBeat
+
+    fake = GameEvent(
+        id="story_xiaoyou_act1_threshold",
+        label="门槛",
+        beats=[
+            StoryBeat(id="b1", summary="开场", sprite_hint=["atelier_paint", "home"]),
+        ],
+    )
+    assert story_outfit_hints_for_beat(fake, 0) == ["atelier_paint", "home"]
 
     print("smoke-sprite-outfit-time: OK")
     print(
         f"  thin_home={o} date={o_date} linxi_office={out} "
         f"winter={o_winter} intimate={o_int} eat={o_eat} sleep={o_sleep} "
         f"linxi_home={o_linxi_home} implied={o_impl} lingerie={o_ling} "
-        f"maternity={o_mat} morning={o_morning} max={o_max} bridal={o_bridal} shuli={o_neu}"
+        f"maternity={o_mat} morning={o_morning} pr_morning={o_pr_morning} "
+        f"max={o_max} bridal={o_bridal} shuli_max={o_neu_max} shuli_bath={o_neu_bath}"
     )
 
 

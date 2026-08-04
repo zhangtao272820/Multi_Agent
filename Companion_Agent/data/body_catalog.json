@@ -192,24 +192,6 @@
       "thigh": "slim",
       "calf": "slim"
     },
-    "yeyu": {
-      "height_cm": 166,
-      "weight_kg": 52,
-      "bust_cm": 86,
-      "waist_cm": 62,
-      "hip_cm": 88,
-      "head_body_ratio": 7.1,
-      "build": "athletic",
-      "pose_notes": "干练站姿，肩略宽于纤细型，手脚有力且比例正确",
-      "anatomy_forbid": "禁止多余手指/脚趾、融合手、错位脚、裙下悬浮脚",
-      "bust_visual": "medium",
-      "shoulder": "medium",
-      "silhouette": "athletic",
-      "hip_visual": "firm",
-      "leg_length": "long",
-      "thigh": "athletic",
-      "calf": "athletic"
-    },
     "aili": {
       "height_cm": 165,
       "weight_kg": 50,

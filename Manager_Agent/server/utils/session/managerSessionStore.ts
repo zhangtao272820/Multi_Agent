@@ -8,8 +8,15 @@ import {
   shouldWriteFile,
   shouldWritePostgres
 } from '#agent-shared/storageBackend'
+import type { SessionUiMeta } from './runProcessAccumulator'
 
-export type SessionMessage = { role: 'user' | 'assistant'; content: string }
+export type SessionMessage = {
+  role: 'user' | 'assistant'
+  content: string
+  runId?: string
+  uiMeta?: SessionUiMeta
+}
+
 export type ManagerSession = { messages: SessionMessage[] }
 
 const SESSION_MAX_TURNS = AMP_TTL.sessionTurnsMax
@@ -22,6 +29,53 @@ function sessionFile(sessionId: string): string {
   return path.join(sessionsDir(), `${sessionId}.json`)
 }
 
+function normalizeUiMeta(raw: unknown): SessionUiMeta | undefined {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined
+  const processRaw = (raw as { process?: unknown }).process
+  if (!Array.isArray(processRaw) || !processRaw.length) return undefined
+  const process = processRaw
+    .map((p) => {
+      if (!p || typeof p !== 'object') return null
+      const o = p as Record<string, unknown>
+      const kind = String(o.kind || '').trim()
+      const text = String(o.text || '').trim()
+      if (!kind) return null
+      return {
+        kind,
+        text: text || kind,
+        ...(typeof o.from === 'string' && o.from ? { from: o.from.slice(0, 24) } : {}),
+        ...(typeof o.ts === 'string' && o.ts ? { ts: o.ts } : {}),
+        ...(o.extra && typeof o.extra === 'object' && !Array.isArray(o.extra)
+          ? { extra: o.extra as Record<string, unknown> }
+          : {})
+      }
+    })
+    .filter(Boolean) as NonNullable<SessionUiMeta['process']>
+  if (!process.length) return undefined
+  return { process }
+}
+
+function normalizeOneMessage(m: {
+  role?: string
+  content?: string
+  runId?: string
+  run_id?: string
+  uiMeta?: unknown
+  ui_meta?: unknown
+}): SessionMessage | null {
+  const content = String(m?.content ?? '').trim()
+  if (!content) return null
+  const role = m?.role === 'assistant' ? ('assistant' as const) : ('user' as const)
+  const runId = String(m?.runId || m?.run_id || '').trim() || undefined
+  const uiMeta = normalizeUiMeta(m?.uiMeta ?? m?.ui_meta)
+  return {
+    role,
+    content,
+    ...(runId ? { runId } : {}),
+    ...(uiMeta ? { uiMeta } : {})
+  }
+}
+
 function normalizeMessages(raw: unknown): SessionMessage[] {
   const arr = Array.isArray((raw as { messages?: unknown })?.messages)
     ? (raw as { messages: unknown[] }).messages
@@ -29,11 +83,8 @@ function normalizeMessages(raw: unknown): SessionMessage[] {
       ? raw
       : []
   return arr
-    .map((m: { role?: string; content?: string }) => ({
-      role: m?.role === 'assistant' ? ('assistant' as const) : ('user' as const),
-      content: String(m?.content ?? '').trim()
-    }))
-    .filter((m) => m.content)
+    .map((m) => normalizeOneMessage((m || {}) as Parameters<typeof normalizeOneMessage>[0]))
+    .filter((m): m is SessionMessage => Boolean(m))
     .slice(-SESSION_MAX_TURNS)
 }
 
@@ -65,20 +116,31 @@ async function writeSessionToFile(sessionId: string, messages: SessionMessage[])
   )
 }
 
-function mapPgTurnRows(rows: Array<{ role: string; content: string }>): SessionMessage[] {
+type PgTurnRow = {
+  role: string
+  content: string
+  run_id?: string | null
+  ui_meta?: unknown
+}
+
+function mapPgTurnRows(rows: PgTurnRow[]): SessionMessage[] {
   return rows
-    .map((r) => ({
-      role: r.role === 'assistant' ? ('assistant' as const) : ('user' as const),
-      content: String(r.content ?? '').trim()
-    }))
-    .filter((m) => m.content)
+    .map((r) =>
+      normalizeOneMessage({
+        role: r.role,
+        content: r.content,
+        run_id: r.run_id ?? undefined,
+        ui_meta: r.ui_meta
+      })
+    )
+    .filter((m): m is SessionMessage => Boolean(m))
 }
 
 async function readSessionFromPg(sessionId: string): Promise<ManagerSession | null> {
   const sid = String(sessionId || '').trim()
   if (!sid) return null
-  const res = await agentPgQuery<{ role: string; content: string }>(
-    `SELECT role, content FROM mgr_session_turns
+  const res = await agentPgQuery<PgTurnRow>(
+    `SELECT role, content, run_id, ui_meta FROM mgr_session_turns
      WHERE session_id = $1
      ORDER BY turn_index ASC
      LIMIT $2`,
@@ -89,8 +151,8 @@ async function readSessionFromPg(sessionId: string): Promise<ManagerSession | nu
   if (live.length) return { messages: live }
 
   // 冷归档后热表为空：回读 archive，避免 resume 看到空历史
-  const archived = await agentPgQuery<{ role: string; content: string }>(
-    `SELECT role, content FROM mgr_session_turns_archive
+  const archived = await agentPgQuery<PgTurnRow>(
+    `SELECT role, content, run_id, ui_meta FROM mgr_session_turns_archive
      WHERE session_id = $1
      ORDER BY turn_index ASC
      LIMIT $2`,
@@ -118,10 +180,11 @@ async function writeSessionToPg(sessionId: string, messages: SessionMessage[]): 
 
   for (let i = 0; i < capped.length; i++) {
     const m = capped[i]!
+    const uiMetaJson = m.uiMeta ? JSON.stringify(m.uiMeta) : null
     const ins = await agentPgQuery(
-      `INSERT INTO mgr_session_turns (session_id, turn_index, role, content)
-       VALUES ($1, $2, $3, $4)`,
-      [sid, i, m.role, m.content]
+      `INSERT INTO mgr_session_turns (session_id, turn_index, role, content, run_id, ui_meta)
+       VALUES ($1, $2, $3, $4, $5, $6::jsonb)`,
+      [sid, i, m.role, m.content, m.runId || null, uiMetaJson]
     )
     if (!ins) return false
   }
@@ -163,19 +226,29 @@ export async function writeManagerSession(sessionId: string, session: ManagerSes
   }
 }
 
-/** 删除会话：PG CASCADE + 关联向量；文件由 session-delete 另行清理 */
+/** 删除会话：热表 CASCADE + 冷归档（无 FK）+ 向量；文件由 session-delete 另行清理 */
 export async function deleteManagerSession(sessionId: string): Promise<{ pg: boolean }> {
   const sid = String(sessionId || '').trim()
   if (!sid) return { pg: false }
   const backend = resolveManagerStorageBackend()
-  if (!isPostgresStorageEnabled(backend)) return { pg: false }
+  if (!isPostgresStorageEnabled(backend)) {
+    await writeSessionToFile(sid, []).catch(() => undefined)
+    await fs.unlink(sessionFile(sid)).catch(() => undefined)
+    return { pg: false }
+  }
 
   await agentPgQuery(
     `DELETE FROM mgr_memory_embeddings
      WHERE metadata->>'sessionId' = $1 OR user_key = $1`,
     [sid]
   ).catch(() => undefined)
+  // 冷归档表无 ON DELETE CASCADE，不删会被 readManagerSession 读回并「复活」
+  await agentPgQuery(`DELETE FROM mgr_session_turns_archive WHERE session_id = $1`, [sid]).catch(
+    () => undefined
+  )
+  await agentPgQuery(`DELETE FROM mgr_session_turns WHERE session_id = $1`, [sid]).catch(() => undefined)
   const del = await agentPgQuery(`DELETE FROM mgr_sessions WHERE id = $1`, [sid])
+  await fs.unlink(sessionFile(sid)).catch(() => undefined)
   return { pg: Boolean(del) }
 }
 

@@ -6,6 +6,7 @@ import { deleteRagSessionFeedbackAll } from "../../utils/ragSessionFeedback";
 
 const BodySchema = z.object({
   sessionId: z.string().min(1).max(120).regex(/^[A-Za-z0-9_-]+$/),
+  userId: z.string().min(1).max(64).regex(/^[A-Za-z0-9_-]+$/).optional(),
 });
 
 export default defineEventHandler(async (event) => {
@@ -14,5 +15,11 @@ export default defineEventHandler(async (event) => {
   await deleteRagSessionArtifacts(body.sessionId);
   clearSessionMemory(body.sessionId);
   const feedbackDeleted = await deleteRagSessionFeedbackAll("rag", body.sessionId);
-  return { ok: true, sessionId: body.sessionId, pgDeleted: pgDelete.pg, feedbackDeleted };
+  return {
+    ok: true,
+    sessionId: body.sessionId,
+    userId: body.userId || null,
+    pgDeleted: pgDelete.pg,
+    feedbackDeleted,
+  };
 });

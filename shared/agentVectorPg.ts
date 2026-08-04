@@ -19,17 +19,20 @@ function vecLiteral(values: number[]): string {
 export async function upsertMgrEmbeddingVector(
   memoryKey: string,
   embedding: number[],
-  meta: { userKey?: string; entryType?: string; metadata?: Record<string, unknown> },
+  meta: { userKey?: string; entryType?: string; metadata?: Record<string, unknown>; tenantId?: string },
   env: NodeJS.ProcessEnv = process.env
 ): Promise<void> {
   if (!isPgVectorEnabled(env) || !embedding?.length) return
+  const { normalizeTenantId } = await import('./tenantScope')
+  const tenantId = normalizeTenantId(meta.tenantId ?? meta.metadata?.tenantId, env)
   await agentPgQuery(
-    `INSERT INTO mgr_memory_embeddings (memory_key, user_key, entry_type, embedding, embedding_vec, metadata, ts)
-     VALUES ($1, $2, $3, $4, $5::vector, $6, NOW())
+    `INSERT INTO mgr_memory_embeddings (memory_key, user_key, entry_type, embedding, embedding_vec, metadata, ts, tenant_id)
+     VALUES ($1, $2, $3, $4, $5::vector, $6, NOW(), $7)
      ON CONFLICT (memory_key) DO UPDATE SET
        embedding = EXCLUDED.embedding,
        embedding_vec = EXCLUDED.embedding_vec,
        metadata = EXCLUDED.metadata,
+       tenant_id = EXCLUDED.tenant_id,
        ts = NOW()`,
     [
       memoryKey,
@@ -37,7 +40,8 @@ export async function upsertMgrEmbeddingVector(
       meta.entryType || 'experience',
       JSON.stringify(embedding),
       vecLiteral(embedding),
-      JSON.stringify(meta.metadata ?? {})
+      JSON.stringify({ ...(meta.metadata ?? {}), tenantId }),
+      tenantId
     ],
     env
   )
@@ -46,16 +50,19 @@ export async function upsertMgrEmbeddingVector(
 export async function searchMgrEmbeddingsByVector(
   queryEmbedding: number[],
   limit = 4,
-  env: NodeJS.ProcessEnv = process.env
+  env: NodeJS.ProcessEnv = process.env,
+  tenantId?: string
 ): Promise<Array<{ memory_key: string; score: number; metadata: Record<string, unknown> }>> {
   if (!isPgVectorEnabled(env) || !queryEmbedding?.length) return []
+  const { normalizeTenantId } = await import('./tenantScope')
+  const tid = normalizeTenantId(tenantId, env)
   const res = await agentPgQuery<{ memory_key: string; score: number; metadata: Record<string, unknown> }>(
     `SELECT memory_key, 1 - (embedding_vec <=> $1::vector) AS score, metadata
      FROM mgr_memory_embeddings
-     WHERE embedding_vec IS NOT NULL
+     WHERE tenant_id = $2 AND embedding_vec IS NOT NULL
      ORDER BY embedding_vec <=> $1::vector
-     LIMIT $2`,
-    [vecLiteral(queryEmbedding), limit],
+     LIMIT $3`,
+    [vecLiteral(queryEmbedding), tid, limit],
     env
   )
   return res?.rows ?? []

@@ -9,7 +9,11 @@ import {
   parseMarkdownTable,
   stripDeveloperJargon,
   stripStructuredExecReport,
-  stripSystemAuditColumnsFromMarkdown
+  stripSystemAuditColumnsFromMarkdown,
+  collectUnifiedSources,
+  appendixOverlapsSummary,
+  resolveReplyTier,
+  isSystemAuditColumn
 } from '../../../server/graph/core/output'
 import { stripSynthPromptLeakage } from '../../../agent-repo-shared/synthOutputSanitize'
 import { shouldPassthroughAdminWriteOnly } from '../../../agent-repo-shared/deterministicPassthrough'
@@ -527,5 +531,124 @@ assert(auditPayload.table!.headers.includes('指标'), 'table slot keeps 指标'
 
 const auditMain = formatUserFacingMainText(auditPayload)
 assert(!/## 执行摘要|创建人|逻辑删除/.test(auditMain), 'main text clean of audit')
+
+/** ### 执行摘要（h3）整段裁掉；逻辑删除标志 视为系统列 */
+{
+  const h3Leak = [
+    '整体判断：右足弓略偏高。',
+    '',
+    '### 结论摘要',
+    '- 右足弓需关注',
+    '',
+    '### 建议',
+    '- 随访',
+    '',
+    '### 执行摘要',
+    'rag: 从知识库抽取参考区间',
+    'db: 查询受测者记录',
+    'agent_result',
+    'crawler: 检索公开标准',
+    '### 后续建议',
+    '如需深挖，可指定下一步关注点'
+  ].join('\n')
+  const cleanedH3 = stripStructuredExecReport(h3Leak)
+  assert(!/执行摘要/.test(cleanedH3), 'h3 exec summary stripped')
+  assert(!/\brag\s*:/.test(cleanedH3), 'pipeline rag line stripped')
+  assert(!/后续建议/.test(cleanedH3), 'nested 后续建议 after exec stripped')
+  assert(cleanedH3.includes('结论摘要') && cleanedH3.includes('右足弓'), 'keeps user analysis')
+
+  assert(isSystemAuditColumn('逻辑删除标志'), '逻辑删除标志 is system col')
+  assert(isSystemAuditColumn('逻辑删除'), '逻辑删除 is system col')
+  assert(!isSystemAuditColumn('左足弓指数'), 'business col kept')
+
+  const entityTable = parseMarkdownTable(
+    ['| 逻辑删除标志 | 体检类型 | 左-足弓指 | 左-脚宽 |', '| --- | --- | --- | --- |', '| 0 | 平衡测量 | 0.41 | 8.78 |'].join(
+      '\n'
+    )
+  )
+  assert(entityTable, 'entity table parses after drop')
+  assert(!entityTable!.headers.some((h) => /逻辑删除/.test(h)), 'entity table drops 逻辑删除标志')
+}
+
+/** 统一来源 index/excerpt；appendix 与正文消重 */
+const unified = collectUnifiedSources({
+  meta: {
+    searchHits: [
+      { title: '足底压力参考指南', url: 'https://example.com/a', snippet: '正常足弓指数约 0.21–0.28' }
+    ],
+    crawlerSources: [{ title: '万通医学', url: 'https://med.example.com', excerpt: '扁平足筛查标准' }]
+  },
+  evidence: [
+    {
+      kind: 'rag',
+      citations: [{ source: '院内指南.pdf', excerpt: '右足弓偏高需关注', title: '院内指南' }]
+    }
+  ],
+  max: 12
+})
+assert(unified.length >= 2, 'unified sources collected')
+assert(unified[0]!.index === 1, 'sources start at index 1')
+assert(unified.every((s) => s.index >= 1 && s.title), 'each source has index+title')
+assert(unified.some((s) => s.excerpt), 'sources carry excerpt when available')
+
+assert(
+  appendixOverlapsSummary(
+    '右足弓指数略高，提示轻度扁平趋势。建议随访。',
+    '## 详细说明\n右足弓指数略高，提示轻度扁平趋势。建议随访。补充若干无关细节。'
+  ),
+  'appendix overlap detects duplicate lead'
+)
+
+const srcPayload = buildUserFacingPayload({
+  synth: [
+    '整体判断：右足弓略偏高[1]。',
+    '',
+    '### 结论摘要',
+    '- 右足弓需关注',
+    '',
+    '<!--REPORT-->',
+    '## 详细说明',
+    '整体判断：右足弓略偏高。',
+    '### 结论摘要',
+    '- 右足弓需关注',
+    '<!--/REPORT-->'
+  ].join('\n'),
+  intent: 'multi',
+  results: { db: 'x', crawler: 'y', report: 'z' },
+  planSteps: [{ agent: 'db' }, { agent: 'crawler' }, { agent: 'report' }],
+  evidence: [
+    {
+      kind: 'crawler',
+      citations: [{ source: '公开标准', title: '公开标准', url: 'https://ex.com/1', excerpt: '参考上限 0.28' }]
+    }
+  ],
+  meta: {
+    searchHits: [{ title: '公开标准', url: 'https://ex.com/1', snippet: '参考上限 0.28' }]
+  }
+})
+assert(srcPayload.replyTier === 'report', 'multi+report is report tier')
+assert(Array.isArray(srcPayload.sources) && srcPayload.sources!.length >= 1, 'payload has sources')
+assert(srcPayload.sources![0]!.index === 1, 'payload source index=1')
+assert(!srcPayload.appendix || !appendixOverlapsSummary(srcPayload.summary, srcPayload.appendix), 'no overlapping appendix')
+assert(!/执行摘要/.test(srcPayload.summary), 'src payload no exec summary')
+
+const liteTier = resolveReplyTier({
+  intent: 'admin',
+  results: { admin: '已添加日程' },
+  planSteps: [{ agent: 'admin' }],
+  adminSynthContext: true,
+  multiSourceSynth: false,
+  canShowAuxOutputs: false
+})
+assert(liteTier === 'lite', 'admin-only is lite')
+
+const stdTier = resolveReplyTier({
+  intent: 'db',
+  results: { db: '男性 5 人' },
+  planSteps: [{ agent: 'db' }],
+  multiSourceSynth: false,
+  canShowAuxOutputs: false
+})
+assert(stdTier === 'standard', 'single db is standard')
 
 console.log('smoke-user-facing-payload: ok')

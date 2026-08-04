@@ -23,10 +23,11 @@ function clearEvalBaseline() {
 }
 
 export default defineEventHandler(async (event) => {
-  const body = await readBody<{ scope?: ResetScope }>(event).catch(() => ({}));
+  const body = await readBody<{ scope?: ResetScope; tenant_id?: string; tenantId?: string }>(event).catch(() => ({}));
   const scope: ResetScope = body?.scope ?? "all";
+  const tenantId = String(body?.tenant_id || body?.tenantId || "").trim() || undefined;
 
-  if (scope === "all" || scope === "learning") clearLearningSignals();
+  if (scope === "all" || scope === "learning") clearLearningSignals(tenantId);
   if (scope === "all" || scope === "prompts") clearPromptPatches();
   if (scope === "all" || scope === "evolved") clearEvolvedHints();
   if (scope === "all" || scope === "experience") clearRagExperienceVectors();
@@ -34,5 +35,5 @@ export default defineEventHandler(async (event) => {
   if (scope === "all" || scope === "bandit") clearRetrievalBandit();
   if (scope === "all" || scope === "eval") clearEvalBaseline();
 
-  return { ok: true, scope };
+  return { ok: true, scope, tenantId: tenantId || "default" };
 });

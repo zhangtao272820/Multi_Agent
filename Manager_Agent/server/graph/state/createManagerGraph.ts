@@ -54,6 +54,7 @@ import { createExecutionNodes } from '../nodes/exec'
 import { createMultiNode } from '../nodes/multi'
 import { createFinalNodes } from '../nodes/final'
 import { appendMemory, appendMetrics, appendNluMetrics, appendPolicyShadowObserve, isDbNoData, readFeedbackForRun } from '../core/runtime/runtimePersistence'
+import { resolveManagerPolicyDir } from '../../utils/session/managerPolicyDir'
 import { buildClarifyQuestionsFromContext } from '../core/plan/clarifyContext'
 import { createPlanLinterNode } from '../nodes/planLinter'
 import { createResourceNode } from '../nodes/resource'
@@ -133,7 +134,7 @@ export function createManagerGraph(opts: {
   signal?: AbortSignal
 }) {
   const modelCache = new Map<string, ChatOpenAI>()
-  const policyDir = path.join(process.cwd(), '.data')
+  const policyDir = resolveManagerPolicyDir(opts.tenantId)
   const suppressCanaryPromise = opts.sessionId
     ? shouldSuppressCanaryForSession(policyDir, opts.sessionId).catch(() => false)
     : Promise.resolve(false)
@@ -183,7 +184,7 @@ export function createManagerGraph(opts: {
 
   const loadExperienceIndex = async (): Promise<ExperienceIndex> => {
     try {
-      const dir = path.join(process.cwd(), '.data')
+      const dir = resolveManagerPolicyDir(opts.tenantId)
       const jsonlPath = path.join(dir, 'manager-memory.jsonl')
       const jsonPath = path.join(dir, 'manager-memory.json')
       const history = await readHistoryEntries(jsonlPath, jsonPath, 260)

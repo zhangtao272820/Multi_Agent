@@ -15,6 +15,7 @@ def build_world_facts_block(
     stage_label: str = "",
     is_weekly_focus: bool = False,
     cast_kind: str = "",
+    partner_hint: str = "",
 ) -> str:
     """组装【世界事实｜只读】；禁止模型编造未写入的行踪/日历。"""
     season = (season_label or "").strip() or "—"
@@ -29,19 +30,44 @@ def build_world_facts_block(
         else "本周她不是恋爱线焦点；勿自己加戏成全镇中心。"
     )
     cast_bit = ""
-    if (cast_kind or "") == "neutral":
-        cast_bit = "阵营：中立羁绊（可亲可闹，禁止恋爱走向）。"
-    elif (cast_kind or "") == "romance":
+    kind = (cast_kind or "").strip().lower()
+    if kind in {"linked", "neutral"}:
+        cast_bit = "阵营：关系向难攻略（可亲可闹；未过闸门前禁止公开恋人/改称呼）。"
+    elif kind == "romance":
         cast_bit = "阵营：可恋爱线（节奏仍由关系与立场决定）。"
+
+    partner = (partner_hint or "").strip()
+    partner_bit = f"他身边近况：{partner}" if partner else ""
+
+    from .story_web import story_web_prompt_line
 
     return (
         f"\n【世界事实｜只读】开档第 {max(1, int(day_index))} 天；"
         f"时段：{period}；季节：{season}季；此刻地点：{place}{weather_bit}。"
-        f"关系印象：{stage}。{cast_bit}{focus_bit}"
+        f"关系印象：{stage}。{cast_bit}{focus_bit}{partner_bit}"
         "同场他人、闲话、昨日行踪：仅以本提示中系统已写条目为准；"
         "**禁止编造**未写入的他人行踪、未到的季节/节日、或改写今日是否上班。"
         "独立思考只限在这些事实内用性格回应；禁止念系统字段与精确数值。"
+        + story_web_prompt_line()
     )
+
+
+def short_partner_hint(save: Any, character_id: str) -> str:
+    """多伴侣张力短句（控 token，≤40字）。"""
+    try:
+        from .romance_policy import get_romance_policy, list_partners
+    except Exception:
+        return ""
+    others = list_partners(save, exclude_id=character_id)
+    if not others:
+        return ""
+    names = "、".join(n for _, n in others[:2])
+    pol = get_romance_policy(character_id)
+    if pol.exclusivity == "exclusive":
+        return f"你隐约知道他和{names}走得近，心里不舒服。"
+    if pol.rivalry == "interfere":
+        return f"他和{names}好像很近，你不想轻易放手。"
+    return f"他和{names}走得不远。"
 
 
 def weekly_focus_for_character(save: Any, character_id: str) -> bool:

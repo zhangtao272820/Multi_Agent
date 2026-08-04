@@ -1,4 +1,6 @@
-export type WsSession = { messages: { role: 'user' | 'assistant'; content: string }[] }
+import type { SessionMessage } from '../../utils/session/managerSessionStore'
+
+export type WsSession = { messages: SessionMessage[] }
 
 export const sessions = new Map<string, WsSession>()
 export const runs = new Map<string, AbortController>()

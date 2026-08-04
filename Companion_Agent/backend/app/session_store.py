@@ -20,6 +20,7 @@ from .event_engine import (
     apply_event_rewards,
     choice_effect_for_index,
     event_has_branch_choices,
+    get_event_by_id,
     pick_active_event,
 )
 from .game_judge import JudgeResult, check_endings, judge_turn, load_ending_meta
@@ -108,20 +109,20 @@ class Session:
         from .scene_agenda import SceneAgenda, agenda_prompt_block, build_scene_agenda
         from .story_beats import event_beats, format_story_snippet, is_story_event
 
+        # 专属故事当前拍优先于约会/偶遇 snippet，避免被 date_snippet 挡住
         snippet = event_snippet
+        if not snippet and self.active_event and event_beats(self.active_event):
+            snippet = format_story_snippet(
+                self.active_event,
+                beat_index=self.story_beat_index,
+                act_summary=self.story_act_summary,
+            )
         if not snippet and self.date_snippet:
             snippet = self.date_snippet
         if not snippet and self.daily_encounter_snippet:
             snippet = self.daily_encounter_snippet
         if not snippet and self.active_event:
-            if event_beats(self.active_event):
-                snippet = format_story_snippet(
-                    self.active_event,
-                    beat_index=self.story_beat_index,
-                    act_summary=self.story_act_summary,
-                )
-            else:
-                snippet = self.active_event.prompt_snippet
+            snippet = self.active_event.prompt_snippet
         quest_snip = quest_prompt_snippet(
             character_id=self.profile.character_id or "",
             base_id=self.base_id,
@@ -196,15 +197,32 @@ class Session:
                 blocks.append(
                     PromptBlock("edges", f"\n【你与她圈子里已知的关系】{'；'.join(edge_bits)}")
                 )
+            from .character_lores import (
+                is_linked_cast,
+                linked_dating_unlocked,
+                normalize_cast_kind,
+            )
+
             if bond and bond.social_role_to_pc:
                 id_line = f"\n【她对你的身份】{bond.social_role_to_pc}。{bond.role_hint}"
-                if bond.cast_kind == "neutral":
-                    id_line += "（中立线：可亲近、可拌嘴，禁止恋爱走向。）"
-                elif bond.cast_kind == "npc":
+                kind = normalize_cast_kind(bond.cast_kind)
+                if is_linked_cast(bond.cast_kind):
+                    opened = linked_dating_unlocked(
+                        cid,
+                        self_flags=dict(bond.relationship_state.flags or {}),
+                    )
+                    if opened:
+                        id_line += "（关系向：闸门已开，允许谨慎恋爱叙述，仍受身份压力。）"
+                    else:
+                        id_line += (
+                            "（关系向难攻略：可写克制情愫与吃醋；"
+                            "正式自称恋人须等系统闸门。）"
+                        )
+                elif kind == "npc":
                     id_line += "（周边配角：推动线索与日常即可，不必恋爱。）"
                 blocks.append(PromptBlock("identity", id_line))
 
-            if bond and bond.cast_kind == "romance":
+            if bond and normalize_cast_kind(bond.cast_kind) == "romance":
                 from .romance_policy import get_romance_policy, policy_prompt_line
 
                 blocks.append(
@@ -230,7 +248,11 @@ class Session:
                 if situ:
                     blocks.append(PromptBlock("situation", situ))
             from .life_friction import outfit_prompt_line, soft_cold_prompt_line, weather_prompt_line
-            from .world_facts import build_world_facts_block, weekly_focus_for_character
+            from .world_facts import (
+                build_world_facts_block,
+                short_partner_hint,
+                weekly_focus_for_character,
+            )
 
             weather = weather_prompt_line(world.calendar.day_index)
             if weather:
@@ -239,22 +261,7 @@ class Session:
                 cold = soft_cold_prompt_line(bond, world.calendar.day_index)
                 if cold:
                     blocks.append(PromptBlock("soft_cold", cold))
-                from .sprite_outfit import meal_context_from_save, resolve_outfit_for_world
-                from .social_life import active_long_status
-
-                outfit_id = resolve_outfit_for_world(
-                    day_index=world.calendar.day_index,
-                    period=world.calendar.period,
-                    location_id=world.location_id,
-                    character_id=cid,
-                    mood=int(bond.relationship_state.mood or 0),
-                    on_date=bool(self.date_snippet),
-                    affinity=int(bond.relationship_state.affinity or 0),
-                    fatigue=int(bond.living.fatigue or 0),
-                    meal_context=meal_context_from_save(world),
-                    long_status=active_long_status(bond, world.calendar.day_index) or "",
-                    stage_id=str(bond.relationship_state.stage_id or ""),
-                )
+                outfit_id = self.resolve_sprite_outfit(world)
                 outfit = outfit_prompt_line(outfit_id)
                 if outfit:
                     blocks.append(PromptBlock("outfit", outfit))
@@ -302,6 +309,7 @@ class Session:
                         ),
                         is_weekly_focus=weekly_focus_for_character(world, cid),
                         cast_kind=bond.cast_kind if bond else (self.profile.cast_role or ""),
+                        partner_hint=short_partner_hint(world, cid) if bond and bond.cast_kind == "romance" else "",
                     ),
                 )
             )
@@ -450,6 +458,63 @@ class Session:
     def user_turns(self) -> int:
         return len([m for m in self.messages if m.get("role") == "user"])
 
+    def story_outfit_hints(self) -> list[str]:
+        from .story_beats import story_outfit_hints_for_beat
+
+        return story_outfit_hints_for_beat(self.active_event, self.story_beat_index)
+
+    def resolve_sprite_outfit(self, world: Any | None = None) -> str:
+        """按世界时间地点 + 当前故事拍 hint 解析立绘前缀。"""
+        from .sprite_outfit import meal_context_from_save, resolve_outfit_for_world
+        from .social_life import active_long_status
+
+        cid = (self.profile.character_id or "").strip()
+        if not cid:
+            return ""
+        if world is None and self.world_save_id:
+            world = get_world_save(self.world_save_id)
+        hints = self.story_outfit_hints()
+        if world is not None:
+            bond = world.bonds.get(cid)
+            return resolve_outfit_for_world(
+                day_index=world.calendar.day_index,
+                period=world.calendar.period,
+                location_id=world.location_id,
+                character_id=cid,
+                mood=int(
+                    (bond.relationship_state.mood if bond else self.relationship_state.mood) or 0
+                ),
+                on_date=bool(self.date_snippet),
+                affinity=int(
+                    (bond.relationship_state.affinity if bond else self.relationship_state.affinity)
+                    or 0
+                ),
+                fatigue=int((bond.living.fatigue if bond else 0) or 0),
+                meal_context=meal_context_from_save(world),
+                long_status=(active_long_status(bond, world.calendar.day_index) if bond else "")
+                or "",
+                stage_id=str(
+                    (
+                        bond.relationship_state.stage_id
+                        if bond
+                        else self.relationship_state.stage_id
+                    )
+                    or ""
+                ),
+                story_outfit_hints=hints or None,
+            )
+        return resolve_outfit_for_world(
+            day_index=1,
+            period="afternoon",
+            location_id="",
+            character_id=cid,
+            mood=int(self.relationship_state.mood or 0),
+            on_date=bool(self.date_snippet),
+            affinity=int(self.relationship_state.affinity or 0),
+            stage_id=str(self.relationship_state.stage_id or ""),
+            story_outfit_hints=hints or None,
+        )
+
     def to_public(self) -> dict[str, Any]:
         return {
             "id": self.id,
@@ -479,6 +544,7 @@ class Session:
             "scene_run": public_scene_run(self.scene_run) if self.scene_run else None,
             "ensemble": (self.ensemble if self.ensemble.get("enabled") else None),
             "story_progress": self._public_story_progress(),
+            "sprite_outfit": self.resolve_sprite_outfit(),
         }
 
     def _public_story_progress(self) -> dict[str, Any] | None:
@@ -558,6 +624,21 @@ class SessionStore:
             message_summary=summary,
             runtime=runtime,
         )
+        from .story_beats import event_beats, soft_options_for_beat
+
+        restored_eid = (runtime.story_event_id or "").strip()
+        if restored_eid:
+            restored_ev = get_event_by_id(restored_eid)
+            if restored_ev and event_beats(restored_ev):
+                session.active_event = restored_ev
+                session.story_event_id = restored_eid
+                session.story_beat_index = max(0, int(runtime.story_beat_index or 0))
+                session.story_act_summary = str(runtime.story_act_summary or "")
+                opts = soft_options_for_beat(restored_ev, session.story_beat_index)
+                if opts:
+                    session.pending_choices = opts
+                    session.pending_choice_kind = "soft"
+                    session.pending_choice_event_id = None
         if not session.messages:
             session.rebuild_prompt()
             opening = default_opening(profile, relationship_state=rel_state)
@@ -598,7 +679,7 @@ class SessionStore:
             day_index=int(world.calendar.day_index or 1),
         )
 
-        def _cast_member(cid: str) -> dict[str, Any] | None:
+        def _cast_member(cid: str, *, story_hints: list[str] | None = None) -> dict[str, Any] | None:
             b = world.bonds.get(cid)
             if not b:
                 return None
@@ -614,6 +695,7 @@ class SessionStore:
                 meal_context=meal_context_from_save(world),
                 long_status=str(b.living.long_status or ""),
                 stage_id=str(b.relationship_state.stage_id or ""),
+                story_outfit_hints=story_hints,
             )
             return {
                 "character_id": cid,
@@ -660,6 +742,23 @@ class SessionStore:
             scene_run=scene.model_dump(),
             ensemble=ens.model_dump(),
         )
+
+        # 恢复未完成专属幕进度（须在 rebuild / soft 之前挂上 active_event）
+        from .scene_run import bump_scene_for_story
+        from .story_beats import event_beats, soft_options_for_beat
+
+        restored_eid = (bond.story_event_id or "").strip()
+        if restored_eid:
+            restored_ev = get_event_by_id(restored_eid)
+            if restored_ev and event_beats(restored_ev):
+                session.active_event = restored_ev
+                session.story_event_id = restored_eid
+                session.story_beat_index = max(0, int(bond.story_beat_index or 0))
+                session.story_act_summary = str(bond.story_act_summary or "")
+                bumped = bump_scene_for_story(session.scene_run)
+                if bumped:
+                    session.scene_run = bumped.model_dump()
+
         if not session.messages:
             session.rebuild_prompt()
             opening = default_opening(bond.profile, relationship_state=bond.relationship_state)
@@ -670,17 +769,51 @@ class SessionStore:
             session.next_turn_id = tid + 1
         else:
             session.rebuild_prompt()
+
+        # pursuit 议程：系统挂表白，不靠 Judge
+        from .romance_policy import hang_pursuit_confession_if_needed
+
+        agenda_src = str((session.scene_agenda or {}).get("source") or "")
+        hung = hang_pursuit_confession_if_needed(
+            character_id=character_id,
+            state=session.relationship_state,
+            agenda_source=agenda_src,
+        )
+        if hung is not session.relationship_state:
+            session.relationship_state = hung
+            session.runtime.flags = dict(hung.flags or {})
+            world = get_world_save(world_save_id) if world_save_id else None
+            if world and character_id in world.bonds:
+                world.bonds[character_id].relationship_state = hung
+                upsert_world_save(world)
+
         from .life_briefs import soft_choices_for_agenda
 
-        soft = soft_choices_for_agenda(session.scene_agenda)
-        if soft:
-            session.pending_choices = soft
+        pending_stage = (getattr(session.relationship_state, "pending_stage_id", None) or "").strip()
+        pending_confess = bool((session.relationship_state.flags or {}).get("pending_confession"))
+        if pending_stage:
+            session.pending_choices = soft_choices_for_agenda({"source": "stage_consent"})
+            session.pending_choice_kind = "stage_consent"
+            session.pending_choice_event_id = None
+        elif pending_confess:
+            session.pending_choices = soft_choices_for_agenda({"source": "confession_consent"})
+            session.pending_choice_kind = "confession_consent"
+            session.pending_choice_event_id = None
+        elif session.active_event and event_beats(session.active_event):
+            opts = soft_options_for_beat(session.active_event, session.story_beat_index)
+            session.pending_choices = opts
             session.pending_choice_kind = "soft"
             session.pending_choice_event_id = None
         else:
-            session.pending_choices = []
-            session.pending_choice_kind = "soft"
-            session.pending_choice_event_id = None
+            soft = soft_choices_for_agenda(session.scene_agenda)
+            if soft:
+                session.pending_choices = soft
+                session.pending_choice_kind = "soft"
+                session.pending_choice_event_id = None
+            else:
+                session.pending_choices = []
+                session.pending_choice_kind = "soft"
+                session.pending_choice_event_id = None
         self._sessions[sid] = session
         self._persist(session)
         return session
@@ -717,6 +850,11 @@ class SessionStore:
                 "turn_id": turn_id,
                 "messages": [m.model_dump() for m in bond.messages],
                 "relationship_state": public_relationship_state(session.relationship_state),
+                "sprite_outfit": session.resolve_sprite_outfit(world),
+                "story_progress": session._public_story_progress(),
+                "memories": [
+                    m.model_dump() if hasattr(m, "model_dump") else m for m in session.memories
+                ],
             }
         world = get_world_save(session.world_save_id)
         if not world:
@@ -738,6 +876,11 @@ class SessionStore:
             "turn_id": turn_id,
             "messages": [m.model_dump() for m in restored.messages],
             "relationship_state": public_relationship_state(session.relationship_state),
+            "sprite_outfit": session.resolve_sprite_outfit(world),
+            "story_progress": session._public_story_progress(),
+            "memories": [
+                m.model_dump() if hasattr(m, "model_dump") else m for m in session.memories
+            ],
         }
 
     def get(self, session_id: str) -> Session | None:
@@ -786,6 +929,8 @@ class SessionStore:
             character_id=session.profile.character_id,
             base_id=session.base_id,
             day_index=world_for_event.calendar.day_index if world_for_event else None,
+            waypoint_id=(world_for_event.waypoint_id if world_for_event else "") or "q_summer_start",
+            waypoints_reached=list(world_for_event.waypoints_reached or []) if world_for_event else None,
         )
         session.active_event = event
         fired = None
@@ -811,13 +956,13 @@ class SessionStore:
                 if bumped:
                     session.scene_run = bumped.model_dump()
             if event_beats(event):
-                # 有节拍：奖励延后到末拍；首轮不下 last_event_fired
+                # 有节拍：奖励延后到末拍；首轮不下 last_event_fired；选项一律 soft
                 session.last_event_fired = None
                 opts = soft_options_for_beat(event, 0)
                 if opts:
                     session.pending_choices = opts
-                    session.pending_choice_kind = "branch" if event_has_branch_choices(event) else "soft"
-                    session.pending_choice_event_id = event.id if event_has_branch_choices(event) else None
+                    session.pending_choice_kind = "soft"
+                    session.pending_choice_event_id = None
                 if fired is not None:
                     fired["curtain"] = f"—— 专属故事 · {event.label or event.id} · 开幕 ——"
                     fired["story"] = True
@@ -856,6 +1001,7 @@ class SessionStore:
             "daily_state": public_daily_state(session.runtime),
             "scene_run": public_scene_run(session.scene_run) if session.scene_run else None,
             "story_progress": session._public_story_progress(),
+            "sprite_outfit": session.resolve_sprite_outfit(world_for_event),
             "pending_choices": list(session.pending_choices),
             "pending_choice_kind": session.pending_choice_kind if session.pending_choices else "soft",
         }
@@ -955,6 +1101,10 @@ class SessionStore:
 
             note_night_chat(world)
             bond.living.talked_day_index = world.calendar.day_index
+            # 专属幕节拍进度（幕落 / 无活跃故事时为空串）
+            bond.story_event_id = str(session.story_event_id or "")
+            bond.story_beat_index = int(session.story_beat_index or 0)
+            bond.story_act_summary = str(session.story_act_summary or "")
             world.bonds[session.active_character_id] = bond
             world = apply_witness_memories(
                 world,
@@ -978,6 +1128,9 @@ class SessionStore:
         save.runtime.mood = session.relationship_state.mood
         save.runtime.stage_id = session.relationship_state.stage_id
         save.runtime.flags = dict(session.relationship_state.flags)
+        save.runtime.story_event_id = str(session.story_event_id or "")
+        save.runtime.story_beat_index = int(session.story_beat_index or 0)
+        save.runtime.story_act_summary = str(session.story_act_summary or "")
         save.runtime.low_streak = session.relationship_state.low_streak
         save.runtime = refresh_daily_runtime(session.runtime)
         save.runtime.quest_steps_done = list(session.runtime.quest_steps_done)
@@ -1024,12 +1177,14 @@ class SessionStore:
 
         aff, trust, mood, settle_note = compute_settlement(run)
         prev_stage = session.relationship_state.stage_id
+        cid = session.profile.character_id or session.active_character_id or ""
         session.relationship_state, applied_delta, stage_changed = apply_judge_to_state(
             session.relationship_state,
             affinity_delta=aff,
             trust_delta=trust,
             mood_delta=mood,
             new_flags={},
+            character_id=cid,
         )
         run = mark_ended(run, reason)
         # 清空池，避免重复结算
@@ -1232,6 +1387,33 @@ class SessionStore:
             session.off_agenda_streak = int(session.off_agenda_streak or 0) + 1
 
         choice_event = session.active_event
+        # 阶段/表白同意：确定性门闩（不烧 Judge 语义）
+        if choice_index is not None and session.pending_choice_kind in {
+            "stage_consent",
+            "confession_consent",
+        }:
+            from .relationship import (
+                accept_pending_confession,
+                accept_pending_stage,
+                defer_pending_stage,
+                reject_pending_confession,
+            )
+
+            if session.pending_choice_kind == "stage_consent":
+                if int(choice_index) == 0:
+                    session.relationship_state = accept_pending_stage(session.relationship_state)
+                elif int(choice_index) == 1:
+                    session.relationship_state = defer_pending_stage(session.relationship_state)
+            elif session.pending_choice_kind == "confession_consent":
+                if int(choice_index) == 0:
+                    session.relationship_state = accept_pending_confession(
+                        session.relationship_state
+                    )
+                elif int(choice_index) == 1:
+                    session.relationship_state = reject_pending_confession(
+                        session.relationship_state
+                    )
+
         # 仅 branch + 当前事件确有 choice_effects 时，才按 index 改数值
         if (
             choice_index is not None
@@ -1292,6 +1474,43 @@ class SessionStore:
                 }
             )
 
+        # 女主主动 + 阶段提议（短字段，不另调模型）
+        hero_init = (getattr(verdict, "heroine_initiative", None) or "none").strip().lower()
+        if hero_init and hero_init != "none":
+            from .romance_policy import apply_heroine_initiative
+
+            hi = apply_heroine_initiative(
+                character_id=session.profile.character_id or session.active_character_id or "",
+                initiative=hero_init,
+                state=session.relationship_state,
+            )
+            if hi.new_flags or hi.affinity_delta or hi.mood_delta or hi.trust_delta:
+                merged_flags = dict(verdict.new_flags or {})
+                merged_flags.update(hi.new_flags)
+                verdict = verdict.model_copy(
+                    update={
+                        "affinity_delta": max(
+                            -10, min(10, verdict.affinity_delta + hi.affinity_delta)
+                        ),
+                        "trust_delta": max(
+                            -12, min(8, verdict.trust_delta + hi.trust_delta)
+                        ),
+                        "mood_delta": max(-8, min(8, verdict.mood_delta + hi.mood_delta)),
+                        "new_flags": merged_flags,
+                        "reason": f"{verdict.reason}+hero[{hi.note or hero_init}]",
+                    }
+                )
+
+        stage_offer = (getattr(verdict, "stage_offer", None) or "none").strip().lower()
+        if stage_offer and stage_offer != "none":
+            from .romance_policy import apply_stage_offer
+
+            offered = apply_stage_offer(offer=stage_offer, state=session.relationship_state)
+            if offered and not (session.relationship_state.pending_stage_id or "").strip():
+                session.relationship_state = session.relationship_state.model_copy(
+                    update={"pending_stage_id": offered}
+                )
+
         prev_stage = session.relationship_state.stage_id
         scene_active = bool(session.world_save_id and session.scene_run and not session.scene_run.get("ended"))
         applied_delta = 0
@@ -1311,12 +1530,14 @@ class SessionStore:
                 on_agenda=bool(verdict.on_agenda),
             )
             # 场内只落 flags；数值进印象池，离场再结算
+            cid = session.profile.character_id or session.active_character_id or ""
             session.relationship_state, _, _ = apply_judge_to_state(
                 session.relationship_state,
                 affinity_delta=0,
                 trust_delta=0,
                 mood_delta=0,
                 new_flags=verdict.new_flags,
+                character_id=cid,
             )
             run = tick_scene_turn(run)
             session.scene_run = run.model_dump()
@@ -1344,12 +1565,14 @@ class SessionStore:
                         (scene_ended_payload or {}).get("previous_stage_id") or prev_stage
                     )
         else:
+            cid = session.profile.character_id or session.active_character_id or ""
             session.relationship_state, applied_delta, stage_changed = apply_judge_to_state(
                 session.relationship_state,
                 affinity_delta=verdict.affinity_delta,
                 trust_delta=verdict.trust_delta,
                 mood_delta=verdict.mood_delta,
                 new_flags=verdict.new_flags,
+                character_id=cid,
             )
 
         if session.world_save_id:
@@ -1432,41 +1655,42 @@ class SessionStore:
             append_act_summary,
             current_beat,
             event_beats,
+            should_advance_beat,
             soft_options_for_beat,
+            story_uses_soft_options,
         )
 
+        chose_this_turn = choice_index is not None
         if session.active_event and event_beats(session.active_event):
-            # 本轮演绎的是推进前的当前拍
-            played = current_beat(session.active_event, session.story_beat_index)
-            session.story_act_summary = append_act_summary(session.story_act_summary, played)
-            new_idx, completed = advance_beat_index(
-                session.active_event, session.story_beat_index
-            )
-            session.story_beat_index = new_idx
-            if completed:
-                session.relationship_state = apply_event_rewards(
-                    session.relationship_state, session.active_event
+            completed = False
+            if should_advance_beat(session.active_event, chose=chose_this_turn):
+                # 本轮演绎的是推进前的当前拍
+                played = current_beat(session.active_event, session.story_beat_index)
+                session.story_act_summary = append_act_summary(session.story_act_summary, played)
+                new_idx, completed = advance_beat_index(
+                    session.active_event, session.story_beat_index
                 )
-                event_applied = Session._public_event(session.active_event)
-                if event_applied is not None:
-                    event_applied["curtain"] = (
-                        f"—— 幕落 · {session.active_event.label or session.active_event.id} ——"
+                session.story_beat_index = new_idx
+                if completed:
+                    session.relationship_state = apply_event_rewards(
+                        session.relationship_state, session.active_event
                     )
-                    event_applied["story"] = True
-                session.last_event_fired = None
-                session.story_act_summary = ""
-                session.story_event_id = ""
-            # 下一拍软选项（末拍完成后清空，交给下方议程补齐）
+                    event_applied = Session._public_event(session.active_event)
+                    if event_applied is not None:
+                        event_applied["curtain"] = (
+                            f"—— 幕落 · {session.active_event.label or session.active_event.id} ——"
+                        )
+                        event_applied["story"] = True
+                    session.last_event_fired = None
+                    session.story_act_summary = ""
+                    session.story_event_id = ""
+            # 下一拍 / 当前拍软选项（末拍完成后清空，交给下方议程补齐）
             if not completed:
                 opts = soft_options_for_beat(session.active_event, session.story_beat_index)
                 if opts:
                     session.pending_choices = opts
-                    if event_has_branch_choices(session.active_event):
-                        session.pending_choice_kind = "branch"
-                        session.pending_choice_event_id = session.active_event.id
-                    else:
-                        session.pending_choice_kind = "soft"
-                        session.pending_choice_event_id = None
+                    session.pending_choice_kind = "soft"
+                    session.pending_choice_event_id = None
         elif (
             session.active_event
             and session.last_event_fired
@@ -1478,7 +1702,10 @@ class SessionStore:
 
         if parsed_choices:
             session.pending_choices = parsed_choices
-            if event_has_branch_choices(session.active_event):
+            if story_uses_soft_options(session.active_event):
+                session.pending_choice_kind = "soft"
+                session.pending_choice_event_id = None
+            elif event_has_branch_choices(session.active_event):
                 session.pending_choice_kind = "branch"
                 session.pending_choice_event_id = (
                     session.active_event.id if session.active_event else None
@@ -1496,10 +1723,23 @@ class SessionStore:
             # 美德式：每轮保证 soft 可选回复；故事拍已有系统选项则不覆盖
             from .life_briefs import soft_choices_for_agenda
 
-            soft = soft_choices_for_agenda(session.scene_agenda)
-            session.pending_choices = soft
-            session.pending_choice_event_id = None
-            session.pending_choice_kind = "soft"
+            pending_stage = (getattr(session.relationship_state, "pending_stage_id", None) or "").strip()
+            pending_confess = bool((session.relationship_state.flags or {}).get("pending_confession"))
+            if pending_stage:
+                session.pending_choices = soft_choices_for_agenda({"source": "stage_consent"})
+                session.pending_choice_event_id = None
+                session.pending_choice_kind = "stage_consent"
+            elif pending_confess:
+                session.pending_choices = soft_choices_for_agenda(
+                    {"source": "confession_consent"}
+                )
+                session.pending_choice_event_id = None
+                session.pending_choice_kind = "confession_consent"
+            else:
+                soft = soft_choices_for_agenda(session.scene_agenda)
+                session.pending_choices = soft
+                session.pending_choice_event_id = None
+                session.pending_choice_kind = "soft"
 
         ending_id = verdict.ending_id
         if not ending_id:
@@ -1576,6 +1816,18 @@ class SessionStore:
 
         self._persist(session)
 
+        # 节拍推进后按当前拍重新解析立绘（故事场强制换装）
+        sprite_outfit = session.resolve_sprite_outfit()
+        if session.ensemble.get("enabled") and session.ensemble.get("members"):
+            primary = (session.profile.character_id or "").strip()
+            members = []
+            for m in session.ensemble.get("members") or []:
+                row = dict(m)
+                if str(row.get("character_id") or "") == primary:
+                    row["sprite_outfit"] = sprite_outfit
+                members.append(row)
+            session.ensemble = {**session.ensemble, "members": members}
+
         out: dict[str, Any] = {
             "relationship_state": public_relationship_state(session.relationship_state),
             "memories": public_memories(session.memories),
@@ -1593,6 +1845,8 @@ class SessionStore:
             "message_summary_updated": summarized,
             "event_log": [Session._public_log_entry(e) for e in session.event_log[-12:]],
             "story_progress": session._public_story_progress(),
+            "sprite_outfit": sprite_outfit,
+            "ensemble": (session.ensemble if session.ensemble.get("enabled") else None),
             "scene_run": public_scene_run(session.scene_run) if session.scene_run else None,
             "scene": resolve_scene(
                 base_id=session.base_id,
@@ -1610,7 +1864,6 @@ class SessionStore:
             ),
             "quest_completed": quest_result.get("just_completed"),
             "quest_notice": quest_notice or None,
-            "scene_run": public_scene_run(session.scene_run) if session.scene_run else None,
         }
         if scene_active and not scene_ended_payload:
             from .scene_run import SceneRun, impression_pool_hint

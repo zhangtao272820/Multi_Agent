@@ -18,9 +18,14 @@
 | `pregen_tts_cache.py` | TTS 预生成 |
 | `smoke-ensemble-dialogue.py` | 双人同场 speaker / 季节场景冒烟 |
 | `fill_ending_pages.py` | secret/good 结局补 `presentation_catalog.pages`（≥2） |
-| `smoke-story-beats.py` | 故事节拍注入 / story 场次 8 轮 / 摘要截断 / 序章页数 |
+| `smoke-story-beats.py` | 故事节拍：当前拍注入、soft≠branch、date_snippet 不挡、advance、Bond roundtrip、story 8 轮、序章页数 |
 | `enrich_story_beats.py` | 将 story YAML 写成 ≥3 拍（默认跳过已有；`--force` 覆盖） |
 | `expand_opening_slides.py` | 序章扩到约 11 页 |
+| `smoke-season-waypoints.py` | 季度跳过 + 中秋/冬/春节立绘必现 |
+| `smoke-route-difficulty-web.py` | 关系拉长门槛 + 每角难度缩放 + 故事航点门 + story_web |
+| `smoke-foundation-ui.py` | 看板/存档摘要/立绘大全解锁公开契约 |
+| `smoke-romance-consent-neglect.py` | 冷落日结衰减 + 恋爱阶段同意 + 女主表白挂起 + 朋友结局误触 + gate_strictness |
+| `emit_t0_season_bad.py` | T0 冬/节日加幕 YAML + 专属坏结局 / presentation / routes |
 | `smoke-*.py` | 回归冒烟 |
 
 ## 归档

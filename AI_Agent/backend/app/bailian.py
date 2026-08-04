@@ -63,30 +63,53 @@ def transcribe_audio(
     return {"text": text, "emotion": emotion}
 
 
-def chat_reply(settings: Settings, *, user_text: str) -> str:
+def _chat_messages(
+    settings: Settings,
+    *,
+    user_text: str,
+    system_prompt: str | None = None,
+) -> list[dict[str, str]]:
+    sys = (system_prompt if system_prompt is not None else settings.system_prompt) or ""
+    return [
+        {"role": "system", "content": sys},
+        {"role": "user", "content": user_text},
+    ]
+
+
+def chat_reply(
+    settings: Settings,
+    *,
+    user_text: str,
+    system_prompt: str | None = None,
+    max_tokens: int | None = None,
+) -> str:
     client = openai_client(settings)
     completion = client.chat.completions.create(
         model=settings.llm_model,
-        messages=[
-            {"role": "system", "content": settings.system_prompt},
-            {"role": "user", "content": user_text},
-        ],
+        messages=_chat_messages(
+            settings, user_text=user_text, system_prompt=system_prompt
+        ),
         temperature=settings.llm_temperature,
-        max_tokens=settings.llm_max_tokens,
+        max_tokens=max_tokens if max_tokens is not None else settings.llm_max_tokens,
     )
     return (completion.choices[0].message.content or "").strip()
 
 
-def chat_reply_stream(settings: Settings, *, user_text: str) -> Iterator[str]:
+def chat_reply_stream(
+    settings: Settings,
+    *,
+    user_text: str,
+    system_prompt: str | None = None,
+    max_tokens: int | None = None,
+) -> Iterator[str]:
     client = openai_client(settings)
     stream = client.chat.completions.create(
         model=settings.llm_model,
-        messages=[
-            {"role": "system", "content": settings.system_prompt},
-            {"role": "user", "content": user_text},
-        ],
+        messages=_chat_messages(
+            settings, user_text=user_text, system_prompt=system_prompt
+        ),
         temperature=settings.llm_temperature,
-        max_tokens=settings.llm_max_tokens,
+        max_tokens=max_tokens if max_tokens is not None else settings.llm_max_tokens,
         stream=True,
     )
     for chunk in stream:

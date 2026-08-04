@@ -3,32 +3,89 @@ label: 对等的名字
 priority: 8
 once: true
 chance: 1.0
-scene_id: ""
+scene_id: ''
 trigger:
-  character_ids: [ruolin]
+  character_ids:
+  - ruolin
   stage_min: dating
-  affinity_min: 85
-  flags_absent: [rl_name_without_title]
-  flags_present: [rl_semester_end_walk]
-prompt_snippet: |
-  【专属故事 · 讲台下的一年 · 第4幕 · 对等的名字】
+  affinity_min: 90
+  flags_absent:
+  - rl_name_without_title
+  flags_present:
+  - rl_semester_end_walk
+prompt_snippet: '【专属故事 · 讲台下的一年 · 第4幕 · 对等的名字】
+
+  '
 advance: on_player_turn
 beats:
-  - id: b1
-    summary: "不再称老师"
-    sprite_hint: [rain_prep, date]
-    soft_options: ["认真接话", "先观察", "轻声提问"]
-  - id: b2
-    summary: "在雨窗备课夜确认关系"
-    sprite_hint: [date, home]
-    soft_options: ["表明态度", "给她空间", "确认她的意思"]
-  - id: b3
-    summary: "收束本幕：留下可被记住的结果，不剧透结局名。"
-    sprite_hint: [home]
-    soft_options: ["坦白心意", "先缓一缓", "诚实说明顾虑"]
+- id: b1
+  summary: 雨打办公室窗；她合上教案，第一次说「今晚不当老师」——雨声替你们盖住心跳。等你回应。
+  sprite_hint:
+  - rain_office_window
+  - night_prep_lamp
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 叫她若铃
+  - 问可以坐近点吗
+  - 先递热饮
+  narration: 雨打办公室窗；她合上教案，第一次说「今晚不当老师」——雨声替你们盖住心跳。
+  pc_thought: 粉笔灰落在袖口。我想叫她名字，又怕越界。
+  brief: 雨打办公室窗；她合上教案，第一次说「今晚不当老师」——雨声替你们盖住心跳。等你回应。
+- id: b2
+  summary: 备课灯下她允许你叫名字；音节落地时，讲台与座位之间的高度差终于被抹平一点。等你回应。
+  sprite_hint:
+  - night_prep_lamp
+  - evening_tea
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 谈具体边界
+  - 承诺公开节奏由她
+  - 承认你会谨慎
+  narration: 粉笔灰与纸页里，备课灯下她允许你叫名字；音节落地时，讲台与座位之间的高度差终于被抹平一点。
+  pc_thought: 边界课是给两个人的——我也在被考试。
+  brief: 备课灯下她允许你叫名字；音节落地时，讲台与座位之间的高度差终于被抹平一点。等你回应。
+- id: b3
+  summary: 她坦白想被当作同伴而不是永远正确的灯——伦理守门通过后，名字才能真正取代职称。等你回应。
+  sprite_hint:
+  - podium_lean
+  - date
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 认真叫她名字
+  - 告白并尊重公开
+  - 问她准备好了吗
+  narration: 粉笔灰与纸页里，她坦白想被当作同伴而不是永远正确的灯——伦理守门通过后，名字才能真正取代职称。
+  pc_thought: 摘掉工牌的那一秒，师生戏就松了。我敢不敢对等？
+  brief: 她坦白想被当作同伴而不是永远正确的灯——伦理守门通过后，名字才能真正取代职称。等你回应。
+- id: b4
+  summary: 雨停后她把伞偏向你：从今晚起，称呼与距离都由你们自己写规则，不再交给教务处。等你回应。
+  sprite_hint:
+  - date
+  - campus_twilight
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 牵她的手
+  - 约一顿非校园晚餐
+  - 说「我在你这边」
+  narration: 粉笔灰与纸页里，雨停后她把伞偏向你：从今晚起，称呼与距离都由你们自己写规则，不再交给教务处。
+  pc_thought: 同学名比情话更烫。接住还是退回老师？
+  brief: 雨停后她把伞偏向你：从今晚起，称呼与距离都由你们自己写规则，不再交给教务处。等你回应。
 rewards:
-  flags_set: [rl_name_without_title, confessed]
+  flags_set:
+  - rl_name_without_title
+  - confessed
 choice_effects:
-  - { trust_delta: 3, affinity_delta: 3 }
-  - { trust_delta: 2, affinity_delta: 2 }
-  - { trust_delta: -2, affinity_delta: -1 }
+- trust_delta: 3
+  affinity_delta: 3
+- trust_delta: 2
+  affinity_delta: 2
+- trust_delta: -2
+  affinity_delta: -1

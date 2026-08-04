@@ -1,0 +1,77 @@
+id: story_miara_act5b_spring_contract
+label: 新春·契约章
+priority: 6
+once: true
+chance: 1.0
+scene_id: ''
+trigger:
+  character_ids:
+  - miara
+  stage_min: crush
+  affinity_min: 80
+  flags_present:
+  - mi_winter_booth
+  flags_absent:
+  - mi_spring_contract
+  waypoint_min: q_spring_festival
+prompt_snippet: |
+  【专属故事 · 米娅拉 · 节日加幕 · 新春·契约章】
+advance: on_player_turn
+beats:
+- id: b1
+  summary: 春节档漫展她穿新春装坐镇摊位，红章与空白契约并排放着。等你回应。
+  sprite_hint:
+  - festival_spring
+  - season_winter
+  - home_eating
+  - home_sleeping
+  - intimate_lounge
+  soft_options:
+  - 夸她
+  - 点头
+  - 沉默
+  narration: 春节档漫展她穿新春装坐镇摊位，红章与空白契约并排放着。
+  pc_thought: 摊位笑很满。戏言契约当真时，我会不会退缩？
+  brief: 春节档漫展她穿新春装坐镇摊位，红章与空白契约并排放着。等你回应。
+- id: b2
+  summary: "她把笔递过来：「收件人栏——写你，或撕掉。」声音轻，却不退让。等你回应。"
+  sprite_hint:
+  - festival_spring
+  - date
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 接住
+  - 问清楚
+  - 退一步
+  narration: "布料纤维与展会灯里，她把笔递过来：「收件人栏——写你，或撕掉。」声音轻，却不退让。"
+  pc_thought: 缝纫针脚比誓言稳。我想帮她缝，不是只收谷子。
+  brief: "她把笔递过来：「收件人栏——写你，或撕掉。」声音轻，却不退让。等你回应。"
+- id: b3
+  summary: 年夜将尽；签字或拒绝，都会让契约成真，或退回戏言。等你回应。
+  sprite_hint:
+  - festival_spring
+  - home
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 承诺
+  - 诚实犹豫
+  - 拒绝
+  narration: 布料纤维与展会灯里，年夜将尽；签字或拒绝，都会让契约成真，或退回戏言。
+  pc_thought: 假发一摘，偶像壳裂了。素颜契约更重。
+  brief: 年夜将尽；签字或拒绝，都会让契约成真，或退回戏言。等你回应。
+rewards:
+  flags_set:
+  - mi_spring_contract
+choice_effects:
+- trust_delta: 4
+  affinity_delta: 3
+- trust_delta: 1
+  affinity_delta: 1
+- trust_delta: -4
+  affinity_delta: -3
+  flags:
+    miara_route_bad: true

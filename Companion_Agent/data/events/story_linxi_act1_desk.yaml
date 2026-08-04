@@ -7,24 +7,33 @@ scene_id: ""
 trigger:
   character_ids: [linxi]
   stage_min: friend
-  affinity_min: 48
+  affinity_min: 55
   flags_absent: [lx_desk_sync]
 prompt_snippet: |
   【专属故事 · 工位之间的一步 · 第1幕 · 对桌】
 advance: on_player_turn
 beats:
   - id: b1
-    summary: "借订书机、吐槽甲方、第一次一起加班"
-    sprite_hint: [desk_papers, work]
-    soft_options: ["认真接话", "先观察", "轻声提问"]
+    narration: "工位隔板后她探头问报表。红丝带松了一点，紧张却仍写在坐直的脊背上。"
+    pc_thought: "对桌探头那一下，像实习期的心跳漏拍。"
+    brief: "探头问报表；逞强坐直。等他分摊、夸效率或别拆穿逞强。"
+    summary: "探头问报表；逞强坐直。等他分摊、夸效率或别拆穿逞强。"
+    sprite_hint: [desk_papers, work, season_winter, home_eating, home_sleeping]
+    soft_options: ["问要不要分一半", "夸她效率", "先别拆穿逞强"]
   - id: b2
-    summary: "「对桌」里出现犹豫或选择。"
-    sprite_hint: [work, sticky_notes]
-    soft_options: ["表明态度", "给她空间", "确认她的意思"]
+    narration: "打印室灯管闪烁。她抱着纸堆说「对不起占道」——道歉多过呼吸，像怕成为麻烦。"
+    pc_thought: "道歉太多了。我想让她喘口气，又不想显得像前辈施舍。"
+    brief: "抱纸堆连声道歉；怕成麻烦。等他让路、帮忙或说笑松绑。"
+    summary: "抱纸堆连声道歉；怕成麻烦。等他让路、帮忙或说笑松绑。"
+    sprite_hint: [cubicle_bento, pantry_coffee, season_winter, home_eating, home_sleeping]
+    soft_options: ["让开并帮忙", "说别老道歉", "约茶水间透气"]
   - id: b3
-    summary: "收束本幕：留下可被记住的结果，不剧透结局名。"
-    sprite_hint: [sticky_notes]
-    soft_options: ["坦白心意", "先缓一缓", "诚实说明顾虑"]
+    narration: "你帮她对齐页码时，她耳尖发红：第一次有人把实习的慌张当成值得认真对待的事。"
+    pc_thought: "专业距离最安全。接过忙，又像跨出工位之间那一步。"
+    brief: "对齐页码时耳尖红；慌张被认真对待。等他接过忙、笑她借力或保持距离。"
+    summary: "对齐页码时耳尖红；慌张被认真对待。等他接过忙、笑她借力或保持距离。"
+    sprite_hint: [binder_clip, desk_papers, season_winter, home_eating, home_sleeping]
+    soft_options: ["接过顺便帮忙", "笑说终于肯借力", "保持专业距离"]
 rewards:
   flags_set: [lx_desk_sync, office_sync_done]
 choice_effects:

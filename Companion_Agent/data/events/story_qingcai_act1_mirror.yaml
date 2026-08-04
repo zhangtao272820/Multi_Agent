@@ -3,31 +3,62 @@ label: 镜前
 priority: 5
 once: true
 chance: 1.0
-scene_id: ""
+scene_id: ''
 trigger:
-  character_ids: [qingcai]
+  character_ids:
+  - qingcai
   stage_min: friend
   affinity_min: 55
-  flags_absent: [qc_mirror]
+  flags_absent:
+  - qc_mirror
 prompt_snippet: |
   【专属故事 · 舞台外的我 · 第1幕 · 镜前】
 advance: on_player_turn
 beats:
-  - id: b1
-    summary: "排练室镜墙前，她满头汗，却仍纠正自己的表情管理。"
-    sprite_hint: [studio_mirror, rehearsal_sweat]
-    soft_options: ["递水", "夸动作", "安静看完这组"]
-  - id: b2
-    summary: "她嫌你把「舞台上的她」和「镜前的她」混为一谈。"
-    sprite_hint: [studio_mirror, school]
-    soft_options: ["承认分得清", "问哪一面更累", "道歉看走眼"]
-  - id: b3
-    summary: "她允许你偶尔看后台：前提是别把努力说成「天赋故事」。"
-    sprite_hint: [rehearsal_sweat, casual]
-    soft_options: ["答应只当见证人", "约下次练完一起走", "先离开让她独处"]
+- id: b1
+  summary: 练舞室镜前她汗湿发梢，发现你在看，却没停下动作——气氛忽然认真起来。等你回应。
+  sprite_hint:
+  - school
+  - casual
+  soft_options:
+  - 继续认真看
+  - 鼓掌打气
+  - 问要不要休息
+  narration: 练舞室镜前她汗湿发梢，发现你在看，却没停下动作——气氛忽然认真起来。
+  pc_thought: 镜子里她很满。固定观众很好当，恋人更难。
+  brief: 练舞室镜前她汗湿发梢，发现你在看，却没停下动作——气氛忽然认真起来。等你回应。
+- id: b2
+  summary: "她直球：既然来了，就别假装路过——她需要固定观众——气氛忽然认真起来。等你回应。"
+  sprite_hint:
+  - work
+  - school
+  soft_options:
+  - 答应当固定观众
+  - 问能否给意见
+  - 坦白被吸引
+  narration: "练舞镜与汗味里，她直球：既然来了，就别假装路过——她需要固定观众——气氛忽然认真起来。"
+  pc_thought: 夏日祭灯光一亮，空舞台的恐惧也亮了。
+  brief: "她直球：既然来了，就别假装路过——她需要固定观众——气氛忽然认真起来。等你回应。"
+- id: b3
+  summary: "音响停。她丢来毛巾：夏天很长，练习却只想给你看——气氛忽然认真起来。等你回应。"
+  sprite_hint:
+  - casual
+  - date
+  soft_options:
+  - 接毛巾
+  - 约下次彩排
+  - 夸她进步
+  narration: "练舞镜与汗味里，音响停。她丢来毛巾：夏天很长，练习却只想给你看——气氛忽然认真起来。"
+  pc_thought: 冬练功室只剩回音。我想留下，不只是鼓掌。
+  brief: "音响停。她丢来毛巾：夏天很长，练习却只想给你看——气氛忽然认真起来。等你回应。"
 rewards:
-  flags_set: [qc_mirror, dance_practice_done]
+  flags_set:
+  - qc_mirror
+  - dance_practice_done
 choice_effects:
-  - { trust_delta: 3, affinity_delta: 3 }
-  - { trust_delta: 2, affinity_delta: 2 }
-  - { trust_delta: -2, affinity_delta: -1 }
+- trust_delta: 3
+  affinity_delta: 3
+- trust_delta: 2
+  affinity_delta: 2
+- trust_delta: -2
+  affinity_delta: -1

@@ -11,6 +11,7 @@ import {
   hasFailedGuiEvidenceInRun,
   shouldSkipGuiGraphRetry
 } from '../../core/runtime/guiTerminal'
+import { shouldPreferSynthOnlyAfterSideEffect } from '../../core/runtime/stepReuse'
 
 import { detectGuiSemanticBlockFromState } from '../../../utils/gui/guiHumanConfirm'
 import type { CreateOptimizerNodeDeps } from './types'
@@ -85,6 +86,12 @@ export function createOptimizerNode(deps: CreateOptimizerNodeDeps) {
     const guiSemanticBlock = detectGuiSemanticBlockFromState(state)
     const adminTerminal = detectAdminWriteTerminalFailure(state)
     const guiTerminal = detectGuiTerminalFailure(state)
+    const sideEffectPref = shouldPreferSynthOnlyAfterSideEffect({
+      results,
+      evidence,
+      lastStepRecords: Array.isArray(state?.meta?.lastStepRecords) ? state.meta.lastStepRecords : null,
+      forceRerunStepIds: Array.isArray(state?.meta?.forceRerunStepIds) ? state.meta.forceRerunStepIds : null
+    })
 
     let action: 'clarify' | 'fix' | 'verifier' | 'replan_multi' = 'verifier'
     let reason = 'evidence_good'
@@ -133,11 +140,55 @@ export function createOptimizerNode(deps: CreateOptimizerNodeDeps) {
       reason = 'accept_and_verify'
     }
 
+    // 副作用已成功：禁止无差别全量 multi；有失败步则定点 forceRerun，否则 synth-only
+    if (
+      (action === 'fix' || action === 'replan_multi') &&
+      (sideEffectPref.synthOnly || sideEffectPref.failedStepIds.length > 0)
+    ) {
+      const wantMulti =
+        String(state?.fixIntent || '') === 'multi' ||
+        preferredFixIntent === 'multi' ||
+        action === 'replan_multi'
+      if (wantMulti || reason === 'quality_repair' || reason === 'critic_repair_pending') {
+        if (sideEffectPref.synthOnly) {
+          action = 'fix'
+          reason = 'side_effect_done_synth_only'
+        } else if (sideEffectPref.failedStepIds.length > 0) {
+          action = 'fix'
+          reason = 'side_effect_done_failed_steps_only'
+        }
+      }
+    }
+
     opts.sendEvent({
       event: 'thinking',
       data: `优化决策：action=${action}, reason=${reason}, evalScore=${evalScore.toFixed(2)}, retryCount=${retryCount}/${maxRetry}`,
       from: 'manager'
     })
+
+    if (reason === 'side_effect_done_synth_only') {
+      return {
+        optimizer: { action: 'fix', reason, at: new Date().toISOString() },
+        fixIntent: 'code',
+        fixQuery:
+          String(state?.fixQuery || '').trim() ||
+          '请在保留已成功写入结果的前提下修正最终综合，勿重做 admin 写操作。',
+        retryCount: retryCount + 1,
+        meta: { ...(state?.meta || {}), synthOnlyRepair: true }
+      }
+    }
+    if (reason === 'side_effect_done_failed_steps_only') {
+      return {
+        optimizer: { action: 'fix', reason, at: new Date().toISOString() },
+        fixIntent: 'multi',
+        fixQuery: String(state?.fixQuery || '').trim() || fixQuery,
+        retryCount: retryCount + 1,
+        meta: {
+          ...(state?.meta || {}),
+          forceRerunStepIds: sideEffectPref.failedStepIds
+        }
+      }
+    }
     if (action === 'replan_multi') {
       return {
         optimizer: { action, reason, at: new Date().toISOString() },

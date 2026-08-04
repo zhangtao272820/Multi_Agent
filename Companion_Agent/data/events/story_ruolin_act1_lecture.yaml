@@ -7,24 +7,33 @@ scene_id: ""
 trigger:
   character_ids: [ruolin]
   stage_min: friend
-  affinity_min: 48
+  affinity_min: 55
   flags_absent: [rl_office_hours]
 prompt_snippet: |
   【专属故事 · 讲台下的一年 · 第1幕 · 粉笔灰】
 advance: on_player_turn
 beats:
   - id: b1
-    summary: "课堂提问、office hours 第一次单独谈话"
-    sprite_hint: [lecture_pointer, office_hours]
-    soft_options: ["认真接话", "先观察", "轻声提问"]
+    narration: "讲台上粉笔灰落在袖口。她点名提问，目光在你身上多停半秒，像不小心泄露一点偏爱。"
+    pc_thought: "粉笔灰落在袖口。我想叫她名字，又怕越界。"
+    brief: "点名目光多停半秒；偏爱泄露。等他认真答、课后留问或先记笔记。"
+    summary: "点名目光多停半秒；偏爱泄露。等他认真答、课后留问或先记笔记。"
+    sprite_hint: [lecture_pointer, school, season_winter, home_eating, home_sleeping]
+    soft_options: ["认真回答", "课后留问题", "先记笔记"]
   - id: b2
-    summary: "「粉笔灰」里出现犹豫或选择。"
-    sprite_hint: [office_hours, school]
-    soft_options: ["表明态度", "给她空间", "确认她的意思"]
+    narration: "office hours 门半掩。她把文件夹推开，谈的是课，气场却很近——近到必须更守规矩。"
+    pc_thought: "边界课是给两个人的——我也在被考试。"
+    brief: "答疑门半掩；课近得危险。等他只谈学业、问累，或坦言紧张。"
+    summary: "答疑门半掩；课近得危险。等他只谈学业、问累，或坦言紧张。"
+    sprite_hint: [office_hours, faculty_folder, season_winter, home_eating, home_sleeping]
+    soft_options: ["只谈学业", "问她累不累", "坦言紧张"]
   - id: b3
-    summary: "收束本幕：留下可被记住的结果，不剧透结局名。"
-    sprite_hint: [school]
-    soft_options: ["坦白心意", "先缓一缓", "诚实说明顾虑"]
+    narration: "走廊尽头她说「有问题随时来」——像开了一扇必须自重的门，邀请与警戒写在同一句里。"
+    pc_thought: "这扇门开着。我是学生，还是想走进去的人？"
+    brief: "走廊允诺随时来；邀请与警戒同句。等他道谢、约答疑或说守规则。"
+    summary: "走廊允诺随时来；邀请与警戒同句。等他道谢、约答疑或说守规则。"
+    sprite_hint: [corridor_advise, chalk_sleeve, season_winter, home_eating, home_sleeping]
+    soft_options: ["道谢离开", "约固定答疑", "说会守规则"]
 rewards:
   flags_set: [rl_office_hours]
 choice_effects:

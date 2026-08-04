@@ -72,6 +72,7 @@ export {
   policyDataDir,
   pruneAutoUserTasksOnEditResend,
   readSession,
+  resolveUserMessageAnchor,
   resolveUserMessageSessionIndex,
   sanitizeHistoryText,
   stripAttachmentSuffix,

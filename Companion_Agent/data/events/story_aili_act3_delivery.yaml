@@ -3,32 +3,88 @@ label: 外送的勇气
 priority: 7
 once: true
 chance: 1.0
-scene_id: ""
+scene_id: ''
 trigger:
-  character_ids: [aili]
+  character_ids:
+  - aili
   stage_min: crush
-  affinity_min: 75
-  flags_absent: [al_delivery_together]
-  flags_present: [al_talked_divorce]
-prompt_snippet: |
-  【专属故事 · 旧婚书与新花束 · 第3幕 · 外送的勇气】
+  affinity_min: 80
+  flags_absent:
+  - al_delivery_together
+  flags_present:
+  - al_talked_divorce
+prompt_snippet: '【专属故事 · 旧婚书与新花束 · 第3幕 · 外送的勇气】
+
+  '
 advance: on_player_turn
 beats:
-  - id: b1
-    summary: "共同送花/婚礼商单"
-    sprite_hint: [delivery_box, window_display]
-    soft_options: ["认真接话", "先观察", "轻声提问"]
-  - id: b2
-    summary: "看见她已能祝福别人"
-    sprite_hint: [window_display, ribbon_cut]
-    soft_options: ["表明态度", "给她空间", "确认她的意思"]
-  - id: b3
-    summary: "收束本幕：留下可被记住的结果，不剧透结局名。"
-    sprite_hint: [ribbon_cut]
-    soft_options: ["坦白心意", "先缓一缓", "诚实说明顾虑"]
+- id: b1
+  summary: 你帮她送花到客户门口；她站在楼梯下看你，像评估一个是否可靠的共担者。等你回应。
+  sprite_hint:
+  - delivery_box
+  - casual
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 接过箱子
+  - 邀请进屋歇脚
+  - 问是不是顺路
+  narration: 泥土与花茎汁里，你帮她送花到客户门口；她站在楼梯下看你，像评估一个是否可靠的共担者。
+  pc_thought: 旧婚书的影子还在。我是新选择，不是替补——想起花。
+  brief: 你帮她送花到客户门口；她站在楼梯下看你，像评估一个是否可靠的共担者。等你回应。
+- id: b2
+  summary: 回程车上她说起闺蜜守门：朋友怕你只是新鲜感，她却更怕自己先心软。等你回应。
+  sprite_hint:
+  - market_crate
+  - delivery_box
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 问为什么选你
+  - 谢谢她的勇气
+  - 泡茶缓解紧张
+  narration: 泥土与花茎汁里，回程车上她说起闺蜜守门：朋友怕你只是新鲜感，她却更怕自己先心软。
+  pc_thought: 修剪茎的声音很稳。我想学照顾她，不只是看花。
+  brief: 回程车上她说起闺蜜守门：朋友怕你只是新鲜感，她却更怕自己先心软。等你回应。
+- id: b3
+  summary: 花泥溅到袖口，她笑了：弄脏也没关系——生活本来就不是橱窗里的完美花束。等你回应。
+  sprite_hint:
+  - corsage_pin
+  - card_write
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 说这是新选择
+  - 轻轻帮她别好
+  - 给她反悔空间
+  narration: 泥土与花茎汁里，花泥溅到袖口，她笑了：弄脏也没关系——生活本来就不是橱窗里的完美花束。
+  pc_thought: 外送袋破了也好。弄脏的是完美人设，不是我们——想起花。
+  brief: 花泥溅到袖口，她笑了：弄脏也没关系——生活本来就不是橱窗里的完美花束。等你回应。
+- id: b4
+  summary: 卸货后她握你的手量温度：如果要靠近，请带着耐心，不要带着拯救者的姿态。等你回应。
+  sprite_hint:
+  - fridge_restock
+  - date
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 约正式见面
+  - 说你也很紧张
+  - 送她回店
+  narration: 泥土与花茎汁里，卸货后她握你的手量温度：如果要靠近，请带着耐心，不要带着拯救者的姿态。
+  pc_thought: 再选择不是复合回档——我别踩进旧剧本。
+  brief: 卸货后她握你的手量温度：如果要靠近，请带着耐心，不要带着拯救者的姿态。等你回应。
 rewards:
-  flags_set: [al_delivery_together]
+  flags_set:
+  - al_delivery_together
 choice_effects:
-  - { trust_delta: 3, affinity_delta: 3 }
-  - { trust_delta: 2, affinity_delta: 2 }
-  - { trust_delta: -2, affinity_delta: -1 }
+- trust_delta: 3
+  affinity_delta: 3
+- trust_delta: 2
+  affinity_delta: 2
+- trust_delta: -2
+  affinity_delta: -1

@@ -1,0 +1,67 @@
+id: story_xiaoyang_act5_winter_club
+label: 冬社团
+priority: 6
+once: true
+chance: 1.0
+scene_id: ''
+trigger:
+  character_ids:
+  - xiaoyang
+  stage_min: crush
+  affinity_min: 70
+  flags_present:
+  - xyang_stall
+  flags_absent:
+  - xyang_winter_club
+  waypoint_min: q_winter_onset
+  season: winter
+prompt_snippet: |
+  【专属故事 · 叶晓阳 · 冬季加幕 · 冬社团】
+advance: on_player_turn
+beats:
+- id: b1
+  summary: 入冬社团室暖气刚开；她把新海报铺开，名字栏还空着一格。等你回应。
+  sprite_hint:
+  - season_winter
+  - home
+  soft_options:
+  - 帮她扶箱
+  - 问手套
+  - 先关库门
+  narration: 入冬社团室暖气刚开；她把新海报铺开，名字栏还空着一格。
+  pc_thought: 海报上的名字很吵。摊位旁的她其实很轻。
+  brief: 入冬社团室暖气刚开；她把新海报铺开，名字栏还空着一格。等你回应。
+- id: b2
+  summary: 她说冬天适合问清楚——你还愿不愿让名字和她并排。等你回应。
+  sprite_hint:
+  - season_winter
+  - casual
+  soft_options:
+  - 听库存数
+  - 不碰标签
+  - 约短休
+  narration: 海报胶与社团室里，她说冬天适合问清楚——你还愿不愿让名字和她并排。
+  pc_thought: 同班如常最安全。告白会撕坏一张海报吗？
+  brief: 她说冬天适合问清楚——你还愿不愿让名字和她并排。等你回应。
+- id: b3
+  summary: 你是认领那一格，还是让她撕掉草稿；海报会被贴上或永远缺席。等你回应。
+  sprite_hint:
+  - season_winter
+  - date
+  soft_options:
+  - 说我不催上架
+  - 夸她仔细
+  - 送她出库
+  narration: 你是认领那一格，还是让她撕掉草稿；海报会被贴上或永远缺席。
+  pc_thought: 冬社团室胶味刺鼻。我想把名字念准。
+  brief: 你是认领那一格，还是让她撕掉草稿；海报会被贴上或永远缺席。等你回应。
+rewards:
+  flags_set:
+  - xyang_winter_club
+choice_effects:
+- trust_delta: 3
+  affinity_delta: 3
+- trust_delta: 2
+  affinity_delta: 1
+- trust_delta: -3
+  affinity_delta: -2

@@ -14,6 +14,7 @@ from app.core.llm import qwen_llm
 from app.core.admin_pg_store import (
     append_turn_pg,
     count_turns_pg,
+    delete_session_pg,
     is_admin_dual_storage,
     is_admin_pg_primary,
     is_admin_pg_storage,
@@ -23,6 +24,7 @@ from app.core.admin_pg_store import (
     replace_last_assistant_turn_pg,
     save_task_context_pg,
     trim_turns_pg,
+    touch_adm_session_pg,
 )
 from app.db.database import SessionLocal, engine, Base
 from sqlalchemy import Column, DateTime, Integer, String, Text
@@ -63,13 +65,13 @@ def _mirror_sqlite() -> bool:
     return is_admin_dual_storage() or not is_admin_pg_primary()
 
 
-def append_turn(session_id: str, role: str, content: str) -> None:
+def append_turn(session_id: str, role: str, content: str, user_id: str | None = None) -> None:
     sid = _sid(session_id)
     text = (content or "").strip()
     if not text:
         return
     if _use_pg_dialogue():
-        append_turn_pg(sid, role, text)
+        append_turn_pg(sid, role, text, user_id=user_id)
     if _mirror_sqlite():
         db = SessionLocal()
         db.add(SessionTurn(session_id=sid, role=role, content=text))
@@ -108,10 +110,19 @@ def truncate_session_from_user_index(
     from_user_index: int,
     *,
     replace_user_text: str | None = None,
+    fallback_user_text: str | None = None,
 ) -> dict[str, int | bool]:
-    """从第 from_user_index 条用户消息起截断（含该条及之后所有轮次）。"""
+    """从第 from_user_index 条用户消息起截断（含该条及之后所有轮次）。
+
+    index 未命中时，可用 fallback_user_text / replace_user_text 按内容回落定位。
+    """
     sid = (session_id or "default").strip() or "default"
-    idx = max(0, int(from_user_index))
+    try:
+        raw_idx = int(from_user_index)
+    except (TypeError, ValueError):
+        raw_idx = -1
+    idx = raw_idx if raw_idx >= 0 else -1
+    needle = _normalize_user_anchor_text(fallback_user_text or replace_user_text or "")
     db = SessionLocal()
     try:
         rows = (
@@ -122,12 +133,29 @@ def truncate_session_from_user_index(
         )
         user_idx = 0
         cut_id: int | None = None
+        resolved_user_index = -1
         for row in rows:
             if row.role == "user":
-                if user_idx == idx:
+                if idx >= 0 and user_idx == idx:
                     cut_id = row.id
+                    resolved_user_index = user_idx
                     break
                 user_idx += 1
+        if cut_id is None and needle:
+            user_idx = 0
+            hits: list[tuple[int, int]] = []  # (row.id, user_idx)
+            for row in rows:
+                if row.role != "user":
+                    continue
+                if _normalize_user_anchor_text(str(row.content or "")) == needle:
+                    hits.append((row.id, user_idx))
+                user_idx += 1
+            if hits:
+                if idx >= 0:
+                    best = min(hits, key=lambda h: abs(h[1] - idx))
+                else:
+                    best = hits[-1]
+                cut_id, resolved_user_index = best
         if cut_id is None:
             return {"ok": False, "message_count": len(rows), "user_message_count": user_idx}
         db.query(SessionTurn).filter(
@@ -149,10 +177,19 @@ def truncate_session_from_user_index(
             "ok": True,
             "message_count": message_count,
             "user_message_count": user_message_count,
+            "resolved_user_index": resolved_user_index,
         }
     finally:
         db.close()
 
+
+def _normalize_user_anchor_text(content: str) -> str:
+    import re
+
+    s = str(content or "").strip()
+    s = re.sub(r"\n\[附件:[^\]]+\]\s*$", "", s, flags=re.I)
+    s = re.sub(r"^\[附件:[^\]]+\]\s*$", "", s, flags=re.I)
+    return re.sub(r"\s+", " ", s).strip()
 
 def get_last_user_message(session_id: str) -> str:
     sid = _sid(session_id)
@@ -184,6 +221,40 @@ def _count_turns(session_id: str) -> int:
         return db.query(SessionTurn).filter(SessionTurn.session_id == sid).count()
     finally:
         db.close()
+
+
+def delete_session_dialogue(session_id: str) -> dict[str, Any]:
+    """整段删除会话对话与任务上下文（SQLite + 可选 PG）。"""
+    sid = _sid(session_id)
+    _ensure_tables()
+    pg_stats = {"turns": 0, "contexts": 0}
+    sqlite_turns = 0
+    sqlite_ctx = 0
+    if is_admin_pg_storage():
+        try:
+            pg_stats = delete_session_pg(sid)
+        except Exception:
+            pg_stats = {"turns": 0, "contexts": 0}
+    if not is_admin_pg_primary():
+        db = SessionLocal()
+        try:
+            sqlite_turns = (
+                db.query(SessionTurn).filter(SessionTurn.session_id == sid).delete(synchronize_session=False)
+            )
+            sqlite_ctx = (
+                db.query(SessionTaskContext)
+                .filter(SessionTaskContext.session_id == sid)
+                .delete(synchronize_session=False)
+            )
+            db.commit()
+        finally:
+            db.close()
+    return {
+        "ok": True,
+        "session_id": sid,
+        "pg": pg_stats,
+        "sqlite": {"turns": int(sqlite_turns or 0), "contexts": int(sqlite_ctx or 0)},
+    }
 
 
 def _load_dialogue_summary_meta(session_id: str) -> dict:

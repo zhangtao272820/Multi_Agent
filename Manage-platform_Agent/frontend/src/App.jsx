@@ -5,6 +5,7 @@ import EnterpriseMonitorPanel from "./components/EnterpriseMonitorPanel";
 import ManagerObservability from "./components/ManagerObservability";
 import AgentConfigPanel from "./components/AgentConfigPanel";
 import AgentControlPanel from "./components/AgentControlPanel";
+import UsersRolesPanel from "./components/UsersRolesPanel";
 import SettingsGovernance from "./components/SettingsGovernance";
 import TaskProgressPanel from "./components/TaskProgressPanel";
 import MonitorChartsPanel from "./components/MonitorChartsPanel";
@@ -22,6 +23,10 @@ const APP_ROUTES = [
   "agents",
   "tasks",
   "skills",
+  "users",
+  "tenants",
+  "audit",
+  "secrets",
   "settings",
   "deploy",
   "maintain",
@@ -368,6 +373,7 @@ export default function App() {
       setRole(data.role);
       localStorage.setItem("clawhive_token", data.access_token);
       localStorage.setItem("clawhive_role", data.role);
+      localStorage.setItem("clawhive_username", loginForm.username.trim());
     } finally {
       setLoading(false);
     }
@@ -378,6 +384,7 @@ export default function App() {
     setRole("");
     localStorage.removeItem("clawhive_token");
     localStorage.removeItem("clawhive_role");
+    localStorage.removeItem("clawhive_username");
   }
 
   async function fetchAgentsMinimal(retry = 0) {
@@ -439,9 +446,12 @@ export default function App() {
       }
       return;
     }
-    if (route === "settings") {
+    if (route === "settings" || route === "users") {
       await fetchEnvSnapshot();
       if (role === "admin") await fetchUsers();
+      return;
+    }
+    if (route === "tenants" || route === "audit" || route === "secrets") {
       return;
     }
     if (route === "monitor") {
@@ -1208,12 +1218,83 @@ export default function App() {
     event.preventDefault();
     setLoading(true);
     try {
-      await fetch(`${API_BASE}/api/users`, {
+      const res = await fetch(`${API_BASE}/api/users`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(newUser),
       });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setControlMessage(String(data.detail || `创建用户失败 HTTP ${res.status}`));
+        return;
+      }
       setNewUser({ username: "", password: "", role: "viewer" });
+      setControlMessage(`已创建用户 ${newUser.username}`);
+      await fetchUsers();
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function resetUserPassword(username) {
+    const pwd = window.prompt(`为 ${username} 设置新密码（至少 6 位）`);
+    if (pwd == null) return;
+    if (String(pwd).trim().length < 6) {
+      setControlMessage("密码至少 6 位");
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/users/${encodeURIComponent(username)}/password`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ password: String(pwd).trim() }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setControlMessage(String(data.detail || `改密失败 HTTP ${res.status}`));
+        return;
+      }
+      setControlMessage(`已重置 ${username} 的密码`);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function removeUser(username) {
+    if (!window.confirm(`确认删除用户 ${username}？`)) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/users/${encodeURIComponent(username)}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setControlMessage(String(data.detail || `删除失败 HTTP ${res.status}`));
+        return;
+      }
+      setControlMessage(`已删除用户 ${username}`);
+      await fetchUsers();
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function changeUserRole(username, nextRole) {
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/users/${encodeURIComponent(username)}/role`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ role: nextRole }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setControlMessage(String(data.detail || `改角色失败 HTTP ${res.status}`));
+        return;
+      }
+      setControlMessage(`已将 ${username} 设为 ${nextRole}`);
       await fetchUsers();
     } finally {
       setLoading(false);
@@ -1525,35 +1606,45 @@ export default function App() {
     <div className={`page ${token ? "page--admin" : ""}`}>
       {!token ? (
         <div className="login-panel">
-        <section className="card login-card">
-          <h1 className="login-card__title">紫微 · Agent 控制面</h1>
-          <p className="login-card__sub">企业运维 · 天机编排 · 星曜集群监控</p>
-          <h2>登录</h2>
-          {oidcError ? <p className="status offline">SSO 失败：{oidcError}</p> : null}
-          <form onSubmit={login} className="form">
-            <input
-              placeholder="用户名"
-              value={loginForm.username}
-              onChange={(e) => setLoginForm({ ...loginForm, username: e.target.value })}
-            />
-            <input
-              type="password"
-              placeholder="密码"
-              value={loginForm.password}
-              onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
-            />
-            <button disabled={loading} type="submit">
-              登录
-            </button>
-          </form>
-          {oidcEnabled ? (
-            <p className="login-sso">
-              <a className="btn-secondary" href={`${API_BASE}/api/auth/oidc/login`}>
-                企业 SSO 登录
-              </a>
+          <section className="card login-card">
+            <div className="login-card__brand">
+              <span className="login-card__mark" aria-hidden>
+                紫
+              </span>
+              <div>
+                <h1 className="login-card__title">紫微</h1>
+                <p className="login-card__sub">Agent 控制面 · 运维治理与星曜集群</p>
+              </div>
+            </div>
+            <h2>登录</h2>
+            <p className="login-card__hint muted">
+              本地默认管理员一般为 admin / admin123（与 CLAWHIVE_ADMIN_PASSWORD 一致）
             </p>
-          ) : null}
-        </section>
+            {oidcError ? <p className="status offline">SSO 失败：{oidcError}</p> : null}
+            <form onSubmit={login} className="form">
+              <input
+                placeholder="用户名"
+                value={loginForm.username}
+                onChange={(e) => setLoginForm({ ...loginForm, username: e.target.value })}
+              />
+              <input
+                type="password"
+                placeholder="密码"
+                value={loginForm.password}
+                onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
+              />
+              <button className="btn-primary" disabled={loading} type="submit">
+                进入控制面
+              </button>
+            </form>
+            {oidcEnabled ? (
+              <p className="login-sso">
+                <a className="btn-secondary" href={`${API_BASE}/api/auth/oidc/login`}>
+                  企业 SSO 登录
+                </a>
+              </p>
+            ) : null}
+          </section>
         </div>
       ) : null}
 
@@ -2530,85 +2621,107 @@ export default function App() {
         </main>
       ) : null}
 
+      {appRoute === "users" ? (
+        <UsersRolesPanel
+          apiBase={API_BASE}
+          token={token}
+          role={role}
+          users={users}
+          newUser={newUser}
+          setNewUser={setNewUser}
+          loading={loading}
+          onCreateUser={createUser}
+          onChangeRole={changeUserRole}
+          onResetPassword={resetUserPassword}
+          onRemoveUser={removeUser}
+          currentUsername={localStorage.getItem("clawhive_username") || loginForm.username}
+          onMessage={setControlMessage}
+        />
+      ) : null}
+
+      {appRoute === "tenants" ? (
+        <div className="page-stack page-stack--scroll admin-page">
+          <SettingsGovernance
+            apiBase={API_BASE}
+            token={token}
+            role={role}
+            onMessage={setControlMessage}
+            section="tenants"
+          />
+        </div>
+      ) : null}
+
+      {appRoute === "audit" ? (
+        <div className="page-stack page-stack--scroll admin-page">
+          <SettingsGovernance
+            apiBase={API_BASE}
+            token={token}
+            role={role}
+            onMessage={setControlMessage}
+            section="audit"
+          />
+        </div>
+      ) : null}
+
+      {appRoute === "secrets" ? (
+        <div className="page-stack page-stack--scroll admin-page">
+          <SettingsGovernance
+            apiBase={API_BASE}
+            token={token}
+            role={role}
+            onMessage={setControlMessage}
+            section="secrets"
+          />
+        </div>
+      ) : null}
+
       {appRoute === "settings" ? (
         <div className="page-stack page-stack--scroll admin-page">
-        <div className="admin-grid admin-grid--2">
-        <section className="admin-card">
-          <h3 className="admin-card__title">环境登记</h3>
-          <p className="admin-card__desc">只读快照 · 与 Manager 端点同步配置对齐</p>
-          {envSnapshot?.agents?.length ? (
-            <div className="compact-table">
-              {envSnapshot.agents.map((a) => (
-                <div className="compact-table__row" key={a.name}>
-                  <span>{a.name}</span>
-                  <span className="muted">{a.endpoint}</span>
+          <div className="admin-grid admin-grid--2">
+            <section className="admin-card">
+              <h3 className="admin-card__title">环境登记</h3>
+              <p className="admin-card__desc">
+                只读快照 · 与 Manager 端点同步配置对齐。用户/租户/审计/密钥请用左侧治理菜单。
+              </p>
+              {envSnapshot?.agents?.length ? (
+                <div className="compact-table">
+                  {envSnapshot.agents.map((a) => (
+                    <div className="compact-table__row" key={a.name}>
+                      <span>{a.name}</span>
+                      <span className="muted">{a.endpoint}</span>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          ) : (
-            <p className="muted">暂无数据，点击下方刷新</p>
-          )}
-          <button type="button" className="btn-secondary btn-sm admin-card__foot-btn" onClick={() => fetchEnvSnapshot()}>
-            刷新环境快照
-          </button>
-        </section>
-        {role === "admin" ? (
-          <section className="admin-card">
-            <h3 className="admin-card__title">用户管理</h3>
-            <p className="admin-card__desc">创建控制台账号并分配角色</p>
-            <form onSubmit={createUser} className="form form--inline-grid">
-              <label>
-                用户名
-                <input
-                  placeholder="username"
-                  value={newUser.username}
-                  onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
-                  required
-                />
-              </label>
-              <label>
-                密码
-                <input
-                  type="password"
-                  placeholder="••••••"
-                  value={newUser.password}
-                  onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                  required
-                />
-              </label>
-              <label>
-                角色
-                <select
-                  value={newUser.role}
-                  onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
-                >
-                  <option value="viewer">viewer</option>
-                  <option value="operator">operator</option>
-                  <option value="admin">admin</option>
-                </select>
-              </label>
-              <button type="submit" className="btn-primary btn-sm" disabled={loading}>
-                创建用户
-              </button>
-            </form>
-            <div className="compact-table admin-card__table">
-              {users.length === 0 ? (
-                <p className="muted">暂无用户</p>
               ) : (
-                users.map((u) => (
-                  <div key={u.username} className="compact-table__row">
-                    <span>{u.username}</span>
-                    <span className={`status offline`}>{u.role}</span>
-                  </div>
-                ))
+                <p className="muted">暂无数据，点击下方刷新</p>
               )}
-            </div>
-          </section>
-        ) : null}
-        </div>
-        <div className="admin-grid admin-grid--2">
-        <SettingsGovernance apiBase={API_BASE} token={token} role={role} onMessage={setControlMessage} />
-        </div>
+              <button
+                type="button"
+                className="btn-secondary btn-sm admin-card__foot-btn"
+                onClick={() => fetchEnvSnapshot()}
+              >
+                刷新环境快照
+              </button>
+            </section>
+            <section className="admin-card">
+              <h3 className="admin-card__title">治理入口</h3>
+              <p className="admin-card__desc">CP-Gov 已拆页</p>
+              <div className="form form--inline-grid">
+                <button type="button" className="btn-secondary btn-sm" onClick={() => (window.location.hash = "#/users")}>
+                  用户与角色
+                </button>
+                <button type="button" className="btn-secondary btn-sm" onClick={() => (window.location.hash = "#/tenants")}>
+                  租户与配额
+                </button>
+                <button type="button" className="btn-secondary btn-sm" onClick={() => (window.location.hash = "#/audit")}>
+                  审计
+                </button>
+                <button type="button" className="btn-secondary btn-sm" onClick={() => (window.location.hash = "#/secrets")}>
+                  密钥与通知
+                </button>
+              </div>
+            </section>
+          </div>
         </div>
       ) : null}
         </AdminShell>

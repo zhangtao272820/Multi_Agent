@@ -10,6 +10,15 @@ import { promoteShadowPlannerRules } from './plannerRules'
 import { maybeRollbackPolicyFromNluMetrics, recordPolicyRolloutBaseline } from './policyRollout'
 import { restoreManagerPolicyFromPrevious } from '../shared'
 import { readHistoryEntries } from '../shared'
+import {
+  filterInsightsForEvolution,
+  isChitchatOrOffTopicIntent,
+  isFailureCategoryEvolutionEligible
+} from './learnEligibility'
+import {
+  discardEvoShadowArtifact,
+  syncEvoPolicyRollback
+} from './evoPolicySync'
 
 export type EvolutionArtifact = 'policy' | 'prompt_patches' | 'planner_rules'
 export type ExperimentStatus = 'hypothesis' | 'running' | 'promoted' | 'rolled_back' | 'rejected' | 'insufficient_data'
@@ -34,6 +43,14 @@ export type ExperimentMetrics = {
   avgFeedbackScore?: number | null
 }
 
+export type IntentSliceVerdict = {
+  intent: string
+  lift: number
+  controlN: number
+  treatmentN: number
+  regressing: boolean
+}
+
 export type EvolutionExperiment = {
   id: string
   hypothesisId: string
@@ -49,6 +66,7 @@ export type EvolutionExperiment = {
     winner: 'control' | 'treatment' | 'tie'
     liftFinalConfidence: number
     reason: string
+    intentSlices?: IntentSliceVerdict[]
   }
 }
 
@@ -156,7 +174,10 @@ export async function loadExperiments(policyDir: string): Promise<EvolutionExper
         ? {
             winner: r.verdict.winner === 'treatment' || r.verdict.winner === 'tie' ? r.verdict.winner : 'control',
             liftFinalConfidence: Number(r.verdict.liftFinalConfidence ?? 0),
-            reason: String(r.verdict.reason || '')
+            reason: String(r.verdict.reason || ''),
+            intentSlices: Array.isArray(r.verdict.intentSlices)
+              ? (r.verdict.intentSlices as IntentSliceVerdict[]).slice(0, 24)
+              : undefined
           }
         : undefined
     })
@@ -175,16 +196,21 @@ function normalizeMetrics(raw: unknown): ExperimentMetrics {
 }
 
 export function generateHypothesesFromInsights(insights: FailureInsightBundle): EvolutionHypothesis[] {
-  if (!insights.samples || !insights.fixSuggestions?.length) return []
+  const gated = filterInsightsForEvolution(insights)
+  if (!gated.samples || !gated.fixSuggestions?.length) return []
+  const samples = Math.max(1, Number(gated.samples) || 1)
   const out: EvolutionHypothesis[] = []
   const seen = new Set<string>()
-  for (const bundle of insights.fixSuggestions.slice(0, 6)) {
+  for (const bundle of gated.fixSuggestions.slice(0, 6)) {
+    const conc =
+      (gated.failures.find((f) => f.category === bundle.category)?.count || 0) / samples
+    if (!isFailureCategoryEvolutionEligible(bundle.category, { clarifyConcentration: conc })) continue
     for (const s of bundle.suggestions.slice(0, 2)) {
       const artifact = scopeToArtifact(s.scope)
       const key = `${bundle.category}|${artifact}|${s.title}`
       if (seen.has(key)) continue
       seen.add(key)
-      const failure = insights.failures.find((f) => f.category === bundle.category)
+      const failure = gated.failures.find((f) => f.category === bundle.category)
       const conf =
         0.45 +
         (s.priority === 'high' ? 0.18 : s.priority === 'medium' ? 0.1 : 0.04) +
@@ -197,7 +223,7 @@ export function generateHypothesesFromInsights(insights: FailureInsightBundle): 
         artifact,
         expectedEffect: `降低 ${bundle.category} 类失败（当前约 ${failure?.count ?? '?'} 次）`,
         confidence: Math.min(0.92, Math.round(conf * 1000) / 1000),
-        sourceSignals: failure?.topReasons?.slice(0, 3) || insights.strongestSignals.slice(0, 2)
+        sourceSignals: failure?.topReasons?.slice(0, 3) || gated.strongestSignals.slice(0, 2)
       })
     }
   }
@@ -302,6 +328,66 @@ function compareArms(control: ExperimentMetrics, treatment: ExperimentMetrics) {
   return { sufficient: true as const, lift, winner: 'tie' as const, reason: 'within_tolerance' }
 }
 
+function rowIntent(row: any): string {
+  return String(row?.intent || row?.intentHint || 'unknown').trim() || 'unknown'
+}
+
+function sliceMinSamples() {
+  return Math.max(4, Math.floor(minSamplesPerArm() / 2))
+}
+
+/** 按 intent 分片评估：核心意图显著退化则强制 rollback */
+export function compareArmsByIntent(
+  rows: any[],
+  signals: any[],
+  canaryField: string
+): { slices: IntentSliceVerdict[]; forcedRollback: boolean; reason?: string } {
+  const intents = new Set<string>()
+  for (const r of rows) intents.add(rowIntent(r))
+  for (const s of signals) intents.add(rowIntent(s))
+
+  const minN = sliceMinSamples()
+  const drop = rollbackDropThreshold()
+  const slices: IntentSliceVerdict[] = []
+  let forcedRollback = false
+  let reason: string | undefined
+
+  for (const intent of intents) {
+    if (isChitchatOrOffTopicIntent(intent) || intent === 'unknown' || intent === 'interrupted') continue
+    const controlRows = rows.filter((r) => rowIntent(r) === intent && !Boolean(r?.[canaryField]))
+    const treatmentRows = rows.filter((r) => rowIntent(r) === intent && Boolean(r?.[canaryField]))
+    const control = enrichArmWithLearningSignals(
+      computeArmMetrics(controlRows, canaryField, false),
+      signals.filter((s) => rowIntent(s) === intent),
+      canaryField,
+      false
+    )
+    const treatment = enrichArmWithLearningSignals(
+      computeArmMetrics(treatmentRows, canaryField, true),
+      signals.filter((s) => rowIntent(s) === intent),
+      canaryField,
+      true
+    )
+    if (control.sampleCount < minN || treatment.sampleCount < minN) continue
+    const lift = Math.round((blendedArmScore(treatment) - blendedArmScore(control)) * 1000) / 1000
+    const regressing = lift <= -drop
+    slices.push({
+      intent,
+      lift,
+      controlN: control.sampleCount,
+      treatmentN: treatment.sampleCount,
+      regressing
+    })
+    if (regressing && !forcedRollback) {
+      forcedRollback = true
+      reason = `intent_regression:${intent}`
+    }
+  }
+
+  slices.sort((a, b) => a.lift - b.lift)
+  return { slices: slices.slice(0, 16), forcedRollback, reason }
+}
+
 async function snapshotBaselineMetrics(policyDir: string): Promise<ExperimentMetrics> {
   const rows = await readNluMetrics(policyDir)
   const finals = rows.map((r) => Number(r?.finalConfidence)).filter((x) => Number.isFinite(x))
@@ -365,13 +451,17 @@ async function promoteArtifact(policyDir: string, artifact: EvolutionArtifact) {
 
 async function rollbackArtifact(policyDir: string, artifact: EvolutionArtifact) {
   if (artifact === 'policy') {
-    return restoreManagerPolicyFromPrevious(policyDir)
+    const r = await restoreManagerPolicyFromPrevious(policyDir)
+    await syncEvoPolicyRollback(policyDir, artifact).catch(() => undefined)
+    return r
   }
   if (artifact === 'prompt_patches') {
     await fs.unlink(path.join(policyDir, 'manager-prompt-patches.shadow.json')).catch(() => undefined)
+    await syncEvoPolicyRollback(policyDir, artifact).catch(() => undefined)
     return { ok: true, message: 'prompt_shadow_removed' }
   }
   await fs.unlink(path.join(policyDir, 'manager-planner-rules.shadow.json')).catch(() => undefined)
+  await syncEvoPolicyRollback(policyDir, artifact).catch(() => undefined)
   return { ok: true, message: 'planner_shadow_removed' }
 }
 
@@ -380,11 +470,13 @@ export async function evaluateRunningExperiments(policyDir: string): Promise<{
   promoted: string[]
   rolledBack: string[]
   pending: string[]
+  discarded: string[]
 }> {
   const experiments = (await loadExperiments(policyDir)).filter((e) => e.status === 'running')
   const promoted: string[] = []
   const rolledBack: string[] = []
   const pending: string[] = []
+  const discarded: string[] = []
 
   for (const exp of experiments) {
     const sinceMs = Date.parse(String(exp.startedAt || exp.createdAt))
@@ -394,6 +486,7 @@ export async function evaluateRunningExperiments(policyDir: string): Promise<{
     const control = enrichArmWithLearningSignals(computeArmMetrics(rows, field, false), signals, field, false)
     const treatment = enrichArmWithLearningSignals(computeArmMetrics(rows, field, true), signals, field, true)
     const cmp = compareArms(control, treatment)
+    const sliced = compareArmsByIntent(rows, signals, field)
     const updated: EvolutionExperiment = { ...exp, baseline: control, treatment }
 
     if (!cmp.sufficient) {
@@ -402,10 +495,24 @@ export async function evaluateRunningExperiments(policyDir: string): Promise<{
       continue
     }
 
+    if (sliced.forcedRollback && isEvolutionAutoExperimentEnabled()) {
+      await rollbackArtifact(policyDir, exp.artifact)
+      await discardEvoShadowArtifact(policyDir, exp.artifact).catch(() => undefined)
+      await closeExperiment(policyDir, updated, 'rolled_back', {
+        winner: 'control',
+        liftFinalConfidence: cmp.lift,
+        reason: sliced.reason || 'intent_regression',
+        intentSlices: sliced.slices
+      })
+      rolledBack.push(exp.id)
+      continue
+    }
+
     const verdict = {
       winner: cmp.winner,
       liftFinalConfidence: cmp.lift,
-      reason: cmp.reason
+      reason: cmp.reason,
+      intentSlices: sliced.slices
     }
 
     if (cmp.winner === 'treatment' && isEvolutionAutoExperimentEnabled()) {
@@ -425,16 +532,21 @@ export async function evaluateRunningExperiments(policyDir: string): Promise<{
     }
 
     if (cmp.winner === 'tie') {
-      await closeExperiment(policyDir, updated, 'insufficient_data', verdict)
-      pending.push(exp.id)
-    } else {
-      pending.push(exp.id)
-      await appendJsonl(path.join(policyDir, EXP_FILE), { ...updated, status: 'running', verdict })
+      await discardEvoShadowArtifact(policyDir, exp.artifact).catch(() => undefined)
+      await closeExperiment(policyDir, updated, 'rejected', {
+        ...verdict,
+        reason: 'within_tolerance_discard'
+      })
+      discarded.push(exp.id)
+      continue
     }
+
+    pending.push(exp.id)
+    await appendJsonl(path.join(policyDir, EXP_FILE), { ...updated, status: 'running', verdict })
   }
 
   await maybeRollbackPolicyFromNluMetrics(policyDir).catch(() => ({ rolledBack: false }))
-  return { evaluated: experiments.length, promoted, rolledBack, pending }
+  return { evaluated: experiments.length, promoted, rolledBack, pending, discarded }
 }
 
 export async function runEvolutionExperimentCycle(
@@ -450,14 +562,17 @@ export async function runEvolutionExperimentCycle(
   evaluation: Awaited<ReturnType<typeof evaluateRunningExperiments>>
   shadows: { policy?: boolean; prompt?: boolean; planner?: boolean }
 }> {
-  const hypotheses = generateHypothesesFromInsights(insights)
+  const gated = filterInsightsForEvolution(insights)
+  const hypotheses = generateHypothesesFromInsights(gated)
   let hypothesesAdded = await persistHypotheses(policyDir, hypotheses)
   try {
     const { maybeGenerateLlmEvolutionHypotheses } = await import('./evolutionLlmHypothesis')
-    const llm = await maybeGenerateLlmEvolutionHypotheses(policyDir, insights)
+    const llm = await maybeGenerateLlmEvolutionHypotheses(policyDir, gated)
     hypothesesAdded += llm.added
   } catch {}
-  const allHypos = await loadHypotheses(policyDir)
+  const allHypos = (await loadHypotheses(policyDir)).filter((h) =>
+    isFailureCategoryEvolutionEligible(h.category)
+  )
   const running = await loadExperiments(policyDir)
   const runningHypothesisIds = new Set(running.filter((e) => e.status === 'running').map((e) => e.hypothesisId))
 
@@ -467,15 +582,15 @@ export async function runEvolutionExperimentCycle(
     planner: false
   }
 
-  if ((insights.samples || 0) >= 5 && insights.fixSuggestions?.length) {
-    const pol = await maybeWriteManagerPolicyShadow(policyDir, insights).catch(() => ({ written: false as const }))
+  if ((gated.samples || 0) >= 5 && gated.fixSuggestions?.length) {
+    const pol = await maybeWriteManagerPolicyShadow(policyDir, gated).catch(() => ({ written: false as const }))
     shadows.policy = Boolean(pol.written)
-    const prompt = await maybeEvolvePromptPatches(policyDir, insights, {
+    const prompt = await maybeEvolvePromptPatches(policyDir, gated, {
       force: opts?.force,
       llmInvoke: opts?.llmInvoke
     }).catch(() => ({ evolved: false as const }))
     shadows.prompt = Boolean(prompt.evolved)
-    const rules = await maybeEvolvePlannerRules(policyDir, insights, { force: opts?.force }).catch(() => ({
+    const rules = await maybeEvolvePlannerRules(policyDir, gated, { force: opts?.force }).catch(() => ({
       evolved: false as const
     }))
     shadows.planner = Boolean(rules.evolved)

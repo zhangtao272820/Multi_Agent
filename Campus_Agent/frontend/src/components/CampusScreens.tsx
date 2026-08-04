@@ -19,6 +19,10 @@ interface MapProps {
   onMock?: () => void;
   onIntent?: (fromId: string, locationId?: string | null) => void;
   onEventTalk?: (npcId: string, locationId?: string | null) => void;
+  bgmEnabled?: boolean;
+  bgmVolume?: number;
+  onToggleBgm?: () => void;
+  onBgmVolume?: (v: number) => void;
 }
 
 const MOOD_LABEL: Record<string, string> = {
@@ -61,6 +65,10 @@ export function CampusMapScreen({
   onMock,
   onIntent,
   onEventTalk,
+  bgmEnabled,
+  bgmVolume,
+  onToggleBgm,
+  onBgmVolume,
 }: MapProps) {
   const extras: ReactNode = (
     <>
@@ -89,6 +97,10 @@ export function CampusMapScreen({
         onSave={onSave}
         onMenu={onTitle}
         extra={extras}
+        bgmEnabled={bgmEnabled}
+        bgmVolume={bgmVolume}
+        onToggleBgm={onToggleBgm}
+        onBgmVolume={onBgmVolume}
       />
 
       {hub.active_event && (
@@ -203,6 +215,10 @@ interface LocProps {
   onClub?: () => void;
   onSpot?: (focusId?: string | null) => void;
   onEventTalk?: (npcId: string, locationId?: string | null) => void;
+  bgmEnabled?: boolean;
+  bgmVolume?: number;
+  onToggleBgm?: () => void;
+  onBgmVolume?: (v: number) => void;
 }
 
 const SPOT_LABEL: Record<string, string> = {
@@ -234,6 +250,10 @@ export function LocationScreen({
   onClub,
   onSpot,
   onEventTalk,
+  bgmEnabled,
+  bgmVolume,
+  onToggleBgm,
+  onBgmVolume,
 }: LocProps) {
   const loc = hub.locations.find((l) => l.id === hub.location_id);
   const canStudy = hub.calendar.period_kind === "free" || hub.calendar.period_kind === "free_day";
@@ -390,6 +410,10 @@ export function LocationScreen({
         onAdvanceSkip={onAdvanceSkip}
         onBoard={onBoard}
         onMap={onBack}
+        bgmEnabled={bgmEnabled}
+        bgmVolume={bgmVolume}
+        onToggleBgm={onToggleBgm}
+        onBgmVolume={onBgmVolume}
       />
 
       {hub.active_event?.talk_npc_id && onEventTalk && (

@@ -120,7 +120,8 @@ services:
       MAX_TASK_RETRIES: ${CLAWHIVE_MAX_TASK_RETRIES:-2}
       # QWEN_* 模型名：由 env_file（.env.agents-lan，sync-capability-models 同步）注入
       QWEN_TEMPERATURE: ${QWEN_TEMPERATURE:-0.2}
-      CLAWHIVE_INTERNAL_TOKEN: ${CLAWHIVE_INTERNAL_TOKEN:-}
+      # CLAWHIVE_INTERNAL_TOKEN：由 env_file 注入。勿写 ${CLAWHIVE_INTERNAL_TOKEN:-}——
+      # 当 --env-file .env.agents-lan 无法插值（首行被压成单行/注释）时会注入空串并覆盖 .env 中的有效令牌。
       AGENT_LLM_REQUEST_TIMEOUT_MS: ${AGENT_LLM_REQUEST_TIMEOUT_MS:-120000}
       AGENT_LLM_MAX_RETRIES: ${AGENT_LLM_MAX_RETRIES:-0}
       AGENT_LLM_JSON_MAX_TOKENS: ${AGENT_LLM_JSON_MAX_TOKENS:-896}
@@ -208,7 +209,12 @@ services:
       DB_AGENT_MODEL_TABLE_RERANK: ${DB_AGENT_MODEL_TABLE_RERANK:-false}
       ENABLE_EXPLAIN_PREFLIGHT: ${DB_ENABLE_EXPLAIN_PREFLIGHT:-1}
       CLAWHIVE_BACKEND_URL: http://clawhive_backend:8000
-      CLAWHIVE_INTERNAL_TOKEN: ${CLAWHIVE_INTERNAL_TOKEN:-}
+      JWT_SECRET: ${CLAWHIVE_JWT_SECRET:-change-this-secret}
+      AGENT_BROWSER_AUTH: ${AGENT_BROWSER_AUTH:-1}
+      CLAWHIVE_PUBLIC_URL: ${CLAWHIVE_PUBLIC_URL:-http://127.0.0.1:18000}
+      NUXT_PUBLIC_CLAWHIVE_AUTH_URL: ${CLAWHIVE_PUBLIC_URL:-http://127.0.0.1:18000}
+      # CLAWHIVE_INTERNAL_TOKEN：由 env_file 注入。勿写 ${CLAWHIVE_INTERNAL_TOKEN:-}——
+      # 当 --env-file .env.agents-lan 无法插值（首行被压成单行/注释）时会注入空串并覆盖 .env 中的有效令牌。
       AGENT_LLM_REQUEST_TIMEOUT_MS: ${AGENT_LLM_REQUEST_TIMEOUT_MS:-120000}
       AGENT_LLM_MAX_RETRIES: ${AGENT_LLM_MAX_RETRIES:-0}
       AGENT_LLM_JSON_MAX_TOKENS: ${AGENT_LLM_JSON_MAX_TOKENS:-896}
@@ -270,7 +276,12 @@ services:
       HOST: 0.0.0.0
       NITRO_HOST: 0.0.0.0
       CLAWHIVE_BACKEND_URL: http://clawhive_backend:8000
-      CLAWHIVE_INTERNAL_TOKEN: ${CLAWHIVE_INTERNAL_TOKEN:-}
+      JWT_SECRET: ${CLAWHIVE_JWT_SECRET:-change-this-secret}
+      AGENT_BROWSER_AUTH: ${AGENT_BROWSER_AUTH:-1}
+      CLAWHIVE_PUBLIC_URL: ${CLAWHIVE_PUBLIC_URL:-http://127.0.0.1:18000}
+      NUXT_PUBLIC_CLAWHIVE_AUTH_URL: ${CLAWHIVE_PUBLIC_URL:-http://127.0.0.1:18000}
+      # CLAWHIVE_INTERNAL_TOKEN：由 env_file 注入。勿写 ${CLAWHIVE_INTERNAL_TOKEN:-}——
+      # 当 --env-file .env.agents-lan 无法插值（首行被压成单行/注释）时会注入空串并覆盖 .env 中的有效令牌。
       AGENT_LLM_REQUEST_TIMEOUT_MS: ${AGENT_LLM_REQUEST_TIMEOUT_MS:-120000}
       AGENT_LLM_MAX_RETRIES: ${AGENT_LLM_MAX_RETRIES:-0}
       AGENT_LLM_JSON_MAX_TOKENS: ${AGENT_LLM_JSON_MAX_TOKENS:-896}
@@ -356,7 +367,12 @@ services:
       CODE_PORT: ${CODE_PORT:-13103}
       HOST: 0.0.0.0
       CLAWHIVE_BACKEND_URL: http://clawhive_backend:8000
-      CLAWHIVE_INTERNAL_TOKEN: ${CLAWHIVE_INTERNAL_TOKEN:-}
+      JWT_SECRET: ${CLAWHIVE_JWT_SECRET:-change-this-secret}
+      AGENT_BROWSER_AUTH: ${AGENT_BROWSER_AUTH:-1}
+      CLAWHIVE_PUBLIC_URL: ${CLAWHIVE_PUBLIC_URL:-http://127.0.0.1:18000}
+      NUXT_PUBLIC_CLAWHIVE_AUTH_URL: ${CLAWHIVE_PUBLIC_URL:-http://127.0.0.1:18000}
+      # CLAWHIVE_INTERNAL_TOKEN：由 env_file 注入。勿写 ${CLAWHIVE_INTERNAL_TOKEN:-}——
+      # 当 --env-file .env.agents-lan 无法插值（首行被压成单行/注释）时会注入空串并覆盖 .env 中的有效令牌。
       AGENT_LLM_REQUEST_TIMEOUT_MS: ${AGENT_LLM_REQUEST_TIMEOUT_MS:-120000}
       AGENT_LLM_MAX_RETRIES: ${AGENT_LLM_MAX_RETRIES:-0}
       AGENT_LLM_JSON_MAX_TOKENS: ${AGENT_LLM_JSON_MAX_TOKENS:-896}
@@ -405,7 +421,12 @@ services:
       HTTPS_PROXY: ${HTTPS_PROXY:-}
       NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,extractor_agent,manager_agent,db_agent,rag_agent,code_assistent_agent,ai_admin_agent,video_agent,ai_agent,searxng,crw,playwright_mcp}
       CLAWHIVE_BACKEND_URL: http://clawhive_backend:8000
-      CLAWHIVE_INTERNAL_TOKEN: ${CLAWHIVE_INTERNAL_TOKEN:-}
+      JWT_SECRET: ${CLAWHIVE_JWT_SECRET:-change-this-secret}
+      AGENT_BROWSER_AUTH: ${AGENT_BROWSER_AUTH:-1}
+      CLAWHIVE_PUBLIC_URL: ${CLAWHIVE_PUBLIC_URL:-http://127.0.0.1:18000}
+      NUXT_PUBLIC_CLAWHIVE_AUTH_URL: ${CLAWHIVE_PUBLIC_URL:-http://127.0.0.1:18000}
+      # CLAWHIVE_INTERNAL_TOKEN：由 env_file 注入。勿写 ${CLAWHIVE_INTERNAL_TOKEN:-}——
+      # 当 --env-file .env.agents-lan 无法插值（首行被压成单行/注释）时会注入空串并覆盖 .env 中的有效令牌。
       CLAWHIVE_CONFIG_SYNC: ${CLAWHIVE_CONFIG_SYNC:-1}
       # QWEN_API_KEY / QWEN_BASE_URL：仅由 env_file（ExtractorPy_Agent/.env）注入，勿在此写空 ${QWEN_API_KEY:-} 覆盖
       # T0 CAP_ROUTE（与 .env.capability-models 对齐）；抽取勿升 CAP_REASON
@@ -473,7 +494,12 @@ services:
       HTTPS_PROXY: ${HTTPS_PROXY:-}
       NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,extractor_agent,manager_agent,db_agent,rag_agent,code_assistent_agent,ai_admin_agent,video_agent,ai_agent,searxng,crw,playwright_mcp}
       CLAWHIVE_BACKEND_URL: http://clawhive_backend:8000
-      CLAWHIVE_INTERNAL_TOKEN: ${CLAWHIVE_INTERNAL_TOKEN:-}
+      JWT_SECRET: ${CLAWHIVE_JWT_SECRET:-change-this-secret}
+      AGENT_BROWSER_AUTH: ${AGENT_BROWSER_AUTH:-1}
+      CLAWHIVE_PUBLIC_URL: ${CLAWHIVE_PUBLIC_URL:-http://127.0.0.1:18000}
+      NUXT_PUBLIC_CLAWHIVE_AUTH_URL: ${CLAWHIVE_PUBLIC_URL:-http://127.0.0.1:18000}
+      # CLAWHIVE_INTERNAL_TOKEN：由 env_file 注入。勿写 ${CLAWHIVE_INTERNAL_TOKEN:-}——
+      # 当 --env-file .env.agents-lan 无法插值（首行被压成单行/注释）时会注入空串并覆盖 .env 中的有效令牌。
       CAP_ROUTE: ${CAP_ROUTE:-qwen-turbo}
       QWEN_MODEL: ${CAP_ROUTE:-qwen-turbo}
       CAP_ENABLE_THINKING: ${CAP_ENABLE_THINKING:-off}
@@ -543,7 +569,12 @@ services:
       WORKSPACE_DIR: /app/workspace
       ADMIN_DATA_DIR: /app/data
       CLAWHIVE_BACKEND_URL: http://clawhive_backend:8000
-      CLAWHIVE_INTERNAL_TOKEN: ${CLAWHIVE_INTERNAL_TOKEN:-}
+      JWT_SECRET: ${CLAWHIVE_JWT_SECRET:-change-this-secret}
+      AGENT_BROWSER_AUTH: ${AGENT_BROWSER_AUTH:-1}
+      CLAWHIVE_PUBLIC_URL: ${CLAWHIVE_PUBLIC_URL:-http://127.0.0.1:18000}
+      NUXT_PUBLIC_CLAWHIVE_AUTH_URL: ${CLAWHIVE_PUBLIC_URL:-http://127.0.0.1:18000}
+      # CLAWHIVE_INTERNAL_TOKEN：由 env_file 注入。勿写 ${CLAWHIVE_INTERNAL_TOKEN:-}——
+      # 当 --env-file .env.agents-lan 无法插值（首行被压成单行/注释）时会注入空串并覆盖 .env 中的有效令牌。
       AGENT_LLM_REQUEST_TIMEOUT_MS: ${AGENT_LLM_REQUEST_TIMEOUT_MS:-120000}
       AGENT_LLM_MAX_RETRIES: ${AGENT_LLM_MAX_RETRIES:-0}
       AGENT_LLM_JSON_MAX_TOKENS: ${AGENT_LLM_JSON_MAX_TOKENS:-896}
@@ -776,6 +807,12 @@ services:
       LANGSMITH_TRACING: ${LANGSMITH_TRACING:-false}
       MANAGER_DB_ID: ${MANAGER_DB_ID:-default}
       CLAWHIVE_BACKEND_URL: http://clawhive_backend:8000
+      JWT_SECRET: ${CLAWHIVE_JWT_SECRET:-change-this-secret}
+      AGENT_BROWSER_AUTH: ${AGENT_BROWSER_AUTH:-1}
+      MANAGER_USER_AUTH: ${MANAGER_USER_AUTH:-1}
+      NUXT_PUBLIC_MANAGER_USER_AUTH: ${MANAGER_USER_AUTH:-1}
+      CLAWHIVE_PUBLIC_URL: ${CLAWHIVE_PUBLIC_URL:-http://127.0.0.1:18000}
+      NUXT_PUBLIC_CLAWHIVE_AUTH_URL: ${CLAWHIVE_PUBLIC_URL:-http://127.0.0.1:18000}
       MANAGER_CHECKPOINT_BACKEND: ${MANAGER_CHECKPOINT_BACKEND:-dual}
       REDIS_URL: ${REDIS_URL:-redis://clawhive_redis:6379/0}
       AGENT_DATABASE_URL: postgresql://${CLAWHIVE_PG_USER:-postgres}:${CLAWHIVE_PG_PASSWORD:-postgres}@clawhive_postgres:5432/${CLAWHIVE_PG_DB:-clawhive}
@@ -888,7 +925,12 @@ services:
       # 仅容器路径与平台同步；密钥/模型见 Multimodal_Agent/.env + .env.agents-lan
       API_PORT: "13107"
       CLAWHIVE_BACKEND_URL: http://clawhive_backend:8000
-      CLAWHIVE_INTERNAL_TOKEN: ${CLAWHIVE_INTERNAL_TOKEN:-}
+      JWT_SECRET: ${CLAWHIVE_JWT_SECRET:-change-this-secret}
+      AGENT_BROWSER_AUTH: ${AGENT_BROWSER_AUTH:-1}
+      CLAWHIVE_PUBLIC_URL: ${CLAWHIVE_PUBLIC_URL:-http://127.0.0.1:18000}
+      NUXT_PUBLIC_CLAWHIVE_AUTH_URL: ${CLAWHIVE_PUBLIC_URL:-http://127.0.0.1:18000}
+      # CLAWHIVE_INTERNAL_TOKEN：由 env_file 注入。勿写 ${CLAWHIVE_INTERNAL_TOKEN:-}——
+      # 当 --env-file .env.agents-lan 无法插值（首行被压成单行/注释）时会注入空串并覆盖 .env 中的有效令牌。
       AGENT_LLM_REQUEST_TIMEOUT_MS: ${AGENT_LLM_REQUEST_TIMEOUT_MS:-120000}
       AGENT_LLM_MAX_RETRIES: ${AGENT_LLM_MAX_RETRIES:-0}
       AGENT_LLM_JSON_MAX_TOKENS: ${AGENT_LLM_JSON_MAX_TOKENS:-896}
@@ -1005,7 +1047,12 @@ services:
       PORT: ${LOBSTER_PORT:-13108}
       NITRO_PORT: ${LOBSTER_PORT:-13108}
       CLAWHIVE_BACKEND_URL: http://clawhive_backend:8000
-      CLAWHIVE_INTERNAL_TOKEN: ${CLAWHIVE_INTERNAL_TOKEN:-}
+      JWT_SECRET: ${CLAWHIVE_JWT_SECRET:-change-this-secret}
+      AGENT_BROWSER_AUTH: ${AGENT_BROWSER_AUTH:-1}
+      CLAWHIVE_PUBLIC_URL: ${CLAWHIVE_PUBLIC_URL:-http://127.0.0.1:18000}
+      NUXT_PUBLIC_CLAWHIVE_AUTH_URL: ${CLAWHIVE_PUBLIC_URL:-http://127.0.0.1:18000}
+      # CLAWHIVE_INTERNAL_TOKEN：由 env_file 注入。勿写 ${CLAWHIVE_INTERNAL_TOKEN:-}——
+      # 当 --env-file .env.agents-lan 无法插值（首行被压成单行/注释）时会注入空串并覆盖 .env 中的有效令牌。
       AGENT_LLM_REQUEST_TIMEOUT_MS: ${AGENT_LLM_REQUEST_TIMEOUT_MS:-120000}
       AGENT_LLM_MAX_RETRIES: ${AGENT_LLM_MAX_RETRIES:-0}
       AGENT_LLM_JSON_MAX_TOKENS: ${AGENT_LLM_JSON_MAX_TOKENS:-896}
@@ -1060,7 +1107,12 @@ services:
       # 仅容器路径与平台同步；密钥/模型见 Tavern_Agent/.env + .env.agents-lan
       TAVERN_FRONTEND_DIST: /tavern/frontend/dist
       CLAWHIVE_BACKEND_URL: http://clawhive_backend:8000
-      CLAWHIVE_INTERNAL_TOKEN: ${CLAWHIVE_INTERNAL_TOKEN:-}
+      JWT_SECRET: ${CLAWHIVE_JWT_SECRET:-change-this-secret}
+      AGENT_BROWSER_AUTH: ${AGENT_BROWSER_AUTH:-1}
+      CLAWHIVE_PUBLIC_URL: ${CLAWHIVE_PUBLIC_URL:-http://127.0.0.1:18000}
+      NUXT_PUBLIC_CLAWHIVE_AUTH_URL: ${CLAWHIVE_PUBLIC_URL:-http://127.0.0.1:18000}
+      # CLAWHIVE_INTERNAL_TOKEN：由 env_file 注入。勿写 ${CLAWHIVE_INTERNAL_TOKEN:-}——
+      # 当 --env-file .env.agents-lan 无法插值（首行被压成单行/注释）时会注入空串并覆盖 .env 中的有效令牌。
       AGENT_LLM_REQUEST_TIMEOUT_MS: ${AGENT_LLM_REQUEST_TIMEOUT_MS:-120000}
       AGENT_LLM_MAX_RETRIES: ${AGENT_LLM_MAX_RETRIES:-0}
       AGENT_LLM_JSON_MAX_TOKENS: ${AGENT_LLM_JSON_MAX_TOKENS:-896}
@@ -1089,7 +1141,12 @@ services:
       API_PORT: "13115"
       CORS_ORIGINS: ${COMPANION_CORS_ORIGINS:-http://localhost:13115,http://127.0.0.1:13115}
       CLAWHIVE_BACKEND_URL: http://clawhive_backend:8000
-      CLAWHIVE_INTERNAL_TOKEN: ${CLAWHIVE_INTERNAL_TOKEN:-}
+      JWT_SECRET: ${CLAWHIVE_JWT_SECRET:-change-this-secret}
+      AGENT_BROWSER_AUTH: ${AGENT_BROWSER_AUTH:-1}
+      CLAWHIVE_PUBLIC_URL: ${CLAWHIVE_PUBLIC_URL:-http://127.0.0.1:18000}
+      NUXT_PUBLIC_CLAWHIVE_AUTH_URL: ${CLAWHIVE_PUBLIC_URL:-http://127.0.0.1:18000}
+      # CLAWHIVE_INTERNAL_TOKEN：由 env_file 注入。勿写 ${CLAWHIVE_INTERNAL_TOKEN:-}——
+      # 当 --env-file .env.agents-lan 无法插值（首行被压成单行/注释）时会注入空串并覆盖 .env 中的有效令牌。
       AGENT_LLM_REQUEST_TIMEOUT_MS: ${AGENT_LLM_REQUEST_TIMEOUT_MS:-120000}
       AGENT_LLM_MAX_RETRIES: ${AGENT_LLM_MAX_RETRIES:-0}
       AGENT_LLM_JSON_MAX_TOKENS: ${AGENT_LLM_JSON_MAX_TOKENS:-896}
@@ -1140,7 +1197,12 @@ services:
     environment:
       API_PORT: "13110"
       CLAWHIVE_BACKEND_URL: http://clawhive_backend:8000
-      CLAWHIVE_INTERNAL_TOKEN: ${CLAWHIVE_INTERNAL_TOKEN:-}
+      JWT_SECRET: ${CLAWHIVE_JWT_SECRET:-change-this-secret}
+      AGENT_BROWSER_AUTH: ${AGENT_BROWSER_AUTH:-1}
+      CLAWHIVE_PUBLIC_URL: ${CLAWHIVE_PUBLIC_URL:-http://127.0.0.1:18000}
+      NUXT_PUBLIC_CLAWHIVE_AUTH_URL: ${CLAWHIVE_PUBLIC_URL:-http://127.0.0.1:18000}
+      # CLAWHIVE_INTERNAL_TOKEN：由 env_file 注入。勿写 ${CLAWHIVE_INTERNAL_TOKEN:-}——
+      # 当 --env-file .env.agents-lan 无法插值（首行被压成单行/注释）时会注入空串并覆盖 .env 中的有效令牌。
       AGENT_LLM_REQUEST_TIMEOUT_MS: ${AGENT_LLM_REQUEST_TIMEOUT_MS:-120000}
       AGENT_LLM_MAX_RETRIES: ${AGENT_LLM_MAX_RETRIES:-0}
       AGENT_LLM_JSON_MAX_TOKENS: ${AGENT_LLM_JSON_MAX_TOKENS:-896}
@@ -1218,7 +1280,12 @@ services:
     environment:
       API_PORT: "13111"
       CLAWHIVE_BACKEND_URL: http://clawhive_backend:8000
-      CLAWHIVE_INTERNAL_TOKEN: ${CLAWHIVE_INTERNAL_TOKEN:-}
+      JWT_SECRET: ${CLAWHIVE_JWT_SECRET:-change-this-secret}
+      AGENT_BROWSER_AUTH: ${AGENT_BROWSER_AUTH:-1}
+      CLAWHIVE_PUBLIC_URL: ${CLAWHIVE_PUBLIC_URL:-http://127.0.0.1:18000}
+      NUXT_PUBLIC_CLAWHIVE_AUTH_URL: ${CLAWHIVE_PUBLIC_URL:-http://127.0.0.1:18000}
+      # CLAWHIVE_INTERNAL_TOKEN：由 env_file 注入。勿写 ${CLAWHIVE_INTERNAL_TOKEN:-}——
+      # 当 --env-file .env.agents-lan 无法插值（首行被压成单行/注释）时会注入空串并覆盖 .env 中的有效令牌。
       AGENT_LLM_REQUEST_TIMEOUT_MS: ${AGENT_LLM_REQUEST_TIMEOUT_MS:-120000}
       AGENT_LLM_MAX_RETRIES: ${AGENT_LLM_MAX_RETRIES:-0}
       AGENT_LLM_JSON_MAX_TOKENS: ${AGENT_LLM_JSON_MAX_TOKENS:-896}
@@ -1309,7 +1376,12 @@ services:
       # 模型名以 ../AI_Agent/.env 为准，勿在此覆盖 LLM_MODEL/ASR_MODEL/TTS_MODEL
       LIP_SYNC_MODE: ${AI_AGENT_LIP_SYNC_MODE:-client_rhythm}
       CLAWHIVE_BACKEND_URL: http://clawhive_backend:8000
-      CLAWHIVE_INTERNAL_TOKEN: ${CLAWHIVE_INTERNAL_TOKEN:-}
+      JWT_SECRET: ${CLAWHIVE_JWT_SECRET:-change-this-secret}
+      AGENT_BROWSER_AUTH: ${AGENT_BROWSER_AUTH:-1}
+      CLAWHIVE_PUBLIC_URL: ${CLAWHIVE_PUBLIC_URL:-http://127.0.0.1:18000}
+      NUXT_PUBLIC_CLAWHIVE_AUTH_URL: ${CLAWHIVE_PUBLIC_URL:-http://127.0.0.1:18000}
+      # CLAWHIVE_INTERNAL_TOKEN：由 env_file 注入。勿写 ${CLAWHIVE_INTERNAL_TOKEN:-}——
+      # 当 --env-file .env.agents-lan 无法插值（首行被压成单行/注释）时会注入空串并覆盖 .env 中的有效令牌。
       AGENT_LLM_REQUEST_TIMEOUT_MS: ${AGENT_LLM_REQUEST_TIMEOUT_MS:-120000}
       AGENT_LLM_MAX_RETRIES: ${AGENT_LLM_MAX_RETRIES:-0}
       AGENT_LLM_JSON_MAX_TOKENS: ${AGENT_LLM_JSON_MAX_TOKENS:-896}
@@ -1388,7 +1460,8 @@ services:
     image: docker.1ms.run/prom/alertmanager:v0.27.0
     container_name: clawhive_alertmanager
     environment:
-      CLAWHIVE_INTERNAL_TOKEN: ${CLAWHIVE_INTERNAL_TOKEN:-}
+      # CLAWHIVE_INTERNAL_TOKEN：由 env_file 注入。勿写 ${CLAWHIVE_INTERNAL_TOKEN:-}——
+      # 当 --env-file .env.agents-lan 无法插值（首行被压成单行/注释）时会注入空串并覆盖 .env 中的有效令牌。
       CLAWHIVE_ALERT_WEBHOOK_URL: ${CLAWHIVE_ALERT_WEBHOOK_URL:-}
     volumes:
       - ./monitoring/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro

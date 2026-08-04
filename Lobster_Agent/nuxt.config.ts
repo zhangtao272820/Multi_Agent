@@ -188,7 +188,12 @@ export default defineNuxtConfig({
     },
     mcpServers,
     public: {
-      wsPath: process.env.WS_PATH ?? '/_ws'
+      wsPath: process.env.WS_PATH ?? '/_ws',
+      clawhiveAuthUrl:
+        process.env.NUXT_PUBLIC_CLAWHIVE_AUTH_URL ||
+        process.env.CLAWHIVE_PUBLIC_URL ||
+        'http://127.0.0.1:18000',
+      agentBrowserAuth: process.env.NUXT_PUBLIC_AGENT_BROWSER_AUTH || process.env.AGENT_BROWSER_AUTH || '1'
     }
   }
 })

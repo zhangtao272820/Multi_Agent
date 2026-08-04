@@ -1,14 +1,17 @@
-# 可选外部对口型引擎（挂载到 Docker，不提交 git）
+# 可选外部引擎（不提交 git）
 
 ```
 .external/
-├── Wav2Lip/          # git clone Rudrabha/Wav2Lip + checkpoints/
-└── MuseTalk/         # git clone TMElyralab/MuseTalk + download_weights
+├── FeatherTalk/      # git clone anliyuan/FeatherTalk — 口型训练/推理真源
+└── LiveTalking/      # git clone lipku/LiveTalking — WebRTC 推流 / idle / 打断
 ```
 
-Compose 默认挂载：
+安装：
 
-- `Wav2Lip` → 容器 `/opt/Wav2Lip`
-- `MuseTalk` → 容器 `/opt/MuseTalk`
+```powershell
+.\scripts\setup_avatar_stack.ps1
+```
 
-可通过 `WAV2LIP_HOST_PATH` / `MUSETALK_HOST_PATH` 覆盖宿主机路径。
+若 SSL 报错：`$env:GIT_SSL_NO_VERIFY='true'` 后再跑。
+
+**已废弃作为主路径**：Wav2Lip、MuseTalk、旧 Ultralight 独立微服务。

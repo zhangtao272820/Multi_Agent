@@ -1,5 +1,8 @@
 <template>
-  <div class="snow-scene">
+  <ClientOnly>
+    <ClawhiveLoginGate v-if="needAuth && authReady && !isLoggedIn" @success="onLoginOk" />
+  </ClientOnly>
+  <div v-if="!needAuth || (authReady && isLoggedIn)" class="snow-scene">
     <div class="moon-system" aria-hidden="true">
       <div class="moon-halo" />
       <div class="moon-disc">
@@ -42,6 +45,14 @@
 </template>
 
 <script setup lang="ts">
+const runtimeConfig = useRuntimeConfig()
+const needAuth = computed(() => String(runtimeConfig.public?.agentBrowserAuth ?? '1') !== '0')
+const { isLoggedIn, ready: authReady, loadFromStorage } = useClawhiveLogin()
+function onLoginOk() {
+  loadFromStorage()
+}
+onMounted(() => loadFromStorage())
+
 type FlakeItem = {
   id: number
   style: Record<string, string>

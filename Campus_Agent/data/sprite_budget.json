@@ -40,24 +40,26 @@
     },
     "mid": {
       "tier": "T3",
-      "sprites_per_character": 30,
+      "sprites_per_character": 20,
       "ids": [
         "f05",
         "f11",
         "f15",
         "f16",
         "f17"
-      ]
+      ],
+      "note": "2026-07-30：校服再降 30→20；私密包仍全女统一 +20，不可少"
     },
     "low": {
       "tier": "T4",
       "sprites_per_character": 20,
-      "ids": []
+      "ids": [],
+      "note": "已取消；原 T4 角色并入 T3"
     }
   },
   "male_by_beauty": {
     "all": {
-      "sprites_per_character": 15,
+      "sprites_per_character": 14,
       "ids": [
         "pc",
         "m01",
@@ -70,9 +72,25 @@
         "m08",
         "m09"
       ],
-      "note": "全员统一约15张，不分颜值加码；无私密包"
+      "note": "全员统一 14 张可玩文件（含 q_stand_neutral；_identity 另计），不分颜值加码；无私密包。清单见 male_pack_files"
     }
   },
+  "male_pack_files": [
+    "summer_stand_neutral.png",
+    "q_stand_neutral.png",
+    "summer_stand_happy.png",
+    "summer_stand_angry.png",
+    "summer_study_neutral.png",
+    "summer_eat_neutral.png",
+    "summer_chat_happy.png",
+    "summer_listen_neutral.png",
+    "summer_wave_happy.png",
+    "summer_think_neutral.png",
+    "winter_stand_neutral.png",
+    "summer_rain_neutral.png",
+    "summer_sc_classroom_lean_neutral.png",
+    "summer_sc_hallway_window_neutral.png"
+  ],
   "private_pack": {
     "sprites_per_female": 20,
     "applies_to": "all_female",
@@ -82,7 +100,7 @@
       "towel"
     ],
     "rating": "adult_suggestive_18plus",
-    "note": "叠在校服配额之上；全女统一+20；禁裸露私密部位；adult woman age 18+"
+    "note": "叠在校服配额之上；全女统一+20（含 T3，不可因校服降档而少出）；禁裸露私密部位；adult woman age 18+"
   },
   "outfits": [
     "summer",
@@ -164,12 +182,12 @@
     "default"
   ],
   "totals_estimate": {
-    "female_school": "4*80 + 8*80 + 8*50 + 5*30 + 0*20 = 1510",
+    "female_school": "4*80 + 8*80 + 8*50 + 5*20 + 0*20 = 1460",
     "female_private": "25*20 = 500",
-    "female": "1510 + 500 = 2010",
-    "male": "10*15 = 150",
+    "female": "1460 + 500 = 1960",
+    "male": "10*14 = 140",
     "q_min": "35*1 = 35",
-    "note": "2026-07-21：观感重排 T1/T2；取消 T4；去明星锚点。同日身材可见性：全女 25 人 identity 均需按 FULL-BODY body lock（height/figure/bust/weight_kg）重出；f01/f03/f19 整包重出。M11 起另计全员 Q 包。"
+    "note": "2026-07-21：观感重排 T1/T2；取消 T4。2026-07-30：T3 校服 30→20，私密仍全女 +20。M11 起另计全员 Q 包。"
   },
-  "notes": "校园两套校服 + 宿舍三套私密装；含场景互动 sc_* 与私密 actions_private。男全员15张。Q 版独立。详见 doc/archive/立绘生产计划.md"
+  "notes": "校园两套校服 + 宿舍三套私密装；含场景互动 sc_* 与私密 actions_private。T3 校服精简但私密包不减。男全员15张。Q 版独立。详见 doc/archive/立绘生产计划.md"
 }

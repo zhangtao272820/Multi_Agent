@@ -1,0 +1,50 @@
+id: story_shuli_act3_display
+label: 故意让你看见
+priority: 7
+once: true
+chance: 1.0
+scene_id: ""
+trigger:
+  character_ids: [shuli]
+  stage_min: close_friend
+  affinity_min: 78
+  flags_absent: [deliberate_display]
+  flags_present: [bond_ally_done, sibling_talk_done]
+prompt_snippet: |
+  【专属故事 · 日程本里的禁忌 · 第3幕 · 故意让你看见】
+advance: on_player_turn
+beats:
+  - id: b1
+    narration: "浴室门开，雾气涌出。她只围浴巾愣在客厅灯下——半秒后故意没躲，指节却把角攥白，像把「合法亲近」撕开一道缝。"
+    pc_thought: "我知道不该看。目光还是黏住了。兄长身份在这一秒发烫。"
+    brief: "浴巾出场被你看见；故意不躲又紧张。等你背身、递衣或点破。"
+    summary: "浴巾出场被你看见；故意不躲又紧张。等你背身、递衣或点破。"
+    sprite_hint: [bath_foam, home, casual]
+    soft_options: ["背过身去", "递外套别问", "问她是不是故意的"]
+  - id: b2
+    narration: "她坐近一步，膝盖几乎相碰：不能当恋人，也不想只当你的工具妹妹。日程夹层鼓起，像藏着见不得光的字。"
+    pc_thought: "影子席的邀请——我若伸手，就再也装不成纯家人。"
+    brief: "坐近坦白情愫被压着；家规与心跳打架。察你会不会点破。"
+    summary: "坐近坦白情愫被压着；家规与心跳打架。察你会不会点破。"
+    sprite_hint: [home_sibling, home]
+    soft_options: ["承认也难受", "约定不点破", "说会守住边界"]
+  - id: b3
+    narration: "她在本子写下「影子」：花园里可以有不被名义承认的位置——展示只给你，称呼与姓氏不许改。写完立刻用掌心盖住，像否认刚才的勇敢。"
+    pc_thought: "展示成功后的羞耻比欲望更刺。我怕自己享受这份「合法越界」。"
+    brief: "提出影子席后又立刻羞耻否认。等你接住、稳住家人，或劝她退出。"
+    summary: "提出影子席后又立刻羞耻否认。等你接住、稳住家人，或劝她退出。"
+    sprite_hint: [kitchen_helper, home_sibling]
+    soft_options: ["接受影子默契", "先稳住家人身份", "问她要不要退出"]
+  - id: b4
+    narration: "灯关掉前她说：枫音也在同屋檐下。隔壁键盘声忽然停，又响起来——像有人只是换了首歌。她假装没听见。"
+    pc_thought: "隔墙有没有人？我答应守家，手却还记得她浴巾的温度。"
+    brief: "提醒枫音同住风险；愿守家也愿再「不小心」被看见。等晚安式收束。"
+    summary: "提醒枫音同住风险；愿守家也愿再「不小心」被看见。等晚安式收束。"
+    sprite_hint: [max_micro_slip, casual, home]
+    soft_options: ["承诺不让家乱", "握住她手又松开", "道晚安妹妹"]
+rewards:
+  flags_set: [deliberate_display, shuli_soft_bloom, kin_garden_ready]
+choice_effects:
+  - { trust_delta: 3, affinity_delta: 4 }
+  - { trust_delta: 2, affinity_delta: 3 }
+  - { trust_delta: 1, affinity_delta: 1 }

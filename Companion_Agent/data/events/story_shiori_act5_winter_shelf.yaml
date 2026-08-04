@@ -1,0 +1,76 @@
+id: story_shiori_act5_winter_shelf
+label: 冬夜空白页
+priority: 6
+once: true
+chance: 1.0
+scene_id: ''
+trigger:
+  character_ids:
+  - shiori
+  stage_min: crush
+  affinity_min: 78
+  flags_present:
+  - sr_blank_page
+  flags_absent:
+  - sr_winter_shelf
+  waypoint_min: q_winter_onset
+  season: winter
+prompt_snippet: |
+  【专属故事 · 三岛栞 · 冬季加幕 · 冬夜空白页】
+advance: on_player_turn
+beats:
+- id: b1
+  summary: 入冬书店暖气不足；她把空白笔记本推过来，笔帽还没拔开。等你回应。
+  sprite_hint:
+  - season_winter
+  - home
+  - home_eating
+  - home_sleeping
+  - intimate_lounge
+  soft_options:
+  - 帮她扶书脊
+  - 递围巾
+  - 先锁柜
+  narration: 入冬书店暖气不足；她把空白笔记本推过来，笔帽还没拔开。
+  pc_thought: 她荐别人的书很准。空白页才是她自己。
+  brief: 入冬书店暖气不足；她把空白笔记本推过来，笔帽还没拔开。等你回应。
+- id: b2
+  summary: 她说冬天适合写「夏天不敢写的收件人」；指尖在纸边停了很久。等你回应。
+  sprite_hint:
+  - season_winter
+  - casual
+  - home_eating
+  - home_sleeping
+  - intimate_lounge
+  soft_options:
+  - 听她读半页
+  - 说我不抢封面
+  - 约窗边站一会
+  narration: 纸墨与坡道夜风里，她说冬天适合写「夏天不敢写的收件人」；指尖在纸边停了很久。
+  pc_thought: 坡上月亮很亮。我想读她未写完的那一行。
+  brief: 她说冬天适合写「夏天不敢写的收件人」；指尖在纸边停了很久。等你回应。
+- id: b3
+  summary: 你是留下一笔名字，还是让页保持空白；故事会被装订或撕掉。等你回应。
+  sprite_hint:
+  - season_winter
+  - date
+  - home_eating
+  - home_sleeping
+  - intimate_lounge
+  soft_options:
+  - 说故事还在
+  - 帮她写便签
+  - 送她出馆
+  narration: 纸墨与坡道夜风里，你是留下一笔名字，还是让页保持空白；故事会被装订或撕掉。
+  pc_thought: 窗边朗读像告白预演。我鼓掌还是接过笔？
+  brief: 你是留下一笔名字，还是让页保持空白；故事会被装订或撕掉。等你回应。
+rewards:
+  flags_set:
+  - sr_winter_shelf
+choice_effects:
+- trust_delta: 3
+  affinity_delta: 3
+- trust_delta: 2
+  affinity_delta: 1
+- trust_delta: -3
+  affinity_delta: -2

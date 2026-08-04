@@ -2,6 +2,7 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import { backupManagerPolicyFile, loadManagerPolicy, type ManagerPolicy, clampNumber } from '../shared'
 import type { FailureInsightBundle } from './failureInsights'
+import { syncEvoPolicyPromote, syncEvoPolicyShadowWrite } from './evoPolicySync'
 
 export type EvolutionCandidate = {
   version: number
@@ -175,6 +176,9 @@ export async function maybeWriteManagerPolicyShadow(policyDir: string, insights:
   next.version = candidate.version
   next.updatedAt = new Date().toISOString()
   await fs.writeFile(currentShadowPath, JSON.stringify(next, null, 2), 'utf8')
+  await syncEvoPolicyShadowWrite(policyDir, 'policy', next as unknown as Record<string, unknown>).catch(
+    () => undefined
+  )
   const auditPath = path.join(policyDir, 'manager-evolution-candidates.jsonl')
   await fs.appendFile(
     auditPath,
@@ -205,5 +209,8 @@ export async function maybePromoteManagerPolicyShadow(policyDir: string, opts?: 
   if (!Number.isFinite(confidence) || confidence < minConf) return { promoted: false as const, reason: 'low_confidence' }
   await backupManagerPolicyFile(policyDir).catch(() => undefined)
   await fs.writeFile(path.join(policyDir, 'manager-policy.json'), JSON.stringify(parsed, null, 2), 'utf8')
+  await syncEvoPolicyPromote(policyDir, 'policy', parsed as unknown as Record<string, unknown>, {
+    verifyOk: true
+  }).catch(() => undefined)
   return { promoted: true as const, fromVersion: Number(active.version || 0), toVersion: Number(parsed.version || 0), confidence }
 }

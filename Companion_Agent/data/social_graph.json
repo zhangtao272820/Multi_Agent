@@ -835,79 +835,6 @@
       "contact_style": "短句多，情绪上来时尖锐但不写小作文",
       "boundary": "最讨厌装作从没发生过，或旧事翻新账当玩笑"
     },
-    "yeyu": {
-      "base_id": "sarcastic_lover",
-      "cast_kind": "romance",
-      "role_to_pc": "便利店熟人",
-      "role_hint": "夜班常碰上，吐槽搭子气质；可慢慢靠近",
-      "home_locations": [
-        "store",
-        "street"
-      ],
-      "schedule": {
-        "morning": [
-          "home"
-        ],
-        "afternoon": [
-          "street"
-        ],
-        "evening": [
-          "store"
-        ],
-        "night": [
-          "store",
-          "street"
-        ]
-      },
-      "preferences": {
-        "likes": [
-          "深夜宁静",
-          "即食关东煮"
-        ],
-        "dislikes": [
-          "假热情客套"
-        ],
-        "habits": [
-          "吐槽进店的人",
-          "给你多倒一勺汤"
-        ]
-      },
-      "occupation": "独立设计师",
-      "schedule_workday": {
-        "morning": [
-          "home"
-        ],
-        "afternoon": [
-          "street"
-        ],
-        "evening": [
-          "store"
-        ],
-        "night": [
-          "store",
-          "street"
-        ]
-      },
-      "schedule_rest": {
-        "morning": [
-          "store"
-        ],
-        "afternoon": [
-          "park",
-          "forest",
-          "cafe"
-        ],
-        "evening": [
-          "park",
-          "cafe"
-        ],
-        "night": [
-          "store"
-        ]
-      },
-      "contact_style": "冷幽默短句，偶尔认真",
-      "boundary": "不接受深夜腻歪或被当作恋爱备胎"
-    },
     "aili": {
       "base_id": "mature_sister",
       "cast_kind": "romance",
@@ -1370,9 +1297,9 @@
     },
     "shuli": {
       "base_id": "tsundere",
-      "cast_kind": "neutral",
+      "cast_kind": "linked",
       "role_to_pc": "亲妹妹",
-      "role_hint": "亲妹妹；家人边界，绝非恋爱对象",
+      "role_hint": "同城念书的亲妹妹；称呼不变，情愫不说破，可有故意展示与影子默契",
       "home_locations": [
         "home",
         "room"
@@ -1449,9 +1376,9 @@
     },
     "jingning": {
       "base_id": "mature_sister",
-      "cast_kind": "neutral",
+      "cast_kind": "linked",
       "role_to_pc": "江静流的堂妹",
-      "role_hint": "旁观堂姐职场与恋爱，可吐槽但禁恋爱",
+      "role_hint": "旁观堂姐职场与恋爱；吐槽、守门，心动须过双门",
       "home_locations": [
         "campus",
         "street"
@@ -1526,9 +1453,9 @@
     },
     "youwei": {
       "base_id": "gentle_lover",
-      "cast_kind": "neutral",
+      "cast_kind": "linked",
       "role_to_pc": "苏晚悠的工作室学妹",
-      "role_hint": "插画学妹，把你当模特邻居，禁恋爱",
+      "role_hint": "插画学妹，把你当模特邻居；心动先过学姐那一关",
       "home_locations": [
         "home",
         "street"
@@ -1603,9 +1530,9 @@
     },
     "yuxi": {
       "base_id": "gentle_lover",
-      "cast_kind": "neutral",
+      "cast_kind": "linked",
       "role_to_pc": "温晚雨的高中死党",
-      "role_hint": "店里顶班的死党，护温晚雨休息，禁恋爱",
+      "role_hint": "店里顶班的死党，护温晚雨休息；本人开放后可并排",
       "home_locations": [
         "cafe",
         "campus"
@@ -1678,9 +1605,9 @@
     },
     "lingke": {
       "base_id": "mature_sister",
-      "cast_kind": "neutral",
+      "cast_kind": "linked",
       "role_to_pc": "顾若铃的研究生助教",
-      "role_hint": "护导师边界，对越线零容忍，禁恋爱",
+      "role_hint": "护导师边界，对越线零容忍；破门后才肯对等",
       "home_locations": [
         "campus",
         "library"
@@ -1753,9 +1680,9 @@
     },
     "aichen": {
       "base_id": "mature_sister",
-      "cast_kind": "neutral",
+      "cast_kind": "linked",
       "role_to_pc": "夏艾黎的闺蜜",
-      "role_hint": "离婚托底闺蜜，礼貌审视，禁恋爱",
+      "role_hint": "离婚托底闺蜜，礼貌审视；过审后才卸下防线",
       "home_locations": [
         "street",
         "cafe"
@@ -1911,13 +1838,6 @@
       "kind": "acquaintance"
     },
     {
-      "a": "jingning",
-      "b": "yeyu",
-      "relation": "时尚圈活动上点头之交",
-      "secret": false,
-      "kind": "acquaintance"
-    },
-    {
       "a": "lingke",
       "b": "linxi",
       "relation": "校园里见过的点头之交",
@@ -1942,7 +1862,7 @@
     {
       "a": "lingke",
       "b": "shuli",
-      "relation": "校园答疑时见过的高中生妹妹",
+      "relation": "校园答疑时见过的大学生妹妹",
       "secret": false,
       "kind": "acquaintance"
     },
@@ -2180,7 +2100,7 @@
   ],
   "pc": {
     "label": "你",
-    "summary": "落脚小镇的上班族。亲妹妹沈书璃同城念书，义妹沈枫音同住；工作日去公司，周末在咖啡店、书店与校园之间晃。恋爱只发生在 romance 线；中立是家人/守门人/同盟。地点路人立绘为无名背景装饰，无对话角色。",
+    "summary": "落脚小镇的上班族。亲妹妹沈书璃同城念书，义妹沈枫音同住；工作日去公司，周末在咖啡店、书店与校园之间晃。恋爱可发生在女主线与关系向难攻略线；关系向须经锚点认识并过闸门。地点路人立绘为无名背景装饰，无对话角色。",
     "home_with": [
       "shuli",
       "fengyin"

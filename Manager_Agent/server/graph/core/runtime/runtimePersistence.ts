@@ -31,9 +31,9 @@ export async function appendMemory(entry: { user: string } & Record<string, any>
   await appendManagerMemory(entry)
 }
 
-export async function readManagerExperienceHistory(policyDir: string, maxLines = 520) {
-  await hydrateManagerMemoryCache(maxLines)
-  return readManagerMemorySync(maxLines)
+export async function readManagerExperienceHistory(policyDir: string, maxLines = 520, tenantId?: string) {
+  await hydrateManagerMemoryCache(maxLines, tenantId)
+  return readManagerMemorySync(maxLines, tenantId)
 }
 
 export async function appendMetrics(entry: ManagerMetricEntryInput) {

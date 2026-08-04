@@ -14,17 +14,26 @@ prompt_snippet: |
 advance: on_player_turn
 beats:
   - id: b1
-    summary: "社团/练习生室初遇，应援式友谊"
-    sprite_hint: [vocal_booth, choreo_mark]
-    soft_options: ["认真接话", "先观察", "轻声提问"]
+    narration: "声乐棚回音里她破了音，却对空气笑：偶像不能露怯。汗顺着鬓角滑进领口，气氛忽然认真起来。"
+    pc_thought: "破音也比完美假笑真。我想当观众，不是灯牌支架。"
+    brief: "破音后仍撑偶像笑；怕露怯。等他递水、说破音也很真，或假装刚进门。"
+    summary: "破音后仍撑偶像笑；怕露怯。等他递水、说破音也很真，或假装刚进门。"
+    sprite_hint: [vocal_booth, school, season_winter, home_eating, home_sleeping]
+    soft_options: ["递水", "说破音也很真", "假装刚进门"]
   - id: b2
-    summary: "「练功房」里出现犹豫或选择。"
-    sprite_hint: [choreo_mark, school]
-    soft_options: ["表明态度", "给她空间", "确认她的意思"]
+    narration: "地板记号旁她喘着数拍。需要一个人当「应急观众」——灯没开全，影子被拉得很长。"
+    pc_thought: "应急观众很好当——素颜观众才难。"
+    brief: "喘着数拍要应急观众。等他坐下认真看、鼓掌或问要不要休息。"
+    summary: "喘着数拍要应急观众。等他坐下认真看、鼓掌或问要不要休息。"
+    sprite_hint: [choreo_mark, stretch_break, season_winter, home_eating, home_sleeping]
+    soft_options: ["坐下认真看", "给节奏鼓掌", "问要不要休息"]
   - id: b3
-    summary: "收束本幕：留下可被记住的结果，不剧透结局名。"
-    sprite_hint: [school]
-    soft_options: ["坦白心意", "先缓一缓", "诚实说明顾虑"]
+    narration: "休息间隙她摘掉耳返，声音忽然小：今天这些，别发到灯牌群。眼神却在等一句更私人的保证。"
+    pc_thought: "万人喜欢很吵。我想听她私下喘一口气的声音。"
+    brief: "要求秘密别发灯牌群；等更私人的保证。等他说只给你、夸努力或约下次。"
+    summary: "要求秘密别发灯牌群；等更私人的保证。等他说只给你、夸努力或约下次。"
+    sprite_hint: [lyric_marker, casual, season_winter, home_eating, home_sleeping]
+    soft_options: ["说秘密只给你", "夸努力看得见", "约下次还来"]
 rewards:
   flags_set: [tt_practice_met]
 choice_effects:

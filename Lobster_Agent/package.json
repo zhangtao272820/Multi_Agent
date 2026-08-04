@@ -14,6 +14,7 @@
     "diag:egress": "node scripts/diag-egress.mjs",
     "regression:smoke": "node scripts/regression-smoke.mjs",
     "smoke:mcp": "npx tsx scripts/smoke-mcp.ts",
+    "smoke:agent-result": "npx tsx scripts/smoke-agent-result-trust.ts",
     "smoke:lean": "npx tsx scripts/smoke-lean-browse-policy.ts",
     "smoke:workflow": "npx tsx scripts/smoke-workflow-macro.ts",
     "smoke:complex": "npx tsx scripts/smoke-complex-recovery.ts",

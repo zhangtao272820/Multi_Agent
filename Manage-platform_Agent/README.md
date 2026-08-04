@@ -24,9 +24,17 @@
 | 可观测 | 监控与日志 | Prom 大屏 · **Audit**（Token/成功率，`/api/monitor/dashboard`→`audit`）· 告警 · run_id/trace_id → Loki/Tempo/Langfuse |
 | 部署 | 部署中心 | 镜像 tag · 回滚（封装 `rollback-agents`）· 离线包状态 |
 | 维护 | 备份恢复 | PG 备份/恢复（封装 scripts） |
-| 治理 | 系统设置 | 租户配额 · Vault · 审计 |
+| 治理 | 用户与角色 / 租户与配额 / 审计 / 密钥与通知 / 系统设置 | **CP-Gov**：三角色 RBAC 矩阵 · 敏感审计清单 · Vault Fernet 写回 · 告警 webhook 态 · 租户配额；环境快照仍在系统设置 |
 
-API 速查：`/api/agents/config/convergence-modes`、`/api/agents/config/agents-lan`、`/api/agents/config/{name}/local-env`、`/api/ops/deploy/*`、`/api/ops/backup/*`。
+API 速查：`/api/governance/rbac-matrix`、`/api/governance/audit-checklist`、`/api/governance/notify-status`、`/api/ops/backup/policy`、`/api/agents/config/convergence-modes`、`/api/agents/config/agents-lan`、`/api/agents/config/{name}/local-env`、`/api/ops/deploy/*`、`/api/ops/backup/*`、`/api/manager/evolution/global-candidates`、`/api/manager/evolution/global-review`。  
+CP-Gov 验收：`python scripts/smoke_cp_gov.py`（可选 `--base http://127.0.0.1:18000`）。
+
+### 多租户记忆 / 历史 / 进化
+
+- **契约**：`TenantScope`（`shared/tenantScope.ts`）贯穿 Manager / DB / RAG 记忆与学习信号；迁移见 `scripts/migrations/016_agent_memory_multitenant.sql`。
+- **隔离**：PG `tenant_id` 列 + `.data/tenants/{tid}/`；召回强制租户过滤；清除 API 必带租户。
+- **进化双轨**：租户内 shadow→active；脱敏后的 `global_candidate` 由本平台管理员审核合入 `_global_` 基线（本地 overlay 优先）。
+- **验证**：`Manager_Agent` 下 `npm run smoke:tenant-memory`。
 
 **天魁 Registry 边界**：技能市场 / 启停属本控制面；运行时 cap 调度属 Manager `agentRegistry`。详见 [`docs/registry-boundary.md`](../docs/registry-boundary.md)——**勿**再拆独立 Registry Agent。
 
@@ -256,11 +264,10 @@ docker compose --env-file .env.agents-lan -f docker-compose.agents-lan.yml up -d
 |------|------|
 | **`.env.capability-models`** | 模型名 `CAP_*` **唯一可写源** → apply 脚本同步到各 Agent `.env` |
 | **`.env.convergence-modes`** | 行为 MODE（含 `MANAGER_WEB_SEARCH_MODE`） |
-| **`.env.agents-lan`** | 端口、PG、**CLAWHIVE_INTERNAL_TOKEN**、API Key、**SearXNG / WEB_SEARCH_*** |
-| `backend/.env` | 仅本机 `up-local.ps1` 起后端时用 |
-| 项目根 `.env` | **勿放** `CAP_*` / `SEARXNG_*`（compose 插值会污染）；仅可作非 SSOT 回退 |
+| **`.env.agents-lan`** | 端口、PG、**CLAWHIVE_INTERNAL_TOKEN**、**CLAWHIVE_JWT_SECRET**、API Key、**SearXNG / WEB_SEARCH_*** |
 
-`CLAWHIVE_INTERNAL_TOKEN` 必须与 `Manager_Agent/.env` 中相同，否则 Manager 无法从平台同步端点。
+`CLAWHIVE_INTERNAL_TOKEN` 必须与 `Manager_Agent/.env` 中相同，否则 Manager 无法从平台同步端点。  
+**统一登录**：各 1A Agent UI 本地登录调 ClawHive `/api/auth/login`；`userId = JWT.sub`。契约见 [`docs/unified-login.md`](../docs/unified-login.md)。历史无主会话/记忆挂到 `admin`：`scripts/migrate-legacy-owner-to-admin.sql`（见 `.env.agents-lan` 中 `MANAGER_LEGACY_OWNER_USER`）。
 
 日常换模型并生效（sync + recreate，**restart 不会重载 env_file**）：
 

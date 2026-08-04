@@ -3,32 +3,88 @@ label: 被看见的作品
 priority: 7
 once: true
 chance: 1.0
-scene_id: ""
+scene_id: ''
 trigger:
-  character_ids: [xiaoyou]
+  character_ids:
+  - xiaoyou
   stage_min: crush
-  affinity_min: 75
-  flags_absent: [xy_portfolio_shown]
-  flags_present: [xy_deadline_shared]
-prompt_snippet: |
-  【专属故事 · 画框里的邻人 · 第3幕 · 被看见的作品】
+  affinity_min: 80
+  flags_absent:
+  - xy_portfolio_shown
+  flags_present:
+  - xy_deadline_shared
+prompt_snippet: '【专属故事 · 画框里的邻人 · 第3幕 · 被看见的作品】
+
+  '
 advance: on_player_turn
 beats:
-  - id: b1
-    summary: "夜市/书店/作品集"
-    sprite_hint: [night_market, portfolio]
-    soft_options: ["认真接话", "先观察", "轻声提问"]
-  - id: b2
-    summary: "她敢把未完成的自己给你看"
-    sprite_hint: [portfolio, sketch_together]
-    soft_options: ["表明态度", "给她空间", "确认她的意思"]
-  - id: b3
-    summary: "收束本幕：留下可被记住的结果，不剧透结局名。"
-    sprite_hint: [sketch_together]
-    soft_options: ["坦白心意", "先缓一缓", "诚实说明顾虑"]
+- id: b1
+  summary: 夜市灯下她速写路人，却把本子护得紧紧，像怕你看见败笔，也像怕你夸得太准。等你回应。
+  sprite_hint:
+  - night_market_sketch
+  - casual
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 夸她抓神的准
+  - 问能不能看
+  - 并排安静走
+  narration: 松节油与暖黄灯里，夜市灯下她速写路人，却把本子护得紧紧，像怕你看见败笔，也像怕你夸得太准。
+  pc_thought: 应门的话，邻居的壳就薄了。不应，又怕今晚只剩自己和未干的线稿。
+  brief: 夜市灯下她速写路人，却把本子护得紧紧，像怕你看见败笔，也像怕你夸得太准。等你回应。
+- id: b2
+  summary: 书店角落，她终于摊开作品集——未完成页比成品更诚实，铅笔印还留着擦拭的痕迹。等你回应。
+  sprite_hint:
+  - bookstore_browse
+  - portfolio_spread
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 认真翻每一页
+  - 问哪页最怕被看
+  - 说喜欢未完成
+  narration: 松节油与暖黄灯里，书店角落，她终于摊开作品集——未完成页比成品更诚实，铅笔印还留着擦拭的痕迹。
+  pc_thought: 我是来帮忙的，还是来被画进她的框里？
+  brief: 书店角落，她终于摊开作品集——未完成页比成品更诚实，铅笔印还留着擦拭的痕迹。等你回应。
+- id: b3
+  summary: 她问：被看见会不会就不再是「只属于自己的线」？画室门外，学妹悠微其实也在悄悄看着。等你回应。
+  sprite_hint:
+  - portfolio_spread
+  - floor_sketch
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 说看见不是占有
+  - 说你想站画布对面
+  - 说她可以随时合上
+  narration: 她问：被看见会不会就不再是「只属于自己的线」？画室门外，学妹悠微其实也在悄悄看着你怎么回答。
+  pc_thought: 夸她的画容易；留下来才难。
+  brief: 她问：被看见会不会就不再是「只属于自己的线」？画室门外，学妹悠微其实也在悄悄看着。等你回应。
+- id: b4
+  summary: 她把一支铅笔推过来：下次……要不要当她的临时模特。邀请里藏着羞耻，也藏着信任。等你回应。
+  sprite_hint:
+  - floor_sketch
+  - casual
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 答应当模特
+  - 笑说先练坐姿
+  - 问报酬是不是晚饭
+  narration: 松节油与暖黄灯里，她把一支铅笔推过来：下次……要不要当她的临时模特。邀请里藏着羞耻，也藏着信任。
+  pc_thought: deadline 里掺着心动——我别把忙碌当成逃避。
+  brief: 她把一支铅笔推过来：下次……要不要当她的临时模特。邀请里藏着羞耻，也藏着信任。等你回应。
 rewards:
-  flags_set: [xy_portfolio_shown]
+  flags_set:
+  - xy_portfolio_shown
 choice_effects:
-  - { trust_delta: 3, affinity_delta: 3 }
-  - { trust_delta: 2, affinity_delta: 2 }
-  - { trust_delta: -2, affinity_delta: -1 }
+- trust_delta: 3
+  affinity_delta: 3
+- trust_delta: 2
+  affinity_delta: 2
+- trust_delta: -2
+  affinity_delta: -1

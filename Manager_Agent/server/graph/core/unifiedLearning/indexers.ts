@@ -49,15 +49,119 @@ export async function readSignals(policyDir: string, maxLines = 500): Promise<Un
   return out
 }
 
+/** 看板/调参默认排除已被重新生成作废的信号 */
+export function activeLearningSignals(signals: UnifiedLearningSignal[]): UnifiedLearningSignal[] {
+  return signals.filter((s) => !s.superseded)
+}
+
+function normUserTask(s: string) {
+  return String(s || '')
+    .replace(/\s+/g, '')
+    .trim()
+    .slice(0, 240)
+}
+
+/**
+ * 重新生成 / 编辑重发 / 撤回：作废同会话同轮（或撤回点及之后）旧学习信号，避免幽灵 run 拉低平均分。
+ * 优先按 userMessageIndex；无 index 的历史信号用 plan_outcome 用户原文匹配 runId。
+ * withdraw：作废 userMessageIndex >= fromIndex 的全部信号。
+ */
+export async function supersedeLearningSignalsForRevision(input: {
+  policyDir: string
+  sessionId: string
+  userMessageIndex?: number | null
+  /** withdraw：作废从此序号起的全部轮次 */
+  fromUserMessageIndex?: number | null
+  userText?: string
+  reason: 'regenerate' | 'edit_resend' | 'withdraw'
+}): Promise<{ superseded: number }> {
+  if (!isUnifiedLearningEnabled()) return { superseded: 0 }
+  const sid = String(input.sessionId || '').trim()
+  if (!sid) return { superseded: 0 }
+  const p = path.join(input.policyDir, SIGNAL_FILE)
+  const raw = await fs.readFile(p, 'utf8').catch(() => '')
+  if (!raw.trim()) return { superseded: 0 }
+
+  const uidx =
+    typeof input.userMessageIndex === 'number' && Number.isFinite(input.userMessageIndex)
+      ? Math.floor(input.userMessageIndex)
+      : null
+  const fromIdx =
+    typeof input.fromUserMessageIndex === 'number' && Number.isFinite(input.fromUserMessageIndex)
+      ? Math.floor(input.fromUserMessageIndex)
+      : input.reason === 'withdraw' && uidx != null
+        ? uidx
+        : null
+  const wantUser = normUserTask(input.userText || '')
+  const runIdsFromPlan = new Set<string>()
+  if (wantUser) {
+    const memRaw = await fs
+      .readFile(path.join(input.policyDir, 'manager-memory.jsonl'), 'utf8')
+      .catch(() => '')
+    for (const line of memRaw.split('\n').filter(Boolean)) {
+      try {
+        const o = JSON.parse(line)
+        if (String(o?.type || '') !== 'plan_outcome') continue
+        if (normUserTask(String(o?.user || '')) !== wantUser) continue
+        const rid = String(o?.runId || '').trim()
+        if (rid) runIdsFromPlan.add(rid)
+      } catch {
+        /* skip */
+      }
+    }
+  }
+
+  const now = new Date().toISOString()
+  let superseded = 0
+  const next = raw
+    .split('\n')
+    .filter((l) => l.trim())
+    .map((line) => {
+      try {
+        const o = JSON.parse(line) as UnifiedLearningSignal
+        if (o.superseded) return line
+        if (String(o.sessionId || '') !== sid) return line
+        const sigIdx =
+          typeof o.userMessageIndex === 'number' && Number.isFinite(o.userMessageIndex)
+            ? Math.floor(o.userMessageIndex)
+            : null
+        const sameTurn = uidx != null && sigIdx === uidx
+        const fromTurn = fromIdx != null && sigIdx != null && sigIdx >= fromIdx
+        // 撤回且无 index 的历史幽灵：同会话全部作废（该会话已截断，旧样本不应再进看板）
+        const withdrawLegacy =
+          input.reason === 'withdraw' && fromIdx != null && sigIdx == null
+        const sameLegacyRun = runIdsFromPlan.has(String(o.runId || ''))
+        if (!sameTurn && !fromTurn && !withdrawLegacy && !sameLegacyRun) return line
+        superseded += 1
+        return JSON.stringify({
+          ...o,
+          superseded: true,
+          supersededReason: input.reason,
+          supersededAt: now,
+          learnEligible: false,
+          learnBanditEligible: false
+        })
+      } catch {
+        return line
+      }
+    })
+  if (superseded > 0) {
+    await fs.writeFile(p, `${next.join('\n')}\n`, 'utf8')
+  }
+  return { superseded }
+}
+
 export async function buildUnifiedLearningDashboard(policyDir: string, sessionId?: string) {
   const effectiveWeights = await getEffectiveLearningWeights(policyDir).catch(() => getCachedLearningWeights())
   const signals = await readSignals(policyDir, 400)
-  const filtered = sessionId ? signals.filter((s) => s.sessionId === sessionId) : signals
-  const slice = filtered.length ? filtered : signals
+  const active = activeLearningSignals(signals)
+  const filtered = sessionId ? active.filter((s) => s.sessionId === sessionId) : active
+  const slice = filtered.length ? filtered : active
   if (!slice.length) {
     return {
       enabled: isUnifiedLearningEnabled(),
       sampleCount: 0,
+      supersededCount: signals.filter((s) => s.superseded).length,
       avgComposite: null as number | null,
       weights: effectiveWeights,
       weightTuneEnabled: isLearningWeightTuneEnabled()
@@ -83,6 +187,7 @@ export async function buildUnifiedLearningDashboard(policyDir: string, sessionId
     enabled: isUnifiedLearningEnabled(),
     implicitLearningEnabled: isImplicitLearningEnabled(),
     sampleCount: slice.length,
+    supersededCount: signals.filter((s) => s.superseded).length,
     avgComposite: avg != null ? Math.round(avg * 1000) / 1000 : null,
     avgFeedback: avgFeedback != null ? Math.round(avgFeedback * 1000) / 1000 : null,
     feedbackCoverage: slice.length ? Math.round((withFb / slice.length) * 1000) / 1000 : null,
@@ -113,18 +218,23 @@ export async function patchLearningSignalWithFeedback(
     try {
       const o = JSON.parse(line) as UnifiedLearningSignal
       if (String(o.runId || '') !== runId) return line
+      if (o.superseded) return line
       patched = true
       const fb = clamp01(feedbackScore)
+      // 显式有用：抬高 successScore，避免仍被低自评拖死
+      const successScore =
+        fb >= 0.78 ? Math.max(clamp01(o.successScore), fb, 0.85) : clamp01(o.successScore)
       compositeScore = computeCompositeScore({
         finalConfidence: o.finalConfidence,
         routeConfidence: o.routeConfidence,
-        successScore: o.successScore,
+        successScore,
         feedbackScore: fb,
         durationMs: o.durationMs,
         firstPassSuccess: o.firstPassSuccess
       })
       return JSON.stringify({
         ...o,
+        successScore,
         feedbackScore: fb,
         compositeScore,
         signalSource: 'explicit_feedback',
@@ -161,7 +271,7 @@ export async function maybeTuneLearningWeights(
   policyDir: string
 ): Promise<{ tuned: boolean; weights?: import('./record').LearningWeights }> {
   if (!isUnifiedLearningEnabled() || !isLearningWeightTuneEnabled()) return { tuned: false }
-  const signals = await readSignals(policyDir, 120)
+  const signals = activeLearningSignals(await readSignals(policyDir, 120))
   const withFb = signals.filter((s) => typeof s.feedbackScore === 'number')
   const minSamples = Number(process.env.MANAGER_LEARNING_TUNE_MIN_SAMPLES ?? 12)
   if (withFb.length < (Number.isFinite(minSamples) ? minSamples : 12)) return { tuned: false }
@@ -207,7 +317,7 @@ export async function maybeTrimLearningSignals(policyDir: string): Promise<{ tri
 }
 
 export async function lowScoreRunsForSession(policyDir: string, sessionId: string, limit = 3) {
-  const signals = await readSignals(policyDir, 200)
+  const signals = activeLearningSignals(await readSignals(policyDir, 200))
   return signals
     .filter((s) => s.sessionId === sessionId && s.compositeScore < 0.55)
     .slice(-limit)

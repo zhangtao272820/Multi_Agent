@@ -13,6 +13,16 @@ from .config import PROJECT_ROOT
 from .route_catalog import effective_max_stage_id, effective_target_stage_id, get_route, route_prompt_block
 
 
+# 恋爱里程碑：好感达标后挂起，需玩家确认才升阶
+_ROMANCE_MILESTONES = ("crush", "dating", "married")
+_FRIENDSHIP_AUTO_MAX = "close_friend"
+_STAGE_ACCEPT_FLAGS = {
+    "crush": "stage_crush_accepted",
+    "dating": "stage_dating_accepted",
+    "married": "stage_married_accepted",
+}
+
+
 class RelationshipState(BaseModel):
     stage_id: str = "dating"
     stage_label: str = "女朋友"
@@ -28,6 +38,8 @@ class RelationshipState(BaseModel):
     flags: dict[str, bool] = Field(default_factory=dict)
     low_streak: int = 0
     active_ending_id: str | None = None
+    # 好感已够、等玩家确认的恋爱阶段（空=无）
+    pending_stage_id: str = ""
 
 
 class StageDef(BaseModel):
@@ -117,6 +129,143 @@ def cap_stage_id(stage_id: str, max_stage_id: str) -> str:
     return stage_id if order.index(stage_id) <= order.index(max_stage_id) else max_stage_id
 
 
+def _stage_rank(stage_id: str) -> int:
+    order = stage_order()
+    if stage_id not in order:
+        return -1
+    return order.index(stage_id)
+
+
+def romance_auto_cap_id(flags: dict[str, bool] | None) -> str:
+    """已确认的最高恋爱档；未确认则友谊自动上限 close_friend。"""
+    fl = flags or {}
+    if fl.get(_STAGE_ACCEPT_FLAGS["married"]):
+        return "married"
+    if fl.get(_STAGE_ACCEPT_FLAGS["dating"]):
+        return "dating"
+    if fl.get(_STAGE_ACCEPT_FLAGS["crush"]):
+        return "crush"
+    return _FRIENDSHIP_AUTO_MAX
+
+
+def resolve_progressive_stage(
+    *,
+    current_stage_id: str,
+    natural_stage_id: str,
+    max_stage_id: str,
+    target_stage_id: str,
+    flags: dict[str, bool],
+) -> tuple[str, str]:
+    """
+    返回 (effective_stage_id, pending_stage_id)。
+    友谊段自动升；恋爱里程碑需对应 accept flag，否则挂 pending。
+    """
+    natural = cap_stage_id(natural_stage_id, max_stage_id)
+    natural = cap_stage_id(natural, target_stage_id)
+    auto_cap = romance_auto_cap_id(flags)
+    # 有效阶段 = natural 与已确认上限取较低
+    if _stage_rank(natural) <= _stage_rank(auto_cap):
+        return natural, ""
+    # natural 超出已确认：阶段卡在 auto_cap（不低于当前），挂起 natural
+    held = auto_cap
+    if _stage_rank(current_stage_id) > _stage_rank(held):
+        # 已在更高档（存档/剧情）则保持
+        held = current_stage_id
+    held = cap_stage_id(held, max_stage_id)
+    held = cap_stage_id(held, target_stage_id)
+    pending = natural if natural in _ROMANCE_MILESTONES else ""
+    # 若 natural 是 married 但 dating 未确认，先挂 dating
+    if pending == "married" and not flags.get(_STAGE_ACCEPT_FLAGS["dating"]):
+        if _stage_rank(auto_cap) < _stage_rank("dating"):
+            pending = "dating"
+    elif pending == "dating" and not flags.get(_STAGE_ACCEPT_FLAGS["crush"]):
+        if _stage_rank(auto_cap) < _stage_rank("crush"):
+            pending = "crush"
+    return held, pending
+
+
+def accept_pending_stage(state: RelationshipState) -> RelationshipState:
+    """玩家确认递进：写 accept flag 并升到 pending（若好感仍够）。"""
+    pending = (state.pending_stage_id or "").strip()
+    if not pending or pending not in _ROMANCE_MILESTONES:
+        return state
+    flag_key = _STAGE_ACCEPT_FLAGS[pending]
+    flags = dict(state.flags or {})
+    flags[flag_key] = True
+    if pending in {"dating", "married"}:
+        flags.setdefault("confessed", True)
+    if pending in {"dating", "married"} and state.affinity >= 88:
+        flags["partner_confirmed"] = True
+    natural = stage_for_affinity(state.affinity)
+    stage_id, new_pending = resolve_progressive_stage(
+        current_stage_id=pending,
+        natural_stage_id=natural.id,
+        max_stage_id=state.max_stage_id,
+        target_stage_id=state.target_stage_id,
+        flags=flags,
+    )
+    if _stage_rank(stage_id) < _stage_rank(pending):
+        stage_id = cap_stage_id(pending, state.max_stage_id)
+        stage_id = cap_stage_id(stage_id, state.target_stage_id)
+        stage_id, new_pending = resolve_progressive_stage(
+            current_stage_id=stage_id,
+            natural_stage_id=natural.id,
+            max_stage_id=state.max_stage_id,
+            target_stage_id=state.target_stage_id,
+            flags=flags,
+        )
+    stage = stage_index().get(stage_id) or stage_for_affinity(state.affinity)
+    return state.model_copy(
+        update={
+            "flags": flags,
+            "stage_id": stage.id,
+            "stage_label": stage.label,
+            "user_title": stage.user_title,
+            "pending_stage_id": new_pending,
+        }
+    )
+
+
+def defer_pending_stage(state: RelationshipState) -> RelationshipState:
+    """暂缓递进：清 pending，保留数值；可稍后再次挂起。"""
+    flags = dict(state.flags or {})
+    flags["stage_advance_deferred"] = True
+    return state.model_copy(update={"pending_stage_id": "", "flags": flags})
+
+
+def accept_pending_confession(state: RelationshipState) -> RelationshipState:
+    flags = dict(state.flags or {})
+    if not flags.get("pending_confession"):
+        return state
+    flags["pending_confession"] = False
+    flags["confessed"] = True
+    if state.stage_id in _ROMANCE_MILESTONES or state.affinity >= 88:
+        flags["partner_confirmed"] = True
+    return state.model_copy(
+        update={
+            "flags": flags,
+            "mood": min(100, int(state.mood or 0) + 4),
+            "trust": min(100, int(state.trust or 0) + 2),
+        }
+    )
+
+
+def reject_pending_confession(state: RelationshipState) -> RelationshipState:
+    flags = dict(state.flags or {})
+    if not flags.get("pending_confession"):
+        return state
+    flags["pending_confession"] = False
+    flags["confess_rejected_once"] = True
+    return state.model_copy(
+        update={
+            "flags": flags,
+            "mood": max(-100, int(state.mood or 0) - 6),
+            "trust": max(0, int(state.trust or 0) - 2),
+            "affinity": max(0, int(state.affinity or 0) - 2),
+        }
+    )
+
+
 def init_relationship_state(
     profile: CharacterProfile,
     *,
@@ -172,9 +321,14 @@ def apply_judge_to_state(
     trust_delta: int,
     mood_delta: int = 0,
     new_flags: dict[str, bool] | None = None,
+    character_id: str = "",
 ) -> tuple[RelationshipState, int, bool]:
     if state.active_ending_id:
         return state, 0, False
+
+    from .route_difficulty import scale_positive_affinity
+
+    affinity_delta = scale_positive_affinity(character_id, int(affinity_delta or 0))
 
     prev_stage = state.stage_id
     flags = dict(state.flags)
@@ -191,11 +345,37 @@ def apply_judge_to_state(
     else:
         low_streak = 0
 
+    pending_stage = getattr(state, "pending_stage_id", "") or ""
+
     if state.growth_mode == "progressive" and affinity_delta != 0:
-        stage = stage_for_affinity(next_affinity)
-        stage_id = cap_stage_id(stage.id, state.max_stage_id)
-        stage_id = cap_stage_id(stage_id, state.target_stage_id)
-        stage = stage_index().get(stage_id) or stage
+        effective_max = state.max_stage_id
+        if character_id:
+            from .character_lores import is_linked_cast, runtime_max_stage_for_linked
+            from .route_catalog import get_route
+
+            route = get_route(character_id)
+            if route and is_linked_cast(route.cast_role):
+                effective_max = runtime_max_stage_for_linked(
+                    character_id,
+                    state.max_stage_id,
+                    self_flags=flags,
+                )
+        natural = stage_for_affinity(next_affinity)
+        stage_id, pending_stage = resolve_progressive_stage(
+            current_stage_id=state.stage_id,
+            natural_stage_id=natural.id,
+            max_stage_id=effective_max,
+            target_stage_id=state.target_stage_id,
+            flags=flags,
+        )
+        # 若玩家刚暂缓且仍超 cap，保持挂起（勿因 defer 丢提示）
+        if not pending_stage and (state.pending_stage_id or ""):
+            # 好感回落则清 pending
+            if _stage_rank(natural.id) <= _stage_rank(romance_auto_cap_id(flags)):
+                pending_stage = ""
+            else:
+                pending_stage = state.pending_stage_id
+        stage = stage_index().get(stage_id) or natural
         updated = state.model_copy(
             update={
                 "affinity": next_affinity,
@@ -206,6 +386,7 @@ def apply_judge_to_state(
                 "stage_id": stage.id,
                 "stage_label": stage.label,
                 "user_title": stage.user_title,
+                "pending_stage_id": pending_stage,
                 "turns": state.turns + 1,
             }
         )
@@ -218,6 +399,7 @@ def apply_judge_to_state(
             "mood": next_mood,
             "flags": flags,
             "low_streak": low_streak,
+            "pending_stage_id": pending_stage,
             "turns": state.turns + 1,
         }
     )
@@ -248,11 +430,30 @@ def relationship_prompt_block(profile: CharacterProfile, state: RelationshipStat
     if state.growth_mode == "progressive":
         target = stage_index().get(state.target_stage_id)
         target_label = target.label if target else profile.target_relationship or "恋人"
-        if (profile.cast_role or "").lower() in {"neutral", "npc"}:
+        cast_l = (profile.cast_role or "").lower()
+        from .character_lores import is_linked_cast, linked_dating_unlocked
+
+        if cast_l == "npc":
             growth_hint = (
-                f"\n- 关系可以更熟、更默契，但上限是「{max_label}」，"
-                "不会走到恋爱；对方告白时应明确拒绝或岔开。"
+                f"\n- 关系可以更熟，但系统上限是「{max_label}」，"
+                "推动线索即可，不必发展恋爱。"
             )
+        elif is_linked_cast(cast_l):
+            opened = linked_dating_unlocked(
+                profile.character_id or "",
+                self_flags=dict(state.flags or {}),
+            )
+            if opened:
+                growth_hint = (
+                    f"\n- 关系向闸门已开：情感可朝「{target_label}」升温"
+                    f"（上限「{max_label}」）；公开场合仍可保留原身份称呼的谨慎。"
+                )
+            else:
+                growth_hint = (
+                    f"\n- 关系向难攻略：未过闸门前系统上限是「挚友」，"
+                    "可有情愫、吃醋与试探，但须拒绝正式恋人称呼；"
+                    "破门后才可进入恋爱阶段（由系统判定）。"
+                )
         else:
             growth_hint = (
                 f"\n- 情感可随日常慢慢升温，方向大致朝「{target_label}」"
@@ -267,11 +468,23 @@ def relationship_prompt_block(profile: CharacterProfile, state: RelationshipStat
 
     cast = (profile.cast_role or "").strip().lower()
     cast_rule = ""
-    if cast == "neutral":
-        cast_rule = (
-            "\n- 定位：与对方有关（家人/挚友/熟人），可以亲密与拌嘴，"
-            "**禁止恋爱、亲吻升级、接受告白、称对方为恋人/老公**。"
+    from .character_lores import is_linked_cast, linked_dating_unlocked
+
+    if is_linked_cast(cast):
+        opened = linked_dating_unlocked(
+            profile.character_id or "",
+            self_flags=dict(state.flags or {}),
         )
+        if opened:
+            cast_rule = (
+                "\n- 定位：关系向角色，闸门已开，允许秘密或谨慎的恋爱叙述；"
+                "仍尊重原社会身份的压力，不要瞬间改写成无负担情侣。"
+            )
+        else:
+            cast_rule = (
+                "\n- 定位：关系向难攻略（家人/学妹/死党/堂妹/助教/闺蜜等）。"
+                "可写克制情愫与吃醋；**禁止接受正式告白、自称恋人**，直到系统闸门打开。"
+            )
     elif cast == "npc":
         cast_rule = (
             "\n- 定位：生活里的配角人脉，推动剧情/传闻即可；"
@@ -283,6 +496,13 @@ def relationship_prompt_block(profile: CharacterProfile, state: RelationshipStat
             "不要一上来就情侣腔。"
         )
 
+    pending = (getattr(state, "pending_stage_id", None) or "").strip()
+    pending_bit = ""
+    if pending:
+        pending_bit = (
+            f"\n- 可升级意向未确认（待确认：{pending}）；"
+            "可试探或等待他表态，禁止自称已经是恋人/夫妻。"
+        )
     return f"""【关系与称呼】
 - 开局身份：{profile.relationship or rel_label}；当前相处感觉：{rel_label}
 - 对用户的称呼：{state.user_title}
@@ -290,7 +510,8 @@ def relationship_prompt_block(profile: CharacterProfile, state: RelationshipStat
 - 今日心境（只体现于措辞，禁止念数值/字段）：{mood_line}
 - 语音语气参考：{stage.tts_hint}{growth_hint}{cast_rule}
 {route_section}
-- 禁止自行宣布关系升级或结婚；阶段变化由系统判定。"""
+- 禁止自行宣布关系升级或结婚；阶段变化由系统判定（含玩家确认的递进）。{pending_bit}"""
+
 
 def public_relationship_state(state: RelationshipState) -> dict[str, Any]:
     return state.model_dump()

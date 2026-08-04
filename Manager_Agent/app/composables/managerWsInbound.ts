@@ -114,7 +114,14 @@ export type ManagerWsInboundCtx = {
   applyTurnFeedback: (key: string, fb: 0 | 1, ack?: string, userIndex?: number | null) => void
   loadEvolutionDashboard: () => void | Promise<void>
   persistSessionFeedback: () => void
-  hydrateLogsFromServerHistory: (history: Array<{ role?: string; content?: string }>) => void
+  hydrateLogsFromServerHistory: (
+    history: Array<{
+      role?: string
+      content?: string
+      runId?: string
+      uiMeta?: unknown
+    }>
+  ) => void
   sanitizeWithdrawnTurns: () => void
   reconcileTurnFeedbackKeys: () => void
   hydrateSessionFeedbackFromServer: () => void | Promise<void>
@@ -252,7 +259,9 @@ export function handleManagerWsInboundMessage(evt: MessageEvent, ctx: ManagerWsI
         if (Number.isFinite(count) && count >= 0) ctx.setUserMessageIndexCounter(Math.max(ctx.getUserMessageIndexCounter(), count))
         const history = payload.chatHistory
         if (Array.isArray(history) && history.length) {
-          ctx.hydrateLogsFromServerHistory(history as Array<{ role?: string; content?: string }>)
+          ctx.hydrateLogsFromServerHistory(
+            history as Array<{ role?: string; content?: string; runId?: string; uiMeta?: unknown }>
+          )
         }
         ctx.sanitizeWithdrawnTurns()
         ctx.reconcileTurnFeedbackKeys()

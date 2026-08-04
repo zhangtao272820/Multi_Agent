@@ -166,7 +166,11 @@ function BondDetail({
 
         <div className="gal-codex-dossier-title">
           <p className="gal-codex-kicker">
-            {bond.cast_kind === "neutral" ? "羁绊" : bond.cast_kind === "romance" ? "可靠近" : "路人"}
+            {bond.cast_kind === "linked" || bond.cast_kind === "neutral"
+              ? "关系向"
+              : bond.cast_kind === "romance"
+                ? "可靠近"
+                : "路人"}
             {bond.route_label ? ` · ${bond.route_label}` : ""}
           </p>
           <h3>{met ? bond.name : "？？？"}</h3>
@@ -210,6 +214,12 @@ function BondDetail({
                 <dt>情绪</dt>
                 <dd>{moodImpression(Number(bond.mood || 0))}</dd>
               </div>
+              {bond.difficulty_label ? (
+                <div>
+                  <dt>亲近</dt>
+                  <dd>{bond.difficulty_label.replace(/^亲近难度\s*[·.]\s*/, "")}</dd>
+                </div>
+              ) : null}
               {bond.user_title ? (
                 <div>
                   <dt>她怎么叫你</dt>
@@ -220,10 +230,52 @@ function BondDetail({
                 <dt>交谈</dt>
                 <dd>{talkSoft(bond)}</dd>
               </div>
+              {typeof bond.endings_unlocked_count === "number" && bond.endings_unlocked_count > 0 ? (
+                <div>
+                  <dt>结局</dt>
+                  <dd>已窥见 {bond.endings_unlocked_count} 条</dd>
+                </div>
+              ) : null}
             </dl>
-            {bond.status_hint ? <p className="gal-codex-status">{bond.status_hint}</p> : null}
+            {(bond.life_notes && bond.life_notes.length > 0) || bond.status_hint ? (
+              <div className="gal-codex-life-notes">
+                {(bond.life_notes && bond.life_notes.length > 0
+                  ? bond.life_notes
+                  : bond.status_hint
+                    ? [bond.status_hint]
+                    : []
+                ).map((n) => (
+                  <p key={n} className="gal-codex-status">
+                    {n}
+                  </p>
+                ))}
+              </div>
+            ) : null}
+            {bond.story_soft ? <p className="gal-codex-story-soft">{bond.story_soft}</p> : null}
             {bond.role_hint ? <p className="gal-codex-hint-line">{bond.role_hint}</p> : null}
+            {(bond.link_relation_label || bond.link_gate_summary) && (
+              <div className="gal-codex-link-gate">
+                {bond.link_relation_label ? (
+                  <p className="gal-codex-hint-line">关系：{bond.link_relation_label}</p>
+                ) : null}
+                {bond.link_gate_summary ? (
+                  <p className="gal-codex-hint-line">关卡：{bond.link_gate_summary}</p>
+                ) : null}
+                {typeof bond.link_dating_ready === "boolean" ? (
+                  <p className="gal-codex-hint-line">
+                    恋爱闸门：{bond.link_dating_ready ? "已打开" : "尚未打开"}
+                  </p>
+                ) : null}
+              </div>
+            )}
           </section>
+
+          {bond.lore_codex ? (
+            <section className="gal-codex-panel">
+              <h4>往事</h4>
+              <p className="gal-codex-personality">{bond.lore_codex}</p>
+            </section>
+          ) : null}
 
           <section className="gal-codex-panel">
             <h4>性格与气质</h4>

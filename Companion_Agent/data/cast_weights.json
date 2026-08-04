@@ -119,17 +119,6 @@
       "drama": 4,
       "why": "T1 深线；线下面基成本高；同场中位"
     },
-    "yeyu": {
-      "name": "云夜羽",
-      "label": "便利店熟人 · 氛围线",
-      "tier": "T1",
-      "early_meet": 4,
-      "weekly_focus": 5,
-      "longing": 5,
-      "presence": 5,
-      "drama": 5,
-      "why": "T1 深线；场景限定；周轮换彩蛋"
-    },
     "miara": {
       "name": "莫岚纱",
       "label": "漫展偶遇的人 · 奇幻线",
@@ -198,14 +187,14 @@
     },
     "shuli": {
       "name": "沈书璃",
-      "label": "亲妹妹 · 家庭锚点",
-      "tier": "N",
-      "early_meet": 8,
-      "weekly_focus": 6,
-      "longing": 5,
-      "presence": 8,
-      "drama": 4,
-      "why": "N 家人；日常高于 T2；不进恋爱周焦点；不卡真结局"
+      "label": "亲妹妹 · 主轴女主",
+      "tier": "L0",
+      "early_meet": 10,
+      "weekly_focus": 9,
+      "longing": 8,
+      "presence": 10,
+      "drama": 9,
+      "why": "最重要女主；同居亲妹主轴"
     },
     "yuxi": {
       "name": "何雨汐",

@@ -1,0 +1,67 @@
+id: story_xingnai_act5_winter_album
+label: 冬夜相册
+priority: 6
+once: true
+chance: 1.0
+scene_id: ''
+trigger:
+  character_ids:
+  - xingnai
+  stage_min: crush
+  affinity_min: 70
+  flags_present:
+  - xn_album
+  flags_absent:
+  - xn_winter_album
+  waypoint_min: q_winter_onset
+  season: winter
+prompt_snippet: |
+  【专属故事 · 程星宁 · 冬季加幕 · 冬夜相册】
+advance: on_player_turn
+beats:
+- id: b1
+  summary: 入冬天台风硬；她把相册翻到缺口那页，围巾捂住半张脸。等你回应。
+  sprite_hint:
+  - season_winter
+  - home
+  soft_options:
+  - 帮她理袖标
+  - 问冷不冷
+  - 先停拍
+  narration: 入冬天台风硬；她把相册翻到缺口那页，围巾捂住半张脸。
+  pc_thought: 合影缺口像未说完的夏天。我补不补？
+  brief: 入冬天台风硬；她把相册翻到缺口那页，围巾捂住半张脸。等你回应。
+- id: b2
+  summary: 她说冬天适合补拍——不是童年作业，是想确认你还愿不愿意入镜。等你回应。
+  sprite_hint:
+  - season_winter
+  - casual
+  soft_options:
+  - 听她说镜头
+  - 不抢机位
+  - 约热饮
+  narration: 相册纸边与青梅味里，她说冬天适合补拍——不是童年作业，是想确认你还愿不愿意入镜。
+  pc_thought: 青梅如故很安全。再近一步就怕弄丢从前。
+  brief: 她说冬天适合补拍——不是童年作业，是想确认你还愿不愿意入镜。等你回应。
+- id: b3
+  summary: 你是并肩按下快门，还是让缺口继续空着；回忆会被补全或封存。等你回应。
+  sprite_hint:
+  - season_winter
+  - date
+  soft_options:
+  - 说我不催成片
+  - 夸她节奏稳
+  - 送她回家
+  narration: 相册纸边与青梅味里，你是并肩按下快门，还是让缺口继续空着；回忆会被补全或封存。
+  pc_thought: 冬相册冷。空白页等的是人，不是滤镜。
+  brief: 你是并肩按下快门，还是让缺口继续空着；回忆会被补全或封存。等你回应。
+rewards:
+  flags_set:
+  - xn_winter_album
+choice_effects:
+- trust_delta: 3
+  affinity_delta: 3
+- trust_delta: 2
+  affinity_delta: 1
+- trust_delta: -3
+  affinity_delta: -2

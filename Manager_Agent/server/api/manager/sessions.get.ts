@@ -1,6 +1,6 @@
 import path from 'node:path'
 import { bindSessionToUser, listSessionsForUser, resolveUserId } from '../../graph/core/task/userIdentity'
-import { readSessionMeta } from '../../utils/session/managerSessionMeta'
+import { readSessionMeta, type SessionWorkbenchMode } from '../../utils/session/managerSessionMeta'
 import { readManagerSession } from '../../utils/session/managerSessionStore'
 import { agentPgQuery } from '#agent-shared/agentPgClient'
 import { isPostgresStorageEnabled, resolveStorageBackend } from '#agent-shared/storageBackend'
@@ -32,6 +32,10 @@ async function sessionUpdatedAt(sessionId: string): Promise<string | undefined> 
   return ts instanceof Date ? ts.toISOString() : String(ts)
 }
 
+/**
+ * 会话列表：仅服务端权威（按 userId 绑定）。
+ * 不再接受客户端 historyIds 拼装列表，避免 localStorage 脏数据「诈尸」。
+ */
 export default defineEventHandler(async (event) => {
   const query = getQuery(event)
   const policyDir = path.join(process.cwd(), '.data')
@@ -41,19 +45,9 @@ export default defineEventHandler(async (event) => {
   const userId = await resolveUserId(policyDir, anchorSessionId, explicitUserId)
   if (!userId) return { items: [] as Array<Record<string, unknown>> }
 
-  const historyIdsRaw = query.historyIds ? String(query.historyIds) : ''
-  const historyIds = historyIdsRaw
-    .split(',')
-    .map((s) => s.trim())
-    .filter((s) => /^[A-Za-z0-9_-]+$/.test(s))
-    .slice(0, 80)
-
   const sessionIdSet = new Set(await listSessionsForUser(policyDir, userId))
+  // 当前 tab 会话若已有正文，允许出现在列表（新会话首条消息写入前可能尚未 bind）
   if (anchorSessionId) sessionIdSet.add(anchorSessionId)
-  for (const id of historyIds) sessionIdSet.add(id)
-  for (const id of sessionIdSet) {
-    await bindSessionToUser(policyDir, id, userId).catch(() => undefined)
-  }
 
   const items: Array<{
     id: string
@@ -62,6 +56,7 @@ export default defineEventHandler(async (event) => {
     messageCount: number
     userMessageCount: number
     customTitle?: boolean
+    workbenchMode?: SessionWorkbenchMode
   }> = []
 
   for (const sid of sessionIdSet) {
@@ -78,13 +73,15 @@ export default defineEventHandler(async (event) => {
       continue
     }
 
+    await bindSessionToUser(policyDir, id, userId).catch(() => undefined)
     items.push({
       id,
       title: meta.customTitle && meta.title ? meta.title : autoTitle,
       updatedAt: meta.updatedAt || pgUpdated || new Date().toISOString(),
       messageCount: messages.length,
       userMessageCount,
-      customTitle: Boolean(meta.customTitle && meta.title)
+      customTitle: Boolean(meta.customTitle && meta.title),
+      ...(meta.workbenchMode ? { workbenchMode: meta.workbenchMode } : {})
     })
   }
 

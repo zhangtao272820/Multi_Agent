@@ -3,32 +3,90 @@ label: 对等工位
 priority: 8
 once: true
 chance: 1.0
-scene_id: ""
+scene_id: ''
 trigger:
-  character_ids: [jingliu]
+  character_ids:
+  - jingliu
   stage_min: dating
-  affinity_min: 85
-  flags_absent: [jl_equal_choice]
-  flags_present: [jl_rooftop_talk]
-prompt_snippet: |
-  【专属故事 · 权力差的另一侧 · 第4幕 · 对等工位】
+  affinity_min: 90
+  flags_absent:
+  - jl_equal_choice
+  flags_present:
+  - jl_rooftop_talk
+prompt_snippet: '【专属故事 · 权力差的另一侧 · 第4幕 · 对等工位】
+
+  '
 advance: on_player_turn
 beats:
-  - id: b1
-    summary: "调岗/公开或私下确认"
-    sprite_hint: [date, intimate_lounge]
-    soft_options: ["认真接话", "先观察", "轻声提问"]
-  - id: b2
-    summary: "专一是她的底线"
-    sprite_hint: [intimate_lounge, contract_stamp]
-    soft_options: ["表明态度", "给她空间", "确认她的意思"]
-  - id: b3
-    summary: "收束本幕：留下可被记住的结果，不剧透结局名。"
-    sprite_hint: [contract_stamp]
-    soft_options: ["坦白心意", "先缓一缓", "诚实说明顾虑"]
+- id: b1
+  summary: 并排办公桌，文件堆成墙；她把私人日历滑到你这边，像交出一段不被公司占用的时间。等你回应。
+  sprite_hint:
+  - contract_stamp
+  - work
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 接受新摆位
+  - 问同事怎么看
+  - 笑说终于平视
+  narration: 玻璃反光与夜风里，并排办公桌，文件堆成墙；她把私人日历滑到你这边，像交出一段不被公司占用的时间。
+  pc_thought: 玻璃门里她是上司。门一关，我还站不站得住？
+  brief: 并排办公桌，文件堆成墙；她把私人日历滑到你这边，像交出一段不被公司占用的时间。等你回应。
+- id: b2
+  summary: 样衣间镜子前，她让你选周末行程——不再用「安排」口吻，而用「我们」。等你回应。
+  sprite_hint:
+  - logo_redline
+  - lookbook_flip
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 一起订规则
+  - 提议必要时回避
+  - 说你听她主导
+  narration: 玻璃反光与夜风里，样衣间镜子前，她让你选周末行程——不再用「安排」口吻，而用「我们」。
+  pc_thought: 面具摘了半寸。我想看全，又怕被职场反噬。
+  brief: 样衣间镜子前，她让你选周末行程——不再用「安排」口吻，而用「我们」。等你回应。
+- id: b3
+  summary: 告白很克制：不想当丑闻，想当并肩改 lookbook 的伴侣；家族守门过关后，这句话才有重量。等你回应。
+  sprite_hint:
+  - date
+  - rooftop_night
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 对等回应告白
+  - 说想成为她的选择
+  - 确认公开时机
+  narration: 玻璃反光与夜风里，告白很克制：不想当丑闻，想当并肩改 lookbook 的伴侣；家族守门过关后，这句话才有重量。
+  pc_thought: 天台夜风冷。她递来的钥匙比合同烫。
+  brief: 告白很克制：不想当丑闻，想当并肩改 lookbook 的伴侣；家族守门过关后，这句话才有重量。等你回应。
+- id: b4
+  summary: 她把工牌翻过去：今晚起，桌对面是平等的人。灯还亮着，合同之外的条款由你们签。等你回应。
+  sprite_hint:
+  - contract_stamp
+  - date
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 牵手离开办公室
+  - 约一顿无关工作的饭
+  - 说「我签」
+  narration: 玻璃反光与夜风里，她把工牌翻过去：今晚起，桌对面是平等的人。灯还亮着，合同之外的条款由你们签。
+  pc_thought: 对等工位——专一承诺的影子已经来了。
+  brief: 她把工牌翻过去：今晚起，桌对面是平等的人。灯还亮着，合同之外的条款由你们签。等你回应。
 rewards:
-  flags_set: [jl_equal_choice, confessed, exclusive_accepted]
+  flags_set:
+  - jl_equal_choice
+  - confessed
+  - exclusive_accepted
 choice_effects:
-  - { trust_delta: 3, affinity_delta: 3 }
-  - { trust_delta: 2, affinity_delta: 2 }
-  - { trust_delta: -2, affinity_delta: -1 }
+- trust_delta: 3
+  affinity_delta: 3
+- trust_delta: 2
+  affinity_delta: 2
+- trust_delta: -2
+  affinity_delta: -1

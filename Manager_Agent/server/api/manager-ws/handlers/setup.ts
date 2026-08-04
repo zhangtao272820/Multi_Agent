@@ -85,6 +85,8 @@ import {
 import { RunIdSchema } from '../schemas'
 import { nowMs } from '../runtimeState'
 import { withAgentTraceContext } from '../../../utils/agents/agentTrace'
+import { createWsOutboundFlusher } from '../../../utils/ws/wsOutboundFlusher'
+import { noteRunProcessEvent } from '../../../utils/session/runProcessAccumulator'
 import type { WsHandlerContext, WsSendFn } from './types'
 
 export type WsSetupResult =
@@ -93,11 +95,13 @@ export type WsSetupResult =
 
 export async function setupWsMessage(peer: any, message: any): Promise<WsSetupResult> {
   cleanupMaps()
+  const flushOutbound = createWsOutboundFlusher(peer)
   const send: WsSendFn = (event, data, from, runId) => {
-    try {
-      peer.send(JSON.stringify({ event, data, from, runId }))
-    } catch {}
-    if (runId) void appendRunEvent(runId, { event, data, from, ts: new Date().toISOString() })
+    flushOutbound({ event, data, from, runId })
+    if (runId) {
+      noteRunProcessEvent(runId, event, data, from)
+      void appendRunEvent(runId, { event, data, from, ts: new Date().toISOString() })
+    }
   }
 
   let payloadRaw: any = null
@@ -117,7 +121,7 @@ export async function setupWsMessage(peer: any, message: any): Promise<WsSetupRe
   const payload = parsed.data
   const type = payload.type
   const sessionId = payload.sessionId
-   if (isManagerWsAuthEnabled() && !isWsPeerAuthed(peer)) {
+  if (isManagerWsAuthEnabled() && !isWsPeerAuthed(peer)) {
     const wsToken =
       typeof payloadRaw?.wsToken === 'string'
         ? payloadRaw.wsToken.trim()
@@ -131,22 +135,38 @@ export async function setupWsMessage(peer: any, message: any): Promise<WsSetupRe
     }
     markWsPeerAuthed(peer)
   }
-   const peerKey = String((peer as any)?.id || 'peer')
+
+  const { resolveManagerUserFromMessage } = await import('../../../utils/platform/managerUserAuth')
+  const userAuth = resolveManagerUserFromMessage(payloadRaw as Record<string, unknown>)
+  if (!userAuth.ok) {
+    send('error', userAuth.reason, 'manager')
+    return { ok: false, send }
+  }
+  const jwtUserId = String(userAuth.user?.userId || '').trim()
+  const jwtTenant = String(userAuth.user?.tenantId || '').trim()
+
+  const peerKey = String((peer as any)?.id || 'peer')
   if (!allowRate(`${peerKey}:all`, 30, 10_000)) {
     send('error', '请求过于频繁，请稍后再试', 'manager')
     return { ok: false, send }
   }
   touchSession(sessionId)
-   peerUnregister.get(peer)?.()
+  peerUnregister.get(peer)?.()
   const unreg = registerWsSessionPeer(peerKey, sessionId, (payload) => {
-    try {
-      peer.send(JSON.stringify({ event: payload.event, data: payload.data, from: payload.from, runId: payload.runId }))
-    } catch {}
+    flushOutbound({
+      event: payload.event,
+      data: payload.data,
+      from: payload.from,
+      runId: payload.runId
+    })
+    if (payload.runId) noteRunProcessEvent(payload.runId, payload.event, payload.data, payload.from)
   })
   peerUnregister.set(peer, unreg)
-   const explicitUserId = 'userId' in payload && payload.userId ? payload.userId : undefined
+  // 启用用户登录时强制 JWT.sub，忽略客户端伪造 userId
+  const explicitUserId = jwtUserId || ('userId' in payload && payload.userId ? payload.userId : undefined)
   const boundUserId = await ensureUserBinding(sessionId, explicitUserId).catch(() => null)
-  const tenantId = 'tenantId' in payload && payload.tenantId ? payload.tenantId : undefined
+  const tenantId =
+    jwtTenant || ('tenantId' in payload && payload.tenantId ? payload.tenantId : undefined)
   if (tenantId) {
     void import('#agent-shared/userSessionMapStore')
       .then(({ bindSessionTenant }) => bindSessionTenant(sessionId, tenantId))
@@ -161,9 +181,9 @@ export async function setupWsMessage(peer: any, message: any): Promise<WsSetupRe
       peerKey,
       send,
       sessionId,
-      boundUserId,
+      boundUserId: jwtUserId || boundUserId,
       tenantId,
-      explicitUserId,
+      explicitUserId: jwtUserId || explicitUserId,
       platformTraceId,
       payloadRaw: payloadRaw as Record<string, unknown>
     },

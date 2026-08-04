@@ -38,6 +38,8 @@ import {
   connectCompanionWs,
   wsAskDate,
   wsAdvancePeriod,
+  wsJumpWaypoint,
+  wsSettleFriendEnding,
   wsBuyGift,
   wsChat,
   wsCompleteErrand,
@@ -113,7 +115,9 @@ export default function App() {
   const [dialogueTurns, setDialogueTurns] = useState<DialogueTurn[]>([]);
   const [input, setInput] = useState("");
   const [choices, setChoices] = useState<string[]>([]);
-  const [choiceKind, setChoiceKind] = useState<"soft" | "branch">("soft");
+  const [choiceKind, setChoiceKind] = useState<
+    "soft" | "branch" | "stage_consent" | "confession_consent"
+  >("soft");
   const [avatar, setAvatar] = useState<AvatarState | null>(null);
   const [activeEvent, setActiveEvent] = useState<GameEventInfo | null>(null);
   const [eventToast, setEventToast] = useState<GameEventInfo | null>(null);
@@ -171,11 +175,15 @@ export default function App() {
 
   const wsRef = useRef<WebSocket | null>(null);
   const authRef = useRef(authUser);
+  const profileRef = useRef(profile);
   const msgIdRef = useRef(0);
   const pendingAssistantRef = useRef<number | null>(null);
   useEffect(() => {
     authRef.current = authUser;
   }, [authUser]);
+  useEffect(() => {
+    profileRef.current = profile;
+  }, [profile]);
 
   useEffect(() => {
     if (!challengeToast) return;
@@ -456,6 +464,25 @@ export default function App() {
             msg.payload.period_label ? `时间来到${msg.payload.period_label}` : "时间流逝……",
           );
           break;
+        case "waypoint_jumped":
+          if (msg.payload.hub) setHub(msg.payload.hub);
+          if (msg.payload.world) setWorld(msg.payload.world);
+          setPending(false);
+          {
+            const lines = (msg.payload.transition as string[] | undefined) || [];
+            const label = msg.payload.waypoint?.label || "下一季";
+            setNightNotice(lines.join(" ") || `时光跳到了${label}。`);
+            setStageNotice(lines[0] || `进入${label}`);
+          }
+          setScreen("hub");
+          break;
+        case "friend_ending_settled":
+          if (msg.payload.hub) setHub(msg.payload.hub);
+          if (msg.payload.world) setWorld(msg.payload.world);
+          setPending(false);
+          setStageNotice(msg.payload.note || "关系定在了朋友这边");
+          setScreen("hub");
+          break;
         case "session_created":
           setSessionId(msg.payload.session_id);
           if (msg.payload.world_save_id) setWorldSaveId(msg.payload.world_save_id);
@@ -465,13 +492,26 @@ export default function App() {
           setScene(msg.payload.scene ?? null);
           setChoices(msg.payload.pending_choices?.length ? msg.payload.pending_choices : []);
           setChoiceKind(
-            msg.payload.pending_choices?.length && msg.payload.pending_choice_kind === "branch"
-              ? "branch"
+            msg.payload.pending_choices?.length
+              ? msg.payload.pending_choice_kind === "branch"
+                ? "branch"
+                : msg.payload.pending_choice_kind === "stage_consent"
+                  ? "stage_consent"
+                  : msg.payload.pending_choice_kind === "confession_consent"
+                    ? "confession_consent"
+                    : "soft"
               : "soft",
           );
           setQuestState(msg.payload.quest_state ?? null);
           setSceneRun(msg.payload.scene_run ?? null);
           setStoryProgress(msg.payload.story_progress ?? null);
+          if (
+            !(msg.payload.pending_choices?.length) &&
+            msg.payload.story_progress?.soft_options?.length
+          ) {
+            setChoices(msg.payload.story_progress.soft_options);
+            setChoiceKind("soft");
+          }
           setSceneEndedBanner(null);
           setActiveEnding(null);
           setDialogueTurns(msg.payload.dialogue ?? []);
@@ -498,6 +538,14 @@ export default function App() {
           if (msg.payload.scene_run) setSceneRun(msg.payload.scene_run);
           if (msg.payload.story_progress !== undefined) {
             setStoryProgress(msg.payload.story_progress ?? null);
+          }
+          if (typeof msg.payload.sprite_outfit === "string") {
+            setSpriteOutfit(msg.payload.sprite_outfit);
+          }
+          if (msg.payload.ensemble?.enabled) {
+            setEnsemble(msg.payload.ensemble);
+          } else if (msg.payload.ensemble === null) {
+            setEnsemble(null);
           }
           if (msg.payload.event && String(msg.payload.event.id || "").startsWith("story_")) {
             const sp = msg.payload.story_progress;
@@ -530,9 +578,21 @@ export default function App() {
           if (msg.payload.ending) setActiveEnding(msg.payload.ending);
           if (msg.payload.pending_choices?.length) {
             setChoices(msg.payload.pending_choices);
-            setChoiceKind(msg.payload.pending_choice_kind === "branch" ? "branch" : "soft");
+            const ck = msg.payload.pending_choice_kind;
+            setChoiceKind(
+              ck === "branch" || ck === "stage_consent" || ck === "confession_consent" ? ck : "soft",
+            );
           } else if (msg.payload.pending_choices) {
-            setChoices([]);
+            const soft = msg.payload.story_progress?.soft_options;
+            if (soft?.length) {
+              setChoices(soft);
+              setChoiceKind("soft");
+            } else {
+              setChoices([]);
+              setChoiceKind("soft");
+            }
+          } else if (msg.payload.story_progress?.soft_options?.length) {
+            setChoices(msg.payload.story_progress.soft_options);
             setChoiceKind("soft");
           }
           if (msg.payload.quest_state) setQuestState(msg.payload.quest_state);
@@ -619,7 +679,14 @@ export default function App() {
           break;
         case "choices":
           setChoices(msg.payload.choices ?? []);
-          setChoiceKind(msg.payload.kind === "branch" ? "branch" : "soft");
+          {
+            const ck = msg.payload.kind;
+            setChoiceKind(
+              ck === "branch" || ck === "stage_consent" || ck === "confession_consent"
+                ? ck
+                : "soft",
+            );
+          }
           break;
         case "game_scene":
           setScene(msg.payload);
@@ -669,6 +736,12 @@ export default function App() {
           setPending(false);
           setShowHistory(false);
           if (msg.payload.relationship_state) setRelationshipState(msg.payload.relationship_state);
+          if (typeof msg.payload.sprite_outfit === "string") {
+            setSpriteOutfit(msg.payload.sprite_outfit);
+          }
+          if (msg.payload.story_progress !== undefined) {
+            setStoryProgress(msg.payload.story_progress ?? null);
+          }
           if (msg.payload.messages) {
             setDialogueTurns(msg.payload.messages);
             setMessages(
@@ -679,6 +752,35 @@ export default function App() {
               })),
             );
             msgIdRef.current = msg.payload.messages.length;
+          }
+          // 同步看板 bond 摘要（好感/turns）
+          if (msg.payload.relationship_state) {
+            const rs = msg.payload.relationship_state;
+            const cid = profileRef.current.character_id || "";
+            setWorld((prev) => {
+              if (!prev?.bonds || !cid || !prev.bonds[cid]) return prev;
+              const bond = prev.bonds[cid];
+              return {
+                ...prev,
+                bonds: {
+                  ...prev.bonds,
+                  [cid]: {
+                    ...bond,
+                    affinity: rs.affinity,
+                    trust: rs.trust,
+                    mood: rs.mood ?? bond.mood,
+                    stage_id: rs.stage_id,
+                    stage_label: rs.stage_label,
+                    user_title: rs.user_title || bond.user_title,
+                    turns: rs.turns,
+                    sprite_outfit:
+                      typeof msg.payload.sprite_outfit === "string"
+                        ? msg.payload.sprite_outfit
+                        : bond.sprite_outfit,
+                  },
+                },
+              };
+            });
           }
           setStageNotice("时间折返了一些……");
           break;
@@ -923,6 +1025,27 @@ export default function App() {
     wsAdvancePeriod(ws, { userId: uid, saveId: worldSaveId });
   }, [worldSaveId]);
 
+  const jumpNextSeason = useCallback(() => {
+    const uid = authRef.current?.user_id;
+    const ws = requireWs();
+    if (!uid || !ws || !worldSaveId) return;
+    setPending(true);
+    challengeDoneRef.current = "";
+    setChallengeToast(null);
+    wsJumpWaypoint(ws, { userId: uid, saveId: worldSaveId });
+  }, [worldSaveId]);
+
+  const settleFriendEnding = useCallback(
+    (characterId: string) => {
+      const uid = authRef.current?.user_id;
+      const ws = requireWs();
+      if (!uid || !ws || !worldSaveId || !characterId) return;
+      setPending(true);
+      wsSettleFriendEnding(ws, { userId: uid, saveId: worldSaveId, characterId });
+    },
+    [worldSaveId],
+  );
+
   const fulfillAppointment = useCallback(
     (appointmentId: string) => {
       const uid = authRef.current?.user_id;
@@ -975,7 +1098,11 @@ export default function App() {
   }, [addMessage, input, pending, sessionId]);
 
   const sendChoice = useCallback(
-    (text: string, index: number, kind: "soft" | "branch") => {
+    (
+      text: string,
+      index: number,
+      kind: "soft" | "branch" | "stage_consent" | "confession_consent",
+    ) => {
       const ws = requireWs();
       if (!text || !sessionId || !ws || pending) return;
       addMessage("user", text);
@@ -983,8 +1110,10 @@ export default function App() {
       setChoiceKind("soft");
       setPending(true);
       pendingAssistantRef.current = addMessage("assistant", "…", { pending: true });
-      // soft：不传 choice_index，避免误套事件数值；branch 才传 index
-      wsChat(ws, sessionId, text, kind === "branch" ? index : undefined);
+      // soft：不传 choice_index；branch / consent 才传 index（门闩确认）
+      const passIndex =
+        kind === "branch" || kind === "stage_consent" || kind === "confession_consent";
+      wsChat(ws, sessionId, text, passIndex ? index : undefined);
     },
     [addMessage, pending, sessionId],
   );
@@ -1153,7 +1282,12 @@ export default function App() {
   if (screen === "sprites") {
     return (
       <div className="gal-app-shell">
-        <SpriteGalleryScreen mode="browse" onBack={returnFromOverlay} />
+        <SpriteGalleryScreen
+          mode="browse"
+          saveId={worldSaveId}
+          userId={authUser?.user_id}
+          onBack={returnFromOverlay}
+        />
       </div>
     );
   }
@@ -1243,6 +1377,8 @@ export default function App() {
           onGoLocation={goLocation}
           onEndDay={endDay}
           onAdvancePeriod={advancePeriod}
+          onJumpNextSeason={jumpNextSeason}
+          onSettleFriendEnding={settleFriendEnding}
           onReplyPing={replyPing}
           onBuyGift={buyGift}
           onWork={doWork}

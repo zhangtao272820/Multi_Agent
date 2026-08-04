@@ -1,10 +1,13 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 
+export type SessionWorkbenchMode = 'chat' | 'professional'
+
 export type SessionMeta = {
   title?: string
   customTitle?: boolean
   updatedAt?: string
+  workbenchMode?: SessionWorkbenchMode
 }
 
 const SESSIONS_DIR = 'sessions'
@@ -32,39 +35,107 @@ export function sanitizeSessionTitle(raw: unknown): string | null {
   return s
 }
 
-export async function readSessionMeta(dataRoot: string, sessionId: string): Promise<SessionMeta> {
-  const sid = String(sessionId || '').trim()
-  if (!sid) return {}
-  try {
-    const raw = await fs.readFile(metaFilePath(dataRoot, sid), 'utf8')
-    const obj = JSON.parse(raw)
-    if (!obj || typeof obj !== 'object') return {}
-    const title = sanitizeSessionTitle((obj as SessionMeta).title)
-    return {
-      title: title || undefined,
-      customTitle: Boolean((obj as SessionMeta).customTitle),
-      updatedAt: String((obj as SessionMeta).updatedAt || '') || undefined
-    }
-  } catch {
-    return {}
+export function sanitizeWorkbenchMode(raw: unknown): SessionWorkbenchMode | undefined {
+  const x = String(raw ?? '')
+    .trim()
+    .toLowerCase()
+  if (x === 'professional' || x === 'pro') return 'professional'
+  if (x === 'chat' || x === 'dialog') return 'chat'
+  return undefined
+}
+
+function normalizeMeta(obj: unknown): SessionMeta {
+  if (!obj || typeof obj !== 'object') return {}
+  const src = obj as SessionMeta
+  const title = sanitizeSessionTitle(src.title)
+  const workbenchMode = sanitizeWorkbenchMode(src.workbenchMode)
+  return {
+    title: title || undefined,
+    customTitle: Boolean(src.customTitle && title),
+    updatedAt: String(src.updatedAt || '') || undefined,
+    ...(workbenchMode ? { workbenchMode } : {})
   }
 }
 
-export async function writeSessionMeta(dataRoot: string, sessionId: string, meta: SessionMeta) {
+async function writeMetaFile(dataRoot: string, sessionId: string, meta: SessionMeta) {
   const sid = String(sessionId || '').trim()
   if (!sid) return
   const title = sanitizeSessionTitle(meta.title)
-  if (!title) {
+  const workbenchMode = sanitizeWorkbenchMode(meta.workbenchMode)
+  const hasTitle = Boolean(title)
+  const hasMode = Boolean(workbenchMode)
+  if (!hasTitle && !hasMode) {
     await fs.unlink(metaFilePath(dataRoot, sid)).catch(() => undefined)
     return
   }
   await fs.mkdir(path.join(dataRoot, META_DIR), { recursive: true }).catch(() => undefined)
   const payload: SessionMeta = {
-    title,
-    customTitle: true,
-    updatedAt: new Date().toISOString()
+    updatedAt: new Date().toISOString(),
+    ...(hasTitle
+      ? {
+          title: title!,
+          customTitle: Boolean(meta.customTitle)
+        }
+      : {}),
+    ...(hasMode ? { workbenchMode: workbenchMode! } : {})
   }
   await fs.writeFile(metaFilePath(dataRoot, sid), JSON.stringify(payload, null, 2), 'utf8')
+}
+
+export async function readSessionMeta(dataRoot: string, sessionId: string): Promise<SessionMeta> {
+  const sid = String(sessionId || '').trim()
+  if (!sid) return {}
+  try {
+    const raw = await fs.readFile(metaFilePath(dataRoot, sid), 'utf8')
+    return normalizeMeta(JSON.parse(raw))
+  } catch {
+    return {}
+  }
+}
+
+/** 写标题：合并保留已有 workbenchMode */
+export async function writeSessionMeta(dataRoot: string, sessionId: string, meta: SessionMeta) {
+  const sid = String(sessionId || '').trim()
+  if (!sid) return
+  const title = sanitizeSessionTitle(meta.title)
+  if (!title) {
+    // 仅清标题时保留 mode（若有）
+    const existing = await readSessionMeta(dataRoot, sid)
+    if (existing.workbenchMode) {
+      await writeMetaFile(dataRoot, sid, { workbenchMode: existing.workbenchMode })
+    } else {
+      await fs.unlink(metaFilePath(dataRoot, sid)).catch(() => undefined)
+    }
+    return
+  }
+  const existing = await readSessionMeta(dataRoot, sid)
+  const workbenchMode = sanitizeWorkbenchMode(meta.workbenchMode) || existing.workbenchMode
+  await writeMetaFile(dataRoot, sid, {
+    title,
+    customTitle: true,
+    ...(workbenchMode ? { workbenchMode } : {})
+  })
+}
+
+/** 写工作台模式：合并保留已有标题 */
+export async function writeSessionWorkbenchMode(
+  dataRoot: string,
+  sessionId: string,
+  mode: SessionWorkbenchMode
+) {
+  const sid = String(sessionId || '').trim()
+  const workbenchMode = sanitizeWorkbenchMode(mode)
+  if (!sid || !workbenchMode) return
+  const existing = await readSessionMeta(dataRoot, sid)
+  await writeMetaFile(dataRoot, sid, {
+    ...(existing.title
+      ? {
+          title: existing.title,
+          customTitle: Boolean(existing.customTitle)
+        }
+      : {}),
+    workbenchMode
+  })
 }
 
 export async function deleteSessionArtifacts(params: {

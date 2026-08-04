@@ -323,6 +323,105 @@ def main() -> int:
         qsp = sprites_mod.resolve_q_sprite(mid)
         assert qsp.get("path"), mid
 
+    # M25: context-aware outfit/action (assert only when disk has the preferred file)
+    from app import sprite_context as sprite_ctx
+    from pathlib import Path as _Path
+
+    sprites_root = _Path(ROOT) / "data" / "sprites" / "students"
+
+    def _has(sid: str, name: str) -> bool:
+        return (sprites_root / sid / name).is_file()
+
+    # Female dorm → private outfit when casual/pajama stand exists
+    if _has("f01", "casual_stand_happy.png"):
+        r = sprite_ctx.resolve_contextual_sprite(
+            "f01",
+            emotion="happy",
+            location_id="dorm_f1",
+            period_kind="dorm",
+            weather_id="sunny",
+            gender="female",
+            prefer_scene=True,
+        )
+        assert str(r.get("file", "")).startswith("casual_") or str(r.get("file", "")).startswith(
+            "pajama_"
+        ), r.get("file")
+    if _has("f01", "pajama_stand_neutral.png"):
+        r = sprite_ctx.resolve_contextual_sprite(
+            "f01",
+            emotion="neutral",
+            location_id="dorm_f1",
+            period_kind="end",
+            weather_id="sunny",
+            gender="female",
+        )
+        assert str(r.get("file", "")).startswith("pajama_"), r.get("file")
+
+    # Classroom hub prefers sc_* when present
+    if _has("f01", "summer_sc_classroom_lean_neutral.png"):
+        r = sprite_ctx.resolve_contextual_sprite(
+            "f01",
+            emotion="neutral",
+            location_id="classroom",
+            period_kind="free",
+            weather_id="sunny",
+            gender="female",
+            prefer_scene=True,
+        )
+        assert "sc_classroom" in str(r.get("file", "")), r.get("file")
+
+    # Verb study_together → study
+    if _has("f01", "summer_study_neutral.png"):
+        r = sprite_ctx.resolve_contextual_sprite(
+            "f01",
+            emotion="neutral",
+            location_id="classroom",
+            period_kind="free",
+            weather_id="sunny",
+            verb="study_together",
+            gender="female",
+            prefer_scene=False,
+        )
+        assert "study" in str(r.get("file", "")), r.get("file")
+
+    # Cold → winter when winter sc/stand exists
+    if _has("f01", "winter_sc_hallway_window_neutral.png") or _has("f01", "winter_stand_neutral.png"):
+        r = sprite_ctx.resolve_contextual_sprite(
+            "f01",
+            emotion="neutral",
+            location_id="hallway",
+            period_kind="free",
+            weather_id="cold",
+            gender="female",
+            prefer_scene=True,
+        )
+        assert str(r.get("file", "")).startswith("winter_"), r.get("file")
+
+    # Male: never private outfit; missing pack falls back to summer_stand
+    r = sprite_ctx.resolve_contextual_sprite(
+        "m01",
+        emotion="happy",
+        location_id="dorm_m1",
+        period_kind="dorm",
+        weather_id="sunny",
+        gender="male",
+    )
+    assert not str(r.get("file", "")).startswith(("casual_", "pajama_", "towel_")), r.get("file")
+    assert r.get("path"), "male fallback must resolve"
+
+    # Missing preferred action still falls back (never blocks)
+    r = sprite_ctx.resolve_contextual_sprite(
+        "m01",
+        emotion="angry",
+        location_id="classroom",
+        period_kind="free",
+        weather_id="sunny",
+        verb="study_together",
+        gender="male",
+        prefer_scene=False,
+    )
+    assert r.get("path") or r.get("fallback") is True
+
     print("OK world smoke")
     print(" weather:", hub["calendar"]["weather_id"])
     print(" pc_rank:", mock["last_mock"]["pc_rank"])

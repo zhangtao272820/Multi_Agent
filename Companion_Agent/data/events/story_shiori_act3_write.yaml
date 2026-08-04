@@ -3,32 +3,88 @@ label: 空白页
 priority: 7
 once: true
 chance: 1.0
-scene_id: ""
+scene_id: ''
 trigger:
-  character_ids: [shiori]
+  character_ids:
+  - shiori
   stage_min: crush
   affinity_min: 82
-  flags_absent: [sr_blank_page]
-  flags_present: [sr_window_read]
+  flags_absent:
+  - sr_blank_page
+  flags_present:
+  - sr_window_read
 prompt_snippet: |
   【专属故事 · 坡上书店的月亮 · 第3幕 · 空白页】
 advance: on_player_turn
 beats:
-  - id: b1
-    summary: "她开始写自己的故事给你看"
-    sprite_hint: [catalog_stamp, date]
-    soft_options: ["认真接话", "先观察", "轻声提问"]
-  - id: b2
-    summary: "「空白页」里出现犹豫或选择。"
-    sprite_hint: [date, home]
-    soft_options: ["表明态度", "给她空间", "确认她的意思"]
-  - id: b3
-    summary: "收束本幕：留下可被记住的结果，不剧透结局名。"
-    sprite_hint: [home]
-    soft_options: ["坦白心意", "先缓一缓", "诚实说明顾虑"]
+- id: b1
+  summary: "她把空白笔记推过来：今晚不荐书，写一句自己的话。等你回应。"
+  sprite_hint:
+  - poetry_nook
+  - home
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 等她写
+  - 也写一句交换
+  - 握住她发抖的手
+  narration: "纸墨与坡道夜风里，她把空白笔记推过来：今晚不荐书，写一句自己的话。"
+  pc_thought: 她荐别人的书很准。空白页才是她自己。
+  brief: "她把空白笔记推过来：今晚不荐书，写一句自己的话。等你回应。"
+- id: b2
+  summary: "墨迹未干：喜欢你——不是书里的角色，是柜台外的人。等你回应。"
+  sprite_hint:
+  - catalog_stamp
+  - date
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 扉页回应
+  - 朗读她的句子
+  - 问可否交往
+  narration: "纸墨与坡道夜风里，墨迹未干：喜欢你——不是书里的角色，是柜台外的人。"
+  pc_thought: 坡上月亮很亮。我想读她未写完的那一行——想起书。
+  brief: "墨迹未干：喜欢你——不是书里的角色，是柜台外的人。等你回应。"
+- id: b3
+  summary: 她怕恋爱后只被当成「会荐书的女友」；要被当成作者本人。等你回应。
+  sprite_hint:
+  - date
+  - window_read
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 承诺看见作者
+  - 约共同写一页
+  - 否认工具人恋爱
+  narration: 纸墨与坡道夜风里，她怕恋爱后只被当成「会荐书的女友」；要被当成作者本人。
+  pc_thought: 窗边朗读像告白预演。我鼓掌还是接过笔？——想起书。
+  brief: 她怕恋爱后只被当成「会荐书的女友」；要被当成作者本人。等你回应。
+- id: b4
+  summary: 章盖在空白页角落；月亮还在坡上，故事改由你们续写。等你回应。
+  sprite_hint:
+  - date
+  - casual
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 吻她手背
+  - 关店一起走
+  - 说「下一章见」
+  narration: 纸墨与坡道夜风里，章盖在空白页角落；月亮还在坡上，故事改由你们续写。
+  pc_thought: 冬书架冷。书店可以关，心不能只当店员——想起月亮。
+  brief: 章盖在空白页角落；月亮还在坡上，故事改由你们续写。等你回应。
 rewards:
-  flags_set: [sr_blank_page, confessed]
+  flags_set:
+  - sr_blank_page
+  - confessed
 choice_effects:
-  - { trust_delta: 3, affinity_delta: 3 }
-  - { trust_delta: 2, affinity_delta: 2 }
-  - { trust_delta: -2, affinity_delta: -1 }
+- trust_delta: 3
+  affinity_delta: 3
+- trust_delta: 2
+  affinity_delta: 2
+- trust_delta: -2
+  affinity_delta: -1

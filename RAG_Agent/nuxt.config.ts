@@ -20,6 +20,15 @@ export default defineNuxtConfig({
   },
   modules: ['@nuxtjs/tailwindcss'],
   css: ['~/assets/css/rag-cursor-chat.css'],
+  runtimeConfig: {
+    public: {
+      clawhiveAuthUrl:
+        process.env.NUXT_PUBLIC_CLAWHIVE_AUTH_URL ||
+        process.env.CLAWHIVE_PUBLIC_URL ||
+        'http://127.0.0.1:18000',
+      agentBrowserAuth: process.env.NUXT_PUBLIC_AGENT_BROWSER_AUTH || process.env.AGENT_BROWSER_AUTH || '1'
+    }
+  },
   nitro: {
     alias: {
       '#agent-shared': agentSharedDir()

@@ -1,6 +1,6 @@
 {
   "version": "2026-07-18",
-  "note": "玩法 romance×18 + neutral×6；无有名 NPC。正式立绘：romance/{id}、neutral/{id}；路人装饰：_background/{loc}/（与场景底图同类，不可对话）；旧 named npc 归档 _quarantine/named_npc_demoted/。",
+  "note": "玩法 romance×18 + linked×6（关系向难攻略，旧称 neutral）；无有名 NPC。正式立绘目录可暂留 sprites/neutral/{id}。",
   "layout": {
     "romance": "data/sprites/romance/{id}/{emotion}.png",
     "neutral": "data/sprites/neutral/{id}/",
@@ -96,7 +96,6 @@
     "xiaoyang",
     "taotao",
     "qiansha",
-    "yeyu",
     "aili",
     "jingliu",
     "ruolin",
@@ -115,7 +114,6 @@
     "xiaoyang",
     "taotao",
     "qiansha",
-    "yeyu",
     "aili",
     "jingliu",
     "ruolin",
@@ -160,42 +158,42 @@
       "label": "沈书璃",
       "base_id": "tsundere",
       "vibe": "neutral",
-      "cast_kind": "neutral"
+      "cast_kind": "linked"
     },
     {
       "id": "jingning",
       "label": "江静宁",
       "base_id": "mature_sister",
       "vibe": "neutral",
-      "cast_kind": "neutral"
+      "cast_kind": "linked"
     },
     {
       "id": "youwei",
       "label": "温悠微",
       "base_id": "gentle_lover",
       "vibe": "neutral",
-      "cast_kind": "neutral"
+      "cast_kind": "linked"
     },
     {
       "id": "yuxi",
       "label": "何雨汐",
       "base_id": "gentle_lover",
       "vibe": "neutral",
-      "cast_kind": "neutral"
+      "cast_kind": "linked"
     },
     {
       "id": "lingke",
       "label": "陈铃可",
       "base_id": "mature_sister",
       "vibe": "neutral",
-      "cast_kind": "neutral"
+      "cast_kind": "linked"
     },
     {
       "id": "aichen",
       "label": "程艾辰",
       "base_id": "mature_sister",
       "vibe": "neutral",
-      "cast_kind": "neutral"
+      "cast_kind": "linked"
     }
   ],
   "separate_cast_dirs_2026_07_16": {

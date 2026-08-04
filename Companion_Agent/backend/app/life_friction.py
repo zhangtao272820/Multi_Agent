@@ -59,6 +59,12 @@ def is_soft_cold(bond: BondShelf, day_index: int) -> bool:
 def soft_cold_prompt_line(bond: BondShelf, day_index: int) -> str:
     if not is_soft_cold(bond, day_index):
         return ""
+    flags = bond.relationship_state.flags or {}
+    if flags.get("neglect_cold") and not flags.get("recently_stood_up"):
+        return (
+            "\n【她这阵子】你最近很少找她，她见你时话会少一点、礼貌一点，"
+            "不必兴师问罪，但别装作没事；勿念系统字样。"
+        )
     return (
         "\n【她这阵子】你上次放了她鸽子，她这周见你时话会少一点、礼貌一点，"
         "不必兴师问罪，但别装作没事；勿念系统字样。"
@@ -99,8 +105,75 @@ def stingy_agenda_bits(bond: BondShelf) -> tuple[str, str] | None:
     )
 
 
+def friend_settle_eligible(save: WorldSave, character_id: str) -> bool:
+    """Hub 可「定在朋友」：未恋爱确认、朋友带好感、阶段未过 close_friend。"""
+    from .world_engine import stage_rank
+
+    bond = save.bonds.get(character_id)
+    if not bond or bond.cast_kind != "romance":
+        return False
+    flags = bond.relationship_state.flags or {}
+    if flags.get("ending_ready"):
+        return False
+    if flags.get("partner_confirmed") or save.world_flags.get(f"partner:{character_id}"):
+        return False
+    if flags.get("confessed"):
+        return False
+    st = bond.relationship_state.stage_id or ""
+    if stage_rank(st) > stage_rank("close_friend"):
+        return False
+    aff = int(bond.relationship_state.affinity or 0)
+    return 45 <= aff <= 75
+
+
+def settle_friend_ending(save: WorldSave, character_id: str) -> tuple[WorldSave, dict]:
+    """写入 ending_ready；条件满足时立刻 check_endings。"""
+    from .game_judge import check_endings, load_ending_meta
+    from .world_store import upsert_world_save
+
+    cid = (character_id or "").strip()
+    bond = save.bonds.get(cid)
+    if not bond or bond.cast_kind != "romance":
+        return save, {"ok": False, "error": "无法结算这段关系"}
+    if not friend_settle_eligible(save, cid):
+        flags = bond.relationship_state.flags or {}
+        if flags.get("ending_ready"):
+            return save, {"ok": False, "error": "已经定过朋友方向了"}
+        return save, {"ok": False, "error": "现在还不太适合定在朋友这边"}
+
+    flags = dict(bond.relationship_state.flags or {})
+    flags["ending_ready"] = True
+    bond.relationship_state = bond.relationship_state.model_copy(update={"flags": flags})
+    save.bonds[cid] = bond
+
+    ending_id = check_endings(
+        character_id=cid,
+        state=bond.relationship_state,
+        runtime={
+            "flags": flags,
+            "trust": int(bond.relationship_state.trust or 0),
+            "low_streak": int(bond.relationship_state.low_streak or 0),
+            "cast_role": "romance",
+        },
+    )
+    upsert_world_save(save)
+    result: dict = {
+        "ok": True,
+        "character_id": cid,
+        "name": bond.profile.name or cid,
+        "ending_ready": True,
+        "note": f"和{bond.profile.name or cid}的关系，定在了朋友这边",
+    }
+    if ending_id:
+        meta = load_ending_meta(ending_id)
+        result["ending_id"] = ending_id
+        if meta:
+            result["ending"] = meta
+    return save, result
+
+
 def ending_soft_hints(save: WorldSave, *, limit: int = 2) -> list[dict[str, str]]:
-    """Hub 软提示：不泄结局名，只说『好像更近了』。"""
+    """Hub 软提示：不泄结局名；朋友带可带 settle_friend 动作。"""
     from .world_engine import stage_rank
 
     rows: list[tuple[int, dict[str, str]]] = []
@@ -110,23 +183,32 @@ def ending_soft_hints(save: WorldSave, *, limit: int = 2) -> list[dict[str, str]
         aff = int(bond.relationship_state.affinity or 0)
         st = bond.relationship_state.stage_id or ""
         flags = bond.relationship_state.flags or {}
+        name = bond.profile.name or cid
         score = 0
         text = ""
-        if flags.get("partner_confirmed") or save.world_flags.get(f"partner:{cid}"):
+        action = ""
+        if friend_settle_eligible(save, cid):
+            score = 95 + aff
+            text = f"可以把和{name}的关系，定在朋友这边"
+            action = "settle_friend"
+        elif flags.get("partner_confirmed") or save.world_flags.get(f"partner:{cid}"):
             if aff >= 78 and stage_rank(st) >= stage_rank("dating"):
                 score = 90 + aff
-                text = f"和{bond.profile.name}之间，好像离某个结局更近了"
+                text = f"和{name}之间，好像离某个结局更近了"
             elif aff >= 70:
                 score = 70 + aff
-                text = f"和{bond.profile.name}的关系，正悄悄往深处走"
+                text = f"和{name}的关系，正悄悄往深处走"
         elif aff >= 72 and stage_rank(st) >= stage_rank("crush"):
             score = 50 + aff
-            text = f"和{bond.profile.name}之间，气氛有些不一样了"
+            text = f"和{name}之间，气氛有些不一样了"
         elif aff >= 60 and stage_rank(st) >= stage_rank("friend"):
             score = 30 + aff
-            text = f"和{bond.profile.name}越来越熟，故事似乎才刚开头"
+            text = f"和{name}越来越熟，故事似乎才刚开头"
         if text:
-            rows.append((score, {"character_id": cid, "name": bond.profile.name or cid, "text": text}))
+            row: dict[str, str] = {"character_id": cid, "name": name, "text": text}
+            if action:
+                row["action"] = action
+            rows.append((score, row))
     rows.sort(key=lambda x: -x[0])
     return [r[1] for r in rows[:limit]]
 
@@ -146,7 +228,9 @@ def story_soft_hints(save: WorldSave, *, limit: int = 2) -> list[dict[str, str]]
 
     rows: list[tuple[int, dict[str, str]]] = []
     for cid, bond in save.bonds.items():
-        if bond.cast_kind not in {"romance", "neutral"}:
+        from .character_lores import is_romanceable_cast
+
+        if not is_romanceable_cast(bond.cast_kind):
             continue
         story = load_story_route(cid)
         if not story:

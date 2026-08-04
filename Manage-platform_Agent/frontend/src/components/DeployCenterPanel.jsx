@@ -73,7 +73,11 @@ export default function DeployCenterPanel({ apiBase, token, role, onMessage }) {
           <div>
             <p className="panel-eyebrow">部署中心</p>
             <h2 className="ops-title">镜像 · recreate · 回滚 · 离线包</h2>
-            <p className="panel-desc">封装 compose force-recreate / rollback-agents / 健康门禁</p>
+            <p className="panel-desc">
+              封装 compose force-recreate / rollback-agents / 健康门禁。
+              镜像 tag 为<strong>全局</strong> <code>CLAWHIVE_IMAGE_TAG</code>
+              {status?.image_tag_note ? ` — ${status.image_tag_note}` : "（非 per-service canary）"}
+            </p>
           </div>
           <button type="button" className="btn-secondary" disabled={loading} onClick={load}>
             刷新

@@ -86,11 +86,18 @@ export type UserFacingPayload = {
     }
   }>
   appendix?: string
-  sources?: Array<{ title: string; url?: string }>
+  sources?: Array<{
+    index: number
+    title: string
+    url?: string
+    excerpt?: string
+    kind?: 'web' | 'rag' | 'db' | 'doc'
+  }>
   outcome?: 'completed' | 'failed' | 'needs_human'
   outcomeLabel?: string
   badge?: 'evidence_rejected' | 'needs_clarify'
   badgeLabel?: string
+  replyTier?: 'lite' | 'standard' | 'report'
 }
 
 export type LogItem = {

@@ -3,32 +3,88 @@ label: 成绩单之外
 priority: 7
 once: true
 chance: 1.0
-scene_id: ""
+scene_id: ''
 trigger:
-  character_ids: [ruolin]
+  character_ids:
+  - ruolin
   stage_min: crush
-  affinity_min: 75
-  flags_absent: [rl_semester_end_walk]
-  flags_present: [rl_boundary_kept]
-prompt_snippet: |
-  【专属故事 · 讲台下的一年 · 第3幕 · 成绩单之外】
+  affinity_min: 80
+  flags_absent:
+  - rl_semester_end_walk
+  flags_present:
+  - rl_boundary_kept
+prompt_snippet: '【专属故事 · 讲台下的一年 · 第3幕 · 成绩单之外】
+
+  '
 advance: on_player_turn
 beats:
-  - id: b1
-    summary: "学期末"
-    sprite_hint: [campus_twilight, co_read]
-    soft_options: ["认真接话", "先观察", "轻声提问"]
-  - id: b2
-    summary: "她卸下讲师身份邀你散步"
-    sprite_hint: [co_read, open_day]
-    soft_options: ["表明态度", "给她空间", "确认她的意思"]
-  - id: b3
-    summary: "收束本幕：留下可被记住的结果，不剧透结局名。"
-    sprite_hint: [open_day]
-    soft_options: ["坦白心意", "先缓一缓", "诚实说明顾虑"]
+- id: b1
+  summary: 成绩提交后她摘下工牌：今天，想以普通人身份走走——校园暮色第一次不再像讲台的延长。等你回应。
+  sprite_hint:
+  - campus_twilight
+  - casual
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 答应陪走
+  - 问还能称呼什么
+  - 先看她脸色
+  narration: 粉笔灰与纸页里，成绩提交后她摘下工牌：今天，想以普通人身份走走——校园暮色第一次不再像讲台的延长。
+  pc_thought: 粉笔灰落在袖口。我想叫她名字，又怕越界。
+  brief: 成绩提交后她摘下工牌：今天，想以普通人身份走走——校园暮色第一次不再像讲台的延长。等你回应。
+- id: b2
+  summary: 图书馆预约区她笑说终于不是「顾老师的答疑时段」，书架阴影里，称呼忽然变得危险而甜蜜。等你回应。
+  sprite_hint:
+  - library_reserve
+  - bookshelf_reach
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 叫她名字试试
+  - 分享一本闲书
+  - 仍尊重距离
+  narration: 粉笔灰与纸页里，图书馆预约区她笑说终于不是「顾老师的答疑时段」，书架阴影里，称呼忽然变得危险而甜蜜。
+  pc_thought: 边界课是给两个人的——我也在被考试。
+  brief: 图书馆预约区她笑说终于不是「顾老师的答疑时段」，书架阴影里，称呼忽然变得危险而甜蜜。等你回应。
+- id: b3
+  summary: 开放日人潮外，她承认怕你只爱上讲台光环——怕卸下身份后，你看见的只是一个普通疲惫的人。等你回应。
+  sprite_hint:
+  - open_day_booth
+  - campus_twilight
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 说喜欢的是她
+  - 否认光环论
+  - 问她真正害怕什么
+  narration: 粉笔灰与纸页里，开放日人潮外，她承认怕你只爱上讲台光环——怕卸下身份后，你看见的只是一个普通疲惫的人。
+  pc_thought: 摘掉工牌的那一秒，师生戏就松了。我敢不敢对等？
+  brief: 开放日人潮外，她承认怕你只爱上讲台光环——怕卸下身份后，你看见的只是一个普通疲惫的人。等你回应。
+- id: b4
+  summary: 暮色里她伸手又收回：对等，要从你愿意等学期结束开始。手指停在半空，等你给勇气。等你回应。
+  sprite_hint:
+  - campus_twilight
+  - date
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 说愿意等
+  - 约定暑假再谈
+  - 轻轻碰她指尖
+  narration: 粉笔灰与纸页里，暮色里她伸手又收回：对等，要从你愿意等学期结束开始。手指停在半空，等你给勇气。
+  pc_thought: 同学名比情话更烫。接住还是退回老师？
+  brief: 暮色里她伸手又收回：对等，要从你愿意等学期结束开始。手指停在半空，等你给勇气。等你回应。
 rewards:
-  flags_set: [rl_semester_end_walk]
+  flags_set:
+  - rl_semester_end_walk
 choice_effects:
-  - { trust_delta: 3, affinity_delta: 3 }
-  - { trust_delta: 2, affinity_delta: 2 }
-  - { trust_delta: -2, affinity_delta: -1 }
+- trust_delta: 3
+  affinity_delta: 3
+- trust_delta: 2
+  affinity_delta: 2
+- trust_delta: -2
+  affinity_delta: -1

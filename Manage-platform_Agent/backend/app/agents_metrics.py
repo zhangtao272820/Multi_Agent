@@ -2,37 +2,15 @@
 
 from __future__ import annotations
 
-import json
 import time
-import urllib.error
-import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+from .internal_http import fetch_json
 from .managed_agents import managed_agent_specs
 
 
 def _fetch_json(url: str, timeout_sec: float = 2.5) -> dict:
-    started = time.perf_counter()
-    try:
-        req = urllib.request.Request(url, headers={"Accept": "application/json"})
-        with urllib.request.urlopen(req, timeout=timeout_sec) as resp:  # noqa: S310
-            raw = resp.read(256_000)
-            latency = int((time.perf_counter() - started) * 1000)
-            payload = json.loads(raw.decode("utf-8", errors="replace") or "{}")
-            return {
-                "ok": True,
-                "url": url,
-                "latency_ms": latency,
-                "data": payload,
-            }
-    except Exception as exc:  # noqa: BLE001
-        latency = int((time.perf_counter() - started) * 1000)
-        return {
-            "ok": False,
-            "url": url,
-            "latency_ms": latency,
-            "error": str(exc)[:400],
-        }
+    return fetch_json(url, timeout_sec=timeout_sec)
 
 
 def _agent_metrics_url(spec: dict) -> str | None:

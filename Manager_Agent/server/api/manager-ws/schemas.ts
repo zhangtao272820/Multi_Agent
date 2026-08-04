@@ -67,6 +67,8 @@ export const IncomingMessageSchema = z.discriminatedUnion('type', [
     attachment: MediaAttachmentSchema.optional(),
     mode: z.enum(['normal', 'regenerate', 'edit_resend']).optional(),
     userMessageIndex: z.number().int().min(0).max(199).optional(),
+    /** edit_resend：用于定位旧锚点的原文（text 字段是新内容） */
+    anchorText: z.string().max(8000).optional(),
     clientContext: z.record(z.unknown()).optional()
   }),
   z.object({
@@ -103,7 +105,8 @@ export const IncomingMessageSchema = z.discriminatedUnion('type', [
     type: z.literal('withdraw_turn'),
     sessionId: SessionIdSchema,
     userId: UserIdSchema.optional(),
-    userMessageIndex: z.number().int().min(0).max(199)
+    userMessageIndex: z.number().int().min(0).max(199).optional(),
+    text: z.string().max(8000).optional()
   }),
   z.object({
     type: z.literal('feedback'),

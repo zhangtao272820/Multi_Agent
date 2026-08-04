@@ -33,6 +33,7 @@ import {
   useRuntimeConfig,
   resolveGuiConfirm
 } from './wsBarrel'
+import { takeRunProcessUiMeta, clearRunProcess } from '../../../utils/session/runProcessAccumulator'
 
 export async function handleHumanConfirm(ctx: WsHandlerContext, payload: ParsedWsMessage) {
   const { peer, send, sessionId, boundUserId, tenantId, explicitUserId, platformTraceId } = ctx
@@ -243,7 +244,13 @@ export async function handleHumanConfirm(ctx: WsHandlerContext, payload: ParsedW
     if (checkpoint && decision === 'confirm') {
       await deleteHumanConfirmCheckpoint(sessionId)
     }
-    session.messages.push({ role: 'assistant', content: finalText })
+    const uiMeta = takeRunProcessUiMeta(runId)
+    session.messages.push({
+      role: 'assistant',
+      content: finalText,
+      runId,
+      ...(uiMeta ? { uiMeta } : {})
+    })
     void writeSession(sessionId, session)
     const reportOut = String((result as any)?.results?.report || '').trim()
     const finalFrom =
@@ -251,6 +258,7 @@ export async function handleHumanConfirm(ctx: WsHandlerContext, payload: ParsedW
     await emitRunObservability(send, runId)
     send('user_facing', composedBundle.userFacing, 'manager', runId)
     send('final', finalText, finalFrom, runId)
+    clearRunProcess(runId)
     try {
       const stack = await loadTaskStack(path.join(process.cwd(), '.data'), sessionId)
       send('task_stack', { stack }, 'manager', runId)
@@ -259,6 +267,7 @@ export async function handleHumanConfirm(ctx: WsHandlerContext, payload: ParsedW
       void emitImplicitLearning(runId, sessionId, 'human_reject')
     }
   } catch (e: any) {
+    clearRunProcess(runId)
     if (isRunAbortError(ctrl, e)) {
       send('status', { status: 'canceled', runId, detail: '任务已取消' }, 'manager', runId)
     } else {

@@ -712,7 +712,16 @@ function addLog(item: LogItem) {
 function wsUrl() {
   const loc = window.location
   const proto = loc.protocol === 'https:' ? 'wss:' : 'ws:'
-  return `${proto}//${loc.host}${wsPath.value}`
+  const u = new URL(`${proto}//${loc.host}${wsPath.value}`)
+  try {
+    const { authHeaders } = useClawhiveLogin()
+    const t = String(authHeaders().Authorization || '').replace(/^Bearer\s+/i, '').trim()
+    if (t) u.searchParams.set('access_token', t)
+  } catch {
+    const t = String(localStorage.getItem('clawhive_access_token') || '').trim()
+    if (t) u.searchParams.set('access_token', t)
+  }
+  return u.toString()
 }
 
 function connect() {

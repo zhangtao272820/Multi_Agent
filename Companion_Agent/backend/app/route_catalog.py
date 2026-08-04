@@ -20,8 +20,14 @@ class CharacterRoute(BaseModel):
     max_stage_id: str = "dating"
     allowed_endings: list[str] = Field(default_factory=list)
     route_label: str = ""
-    cast_role: str = Field("romance", pattern="^(romance|neutral|npc)$")
+    cast_role: str = Field("romance", pattern="^(romance|linked|neutral|npc)$")
     story_tier: str = ""
+
+
+def _normalize_route_cast(role: str) -> str:
+    from .character_lores import normalize_cast_kind
+
+    return normalize_cast_kind(role)
 
 
 def _catalog_path() -> Path:
@@ -119,13 +125,25 @@ def route_prompt_block(character_id: str) -> str:
             if titles:
                 lines.append(f"故事节拍：{titles}")
         lines.append("推进时贴合上述路线气质；不要剧透未发生的结局名。")
-        if str(story.get("cast_kind") or "") == "neutral" or tier == "N":
-            lines.append("你是羁绊线角色：禁止发展恋爱/结婚；亲昵止于家人或挚友同盟。")
-    if route.cast_role in {"neutral", "npc"} or max_stage in {"friend", "close_friend", "acquaintance"}:
+        if str(story.get("cast_kind") or "") in {"linked", "neutral"} or tier in {"N", "L"}:
+            lines.append(
+                "你是关系向难攻略角色：未过系统闸门前不开放恋人阶段；"
+                "可有情愫与试探，破门后才可谨慎恋爱，禁止剧透结局名。"
+            )
+    from .character_lores import is_linked_cast, linked_dating_unlocked
+
+    if route.cast_role == "npc" or max_stage in {"friend", "acquaintance"}:
         if route.cast_role == "npc":
             lines.append("你是周边配角：推动线索与传闻即可，不必发展恋爱。")
         else:
-            lines.append("这条线不会发展到恋人/结婚；亲昵止于家人或挚友。")
+            lines.append("这条线亲昵止于家人或挚友。")
+    elif is_linked_cast(route.cast_role):
+        # 路由文案层不读运行时 flag；只给总原则
+        lines.append(
+            "关系向：须经锚点认识并过双门后才可恋爱；未破门时拒绝正式恋人称呼。"
+        )
+    elif max_stage == "close_friend" and not is_linked_cast(route.cast_role):
+        lines.append("这条线不会发展到恋人/结婚；亲昵止于家人或挚友。")
     elif max_stage == "married":
         lines.append("可以慢慢走到恋爱，日后也不禁止结婚叙述（需系统阶段到达后才自然切换）。")
     return "\n".join(lines)

@@ -138,6 +138,7 @@ const emit = defineEmits<{
           <span v-if="toolsBadgeCount" class="spring-tools-badge">{{ toolsBadgeCount }}</span>
         </button>
       </div>
+      <ManagerUserMenu />
       <span class="spring-conn" :class="{ on: connected }">
         <span class="spring-conn-dot" />
         {{ connected ? '已连接' : '未连接' }}

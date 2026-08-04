@@ -40,6 +40,8 @@ async function main() {
   )
   assert(storeSrc.includes('mgr_session_turns_archive'), 'read must fall back to archive table')
   assert(storeSrc.includes('needFile'), 'write must compute needFile for PG-fail force file')
+  assert(storeSrc.includes('ui_meta'), 'store must persist ui_meta')
+  assert(storeSrc.includes('run_id'), 'store must persist run_id')
   assert(
     /shouldWritePostgres\(backend\)\s*&&\s*!pgOk/.test(storeSrc),
     'PG write failure must force file write'
@@ -48,6 +50,8 @@ async function main() {
     !/if \(backend === 'postgres' && pg\) return pg/.test(storeSrc),
     'empty PG must not short-circuit file fallback'
   )
+  assert(storeSrc.includes('ui_meta'), 'store must persist ui_meta for thinking process')
+  assert(storeSrc.includes('run_id'), 'store must persist run_id')
   console.log('ok: source contracts')
 
   // --- file fallback when PG has no turns / unreachable ---

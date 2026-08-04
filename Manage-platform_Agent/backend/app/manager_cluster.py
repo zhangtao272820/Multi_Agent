@@ -1,11 +1,9 @@
-import json
 import threading
 import time
-import urllib.error
-import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 
 from .config import get_settings
+from .internal_http import fetch_json
 
 settings = get_settings()
 
@@ -21,64 +19,19 @@ def _manager_base_url() -> str:
 
 
 def _fetch_json(url: str, timeout_sec: float = 3.0) -> dict:
-    started = time.perf_counter()
-    try:
-        req = urllib.request.Request(url, headers={"Accept": "application/json"})
-        with urllib.request.urlopen(req, timeout=timeout_sec) as resp:  # noqa: S310
-            raw = resp.read(512_000)
-            latency = int((time.perf_counter() - started) * 1000)
-            text = raw.decode("utf-8", errors="replace") or ""
-            if text.lstrip().startswith("<"):
-                return {
-                    "ok": False,
-                    "url": url,
-                    "latency_ms": latency,
-                    "status_code": getattr(resp, "status", 200),
-                    "error": "返回 HTML 页面（manager_agent 未启动或端口错误）",
-                }
-            try:
-                payload = json.loads(text) if text.strip() else {}
-            except json.JSONDecodeError as exc:
-                return {
-                    "ok": False,
-                    "url": url,
-                    "latency_ms": latency,
-                    "status_code": getattr(resp, "status", 200),
-                    "error": f"JSON 解析失败: {exc}; 片段: {text[:120]}",
-                }
-            return {
-                "ok": True,
-                "url": url,
-                "latency_ms": latency,
-                "status_code": getattr(resp, "status", 200),
-                "data": payload,
-            }
-    except urllib.error.HTTPError as exc:
-        latency = int((time.perf_counter() - started) * 1000)
-        body = ""
-        try:
-            body = exc.read(4096).decode("utf-8", errors="replace")
-        except Exception:
-            pass
-        return {
-            "ok": False,
-            "url": url,
-            "latency_ms": latency,
-            "status_code": exc.code,
-            "error": body[:400] or str(exc),
+    result = fetch_json(url, timeout_sec=timeout_sec)
+    # Preserve previous connection-refused hint for Manager
+    err = str(result.get("error") or "")
+    if (
+        not result.get("ok")
+        and result.get("status_code") is None
+        and ("Connection refused" in err or "Name or service not known" in err or "无法连接" in err)
+    ):
+        result = {
+            **result,
+            "error": f"无法连接 Manager（请 docker compose up -d manager_agent）: {err}",
         }
-    except Exception as exc:  # noqa: BLE001
-        latency = int((time.perf_counter() - started) * 1000)
-        hint = str(exc)
-        if "Connection refused" in hint or "Name or service not known" in hint:
-            hint = f"无法连接 Manager（请 docker compose up -d manager_agent）: {hint}"
-        return {
-            "ok": False,
-            "url": url,
-            "latency_ms": latency,
-            "status_code": None,
-            "error": hint,
-        }
+    return result
 
 
 def _build_manager_cluster_status_uncached() -> dict:

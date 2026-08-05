@@ -94,7 +94,8 @@ export default function AdminShell({
 
   return (
     <div className="admin-app brand-shell" data-agent="platform">
-      <BrandMotif motif="moon" />
+      <div className="platform-season-bg platform-season-bg--shuangjiang" aria-hidden="true" />
+      <BrandMotif motif="leaves" fixed />
       <aside className="admin-sidebar">
         <div className="admin-brand">
           <img className="admin-brand__logo" src={BRAND_LOGOS.platform} alt="" width={36} height={36} />

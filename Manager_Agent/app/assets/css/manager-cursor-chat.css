@@ -1,21 +1,20 @@
-/* 总管 Agent · Cursor 对话可读性
-   深色 Token 会被后加载的 manager-winter-shell.css 同级选择器覆盖为霜白近实底。 */
+/* 总管 Agent · Cursor 对话可读性 · 霜白冬雪 Token */
 
 .spring-root.cosmic-theme.cursor-workbench {
-  --chat-col-width: min(760px, calc(100vw - var(--mgr-sidebar-w, 260px) - var(--mgr-tools-w, 300px) - 48px));
+  --chat-col-width: min(740px, calc(100vw - var(--mgr-sidebar-w, 248px) - var(--mgr-tools-w, 300px) - 72px));
   --chat-font-body: 15px;
   --chat-font-body-lh: 1.78;
   --chat-font-secondary: 14px;
   --chat-font-ui: 13px;
   --chat-font-meta: 12px;
   --chat-font-mono: 13px;
-  --chat-text-primary: #eceff4;
-  --chat-text-secondary: #c8d0dc;
-  --chat-text-muted: #8b97a8;
-  --mgr-glass-strong: rgba(10, 14, 32, 0.58);
-  --cursor-surface: rgba(15, 20, 32, 0.72);
-  --cursor-surface-elevated: rgba(22, 27, 40, 0.88);
-  --cursor-border: rgba(148, 163, 184, 0.16);
+  --chat-text-primary: #1a2f44;
+  --chat-text-secondary: #3a536c;
+  --chat-text-muted: #5a738c;
+  --mgr-glass-strong: rgba(255, 255, 255, 0.62);
+  --cursor-surface: rgba(255, 252, 255, 0.55);
+  --cursor-surface-elevated: rgba(255, 255, 255, 0.68);
+  --cursor-border: rgba(90, 140, 190, 0.4);
 }
 
 /* ── 主滚动区：flex 子项可滚动 ── */
@@ -45,9 +44,10 @@
 .spring-root.cursor-workbench.cosmic-theme .chat-thread .cosmic-bubble-user {
   padding: 10px 14px !important;
   border-radius: 16px 16px 4px 16px !important;
-  background: linear-gradient(145deg, rgba(30, 58, 138, 0.62), rgba(88, 28, 135, 0.42)) !important;
-  border: 1px solid rgba(96, 165, 250, 0.45) !important;
-  box-shadow: 0 8px 28px rgba(37, 99, 235, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+  background: linear-gradient(145deg, rgba(47, 127, 209, 0.18), rgba(120, 180, 230, 0.28)) !important;
+  border: 1px solid rgba(47, 127, 209, 0.42) !important;
+  box-shadow: 0 6px 20px rgba(40, 70, 110, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.85) !important;
+  color: #102838 !important;
 }
 
 .spring-root.cursor-workbench.cosmic-theme .chat-thread .cosmic-bubble-user .spring-log-text {
@@ -84,7 +84,7 @@
 .spring-root.cursor-workbench.cosmic-theme .chat-thread .md-body .md-h2 {
   font-size: 16px !important;
   font-weight: 600 !important;
-  color: #e2e8f0 !important;
+  color: #0e2436 !important;
   margin: 1rem 0 0.5rem !important;
   border-bottom: 1px solid var(--cursor-border) !important;
   padding-bottom: 0.35rem !important;
@@ -95,7 +95,7 @@
 .spring-root.cursor-workbench.cosmic-theme .chat-thread .md-body .md-h3 {
   font-size: 15px !important;
   font-weight: 600 !important;
-  color: #cbd5e1 !important;
+  color: #1e4060 !important;
 }
 
 /* DB 类键值列表：Cursor 式紧凑数据卡 */
@@ -106,7 +106,7 @@
   padding: 0 !important;
   border-radius: 10px !important;
   border: 1px solid var(--cursor-border) !important;
-  background: rgba(2, 6, 23, 0.42) !important;
+  background: rgba(235, 245, 255, 0.55) !important;
   overflow: visible !important;
 }
 
@@ -510,11 +510,12 @@
   background: rgba(0, 0, 0, 0.25) !important;
 }
 
-/* ── 回答区：Cursor 简洁气泡 ── */
+/* ── 回答区：霜白玻璃气泡 ── */
 .spring-root.cursor-workbench.cosmic-theme .chat-thread .reply-panel .reply-panel-inner.cosmic-bubble-reply {
-  background: var(--cursor-surface-elevated) !important;
-  border: 1px solid var(--cursor-border) !important;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.18) !important;
+  background: rgba(255, 255, 255, 0.72) !important;
+  border: 1px solid rgba(90, 140, 190, 0.42) !important;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.85) inset, 0 6px 20px rgba(40, 70, 110, 0.08) !important;
+  color: #142838 !important;
 }
 
 .spring-root.cursor-workbench.cosmic-theme .conv-stream-bubble {
@@ -528,8 +529,8 @@
 .spring-root.cursor-workbench .spring-input.cosmic-comms-console {
   border-radius: 14px !important;
   border: 1px solid var(--cursor-border) !important;
-  background: var(--cursor-surface-elevated) !important;
-  box-shadow: 0 -2px 24px rgba(0, 0, 0, 0.22) !important;
+  background: rgba(255, 255, 255, 0.62) !important;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.8) inset, 0 -2px 20px rgba(40, 70, 110, 0.08) !important;
   animation: none !important;
 }
 
@@ -538,15 +539,16 @@
 }
 
 .spring-root.cursor-workbench .spring-input-field.spring-input-area {
-  background: rgba(2, 6, 23, 0.35) !important;
-  border: 1px solid rgba(148, 163, 184, 0.12) !important;
+  background: rgba(255, 255, 255, 0.78) !important;
+  border: 1px solid rgba(90, 140, 190, 0.4) !important;
   border-radius: 10px !important;
   box-shadow: none !important;
+  color: #142838 !important;
 }
 
 .spring-root.cursor-workbench .spring-input-field.spring-input-area:focus {
-  border-color: rgba(96, 165, 250, 0.45) !important;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.12) !important;
+  border-color: rgba(47, 127, 209, 0.55) !important;
+  box-shadow: 0 0 0 2px rgba(47, 127, 209, 0.14) !important;
 }
 
 @media (min-width: 1400px) {
@@ -560,27 +562,27 @@
   margin: 4px 0 2px !important;
   padding: 0 !important;
   border-radius: 12px !important;
-  border: 1px solid rgba(96, 165, 250, 0.22) !important;
-  background: linear-gradient(165deg, rgba(15, 23, 42, 0.52), rgba(8, 12, 28, 0.38)) !important;
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(90, 140, 190, 0.38) !important;
+  background: linear-gradient(165deg, rgba(255, 255, 255, 0.62), rgba(235, 245, 255, 0.48)) !important;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.85) inset, 0 4px 16px rgba(40, 70, 110, 0.08) !important;
 }
 
 .spring-root.cursor-workbench .cursor-thought-panel.is-running {
-  border-color: rgba(96, 165, 250, 0.42) !important;
-  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.12), 0 6px 22px rgba(37, 99, 235, 0.12) !important;
+  border-color: rgba(47, 127, 209, 0.5) !important;
+  box-shadow: 0 0 0 1px rgba(47, 127, 209, 0.12), 0 6px 18px rgba(47, 127, 209, 0.1) !important;
 }
 
 .spring-root.cursor-workbench .cursor-thought-panel.is-collapsed {
-  border-color: rgba(100, 116, 139, 0.28) !important;
+  border-color: rgba(90, 140, 190, 0.32) !important;
 }
 
 .spring-root.cursor-workbench .cursor-thought-panel > .process-panel-summary {
   padding: 10px 4px !important;
-  color: #cbd5e1 !important;
+  color: #2a4560 !important;
 }
 
 .spring-root.cursor-workbench .cursor-thought-panel .process-panel-label {
-  color: #93c5fd !important;
+  color: #1e5a96 !important;
   font-size: 13px !important;
 }
 
@@ -590,7 +592,7 @@
   margin-left: 6px;
   font-size: 12px !important;
   line-height: 1.45 !important;
-  color: #64748b !important;
+  color: #4a6580 !important;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -634,45 +636,45 @@
   padding-left: 8px !important;
 }
 
-/* ── 回复区 Markdown 层次（避免整段白字） ── */
+/* ── 回复区 Markdown 层次（霜白底 + 深蓝字） ── */
 .spring-root.cursor-workbench.cosmic-theme .chat-thread .reply-chat .md-h1,
 .spring-root.cursor-workbench.cosmic-theme .chat-thread .md-body.reply-chat .md-h1 {
   font-size: 18px !important;
   font-weight: 700 !important;
-  color: #f1f5f9 !important;
+  color: #0e2436 !important;
   margin: 0.25rem 0 0.75rem !important;
   letter-spacing: 0.01em;
 }
 
 .spring-root.cursor-workbench.cosmic-theme .chat-thread .reply-chat .md-h2,
 .spring-root.cursor-workbench.cosmic-theme .chat-thread .md-body.reply-chat .md-h2 {
-  color: #bae6fd !important;
-  border-bottom-color: rgba(56, 189, 248, 0.28) !important;
+  color: #123a5c !important;
+  border-bottom-color: rgba(47, 127, 209, 0.28) !important;
   padding-left: 10px !important;
-  border-left: 3px solid rgba(56, 189, 248, 0.55) !important;
+  border-left: 3px solid rgba(47, 127, 209, 0.55) !important;
   border-bottom: none !important;
 }
 
 .spring-root.cursor-workbench.cosmic-theme .chat-thread .reply-chat .md-h3,
 .spring-root.cursor-workbench.cosmic-theme .chat-thread .md-body.reply-chat .md-h3 {
-  color: #c4b5fd !important;
+  color: #1e4060 !important;
   padding-left: 8px !important;
-  border-left: 2px solid rgba(167, 139, 250, 0.45) !important;
+  border-left: 2px solid rgba(90, 140, 190, 0.5) !important;
 }
 
 .spring-root.cursor-workbench.cosmic-theme .chat-thread .reply-chat .md-h4,
 .spring-root.cursor-workbench.cosmic-theme .chat-thread .md-body.reply-chat .md-h4 {
-  color: #a5b4fc !important;
+  color: #2a4560 !important;
 }
 
 .spring-root.cursor-workbench.cosmic-theme .chat-thread .reply-chat .md-p,
 .spring-root.cursor-workbench.cosmic-theme .chat-thread .md-body.reply-chat .md-p {
-  color: #dbeafe !important;
+  color: #142838 !important;
 }
 
 .spring-root.cursor-workbench.cosmic-theme .chat-thread .reply-chat .md-strong,
 .spring-root.cursor-workbench.cosmic-theme .chat-thread .md-body.reply-chat .md-strong {
-  color: #f8fafc !important;
+  color: #0e2436 !important;
   font-weight: 650 !important;
 }
 
@@ -737,15 +739,14 @@
 .spring-root.cursor-workbench.cosmic-theme .reply-tone-chat .reply-panel-inner.cosmic-bubble-reply {
   background: linear-gradient(
     165deg,
-    rgba(12, 20, 48, 0.72) 0%,
-    rgba(8, 14, 36, 0.58) 55%,
-    rgba(20, 12, 44, 0.62) 100%
+    rgba(255, 255, 255, 0.78) 0%,
+    rgba(235, 245, 255, 0.68) 100%
   ) !important;
-  border: 1px solid rgba(96, 165, 250, 0.28) !important;
+  border: 1px solid rgba(90, 140, 190, 0.42) !important;
   box-shadow:
-    0 10px 32px rgba(0, 0, 0, 0.24),
-    0 0 0 1px rgba(56, 189, 248, 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 8px 24px rgba(40, 70, 110, 0.08) !important;
+  color: #142838 !important;
 }
 
 .spring-root.cursor-workbench .conv-stream-bubble {
@@ -796,7 +797,7 @@
 .spring-root.cursor-workbench.cosmic-theme .chat-thread .reply-primary-section .md-body.reply-chat .md-p {
   margin: 0 0 1.05em !important;
   line-height: 1.82 !important;
-  color: #f1f5f9 !important;
+  color: #142838 !important;
   font-size: 16px !important;
 }
 
@@ -812,7 +813,7 @@
 .spring-root.cursor-workbench.cosmic-theme .chat-thread .md-body.reply-chat .md-p {
   margin: 0 0 1.05em !important;
   line-height: 1.78 !important;
-  color: #cbd5e1 !important;
+  color: #142838 !important;
 }
 
 .spring-root.cursor-workbench.cosmic-theme .chat-thread .reply-chat .md-p:last-child,

@@ -3288,39 +3288,41 @@ export function useManagerChatPage() {
     } catch {}
   }
   
+  /** 霜白冰蓝轴色（函数名保留，调用点不变） */
   function patchAxisDark(axis: any, isX: boolean) {
     if (!axis) return axis
     const axes = Array.isArray(axis) ? axis : [axis]
     for (const ax of axes) {
       if (!ax) continue
-      ax.axisLine = { ...(ax.axisLine || {}), lineStyle: { ...(ax.axisLine?.lineStyle || {}), color: 'rgba(255,255,255,0.2)' } }
-      ax.axisLabel = { ...(ax.axisLabel || {}), color: 'rgba(255,255,255,0.7)' }
-      ax.splitLine = { ...(ax.splitLine || {}), lineStyle: { ...(ax.splitLine?.lineStyle || {}), color: 'rgba(255,255,255,0.08)' } }
-      ax.nameTextStyle = { ...(ax.nameTextStyle || {}), color: 'rgba(255,255,255,0.7)' }
+      ax.axisLine = { ...(ax.axisLine || {}), lineStyle: { ...(ax.axisLine?.lineStyle || {}), color: 'rgba(70,110,150,0.35)' } }
+      ax.axisLabel = { ...(ax.axisLabel || {}), color: '#3a536c' }
+      ax.splitLine = { ...(ax.splitLine || {}), lineStyle: { ...(ax.splitLine?.lineStyle || {}), color: 'rgba(120,165,210,0.22)' } }
+      ax.nameTextStyle = { ...(ax.nameTextStyle || {}), color: '#1a2f44' }
     }
     return Array.isArray(axis) ? axes : axes[0]
   }
   
+  /** 霜白系列标签/描边（函数名保留） */
   function patchSeriesDark(series: any[]) {
     if (!Array.isArray(series)) return series
     return series.map((s) => {
       if (!s) return s
       const patched = { ...s }
-      if (patched.label) patched.label = { ...patched.label, color: 'rgba(255,255,255,0.85)' }
+      if (patched.label) patched.label = { ...patched.label, color: '#1a2f44' }
       if (patched.type === 'gauge') {
         if (patched.detail) {
           patched.detail = {
             ...patched.detail,
-            color: patched.detail.color ?? '#f8fafc',
+            color: patched.detail.color ?? '#0e1f30',
             fontSize: patched.detail.fontSize ?? 18,
             fontWeight: patched.detail.fontWeight ?? 600
           }
         }
         if (patched.title) patched.title = { ...patched.title, show: false }
-        if (patched.axisLabel) patched.axisLabel = { ...patched.axisLabel, color: 'rgba(255,255,255,0.55)' }
+        if (patched.axisLabel) patched.axisLabel = { ...patched.axisLabel, color: '#5a738c' }
       }
       if (patched.itemStyle && patched.itemStyle.color && typeof patched.itemStyle.color === 'string') {
-        patched.itemStyle = { ...patched.itemStyle, borderColor: 'rgba(255,255,255,0.15)', borderWidth: 1 }
+        patched.itemStyle = { ...patched.itemStyle, borderColor: 'rgba(255,255,255,0.85)', borderWidth: 1 }
       }
       return patched
     })
@@ -3336,24 +3338,30 @@ export function useManagerChatPage() {
     return { 'echarts-container--multi': readPanelCount(option) > 1 }
   }
   
+  /** 雪主题图表配色（函数名保留以免改调用点；原为深色） */
   function patchDarkTheme(option: any) {
     const o = JSON.parse(JSON.stringify(option || {}))
     const multiPanel = readPanelCount(o) > 1
-    o.backgroundColor = '#0f0f11'
-    o.textStyle = { ...(o.textStyle || {}), color: 'rgba(255,255,255,0.85)' }
+    o.backgroundColor = 'transparent'
+    o.textStyle = { ...(o.textStyle || {}), color: '#1a2f44' }
     if (o.title) {
       const patchOneTitle = (t: any) => ({
         ...t,
-        textStyle: { ...(t?.textStyle || {}), color: t?.textStyle?.color ?? 'rgba(255,255,255,0.9)' },
-        subtextStyle: { ...(t?.subtextStyle || {}), color: 'rgba(255,255,255,0.6)' }
+        textStyle: { ...(t?.textStyle || {}), color: t?.textStyle?.color ?? '#0e1f30' },
+        subtextStyle: { ...(t?.subtextStyle || {}), color: '#5a738c' }
       })
       o.title = Array.isArray(o.title) ? o.title.map(patchOneTitle) : patchOneTitle(o.title)
     }
     if (o.legend) {
-      o.legend = { ...(o.legend || {}), textStyle: { ...(o.legend?.textStyle || {}), color: 'rgba(255,255,255,0.7)' } }
+      o.legend = { ...(o.legend || {}), textStyle: { ...(o.legend?.textStyle || {}), color: '#3a536c' } }
     }
     if (o.tooltip) {
-      o.tooltip = { ...(o.tooltip || {}), backgroundColor: 'rgba(20,20,20,0.92)', borderColor: 'rgba(255,255,255,0.1)', textStyle: { ...(o.tooltip?.textStyle || {}), color: 'rgba(255,255,255,0.9)' } }
+      o.tooltip = {
+        ...(o.tooltip || {}),
+        backgroundColor: 'rgba(255,255,255,0.96)',
+        borderColor: 'rgba(70,110,150,0.28)',
+        textStyle: { ...(o.tooltip?.textStyle || {}), color: '#122536' }
+      }
     }
     if (o.xAxis) o.xAxis = patchAxisDark(o.xAxis, true)
     if (o.yAxis) o.yAxis = patchAxisDark(o.yAxis, false)

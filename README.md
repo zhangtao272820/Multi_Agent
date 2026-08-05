@@ -243,6 +243,8 @@ Windows：`scripts/up-agents-lan.ps1`（`-Extended` 启完整栈）。
 
 验收：`http://<LAN_HOST>:18073` 健康总览 → Manager `:13106` 发一条对话。细节见 [Manage-platform_Agent/README.md](Manage-platform_Agent/README.md)。
 
+**公网 / 云服务器（面试演示）**：规格、安全组、`.env` 必填项、Caddy/Nginx 反代与备份清单见 [docs/公网演示部署.md](docs/公网演示部署.md)；反代模板在 [`Manage-platform_Agent/docker/public/`](Manage-platform_Agent/docker/public/)。弱机推荐 `bash scripts/install-linux.sh --no-monitor`。
+
 ---
 
 ## 环境与模型

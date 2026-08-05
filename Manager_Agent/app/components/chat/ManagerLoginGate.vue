@@ -1,7 +1,7 @@
 <template>
   <div class="mgr-login-gate">
     <div class="mgr-season-bg mgr-season-bg--lidong" aria-hidden="true" />
-    <BrandMotif motif="snow" />
+    <BrandMotif motif="snow" :count="72" />
     <form class="mgr-login-card mgr-glass" @submit.prevent="onSubmit">
       <div class="mgr-login-brand">
         <img class="mgr-login-logo" src="/brand/logos/manager.svg" alt="" width="56" height="56" />
@@ -79,6 +79,7 @@ async function onSubmit() {
 
 .mgr-login-gate > .brand-motif {
   z-index: 1;
+  opacity: 0.68;
 }
 
 .mgr-login-card {
@@ -89,8 +90,29 @@ async function onSubmit() {
   flex-direction: column;
   gap: 16px;
   padding: 36px 34px;
-  background: rgba(248, 252, 255, 0.78);
+  background: linear-gradient(165deg, rgba(255, 255, 255, 0.9), rgba(242, 248, 255, 0.82));
   color: #1a2f44;
+  border: 1px solid rgba(90, 140, 190, 0.48);
+  border-radius: 16px;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.95) inset,
+    0 16px 40px rgba(40, 70, 110, 0.14);
+  backdrop-filter: blur(22px) saturate(1.15);
+  -webkit-backdrop-filter: blur(22px) saturate(1.15);
+}
+
+.mgr-login-card::before {
+  content: "";
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  width: 12px;
+  height: 12px;
+  pointer-events: none;
+  opacity: 0.55;
+  background:
+    linear-gradient(135deg, transparent 45%, rgba(180, 215, 245, 0.95) 48%, transparent 52%),
+    linear-gradient(45deg, transparent 45%, rgba(255, 255, 255, 0.95) 48%, transparent 52%);
 }
 
 .mgr-login-brand {

@@ -20,12 +20,8 @@
     }"
   >
     <div class="mgr-season-bg mgr-season-bg--xiaoxue" aria-hidden="true" />
-    <BrandMotif motif="snow" />
+    <BrandMotif motif="snow" :count="72" />
     <div class="spring-container cosmic-command-deck">
-      <div class="cosmic-hud-readout" :class="{ 'is-chat-hud': workbenchMode === 'chat' }" aria-hidden="true">
-        <span class="cosmic-hud-tag">STELLAR CMD</span>
-        <span class="cosmic-hud-tag">{{ connected ? 'LINK · OK' : 'LINK · OFF' }}</span>
-      </div>
       <ManagerWorkbenchHeader
         :connected="connected"
         :current-run-id="currentRunId"

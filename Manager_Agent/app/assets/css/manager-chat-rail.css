@@ -115,8 +115,8 @@
 .spring-root.cursor-workbench .conv-plan-preview-actions {
   margin-top: 4px;
   padding-top: 10px;
-  border-top: 1px solid rgba(148, 163, 184, 0.14);
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.72), rgba(15, 23, 42, 0.96));
+  border-top: 1px solid rgba(90, 140, 190, 0.28);
+  background: linear-gradient(180deg, rgba(248, 252, 255, 0.85), rgba(235, 245, 255, 0.95));
   pointer-events: auto;
 }
 

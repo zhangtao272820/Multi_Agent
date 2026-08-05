@@ -1,0 +1,77 @@
+# ClawHive 公网入口（Nginx）— 若已用 Caddy 可忽略本文件
+# 用法：
+#   sudo cp nginx.conf.example /etc/nginx/sites-available/clawhive
+#   改域名与证书路径后：sudo ln -s .../clawhive /etc/nginx/sites-enabled/
+#   sudo nginx -t && sudo systemctl reload nginx
+# 证书可用 certbot；WebSocket 升级头对 Manager 必需。
+
+upstream clawhive_manager {
+    server 127.0.0.1:13106;
+    keepalive 32;
+}
+
+upstream clawhive_ops {
+    server 127.0.0.1:18073;
+    keepalive 16;
+}
+
+server {
+    listen 80;
+    server_name chat.example.com;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name chat.example.com;
+
+    ssl_certificate     /etc/letsencrypt/live/chat.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/chat.example.com/privkey.pem;
+
+    client_max_body_size 64m;
+    proxy_read_timeout 3600s;
+    proxy_send_timeout 3600s;
+
+    location / {
+        proxy_pass http://clawhive_manager;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_buffering off;
+    }
+}
+
+server {
+    listen 80;
+    server_name ops.example.com;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name ops.example.com;
+
+    ssl_certificate     /etc/letsencrypt/live/ops.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/ops.example.com/privkey.pem;
+
+    client_max_body_size 64m;
+
+    location / {
+        proxy_pass http://clawhive_ops;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+
+# 放在 http {} 内（nginx.conf 主文件）一次即可：
+# map $http_upgrade $connection_upgrade {
+#     default upgrade;
+#     ''      close;
+# }

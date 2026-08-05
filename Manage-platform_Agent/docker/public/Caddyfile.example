@@ -1,0 +1,43 @@
+# ClawHive 公网入口（Caddy）
+# 用法：
+#   1) 将 chat.example.com / ops.example.com 换成你的域名，A 记录指向 ECS
+#   2) 复制为 /etc/caddy/Caddyfile（或 caddy run --config 本文件）
+#   3) 云安全组只放行 80/443；子 Agent / PG / Redis 端口不要对外开放
+# 详见：docs/公网演示部署.md
+
+{
+	email you@example.com
+}
+
+# Manager 对话 UI（WebSocket / SSE 需长连接）
+chat.example.com {
+	encode gzip
+	reverse_proxy 127.0.0.1:13106 {
+		flush_interval -1
+		transport http {
+			read_timeout 0
+			write_timeout 0
+		}
+	}
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+	}
+}
+
+# 紫微控制台（ClawHive frontend → 内部反代到后端 API 由前端容器处理）
+ops.example.com {
+	encode gzip
+	reverse_proxy 127.0.0.1:18073
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+	}
+}
+
+# 可选：仅本机调试时临时用 IP（无自动证书；不推荐长期）
+# :8080 {
+# 	reverse_proxy 127.0.0.1:13106
+# }

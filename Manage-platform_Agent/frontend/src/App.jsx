@@ -75,7 +75,7 @@ export default function App() {
   const [role, setRole] = useState(localStorage.getItem("clawhive_role") || "");
   const [oidcEnabled, setOidcEnabled] = useState(false);
   const [oidcError, setOidcError] = useState("");
-  const [loginForm, setLoginForm] = useState({ username: "admin", password: "admin123" });
+  const [loginForm, setLoginForm] = useState({ username: "", password: "" });
   const [agents, setAgents] = useState([]);
   const [runtime, setRuntime] = useState({});
   const [runtimeMeta, setRuntimeMeta] = useState({ byName: {}, config_package: {}, image_version: "" });
@@ -1608,35 +1608,43 @@ export default function App() {
     <div className={`page ${token ? "page--admin" : ""}`}>
       {!token ? (
         <div className="login-panel brand-shell" data-agent="platform">
-          <BrandMotif motif="moon" />
-          <section className="card login-card">
+          <div className="platform-season-bg platform-season-bg--hanlu" aria-hidden="true" />
+          <BrandMotif motif="leaves" fixed />
+          <section className="card login-card platform-glass">
             <div className="login-card__brand">
-              <img className="login-card__logo" src={BRAND_LOGOS.platform} alt="" width={44} height={44} />
-              <div>
+              <img className="login-card__logo" src={BRAND_LOGOS.platform} alt="" width={52} height={52} />
+              <div className="login-card__titles">
+                <p className="login-card__eyebrow">寒露 · 紫微</p>
                 <h1 className="login-card__title">紫微</h1>
                 <p className="login-card__sub">Agent 控制面 · 运维治理与星曜集群</p>
               </div>
-              <img className="login-card__avatar" src={BRAND_AVATARS.platform} alt="" width={52} height={52} title="紫微虚拟形象" />
+              <img className="login-card__avatar" src={BRAND_AVATARS.platform} alt="" width={56} height={56} title="紫微虚拟形象" />
             </div>
-            <h2>登录</h2>
-            <p className="login-card__hint muted">
-              本地默认管理员一般为 admin / admin123（与 CLAWHIVE_ADMIN_PASSWORD 一致）
-            </p>
-            {oidcError ? <p className="status offline">SSO 失败：{oidcError}</p> : null}
-            <form onSubmit={login} className="form">
-              <input
-                placeholder="用户名"
-                value={loginForm.username}
-                onChange={(e) => setLoginForm({ ...loginForm, username: e.target.value })}
-              />
-              <input
-                type="password"
-                placeholder="密码"
-                value={loginForm.password}
-                onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
-              />
-              <button className="btn-primary" disabled={loading} type="submit">
-                进入控制面
+            {oidcError ? <p className="status offline login-card__err">SSO 失败：{oidcError}</p> : null}
+            <form onSubmit={login} className="form login-card__form">
+              <label className="login-card__field">
+                <span>用户名</span>
+                <input
+                  placeholder="请输入用户名"
+                  autoComplete="username"
+                  value={loginForm.username}
+                  onChange={(e) => setLoginForm({ ...loginForm, username: e.target.value })}
+                  required
+                />
+              </label>
+              <label className="login-card__field">
+                <span>密码</span>
+                <input
+                  type="password"
+                  placeholder="请输入密码"
+                  autoComplete="current-password"
+                  value={loginForm.password}
+                  onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
+                  required
+                />
+              </label>
+              <button className="btn-primary login-card__submit" disabled={loading} type="submit">
+                {loading ? "登录中…" : "进入控制面"}
               </button>
             </form>
             {oidcEnabled ? (

@@ -73,10 +73,8 @@ body {
   font-size: 14px;
   line-height: 1.5;
   color: var(--text);
-  background:
-    radial-gradient(1200px 600px at 12% -10%, rgba(107, 79, 154, 0.07), transparent 55%),
-    radial-gradient(900px 500px at 100% 0%, rgba(154, 123, 60, 0.06), transparent 50%),
-    var(--bg);
+  /* 节气底图由 platform-season.css 承担；此处仅兜底色 */
+  background: var(--bg);
   -webkit-font-smoothing: antialiased;
 }
 
@@ -122,38 +120,7 @@ body {
   padding: 32px 20px;
   position: relative;
   overflow: hidden;
-}
-
-.login-panel::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(107, 79, 154, 0.18), transparent 60%),
-    radial-gradient(circle at 85% 70%, rgba(154, 123, 60, 0.1), transparent 40%),
-    linear-gradient(165deg, #14121c 0%, #1e1a2a 45%, #2a2438 100%);
-  z-index: 0;
-}
-
-.login-panel::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  opacity: 0.35;
-  background-image: radial-gradient(rgba(255, 255, 255, 0.35) 0.6px, transparent 0.7px);
-  background-size: 28px 28px;
-  z-index: 0;
-  pointer-events: none;
-  animation: ziwei-drift 48s linear infinite;
-}
-
-@keyframes ziwei-drift {
-  from {
-    background-position: 0 0;
-  }
-  to {
-    background-position: 28px 56px;
-  }
+  background: transparent;
 }
 
 .login-card {
@@ -161,8 +128,6 @@ body {
   z-index: 1;
   width: min(420px, 100%);
   padding: 36px 32px 28px !important;
-  background: rgba(255, 252, 254, 0.96) !important;
-  border: 1px solid rgba(255, 255, 255, 0.2) !important;
   border-radius: 14px !important;
   animation: ziwei-rise 0.55s var(--ease-out) both;
 }
@@ -257,9 +222,7 @@ body {
   display: flex;
   flex-direction: column;
   padding: 16px 12px 14px;
-  background:
-    radial-gradient(400px 220px at 20% 0%, rgba(107, 79, 154, 0.22), transparent 70%),
-    var(--sidebar-bg);
+  background: var(--sidebar-bg);
   border-right: 1px solid rgba(255, 255, 255, 0.06);
   color: var(--sidebar-text);
 }
@@ -441,7 +404,7 @@ body {
   padding: 18px var(--content-gutter) 14px;
   margin-bottom: 0;
   border-bottom: 1px solid var(--border);
-  background: rgba(255, 252, 254, 0.72);
+  background: transparent;
   backdrop-filter: blur(10px);
 }
 

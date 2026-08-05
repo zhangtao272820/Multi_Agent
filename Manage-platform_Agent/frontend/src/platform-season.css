@@ -1,0 +1,662 @@
+/* Platform 节气主题 · 寒露/霜降（本 Agent 本地，不挂进 brand 全局）
+ * 运维控制台：表格/图表密度高，玻璃须比聊天 Agent 更实。
+ */
+
+.admin-app,
+.login-panel {
+  --platform-glass-bg: rgba(22, 16, 10, 0.82);
+  --platform-glass-bg-bar: rgba(18, 13, 8, 0.86);
+  --platform-glass-bg-soft: rgba(28, 20, 12, 0.72);
+  --platform-glass-bg-panel: rgba(20, 14, 8, 0.84);
+  --platform-glass-bg-input: rgba(12, 9, 6, 0.78);
+  --platform-glass-bg-board: rgba(24, 17, 10, 0.88);
+  --platform-glass-border: rgba(184, 149, 74, 0.4);
+  --platform-glass-border-strong: rgba(212, 178, 100, 0.58);
+  --platform-glass-highlight: rgba(255, 236, 190, 0.1);
+  --platform-glass-blur: 26px;
+  --platform-glass-blur-soft: 20px;
+  --platform-glass-shadow:
+    0 1px 0 var(--platform-glass-highlight) inset,
+    0 12px 36px rgba(8, 4, 2, 0.42);
+  --brand-motif-opacity: 0.28;
+  --platform-text: #f7f0e0;
+  --platform-text-secondary: #e0d0a8;
+  --platform-text-muted: #b4a078;
+  --bg: transparent;
+  --bg-elevated: var(--platform-glass-bg-soft);
+  --bg-subtle: rgba(36, 26, 14, 0.55);
+  --bg-hover: rgba(154, 123, 60, 0.16);
+  --border: rgba(184, 149, 74, 0.28);
+  --border-strong: var(--platform-glass-border);
+  --text: var(--platform-text);
+  --text-secondary: var(--platform-text-secondary);
+  --text-muted: var(--platform-text-muted);
+  --accent: #9a7b3c;
+  --accent-hover: #b8954a;
+  --accent-soft: rgba(154, 123, 60, 0.22);
+  --accent-border: rgba(184, 149, 74, 0.5);
+  --accent-muted: #c9a85a;
+  --brand: #9a7b3c;
+  --brand-soft: rgba(154, 123, 60, 0.16);
+  --brand-line: rgba(184, 149, 74, 0.4);
+  --ink: #120e08;
+  --ink-soft: #1a140c;
+  --sidebar-bg: transparent;
+  --sidebar-elevated: var(--platform-glass-bg-panel);
+  --sidebar-text: var(--platform-text-secondary);
+  --sidebar-muted: var(--platform-text-muted);
+  --sidebar-hover: rgba(154, 123, 60, 0.14);
+  --sidebar-active: rgba(154, 123, 60, 0.32);
+  --success: #8ee4ad;
+  --success-bg: rgba(46, 140, 90, 0.22);
+  --success-border: rgba(110, 200, 140, 0.4);
+  --warning: #ffd089;
+  --warning-bg: rgba(180, 110, 30, 0.28);
+  --warning-border: rgba(255, 190, 100, 0.45);
+  --danger: #ff9f9f;
+  --danger-bg: rgba(160, 50, 50, 0.28);
+  --danger-border: rgba(255, 140, 140, 0.4);
+  --neutral-bg: rgba(40, 30, 18, 0.55);
+  --neutral-border: rgba(184, 149, 74, 0.28);
+  --chart-axis: #cbb892;
+  --chart-grid: rgba(184, 149, 74, 0.22);
+  --brand-dark-text: var(--platform-text);
+  --brand-dark-text-secondary: var(--platform-text-secondary);
+  --brand-dark-text-muted: var(--platform-text-muted);
+  --brand-dark-panel: var(--platform-glass-bg-panel);
+  --brand-dark-panel-solid: var(--platform-glass-bg-board);
+  --brand-dark-bg-elevated: rgba(36, 26, 14, 0.72);
+  --brand-dark-bg: transparent;
+  --brand-dark-border: var(--platform-glass-border);
+  --brand-dark-border-strong: var(--platform-glass-border-strong);
+  --brand-dark-hover: rgba(154, 123, 60, 0.16);
+  color: var(--platform-text);
+  background: transparent !important;
+  isolation: auto !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+/* 卸 brand-shell / 登录点阵挡图 */
+.admin-app.brand-shell,
+.login-panel.brand-shell,
+.admin-app.brand-shell--dark,
+.login-panel.brand-shell--dark {
+  background: transparent !important;
+  color: var(--platform-text);
+  isolation: auto !important;
+}
+
+.admin-app.brand-shell::before,
+.admin-app.brand-shell::after,
+.login-panel.brand-shell::before,
+.login-panel.brand-shell::after,
+.admin-app.brand-shell--dark::before,
+.admin-app.brand-shell--dark::after,
+.login-panel.brand-shell--dark::before,
+.login-panel.brand-shell--dark::after,
+.login-panel::before,
+.login-panel::after {
+  content: none !important;
+  display: none !important;
+  opacity: 0 !important;
+  background: none !important;
+  animation: none !important;
+}
+
+.admin-app.brand-shell > .platform-season-bg,
+.login-panel.brand-shell > .platform-season-bg,
+.login-panel > .platform-season-bg {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 0 !important;
+  width: auto !important;
+  height: auto !important;
+  pointer-events: none;
+}
+
+.admin-app.brand-shell > .brand-motif,
+.login-panel.brand-shell > .brand-motif,
+.login-panel > .brand-motif {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 1 !important;
+  width: auto !important;
+  height: auto !important;
+  overflow: hidden !important;
+  pointer-events: none !important;
+  opacity: var(--brand-motif-opacity, 0.28);
+}
+
+.admin-app.brand-shell > .admin-sidebar,
+.admin-app.brand-shell > .admin-main,
+.login-panel > .login-card,
+.login-panel.brand-shell > .login-card {
+  position: relative !important;
+  z-index: 2 !important;
+}
+
+.platform-season-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-color: #14110e;
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+.platform-season-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 90% 70% at 50% 42%, rgba(28, 18, 8, 0.26) 0%, rgba(12, 8, 4, 0.52) 100%),
+    linear-gradient(
+      180deg,
+      rgba(18, 12, 6, 0.4) 0%,
+      rgba(20, 14, 8, 0.26) 28%,
+      rgba(18, 12, 7, 0.36) 62%,
+      rgba(8, 5, 3, 0.58) 100%
+    );
+}
+
+.platform-season-bg--hanlu {
+  background-image: url('@brand/backgrounds/autumn/hanlu-platform.png');
+}
+
+.platform-season-bg--shuangjiang {
+  background-image: url('@brand/backgrounds/autumn/shuangjiang-platform.png');
+}
+
+.platform-glass {
+  background: var(--platform-glass-bg);
+  border: 1px solid var(--platform-glass-border);
+  border-radius: 14px;
+  box-shadow: var(--platform-glass-shadow);
+  backdrop-filter: blur(var(--platform-glass-blur)) saturate(1.15);
+  -webkit-backdrop-filter: blur(var(--platform-glass-blur)) saturate(1.15);
+}
+
+/* 落叶点缀 */
+.admin-app .brand-motif-leaves__leaf,
+.login-panel .brand-motif-leaves__leaf {
+  background:
+    radial-gradient(
+      ellipse at 35% 30%,
+      hsl(var(--leaf-hue, 32) 72% 68%),
+      hsl(calc(var(--leaf-hue, 32) + 10) 55% 44%)
+    );
+  opacity: calc(var(--leaf-op, 0.45) * 1.2);
+  box-shadow: 0 0 6px rgba(184, 140, 60, 0.26);
+}
+
+.admin-app .brand-motif-leaves__haze,
+.login-panel .brand-motif-leaves__haze {
+  background:
+    radial-gradient(ellipse 70% 40% at 80% 0%, rgba(200, 140, 50, 0.12), transparent 55%),
+    radial-gradient(ellipse 50% 35% at 15% 90%, rgba(160, 90, 35, 0.08), transparent 50%);
+}
+
+/* —— 壳层 —— */
+.admin-app .admin-sidebar {
+  background: var(--platform-glass-bg-panel) !important;
+  border-right: 1px solid var(--platform-glass-border) !important;
+  backdrop-filter: blur(var(--platform-glass-blur)) saturate(1.15);
+  -webkit-backdrop-filter: blur(var(--platform-glass-blur)) saturate(1.15);
+  box-shadow: 4px 0 28px rgba(0, 0, 0, 0.3);
+  color: var(--platform-text-secondary);
+}
+
+.admin-app .admin-brand strong {
+  color: var(--platform-text) !important;
+}
+
+.admin-app .admin-brand__tag,
+.admin-app .admin-role {
+  color: var(--platform-text-muted) !important;
+}
+
+.admin-app .admin-brand {
+  border-bottom-color: rgba(184, 149, 74, 0.28) !important;
+}
+
+.admin-app .admin-brand__logo {
+  border-color: rgba(184, 149, 74, 0.5) !important;
+  box-shadow: 0 0 18px rgba(154, 123, 60, 0.22);
+}
+
+.admin-app .admin-nav__item {
+  color: var(--platform-text-secondary) !important;
+}
+
+.admin-app .admin-nav__item:hover {
+  background: var(--sidebar-hover) !important;
+  color: var(--platform-text) !important;
+}
+
+.admin-app .admin-nav__item--active {
+  background: var(--sidebar-active) !important;
+  color: var(--platform-text) !important;
+  box-shadow: inset 3px 0 0 var(--accent-muted) !important;
+}
+
+.admin-app .admin-nav__group-label {
+  color: var(--platform-text-muted);
+}
+
+.admin-app .admin-sidebar__foot {
+  border-top-color: rgba(184, 149, 74, 0.28) !important;
+}
+
+.admin-app .admin-main {
+  background: transparent !important;
+}
+
+.admin-app .admin-topbar {
+  background: var(--platform-glass-bg-bar) !important;
+  border-bottom: 1px solid var(--platform-glass-border) !important;
+  backdrop-filter: blur(24px) saturate(1.15);
+  -webkit-backdrop-filter: blur(24px) saturate(1.15);
+}
+
+.admin-app .admin-topbar__kicker,
+.admin-app .admin-topbar__sub {
+  color: var(--platform-text-muted) !important;
+}
+
+.admin-app .admin-topbar__title {
+  color: var(--platform-text) !important;
+}
+
+.admin-app .shell-chip {
+  background: rgba(36, 26, 14, 0.65) !important;
+  border: 1px solid rgba(184, 149, 74, 0.32);
+  color: var(--platform-text-secondary);
+}
+
+.admin-app .shell-chip strong {
+  color: var(--platform-text);
+}
+
+.admin-app .shell-chip--warn {
+  border-color: rgba(255, 190, 100, 0.5);
+  background: rgba(160, 90, 20, 0.35) !important;
+}
+
+.admin-app .btn-ghost,
+.admin-app .btn-ghost--muted {
+  background: rgba(36, 26, 14, 0.55) !important;
+  border-color: var(--platform-glass-border) !important;
+  color: var(--platform-text-secondary) !important;
+}
+
+.admin-app .btn-ghost:hover,
+.admin-app .btn-ghost--muted:hover {
+  background: rgba(154, 123, 60, 0.28) !important;
+  color: var(--platform-text) !important;
+}
+
+.admin-app .btn-secondary {
+  background: rgba(36, 26, 14, 0.7) !important;
+  color: var(--platform-text-secondary) !important;
+  border-color: var(--platform-glass-border) !important;
+}
+
+.admin-app .btn-secondary:hover {
+  background: rgba(154, 123, 60, 0.28) !important;
+  color: var(--platform-text) !important;
+}
+
+.admin-app .btn-primary,
+.login-panel .btn-primary {
+  background: #9a7b3c !important;
+  color: #1a140c !important;
+  border-color: rgba(212, 178, 100, 0.65) !important;
+  font-weight: 700 !important;
+  text-shadow: none;
+}
+
+.admin-app .btn-primary:hover:not(:disabled),
+.login-panel .btn-primary:hover:not(:disabled) {
+  background: #b8954a !important;
+  color: #120e08 !important;
+}
+
+/* —— 内容表面：KPI / monitor / fleet / tables —— */
+.admin-app .kpi-tile,
+.admin-app .overview-quick__card,
+.admin-app .monitor-panel,
+.admin-app .monitor-alert-list,
+.admin-app .fleet-stat,
+.admin-app .fleet-panel,
+.admin-app .fleet-hero,
+.admin-app .enterprise-panel,
+.admin-app .config-capability,
+.admin-app .panel-fold,
+.admin-app .obs-panel,
+.admin-app .maintain-panel,
+.admin-app .deploy-panel,
+.admin-app .page-loading-hint {
+  background: var(--platform-glass-bg-board) !important;
+  border: 1px solid var(--platform-glass-border) !important;
+  border-radius: 12px;
+  backdrop-filter: blur(var(--platform-glass-blur-soft)) saturate(1.12);
+  -webkit-backdrop-filter: blur(var(--platform-glass-blur-soft)) saturate(1.12);
+  box-shadow: var(--platform-glass-shadow);
+  color: var(--platform-text);
+}
+
+.admin-app .panel-eyebrow,
+.admin-app .panel-desc,
+.admin-app .card-lead,
+.admin-app .card-section-title,
+.admin-app .monitor-panel__title,
+.admin-app .muted {
+  color: var(--platform-text-muted) !important;
+  text-shadow: none;
+}
+
+.admin-app .card h2,
+.admin-app .ops-title,
+.admin-app .data-table th,
+.admin-app .compact-table th {
+  color: var(--platform-text) !important;
+}
+
+.admin-app .card-section {
+  border-top-color: rgba(184, 149, 74, 0.28) !important;
+}
+
+.admin-app .data-table-wrap,
+.admin-app .fleet-matrix-wrap {
+  background: var(--platform-glass-bg-panel) !important;
+  border: 1px solid var(--platform-glass-border);
+  border-radius: 12px;
+  backdrop-filter: blur(var(--platform-glass-blur-soft)) saturate(1.1);
+  -webkit-backdrop-filter: blur(var(--platform-glass-blur-soft)) saturate(1.1);
+}
+
+.admin-app .data-table,
+.admin-app .compact-table,
+.admin-app .fleet-matrix {
+  color: var(--platform-text-secondary);
+}
+
+.admin-app .data-table th,
+.admin-app .compact-table th,
+.admin-app .fleet-matrix th {
+  background: rgba(36, 26, 14, 0.75) !important;
+  color: var(--platform-text) !important;
+  border-color: rgba(184, 149, 74, 0.28) !important;
+}
+
+.admin-app .data-table td,
+.admin-app .compact-table td,
+.admin-app .fleet-matrix td {
+  border-color: rgba(184, 149, 74, 0.18) !important;
+  color: var(--platform-text-secondary);
+}
+
+.admin-app .data-table tbody tr:hover td,
+.admin-app .fleet-matrix tbody tr:hover td {
+  background: rgba(154, 123, 60, 0.14) !important;
+}
+
+.admin-app .data-table__head,
+.admin-app .data-table__row {
+  border-color: rgba(184, 149, 74, 0.22);
+}
+
+.admin-app .data-table__row:nth-child(even) {
+  background: rgba(36, 26, 14, 0.28);
+}
+
+.admin-app input,
+.admin-app select,
+.admin-app textarea,
+.login-panel input {
+  background: var(--platform-glass-bg-input) !important;
+  border-color: var(--platform-glass-border) !important;
+  color: var(--platform-text) !important;
+  text-shadow: none;
+}
+
+.admin-app input::placeholder,
+.admin-app textarea::placeholder,
+.login-panel input::placeholder {
+  color: rgba(180, 160, 120, 0.65);
+}
+
+.admin-app select {
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23cbb892' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"),
+    var(--platform-glass-bg-input) !important;
+  background-repeat: no-repeat, no-repeat !important;
+  background-position: right 12px center, 0 0 !important;
+  background-size: 12px 12px, auto !important;
+}
+
+.admin-app select option {
+  background-color: #1a140c;
+  color: #f7f0e0;
+}
+
+.admin-app input:-webkit-autofill,
+.admin-app input:-webkit-autofill:hover,
+.admin-app input:-webkit-autofill:focus,
+.login-panel input:-webkit-autofill,
+.login-panel input:-webkit-autofill:hover,
+.login-panel input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #f7f0e0;
+  caret-color: #f7f0e0;
+  transition: background-color 99999s ease-out;
+  box-shadow: 0 0 0 1000px rgba(28, 18, 10, 0.88) inset;
+}
+
+.admin-app .list .item,
+.admin-app .status,
+.admin-app .badge {
+  border-color: rgba(184, 149, 74, 0.28);
+  color: var(--platform-text-secondary);
+}
+
+.admin-app .status-band__item {
+  background: rgba(36, 26, 14, 0.6);
+  border: 1px solid rgba(184, 149, 74, 0.28);
+  color: var(--platform-text-secondary);
+}
+
+.admin-app .chart-host {
+  filter: none;
+}
+
+/* —— 登录 —— */
+.login-panel {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 36px 20px;
+  overflow: hidden;
+}
+
+.login-panel .login-card {
+  position: relative;
+  z-index: 2;
+  width: min(460px, 94vw);
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  padding: 40px 38px 34px !important;
+  background: rgba(22, 15, 9, 0.9) !important;
+  border: 1px solid rgba(212, 178, 100, 0.55) !important;
+  border-radius: 18px !important;
+  box-shadow:
+    0 1px 0 rgba(255, 236, 190, 0.12) inset,
+    0 24px 64px rgba(4, 2, 0, 0.55),
+    0 0 0 1px rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(32px) saturate(1.25);
+  -webkit-backdrop-filter: blur(32px) saturate(1.25);
+  color: var(--platform-text);
+}
+
+.login-panel .login-card__brand {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 0;
+  padding-bottom: 18px;
+  border-bottom: 1px solid rgba(184, 149, 74, 0.28);
+}
+
+.login-panel .login-card__titles {
+  flex: 1;
+  min-width: 0;
+}
+
+.login-panel .login-card__eyebrow {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--platform-text-muted);
+}
+
+.login-panel .login-card__title {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 1.85rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--platform-text) !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+  line-height: 1.15;
+}
+
+.login-panel .login-card__sub {
+  margin: 8px 0 0;
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--platform-text-secondary) !important;
+  letter-spacing: 0.02em;
+}
+
+.login-panel .login-card__logo,
+.login-panel .login-card__avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  border: 1px solid rgba(212, 178, 100, 0.55);
+  box-shadow: 0 0 28px rgba(154, 123, 60, 0.32);
+  flex: 0 0 auto;
+}
+
+.login-panel .login-card__avatar {
+  width: 56px;
+  height: 56px;
+  margin-left: 0;
+}
+
+.login-panel .login-card__form.form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 14px;
+  margin: 0;
+}
+
+.login-panel .login-card__field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  font-size: 12.5px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  color: var(--platform-text-secondary);
+}
+
+.login-panel .login-card__field input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 13px 14px !important;
+  border-radius: 12px !important;
+  border: 1px solid rgba(184, 149, 74, 0.42) !important;
+  background: rgba(10, 8, 5, 0.72) !important;
+  color: var(--platform-text) !important;
+  font-size: 15px !important;
+  text-shadow: none;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.login-panel .login-card__field input:focus {
+  border-color: rgba(212, 178, 100, 0.75) !important;
+  background: rgba(14, 10, 6, 0.86) !important;
+  box-shadow: 0 0 0 3px rgba(154, 123, 60, 0.22);
+  outline: none;
+}
+
+.login-panel .login-card__field input::placeholder {
+  color: rgba(180, 160, 120, 0.55);
+}
+
+.login-panel .login-card__submit.btn-primary,
+.login-panel .login-card__form .btn-primary {
+  width: 100% !important;
+  align-self: stretch !important;
+  margin-top: 6px;
+  padding: 14px 16px !important;
+  border-radius: 12px !important;
+  font-size: 15px !important;
+  font-weight: 750 !important;
+  letter-spacing: 0.04em;
+  background: #9a7b3c !important;
+  color: #1a140c !important;
+  border: 1px solid rgba(240, 210, 140, 0.55) !important;
+  box-shadow: 0 8px 24px rgba(20, 12, 4, 0.35);
+  text-shadow: none;
+  cursor: pointer;
+}
+
+.login-panel .login-card__submit.btn-primary:hover:not(:disabled) {
+  background: #b8954a !important;
+  color: #120e08 !important;
+  border-color: rgba(255, 230, 170, 0.7) !important;
+}
+
+.login-panel .login-card__submit.btn-primary:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.login-panel .login-card__err {
+  margin: 0;
+  font-size: 13px;
+}
+
+.login-panel .login-sso {
+  margin: 0;
+  display: flex;
+  justify-content: center;
+}
+
+.login-panel .login-sso .btn-secondary {
+  width: 100%;
+  text-align: center;
+  text-decoration: none;
+  padding: 12px 14px !important;
+  border-radius: 12px !important;
+  background: rgba(36, 26, 14, 0.7) !important;
+  color: var(--platform-text-secondary) !important;
+  border-color: var(--platform-glass-border) !important;
+}
+
+/* body 勿再铺实色渐变挡图 */
+body:has(.admin-app),
+body:has(.login-panel) {
+  background: #14110e !important;
+}

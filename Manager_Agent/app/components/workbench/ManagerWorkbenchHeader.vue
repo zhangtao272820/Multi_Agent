@@ -57,41 +57,78 @@ const emit = defineEmits<{
 
 <template>
   <header class="spring-topbar cosmic-bridge-header" :class="isProfessional ? 'is-pro-header' : 'is-chat-header'">
-    <div class="spring-topbar-main">
-      <div class="spring-brand-row">
-        <img class="spring-brand-logo" src="/brand/logos/manager.svg" alt="" width="36" height="36" />
-        <div class="spring-brand-text">
-          <h1 class="spring-title">{{ isProfessional ? '天机 · 总管' : '天机 · 对话' }}</h1>
-          <p v-if="isProfessional" class="spring-brand-sub">专业工作台 · PU-Stack 分步执行</p>
+    <!-- 主行：品牌 + 会话操作 + 身份 -->
+    <div class="spring-topbar-primary">
+      <div class="spring-topbar-main">
+        <div class="spring-brand-row">
+          <img class="spring-brand-logo" src="/brand/logos/manager.svg" alt="" width="36" height="36" />
+          <div class="spring-brand-text">
+            <h1 class="spring-title">{{ isProfessional ? '天机 · 总管' : '天机 · 对话' }}</h1>
+            <p v-if="isProfessional" class="spring-brand-sub">专业工作台 · PU-Stack 分步执行</p>
+          </div>
         </div>
       </div>
-      <div v-if="isProfessional" class="spring-phase conv-phase-rail" aria-label="执行阶段">
-        <div class="conv-phase-track">
-          <div class="conv-live-bar" :class="{ active: !!currentRunId }">
-            <span class="conv-live-dot" aria-hidden="true"></span>
-            <span class="conv-live-label">{{ livePhaseText }}</span>
-            <span v-if="routeCapLive?.agents?.length && currentRunId" class="conv-live-route" :title="routeCapLive.capLabel">
-              {{ routeCapLive.agents.map((a) => planAgentLabel(a)).join(' · ') }}
-            </span>
-            <span v-if="planStepsTodo.length && currentRunId" class="conv-live-plan">{{ planStepsDoneCount }}/{{ planStepsTodo.length }} 步</span>
-            <span
-              v-if="conversationCompactLive?.compacted"
-              class="conv-live-compact"
-              :title="compactBadgeTitle"
-            >已压缩</span>
-          </div>
-          <div class="conv-phase-badges" aria-hidden="false">
-            <div class="badge" :class="{ active: currentPhase === 'route' }">理解</div>
-            <div class="badge" :class="{ active: currentPhase === 'planner' || currentPhase === 'plan_preview' }">计划</div>
-            <div class="badge" :class="{ active: currentPhase?.startsWith('execute') }">执行</div>
-            <div class="badge" :class="{ active: currentPhase === 'synth' || currentPhase === 'synth_stream' || currentPhase === 'critic' }">回答</div>
-            <div class="badge" :class="{ active: currentPhase === 'finalize' }">完成</div>
-          </div>
+      <div class="spring-topbar-actions">
+        <div class="spring-seg spring-seg-actions" role="group" aria-label="会话与侧栏">
+          <button type="button" class="spring-seg-btn" :class="{ 'is-active': historyPanelOpen }" @click="emit('toggleHistory')">
+            历史
+          </button>
+          <button
+            v-if="isProfessional"
+            type="button"
+            class="spring-seg-btn"
+            :class="{ 'is-active': sidebarOpen }"
+            @click="emit('toggleSidebar')"
+          >
+            工具
+            <span v-if="toolsBadgeCount" class="spring-tools-badge">{{ toolsBadgeCount }}</span>
+          </button>
         </div>
+        <ManagerUserMenu />
+        <img
+          class="spring-brand-avatar"
+          src="/brand/avatars/manager.svg"
+          alt=""
+          width="40"
+          height="40"
+          title="天机虚拟形象"
+        />
+        <span class="spring-conn" :class="{ on: connected }">
+          <span class="spring-conn-dot" />
+          {{ connected ? '已连接' : '未连接' }}
+        </span>
       </div>
     </div>
-    <div class="spring-topbar-actions">
-      <template v-if="isProfessional">
+
+    <!-- 专业次行：阶段 / 协作 / 视图（控件全保留，视觉次级） -->
+    <div v-if="isProfessional" class="spring-topbar-secondary" aria-label="专业工作台状态">
+      <div class="spring-topbar-secondary-left">
+        <div class="spring-phase conv-phase-rail" aria-label="执行阶段">
+          <div class="conv-phase-track">
+            <div class="conv-live-bar" :class="{ active: !!currentRunId }">
+              <span class="conv-live-dot" aria-hidden="true"></span>
+              <span class="conv-live-label">{{ livePhaseText }}</span>
+              <span v-if="routeCapLive?.agents?.length && currentRunId" class="conv-live-route" :title="routeCapLive.capLabel">
+                {{ routeCapLive.agents.map((a) => planAgentLabel(a)).join(' · ') }}
+              </span>
+              <span v-if="planStepsTodo.length && currentRunId" class="conv-live-plan">{{ planStepsDoneCount }}/{{ planStepsTodo.length }} 步</span>
+              <span
+                v-if="conversationCompactLive?.compacted"
+                class="conv-live-compact"
+                :title="compactBadgeTitle"
+              >已压缩</span>
+            </div>
+            <div class="conv-phase-badges" aria-hidden="false">
+              <div class="badge" :class="{ active: currentPhase === 'route' }">理解</div>
+              <div class="badge" :class="{ active: currentPhase === 'planner' || currentPhase === 'plan_preview' }">计划</div>
+              <div class="badge" :class="{ active: currentPhase?.startsWith('execute') }">执行</div>
+              <div class="badge" :class="{ active: currentPhase === 'synth' || currentPhase === 'synth_stream' || currentPhase === 'critic' }">回答</div>
+              <div class="badge" :class="{ active: currentPhase === 'finalize' }">完成</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="spring-topbar-secondary-right">
         <div class="spring-collab-compact" title="固定协作：清洗 / 可视化 / 报告">
           <span
             v-for="item in collabStatusItems"
@@ -128,35 +165,7 @@ const emit = defineEmits<{
             开发
           </button>
         </div>
-      </template>
-      <div class="spring-seg spring-seg-actions" role="group" aria-label="会话与侧栏">
-        <button type="button" class="spring-seg-btn" :class="{ 'is-active': historyPanelOpen }" @click="emit('toggleHistory')">
-          历史
-        </button>
-        <button
-          v-if="isProfessional"
-          type="button"
-          class="spring-seg-btn"
-          :class="{ 'is-active': sidebarOpen }"
-          @click="emit('toggleSidebar')"
-        >
-          工具
-          <span v-if="toolsBadgeCount" class="spring-tools-badge">{{ toolsBadgeCount }}</span>
-        </button>
       </div>
-      <ManagerUserMenu />
-      <img
-        class="spring-brand-avatar"
-        src="/brand/avatars/manager.svg"
-        alt=""
-        width="44"
-        height="44"
-        title="天机虚拟形象"
-      />
-      <span class="spring-conn" :class="{ on: connected }">
-        <span class="spring-conn-dot" />
-        {{ connected ? '已连接' : '未连接' }}
-      </span>
     </div>
   </header>
 </template>

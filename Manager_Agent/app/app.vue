@@ -24,7 +24,7 @@ body,
   min-height: 100vh;
   background: transparent;
   color: inherit;
-  --brand-motif-opacity: 0.85;
+  --brand-motif-opacity: 0.5;
 }
 
 .manager-shell.brand-shell::before {

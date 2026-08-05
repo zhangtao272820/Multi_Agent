@@ -534,7 +534,7 @@
 }
 
 .spring-root:not(.mode-professional) .cosmic-bubble-user .spring-log-text {
-  color: #f5f3ff !important;
+  color: #0e2436 !important;
   font-size: 15px !important;
   line-height: 1.65 !important;
 }
@@ -544,10 +544,11 @@
   max-width: 100% !important;
   width: 100% !important;
   border-radius: 4px 18px 18px 18px !important;
-  border: 1px solid rgba(148, 163, 184, 0.14) !important;
-  background: rgba(15, 18, 35, 0.62) !important;
+  border: 1px solid rgba(90, 140, 190, 0.4) !important;
+  background: rgba(255, 255, 255, 0.65) !important;
   backdrop-filter: blur(14px) saturate(1.15) !important;
-  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.18) !important;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.85) inset, 0 6px 18px rgba(40, 70, 110, 0.08) !important;
+  color: #142838 !important;
 }
 
 .spring-root:not(.mode-professional) .reply-panel-header {
@@ -570,7 +571,7 @@
 .spring-root:not(.mode-professional) .reply-chat .md-p {
   font-size: 15px !important;
   line-height: 1.78 !important;
-  color: #eceff4 !important;
+  color: #1a2f44 !important;
 }
 
 /* 思考过程 · 对话模式极简内联 */
@@ -731,21 +732,23 @@
 /* 用户气泡 · 专业 */
 .spring-root.mode-professional .cosmic-bubble-user {
   border-radius: 16px 16px 4px 16px !important;
-  background: linear-gradient(145deg, rgba(14, 116, 144, 0.55), rgba(30, 58, 138, 0.48)) !important;
-  border-color: rgba(56, 189, 248, 0.4) !important;
-  box-shadow: 0 4px 20px rgba(14, 165, 233, 0.18) !important;
+  background: linear-gradient(145deg, rgba(47, 127, 209, 0.28), rgba(140, 195, 235, 0.4)) !important;
+  border-color: rgba(47, 127, 209, 0.5) !important;
+  box-shadow: 0 4px 16px rgba(47, 127, 209, 0.12) !important;
+  color: #0e2436 !important;
 }
 
-/* 总管回复 · 全宽 IDE 卡片 */
+/* 总管回复 · 全宽霜白卡片 */
 .spring-root.mode-professional .reply-panel .reply-panel-inner.cosmic-bubble-reply {
   max-width: 100% !important;
   width: 100% !important;
   border-radius: 12px !important;
-  border: 1px solid rgba(56, 189, 248, 0.22) !important;
-  background: linear-gradient(165deg, rgba(8, 20, 48, 0.72), rgba(6, 14, 36, 0.65)) !important;
+  border: 1px solid rgba(90, 140, 190, 0.42) !important;
+  background: linear-gradient(165deg, rgba(255, 255, 255, 0.72), rgba(235, 245, 255, 0.58)) !important;
   box-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.28),
-    inset 0 1px 0 rgba(56, 189, 248, 0.08) !important;
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 8px 24px rgba(40, 70, 110, 0.08) !important;
+  color: #142838 !important;
 }
 
 .spring-root.mode-professional .reply-panel-avatar {
@@ -763,14 +766,14 @@
 .spring-root.mode-professional .cursor-thought-panel.process-panel {
   width: 100% !important;
   margin: 8px 0 12px !important;
-  border: 1px solid rgba(56, 189, 248, 0.28) !important;
+  border: 1px solid rgba(90, 140, 190, 0.4) !important;
   border-radius: 14px !important;
-  background: linear-gradient(165deg, rgba(8, 20, 48, 0.75), rgba(6, 14, 36, 0.68)) !important;
-  backdrop-filter: blur(20px) saturate(1.2) !important;
+  background: linear-gradient(165deg, rgba(255, 255, 255, 0.65), rgba(235, 245, 255, 0.52)) !important;
+  backdrop-filter: blur(16px) saturate(1.15) !important;
+  color: #142838 !important;
   box-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.25),
-    0 0 40px rgba(14, 165, 233, 0.08),
-    inset 0 1px 0 rgba(56, 189, 248, 0.1) !important;
+    0 1px 0 rgba(255, 255, 255, 0.85) inset,
+    0 8px 24px rgba(40, 70, 110, 0.08) !important;
   overflow: hidden !important;
 }
 
@@ -779,9 +782,9 @@
   font-size: 13px !important;
   font-weight: 700 !important;
   letter-spacing: 0.04em !important;
-  color: #7dd3fc !important;
-  background: linear-gradient(90deg, rgba(14, 165, 233, 0.12), transparent) !important;
-  border-bottom: 1px solid rgba(56, 189, 248, 0.12) !important;
+  color: #1e5a96 !important;
+  background: linear-gradient(90deg, rgba(47, 127, 209, 0.1), transparent) !important;
+  border-bottom: 1px solid rgba(90, 140, 190, 0.22) !important;
 }
 
 .spring-root.mode-professional .cursor-thought-panel > .process-panel-summary::before {
@@ -789,8 +792,8 @@
 }
 
 .spring-root.mode-professional .cursor-thought-panel[open] > .process-panel-summary {
-  color: #bae6fd !important;
-  background: linear-gradient(90deg, rgba(14, 165, 233, 0.18), transparent) !important;
+  color: #0e2436 !important;
+  background: linear-gradient(90deg, rgba(47, 127, 209, 0.12), transparent) !important;
 }
 
 .spring-root.mode-professional .cursor-thought-panel.is-running > .process-panel-summary {
@@ -800,7 +803,7 @@
 .spring-root.mode-professional .cursor-thought-panel .process-panel-body {
   max-height: min(52vh, 560px) !important;
   padding: 14px 16px 16px !important;
-  background: rgba(2, 8, 24, 0.35);
+  background: rgba(245, 250, 255, 0.45);
 }
 
 /* Agent 轨迹 chip 彩色编码 */
@@ -1690,18 +1693,17 @@
 }
 
 .spring-root.mode-chat .spring-topbar.is-chat-header {
-  min-height: 52px;
-  padding-top: 8px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--mgr-border, rgba(90, 140, 190, 0.35));
-  background: var(--mgr-glass, rgba(255, 252, 255, 0.94));
-  backdrop-filter: blur(20px);
+  min-height: 0;
+  padding: 0;
+  border-bottom: none;
+  background: transparent;
+  backdrop-filter: none;
 }
 
 .spring-root.mode-chat .spring-topbar.is-chat-header .spring-title {
   font-size: 1.05rem;
-  font-weight: 650;
-  letter-spacing: 0.01em;
+  font-weight: 700;
+  letter-spacing: 0.02em;
   color: var(--chat-text-primary, #1a2f44);
 }
 
@@ -1722,6 +1724,6 @@
 }
 
 .spring-root.mode-professional .spring-topbar.is-pro-header {
-  border-bottom: 1px solid var(--mgr-border, rgba(90, 140, 190, 0.35));
-  background: var(--mgr-glass, rgba(255, 252, 255, 0.94));
+  border-bottom: none;
+  background: transparent;
 }

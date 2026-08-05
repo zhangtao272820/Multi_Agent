@@ -90,13 +90,26 @@ def already_cutout(path: Path) -> bool:
         return False
 
 
-def list_targets(student: str | None) -> list[Path]:
+def list_targets(
+    student: str | None,
+    *,
+    name_contains: str | None = None,
+    overlay_only: bool = False,
+) -> list[Path]:
     if student:
         root = SPRITES / student
         if not root.is_dir():
             return []
-        return sorted(root.glob("*.png"))
-    return sorted(SPRITES.rglob("*.png"))
+        paths = sorted(root.glob("*.png"))
+    else:
+        paths = sorted(SPRITES.rglob("*.png"))
+    if name_contains:
+        needle = name_contains.lower()
+        paths = [p for p in paths if needle in p.name.lower()]
+    if overlay_only:
+        keys = ("_stand_", "_chat_", "_study_", "q_stand_")
+        paths = [p for p in paths if any(k in p.name for k in keys)]
+    return paths
 
 
 def cutout_one(src: Path, *, dry_run: bool, session) -> str:
@@ -129,10 +142,23 @@ def cutout_one(src: Path, *, dry_run: bool, session) -> str:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Cut out Campus_Agent student sprites to RGBA")
     parser.add_argument("--student", help="Only process one student id, e.g. f01")
+    parser.add_argument(
+        "--name-contains",
+        help="Only files whose name contains this substring, e.g. summer_stand",
+    )
+    parser.add_argument(
+        "--overlay-only",
+        action="store_true",
+        help="Only stand/chat/study/q_stand overlay layers (skip sc_* already skipped)",
+    )
     parser.add_argument("--dry-run", action="store_true", help="List actions without writing")
     args = parser.parse_args()
 
-    targets = list_targets(args.student)
+    targets = list_targets(
+        args.student,
+        name_contains=args.name_contains,
+        overlay_only=args.overlay_only,
+    )
     if not targets:
         print("No PNG targets found.", file=sys.stderr)
         return 1

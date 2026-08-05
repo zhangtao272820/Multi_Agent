@@ -7,6 +7,8 @@
 **/dist
 !LobsterPy_Agent/frontend/dist
 !LobsterPy_Agent/frontend/dist/**
+!ExtractorPy_Agent/frontend/dist
+!ExtractorPy_Agent/frontend/dist/**
 **/.cursor
 **/terminals
 **/*.md

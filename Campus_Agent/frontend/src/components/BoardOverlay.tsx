@@ -146,6 +146,7 @@ export function BoardOverlay({ board, open, onClose, onInspect, onTalkFromSeat }
     () => [...board.pc_edges].sort((a, b) => (Number(b.affinity) || 0) - (Number(a.affinity) || 0)),
     [board.pc_edges],
   );
+  const gossip = useMemo(() => board.class_gossip || [], [board.class_gossip]);
 
   if (!open) return null;
 
@@ -251,6 +252,19 @@ export function BoardOverlay({ board, open, onClose, onInspect, onTalkFromSeat }
                   ))}
                 </ul>
               </article>
+              <article className="today-card">
+                <em>班级见闻</em>
+                {(today?.world_events || []).length === 0 && <p className="empty">这一时段还很安静</p>}
+                <ul className="today-reactions">
+                  {(today?.world_events || []).map((w, i) => (
+                    <li key={`${w.a}-${w.b}-${i}`}>
+                      <div>
+                        <p>{w.blurb}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </article>
             </div>
           )}
 
@@ -301,6 +315,7 @@ export function BoardOverlay({ board, open, onClose, onInspect, onTalkFromSeat }
 
           {tab === "bonds" && (
             <div className="board-bonds">
+              <h3 className="board-section-title">我的关系</h3>
               {bonds.length === 0 && (
                 <p className="empty">还没有关系记录。去地点里找同学聊聊吧。</p>
               )}
@@ -333,7 +348,7 @@ export function BoardOverlay({ board, open, onClose, onInspect, onTalkFromSeat }
                         <span className={`stage-pill ${STAGE_TONE[e.stage] || ""}`}>
                           {STAGE_LABEL[e.stage] || e.stage}
                         </span>{" "}
-                        · 亲和 {Math.round(Number(e.affinity) || 0)} · {e.track}
+                        · 亲和 {Math.round(Number(e.affinity) || 0)} · {e.bond_kind || e.track}
                       </p>
                       <div className="bond-bar" aria-hidden>
                         <i style={{ width: `${Math.min(100, Number(e.affinity) || 0)}%` }} />
@@ -354,6 +369,23 @@ export function BoardOverlay({ board, open, onClose, onInspect, onTalkFromSeat }
                   </article>
                 );
               })}
+
+              <h3 className="board-section-title">班级见闻</h3>
+              {gossip.length === 0 && <p className="empty">还没有值得传开的班级关系。</p>}
+              {gossip.map((g) => (
+                <article key={`g-${g.a}-${g.b}`} className={`bond-card gossip bond-${g.bond_kind || "friendship"}`}>
+                  <div>
+                    <strong>{g.label || `${g.a_name} × ${g.b_name}`}</strong>
+                    <p>
+                      {g.bond_kind || "friendship"} · {STAGE_LABEL[g.stage] || g.stage} · 亲和{" "}
+                      {Math.round(Number(g.affinity) || 0)}
+                    </p>
+                    <div className="bond-bar" aria-hidden>
+                      <i style={{ width: `${Math.min(100, Number(g.affinity) || 0)}%` }} />
+                    </div>
+                  </div>
+                </article>
+              ))}
             </div>
           )}
         </div>

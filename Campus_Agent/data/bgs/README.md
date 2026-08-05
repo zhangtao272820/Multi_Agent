@@ -1,21 +1,32 @@
-# Art parallel production (engineering wiring done; art is external)
+# Campus backgrounds
 
-Priority tracks (do in parallel, do not block play):
+真场景基线已就位（非纯色占位）。解析逻辑：`backend/app/sprites.py` → `resolve_bg(location_id, weather_id)`。
 
-1. Location BGs — replace placeholders in data/bgs/
-   - classroom, cafeteria, library, hallway, playground, dorm_*
-   - regen placeholders: python scripts/gen_placeholder_bgs.py
+## 命名
 
-2. Male baseline (pc, m01–m09)
-   - _identity_neutral.png
-   - summer_stand_neutral.png
-   - q_stand_neutral.png
+| 模式 | 示例 |
+|------|------|
+| 基线 | `classroom.png`、`hallway.png`、`dorm_f1.png` |
+| 天气变体 | `{location}_{weather}.png`，如 `classroom_rainy.png` |
+| 校区地图 | `campus_map.png`（前端地图底图） |
+| 兜底 | `default.png` |
 
-3. Female Q pack (all f01–f25)
-   - q_stand_neutral.png minimum
-   - optional mood variants
+天气 id 与 `data/weather_catalog.json` 对齐（常用：`sunny` / `rainy` / `cold` / `cloudy` 等）。
 
-4. Female realistic action packs
-   - continue T0 → T1 → … per 立绘生产计划.md
+## 再生
 
-See doc/Campus总览与进度.md §8 checklist and data/sprite_budget.json q_pack / bg_priority.
+```powershell
+# 天气变体 + 宿舍区分色（基于现有基线调色，可再换真图）
+python scripts/gen_weather_bgs.py
+
+# 旧占位（仅无图时）
+python scripts/gen_placeholder_bgs.py
+```
+
+## 优先级
+
+1. `classroom` / `hallway` / `playground` / `rooftop` × rainy/sunny/cold  
+2. 宿舍 `dorm_f*` / `dorm_m*` 视觉区分（勿再复制同一哈希）  
+3. 其余地点天气变体按需补  
+
+配额与清单见 `data/sprite_budget.json` 的 `bg_priority`。

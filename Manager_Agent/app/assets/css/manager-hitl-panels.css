@@ -3,7 +3,7 @@
    须在 nuxt.css 中最后加载，覆盖 scoped / modes / enhance 装饰冲突
 
    层级：风险模态 z-index 10050（高于 AppModal 9999、侧栏 40–45、输入坞 25）
-   视觉：本文件是唯一「高强调」协作层；过程日志不得抢边框/光效
+   视觉：霜白冰蓝 + 朱红危险；过程日志不得抢边框/光效
    ═══════════════════════════════════════════════════════════════ */
 
 .spring-root.cursor-workbench {
@@ -15,17 +15,20 @@
   --hitl-font-body: 13px;
   --hitl-font-meta: 11px;
   --hitl-btn-h: 34px;
-  --hitl-border: rgba(129, 140, 248, 0.4);
-  --hitl-border-danger: rgba(251, 113, 133, 0.5);
-  --hitl-accent: #818cf8;
-  --hitl-danger: #fb7185;
+  --hitl-border: rgba(90, 145, 200, 0.48);
+  --hitl-border-danger: rgba(196, 61, 90, 0.55);
+  --hitl-accent: #2f7fd1;
+  --hitl-danger: #c43d5a;
+  --hitl-text: #1a2f44;
+  --hitl-text-secondary: #3a536c;
+  --hitl-text-muted: #5a738c;
   --hitl-surface:
-    radial-gradient(120% 80% at 0% 0%, rgba(99, 102, 241, 0.2), transparent 55%),
-    linear-gradient(165deg, rgba(30, 27, 75, 0.94), rgba(15, 23, 42, 0.96));
+    radial-gradient(120% 80% at 0% 0%, rgba(180, 215, 245, 0.5), transparent 55%),
+    linear-gradient(165deg, rgba(255, 255, 255, 0.92), rgba(230, 242, 255, 0.88));
   --hitl-surface-danger:
-    radial-gradient(120% 80% at 0% 0%, rgba(244, 63, 94, 0.18), transparent 55%),
-    linear-gradient(165deg, rgba(76, 29, 49, 0.92), rgba(15, 23, 42, 0.96));
-  --hitl-shadow: 0 16px 48px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    radial-gradient(120% 80% at 0% 0%, rgba(255, 210, 218, 0.55), transparent 55%),
+    linear-gradient(165deg, rgba(255, 248, 250, 0.95), rgba(255, 235, 240, 0.9));
+  --hitl-shadow: 0 16px 40px rgba(40, 70, 110, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.85);
 }
 
 /* ── 共用：Plan Mode 卡 / 风险模态 ── */
@@ -34,6 +37,9 @@
   border: 1px solid var(--hitl-border) !important;
   background: var(--hitl-surface) !important;
   box-shadow: var(--hitl-shadow) !important;
+  color: var(--hitl-text) !important;
+  backdrop-filter: blur(18px) saturate(1.15);
+  -webkit-backdrop-filter: blur(18px) saturate(1.15);
 }
 
 .spring-root.cursor-workbench .plan-mode-card.is-tier-strict {
@@ -51,7 +57,7 @@
 .spring-root.cursor-workbench .plan-mode-title-row strong {
   font-size: var(--hitl-font-title);
   font-weight: 700;
-  color: #e2e8f0;
+  color: var(--hitl-text);
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -66,15 +72,15 @@
   text-transform: uppercase;
   padding: 3px 8px;
   border-radius: 999px;
-  color: #e0e7ff;
-  background: rgba(99, 102, 241, 0.35);
-  border: 1px solid rgba(165, 180, 252, 0.35);
+  color: #1e5a96;
+  background: rgba(47, 127, 209, 0.14);
+  border: 1px solid rgba(47, 127, 209, 0.4);
 }
 
 .spring-root.cursor-workbench .plan-mode-badge.is-risk {
-  color: #fecdd3;
-  background: rgba(159, 18, 57, 0.35);
-  border-color: rgba(251, 113, 133, 0.45);
+  color: #9a2a42;
+  background: rgba(196, 61, 90, 0.12);
+  border-color: rgba(196, 61, 90, 0.45);
 }
 
 .spring-root.cursor-workbench .plan-mode-meta-row {
@@ -90,25 +96,26 @@
   font-weight: 700;
   padding: 2px 8px;
   border-radius: 999px;
-  border: 1px solid rgba(148, 163, 184, 0.28);
-  color: #cbd5e1;
+  border: 1px solid rgba(100, 150, 200, 0.4);
+  color: var(--hitl-text-secondary);
+  background: rgba(255, 255, 255, 0.7);
 }
 
 .spring-root.cursor-workbench .plan-mode-risk-chip.is-high {
-  color: #fecdd3;
-  border-color: rgba(251, 113, 133, 0.45);
-  background: rgba(159, 18, 57, 0.28);
+  color: #9a2a42;
+  border-color: rgba(196, 61, 90, 0.45);
+  background: rgba(196, 61, 90, 0.1);
 }
 
 .spring-root.cursor-workbench .plan-mode-risk-chip.is-normal {
-  color: #c7d2fe;
-  border-color: rgba(129, 140, 248, 0.35);
-  background: rgba(67, 56, 202, 0.25);
+  color: #1e5a96;
+  border-color: rgba(47, 127, 209, 0.4);
+  background: rgba(47, 127, 209, 0.1);
 }
 
 .spring-root.cursor-workbench .plan-mode-risk-score {
   font-size: var(--hitl-font-meta);
-  color: #94a3b8;
+  color: var(--hitl-text-muted);
 }
 
 .spring-root.cursor-workbench .plan-mode-primary,
@@ -121,16 +128,17 @@
 }
 
 .spring-root.cursor-workbench .plan-mode-primary {
-  background: linear-gradient(135deg, #6366f1, #4f46e5) !important;
+  background: linear-gradient(135deg, #3a8de0, #2f7fd1) !important;
   border-color: transparent !important;
-  box-shadow: 0 6px 18px rgba(79, 70, 229, 0.35);
+  color: #f8fbff !important;
+  box-shadow: 0 6px 18px rgba(47, 127, 209, 0.32);
 }
 
 .spring-root.cursor-workbench .hitl-btn-danger {
-  background: linear-gradient(135deg, #e11d48, #be123c) !important;
+  background: linear-gradient(135deg, #e05a72, #c43d5a) !important;
   border-color: transparent !important;
   color: #fff !important;
-  box-shadow: 0 6px 18px rgba(190, 18, 60, 0.35);
+  box-shadow: 0 6px 18px rgba(196, 61, 90, 0.32);
 }
 
 .spring-root.cursor-workbench .hitl-btn-danger:disabled,
@@ -161,17 +169,47 @@
   align-items: center;
   padding-top: 12px;
   margin-top: 4px;
-  border-top: 1px solid rgba(148, 163, 184, 0.12);
+  border-top: 1px solid rgba(100, 150, 200, 0.28);
 }
 
-/* Run Todo 与 Plan 同圆角/字阶 */
+.spring-root.cursor-workbench .conv-plan-preview-hint,
+.spring-root.cursor-workbench .conv-plan-preview-meta,
+.spring-root.cursor-workbench .conv-route-plan-label,
+.spring-root.cursor-workbench .conv-plan-preview-constraints-label {
+  color: var(--hitl-text-secondary) !important;
+}
+
+.spring-root.cursor-workbench .conv-plan-preview-query-edit,
+.spring-root.cursor-workbench .conv-plan-preview-constraints-input {
+  background: rgba(255, 255, 255, 0.78) !important;
+  border: 1px solid rgba(100, 150, 200, 0.4) !important;
+  color: var(--hitl-text) !important;
+  border-radius: 10px !important;
+}
+
+.spring-root.cursor-workbench .conv-plan-preview-item {
+  background: rgba(255, 255, 255, 0.65) !important;
+  border: 1px solid rgba(100, 150, 200, 0.32) !important;
+  border-radius: var(--hitl-radius-sm) !important;
+  color: var(--hitl-text) !important;
+}
+
+.spring-root.cursor-workbench .conv-plan-preview-agent {
+  color: #1e4a78 !important;
+  font-weight: 650;
+}
+
+/* Run Todo · 霜白冰蓝 */
 .spring-root.cursor-workbench .run-todo-panel,
 .spring-root.cursor-workbench .spring-plan-todo {
   border-radius: var(--hitl-radius) !important;
   padding: var(--hitl-pad-y) var(--hitl-pad-x) !important;
-  border: 1px solid rgba(56, 189, 248, 0.22) !important;
-  background: linear-gradient(180deg, rgba(14, 165, 233, 0.08), rgba(15, 23, 42, 0.55)) !important;
+  border: 1px solid rgba(90, 145, 200, 0.42) !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.85), transparent 50%),
+    rgba(235, 245, 255, 0.78) !important;
   box-shadow: var(--hitl-shadow) !important;
+  color: var(--hitl-text) !important;
 }
 
 .spring-root.cursor-workbench .spring-plan-todo-title {
@@ -179,22 +217,25 @@
   font-weight: 800;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #7dd3fc;
+  color: #1e5a96;
 }
 
 .spring-root.cursor-workbench .spring-plan-todo-count {
   font-size: var(--hitl-font-meta);
   font-weight: 700;
-  color: #94a3b8;
+  color: var(--hitl-text-muted);
   font-variant-numeric: tabular-nums;
 }
 
 .spring-root.cursor-workbench .spring-plan-todo-item {
   border-radius: var(--hitl-radius-sm) !important;
   font-size: var(--hitl-font-body);
+  background: rgba(255, 255, 255, 0.7) !important;
+  border: 1px solid rgba(100, 150, 200, 0.3) !important;
+  color: var(--hitl-text) !important;
 }
 
-/* ── 风险确认模态（Teleport，不占顶栏） ── */
+/* ── 风险确认模态（Teleport，不占顶栏）· 霜白 + 朱红 ── */
 .hitl-confirm-backdrop {
   position: fixed;
   inset: 0;
@@ -203,9 +244,9 @@
   align-items: center;
   justify-content: center;
   padding: 24px 16px;
-  background: rgba(2, 6, 23, 0.72);
-  backdrop-filter: blur(8px) saturate(1.1);
-  -webkit-backdrop-filter: blur(8px) saturate(1.1);
+  background: rgba(30, 50, 75, 0.45);
+  backdrop-filter: blur(10px) saturate(1.1);
+  -webkit-backdrop-filter: blur(10px) saturate(1.1);
   animation: hitl-backdrop-in 0.18s ease-out;
 }
 
@@ -221,16 +262,18 @@
 
 .hitl-confirm-panel.plan-mode-card {
   border-radius: 16px;
-  border: 1px solid rgba(251, 113, 133, 0.42);
+  border: 1px solid rgba(196, 61, 90, 0.5);
   background:
-    radial-gradient(90% 70% at 8% 0%, rgba(244, 63, 94, 0.2), transparent 52%),
-    radial-gradient(70% 50% at 100% 0%, rgba(251, 146, 60, 0.08), transparent 48%),
-    linear-gradient(165deg, rgba(41, 18, 28, 0.96), rgba(12, 18, 36, 0.98));
+    radial-gradient(90% 70% at 8% 0%, rgba(255, 210, 218, 0.55), transparent 52%),
+    radial-gradient(70% 50% at 100% 0%, rgba(255, 230, 200, 0.25), transparent 48%),
+    linear-gradient(165deg, rgba(255, 250, 251, 0.96), rgba(255, 240, 243, 0.94));
   box-shadow:
-    0 28px 72px rgba(0, 0, 0, 0.58),
-    0 0 0 1px rgba(251, 113, 133, 0.12),
-    0 0 48px rgba(244, 63, 94, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    0 28px 64px rgba(40, 70, 110, 0.22),
+    0 0 0 1px rgba(196, 61, 90, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  color: #1a2f44;
+  backdrop-filter: blur(20px) saturate(1.15);
+  -webkit-backdrop-filter: blur(20px) saturate(1.15);
 }
 
 .hitl-confirm-head {
@@ -239,7 +282,7 @@
   align-items: stretch;
   gap: 10px;
   padding: 18px 20px 14px;
-  border-bottom: 1px solid rgba(251, 113, 133, 0.16);
+  border-bottom: 1px solid rgba(196, 61, 90, 0.2);
 }
 
 .hitl-confirm-kicker {
@@ -255,7 +298,7 @@
   font-weight: 750;
   line-height: 1.35;
   letter-spacing: 0.01em;
-  color: #fff1f2;
+  color: #1a2f44;
 }
 
 .hitl-confirm-sub {
@@ -271,15 +314,15 @@
   font-weight: 700;
   padding: 3px 9px;
   border-radius: 999px;
-  color: #bae6fd;
-  border: 1px solid rgba(56, 189, 248, 0.32);
-  background: rgba(14, 165, 233, 0.14);
+  color: #1e5a96;
+  border: 1px solid rgba(47, 127, 209, 0.4);
+  background: rgba(47, 127, 209, 0.1);
 }
 
 .hitl-confirm-side-effect {
   font-size: 12px;
   line-height: 1.4;
-  color: #fda4af;
+  color: #9a2a42;
 }
 
 .hitl-confirm-body {
@@ -296,8 +339,8 @@
   margin: 0;
   padding: 12px 14px;
   border-radius: 12px;
-  border: 1px solid rgba(251, 113, 133, 0.22);
-  background: rgba(15, 23, 42, 0.45);
+  border: 1px solid rgba(196, 61, 90, 0.28);
+  background: rgba(255, 255, 255, 0.72);
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -307,7 +350,7 @@
   margin: 0;
   font-size: 13px;
   line-height: 1.55;
-  color: #fecdd3;
+  color: #3a2a32;
   white-space: pre-wrap;
   word-break: break-word;
 }
@@ -318,18 +361,18 @@
   align-items: flex-start;
   font-size: 11px;
   line-height: 1.45;
-  color: #cbd5e1;
+  color: #5a738c;
 }
 
 .hitl-confirm-meta-label {
   flex-shrink: 0;
-  opacity: 0.72;
+  opacity: 0.9;
   font-weight: 650;
-  color: #fda4af;
+  color: #9a2a42;
 }
 
 .hitl-confirm-page-link {
-  color: #7dd3fc;
+  color: #1e5a96;
   word-break: break-all;
   text-decoration: none;
 }
@@ -340,9 +383,9 @@
 
 .hitl-confirm-run-id {
   font-size: 10px;
-  opacity: 0.88;
+  opacity: 0.9;
   word-break: break-all;
-  color: #e2e8f0;
+  color: #3a536c;
 }
 
 .hitl-confirm-screenshot-wrap {
@@ -356,10 +399,10 @@
   max-width: 100%;
   max-height: 220px;
   border-radius: 10px;
-  border: 1px solid rgba(251, 113, 133, 0.3);
+  border: 1px solid rgba(196, 61, 90, 0.3);
   display: block;
   object-fit: contain;
-  background: rgba(8, 16, 48, 0.45);
+  background: rgba(245, 248, 252, 0.9);
   cursor: zoom-in;
   transition: max-height 0.2s ease;
 }
@@ -371,8 +414,8 @@
 
 .hitl-confirm-screenshot-hint {
   font-size: 11px;
-  opacity: 0.7;
-  color: #94a3b8;
+  opacity: 0.85;
+  color: #5a738c;
 }
 
 .hitl-confirm-actions {
@@ -381,8 +424,8 @@
   gap: 10px;
   flex-shrink: 0;
   padding: 14px 20px 18px;
-  border-top: 1px solid rgba(251, 113, 133, 0.14);
-  background: linear-gradient(180deg, transparent, rgba(15, 23, 42, 0.55));
+  border-top: 1px solid rgba(196, 61, 90, 0.18);
+  background: linear-gradient(180deg, transparent, rgba(255, 245, 247, 0.85));
 }
 
 .hitl-confirm-actions .hitl-btn {
@@ -394,26 +437,26 @@
 }
 
 .hitl-confirm-actions .hitl-btn-cancel {
-  background: rgba(15, 23, 42, 0.72) !important;
-  border: 1px solid rgba(148, 163, 184, 0.28) !important;
-  color: #e2e8f0 !important;
-  box-shadow: none !important;
+  background: rgba(255, 255, 255, 0.85) !important;
+  border: 1px solid rgba(100, 150, 200, 0.42) !important;
+  color: #1e4060 !important;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.8) inset !important;
 }
 
 .hitl-confirm-actions .hitl-btn-cancel:hover:not(:disabled) {
-  border-color: rgba(148, 163, 184, 0.45) !important;
-  background: rgba(30, 41, 59, 0.9) !important;
+  border-color: rgba(47, 127, 209, 0.5) !important;
+  background: rgba(230, 242, 255, 0.95) !important;
 }
 
 .hitl-confirm-actions .hitl-btn-danger {
-  background: linear-gradient(135deg, #fb7185, #e11d48 55%, #be123c) !important;
-  border: 1px solid rgba(254, 205, 211, 0.28) !important;
+  background: linear-gradient(135deg, #e05a72, #c43d5a 55%, #a8324c) !important;
+  border: 1px solid rgba(255, 220, 225, 0.5) !important;
   color: #fff !important;
-  box-shadow: 0 8px 22px rgba(225, 29, 72, 0.38) !important;
+  box-shadow: 0 8px 22px rgba(196, 61, 90, 0.32) !important;
 }
 
 .hitl-confirm-actions .hitl-btn-danger:hover:not(:disabled) {
-  filter: brightness(1.06);
+  filter: brightness(1.05);
 }
 
 .hitl-confirm-actions .hitl-btn-danger:disabled {
@@ -441,20 +484,20 @@
 /* 专业态：只做增量，不重写整卡底色 */
 .spring-root.cursor-workbench.mode-professional .spring-plan-todo-title::before {
   content: '▸ ';
-  color: #38bdf8;
+  color: #2f7fd1;
 }
 
 .spring-root.cursor-workbench.mode-professional .conv-plan-preview.is-professional-plan .plan-mode-title-row strong::before {
   content: '◈ ';
-  color: #38bdf8;
+  color: #2f7fd1;
 }
 
 .spring-root.cursor-workbench.mode-professional .spring-plan-todo-item.is-running {
-  border-color: rgba(56, 189, 248, 0.45) !important;
-  background: rgba(14, 165, 233, 0.1) !important;
+  border-color: rgba(47, 127, 209, 0.5) !important;
+  background: rgba(47, 127, 209, 0.1) !important;
 }
 
-/* ── U2 专家失败卡片 ── */
+/* ── U2 专家失败卡片 · 浅底深字 ── */
 .reply-fail-cards {
   display: flex;
   flex-direction: column;
@@ -467,13 +510,13 @@
   align-items: flex-start;
   padding: 10px 12px;
   border-radius: 10px;
-  border: 1px solid rgba(248, 113, 113, 0.28);
-  background: rgba(127, 29, 29, 0.18);
+  border: 1px solid rgba(196, 61, 90, 0.35);
+  background: rgba(255, 240, 243, 0.85);
 }
 .reply-fail-card[data-error-code='timeout'],
 .reply-fail-card[data-error-code='circuit_open'] {
-  border-color: rgba(251, 191, 36, 0.35);
-  background: rgba(120, 53, 15, 0.22);
+  border-color: rgba(184, 106, 26, 0.4);
+  background: rgba(255, 245, 230, 0.9);
 }
 .reply-fail-card-badge {
   flex-shrink: 0;
@@ -481,64 +524,64 @@
   font-weight: 700;
   padding: 2px 8px;
   border-radius: 999px;
-  background: rgba(248, 113, 113, 0.2);
-  color: #fecaca;
+  background: rgba(196, 61, 90, 0.12);
+  color: #9a2a42;
 }
 .reply-fail-card[data-error-code='timeout'] .reply-fail-card-badge,
 .reply-fail-card[data-error-code='circuit_open'] .reply-fail-card-badge {
-  background: rgba(251, 191, 36, 0.22);
-  color: #fde68a;
+  background: rgba(184, 106, 26, 0.14);
+  color: #8a4e10;
 }
 .reply-fail-card-title {
   font-size: 13px;
   font-weight: 650;
-  color: #fee2e2;
+  color: #1a2f44;
 }
 .reply-fail-card-msg {
   margin: 4px 0 0;
   font-size: 12px;
   line-height: 1.45;
-  color: #fecaca;
+  color: #5a3a42;
 }
 
-/* ── 执行摘要（开发视图）；用户视图改用 .reply-outcome-banner ── */
+/* ── 执行摘要（开发视图）── */
 .reply-exec-summary {
   margin: 10px 0 4px;
   padding: 8px 12px;
   border-radius: 10px;
-  border: 1px solid rgba(148, 163, 184, 0.18);
-  background: rgba(15, 23, 42, 0.32);
+  border: 1px solid rgba(100, 150, 200, 0.35);
+  background: rgba(255, 255, 255, 0.7);
 }
 
 .reply-exec-summary.is-outcome-ok {
-  border-color: rgba(52, 211, 153, 0.35);
+  border-color: rgba(31, 122, 92, 0.4);
 }
 
 .reply-exec-summary.is-outcome-ok > summary {
-  color: #6ee7b7;
+  color: #146048;
 }
 
 .reply-exec-summary.is-outcome-fail {
-  border-color: rgba(248, 113, 113, 0.4);
+  border-color: rgba(196, 61, 90, 0.45);
 }
 
 .reply-exec-summary.is-outcome-fail > summary {
-  color: #fca5a5;
+  color: #9a2a42;
 }
 
 .reply-exec-summary.is-outcome-human {
-  border-color: rgba(251, 191, 36, 0.4);
+  border-color: rgba(184, 106, 26, 0.45);
 }
 
 .reply-exec-summary.is-outcome-human > summary {
-  color: #fcd34d;
+  color: #8a4e10;
 }
 
 .reply-exec-summary > summary {
   cursor: pointer;
   font-size: 13px;
   font-weight: 650;
-  color: #93c5fd;
+  color: #1e5a96;
   list-style: none;
 }
 
@@ -549,32 +592,32 @@
 .reply-exec-summary-body {
   margin-top: 8px;
   font-size: 13px;
-  color: #cbd5e1;
+  color: #3a536c;
 }
 
-/* 用户视图：失败 / 待确认短状态条（无步骤日志） */
+/* 用户视图：失败 / 待确认短状态条 */
 .reply-outcome-banner {
   margin: 12px 0 4px;
   padding: 8px 12px;
   border-radius: 10px;
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  background: rgba(15, 23, 42, 0.4);
+  border: 1px solid rgba(100, 150, 200, 0.35);
+  background: rgba(255, 255, 255, 0.75);
   font-size: 13px;
   font-weight: 600;
   line-height: 1.45;
-  color: #cbd5e1;
+  color: #3a536c;
 }
 
 .reply-outcome-banner.is-outcome-fail {
-  border-color: rgba(248, 113, 113, 0.4);
-  background: rgba(127, 29, 29, 0.18);
-  color: #fecaca;
+  border-color: rgba(196, 61, 90, 0.4);
+  background: rgba(255, 240, 243, 0.9);
+  color: #9a2a42;
 }
 
 .reply-outcome-banner.is-outcome-human {
-  border-color: rgba(251, 191, 36, 0.4);
-  background: rgba(120, 53, 15, 0.2);
-  color: #fde68a;
+  border-color: rgba(184, 106, 26, 0.4);
+  background: rgba(255, 245, 230, 0.9);
+  color: #8a4e10;
 }
 
 /* U3：无证据拒答徽章 + 证据优先面板 */
@@ -589,21 +632,21 @@
   letter-spacing: 0.02em;
 }
 .reply-evidence-badge.is-rejected {
-  background: rgba(248, 113, 113, 0.15);
-  color: #fecaca;
-  border: 1px solid rgba(248, 113, 113, 0.4);
+  background: rgba(196, 61, 90, 0.1);
+  color: #9a2a42;
+  border: 1px solid rgba(196, 61, 90, 0.4);
 }
 .reply-evidence-badge.is-clarify {
-  background: rgba(251, 191, 36, 0.12);
-  color: #fde68a;
-  border: 1px solid rgba(251, 191, 36, 0.35);
+  background: rgba(184, 106, 26, 0.1);
+  color: #8a4e10;
+  border: 1px solid rgba(184, 106, 26, 0.35);
 }
 .reply-evidence-first {
   margin: 0.35rem 0 0.65rem;
   padding: 0.45rem 0.65rem;
-  border: 1px solid rgba(148, 163, 184, 0.25);
+  border: 1px solid rgba(100, 150, 200, 0.35);
   border-radius: 8px;
-  background: rgba(15, 23, 42, 0.35);
+  background: rgba(255, 255, 255, 0.7);
 }
 .reply-evidence-first > summary {
   cursor: pointer;
@@ -612,7 +655,7 @@
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  color: #cbd5e1;
+  color: #1e4060;
 }
 .reply-evidence-first .spring-search-sources-list {
   margin: 0.4rem 0 0;
@@ -629,10 +672,12 @@
   font-weight: 600;
 }
 .conv-plan-preview-confirm.is-hitl {
-  background: rgba(251, 191, 36, 0.15);
-  color: #fde68a;
+  background: rgba(184, 106, 26, 0.12);
+  color: #8a4e10;
+  border: 1px solid rgba(184, 106, 26, 0.3);
 }
 .conv-plan-preview-confirm.is-auto {
-  background: rgba(52, 211, 153, 0.12);
-  color: #6ee7b7;
+  background: rgba(31, 122, 92, 0.1);
+  color: #146048;
+  border: 1px solid rgba(31, 122, 92, 0.3);
 }

@@ -1,4 +1,4 @@
-"""N×N relationship edges: affinity + stage + track (mm/ff/mf)."""
+"""N×N relationship edges: affinity + stage + track + bond_kind (friendship/romance/rivalry)."""
 
 from __future__ import annotations
 
@@ -6,6 +6,7 @@ from typing import Any, Literal
 
 Track = Literal["mm", "ff", "mf", "none"]
 Stage = Literal["stranger", "acquaintance", "friend", "close", "crush", "dating"]
+BondKind = Literal["friendship", "romance", "rivalry", "none"]
 
 STAGE_ORDER = ["stranger", "acquaintance", "friend", "close", "crush", "dating"]
 
@@ -17,6 +18,8 @@ STAGE_THRESHOLDS = [
     (75, "crush"),
     (90, "dating"),
 ]
+
+VALID_BOND_KINDS = frozenset({"friendship", "romance", "rivalry", "none"})
 
 
 def track_for(gender_a: str, gender_b: str) -> Track:
@@ -48,6 +51,24 @@ def find_edge(edges: list[dict[str, Any]], a: str, b: str) -> dict[str, Any] | N
     return None
 
 
+def bond_kind_of(edge: dict[str, Any]) -> BondKind:
+    raw = str(edge.get("bond_kind") or "none")
+    if raw in VALID_BOND_KINDS:
+        return raw  # type: ignore[return-value]
+    # legacy: infer from stage
+    stage = str(edge.get("stage") or "stranger")
+    if stage in {"crush", "dating"}:
+        return "romance"
+    if float(edge.get("affinity") or 0) >= 35:
+        return "friendship"
+    return "none"
+
+
+def set_bond_kind(edge: dict[str, Any], kind: str) -> None:
+    k = kind if kind in VALID_BOND_KINDS else "none"
+    edge["bond_kind"] = k
+
+
 def ensure_edge(
     edges: list[dict[str, Any]],
     a: str,
@@ -58,6 +79,8 @@ def ensure_edge(
 ) -> dict[str, Any]:
     existing = find_edge(edges, a, b)
     if existing:
+        if "bond_kind" not in existing:
+            existing["bond_kind"] = bond_kind_of(existing)
         return existing
     e = {
         "a": a,
@@ -65,6 +88,7 @@ def ensure_edge(
         "affinity": 0.0,
         "stage": "stranger",
         "track": track_for(gender_a, gender_b),
+        "bond_kind": "none",
         "memories": [],
     }
     edges.append(e)
@@ -73,7 +97,13 @@ def ensure_edge(
 
 def apply_affinity_delta(edge: dict[str, Any], delta: float) -> dict[str, Any]:
     edge["affinity"] = round(max(0.0, min(100.0, float(edge.get("affinity", 0)) + delta)), 1)
-    edge["stage"] = stage_from_affinity(edge["affinity"])
+    # Keep dating stage sticky once reached via social confess
+    if edge.get("stage") == "dating" and float(edge["affinity"]) >= 85:
+        pass
+    else:
+        edge["stage"] = stage_from_affinity(edge["affinity"])
+    if "bond_kind" not in edge:
+        edge["bond_kind"] = bond_kind_of(edge)
     return edge
 
 
@@ -84,6 +114,7 @@ def public_edge(edge: dict[str, Any]) -> dict[str, Any]:
         "affinity": edge.get("affinity", 0),
         "stage": edge.get("stage", "stranger"),
         "track": edge.get("track", "none"),
+        "bond_kind": bond_kind_of(edge),
     }
 
 

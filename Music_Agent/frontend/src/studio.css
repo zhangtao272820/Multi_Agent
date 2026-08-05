@@ -52,6 +52,17 @@ body {
   min-width: 0;
 }
 
+.studio-brand-logo,
+.studio-brand-avatar {
+  flex-shrink: 0;
+  border-radius: 0.55rem;
+}
+
+.studio-brand-avatar {
+  border: 1px solid rgba(196, 90, 114, 0.4);
+  margin-left: 0.25rem;
+}
+
 .studio-brand-mark {
   width: 0.55rem;
   height: 0.55rem;
@@ -59,6 +70,17 @@ body {
   background: var(--accent);
   box-shadow: 0 0 12px var(--accent-glow);
   flex-shrink: 0;
+}
+
+.studio-shell.brand-shell {
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  min-height: 0;
+}
+
+.studio-shell.brand-shell::before {
+  opacity: 0;
 }
 
 .studio-brand-name {

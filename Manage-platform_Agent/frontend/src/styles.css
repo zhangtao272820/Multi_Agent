@@ -185,6 +185,19 @@ body {
   margin-bottom: 22px;
 }
 
+.login-card__logo,
+.login-card__avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  flex: 0 0 auto;
+  border: 1px solid var(--brand-line, rgba(154, 123, 60, 0.4));
+}
+
+.login-card__avatar {
+  margin-left: auto;
+}
+
 .login-card__mark {
   width: 48px;
   height: 48px;
@@ -284,6 +297,21 @@ body {
   font-family: var(--font-sans);
 }
 
+.admin-brand__logo {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  flex: 0 0 auto;
+  border: 1px solid rgba(184, 149, 74, 0.45);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.04);
+  transition: transform 0.25s var(--ease-out), border-color 0.25s var(--ease-out);
+}
+
+.admin-brand:hover .admin-brand__logo {
+  transform: translateY(-1px) scale(1.04);
+  border-color: rgba(184, 149, 74, 0.75);
+}
+
 .admin-brand__mark {
   width: 40px;
   height: 40px;
@@ -304,6 +332,37 @@ body {
 .admin-brand:hover .admin-brand__mark {
   transform: translateY(-1px) scale(1.04);
   border-color: rgba(184, 149, 74, 0.75);
+}
+
+.admin-app.brand-shell {
+  position: relative;
+  isolation: isolate;
+}
+
+.admin-app.brand-shell > .brand-motif {
+  z-index: 0;
+}
+
+.admin-app.brand-shell > .admin-sidebar,
+.admin-app.brand-shell > .admin-main {
+  position: relative;
+  z-index: 1;
+}
+
+.admin-topbar__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fleet-matrix .brand-identity {
+  max-width: 320px;
+}
+
+.fleet-matrix .brand-identity__text .code-inline {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
 }
 
 .admin-nav {

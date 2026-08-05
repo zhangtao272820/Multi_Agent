@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import GalaxyBg from "./GalaxyBg";
+import BrandMotif from "@brand/react/BrandMotif.jsx";
+import { brandAvatarUrl, brandLogoUrl } from "@brand/react/assetMap.js";
+import { logout } from "./clawhiveAuth";
 import { parseAgentView } from "./reply";
 
 type Tab = "image" | "video" | "audio";
 type ThinkStep = { node: string; message: string; done?: boolean };
+type Props = { onLogout?: () => void };
 
 const TABS: [Tab, string][] = [
   ["image", "图像理解"],
@@ -62,7 +65,7 @@ function detectMediaType(file: File | null, tab: Tab): string {
   return "image";
 }
 
-export default function App() {
+export default function App({ onLogout }: Props) {
   const [tab, setTab] = useState<Tab>("image");
   const [question, setQuestion] = useState(TAB_HINT.image);
   const [result, setResult] = useState<unknown>(null);
@@ -80,6 +83,12 @@ export default function App() {
 
   const agent = useMemo(() => (result ? parseAgentView(result) : null), [result]);
   const liveStep = steps[steps.length - 1];
+
+  function handleLogout() {
+    wsRef.current?.close();
+    logout();
+    onLogout?.();
+  }
 
   useEffect(() => {
     const host = window.location.hostname || "127.0.0.1";
@@ -194,37 +203,34 @@ export default function App() {
   };
 
   return (
-    <div className="app">
-      <GalaxyBg />
-      <div className="cosmic-vignette" aria-hidden />
+    <div className="brand-shell mm-brand-root mm-shell" data-agent="multimodal">
+      <div className="mm-season-bg mm-season-bg--xiazhi" aria-hidden="true" />
+      <BrandMotif motif="thunder" />
+      <div className="mm-storm" aria-hidden="true">
+        <span className="mm-storm__sheet" />
+        <span className="mm-storm__bolt mm-storm__bolt--a" />
+        <span className="mm-storm__bolt mm-storm__bolt--b" />
+        <span className="mm-storm__bolt mm-storm__bolt--c" />
+      </div>
 
-      <header className="hero">
-        <div className="hero-glow" aria-hidden />
-        <div className="hero-ring" aria-hidden />
-        <h1>廉贞 · Multimodal Agent</h1>
-        <p className="hero-sub">多模态枢纽 · 视觉理解 · 视频摘要 · 语音转写 · 实时思考链</p>
-        <div className="model-badges">
-          <span>◆ VL · {String(health?.vl_model || "qwen-vl-plus")}</span>
-          <span>◆ 推理 · {String(health?.helper_model || "qwen3.5-35b-a3b")}</span>
-          <span>◆ ASR · qwen3-asr-flash</span>
+      <div className="app">
+      <header className="hero mm-glass--bar">
+        <div className="hero-brand">
+          <img className="brand-logo" src={brandLogoUrl("multimodal")} alt="" width={40} height={40} />
+          <div className="hero-brand__text">
+            <p className="mm-topbar__eyebrow">夏至 · 廉贞 · 雷霆夏景</p>
+            <h1>廉贞 · 多模态</h1>
+            <p className="hero-sub">视觉理解 · 视频摘要 · 语音转写 · 实时思考链</p>
+          </div>
+          <img className="brand-avatar" src={brandAvatarUrl("multimodal")} alt="" width={48} height={48} title="廉贞虚拟形象" />
+          <button type="button" className="mm-logout" onClick={handleLogout}>
+            退出登录
+          </button>
         </div>
-        <div className="cap-grid">
-          <div className="cap-card">
-            <strong>图像理解</strong>
-            <span>OCR · 情绪 · 场景描述 · 大图自动压缩</span>
-          </div>
-          <div className="cap-card">
-            <strong>视频摘要</strong>
-            <span>关键帧抽取 · 多帧联合理解 · 整体概括</span>
-          </div>
-          <div className="cap-card">
-            <strong>语音转写</strong>
-            <span>录音/上传 · DashScope ASR · 可选追问</span>
-          </div>
-          <div className="cap-card">
-            <strong>总管对接</strong>
-            <span>HTTP unified · WebSocket 流式 stage · Manager 附件</span>
-          </div>
+        <div className="model-badges">
+          <span>VL · {String(health?.vl_model || "qwen-vl-plus")}</span>
+          <span>推理 · {String(health?.helper_model || "qwen3.5-35b-a3b")}</span>
+          <span>ASR · qwen3-asr-flash</span>
         </div>
       </header>
 
@@ -237,8 +243,8 @@ export default function App() {
       </nav>
 
       <div className="panel">
-        <section className="card card-input">
-          <h2>◈ 输入信道</h2>
+        <section className="card card-input mm-glass--panel">
+          <h2>输入</h2>
           <div className="file-row">
             <label className="file-btn">
               选择文件
@@ -256,9 +262,11 @@ export default function App() {
             {preview && tab === "audio" && <audio src={preview} controls />}
             {!preview && (
               <div className="preview-placeholder">
-                <span className="ph-icon">{tab === "image" ? "🖼" : tab === "video" ? "🎬" : "🎙"}</span>
-                <span>拖入或选择{tab === "image" ? "图片" : tab === "video" ? "视频" : "音频"}</span>
-                <span className="ph-sub">支持 JPG / PNG / MP4 / WAV / MP3 等</span>
+                <span className="ph-icon" aria-hidden>
+                  {tab === "image" ? "◇" : tab === "video" ? "▷" : "◎"}
+                </span>
+                <span>选择{tab === "image" ? "图片" : tab === "video" ? "视频" : "音频"}文件</span>
+                <span className="ph-sub">JPG / PNG / MP4 / WAV / MP3</span>
               </div>
             )}
           </div>
@@ -286,8 +294,8 @@ export default function App() {
           </button>
         </section>
 
-        <section className="card card-reply">
-          <h2>◈ Agent 回复</h2>
+        <section className="card card-reply mm-glass--panel">
+          <h2>回复</h2>
           <div className={`status ${busy ? "busy" : agent?.isError ? "err" : ""}`}>
             <span className="status-dot" />
             {busy ? "思考链路活跃" : agent?.isError ? "异常" : "信道就绪"}
@@ -311,18 +319,20 @@ export default function App() {
           <div className="chat">
             {!agent && !busy && (
               <div className="welcome-panel">
-                <p className="welcome-title">◈ 星图信道待命</p>
-                <p>上传媒体并发送后，Agent 将在此以气泡形式回复。</p>
+                <p className="welcome-title">信道待命</p>
+                <p>上传媒体并发送后，回复会出现在这里。</p>
                 <ul>
-                  <li>左侧：选择文件、预览、提问</li>
-                  <li>上方：实时展示思考过程（VL / ASR / 精炼）</li>
-                  <li>生成音乐/视频请使用底部独立 Agent 链接</li>
+                  <li>左侧选择文件、预览并提问</li>
+                  <li>上方实时展示思考过程（VL / ASR / 精炼）</li>
+                  <li>音乐/视频生成请用底部独立链接</li>
                 </ul>
               </div>
             )}
             {busy && !agent && (
               <div className="bubble agent typing">
-                <span className="bubble-avatar">✦</span>
+                <span className="bubble-avatar" aria-hidden>
+                  廉
+                </span>
                 <div className="bubble-body">
                   <span className="typing-dots">
                     <i />
@@ -334,7 +344,9 @@ export default function App() {
             )}
             {agent && (
               <div className={`bubble agent ${agent.isError ? "error" : ""} ${agent.isMock ? "mock" : ""}`}>
-                <span className="bubble-avatar">✦</span>
+                <span className="bubble-avatar" aria-hidden>
+                  廉
+                </span>
                 <div className="bubble-body">
                   {agent.reply.split("\n").map((line, i) => (
                     <p key={i}>{line}</p>
@@ -363,13 +375,14 @@ export default function App() {
 
           <footer className="ext-agents">
             <a href={musicUrl} target="_blank" rel="noreferrer">
-              ♫ Music Agent
+              Music Agent
             </a>
             <a href={videoUrl} target="_blank" rel="noreferrer">
-              ▶ Video Agent
+              Video Agent
             </a>
           </footer>
         </section>
+      </div>
       </div>
     </div>
   );

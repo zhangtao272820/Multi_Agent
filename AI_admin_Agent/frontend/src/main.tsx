@@ -1,5 +1,7 @@
 import { StrictMode, useEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
+import '@brand/index.css'
+import './admin-season.css'
 import './index.css'
 import App from './App.tsx'
 import ClawhiveLoginGate from './ClawhiveLoginGate'

@@ -103,7 +103,9 @@ export function HubPanel(props: {
       </section>
 
       <section className="app-content-shell admin-hub__section">
-        <h3>快捷提问</h3>
+        <div className="admin-hub__section-head">
+          <h3>快捷提问</h3>
+        </div>
         <div className="admin-hub__prompts">
           {[
             '来一句适合今天的话，顺便讲讲为什么',

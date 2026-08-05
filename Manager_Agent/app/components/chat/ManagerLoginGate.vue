@@ -1,26 +1,41 @@
 <template>
   <div class="mgr-login-gate">
-    <form class="mgr-login-card" @submit.prevent="onSubmit">
-      <h1 class="mgr-login-title">天机 · 登录</h1>
-      <p class="mgr-login-desc">使用 ClawHive 账号（用户由控制台统一管理）。本地默认一般为 admin / admin123。</p>
+    <div class="mgr-season-bg mgr-season-bg--lidong" aria-hidden="true" />
+    <BrandMotif motif="snow" />
+    <form class="mgr-login-card mgr-glass" @submit.prevent="onSubmit">
+      <div class="mgr-login-brand">
+        <img class="mgr-login-logo" src="/brand/logos/manager.svg" alt="" width="56" height="56" />
+        <div>
+          <p class="mgr-login-eyebrow">立冬 · 天机</p>
+          <h1 class="mgr-login-title">天机 · 登录</h1>
+          <p class="mgr-login-desc">使用 ClawHive 账号登录</p>
+        </div>
+      </div>
       <label class="mgr-login-label">
-        用户名
-        <input v-model="username" autocomplete="username" required />
+        <span>用户名</span>
+        <input v-model="username" placeholder="请输入用户名" autocomplete="username" required />
       </label>
       <label class="mgr-login-label">
-        密码
-        <input v-model="password" type="password" autocomplete="current-password" required />
+        <span>密码</span>
+        <input
+          v-model="password"
+          type="password"
+          placeholder="请输入密码"
+          autocomplete="current-password"
+          required
+        />
       </label>
       <p v-if="error" class="mgr-login-error">{{ error }}</p>
       <button type="submit" class="mgr-login-btn" :disabled="busy">
         {{ busy ? '登录中…' : '登录' }}
       </button>
-      <p class="mgr-login-hint">默认管理员见 ClawHive 控制台；画像 userId = 用户名</p>
     </form>
   </div>
 </template>
 
 <script setup lang="ts">
+import BrandMotif from '@brand/vue/BrandMotif.vue'
+
 const emit = defineEmits<{ success: [] }>()
 const { login } = useClawhiveLogin()
 const username = ref('admin')
@@ -32,7 +47,7 @@ function formatLoginError(raw: string): string {
   const s = String(raw || '').trim()
   if (!s) return '登录失败'
   if (/401|unauthorized|invalid|密码|凭证|credential|Incorrect/i.test(s)) {
-    return '用户名或密码错误（本地默认多为 admin / admin123，以 ClawHive 控制台为准）'
+    return '用户名或密码错误'
   }
   return s
 }
@@ -53,66 +68,135 @@ async function onSubmit() {
 
 <style scoped>
 .mgr-login-gate {
+  position: relative;
   min-height: 100vh;
   display: grid;
   place-items: center;
-  background: radial-gradient(1200px 600px at 50% -10%, #1a2744, #0b1020 55%);
-  color: #e8eefc;
-  padding: 24px;
+  padding: 28px 20px;
+  color: #1a2f44;
+  box-sizing: border-box;
 }
+
+.mgr-login-gate > .brand-motif {
+  z-index: 1;
+}
+
 .mgr-login-card {
-  width: min(380px, 100%);
+  position: relative;
+  z-index: 2;
+  width: min(480px, 94vw);
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 28px 24px;
-  border-radius: 16px;
-  background: rgba(16, 24, 40, 0.92);
-  border: 1px solid rgba(120, 150, 220, 0.25);
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+  gap: 16px;
+  padding: 36px 34px;
+  background: rgba(248, 252, 255, 0.78);
+  color: #1a2f44;
 }
+
+.mgr-login-brand {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 6px;
+}
+
+.mgr-login-logo {
+  border-radius: 14px;
+  border: 1px solid rgba(100, 160, 220, 0.45);
+  box-shadow: 0 0 24px rgba(47, 127, 209, 0.2);
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.mgr-login-eyebrow {
+  margin: 0 0 6px;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #5a738c;
+  font-weight: 600;
+}
+
 .mgr-login-title {
   margin: 0;
-  font-size: 1.35rem;
-  font-weight: 650;
+  font-size: 1.55rem;
+  font-weight: 750;
+  font-family: var(--brand-font-display, inherit);
+  letter-spacing: 0.02em;
+  color: #102838;
+  text-shadow: none;
 }
-.mgr-login-desc,
-.mgr-login-hint {
-  margin: 0;
-  opacity: 0.72;
-  font-size: 0.85rem;
-  line-height: 1.4;
+
+.mgr-login-desc {
+  margin: 8px 0 0;
+  font-size: 14px;
+  line-height: 1.45;
+  color: #3a536c;
 }
+
 .mgr-login-label {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  font-size: 0.85rem;
-}
-.mgr-login-label input {
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid rgba(140, 160, 210, 0.35);
-  background: rgba(8, 12, 22, 0.8);
-  color: inherit;
-}
-.mgr-login-btn {
-  margin-top: 4px;
-  padding: 10px 14px;
-  border-radius: 10px;
-  border: none;
-  background: linear-gradient(135deg, #4f7cff, #3a5fd4);
-  color: #fff;
+  gap: 8px;
+  font-size: 13px;
   font-weight: 600;
+  color: #2a4060;
+}
+
+.mgr-login-label input {
+  padding: 13px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(120, 165, 210, 0.4);
+  background: rgba(255, 255, 255, 0.65);
+  color: #1a2f44;
+  font: inherit;
+  outline: none;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.mgr-login-label input::placeholder {
+  color: rgba(90, 115, 140, 0.55);
+}
+
+.mgr-login-label input:focus {
+  border-color: rgba(47, 127, 209, 0.65);
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 0 0 3px rgba(47, 127, 209, 0.16);
+}
+
+.mgr-login-label input:-webkit-autofill,
+.mgr-login-label input:-webkit-autofill:hover,
+.mgr-login-label input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #1a2f44;
+  caret-color: #1a2f44;
+  transition: background-color 99999s ease-out;
+  box-shadow: 0 0 0 1000px rgba(245, 250, 255, 0.9) inset;
+}
+
+.mgr-login-btn {
+  margin-top: 6px;
+  padding: 13px 16px;
+  border-radius: 12px;
+  border: none;
+  background: #2f7fd1;
+  color: #f4f8ff;
+  font-weight: 700;
+  font-size: 15px;
   cursor: pointer;
 }
-.mgr-login-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+
+.mgr-login-btn:hover:not(:disabled) {
+  background: #3a8de0;
 }
+
+.mgr-login-btn:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
 .mgr-login-error {
   margin: 0;
-  color: #ff8f8f;
-  font-size: 0.85rem;
+  color: #c04040;
+  font-size: 0.9rem;
 }
 </style>

@@ -6,9 +6,15 @@ import { fileURLToPath } from 'node:url'
 function agentSharedDir() {
   const docker = fileURLToPath(new URL('./agent-repo-shared', import.meta.url))
   const local = fileURLToPath(new URL('../shared', import.meta.url))
-  if (existsSync(join(docker, 'agentPgClient.ts'))) return docker
+  if (existsSync(join(docker, 'brand')) || existsSync(join(docker, 'agentPgClient.ts'))) return docker
   return local
 }
+
+function agentBrandDir() {
+  return join(agentSharedDir(), 'brand')
+}
+
+const brandDir = agentBrandDir()
 
 const mcpServers = (() => {
   const raw = process.env.MCP_SERVERS ?? process.env.MCP_SERVERS_JSON ?? "";
@@ -22,19 +28,38 @@ const mcpServers = (() => {
 })();
 
 export default defineNuxtConfig({
-  css: ['~/assets/css/db-cursor-chat.css'],
+  css: [join(brandDir, 'index.css'), '~/assets/css/db-season.css', '~/assets/css/db-cursor-chat.css'],
   alias: {
-    '#agent-shared': agentSharedDir()
+    '#agent-shared': agentSharedDir(),
+    '@brand': brandDir
   },
   compatibilityDate: '2025-07-15',
   devtools: { enabled: process.env.NODE_ENV !== 'production' },
   devServer: {
     port: Number(process.env.PORT ?? process.env.DB_PORT ?? 13101)
   },
+  vite: {
+    resolve: {
+      alias: {
+        '@brand': brandDir
+      }
+    },
+    server: {
+      fs: { allow: [brandDir, agentSharedDir()] }
+    }
+  },
   nitro: {
     alias: {
-      '#agent-shared': agentSharedDir()
+      '#agent-shared': agentSharedDir(),
+      '@brand': brandDir
     },
+    publicAssets: [
+      {
+        baseURL: 'brand',
+        dir: brandDir,
+        maxAge: 60 * 60 * 24 * 7
+      }
+    ],
     experimental: {
       websocket: true
     }

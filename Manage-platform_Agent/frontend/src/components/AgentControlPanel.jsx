@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
 import { agentListLabel, agentTitle, getAgentDisplay } from "../agentDisplayNames";
+import { getBrand, resolveBrandKey } from "@brand/manifest.js";
+import { brandAvatarUrl, brandLogoUrl } from "@brand/react/assetMap.js";
 
 export default function AgentControlPanel({
   controlMode,
@@ -153,13 +155,26 @@ export default function AgentControlPanel({
                     />
                   </td>
                   <td>
-                    <strong>{agentTitle(agent.name)}</strong>
-                    <div className="muted truncate">
-                      {getAgentDisplay(agent.name)?.role || agent.category}
+                    <div className="brand-identity">
+                      {brandLogoUrl(agent.name) ? (
+                        <img className="brand-identity__logo" src={brandLogoUrl(agent.name)} alt="" width={32} height={32} />
+                      ) : null}
+                      {brandAvatarUrl(agent.name) ? (
+                        <img className="brand-identity__avatar" src={brandAvatarUrl(agent.name)} alt="" width={32} height={32} />
+                      ) : null}
+                      <div className="brand-identity__text">
+                        <span className="brand-identity__name">{agentTitle(agent.name)}</span>
+                        <span className="brand-identity__role">
+                          {getAgentDisplay(agent.name)?.role || agent.category}
+                          {getBrand(agent.name)?.motif
+                            ? ` · ${({ rain: "雨", snow: "雪", moon: "月", thunder: "雷" })[getBrand(agent.name).motif]}`
+                            : ""}
+                        </span>
+                        <span className="muted truncate code-inline">{agent.name} · {agent.endpoint}</span>
+                      </div>
                     </div>
-                    <div className="muted truncate code-inline">{agent.name} · {agent.endpoint}</div>
                   </td>
-                  <td className="muted">{agent.category}</td>
+                  <td className="muted">{agent.category || resolveBrandKey(agent.name) || "—"}</td>
                   <td>
                     <span className={`status-pill ${desired === "running" ? "online" : "offline"}`}>
                       {desired}

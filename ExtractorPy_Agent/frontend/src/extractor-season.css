@@ -1,0 +1,399 @@
+/* Extractor 节气主题 · 立春/惊蛰（本 Agent 本地，不挂进 brand 全局） */
+
+.extractor-shell {
+  --extractor-glass-bg: rgba(4, 20, 12, 0.42);
+  --extractor-glass-bg-bar: rgba(4, 18, 12, 0.55);
+  --extractor-glass-bg-soft: rgba(6, 24, 14, 0.32);
+  --extractor-glass-bg-panel: rgba(3, 16, 10, 0.4);
+  --extractor-glass-bg-input: rgba(2, 12, 8, 0.4);
+  --extractor-glass-border: rgba(180, 236, 200, 0.42);
+  --extractor-glass-border-strong: rgba(130, 220, 160, 0.58);
+  --extractor-glass-highlight: rgba(255, 255, 255, 0.16);
+  --extractor-glass-blur: 20px;
+  --extractor-glass-blur-soft: 14px;
+  --extractor-glass-shadow:
+    0 1px 0 var(--extractor-glass-highlight) inset,
+    0 16px 48px rgba(0, 8, 4, 0.35);
+  --brand-motif-opacity: 0.48;
+  --extractor-text: #f4fff8;
+  --extractor-text-secondary: #d8f0e0;
+  --extractor-text-muted: #b4dcc4;
+  --text-main: var(--extractor-text);
+  --text-dim: var(--extractor-text-muted);
+  --primary: #eafdf0;
+  --secondary: #c8ebd4;
+  --border-color: var(--extractor-glass-border);
+  --error: #ff8f8f;
+  --success: #7ddea0;
+  --warning: #ffd089;
+
+  position: relative;
+  min-height: 100vh;
+  color: var(--extractor-text);
+  background: transparent;
+  font-family: 'Segoe UI Variable', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+}
+
+.extractor-shell > .extractor-season-bg {
+  z-index: 0;
+}
+
+.extractor-shell > .brand-motif {
+  z-index: 1;
+  opacity: var(--brand-motif-opacity, 0.48);
+}
+
+.extractor-shell > .extractor-topbar,
+.extractor-shell > .extractor-work,
+.extractor-shell > .claw-login__card {
+  position: relative;
+  z-index: 2;
+}
+
+.extractor-season-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-color: #0a1410;
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+.extractor-season-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 88% 68% at 50% 40%, rgba(4, 18, 12, 0.08) 0%, rgba(2, 10, 8, 0.38) 100%),
+    linear-gradient(
+      180deg,
+      rgba(2, 10, 8, 0.28) 0%,
+      rgba(4, 14, 10, 0.14) 30%,
+      rgba(4, 14, 10, 0.22) 64%,
+      rgba(2, 8, 6, 0.48) 100%
+    );
+}
+
+.extractor-season-bg--lichun {
+  background-image: url('@brand/backgrounds/spring/lichun-extractor.png');
+}
+
+.extractor-season-bg--jingzhe {
+  background-image: url('@brand/backgrounds/spring/jingzhe-extractor.png');
+}
+
+.extractor-glass {
+  background: var(--extractor-glass-bg);
+  border: 1px solid var(--extractor-glass-border);
+  border-radius: 18px;
+  box-shadow: var(--extractor-glass-shadow);
+  backdrop-filter: blur(var(--extractor-glass-blur)) saturate(1.35);
+  -webkit-backdrop-filter: blur(var(--extractor-glass-blur)) saturate(1.35);
+}
+
+.extractor-glass--bar {
+  background: var(--extractor-glass-bg-bar);
+  border: 1px solid var(--extractor-glass-border);
+  backdrop-filter: blur(16px) saturate(1.3);
+  -webkit-backdrop-filter: blur(16px) saturate(1.3);
+  box-shadow: var(--extractor-glass-shadow);
+}
+
+.extractor-glass--panel {
+  background: var(--extractor-glass-bg-panel);
+  border: 1px solid rgba(170, 230, 190, 0.32);
+  border-radius: 16px;
+  box-shadow: var(--extractor-glass-shadow);
+  backdrop-filter: blur(var(--extractor-glass-blur-soft)) saturate(1.25);
+  -webkit-backdrop-filter: blur(var(--extractor-glass-blur-soft)) saturate(1.25);
+}
+
+.claw-login .extractor-glass {
+  background: rgba(6, 24, 16, 0.58);
+  border-color: var(--extractor-glass-border-strong);
+}
+
+/* 亮银青雨丝：在青绿山景上可辨 */
+.extractor-shell .brand-motif-rain__drop {
+  width: 2px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0), rgba(230, 255, 245, 0.75) 35%, rgba(170, 220, 255, 0.85));
+  box-shadow: 0 0 4px rgba(200, 240, 255, 0.35);
+  opacity: calc(var(--drop-op, 0.55) * 1.35);
+}
+
+.extractor-shell .brand-motif-rain__sheet {
+  background:
+    linear-gradient(180deg, rgba(200, 230, 255, 0.1), transparent 42%),
+    linear-gradient(105deg, transparent 38%, rgba(180, 220, 255, 0.07) 50%, transparent 62%);
+}
+
+/* —— 顶栏 —— */
+.extractor-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 16px 20px 0;
+  padding: 12px 18px;
+  border-radius: 16px;
+}
+
+.extractor-topbar__brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.extractor-topbar__logo {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  border: 1px solid rgba(61, 143, 85, 0.45);
+  box-shadow: 0 0 24px rgba(61, 143, 85, 0.28);
+  flex-shrink: 0;
+}
+
+.extractor-topbar__eyebrow {
+  margin: 0 0 2px;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--extractor-text-muted);
+  font-weight: 650;
+}
+
+.extractor-topbar__title {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 750;
+  letter-spacing: 0.02em;
+  color: var(--extractor-text);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  white-space: nowrap;
+}
+
+.extractor-topbar__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  flex: 1;
+}
+
+.extractor-topbar__meta span {
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(170, 230, 190, 0.28);
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 11px;
+  color: var(--extractor-text-secondary);
+}
+
+.extractor-topbar__avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  border: 1px solid rgba(170, 230, 190, 0.35);
+  flex-shrink: 0;
+}
+
+.extractor-logout {
+  flex-shrink: 0;
+  padding: 9px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #f4fff8;
+  background: rgba(61, 143, 85, 0.55);
+  border: 1px solid rgba(180, 236, 200, 0.55);
+  border-radius: 11px;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0, 20, 10, 0.28);
+}
+
+.extractor-logout:hover {
+  background: rgba(61, 143, 85, 0.78);
+  border-color: rgba(200, 255, 220, 0.7);
+  color: #fff;
+}
+
+/* —— 工作区 —— */
+.extractor-work {
+  width: min(1280px, calc(100% - 40px));
+  margin: 18px auto 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.extractor-compose {
+  padding: 22px 24px 20px;
+}
+
+.extractor-compose__head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.extractor-compose__head h2 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--extractor-text-secondary);
+}
+
+.extractor-compose__sub {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--extractor-text-muted);
+}
+
+/* —— 登录 —— */
+.claw-login {
+  position: relative;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 28px 20px;
+  color: var(--extractor-text);
+  box-sizing: border-box;
+  background: transparent;
+}
+
+.claw-login__card {
+  width: min(480px, 94vw);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 36px 34px;
+}
+
+.claw-login__brand {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 6px;
+}
+
+.claw-login__logo {
+  border-radius: 14px;
+  border: 1px solid rgba(61, 143, 85, 0.45);
+  box-shadow: 0 0 28px rgba(61, 143, 85, 0.28);
+  flex-shrink: 0;
+}
+
+.claw-login__eyebrow {
+  margin: 0 0 6px;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--extractor-text-muted);
+  font-weight: 600;
+}
+
+.claw-login__card h1 {
+  margin: 0;
+  font-size: 1.55rem;
+  font-weight: 750;
+  letter-spacing: 0.02em;
+  color: var(--extractor-text);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.claw-login__sub {
+  margin: 8px 0 0;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--extractor-text-secondary);
+}
+
+.claw-login__field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--extractor-text-secondary);
+}
+
+.claw-login__field input {
+  padding: 13px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(170, 230, 190, 0.35);
+  background: var(--extractor-glass-bg-input);
+  color: var(--extractor-text);
+  font: inherit;
+  outline: none;
+}
+
+.claw-login__field input::placeholder {
+  color: rgba(176, 216, 190, 0.55);
+}
+
+.claw-login__field input:focus {
+  border-color: rgba(61, 143, 85, 0.7);
+  background: rgba(4, 20, 12, 0.55);
+  box-shadow: 0 0 0 3px rgba(61, 143, 85, 0.2);
+}
+
+.claw-login__field input:-webkit-autofill,
+.claw-login__field input:-webkit-autofill:hover,
+.claw-login__field input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #e8f4ec;
+  caret-color: #e8f4ec;
+  transition: background-color 99999s ease-out;
+  box-shadow: 0 0 0 1000px rgba(12, 32, 20, 0.55) inset;
+}
+
+.claw-login__card button[type='submit'] {
+  margin-top: 6px;
+  padding: 13px 16px;
+  border-radius: 12px;
+  border: none;
+  background: #3d8f55;
+  color: #f2fff6;
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.claw-login__card button[type='submit']:hover:not(:disabled) {
+  background: #327846;
+}
+
+.claw-login__card button[type='submit']:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.claw-login__err {
+  color: #ffb0b0;
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+@media (max-width: 900px) {
+  .extractor-topbar {
+    flex-wrap: wrap;
+    margin: 12px 12px 0;
+  }
+
+  .extractor-topbar__meta {
+    order: 3;
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .extractor-work {
+    width: calc(100% - 24px);
+    margin: 14px auto 24px;
+  }
+}

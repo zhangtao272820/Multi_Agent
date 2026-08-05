@@ -1,3 +1,6 @@
+import BrandMotif from "@brand/react/BrandMotif.jsx";
+import { BRAND_AVATARS, BRAND_LOGOS } from "@brand/react/assetMap.js";
+
 const NAV_GROUPS = [
   {
     id: "ops",
@@ -90,12 +93,11 @@ export default function AdminShell({
   const topbarFrameMods = isWide ? "admin-topbar__frame--wide" : "";
 
   return (
-    <div className="admin-app">
+    <div className="admin-app brand-shell" data-agent="platform">
+      <BrandMotif motif="moon" />
       <aside className="admin-sidebar">
         <div className="admin-brand">
-          <span className="admin-brand__mark" aria-hidden>
-            紫
-          </span>
+          <img className="admin-brand__logo" src={BRAND_LOGOS.platform} alt="" width={36} height={36} />
           <div className="admin-brand__text">
             <strong>紫微</strong>
             <span className="admin-brand__tag">Agent 控制面</span>
@@ -152,6 +154,14 @@ export default function AdminShell({
               <button type="button" className="btn-ghost btn-ghost--muted" onClick={onLogout}>
                 退出
               </button>
+              <img
+                className="brand-topbar__avatar"
+                src={BRAND_AVATARS.platform}
+                alt=""
+                width={44}
+                height={44}
+                title="紫微 · 虚拟形象"
+              />
             </div>
           </div>
         </header>

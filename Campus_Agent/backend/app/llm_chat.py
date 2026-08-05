@@ -24,11 +24,14 @@ class JudgeResult(BaseModel):
     accept_date_tendency: float = 0.0
     memory_line: str | None = None
     reason: str = ""
+    judgment: str = ""
 
 
 class CharacterLine(BaseModel):
     line: str
     emotion: str = "neutral"
+    thought: str = ""
+    judgment: str = ""
     soft_options: list[str] = Field(default_factory=list)
 
 
@@ -41,6 +44,8 @@ class NpcMindItem(BaseModel):
     approach_pc: bool = False
     affinity_delta: float = 0.0
     event_take: str | None = None
+    focus_id: str | None = None
+    judgment: str = ""
 
 
 class NpcMindsResult(BaseModel):
@@ -124,7 +129,8 @@ def run_judge(
     system = (
         "你是校园恋爱模拟的判定器。只输出 JSON，字段："
         "affinity_delta(-3..5), stance_hint, emotion(neutral|happy|shy|sad|angry),"
-        "want_meet(bool), accept_date_tendency(0..1), memory_line(string|null), reason。"
+        "want_meet(bool), accept_date_tendency(0..1), memory_line(string|null), reason,"
+        "judgment(同学内心一句话判断，可空)。"
         "根据双方关系与用户发言裁决数值，不要写台词。"
     )
     user = f"{context}\n\n玩家说：{clip(user_text, 400)}\n请输出 JSON。"
@@ -173,8 +179,10 @@ def run_character(
     )
     system = (
         "你在扮演中国高三同学，写实口语。只输出 JSON："
-        '{"line":"台词","emotion":"neutral|happy|shy|sad|angry","soft_options":["可选提示1","可选提示2"]}'
-        " soft_options 2条以内，可空数组。不要替玩家决定。情绪要贴合当前心情。"
+        '{"line":"台词","emotion":"neutral|happy|shy|sad|angry",'
+        '"thought":"一句未说出口的内心","judgment":"对眼前局面的短判断",'
+        '"soft_options":["可选提示1","可选提示2"]}'
+        " soft_options 2条以内，可空数组。不要替玩家决定。情绪/内心要贴合人格与当前心情。"
     )
     user = f"{context}\n态度提示：{stance_hint}\n玩家说：{clip(user_text, 400)}"
     raw = _chat_completion(
@@ -196,9 +204,12 @@ def run_character(
     style = student.get("speech_style") or ""
     suffix = f"（{style}）" if style else ""
     mood = (mind or {}).get("mood") or "neutral"
+    prev_thought = str((mind or {}).get("thought") or "")
     return CharacterLine(
         line=f"{name}看了你一眼。{suffix}「嗯……我在听。」",
         emotion=str(mood) if mood in {"neutral", "happy", "shy", "sad", "angry"} else "neutral",
+        thought=prev_thought or "……先听听看。",
+        judgment="还不确定你想说什么。",
         soft_options=["问问最近模考", "聊聊天气", "约周末一起"],
     )
 
@@ -209,7 +220,8 @@ def run_npc_minds(*, user_prompt: str) -> NpcMindsResult | None:
         '{"minds":[{"student_id":"","mood":"neutral|happy|shy|sad|angry|anxious|excited",'
         '"thought":"短句内心","intent_type":"none|greet|pursuit|comfort|study_buddy|avoid",'
         '"blurb":"给玩家看的主动来信文案可空","approach_pc":false,'
-        '"affinity_delta":0,"event_take":"对突发的一句态度或null"}]}'
+        '"affinity_delta":0,"event_take":"对突发的一句态度或null",'
+        '"focus_id":"关注对象id可为pc或其他同学或null","judgment":"短判断"}]}'
         "每人一条；affinity_delta 范围 -1..2；无突发时 event_take 为 null；"
         "只有真正想主动找玩家时 approach_pc=true 且 intent_type 非 none/avoid。"
     )

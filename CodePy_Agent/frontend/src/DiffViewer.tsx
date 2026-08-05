@@ -1,6 +1,6 @@
 export default function DiffViewer(props: { diff: string; files: string[] }) {
   if (!props.diff && !props.files.length) {
-    return <div className="muted pad">尚无 Diff 预览</div>
+    return <div className="brand-empty muted pad">尚无 Diff 预览</div>
   }
   return (
     <div className="diff-viewer">

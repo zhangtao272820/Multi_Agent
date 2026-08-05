@@ -2,8 +2,11 @@
   <div class="wrap">
     <header class="hdr">
       <div class="hdr-brand">
-        <div class="title">七杀 · 龙虾 Agent</div>
-        <div class="sub">GUI 自动化 · 规划 · 执行 · 验证</div>
+        <img class="hdr-logo" src="/brand/logos/lobster.svg" alt="" width="40" height="40" />
+        <div>
+          <div class="title">七杀 · 龙虾 Agent</div>
+          <div class="sub">GUI 自动化 · 规划 · 执行 · 验证 · 雪意点缀</div>
+        </div>
       </div>
       <div class="hdr-right">
         <a
@@ -16,6 +19,7 @@
           打开浏览器画面
         </a>
         <label class="chk"><input v-model="debugMode" type="checkbox" />调试模式</label>
+        <img class="hdr-avatar" src="/brand/avatars/lobster.svg" alt="" width="48" height="48" title="七杀虚拟形象" />
       </div>
     </header>
 
@@ -1317,49 +1321,44 @@ watch(
 
 <style scoped>
 .wrap {
-  --text-primary: rgba(238, 246, 255, 0.96);
-  --text-secondary: rgba(196, 214, 236, 0.78);
-  --text-muted: rgba(168, 190, 218, 0.55);
-  --border-soft: rgba(168, 206, 255, 0.22);
-  --panel-bg: rgba(12, 22, 42, 0.52);
-  --panel-bg-strong: rgba(8, 15, 30, 0.72);
-  --panel-bg-soft: rgba(8, 16, 32, 0.38);
-  --field-bg: rgba(255, 255, 255, 0.07);
-  --accent: #8ec8ff;
-  --accent-warm: #ffd9a8;
+  --text-primary: #1c2230;
+  --text-secondary: #4a5568;
+  --text-muted: #6b778c;
+  --border-soft: rgba(184, 74, 88, 0.22);
+  --panel-bg: rgba(251, 252, 254, 0.88);
+  --panel-bg-strong: rgba(255, 255, 255, 0.94);
+  --panel-bg-soft: rgba(244, 246, 250, 0.78);
+  --field-bg: rgba(255, 255, 255, 0.92);
+  --accent: #b84a58;
+  --accent-warm: #d4893a;
   position: relative;
   z-index: 3;
   max-width: 1080px;
   margin: 14px auto 0;
   padding: 0 20px 36px;
   color: var(--text-primary);
-  font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", ui-sans-serif, system-ui, sans-serif;
+  font-family: "Manrope", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
 }
 
 .hdr {
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
+  align-items: center;
   gap: 16px;
-  padding: 6px 4px 16px;
+  padding: 10px 4px 18px;
 }
 
 .hdr-brand {
-  display: grid;
-  gap: 4px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
-.title {
-  font-size: 24px;
-  font-weight: 700;
-  letter-spacing: 0.3px;
-  text-shadow: 0 10px 28px rgba(0, 0, 0, 0.32);
-}
-
-.sub {
-  font-size: 12px;
-  color: var(--text-secondary);
-  letter-spacing: 0.4px;
+.hdr-logo,
+.hdr-avatar {
+  border-radius: 10px;
+  border: 1px solid rgba(184, 74, 88, 0.35);
+  flex: 0 0 auto;
 }
 
 .hdr-right {
@@ -1367,6 +1366,18 @@ watch(
   align-items: center;
   gap: 12px;
   font-size: 13px;
+}
+
+.title {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+.sub {
+  font-size: 12px;
+  color: var(--text-secondary);
+  letter-spacing: 0.4px;
 }
 
 .panel,
@@ -1378,8 +1389,8 @@ watch(
   border-radius: 18px;
   backdrop-filter: blur(18px) saturate(1.2);
   box-shadow:
-    0 20px 48px rgba(0, 0, 0, 0.28),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    0 12px 32px rgba(40, 55, 80, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
 }
 
 .panel {

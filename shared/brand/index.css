@@ -1,0 +1,6 @@
+/* 一键引入生产品牌层 */
+@import "./tokens.css";
+@import "./agents.css";
+@import "./shell.css";
+@import "./motifs.css";
+/* 节气背景 / 玻璃：按 Agent 本地接入，避免全局壳体互相遮挡 */

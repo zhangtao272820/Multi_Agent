@@ -19,7 +19,7 @@ RUN pip install --no-cache-dir -r requirements.txt \
 COPY ExtractorPy_Agent/app ./app
 COPY ExtractorPy_Agent/scripts ./scripts
 COPY ExtractorPy_Agent/skills ./skills
-COPY ExtractorPy_Agent/frontend/dist-fallback ./frontend/dist
+COPY ExtractorPy_Agent/frontend/dist ./frontend/dist
 
 EXPOSE ${DEFAULT_PORT}
 # 无 apt/curl，用 Python 探活，避免国内构建卡 deb.debian.org

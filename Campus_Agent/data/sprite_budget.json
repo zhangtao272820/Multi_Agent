@@ -166,21 +166,29 @@
     "min_per_character": 1,
     "files": ["q_stand_neutral.png"],
     "optional_moods": ["happy", "shy", "sad"],
+    "shipped_moods": ["happy", "shy"],
     "naming": "q_{action}_{emotion}.png",
     "form": "square face avatar (head-and-shoulders), not full-body chibi",
     "usage": "map pins / seat grid / location face rail only — never Gal primary",
-    "note": "不挤占写实 T0–T4 与私密包配额；缺图时引擎 fallback 写实 stand；女 f01–f25 已出 q_stand_neutral 头像"
+    "note": "不挤占写实配额；缺图 fallback stand；已出 neutral + happy/shy"
   },
   "bg_priority": [
     "classroom",
-    "cafeteria",
-    "library",
     "hallway",
     "playground",
+    "rooftop",
+    "cafeteria",
+    "library",
     "dorm_f1",
     "dorm_m1",
+    "campus_map",
     "default"
   ],
+  "bg_weather_variants": {
+    "locations": ["classroom", "hallway", "playground", "rooftop"],
+    "weathers": ["sunny", "rainy", "cold"],
+    "naming": "{location}_{weather}.png"
+  },
   "totals_estimate": {
     "female_school": "4*80 + 8*80 + 8*50 + 5*20 + 0*20 = 1460",
     "female_private": "25*20 = 500",

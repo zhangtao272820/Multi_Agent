@@ -1,11 +1,13 @@
 ARG NODE_BASE_IMAGE=node:20-bullseye
 ARG PYTHON_BASE_IMAGE=python:3.12-slim-bookworm
+# build context = Agent 仓库根目录
 FROM ${NODE_BASE_IMAGE} AS frontend-build
-WORKDIR /fe
+WORKDIR /build/Multimodal_Agent/frontend
 ENV NPM_CONFIG_REGISTRY=https://registry.npmmirror.com
-COPY frontend/package.json frontend/package-lock.json ./
+COPY Multimodal_Agent/frontend/package.json Multimodal_Agent/frontend/package-lock.json ./
 RUN npm ci --silent 2>/dev/null || npm install --silent
-COPY frontend/ ./
+COPY Multimodal_Agent/frontend/ ./
+COPY shared /build/shared
 RUN npm run build
 
 FROM ${PYTHON_BASE_IMAGE}
@@ -38,12 +40,12 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates ffmpeg libsndfile1 \
     && rm -rf /var/lib/apt/lists/*
 
-COPY backend/requirements.txt .
+COPY Multimodal_Agent/backend/requirements.txt .
 ARG PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
 RUN pip install --no-cache-dir --timeout=180 -i "${PIP_INDEX_URL}" -r requirements.txt
 
-COPY backend/app ./app
-COPY --from=frontend-build /fe/dist /multimodal/frontend/dist
+COPY Multimodal_Agent/backend/app ./app
+COPY --from=frontend-build /build/Multimodal_Agent/frontend/dist /multimodal/frontend/dist
 
 ENV MULTIMODAL_FRONTEND_DIST=/multimodal/frontend/dist \
     API_PORT=13107 \

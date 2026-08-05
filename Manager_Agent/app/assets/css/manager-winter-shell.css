@@ -1,0 +1,381 @@
+/* ═══════════════════════════════════════════════════════════════
+   冬雪近实底壳 SSOT · 压过 fullscreen / cursor-chat / enhance 深色半透
+   加载：manager-season.css 之后、manager-hitl-panels.css 之前
+   选择器必须含 .cosmic-theme（3 class），否则 --mgr-glass 仍是深色
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── 1. Token 级联纠偏 ── */
+.spring-root.cosmic-theme.cursor-workbench,
+.manager-shell .spring-root.cosmic-theme.cursor-workbench {
+  color: #1a2f44 !important;
+  --mgr-glass: rgba(255, 252, 255, 0.94);
+  --mgr-glass-strong: rgba(248, 252, 255, 0.97);
+  --mgr-border: rgba(90, 140, 190, 0.45);
+  --mgr-border-soft: rgba(255, 255, 255, 0.8);
+  --cursor-surface: rgba(255, 252, 255, 0.94);
+  --cursor-surface-elevated: rgba(255, 255, 255, 0.98);
+  --cursor-border: rgba(90, 140, 190, 0.45);
+  --chat-text-primary: #1a2f44;
+  --chat-text-secondary: #3a536c;
+  --chat-text-muted: #5a738c;
+  --mgr-scroll-track: rgba(200, 220, 240, 0.55);
+  --mgr-scroll-thumb: rgba(90, 140, 190, 0.55);
+  --mgr-scroll-thumb-hover: rgba(70, 120, 180, 0.7);
+}
+
+/* ── 2. 底图强雾罩（雪景作氛围） ── */
+.manager-shell .mgr-season-bg::after,
+.spring-root > .mgr-season-bg::after {
+  background:
+    radial-gradient(ellipse 90% 70% at 50% 38%, rgba(255, 255, 255, 0.42) 0%, rgba(210, 228, 245, 0.32) 55%, rgba(180, 205, 230, 0.48) 100%),
+    linear-gradient(
+      180deg,
+      rgba(240, 248, 255, 0.62) 0%,
+      rgba(248, 252, 255, 0.4) 28%,
+      rgba(225, 238, 250, 0.45) 62%,
+      rgba(200, 220, 240, 0.62) 100%
+    ) !important;
+}
+
+.manager-shell .spring-root > .brand-motif,
+.spring-root.cosmic-theme.cursor-workbench > .brand-motif {
+  opacity: 0.4 !important;
+}
+
+/* ── 3. 主列浅雾垫底：内容不再直接骑雪景 ── */
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .spring-chat-column,
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .cursor-chat-main,
+.spring-root.cosmic-theme.cursor-workbench .spring-chat-column,
+.spring-root.cosmic-theme.cursor-workbench .cursor-chat-main {
+  background: rgba(255, 252, 255, 0.62) !important;
+  border-radius: 0 !important;
+  box-shadow: inset 0 0 0 1px rgba(90, 140, 190, 0.12);
+}
+
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .spring-main,
+.spring-root.cosmic-theme.cursor-workbench .spring-main.cursor-main-split {
+  background: rgba(245, 250, 255, 0.35) !important;
+}
+
+/* ── 4. 顶栏 / 历史 / 工具 · 近实底 ── */
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .spring-topbar,
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .spring-history-sidebar,
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .spring-sidebar,
+.spring-root.cosmic-theme.cursor-workbench .spring-topbar,
+.spring-root.cosmic-theme.cursor-workbench .spring-history-sidebar,
+.spring-root.cosmic-theme.cursor-workbench .spring-sidebar {
+  color: #1a2f44 !important;
+  background: linear-gradient(
+    165deg,
+    rgba(255, 255, 255, 0.98) 0%,
+    rgba(242, 248, 255, 0.95) 100%
+  ) !important;
+  border-color: rgba(90, 140, 190, 0.45) !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.95) inset,
+    0 8px 24px rgba(40, 70, 110, 0.1) !important;
+  backdrop-filter: blur(24px) saturate(1.12) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(1.12) !important;
+}
+
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .spring-topbar::before,
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .spring-topbar::after,
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .spring-sidebar::before,
+.spring-root.cosmic-theme.cursor-workbench .spring-topbar::before,
+.spring-root.cosmic-theme.cursor-workbench .spring-topbar::after {
+  opacity: 0.25 !important;
+  background: linear-gradient(
+    120deg,
+    rgba(200, 225, 245, 0.4),
+    rgba(255, 255, 255, 0.15),
+    rgba(180, 210, 240, 0.3)
+  ) !important;
+}
+
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .spring-title,
+.spring-root.cosmic-theme.cursor-workbench .spring-title {
+  color: #1a2f44 !important;
+  background: none !important;
+  -webkit-background-clip: unset !important;
+  background-clip: unset !important;
+  filter: none !important;
+  animation: none !important;
+  text-shadow: none !important;
+  font-size: 18px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.04em !important;
+}
+
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .spring-brand-sub,
+.spring-root.cosmic-theme.cursor-workbench .spring-brand-sub {
+  color: #5a738c !important;
+}
+
+/* ── 5. 字色强制深蓝（压浅字残留） ── */
+.manager-shell .spring-root.cosmic-theme.cursor-workbench,
+.spring-root.cosmic-theme.cursor-workbench {
+  --chat-text-primary: #1a2f44 !important;
+  --chat-text-secondary: #3a536c !important;
+  --chat-text-muted: #5a738c !important;
+}
+
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .spring-conn,
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .spring-side-title,
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .spring-history-title,
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .spring-history-item-title,
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .meta-pill,
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .conv-live-label,
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .md-body,
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .reply-chat,
+.spring-root.cosmic-theme.cursor-workbench .spring-conn,
+.spring-root.cosmic-theme.cursor-workbench .spring-side-title,
+.spring-root.cosmic-theme.cursor-workbench .spring-history-title,
+.spring-root.cosmic-theme.cursor-workbench .spring-history-item-title {
+  color: #1a2f44 !important;
+}
+
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .spring-history-item-meta,
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .spring-history-mode-hint,
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .spring-history-empty,
+.spring-root.cosmic-theme.cursor-workbench .spring-history-item-meta,
+.spring-root.cosmic-theme.cursor-workbench .spring-history-mode-hint {
+  color: #5a738c !important;
+}
+
+/* ── 6. 按钮三档：一眼能点 ── */
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .spring-btn:not(.alt),
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .spring-btn-send-cancel,
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .plan-mode-primary,
+.spring-root.cosmic-theme.cursor-workbench .spring-btn:not(.alt),
+.spring-root.cosmic-theme.cursor-workbench .spring-btn-send-cancel {
+  background: linear-gradient(135deg, #3a8de0, #2f7fd1) !important;
+  color: #f8fbff !important;
+  border: 1px solid transparent !important;
+  box-shadow: 0 6px 16px rgba(47, 127, 209, 0.28) !important;
+  font-weight: 700 !important;
+}
+
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .spring-btn.alt,
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .spring-attach-btn,
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .spring-history-action-btn,
+.spring-root.cosmic-theme.cursor-workbench .spring-btn.alt,
+.spring-root.cosmic-theme.cursor-workbench .spring-attach-btn {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border: 1px solid rgba(90, 140, 190, 0.5) !important;
+  color: #1e4060 !important;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.9) inset !important;
+}
+
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .spring-btn.alt:hover:not(:disabled),
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .spring-attach-btn:hover:not(:disabled),
+.spring-root.cosmic-theme.cursor-workbench .spring-btn.alt:hover:not(:disabled) {
+  background: rgba(230, 242, 255, 0.98) !important;
+  border-color: rgba(47, 127, 209, 0.55) !important;
+  color: #1a2f44 !important;
+}
+
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .spring-seg,
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .spring-history-mode-row,
+.spring-root.cosmic-theme.cursor-workbench .spring-seg {
+  background: rgba(255, 255, 255, 0.92) !important;
+  border: 1px solid rgba(90, 140, 190, 0.45) !important;
+}
+
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .spring-seg button,
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .spring-seg-btn,
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .spring-history-mode-btn,
+.spring-root.cosmic-theme.cursor-workbench .spring-seg button,
+.spring-root.cosmic-theme.cursor-workbench .spring-seg-btn,
+.spring-root.cosmic-theme.cursor-workbench .spring-history-mode-btn {
+  color: #2a4060 !important;
+  background: transparent !important;
+  font-weight: 650 !important;
+}
+
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .spring-seg button.is-active,
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .spring-seg-btn.is-active,
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .spring-history-mode-btn.is-active,
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .spring-thought-view-toggle button.is-active,
+.spring-root.cosmic-theme.cursor-workbench .spring-seg button.is-active,
+.spring-root.cosmic-theme.cursor-workbench .spring-seg-btn.is-active,
+.spring-root.cosmic-theme.cursor-workbench .spring-history-mode-btn.is-active {
+  background: linear-gradient(135deg, #4a96d8, #2f7fd1) !important;
+  color: #f4f9ff !important;
+  box-shadow: 0 3px 10px rgba(47, 127, 209, 0.25) !important;
+}
+
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .spring-phase .badge,
+.spring-root.cosmic-theme.cursor-workbench .spring-phase .badge {
+  background: rgba(255, 255, 255, 0.92) !important;
+  border: 1px solid rgba(90, 140, 190, 0.4) !important;
+  color: #3a536c !important;
+}
+
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .spring-phase .badge.active,
+.spring-root.cosmic-theme.cursor-workbench .spring-phase .badge.active {
+  background: linear-gradient(135deg, #5aa0d8, #2f7fd1) !important;
+  color: #f4f9ff !important;
+  border-color: transparent !important;
+}
+
+/* 姿态菜单 / 触发器 */
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .composer-posture-trigger,
+.spring-root.cosmic-theme.cursor-workbench .composer-posture-trigger {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border: 1px solid rgba(90, 140, 190, 0.5) !important;
+  color: #1e4060 !important;
+}
+
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .composer-posture-menu,
+.spring-root.cosmic-theme.cursor-workbench .composer-posture-menu {
+  background: rgba(255, 255, 255, 0.98) !important;
+  border: 1px solid rgba(90, 140, 190, 0.45) !important;
+  color: #1a2f44 !important;
+  box-shadow: 0 14px 36px rgba(40, 70, 110, 0.16) !important;
+}
+
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .composer-posture-option,
+.spring-root.cosmic-theme.cursor-workbench .composer-posture-option {
+  color: #1a2f44 !important;
+}
+
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .composer-posture-option-desc,
+.spring-root.cosmic-theme.cursor-workbench .composer-posture-option-desc {
+  color: #5a738c !important;
+}
+
+/* ── 7. 输入坞 / 气泡 / 执行面板 · 近实底 ── */
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .spring-input.cosmic-input-dock,
+.spring-root.cosmic-theme.cursor-workbench .spring-input.cosmic-input-dock {
+  background: rgba(255, 252, 255, 0.96) !important;
+  border: 1px solid rgba(90, 140, 190, 0.48) !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.95) inset,
+    0 10px 28px rgba(40, 70, 110, 0.12) !important;
+  color: #1a2f44 !important;
+}
+
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .spring-input-field,
+.spring-root.cosmic-theme.cursor-workbench .spring-input-field {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-color: rgba(90, 140, 190, 0.42) !important;
+  color: #1a2f44 !important;
+}
+
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .spring-input-field::placeholder,
+.spring-root.cosmic-theme.cursor-workbench .spring-input-field::placeholder {
+  color: #7a92a8 !important;
+  opacity: 1 !important;
+}
+
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .reply-panel .reply-panel-inner,
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .reply-panel-inner.cosmic-bubble-reply,
+.spring-root.cosmic-theme.cursor-workbench .reply-panel .reply-panel-inner,
+.spring-root.cosmic-theme.cursor-workbench .reply-panel-inner.cosmic-bubble-reply {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), transparent 40%),
+    rgba(248, 252, 255, 0.95) !important;
+  border: 1px solid rgba(90, 140, 190, 0.42) !important;
+  color: #1a2f44 !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.95) inset,
+    0 8px 24px rgba(40, 70, 110, 0.1) !important;
+}
+
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .cosmic-bubble-user,
+.spring-root.cosmic-theme.cursor-workbench .cosmic-bubble-user {
+  background: linear-gradient(135deg, rgba(47, 127, 209, 0.2), rgba(120, 180, 230, 0.28)) !important;
+  border: 1px solid rgba(47, 127, 209, 0.45) !important;
+  color: #102838 !important;
+}
+
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .turn-agent-pipeline-inner,
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .cursor-thought-panel.process-panel,
+.spring-root.cosmic-theme.cursor-workbench .turn-agent-pipeline-inner,
+.spring-root.cosmic-theme.cursor-workbench .cursor-thought-panel.process-panel {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.95), transparent 45%),
+    rgba(242, 248, 255, 0.94) !important;
+  border: 1px solid rgba(90, 140, 190, 0.42) !important;
+  color: #1a2f44 !important;
+}
+
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .data-table-wrap,
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .chart-wrap,
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .md-table-scroll,
+.spring-root.cosmic-theme.cursor-workbench .data-table-wrap,
+.spring-root.cosmic-theme.cursor-workbench .chart-wrap {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border: 1px solid rgba(90, 140, 190, 0.4) !important;
+  color: #1a2f44 !important;
+}
+
+/* 图表内黑底兜底：外层已白，内层 canvas/svg 容器也提亮 */
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .chart-wrap > *,
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .reply-chat [class*='chart'],
+.spring-root.cosmic-theme.cursor-workbench .chart-wrap > * {
+  background-color: rgba(255, 255, 255, 0.92) !important;
+}
+
+/* ── 8. 历史列表 / 侧栏卡片 ── */
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .spring-history-row,
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .spring-history-item,
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .spring-side-section,
+.spring-root.cosmic-theme.cursor-workbench .spring-history-row,
+.spring-root.cosmic-theme.cursor-workbench .spring-history-item,
+.spring-root.cosmic-theme.cursor-workbench .spring-side-section {
+  background: rgba(255, 255, 255, 0.92) !important;
+  border: 1px solid rgba(90, 140, 190, 0.35) !important;
+  color: #1a2f44 !important;
+}
+
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .spring-history-row.active,
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .spring-history-item:hover,
+.spring-root.cosmic-theme.cursor-workbench .spring-history-row.active {
+  background: rgba(230, 242, 255, 0.98) !important;
+  border-color: rgba(47, 127, 209, 0.5) !important;
+}
+
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .collab-mini,
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .conv-live-bar,
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .spring-step-progress,
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .spring-trace-id-btn,
+.spring-root.cosmic-theme.cursor-workbench .collab-mini,
+.spring-root.cosmic-theme.cursor-workbench .conv-live-bar {
+  background: rgba(255, 255, 255, 0.92) !important;
+  border: 1px solid rgba(90, 140, 190, 0.4) !important;
+  color: #1e4060 !important;
+}
+
+/* ── 9. 空态 ── */
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .cosmic-chat-empty,
+.spring-root.cosmic-theme.cursor-workbench .cosmic-chat-empty {
+  background: linear-gradient(165deg, rgba(255, 255, 255, 0.94), rgba(235, 245, 255, 0.9)) !important;
+  border: 1px solid rgba(90, 140, 190, 0.4) !important;
+  color: #1a2f44 !important;
+}
+
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .cosmic-chat-empty-title,
+.spring-root.cosmic-theme.cursor-workbench .cosmic-chat-empty-title {
+  color: #1a2f44 !important;
+  text-shadow: none !important;
+}
+
+.manager-shell .spring-root.cosmic-theme.cursor-workbench .cosmic-chat-empty-hint,
+.spring-root.cosmic-theme.cursor-workbench .cosmic-chat-empty-hint {
+  color: #5a738c !important;
+}
+
+/* ── 10. 用户菜单（Teleport 到 body，用全局类） ── */
+.mgr-user-menu-trigger {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border: 1px solid rgba(90, 140, 190, 0.5) !important;
+  color: #1e4060 !important;
+}
+
+.mgr-user-menu-panel {
+  background: rgba(255, 255, 255, 0.98) !important;
+  border: 1px solid rgba(90, 140, 190, 0.45) !important;
+  color: #1a2f44 !important;
+  box-shadow: 0 16px 40px rgba(40, 70, 110, 0.14) !important;
+}

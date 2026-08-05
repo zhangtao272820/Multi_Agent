@@ -1,10 +1,13 @@
 import { useMemo, useState, useRef, useEffect, useCallback, type ReactNode } from 'react';
+import BrandMotif from '@brand/react/BrandMotif.jsx';
+import { brandAvatarUrl, brandLogoUrl } from '@brand/react/assetMap.js';
 import './App.css';
 import './admin-cursor-chat.css';
 import { AppModal } from './AppModal';
 import { AdminReplyCards, parseAdminUiCards, type AdminUiCard } from './AdminReplyCards';
 import { ContactsPanel, HubPanel, IntegrationsPanel, SearchPanel } from './AdminExtraPanels';
 import { PlaygroundPanel } from './PlaygroundPanel';
+import { logout } from './clawhiveAuth';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? '/api';
 const SESSION_KEY = 'admin_agent_session_id';
@@ -349,184 +352,6 @@ interface PendingItem {
   id: string;
   tool: string;
   args: string;
-}
-
-type BubbleDef = {
-  id: string;
-  leftPct: number;
-  sizePx: number;
-  durationS: number;
-  delayS: number;
-  driftPx: number;
-  blurPx: number;
-  opacity: number;
-  sparkle: number;
-  layer: 'near' | 'far';
-};
-
-type RayDef = {
-  id: string;
-  leftPct: number;
-  widthVw: number;
-  opacity: number;
-  durationS: number;
-  delayS: number;
-  skewDeg: number;
-};
-
-type DustDef = {
-  id: string;
-  leftPct: number;
-  topPct: number;
-  sizePx: number;
-  opacity: number;
-  blurPx: number;
-  durationS: number;
-  delayS: number;
-  driftPx: number;
-  speed: 'slow' | 'fast';
-};
-
-function UnderwaterBackground() {
-  const bubbles = useMemo<BubbleDef[]>(() => {
-    const count = 34;
-    const arr: BubbleDef[] = [];
-    for (let i = 0; i < count; i++) {
-      const r = Math.random();
-      const far = r < 0.58; // more far bubbles
-      const sizePx = far
-        ? Math.round(6 + Math.pow(Math.random(), 2.8) * 22)
-        : Math.round(14 + Math.pow(Math.random(), 2.1) * 76);
-      const durationS = Math.round(((far ? 10 : 8) + Math.random() * (far ? 18 : 14) + sizePx * (far ? 0.02 : 0.05)) * 10) / 10;
-      const delayS = Math.round((-Math.random() * 18) * 10) / 10; // start at random positions
-      const leftPct = Math.round((Math.random() * 100) * 10) / 10;
-      const driftPx = Math.round((-(far ? 14 : 22) + Math.random() * (far ? 28 : 44)) * 10) / 10;
-      const blurPx = Math.round((Math.random() * (far ? 1.4 : 1.8) + (far ? 0.6 : 0.25)) * 10) / 10;
-      const opacity = Math.round(((far ? 0.16 : 0.26) + Math.random() * (far ? 0.16 : 0.22)) * 100) / 100;
-      const sparkle = r > 0.82 ? 1 : 0;
-      arr.push({
-        id: `b-${i}`,
-        leftPct,
-        sizePx,
-        durationS,
-        delayS,
-        driftPx,
-        blurPx,
-        opacity,
-        sparkle,
-        layer: far ? 'far' : 'near',
-      });
-    }
-    return arr;
-  }, []);
-
-  const rays = useMemo<RayDef[]>(() => {
-    const count = 4;
-    const arr: RayDef[] = [];
-    for (let i = 0; i < count; i++) {
-      const widthVw = Math.round((8 + Math.random() * 14) * 10) / 10;
-      arr.push({
-        id: `r-${i}`,
-        leftPct: Math.round((Math.random() * 92) * 10) / 10,
-        widthVw,
-        opacity: Math.round((0.05 + Math.random() * 0.06) * 100) / 100,
-        durationS: Math.round((12 + Math.random() * 10) * 10) / 10,
-        delayS: Math.round((-Math.random() * 10) * 10) / 10,
-        skewDeg: Math.round((-10 + Math.random() * 16) * 10) / 10,
-      });
-    }
-    return arr;
-  }, []);
-
-  const dust = useMemo<DustDef[]>(() => {
-    const count = 70;
-    const arr: DustDef[] = [];
-    for (let i = 0; i < count; i++) {
-      const speed = Math.random() < 0.55 ? 'slow' : 'fast';
-      const sizePx = speed === 'slow' ? Math.round(1 + Math.random() * 2.2) : Math.round(1 + Math.random() * 1.8);
-      arr.push({
-        id: `d-${i}`,
-        leftPct: Math.round((Math.random() * 100) * 10) / 10,
-        topPct: Math.round((Math.random() * 100) * 10) / 10,
-        sizePx,
-        opacity: Math.round(((speed === 'slow' ? 0.05 : 0.03) + Math.random() * 0.10) * 100) / 100,
-        blurPx: Math.round((Math.random() * (speed === 'slow' ? 0.7 : 0.9)) * 10) / 10,
-        durationS: Math.round(((speed === 'slow' ? 18 : 10) + Math.random() * (speed === 'slow' ? 22 : 16)) * 10) / 10,
-        delayS: Math.round((-Math.random() * 18) * 10) / 10,
-        driftPx: Math.round((-(speed === 'slow' ? 16 : 28) + Math.random() * (speed === 'slow' ? 32 : 56)) * 10) / 10,
-        speed,
-      });
-    }
-    return arr;
-  }, []);
-
-  return (
-    <div className="app-underwater" aria-hidden>
-      <div className="app-underwater__rays" aria-hidden>
-        {rays.map((r) => (
-          <span
-            key={r.id}
-            className="app-ray"
-            style={
-              {
-                left: `${r.leftPct}%`,
-                width: `${r.widthVw}vw`,
-                ['--rop' as any]: r.opacity,
-                ['--rdur' as any]: `${r.durationS}s`,
-                ['--rdelay' as any]: `${r.delayS}s`,
-                ['--rskew' as any]: `${r.skewDeg}deg`,
-              } as import('react').CSSProperties
-            }
-          />
-        ))}
-      </div>
-      <div className="app-underwater__surface" />
-      <div className="app-underwater__grade" />
-      <div className="app-underwater__glow" />
-      <div className="app-underwater__noise" />
-      <div className="app-underwater__dust" aria-hidden>
-        {dust.map((d) => (
-          <span
-            key={d.id}
-            className={`app-dust ${d.speed === 'fast' ? 'app-dust--fast' : 'app-dust--slow'}`}
-            style={
-              {
-                left: `${d.leftPct}%`,
-                top: `${d.topPct}%`,
-                width: `${d.sizePx}px`,
-                height: `${d.sizePx}px`,
-                ['--dop' as any]: d.opacity,
-                ['--ddur' as any]: `${d.durationS}s`,
-                ['--ddelay' as any]: `${d.delayS}s`,
-                ['--ddrift' as any]: `${d.driftPx}px`,
-                ['--dblur' as any]: `${d.blurPx}px`,
-              } as import('react').CSSProperties
-            }
-          />
-        ))}
-      </div>
-      <div className="app-underwater__bubbles">
-        {bubbles.map((b) => (
-          <span
-            key={b.id}
-            className={`app-bubble ${b.layer === 'far' ? 'app-bubble--far' : 'app-bubble--near'} ${b.sparkle ? 'app-bubble--sparkle' : ''}`}
-            style={
-              {
-                left: `${b.leftPct}%`,
-                width: `${b.sizePx}px`,
-                height: `${b.sizePx}px`,
-                ['--dur' as any]: `${b.durationS}s`,
-                ['--delay' as any]: `${b.delayS}s`,
-                ['--drift' as any]: `${b.driftPx}px`,
-                ['--blur' as any]: `${b.blurPx}px`,
-                ['--op' as any]: b.opacity,
-              } as import('react').CSSProperties
-            }
-          />
-        ))}
-      </div>
-    </div>
-  );
 }
 
 function App() {
@@ -2322,18 +2147,25 @@ function App() {
     }
   };
 
+  const handleLogout = () => {
+    logout();
+    window.location.reload();
+  };
+
   return (
-    <div className="relative flex h-screen w-screen overflow-hidden text-white">
-      <UnderwaterBackground />
+    <div className="admin-shell admin-brand-root brand-shell relative flex h-screen w-screen overflow-hidden text-white" data-agent="admin">
+      <div className="admin-season-bg admin-season-bg--bailu" aria-hidden="true" />
+      <BrandMotif motif="leaves" fixed />
 
       {/* Sidebar */}
-      <aside className="app-sidebar relative z-10 flex w-[15.5rem] shrink-0 flex-col border-r border-white/10 bg-white/[0.04] p-4 shadow-[inset_-1px_0_0_rgba(255,255,255,0.05)]">
+      <aside className="app-sidebar admin-glass--panel relative z-10 flex w-[15.5rem] shrink-0 flex-col border-r border-white/10 p-4 shadow-[inset_-1px_0_0_rgba(255,255,255,0.05)]">
         <div className="app-assistant-card mb-6">
-          <div className="app-assistant-avatar" aria-hidden>A</div>
-          <div className="min-w-0">
+          <img className="app-assistant-logo" src={brandLogoUrl('admin')} alt="" width={36} height={36} />
+          <div className="min-w-0 flex-1">
             <div className="app-assistant-name">天梁 · 个人助理</div>
             <div className="app-assistant-status">{greeting} · 在线</div>
           </div>
+          <img className="app-assistant-avatar" src={brandAvatarUrl('admin')} alt="" width={44} height={44} title="天梁虚拟形象" />
         </div>
         <nav className="flex-1">
           <ul className="space-y-1">
@@ -2358,14 +2190,17 @@ function App() {
           </ul>
         </nav>
         <div className="app-sidebar-foot">
-          <span className="text-white/45">工作区</span>
-          <span className="text-white/70">本地 · 私密</span>
+          <span className="admin-foot-muted">白露 · 工作区</span>
+          <span className="admin-foot-meta">本地 · 私密</span>
         </div>
+        <button type="button" className="admin-logout" onClick={handleLogout}>
+          退出登录
+        </button>
       </aside>
 
       {/* Main Content Area */}
-      <div className="relative z-10 flex min-w-0 flex-1 flex-col">
-        <header className="app-page-header shrink-0">
+      <div className="admin-main relative z-10 flex min-w-0 flex-1 flex-col">
+        <header className="app-page-header admin-glass--bar shrink-0">
           <div>
             <h2 className="app-page-title">{tabTitle(activeTab)}</h2>
             <p className="app-page-subtitle">{tabHint(activeTab)}</p>

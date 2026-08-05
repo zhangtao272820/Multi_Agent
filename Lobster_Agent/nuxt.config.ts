@@ -6,9 +6,15 @@ import { fileURLToPath } from 'node:url'
 function agentSharedDir() {
   const docker = fileURLToPath(new URL('./agent-repo-shared', import.meta.url))
   const local = fileURLToPath(new URL('../shared', import.meta.url))
-  if (existsSync(join(docker, 'qwenModelKwargs.ts'))) return docker
+  if (existsSync(join(docker, 'brand')) || existsSync(join(docker, 'qwenModelKwargs.ts'))) return docker
   return local
 }
+
+function agentBrandDir() {
+  return join(agentSharedDir(), 'brand')
+}
+
+const brandDir = agentBrandDir()
 
 const mcpServers = (() => {
   const raw =
@@ -31,8 +37,10 @@ const devPortParsed = hasFixedDevPort ? Number.parseInt(String(_rawDevPort), 10)
 const devPort = Number.isFinite(devPortParsed) && devPortParsed > 0 ? devPortParsed : 3000
 
 export default defineNuxtConfig({
+  css: [join(brandDir, 'index.css')],
   alias: {
-    '#agent-shared': agentSharedDir()
+    '#agent-shared': agentSharedDir(),
+    '@brand': brandDir
   },
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
@@ -44,7 +52,13 @@ export default defineNuxtConfig({
     strictPort: hasFixedDevPort
   },
   vite: {
+    resolve: {
+      alias: {
+        '@brand': brandDir
+      }
+    },
     server: {
+      fs: { allow: [brandDir, agentSharedDir()] },
       strictPort: hasFixedDevPort,
       // Docker：HMR WebSocket 必须绑在映射端口；本地换端口时不要写死 3000，否则 ws 连不上
       ...(hasFixedDevPort
@@ -64,8 +78,16 @@ export default defineNuxtConfig({
   },
   nitro: {
     alias: {
-      '#agent-shared': agentSharedDir()
+      '#agent-shared': agentSharedDir(),
+      '@brand': brandDir
     },
+    publicAssets: [
+      {
+        baseURL: 'brand',
+        dir: brandDir,
+        maxAge: 60 * 60 * 24 * 7
+      }
+    ],
     experimental: {
       websocket: true
     },

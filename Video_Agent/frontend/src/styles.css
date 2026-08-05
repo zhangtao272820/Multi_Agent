@@ -26,6 +26,58 @@ body {
   max-width: 1280px;
   margin: 0 auto;
   padding: 1.5rem;
+  position: relative;
+}
+
+.layout.brand-shell {
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  min-height: 100vh;
+}
+
+.layout.brand-shell::before {
+  opacity: 0;
+}
+
+.video-brand-root.brand-shell {
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  min-height: 100vh;
+}
+
+.video-brand-root.brand-shell::before {
+  opacity: 0;
+}
+
+.video-brand-bar {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 0.35rem;
+}
+
+.video-brand-bar .brand-logo,
+.video-brand-bar .brand-avatar {
+  flex: 0 0 auto;
+  border-radius: 10px;
+}
+
+.video-brand-bar .brand-avatar {
+  border: 1px solid rgba(212, 90, 40, 0.4);
+  margin-left: auto;
+}
+
+.video-brand-bar h1 {
+  font-weight: 600;
+  font-size: 1.35rem;
+  letter-spacing: 0.02em;
+  margin: 0 0 0.35rem;
+}
+
+.video-brand-bar .sub {
+  margin-bottom: 1.25rem;
 }
 
 h1 {

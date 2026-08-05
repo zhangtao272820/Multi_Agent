@@ -1,4 +1,6 @@
-/* 总管 Agent · Cursor 式三栏工作台（透明玻璃 + 星空背景可见） */
+/* 总管 Agent · Cursor 式三栏工作台
+   玻璃/字色 Token 由 manager-winter-shell.css 用同级
+   .spring-root.cosmic-theme.cursor-workbench 覆盖为近实底霜白。 */
 
 .spring-root.cosmic-theme.cursor-workbench {
   --mgr-sidebar-w: 260px;
@@ -72,7 +74,7 @@
   background: none !important;
   -webkit-background-clip: unset !important;
   background-clip: unset !important;
-  color: #e2e8f0 !important;
+  color: var(--chat-text-primary, #e2e8f0) !important;
   font-weight: 650 !important;
 }
 

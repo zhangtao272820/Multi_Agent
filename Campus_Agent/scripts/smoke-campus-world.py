@@ -254,10 +254,21 @@ def main() -> int:
         if store.require_active().day_index > 14:
             break
     assert store.require_active().day_kind == "weekend"
+    # Find any NPC, then pin both to playground for date scene
+    hub_now = campus_engine.hub_public(store.require_active())
+    any_npc = next(
+        (
+            p
+            for loc in hub_now["locations"]
+            for p in (loc.get("present_preview") or [])
+            if not p.get("is_pc")
+        ),
+        None,
+    )
+    assert any_npc, "need an NPC somewhere on campus"
+    tid_d = any_npc["id"]
     campus_engine.travel("playground")
-    present_d = [p for p in campus_engine.hub_public(store.require_active())["present"] if not p.get("is_pc")]
-    assert present_d
-    tid_d = present_d[0]["id"]
+    store.require_active().locations_now[tid_d] = "playground"
     edge_d = rel_mod.ensure_edge(
         store.require_active().edges,
         "pc",
@@ -267,7 +278,6 @@ def main() -> int:
     )
     edge_d["affinity"] = 80
     edge_d["stage"] = "close"
-    store.require_active().locations_now[tid_d] = "playground"
     with patch("app.campus_engine.llm_api_key", return_value=None), patch(
         "app.npc_intent.evaluate_date_response", return_value=True
     ):
@@ -312,9 +322,160 @@ def main() -> int:
     assert end_hub["ending"]["ending_id"]
     assert end_hub["ending"]["grade_band"] in {"top", "good", "mid", "low"}
     assert end_hub["ending"]["pc_rank"] >= 1
+    assert end_hub["ending"].get("social_epilogue")
+    assert "blurb" in end_hub["ending"]["social_epilogue"]
     # second advance stays ended
     again = campus_engine.advance_period()
     assert again.get("ended") is True
+
+    # —— Phase B: schedule + NPC social + world_events ——
+    hub_s = campus_engine.create_new(name="社交生", grade_tier="mid", mbti="INFJ")
+    save_s = store.require_active()
+    assert any(
+        "pc" not in {e.get("a"), e.get("b")} for e in save_s.edges
+    ), "seed_initial_bonds should create non-PC edges"
+    # morning_study should prefer schedule classroom for NPCs with that key
+    classroom_npcs = [
+        sid
+        for sid, loc in save_s.locations_now.items()
+        if sid != "pc" and loc == "classroom"
+    ]
+    assert len(classroom_npcs) >= 5, classroom_npcs
+
+    saw_world = False
+    for _ in range(8):
+        hub_tick = campus_engine.advance_period()
+        recap = hub_tick.get("period_recap") or {}
+        we = recap.get("world_events") or hub_tick.get("world_events") or []
+        if we:
+            saw_world = True
+            assert we[0].get("blurb")
+            break
+        if hub_tick.get("ended"):
+            break
+    assert saw_world, "expected world_events after social ticks"
+
+    board_s = campus_engine.board_public()
+    assert "class_gossip" in board_s
+    assert "world_events" in (board_s.get("today") or {})
+    hub_live = campus_engine.hub_public(store.require_active())
+    assert "world_events" in hub_live
+
+    # Free romance: ff/mf allowed; dating couples stick together
+    from app import npc_social as social_mod
+
+    save_r = store.require_active()
+    f_ids = [s["id"] for s in save_r.students if s.get("gender") == "female"]
+    m_ids = [s["id"] for s in save_r.students if s.get("gender") == "male" and s["id"] != "pc"]
+    assert len(f_ids) >= 2 and m_ids
+    assert social_mod.mutual_romance_ok(save_r, f_ids[0], f_ids[1])
+    assert social_mod.mutual_romance_ok(save_r, f_ids[0], m_ids[0])
+    edge_ff = rel_mod.ensure_edge(
+        save_r.edges, f_ids[0], f_ids[1], gender_a="female", gender_b="female"
+    )
+    edge_ff["affinity"] = 92
+    edge_ff["stage"] = "dating"
+    rel_mod.set_bond_kind(edge_ff, "romance")
+    save_r.locations_now[f_ids[0]] = "library"
+    save_r.locations_now[f_ids[1]] = "rooftop"
+    social_mod.apply_couple_stick(save_r)
+    assert save_r.locations_now[f_ids[0]] == save_r.locations_now[f_ids[1]]
+    gossip = social_mod.class_gossip_public(save_r)
+    assert any(g.get("track") == "ff" or "女女" in str(g.get("label") or "") for g in gossip)
+
+    # Sprite utilization: meal→sc/eat, dorm→private, talk→chat
+    from app import sprite_context as sprite_ctx
+
+    cafe = sprite_ctx.resolve_contextual_sprite(
+        "f01",
+        emotion="happy",
+        location_id="cafeteria",
+        period_kind="meal",
+        weather_id="sunny",
+        gender="female",
+        prefer_scene=True,
+    )
+    assert cafe.get("path")
+    assert any(k in str(cafe.get("file") or "") for k in ("sc_cafeteria", "eat", "chat", "stand")), cafe.get(
+        "file"
+    )
+    dorm_sp = sprite_ctx.resolve_contextual_sprite(
+        "f01",
+        emotion="shy",
+        location_id="dorm_f1",
+        period_kind="dorm",
+        weather_id="sunny",
+        gender="female",
+        prefer_scene=True,
+    )
+    assert dorm_sp.get("path")
+    assert str(dorm_sp.get("file") or "").startswith(
+        ("casual_", "pajama_", "towel_", "summer_sc_dorm")
+    ), dorm_sp.get("file")
+    talk_sp = sprite_ctx.resolve_contextual_sprite(
+        "f01",
+        emotion="happy",
+        location_id="hallway",
+        period_kind="free",
+        weather_id="sunny",
+        verb="talk",
+        gender="female",
+        prefer_scene=False,
+    )
+    assert talk_sp.get("path")
+
+    # skip merges world_events into final recap when any fired
+    day0 = store.require_active().day_index
+    while store.require_active().period_id != "class_am":
+        campus_engine.advance_period()
+        if store.require_active().day_index > day0 + 2:
+            break
+    save_skip = store.require_active()
+    periods = catalog.period_ids(save_skip.day_kind)
+    if "class_am" in periods:
+        save_skip.period_id = "class_am"
+    skip_hub2 = campus_engine.advance_until_actionable()
+    assert skip_hub2["last_action"]["type"] == "advance_skip"
+    skip_recap = skip_hub2.get("period_recap") or {}
+    assert isinstance(skip_recap.get("world_events", []), list)
+
+    # prepare_talk seeds mind thought for bubble
+    campus_engine.travel("classroom")
+    # refresh locations for current period
+    from app.campus_engine import _refresh_locations
+
+    _refresh_locations(store.require_active())
+    present_m = [p for p in campus_engine.hub_public(store.require_active())["present"] if not p.get("is_pc")]
+    if not present_m:
+        # pin someone to classroom
+        sid0 = next(s["id"] for s in store.require_active().students if s["id"] != "pc")
+        store.require_active().locations_now[sid0] = "classroom"
+        present_m = [{"id": sid0}]
+    prep_m = campus_engine.prepare_talk(present_m[0]["id"])
+    mind_m = (prep_m.get("target") or {}).get("mind") or {}
+    assert mind_m.get("thought"), mind_m
+
+    non_pc = [e for e in store.require_active().edges if "pc" not in {e.get("a"), e.get("b")}]
+    assert non_pc, "NPC↔NPC edges must exist after social tick"
+    assert any(e.get("bond_kind") for e in non_pc)
+
+    # weather BG resolution
+    rainy = sprites_mod.resolve_bg("classroom", "rainy")
+    assert rainy.get("file") == "classroom_rainy.png", rainy
+    map_bg = (ROOT / "data" / "bgs" / "campus_map.png").is_file()
+    assert map_bg
+    for mood in ("happy", "shy"):
+        qmood = sprites_mod.resolve_q_sprite("f01", emotion=mood)
+        assert qmood.get("path"), mood
+
+    # T0 summer_stand RGBA hard gate
+    from PIL import Image
+
+    for sid in ("f21", "f22", "f23", "f24"):
+        p = ROOT / "data" / "sprites" / "students" / sid / "summer_stand_neutral.png"
+        assert p.is_file(), sid
+        with Image.open(p) as im:
+            assert im.mode == "RGBA", (sid, im.mode)
 
     # male baseline sprites resolve
     for mid in ("pc", "m01", "m09"):

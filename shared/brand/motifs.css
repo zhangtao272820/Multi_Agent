@@ -1,0 +1,240 @@
+/* 雨 / 雪 / 月 / 雷 / 落叶 — 低对比氛围点缀 */
+
+.brand-motif {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: var(--brand-motif-opacity, 0.55);
+}
+
+.brand-motif--fixed {
+  position: fixed;
+}
+
+/* —— 月 —— */
+.brand-motif-moon__glow {
+  position: absolute;
+  top: -6vh;
+  right: 6vw;
+  width: min(42vw, 420px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 45% 45%, rgba(255, 252, 245, 0.55) 0%, rgba(210, 220, 240, 0.18) 38%, transparent 68%);
+  filter: blur(2px);
+  animation: brand-moon-breathe 10s ease-in-out infinite alternate;
+}
+
+.brand-motif-moon__disc {
+  position: absolute;
+  top: clamp(28px, 5vh, 72px);
+  right: clamp(36px, 8vw, 140px);
+  width: clamp(64px, 8vw, 110px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 32% 30%, #fffef8 0%, #e8eef8 42%, #c5d0e0 100%);
+  box-shadow:
+    0 0 24px rgba(220, 230, 255, 0.55),
+    0 0 80px rgba(180, 200, 240, 0.22),
+    inset -8px -10px 18px rgba(90, 110, 140, 0.18);
+}
+
+.brand-motif-moon__beam {
+  position: absolute;
+  top: 0;
+  right: 4vw;
+  width: min(36vw, 360px);
+  height: 70vh;
+  background: linear-gradient(180deg, rgba(220, 230, 250, 0.16), transparent 70%);
+  clip-path: polygon(55% 0, 100% 0, 78% 100%, 22% 100%);
+  opacity: 0.55;
+}
+
+@keyframes brand-moon-breathe {
+  from { transform: scale(1); opacity: 0.85; }
+  to { transform: scale(1.04); opacity: 1; }
+}
+
+/* —— 雨 —— */
+.brand-motif-rain__drop {
+  position: absolute;
+  top: -12%;
+  width: 1.5px;
+  height: var(--drop-len, 14px);
+  left: var(--drop-left, 50%);
+  border-radius: 2px;
+  background: linear-gradient(180deg, transparent, rgba(80, 120, 160, 0.55));
+  animation: brand-rain-fall var(--drop-dur, 1.1s) linear infinite;
+  animation-delay: var(--drop-delay, 0s);
+  opacity: var(--drop-op, 0.45);
+}
+
+@keyframes brand-rain-fall {
+  0% { transform: translate3d(0, -10vh, 0); }
+  100% { transform: translate3d(var(--drop-drift, 12px), 110vh, 0); }
+}
+
+.brand-motif-rain__sheet {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(120, 150, 180, 0.05), transparent 40%),
+    linear-gradient(105deg, transparent 40%, rgba(90, 130, 170, 0.04) 50%, transparent 60%);
+  animation: brand-rain-sheet 7s ease-in-out infinite alternate;
+}
+
+@keyframes brand-rain-sheet {
+  from { opacity: 0.5; }
+  to { opacity: 1; }
+}
+
+/* —— 雪（❄ 字形，非圆点） —— */
+.brand-motif-snow__flake {
+  position: absolute;
+  top: -8%;
+  left: var(--flake-left, 50%);
+  width: auto;
+  height: auto;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: none;
+  color: rgba(255, 255, 255, 0.92);
+  font-size: var(--flake-size, 14px);
+  line-height: 1;
+  font-family: "Segoe UI Symbol", "Apple Color Emoji", "Noto Sans Symbols2", sans-serif;
+  text-shadow:
+    0 0 4px rgba(255, 255, 255, 0.85),
+    0 0 10px rgba(180, 210, 245, 0.55);
+  opacity: var(--flake-op, 0.72);
+  animation: brand-snow-fall var(--flake-dur, 18s) linear infinite;
+  animation-delay: var(--flake-delay, 0s);
+  will-change: transform;
+}
+
+.brand-motif-snow__flake::before {
+  content: "❄";
+}
+
+@keyframes brand-snow-fall {
+  0% { transform: translate3d(0, -5vh, 0) rotate(0deg); }
+  25% { transform: translate3d(calc(var(--flake-drift, 20px) * -0.4), 25vh, 0) rotate(40deg); }
+  55% { transform: translate3d(var(--flake-drift, 20px), 55vh, 0) rotate(-25deg); }
+  100% { transform: translate3d(calc(var(--flake-drift, 20px) * 0.3), 110vh, 0) rotate(70deg); }
+}
+
+/* —— 雷 —— */
+.brand-motif-thunder__pulse {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(600px 280px at 72% 12%, rgba(140, 180, 255, 0.12), transparent 60%),
+    radial-gradient(500px 240px at 18% 8%, rgba(180, 200, 255, 0.08), transparent 55%);
+  animation: brand-thunder-pulse 9s ease-in-out infinite;
+}
+
+.brand-motif-thunder__bolt {
+  position: absolute;
+  top: var(--bolt-top, 8%);
+  left: var(--bolt-left, 70%);
+  width: 2px;
+  height: var(--bolt-len, 80px);
+  background: linear-gradient(180deg, rgba(200, 220, 255, 0.9), rgba(120, 160, 230, 0.05));
+  clip-path: polygon(40% 0, 100% 0, 60% 42%, 95% 42%, 20% 100%, 45% 55%, 10% 55%);
+  width: 18px;
+  opacity: 0;
+  filter: drop-shadow(0 0 8px rgba(160, 190, 255, 0.7));
+  animation: brand-thunder-bolt var(--bolt-cycle, 11s) ease-in-out infinite;
+  animation-delay: var(--bolt-delay, 0s);
+}
+
+.brand-motif-thunder__vein {
+  position: absolute;
+  inset: 0;
+  opacity: 0.22;
+  background:
+    repeating-linear-gradient(
+      -18deg,
+      transparent 0 46px,
+      rgba(100, 130, 180, 0.04) 46px 47px
+    );
+  mask-image: radial-gradient(ellipse 70% 50% at 60% 20%, #000 10%, transparent 70%);
+}
+
+@keyframes brand-thunder-pulse {
+  0%, 86%, 100% { opacity: 0.45; }
+  88% { opacity: 0.95; }
+  90% { opacity: 0.4; }
+  92% { opacity: 0.85; }
+}
+
+@keyframes brand-thunder-bolt {
+  0%, 84%, 100% { opacity: 0; transform: scaleY(0.4); }
+  86% { opacity: 0.85; transform: scaleY(1); }
+  88% { opacity: 0; }
+  90% { opacity: 0.55; transform: scaleY(0.9); }
+  92% { opacity: 0; }
+}
+
+/* —— 落叶 —— */
+.brand-motif-leaves__haze {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 70% 40% at 80% 0%, rgba(200, 120, 50, 0.1), transparent 55%),
+    radial-gradient(ellipse 50% 35% at 15% 90%, rgba(160, 90, 40, 0.08), transparent 50%);
+}
+
+.brand-motif-leaves__leaf {
+  position: absolute;
+  top: -8vh;
+  left: var(--leaf-left, 50%);
+  width: var(--leaf-size, 10px);
+  height: calc(var(--leaf-size, 10px) * 1.35);
+  border-radius: 60% 10% 55% 15%;
+  background:
+    radial-gradient(
+      ellipse at 35% 30%,
+      hsl(var(--leaf-hue, 28) 62% 62%),
+      hsl(calc(var(--leaf-hue, 28) + 12) 48% 42%)
+    );
+  opacity: var(--leaf-op, 0.45);
+  transform: rotate(var(--leaf-rot, 0deg));
+  filter: blur(0.2px);
+  animation: brand-leaves-fall var(--leaf-dur, 22s) linear infinite;
+  animation-delay: var(--leaf-delay, 0s);
+}
+
+@keyframes brand-leaves-fall {
+  0% {
+    transform: translate3d(0, -6vh, 0) rotate(var(--leaf-rot, 0deg));
+  }
+  35% {
+    transform: translate3d(calc(var(--leaf-drift, 30px) * -0.55), 35vh, 0)
+      rotate(calc(var(--leaf-rot, 0deg) + 120deg));
+  }
+  70% {
+    transform: translate3d(var(--leaf-drift, 30px), 70vh, 0)
+      rotate(calc(var(--leaf-rot, 0deg) + 240deg));
+  }
+  100% {
+    transform: translate3d(calc(var(--leaf-drift, 30px) * 0.25), 112vh, 0)
+      rotate(calc(var(--leaf-rot, 0deg) + 360deg));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brand-motif-moon__glow,
+  .brand-motif-rain__drop,
+  .brand-motif-rain__sheet,
+  .brand-motif-snow__flake,
+  .brand-motif-thunder__pulse,
+  .brand-motif-thunder__bolt,
+  .brand-motif-leaves__leaf {
+    animation: none !important;
+  }
+}

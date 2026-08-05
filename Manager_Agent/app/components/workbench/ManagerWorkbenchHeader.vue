@@ -58,7 +58,13 @@ const emit = defineEmits<{
 <template>
   <header class="spring-topbar cosmic-bridge-header" :class="isProfessional ? 'is-pro-header' : 'is-chat-header'">
     <div class="spring-topbar-main">
-      <h1 class="spring-title">{{ isProfessional ? '天机 · 总管' : '天机 · 对话' }}</h1>
+      <div class="spring-brand-row">
+        <img class="spring-brand-logo" src="/brand/logos/manager.svg" alt="" width="36" height="36" />
+        <div class="spring-brand-text">
+          <h1 class="spring-title">{{ isProfessional ? '天机 · 总管' : '天机 · 对话' }}</h1>
+          <p v-if="isProfessional" class="spring-brand-sub">专业工作台 · PU-Stack 分步执行</p>
+        </div>
+      </div>
       <div v-if="isProfessional" class="spring-phase conv-phase-rail" aria-label="执行阶段">
         <div class="conv-phase-track">
           <div class="conv-live-bar" :class="{ active: !!currentRunId }">
@@ -139,22 +145,58 @@ const emit = defineEmits<{
         </button>
       </div>
       <ManagerUserMenu />
+      <img
+        class="spring-brand-avatar"
+        src="/brand/avatars/manager.svg"
+        alt=""
+        width="44"
+        height="44"
+        title="天机虚拟形象"
+      />
       <span class="spring-conn" :class="{ on: connected }">
         <span class="spring-conn-dot" />
         {{ connected ? '已连接' : '未连接' }}
       </span>
     </div>
   </header>
-
-  <div
-    v-if="isProfessional"
-    class="workbench-mode-banner is-professional"
-    role="status"
-  >
-    <span class="workbench-mode-banner-bar" aria-hidden="true" />
-    <div class="workbench-mode-banner-text">
-      <span class="workbench-mode-banner-label">专业工作台</span>
-      <span class="workbench-mode-banner-desc">领域任务：PU-Stack 读题 → 冻结 cap → 分步执行</span>
-    </div>
-  </div>
 </template>
+
+<style scoped>
+.spring-brand-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.spring-brand-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.spring-brand-sub {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 550;
+  letter-spacing: 0.02em;
+  color: #5a738c;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.spring-brand-logo {
+  flex: 0 0 auto;
+  border-radius: 8px;
+  box-shadow: 0 0 12px rgba(47, 127, 209, 0.28);
+}
+
+.spring-brand-avatar {
+  flex: 0 0 auto;
+  border-radius: 10px;
+  border: 1px solid rgba(47, 127, 209, 0.35);
+  background: rgba(255, 255, 255, 0.65);
+}
+</style>

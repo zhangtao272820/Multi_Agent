@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import ClawhiveLoginGate from "./ClawhiveLoginGate";
 import { installFetchAuth, isLoggedIn } from "./clawhiveAuth";
+import "@brand/index.css";
 import "./styles.css";
 import "./studio.css";
 

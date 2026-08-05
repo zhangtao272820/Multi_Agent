@@ -155,8 +155,10 @@ services:
 
   clawhive_frontend:
     build:
-      context: ./frontend
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: Manage-platform_Agent/frontend/Dockerfile
+      args:
+        NODE_BASE_IMAGE: ${AGENT_NODE_IMAGE:-docker.m.daocloud.io/library/node:20-bullseye}
     image: clawhive/clawhive_frontend:${CLAWHIVE_IMAGE_TAG:-prod}
     container_name: clawhive_frontend
     ports:
@@ -905,8 +907,8 @@ services:
 
   multimodal_agent:
     build:
-      context: ../Multimodal_Agent
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: Multimodal_Agent/Dockerfile
       args:
         NODE_BASE_IMAGE: ${MULTIMODAL_NODE_IMAGE:-docker.m.daocloud.io/library/node:20-bullseye}
         PYTHON_BASE_IMAGE: ${MULTIMODAL_PYTHON_IMAGE:-docker.m.daocloud.io/library/python:3.12-slim-bookworm}

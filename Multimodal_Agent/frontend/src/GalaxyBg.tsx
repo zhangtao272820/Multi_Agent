@@ -1,3 +1,4 @@
+/** @deprecated 节气主题已卸动态星空；保留文件仅作历史参考，勿再挂入 App */
 import { useEffect, useRef } from "react";
 
 type Star = { x: number; y: number; z: number; s: number; tw: number; layer: number };
@@ -30,7 +31,7 @@ export default function GalaxyBg() {
     window.addEventListener("resize", resize);
 
     for (let layer = 0; layer < 3; layer++) {
-      const count = layer === 0 ? 220 : layer === 1 ? 180 : 120;
+      const count = layer === 0 ? 70 : layer === 1 ? 50 : 30;
       for (let i = 0; i < count; i++) {
         stars.push({
           x: Math.random() * w,
@@ -42,7 +43,7 @@ export default function GalaxyBg() {
         });
       }
     }
-    for (let i = 0; i < 9; i++) {
+    for (let i = 0; i < 4; i++) {
       nebulae.push({
         x: Math.random() * w,
         y: Math.random() * h,
@@ -52,7 +53,7 @@ export default function GalaxyBg() {
         drift: 0.5 + Math.random(),
       });
     }
-    for (let i = 0; i < 60; i++) {
+    for (let i = 0; i < 20; i++) {
       dust.push({
         x: Math.random() * w,
         y: Math.random() * h,

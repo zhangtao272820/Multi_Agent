@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import BrandMotif from "@brand/react/BrandMotif.jsx";
+import { brandAvatarUrl, brandLogoUrl } from "@brand/react/assetMap.js";
 
 export type StudioPanel = "tools" | "compose" | "upload" | "progress";
 
@@ -49,15 +51,18 @@ export function StudioShell({
 }: Props) {
   return (
     <div
-      className={`studio-shell${drawerOpen ? " studio-shell--drawer-open" : ""}${busy ? " studio-shell--busy" : ""}`}
+      className={`studio-shell brand-shell${drawerOpen ? " studio-shell--drawer-open" : ""}${busy ? " studio-shell--busy" : ""}`}
+      data-agent="music"
     >
+      <BrandMotif motif="snow" />
       <header className="studio-topbar">
         <div className="studio-brand">
-          <span className="studio-brand-mark" aria-hidden />
+          <img className="studio-brand-logo" src={brandLogoUrl("music")} alt="" width={32} height={32} />
           <div>
             <span className="studio-brand-name">贪狼 · Music</span>
             <span className="studio-brand-sub">可视化工作室</span>
           </div>
+          <img className="studio-brand-avatar" src={brandAvatarUrl("music")} alt="" width={40} height={40} title="贪狼虚拟形象" />
         </div>
         {topExtra}
         <button

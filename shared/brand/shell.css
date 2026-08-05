@@ -1,0 +1,444 @@
+/* 生产风壳体 — 有层次、不花哨 */
+
+.brand-shell {
+  position: relative;
+  min-height: 100vh;
+  isolation: isolate;
+  color: var(--brand-text);
+  font-family: var(--brand-font-sans);
+  background:
+    radial-gradient(1100px 520px at 8% -12%, var(--brand-wash-a), transparent 58%),
+    radial-gradient(900px 480px at 96% 0%, var(--brand-wash-b), transparent 52%),
+    linear-gradient(180deg, #f4f6fa 0%, var(--brand-bg) 42%, #e8edf5 100%);
+  -webkit-font-smoothing: antialiased;
+}
+
+.brand-shell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.35;
+  background-image:
+    linear-gradient(rgba(22, 26, 34, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(22, 26, 34, 0.03) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse 80% 70% at 50% 30%, #000 20%, transparent 75%);
+}
+
+.brand-shell > *:not(.brand-motif) {
+  position: relative;
+  z-index: 1;
+}
+
+.brand-topbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: var(--brand-topbar-height);
+  padding: 10px var(--brand-content-gutter);
+  border-bottom: 1px solid var(--brand-border);
+  background: color-mix(in srgb, var(--brand-bg-elevated) 88%, transparent);
+  backdrop-filter: blur(12px);
+  box-shadow: var(--brand-shadow-sm);
+}
+
+.brand-topbar__mark {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.brand-topbar__logo {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  border-radius: var(--brand-radius-sm);
+  box-shadow: var(--brand-shadow-sm);
+}
+
+.brand-topbar__titles {
+  min-width: 0;
+}
+
+.brand-topbar__eyebrow {
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--brand-text-muted);
+}
+
+.brand-topbar__title {
+  margin: 0;
+  font-family: var(--brand-font-display);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--brand-ink);
+  line-height: 1.2;
+}
+
+.brand-topbar__sub {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--brand-text-secondary);
+}
+
+.brand-topbar__spacer {
+  flex: 1;
+}
+
+.brand-topbar__avatar {
+  width: 48px;
+  height: 48px;
+  flex: 0 0 auto;
+  border-radius: var(--brand-radius);
+  border: 1px solid var(--brand-accent-border);
+  background:
+    linear-gradient(145deg, var(--brand-accent-soft), transparent 60%),
+    var(--brand-bg-elevated);
+  object-fit: cover;
+  box-shadow: var(--brand-shadow-sm);
+}
+
+.brand-panel {
+  background: var(--brand-panel);
+  border: 1px solid var(--brand-border);
+  border-radius: var(--brand-radius);
+  box-shadow: var(--brand-shadow-panel);
+  backdrop-filter: blur(10px);
+}
+
+.brand-panel--solid {
+  background: var(--brand-panel-solid);
+  backdrop-filter: none;
+}
+
+.brand-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--brand-accent-border);
+  background: var(--brand-accent-soft);
+  color: var(--brand-accent-hover);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.brand-identity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brand-identity__logo,
+.brand-identity__avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--brand-radius-xs);
+  object-fit: cover;
+}
+
+.brand-identity__avatar {
+  border: 1px solid var(--brand-accent-border);
+  background: var(--brand-accent-soft);
+}
+
+.brand-identity__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.2;
+}
+
+.brand-identity__name {
+  font-weight: 700;
+  color: var(--brand-ink);
+}
+
+.brand-identity__role {
+  font-size: 12px;
+  color: var(--brand-text-muted);
+}
+
+.brand-btn {
+  appearance: none;
+  border: 1px solid transparent;
+  border-radius: var(--brand-radius-sm);
+  padding: 8px 14px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.18s var(--brand-ease), border-color 0.18s var(--brand-ease), color 0.18s var(--brand-ease);
+}
+
+.brand-btn--primary {
+  background: var(--brand-accent);
+  color: #fff;
+}
+
+.brand-btn--primary:hover {
+  background: var(--brand-accent-hover);
+}
+
+.brand-btn--secondary {
+  background: var(--brand-bg-elevated);
+  border-color: var(--brand-border);
+  color: var(--brand-text);
+}
+
+.brand-btn--secondary:hover {
+  background: var(--brand-bg-hover);
+  border-color: var(--brand-border-strong);
+}
+
+.brand-btn--ghost {
+  background: transparent;
+  color: var(--brand-text-secondary);
+}
+
+.brand-btn--ghost:hover {
+  background: var(--brand-bg-subtle);
+  color: var(--brand-text);
+}
+
+/* —— 深色工作区壳体（可被各 data-agent 色调覆盖） —— */
+.brand-shell--dark {
+  color-scheme: dark;
+  color: var(--brand-dark-text);
+  background:
+    radial-gradient(1000px 480px at 12% -8%, var(--brand-wash-a), transparent 55%),
+    radial-gradient(860px 420px at 92% 4%, var(--brand-wash-b), transparent 50%),
+    radial-gradient(640px 360px at 50% 100%, color-mix(in srgb, var(--brand-accent) 10%, transparent), transparent 70%),
+    linear-gradient(165deg, color-mix(in srgb, var(--brand-dark-bg-elevated) 80%, #000) 0%, var(--brand-dark-bg) 48%, #0a0c10 100%);
+}
+
+.brand-shell--dark::before {
+  opacity: 0.22;
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--brand-accent) 12%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--brand-accent) 10%, transparent) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse 75% 65% at 50% 28%, #000 15%, transparent 72%);
+}
+
+/* 四站氛围点缀：静态光晕层（非动态 canvas） */
+.brand-shell--dark[data-agent="rag"]::after,
+.brand-shell--dark[data-agent="db"]::after,
+.brand-shell--dark[data-agent="code"]::after,
+.brand-shell--dark[data-agent="admin"]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.55;
+}
+
+.brand-shell--dark[data-agent="rag"]::after {
+  background:
+    radial-gradient(circle at 88% 8%, rgba(220, 230, 255, 0.14), transparent 28%),
+    radial-gradient(circle at 18% 72%, rgba(100, 130, 210, 0.1), transparent 40%);
+}
+
+.brand-shell--dark[data-agent="db"]::after {
+  background:
+    radial-gradient(ellipse 70% 40% at 50% 0%, rgba(46, 196, 182, 0.14), transparent 55%),
+    linear-gradient(180deg, transparent 60%, rgba(10, 40, 48, 0.45) 100%);
+}
+
+.brand-shell--dark[data-agent="code"]::after {
+  background:
+    radial-gradient(circle at 16% 12%, rgba(255, 200, 100, 0.16), transparent 32%),
+    radial-gradient(circle at 78% 0%, rgba(220, 120, 40, 0.1), transparent 36%),
+    linear-gradient(180deg, transparent 70%, rgba(40, 20, 8, 0.35) 100%);
+}
+
+.brand-shell--dark[data-agent="admin"]::after {
+  background:
+    radial-gradient(circle at 80% 10%, rgba(255, 230, 170, 0.12), transparent 30%),
+    radial-gradient(circle at 20% 90%, rgba(120, 90, 40, 0.12), transparent 42%);
+}
+
+.brand-shell--dark .brand-topbar {
+  border-bottom-color: var(--brand-dark-border);
+  background: color-mix(in srgb, var(--brand-dark-bg-elevated) 88%, transparent);
+  box-shadow: var(--brand-dark-shadow-sm);
+}
+
+.brand-shell--dark .brand-topbar__title,
+.brand-shell--dark .brand-identity__name {
+  color: var(--brand-dark-text);
+}
+
+.brand-shell--dark .brand-topbar__eyebrow,
+.brand-shell--dark .brand-topbar__sub,
+.brand-shell--dark .brand-identity__role {
+  color: var(--brand-dark-text-muted);
+}
+
+.brand-shell--dark .brand-panel {
+  background: var(--brand-dark-panel);
+  border-color: var(--brand-dark-border);
+  box-shadow: var(--brand-dark-shadow-sm);
+}
+
+.brand-shell--dark .brand-panel--solid {
+  background: var(--brand-dark-panel-solid);
+}
+
+.brand-shell--dark .brand-chip {
+  border-color: var(--brand-accent-border);
+  background: var(--brand-accent-soft);
+  color: var(--brand-accent-muted);
+}
+
+.brand-shell--dark .brand-btn--secondary {
+  background: var(--brand-dark-bg-elevated);
+  border-color: var(--brand-dark-border-strong);
+  color: var(--brand-dark-text);
+}
+
+.brand-shell--dark .brand-btn--secondary:hover {
+  background: var(--brand-dark-hover);
+  border-color: var(--brand-accent-border);
+}
+
+.brand-shell--dark .brand-btn--ghost {
+  color: var(--brand-dark-text-secondary);
+}
+
+.brand-shell--dark .brand-btn--ghost:hover {
+  background: var(--brand-dark-hover);
+  color: var(--brand-dark-text);
+}
+
+/* —— 深色原语：统计格 / 列表行 / 消息 / 空态 —— */
+.brand-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.brand-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 9px 11px;
+  border-radius: var(--brand-radius-sm);
+  border: 1px solid var(--brand-dark-border);
+  background:
+    linear-gradient(145deg, var(--brand-accent-soft), transparent 62%),
+    color-mix(in srgb, var(--brand-dark-bg-elevated) 88%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--brand-accent) 18%, transparent);
+}
+
+.brand-stat__label {
+  font-size: 11px;
+  line-height: 1.3;
+  color: var(--brand-dark-text-muted);
+}
+
+.brand-stat__value {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--brand-dark-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.brand-stat__value--accent {
+  color: var(--brand-accent-muted);
+}
+
+.brand-list-row {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: var(--brand-radius-sm);
+  border: 1px solid var(--brand-dark-border);
+  background: color-mix(in srgb, var(--brand-dark-bg-elevated) 80%, transparent);
+  color: var(--brand-dark-text);
+  transition:
+    border-color 0.15s var(--brand-ease),
+    background 0.15s var(--brand-ease);
+}
+
+.brand-list-row:hover {
+  border-color: var(--brand-accent-border);
+  background: var(--brand-dark-hover);
+}
+
+.brand-list-row.is-active {
+  border-color: var(--brand-accent-border);
+  background: var(--brand-accent-soft);
+  box-shadow: inset 3px 0 0 var(--brand-accent);
+}
+
+.brand-list-row__title {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--brand-dark-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.brand-list-row__meta {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--brand-dark-text-muted);
+}
+
+.brand-empty {
+  margin: 0;
+  padding: 28px 16px;
+  text-align: center;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--brand-dark-text-muted);
+}
+
+.brand-msg {
+  max-width: min(720px, 92%);
+  padding: 12px 15px;
+  border-radius: var(--brand-radius);
+  border: 1px solid var(--brand-dark-border);
+  background:
+    linear-gradient(160deg, color-mix(in srgb, var(--brand-accent) 8%, transparent), transparent 55%),
+    var(--brand-dark-panel-solid);
+  color: var(--brand-dark-text);
+  font-size: 14px;
+  line-height: 1.55;
+  box-shadow: var(--brand-dark-shadow-sm);
+}
+
+.brand-msg--user {
+  margin-left: auto;
+  border-color: var(--brand-accent-border);
+  background: var(--brand-accent-soft);
+}
+
+.brand-msg--assistant {
+  margin-right: auto;
+}
+
+.brand-section-label {
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--brand-dark-text-muted);
+}

@@ -14,8 +14,12 @@ datas = []
 if FRONTEND_DIST.is_dir():
     datas.append((str(FRONTEND_DIST), "frontend/dist"))
 if DATA.is_dir():
+    # Skip raw cutout backups & scratch — keep package lean for playtest
+    _SKIP_DATA_DIRS = {"sprites_raw", "_scratch", "_work"}
     for child in DATA.iterdir():
         if child.name.startswith("_"):
+            continue
+        if child.name in _SKIP_DATA_DIRS:
             continue
         if child.name == "campus_save.db":
             continue
@@ -45,6 +49,12 @@ hiddenimports = [
     "webview",
     "app",
     "app.main",
+    "app.campus_engine",
+    "app.npc_social",
+    "app.npc_minds",
+    "app.relationship",
+    "app.endings",
+    "app.llm_chat",
     "api",
     "paths",
 ]

@@ -122,16 +122,19 @@ onBeforeUnmount(() => {
   max-width: 140px;
   padding: 4px 10px 4px 4px;
   border-radius: 999px;
-  border: 1px solid rgba(148, 163, 184, 0.28);
-  background: rgba(15, 23, 42, 0.45);
-  color: #e2e8f0;
+  border: 1px solid rgba(100, 150, 200, 0.42);
+  background: rgba(255, 255, 255, 0.72);
+  color: #1e4060;
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.8) inset;
 }
 .mgr-user-menu-trigger:hover {
-  border-color: rgba(148, 163, 184, 0.45);
-  background: rgba(30, 41, 59, 0.65);
+  border-color: rgba(47, 127, 209, 0.5);
+  background: rgba(230, 242, 255, 0.92);
 }
 .mgr-user-menu-avatar {
   width: 22px;
@@ -139,7 +142,7 @@ onBeforeUnmount(() => {
   border-radius: 50%;
   display: grid;
   place-items: center;
-  background: linear-gradient(135deg, #4f7cff, #3a5fd4);
+  background: linear-gradient(135deg, #2f7fd1, #1c5a9e);
   color: #fff;
   font-size: 11px;
   font-weight: 700;
@@ -156,17 +159,19 @@ onBeforeUnmount(() => {
 .mgr-user-menu-panel {
   padding: 12px;
   border-radius: 12px;
-  border: 1px solid rgba(148, 163, 184, 0.28);
-  background: rgba(15, 23, 42, 0.96);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
-  color: #e2e8f0;
+  border: 1px solid rgba(100, 150, 200, 0.42);
+  background: rgba(255, 252, 255, 0.95);
+  box-shadow: 0 16px 40px rgba(40, 70, 110, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  color: #1a2f44;
   box-sizing: border-box;
+  backdrop-filter: blur(18px) saturate(1.2);
+  -webkit-backdrop-filter: blur(18px) saturate(1.2);
 }
 .mgr-user-menu-head {
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.02em;
-  opacity: 0.85;
+  color: #1e5a96;
   margin-bottom: 10px;
 }
 .mgr-user-menu-meta {
@@ -184,26 +189,27 @@ onBeforeUnmount(() => {
 }
 .mgr-user-menu-meta dt {
   margin: 0;
-  opacity: 0.55;
+  color: #5a738c;
   font-weight: 600;
 }
 .mgr-user-menu-meta dd {
   margin: 0;
   font-weight: 600;
+  color: #1a2f44;
   word-break: break-all;
 }
 .mgr-user-menu-logout {
   width: 100%;
   padding: 8px 10px;
   border-radius: 8px;
-  border: 1px solid rgba(248, 113, 113, 0.35);
-  background: rgba(127, 29, 29, 0.35);
-  color: #fecaca;
+  border: 1px solid rgba(196, 61, 90, 0.4);
+  background: rgba(196, 61, 90, 0.1);
+  color: #9a2a42;
   font-size: 12px;
   font-weight: 650;
   cursor: pointer;
 }
 .mgr-user-menu-logout:hover {
-  background: rgba(153, 27, 27, 0.5);
+  background: rgba(196, 61, 90, 0.18);
 }
 </style>

@@ -1,4 +1,5 @@
-/* 总管 Agent · Cursor 对话可读性（最后加载，压过 scoped 样式） */
+/* 总管 Agent · Cursor 对话可读性
+   深色 Token 会被后加载的 manager-winter-shell.css 同级选择器覆盖为霜白近实底。 */
 
 .spring-root.cosmic-theme.cursor-workbench {
   --chat-col-width: min(760px, calc(100vw - var(--mgr-sidebar-w, 260px) - var(--mgr-tools-w, 300px) - 48px));

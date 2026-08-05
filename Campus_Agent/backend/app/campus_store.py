@@ -55,6 +55,8 @@ class CampusSave:
     spot_action_used: bool = False
     # weekend date short scene: {target_id, location_id} while period lasts
     active_date: dict[str, Any] | None = None
+    # last social tick blurbs (NPC↔NPC), for period_recap / board
+    world_events: list[dict[str, Any]] = field(default_factory=list)
     title: str = ""
     updated_at: str = ""
 

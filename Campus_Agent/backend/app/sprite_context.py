@@ -1,7 +1,6 @@
 """Context-aware outfit/action selection for campus sprites.
 
-Deterministic candidate chain from location / period / weather / verb.
-Only returns disk-backed files; never blocks on missing art.
+Uses the full budget: school sc_*, core actions, private outfits/actions.
 Private outfits (casual/pajama/towel) are female-only.
 """
 
@@ -20,6 +19,8 @@ _LOCATION_SCENE: dict[str, tuple[str, ...]] = {
     "rooftop": ("sc_rooftop_rail",),
     "playground": ("sc_playground_fence",),
     "shop": ("sc_shop_browse",),
+    "club_room": ("sc_classroom_lean",),
+    "dorm_gate": ("sc_hallway_locker",),
     "dorm_m1": ("sc_dorm_bunk", "sc_dorm_desk"),
     "dorm_m2": ("sc_dorm_bunk", "sc_dorm_desk"),
     "dorm_f1": ("sc_dorm_bunk", "sc_dorm_desk"),
@@ -45,6 +46,33 @@ _VERB_ACTION: dict[str, str] = {
 
 _RAINY = frozenset({"rainy", "thunderstorm"})
 
+# Female private-pack actions (budget actions_private)
+_PRIVATE_ACTIONS_BY_KIND: dict[str, tuple[str, ...]] = {
+    "dorm": (
+        "sit_bunk",
+        "hug_pillow",
+        "bed_edge",
+        "yawn",
+        "stretch",
+        "lean_wall",
+        "window_night",
+        "dorm",
+        "stand",
+    ),
+    "end": (
+        "hug_pillow",
+        "bed_edge",
+        "yawn",
+        "sit_bunk",
+        "window_night",
+        "dorm",
+        "stand",
+    ),
+    "towel": ("after_bath", "wet_hair", "door", "stand"),
+}
+
+_PRIVATE_OUTFITS = frozenset({"casual", "pajama", "towel"})
+
 
 def _is_dorm_room(location_id: str) -> bool:
     return location_id.startswith("dorm_") and location_id != "dorm_gate"
@@ -69,16 +97,20 @@ def outfit_candidates(
     out: list[str] = []
     if female and _is_dorm_room(location_id) and period_kind in {"dorm", "end"}:
         if period_kind == "end":
-            out.extend(["pajama", "casual"])
+            out.extend(["pajama", "casual", "towel"])
         else:
-            out.extend(["casual", "pajama"])
-        # towel is optional private pack; keep late in chain
-        out.append("towel")
+            out.extend(["casual", "pajama", "towel"])
+    elif female and period_kind in {"free_day", "free"} and location_id in {
+        "shop",
+        "playground",
+        "rooftop",
+        "dorm_gate",
+    }:
+        # Weekend / free roam: show casual pack when present
+        out.append("casual")
     if weather_id == "cold":
         out.append("winter")
     out.append("summer")
-    # cold already added winter; still allow winter as soft preference after summer? no
-    # de-dupe preserving order
     seen: set[str] = set()
     ordered: list[str] = []
     for o in out:
@@ -95,27 +127,37 @@ def action_candidates(
     weather_id: str | None,
     verb: str | None,
     prefer_scene: bool,
+    mood: str | None = None,
 ) -> list[str]:
     """Ordered action ids to try (first = preferred)."""
     actions: list[str] = []
     v = (verb or "").strip().lower() or None
     if v and v in _VERB_ACTION:
         actions.append(_VERB_ACTION[v])
-    if prefer_scene and not v:
+    # Location stage: prefer sc_* so scene packs get used
+    if prefer_scene:
         for sc in _LOCATION_SCENE.get(location_id, ()):
             actions.append(sc)
     if period_kind == "meal" and location_id == "cafeteria":
-        actions.append("eat")
+        actions.extend(["eat", "sc_cafeteria_seat", "sc_cafeteria_counter"])
     if period_kind == "class":
-        actions.append("listen")
+        actions.extend(["listen", "sc_classroom_lean", "sc_classroom_blackboard"])
     if period_kind in {"free", "free_day"} and location_id == "library":
-        actions.append("study")
+        actions.extend(["study", "sc_library_read", "sc_library_shelf"])
+    if period_kind in {"free", "free_day"} and location_id == "classroom":
+        actions.extend(["study", "think", "sc_classroom_lean"])
     if weather_id in _RAINY and location_id in _OUTDOOR:
         actions.append("rain")
     if period_kind in {"dorm", "end"} and _is_dorm_room(location_id):
         actions.append("dorm")
+        for a in _PRIVATE_ACTIONS_BY_KIND.get(period_kind, ()):
+            actions.append(a)
+    if mood in {"anxious", "sad", "shy"} and "think" not in actions:
+        actions.append("think")
+    if mood in {"happy", "excited"} and "wave" not in actions and not v:
+        actions.append("wave")
     if v in {"talk", "date_chat", None} and "chat" not in actions:
-        if v:
+        if v or period_kind in {"free", "free_day", "meal", "dorm"}:
             actions.append("chat")
     actions.append("stand")
     seen: set[str] = set()
@@ -127,9 +169,6 @@ def action_candidates(
     return ordered
 
 
-_PRIVATE_OUTFITS = frozenset({"casual", "pajama", "towel"})
-
-
 def build_oa_candidates(
     *,
     location_id: str,
@@ -139,12 +178,9 @@ def build_oa_candidates(
     gender: str | None,
     student_id: str,
     prefer_scene: bool = True,
+    mood: str | None = None,
 ) -> list[tuple[str, str]]:
-    """Ordered (outfit, action) pairs.
-
-    Private dorm outfits win over summer sc_*: try casual/pajama stand|dorm first,
-    then school outfits with scene/core actions.
-    """
+    """Ordered (outfit, action) pairs — exhaust private then school packs."""
     outfits = outfit_candidates(
         location_id=location_id,
         period_kind=period_kind,
@@ -155,17 +191,16 @@ def build_oa_candidates(
     private = [o for o in outfits if o in _PRIVATE_OUTFITS]
     school = [o for o in outfits if o not in _PRIVATE_OUTFITS]
 
-    private_core = action_candidates(
-        location_id=location_id,
-        period_kind=period_kind,
-        weather_id=weather_id,
-        verb=verb,
-        prefer_scene=False,
-    )
     private_actions: list[str] = []
-    for a in ("stand", "dorm", *private_core):
-        if a not in private_actions and not str(a).startswith("sc_"):
+    kind_key = "end" if period_kind == "end" else "dorm"
+    for a in _PRIVATE_ACTIONS_BY_KIND.get(kind_key, ("stand", "dorm")):
+        if a not in private_actions:
             private_actions.append(a)
+    for a in ("stand", "dorm", "chat", "think"):
+        if a not in private_actions:
+            private_actions.append(a)
+    # towel outfit prefers bath actions first
+    towel_actions = list(_PRIVATE_ACTIONS_BY_KIND["towel"]) + ["stand"]
 
     school_actions = action_candidates(
         location_id=location_id,
@@ -173,13 +208,14 @@ def build_oa_candidates(
         weather_id=weather_id,
         verb=verb,
         prefer_scene=prefer_scene,
+        mood=mood,
     )
 
     pairs: list[tuple[str, str]] = []
     for outfit in private:
-        for action in private_actions:
+        acts = towel_actions if outfit == "towel" else private_actions
+        for action in acts:
             pairs.append((outfit, action))
-    # Outfit-major for school: winter_stand beats summer_sc_* when cold
     for outfit in school:
         for action in school_actions:
             pairs.append((outfit, action))
@@ -204,7 +240,6 @@ def _resolve_exact(
     primary = root / f"{outfit}_{action}_{emotion}.png"
     if primary.is_file():
         return sprites_mod._asset_ref(student_id, primary, primary=primary, kind="sprite")
-    # Legacy bare sc_* (no outfit prefix)
     if action.startswith("sc_"):
         bare = root / f"{action}_{emotion}.png"
         if bare.is_file():
@@ -225,7 +260,14 @@ def resolve_contextual_sprite(
 ) -> dict[str, Any]:
     """Pick best available sprite for world context; soft-fallback to summer_stand chain."""
     emo = emotion if emotion in sprites_mod.Q_EMOTIONS else "neutral"
-    emos = [emo] if emo == "neutral" else [emo, "neutral"]
+    # Try mood emotion, then nearby palette, then neutral — burn more of the emotion pack
+    emos = [emo]
+    if emo != "neutral":
+        emos.append("neutral")
+    if emo == "anxious":
+        emos = ["sad", "shy", "neutral"]
+    elif emo == "excited":
+        emos = ["happy", "shy", "neutral"]
     pairs = build_oa_candidates(
         location_id=location_id or "classroom",
         period_kind=period_kind or "free",
@@ -234,8 +276,8 @@ def resolve_contextual_sprite(
         gender=gender,
         student_id=student_id,
         prefer_scene=prefer_scene,
+        mood=emo,
     )
-    # Pass 1: exact outfit_action_emotion (or sc_action_emotion)
     for outfit, action in pairs:
         for e in emos:
             hit = _resolve_exact(student_id, outfit, action, e)
@@ -244,7 +286,6 @@ def resolve_contextual_sprite(
                 hit["action"] = action
                 hit["emotion"] = e
                 return hit
-    # Pass 2: allow resolve_student_sprite soft chain per preferred pair (stand within outfit)
     for outfit, action in pairs:
         for e in emos:
             if action.startswith("sc_"):
@@ -257,7 +298,6 @@ def resolve_contextual_sprite(
                 ref["action"] = action
                 ref["emotion"] = e
                 return ref
-    # Final
     ref = sprites_mod.resolve_student_sprite(student_id, emotion=emo)
     ref["outfit"] = "summer"
     ref["action"] = "stand"
@@ -301,4 +341,3 @@ def resolve_for_student(
         gender=str(student.get("gender") or ""),
         prefer_scene=prefer_scene,
     )
-

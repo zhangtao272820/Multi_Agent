@@ -1,5 +1,9 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
 import { defineConfig, loadEnv } from "vite";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /** 与后端默认错开常用端口；可在 frontend/.env 里改 VITE_* 覆盖 */
 export default defineConfig(({ mode }) => {
@@ -10,6 +14,11 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
+    resolve: {
+      alias: {
+        "@brand": path.resolve(__dirname, "../../shared/brand"),
+      },
+    },
     server: {
       port,
       strictPort: true,

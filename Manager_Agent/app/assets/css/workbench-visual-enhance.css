@@ -240,11 +240,11 @@
   color: #bae6fd;
 }
 
-.turn-agent-route-node.agent-tone-db .turn-agent-route-label { border-color: rgba(59, 130, 246, 0.4); background: rgba(59, 130, 246, 0.12); color: #93c5fd; }
-.turn-agent-route-node.agent-tone-clean .turn-agent-route-label { border-color: rgba(52, 211, 153, 0.35); background: rgba(52, 211, 153, 0.1); color: #6ee7b7; }
-.turn-agent-route-node.agent-tone-code .turn-agent-route-label { border-color: rgba(251, 191, 36, 0.35); background: rgba(251, 191, 36, 0.1); color: #fcd34d; }
-.turn-agent-route-node.agent-tone-visualize .turn-agent-route-label { border-color: rgba(45, 212, 191, 0.35); background: rgba(45, 212, 191, 0.1); color: #5eead4; }
-.turn-agent-route-node.agent-tone-admin .turn-agent-route-label { border-color: rgba(244, 114, 182, 0.35); background: rgba(244, 114, 182, 0.1); color: #f9a8d4; }
+.turn-agent-route-node.agent-tone-db .turn-agent-route-label { border-color: rgba(59, 130, 246, 0.45); background: rgba(59, 130, 246, 0.12); color: #1e4a8c; }
+.turn-agent-route-node.agent-tone-clean .turn-agent-route-label { border-color: rgba(31, 122, 92, 0.4); background: rgba(31, 122, 92, 0.1); color: #146048; }
+.turn-agent-route-node.agent-tone-code .turn-agent-route-label { border-color: rgba(184, 106, 26, 0.4); background: rgba(184, 106, 26, 0.1); color: #8a4e10; }
+.turn-agent-route-node.agent-tone-visualize .turn-agent-route-label { border-color: rgba(20, 120, 130, 0.4); background: rgba(20, 120, 130, 0.1); color: #0e5c66; }
+.turn-agent-route-node.agent-tone-admin .turn-agent-route-label { border-color: rgba(196, 61, 90, 0.4); background: rgba(196, 61, 90, 0.1); color: #9a2a42; }
 
 .turn-agent-route-arrow {
   color: rgba(148, 163, 184, 0.55);
@@ -1040,23 +1040,20 @@
 }
 
 .spring-root.mode-professional .conv-live-bar.active {
-  border-color: rgba(56, 189, 248, 0.45) !important;
-  background: rgba(8, 47, 73, 0.45) !important;
+  border-color: rgba(47, 127, 209, 0.45) !important;
+  background: rgba(230, 242, 255, 0.95) !important;
 }
 
 /* 空状态 · 专业 */
 .spring-root.mode-professional .cosmic-chat-empty {
-  border-color: rgba(56, 189, 248, 0.4) !important;
-  background:
-    radial-gradient(circle at 20% 30%, rgba(56, 189, 248, 0.14) 0 2px, transparent 3px),
-    radial-gradient(circle at 80% 70%, rgba(14, 165, 233, 0.1) 0 1.5px, transparent 2.5px),
-    radial-gradient(ellipse at center, rgba(14, 165, 233, 0.1), transparent 70%) !important;
+  border-color: rgba(90, 140, 190, 0.4) !important;
+  background: linear-gradient(165deg, rgba(255, 255, 255, 0.94), rgba(235, 245, 255, 0.9)) !important;
 }
 
 .spring-root.mode-professional .cosmic-chat-empty-title {
-  color: #7dd3fc !important;
-  text-shadow: 0 0 24px rgba(56, 189, 248, 0.5) !important;
-  letter-spacing: 0.16em !important;
+  color: #1a2f44 !important;
+  text-shadow: none !important;
+  letter-spacing: 0.06em !important;
 }
 
 /* 输入区 · 专业控制台 */
@@ -1214,13 +1211,13 @@
 }
 
 .spring-root:not(.mode-professional) .conv-stream-bubble {
-  border-color: rgba(167, 139, 250, 0.2) !important;
-  background: rgba(30, 27, 75, 0.35) !important;
+  border-color: rgba(90, 140, 190, 0.35) !important;
+  background: rgba(255, 255, 255, 0.9) !important;
 }
 
 .spring-root.mode-professional .conv-stream-bubble {
-  border-color: rgba(56, 189, 248, 0.25) !important;
-  background: rgba(8, 20, 48, 0.55) !important;
+  border-color: rgba(90, 140, 190, 0.4) !important;
+  background: rgba(242, 248, 255, 0.95) !important;
 }
 
 .spring-root .conv-stream-dot {
@@ -1288,14 +1285,14 @@
   gap: 3px;
   padding: 3px;
   border-radius: 10px;
-  border: 1px solid rgba(148, 163, 184, 0.22);
-  background: rgba(2, 6, 23, 0.65);
+  border: 1px solid rgba(90, 140, 190, 0.42);
+  background: rgba(255, 255, 255, 0.92);
 }
 
 .spring-thought-view-toggle button {
   border: none;
   background: transparent;
-  color: #64748b;
+  color: #3a536c;
   font-size: 11px;
   padding: 5px 10px;
   border-radius: 7px;
@@ -1696,15 +1693,16 @@
   min-height: 52px;
   padding-top: 8px;
   padding-bottom: 8px;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
-  background: rgba(8, 10, 24, 0.42);
-  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--mgr-border, rgba(90, 140, 190, 0.35));
+  background: var(--mgr-glass, rgba(255, 252, 255, 0.94));
+  backdrop-filter: blur(20px);
 }
 
 .spring-root.mode-chat .spring-topbar.is-chat-header .spring-title {
   font-size: 1.05rem;
   font-weight: 650;
   letter-spacing: 0.01em;
+  color: var(--chat-text-primary, #1a2f44);
 }
 
 .spring-root.mode-chat .wb-chat-column {
@@ -1719,10 +1717,11 @@
 
 .spring-root.mode-chat .spring-input.cosmic-input-dock {
   border-radius: 18px !important;
-  border-color: rgba(148, 163, 184, 0.18) !important;
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28) !important;
+  border-color: var(--mgr-border, rgba(90, 140, 190, 0.42)) !important;
+  box-shadow: 0 8px 28px rgba(40, 70, 110, 0.12) !important;
 }
 
 .spring-root.mode-professional .spring-topbar.is-pro-header {
-  border-bottom: 1px solid rgba(56, 189, 248, 0.16);
+  border-bottom: 1px solid var(--mgr-border, rgba(90, 140, 190, 0.35));
+  background: var(--mgr-glass, rgba(255, 252, 255, 0.94));
 }

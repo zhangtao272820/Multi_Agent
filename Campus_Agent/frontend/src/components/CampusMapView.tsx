@@ -1,26 +1,27 @@
 import { FaceChip } from "./FaceChip";
 import type { LocationInfo } from "../types";
 
-/** 校园平面布局：百分比坐标（左上为原点） */
+/** 校园平面布局：百分比坐标（左上为原点）——对齐 campus_map.png 示意区 */
 const MAP_LAYOUT: Record<string, { x: number; y: number; zone?: string }> = {
-  rooftop: { x: 48, y: 8, zone: "sky" },
-  library: { x: 14, y: 22, zone: "study" },
-  classroom: { x: 48, y: 28, zone: "core" },
-  hallway: { x: 72, y: 26, zone: "core" },
-  club_room: { x: 86, y: 38, zone: "side" },
-  playground: { x: 18, y: 48, zone: "out" },
-  cafeteria: { x: 62, y: 52, zone: "life" },
-  shop: { x: 82, y: 58, zone: "life" },
-  dorm_gate: { x: 48, y: 68, zone: "dorm" },
-  dorm_m1: { x: 18, y: 82, zone: "dorm" },
-  dorm_m2: { x: 32, y: 86, zone: "dorm" },
-  dorm_f1: { x: 52, y: 82, zone: "dorm" },
-  dorm_f2: { x: 66, y: 86, zone: "dorm" },
-  dorm_f3: { x: 78, y: 82, zone: "dorm" },
-  dorm_f4: { x: 90, y: 86, zone: "dorm" },
+  rooftop: { x: 48, y: 10, zone: "sky" },
+  library: { x: 50, y: 28, zone: "study" },
+  classroom: { x: 28, y: 30, zone: "core" },
+  hallway: { x: 40, y: 34, zone: "core" },
+  club_room: { x: 72, y: 36, zone: "side" },
+  playground: { x: 18, y: 58, zone: "out" },
+  cafeteria: { x: 68, y: 38, zone: "life" },
+  shop: { x: 82, y: 52, zone: "life" },
+  dorm_gate: { x: 72, y: 62, zone: "dorm" },
+  dorm_m1: { x: 62, y: 78, zone: "dorm" },
+  dorm_m2: { x: 70, y: 84, zone: "dorm" },
+  dorm_f1: { x: 80, y: 76, zone: "dorm" },
+  dorm_f2: { x: 86, y: 82, zone: "dorm" },
+  dorm_f3: { x: 90, y: 74, zone: "dorm" },
+  dorm_f4: { x: 94, y: 84, zone: "dorm" },
 };
 
 const PREVIEW_SHOW = 5;
+const MAP_BG = "/api/campus/assets/bgs/campus_map.png";
 
 interface Props {
   locations: LocationInfo[];
@@ -40,23 +41,16 @@ export function CampusMapView({
   onEnter,
   onSelectPerson,
 }: Props) {
-  const weatherClass = `campus-map weather-${weatherId || "cloudy"}`;
+  const weatherClass = `campus-map has-art weather-${weatherId || "cloudy"}`;
 
   return (
-    <div className={weatherClass}>
-      <div className="campus-map-sky" aria-hidden />
-      <div className="campus-map-ground" aria-hidden />
-      <div className="campus-map-path campus-map-path-h" aria-hidden />
-      <div className="campus-map-path campus-map-path-v" aria-hidden />
-      <div className="campus-map-quad teaching" aria-hidden>
-        <span>教学区</span>
-      </div>
-      <div className="campus-map-quad living" aria-hidden>
-        <span>生活区</span>
-      </div>
-      <div className="campus-map-quad dorm" aria-hidden>
-        <span>宿舍区</span>
-      </div>
+    <div
+      className={weatherClass}
+      style={{
+        backgroundImage: `linear-gradient(180deg, rgba(12,20,18,.22), rgba(12,20,18,.45)), url(${MAP_BG})`,
+      }}
+    >
+      <div className="campus-map-art-veil" aria-hidden />
 
       {locations.map((loc) => {
         const pos = MAP_LAYOUT[loc.id] || { x: 50, y: 50 };
@@ -64,7 +58,10 @@ export function CampusMapView({
         const count = loc.present_count ?? 0;
         const preview = (loc.present_preview ?? []).filter((p) => !p.is_pc);
         const shown = preview.slice(0, PREVIEW_SHOW);
-        const overflow = Math.max(0, count - shown.length - (loc.present_preview?.some((p) => p.is_pc) ? 1 : 0));
+        const overflow = Math.max(
+          0,
+          count - shown.length - (loc.present_preview?.some((p) => p.is_pc) ? 1 : 0),
+        );
 
         return (
           <div

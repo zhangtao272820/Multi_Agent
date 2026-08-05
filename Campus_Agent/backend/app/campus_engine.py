@@ -11,6 +11,7 @@ from . import endings as endings_mod
 from . import npc_greeting
 from . import npc_intent
 from . import npc_minds
+from . import npc_social
 from . import relationship as rel
 from . import scores as scores_mod
 from . import seating as seating_mod
@@ -24,6 +25,19 @@ from .config import llm_api_key
 
 ACTIONABLE_KINDS = frozenset({"free", "free_day", "meal", "dorm"})
 MAX_SKIP_STEPS = 12
+
+# roster schedule keys → period_id / kind fallbacks
+_SCHEDULE_PERIOD_KEYS = {
+    "morning_study": "morning_study",
+    "breakfast": "lunch",
+    "lunch": "lunch",
+    "dinner": "lunch",
+    "evening_study": "after_school",
+    "weekend_morning": "after_school",
+    "weekend_afternoon": "after_school",
+    "weekend_evening": "evening",
+    "recess": "recess",
+}
 
 
 def _rng_for(save: CampusSave) -> random.Random:
@@ -67,6 +81,33 @@ def _study_mult(save: CampusSave) -> float:
     return float(effects.get("study_mult", 1.0))
 
 
+def _schedule_location_for(student: dict[str, Any], save: CampusSave, kind: str, rng: random.Random) -> str | None:
+    """Prefer roster schedule; return None to fall back to kind RNG."""
+    sched = student.get("schedule") or {}
+    if not isinstance(sched, dict):
+        return None
+    pid = save.period_id
+    # Direct period_id key
+    if pid in sched and sched[pid]:
+        return str(sched[pid])
+    mapped = _SCHEDULE_PERIOD_KEYS.get(pid)
+    if mapped and mapped in sched and sched[mapped]:
+        return str(sched[mapped])
+    if kind == "meal" and sched.get("lunch"):
+        return str(sched["lunch"])
+    if kind == "free" and pid == "morning_study" and sched.get("morning_study"):
+        return str(sched["morning_study"])
+    if kind == "free" and sched.get("after_school"):
+        # evening study / free study → after_school bias
+        if pid in {"evening_study"}:
+            return str(sched["after_school"])
+    if kind in {"dorm", "end"} and sched.get("evening"):
+        # prefer dorm_id over evening gate when dorm period
+        return str(student.get("dorm_id") or sched["evening"])
+    # weekends keep weekend_bias / intent path (do not hard-pin after_school)
+    return None
+
+
 def _refresh_locations(save: CampusSave) -> None:
     """Assign NPC locations for current period into save.locations_now."""
     period = _period_meta(save)
@@ -77,6 +118,10 @@ def _refresh_locations(save: CampusSave) -> None:
         sid = s["id"]
         if sid == "pc":
             loc_now[sid] = save.location_id
+            continue
+        scheduled = _schedule_location_for(s, save, str(kind), rng)
+        if scheduled and scheduled in catalog.location_ids():
+            loc_now[sid] = scheduled
             continue
         if kind == "class":
             loc_now[sid] = "classroom"
@@ -110,6 +155,8 @@ def _refresh_locations(save: CampusSave) -> None:
             next_stick[sid] = {"location_id": loc, "ttl": ttl - 1}
     save.invite_stick = next_stick
     save.locations_now = loc_now
+    # Free sandbox: dating NPC couples cling to the same spot
+    npc_social.apply_couple_stick(save)
 
 
 def _sprite_emotion(mood: str) -> str:
@@ -244,6 +291,7 @@ def hub_public(save: CampusSave) -> dict[str, Any]:
         "active_event": active_event,
         "pending_intents": save.pending_intents,
         "event_reactions": npc_minds.event_reactions_public(save),
+        "world_events": list(save.world_events or [])[:6],
         "pc_scores": scores_mod.public_scores(save.scores.get("pc", scores_mod.empty_scores())),
         "bg": bg,
         "ended": bool(save.ended),
@@ -307,6 +355,7 @@ def compute_gaokao_ending(save: CampusSave) -> dict[str, Any]:
         }
 
     resolved = endings_mod.resolve_ending(pc_rank=pc_rank, pc_total=pc_total, romance=romance)
+    social_epilogue = npc_social.build_social_epilogue(save)
 
     return {
         "kind": "gaokao",
@@ -321,6 +370,7 @@ def compute_gaokao_ending(save: CampusSave) -> dict[str, Any]:
         "pc_scores": scores_mod.public_scores(save.scores.get("pc", scores_mod.empty_scores())),
         "ranking_top": top,
         "romance": romance,
+        "social_epilogue": social_epilogue,
         "day_index": save.day_index,
         "protagonist_name": save.protagonist.get("name") or "主角",
     }
@@ -387,6 +437,10 @@ def create_new(*, name: str, grade_tier: str, mbti: str) -> dict[str, Any]:
     )
     _roll_day_event(save)
     _refresh_locations(save)
+    npc_social.seed_initial_bonds(save)
+    # Day-1 life: one social pulse + colocated minds so map/location aren't empty
+    save.world_events = npc_social.run_social_tick(save)
+    npc_minds.apply_colocated_rule_minds(save)
     store.set_active(save)
     store.persist(save, kind="auto")
     return hub_public(save)
@@ -526,6 +580,9 @@ def _build_period_recap(
         summary_bits.append(f"{from_period.get('label')} → {hub['calendar'].get('period_label')}")
     if skipped:
         summary_bits.insert(0, f"跳过 {len(skipped)} 个时段")
+    world_events = hub.get("world_events") or mind_meta.get("world_events") or []
+    if world_events:
+        summary_bits.append(str(world_events[0].get("blurb") or "班级里有点动静"))
     if intents:
         summary_bits.append(str(intents[0].get("blurb") or "有人想找你"))
     if reactions:
@@ -576,6 +633,20 @@ def _build_period_recap(
             else None
         ),
         "reactions": reactions[:3],
+        "world_events": [
+            {
+                "type": w.get("type"),
+                "blurb": w.get("blurb"),
+                "a": w.get("a"),
+                "b": w.get("b"),
+                "a_name": w.get("a_name"),
+                "b_name": w.get("b_name"),
+                "location_id": w.get("location_id"),
+                "bond_kind": w.get("bond_kind"),
+                "dramatic": w.get("dramatic"),
+            }
+            for w in world_events[:6]
+        ],
         "skipped_periods": skipped or [],
         "summary": " · ".join(summary_bits),
     }
@@ -641,9 +712,12 @@ def advance_period() -> dict[str, Any]:
             save.active_date = None
 
     _refresh_locations(save)
+    world_events = npc_social.run_social_tick(save)
     mind_meta = _collect_intents(save)
+    mind_meta["world_events"] = world_events
     store.persist(save, kind="auto")
     hub = hub_public(save)
+    hub["world_events"] = world_events
 
     last_action: dict[str, Any]
     if class_summary:
@@ -702,6 +776,7 @@ def advance_until_actionable(*, max_steps: int | None = None) -> dict[str, Any]:
     skipped: list[dict[str, Any]] = []
     class_agg: dict[str, Any] | None = None
     neighbors_acc: list[dict[str, Any]] = []
+    world_acc: list[dict[str, Any]] = []
     last_hub: dict[str, Any] | None = None
 
     for _ in range(limit):
@@ -731,6 +806,8 @@ def advance_until_actionable(*, max_steps: int | None = None) -> dict[str, Any]:
                 class_agg["subject_label"] = f"{class_agg['subject_label']}+{cg['subject_label']}"
         for n in recap.get("neighbors") or []:
             neighbors_acc.append(n)
+        for w in recap.get("world_events") or hub.get("world_events") or []:
+            world_acc.append(w)
         if hub.get("ended") or _is_actionable_hub(hub):
             break
         save = store.require_active()
@@ -744,10 +821,29 @@ def advance_until_actionable(*, max_steps: int | None = None) -> dict[str, Any]:
         for n in neighbors_acc:
             by_id[str(n.get("id"))] = n
         base_recap["neighbors"] = list(by_id.values())[:6]
+    if world_acc:
+        # de-dupe by blurb, prefer dramatic first
+        seen: set[str] = set()
+        merged: list[dict[str, Any]] = []
+        for w in sorted(world_acc, key=lambda x: (0 if x.get("dramatic") else 1)):
+            key = str(w.get("blurb") or "")
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            merged.append(w)
+            if len(merged) >= 6:
+                break
+        base_recap["world_events"] = merged
+        last_hub["world_events"] = merged
     base_recap["skipped_periods"] = skipped
     if skipped:
         summary = str(base_recap.get("summary") or "")
-        base_recap["summary"] = f"跳过 {len(skipped)} 个时段" + (f" · {summary}" if summary else "")
+        bits = [f"跳过 {len(skipped)} 个时段"]
+        if world_acc:
+            bits.append(str((world_acc[0] or {}).get("blurb") or "班级里有点动静"))
+        if summary and "跳过" not in summary:
+            bits.append(summary)
+        base_recap["summary"] = " · ".join(bits)
     last_hub["period_recap"] = base_recap
     last_hub["period_summary"] = base_recap.get("summary") or last_hub.get("period_summary")
     last_hub["last_action"] = {
@@ -818,6 +914,10 @@ def prepare_talk(target_id: str) -> dict[str, Any]:
         gender_b=str(target.get("gender")),
     )
     target_pub = _student_public(target, save)
+    # Ensure opening talk always has a mind bubble (rule seed if empty)
+    if not (target_pub.get("mind") or {}).get("thought"):
+        npc_minds.apply_colocated_rule_minds(save)
+        target_pub = _student_public(target, save)
     soft_date = (
         ["随便走走吧", "聊聊最近心里的事", "时间不早了，我送你回去"] if is_date else []
     )
@@ -969,11 +1069,13 @@ def chat_turn(*, target_id: str, text: str, verb: str | None = None) -> dict[str
         if m in {"happy", "shy", "sad", "angry"}:
             line.emotion = m
 
-    if line.emotion:
+    if line.emotion or line.thought:
         prev = save.npc_minds.get(target_id) or {}
         save.npc_minds[target_id] = {
             **prev,
             "mood": line.emotion if line.emotion in npc_minds.VALID_MOODS else prev.get("mood", "neutral"),
+            "thought": (line.thought or prev.get("thought") or "")[:80],
+            "judgment": (getattr(line, "judgment", None) or prev.get("judgment") or "")[:60],
             "updated_day": save.day_index,
             "updated_period": save.period_id,
         }
@@ -998,6 +1100,8 @@ def chat_turn(*, target_id: str, text: str, verb: str | None = None) -> dict[str
     return {
         "line": line.line,
         "emotion": line.emotion,
+        "thought": line.thought or "",
+        "judgment": getattr(line, "judgment", "") or "",
         "soft_options": soft,
         "public_deltas": public_deltas,
         "edge": rel.public_edge(edge),
@@ -1117,6 +1221,8 @@ def interact(*, target_id: str, verb: str, text: str | None = None) -> dict[str,
         return {
             "line": line.line,
             "emotion": line.emotion,
+            "thought": line.thought or (save.npc_minds.get(target_id) or {}).get("thought") or "",
+            "judgment": getattr(line, "judgment", "") or "",
             "soft_options": line.soft_options or ["再学一会儿", "聊聊别的"],
             "public_deltas": {
                 "affinity_delta": round(delta, 2),
@@ -1181,6 +1287,8 @@ def interact(*, target_id: str, verb: str, text: str | None = None) -> dict[str,
     return {
         "line": line.line,
         "emotion": line.emotion,
+        "thought": line.thought or (save.npc_minds.get(target_id) or {}).get("thought") or "",
+        "judgment": getattr(line, "judgment", "") or "",
         "soft_options": line.soft_options or ["那就一起", "再聊两句"],
         "public_deltas": {"affinity_delta": 0.6, "stage": edge["stage"]},
         "edge": rel.public_edge(edge),
@@ -1538,6 +1646,7 @@ def board_public() -> dict[str, Any]:
         pe["other_q_sprite"] = (other_stu or {}).get("q_sprite")
         edges.append(pe)
     edges.sort(key=lambda e: e.get("affinity", 0), reverse=True)
+    class_gossip = npc_social.class_gossip_public(save)
     pc_seat = seating_mod.find_seat(save.seating, "pc")
     neighbor_tags: list[dict[str, Any]] = []
     if pc_seat:
@@ -1555,6 +1664,8 @@ def board_public() -> dict[str, Any]:
         "calendar": hub_public(save)["calendar"],
         "students": students,
         "pc_edges": edges[:20],
+        "class_gossip": class_gossip,
+        "world_events": list(save.world_events or [])[:8],
         "seating": save.seating,
         "last_mock": save.last_mock,
         "name_by_id": name_by_id,
@@ -1565,6 +1676,7 @@ def board_public() -> dict[str, Any]:
             "pending_intents": save.pending_intents or [],
             "pc_neighbors": neighbor_tags,
             "event_reactions": npc_minds.event_reactions_public(save),
+            "world_events": list(save.world_events or [])[:6],
         },
     }
 

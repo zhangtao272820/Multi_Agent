@@ -2,86 +2,88 @@
   <ClientOnly>
     <ClawhiveLoginGate v-if="needAuth && authReady && !isLoggedIn" @success="onLoginOk" />
   </ClientOnly>
-  <div v-if="!needAuth || (authReady && isLoggedIn)" class="rag-app-root relative min-h-screen bg-slate-950 text-slate-100">
-    <!-- Three.js银河系背景 -->
-    <div class="absolute inset-0 z-0 overflow-hidden">
-      <canvas ref="starCanvas" class="w-full h-full"></canvas>
-    </div>
+  <div v-if="!needAuth || (authReady && isLoggedIn)" class="rag-shell rag-app-root relative min-h-screen" data-agent="rag">
+    <div class="rag-season-bg rag-season-bg--qingming" aria-hidden="true" />
+    <BrandMotif motif="rain" :count="96" />
 
-    <div class="relative z-10 flex h-screen">
-      <div class="w-72 bg-slate-950/80 border-r border-white/10 flex flex-col">
-        <div class="p-4 border-b border-white/10">
-          <h2 class="text-xl font-semibold tracking-wide">文曲 · 文档助手</h2>
-          <div class="mt-1 text-xs text-slate-300/70">基于已上传资料 · 本地向量检索</div>
+    <div class="rag-layout relative z-10 flex h-screen">
+      <div class="rag-sidebar flex flex-col">
+        <div class="rag-sidebar__brand">
+          <div class="flex items-center gap-3">
+            <img class="shrink-0 rounded-lg" src="/brand/logos/rag.svg" alt="" width="36" height="36" />
+            <div class="min-w-0 flex-1">
+              <h2 class="rag-sidebar__title">文曲 · 文档助手</h2>
+              <div class="rag-sidebar__sub">基于已上传资料 · 本地向量检索</div>
+            </div>
+            <img class="shrink-0 rounded-xl border border-[var(--brand-dark-border)]" src="/brand/avatars/rag.svg" alt="" width="44" height="44" title="文曲虚拟形象" />
+          </div>
         </div>
 
-        <div class="p-4 border-b border-white/10 bg-white/5">
-          <h3 class="text-xs font-semibold text-slate-200/70 uppercase tracking-wider mb-2">检索学习</h3>
-          <div class="grid grid-cols-2 gap-2 text-[11px] text-slate-200/80">
-            <div class="rounded border border-white/10 bg-slate-950/30 px-2 py-1.5">
-              <div class="text-slate-400/70">反馈样本</div>
-              <div class="font-semibold text-sky-200">{{ intel.learning?.total ?? 0 }}</div>
+        <div class="rag-sidebar__section">
+          <h3 class="brand-section-label">检索学习</h3>
+          <div class="brand-stat-grid">
+            <div class="brand-stat">
+              <div class="brand-stat__label">反馈样本</div>
+              <div class="brand-stat__value brand-stat__value--accent">{{ intel.learning?.total ?? 0 }}</div>
             </div>
-            <div class="rounded border border-white/10 bg-slate-950/30 px-2 py-1.5">
-              <div class="text-slate-400/70">好评率</div>
-              <div class="font-semibold text-emerald-200">{{ pct(intel.learning?.okRate) }}</div>
+            <div class="brand-stat">
+              <div class="brand-stat__label">好评率</div>
+              <div class="brand-stat__value">{{ pct(intel.learning?.okRate) }}</div>
             </div>
-            <div class="rounded border border-white/10 bg-slate-950/30 px-2 py-1.5">
-              <div class="text-slate-400/70">经验向量</div>
-              <div class="font-semibold text-violet-200">{{ intel.experience?.count ?? 0 }}</div>
+            <div class="brand-stat">
+              <div class="brand-stat__label">经验向量</div>
+              <div class="brand-stat__value">{{ intel.experience?.count ?? 0 }}</div>
             </div>
-            <div class="rounded border border-white/10 bg-slate-950/30 px-2 py-1.5">
-              <div class="text-slate-400/70">已晋级</div>
-              <div class="font-semibold text-amber-200">{{ intel.promptEvolution?.evolvedHintCount ?? 0 }}</div>
+            <div class="brand-stat">
+              <div class="brand-stat__label">已晋级</div>
+              <div class="brand-stat__value">{{ intel.promptEvolution?.evolvedHintCount ?? 0 }}</div>
             </div>
-            <div class="rounded border border-white/10 bg-slate-950/30 px-2 py-1.5">
-              <div class="text-slate-400/70">A/B 实验</div>
-              <div class="font-semibold text-cyan-200">{{ intel.promptAb?.enabled ? '开' : '关' }}</div>
+            <div class="brand-stat">
+              <div class="brand-stat__label">A/B 实验</div>
+              <div class="brand-stat__value">{{ intel.promptAb?.enabled ? '开' : '关' }}</div>
             </div>
-            <div class="rounded border border-white/10 bg-slate-950/30 px-2 py-1.5">
-              <div class="text-slate-400/70">跨 Agent</div>
-              <div class="font-semibold text-fuchsia-200">{{ intel.crossAgent?.enabled ? (intel.crossAgent?.linkedUsers ?? 0) : '关' }}</div>
+            <div class="brand-stat">
+              <div class="brand-stat__label">跨 Agent</div>
+              <div class="brand-stat__value">{{ intel.crossAgent?.enabled ? (intel.crossAgent?.linkedUsers ?? 0) : '关' }}</div>
             </div>
-            <div class="rounded border border-white/10 bg-slate-950/30 px-2 py-1.5">
-              <div class="text-slate-400/70">进程内重排</div>
-              <div class="font-semibold text-lime-200">{{ intel.embeddingRerank?.enabled ? 'embedding' : '关' }}</div>
+            <div class="brand-stat">
+              <div class="brand-stat__label">进程内重排</div>
+              <div class="brand-stat__value">{{ intel.embeddingRerank?.enabled ? 'embedding' : '关' }}</div>
             </div>
-            <div class="rounded border border-white/10 bg-slate-950/30 px-2 py-1.5">
-              <div class="text-slate-400/70">ONNX</div>
-              <div class="font-semibold text-amber-200">{{ intel.onnxRerank?.sessionReady ? '就绪' : (intel.onnxRerank?.enabled ? '待模型' : '关') }}</div>
+            <div class="brand-stat">
+              <div class="brand-stat__label">ONNX</div>
+              <div class="brand-stat__value">{{ intel.onnxRerank?.sessionReady ? '就绪' : (intel.onnxRerank?.enabled ? '待模型' : '关') }}</div>
             </div>
-            <div class="rounded border border-white/10 bg-slate-950/30 px-2 py-1.5">
-              <div class="text-slate-400/70">共享身份</div>
-              <div class="font-semibold text-indigo-200">{{ intel.sharedIdentity?.enabled ? (intel.sharedIdentity?.mappedSessions ?? 0) : '关' }}</div>
+            <div class="brand-stat">
+              <div class="brand-stat__label">共享身份</div>
+              <div class="brand-stat__value">{{ intel.sharedIdentity?.enabled ? (intel.sharedIdentity?.mappedSessions ?? 0) : '关' }}</div>
             </div>
-            <div class="rounded border border-white/10 bg-slate-950/30 px-2 py-1.5 col-span-2">
-              <div class="text-slate-400/70">Bandit 重排臂</div>
-              <div class="font-semibold text-teal-200 text-[10px] mt-0.5">
-                {{ intel.retrievalBandit?.enabled ? topBanditArm : '关' }}
-              </div>
+            <div class="brand-stat" style="grid-column: span 2">
+              <div class="brand-stat__label">Bandit 重排臂</div>
+              <div class="brand-stat__value" style="font-size: 12px">{{ intel.retrievalBandit?.enabled ? topBanditArm : '关' }}</div>
             </div>
-            <div class="rounded border border-white/10 bg-slate-950/30 px-2 py-1.5">
-              <div class="text-slate-400/70">专用重排</div>
-              <div class="font-semibold text-orange-200">{{ intel.dedicatedRerank?.urlConfigured ? '已配' : '未配' }}</div>
+            <div class="brand-stat">
+              <div class="brand-stat__label">专用重排</div>
+              <div class="brand-stat__value">{{ intel.dedicatedRerank?.urlConfigured ? '已配' : '未配' }}</div>
             </div>
-            <div class="rounded border border-white/10 bg-slate-950/30 px-2 py-1.5">
-              <div class="text-slate-400/70">OIDC</div>
-              <div class="font-semibold text-blue-200">{{ intel.oidc?.enabled ? '开' : '关' }}</div>
+            <div class="brand-stat">
+              <div class="brand-stat__label">OIDC</div>
+              <div class="brand-stat__value">{{ intel.oidc?.enabled ? '开' : '关' }}</div>
             </div>
-            <div class="rounded border border-white/10 bg-slate-950/30 px-2 py-1.5 col-span-2">
-              <div class="text-slate-400/70">A/B 显著性 / 定时整理</div>
-              <div class="font-semibold text-slate-100 text-[10px] mt-0.5">
-                <span v-if="intel.abSignificance?.significant" class="text-emerald-300">可自动晋级</span>
-                <span v-else class="text-slate-400">{{ abSignificanceHint }}</span>
-                <span class="text-slate-500 mx-1">·</span>
+            <div class="brand-stat" style="grid-column: span 2">
+              <div class="brand-stat__label">A/B 显著性 / 定时整理</div>
+              <div class="brand-stat__value" style="font-size: 12px">
+                <span v-if="intel.abSignificance?.significant">可自动晋级</span>
+                <span v-else>{{ abSignificanceHint }}</span>
+                <span class="rag-stat-sep">·</span>
                 <span>{{ intel.autoCurator?.enabled ? '定时开' : '定时空' }}</span>
               </div>
             </div>
           </div>
-          <div class="mt-2 flex gap-2">
+          <div class="rag-sidebar__actions">
             <button
               type="button"
-              class="flex-1 text-[11px] rounded border border-white/10 bg-white/5 hover:bg-white/10 px-2 py-1 text-slate-200 disabled:opacity-50"
+              class="brand-btn brand-btn--secondary rag-btn-compact"
               :disabled="intelCurating"
               @click="runCurate"
             >
@@ -89,7 +91,7 @@
             </button>
             <button
               type="button"
-              class="flex-1 text-[11px] rounded border border-rose-400/20 bg-rose-500/10 hover:bg-rose-500/20 px-2 py-1 text-rose-100 disabled:opacity-50"
+              class="brand-btn brand-btn--ghost rag-btn-compact rag-btn-danger"
               :disabled="intelResetting"
               @click="resetLearning('learning')"
             >
@@ -98,41 +100,32 @@
           </div>
           <button
             type="button"
-            class="mt-2 w-full text-[11px] rounded border border-white/10 bg-white/5 hover:bg-white/10 px-2 py-1 text-slate-200"
+            class="brand-btn brand-btn--ghost rag-btn-compact rag-btn-block"
             @click="refreshIntel"
           >
             刷新学习状态
           </button>
         </div>
 
-        <div class="p-4 border-b border-white/10 bg-white/5">
-          <h3 class="text-xs font-semibold text-slate-200/70 uppercase tracking-wider mb-3">我能帮你</h3>
-          <div class="space-y-2">
-            <div class="flex items-center text-xs text-slate-200/80 bg-sky-500/10 p-2 rounded border border-sky-400/20">
-              <span class="w-2 h-2 bg-sky-300 rounded-full mr-2"></span>
-              上传并索引文档
-            </div>
-            <div class="flex items-center text-xs text-slate-200/80 bg-emerald-500/10 p-2 rounded border border-emerald-400/20">
-              <span class="w-2 h-2 bg-emerald-300 rounded-full mr-2"></span>
-              根据资料回答问题
-            </div>
-            <div class="flex items-center text-xs text-slate-200/80 bg-violet-500/10 p-2 rounded border border-violet-400/20">
-              <span class="w-2 h-2 bg-violet-300 rounded-full mr-2"></span>
-              查看知识库文档列表
-            </div>
+        <div class="rag-sidebar__section">
+          <h3 class="brand-section-label">我能帮你</h3>
+          <div class="rag-help-list">
+            <div class="rag-help-item"><span class="rag-help-dot" aria-hidden="true"></span>上传并索引文档</div>
+            <div class="rag-help-item"><span class="rag-help-dot" aria-hidden="true"></span>根据资料回答问题</div>
+            <div class="rag-help-item"><span class="rag-help-dot" aria-hidden="true"></span>查看知识库文档列表</div>
           </div>
         </div>
 
-        <div class="p-4 border-b border-white/10">
+        <div class="rag-sidebar__section rag-sidebar__section--flush">
           <button
             @click="triggerUpload"
-            class="w-full bg-sky-500/90 text-white px-4 py-2.5 rounded-lg font-semibold hover:bg-sky-400 transition-colors flex items-center justify-center shadow-sm shadow-sky-500/20 disabled:opacity-60"
+            class="brand-btn brand-btn--primary rag-upload-btn"
             :disabled="isUploading"
           >
             <span v-if="isUploading" class="animate-spin mr-2">⏳</span>
             {{ isUploading ? '解析中...' : '上传非结构化文档' }}
           </button>
-          <div class="mt-2 text-[10px] text-slate-300/70 text-center text-wrap">支持 PDF, TXT, DOC, DOCX, MD, CSV, JSON, ZIP, 图片 (PNG, JPG...)</div>
+          <div class="rag-upload-hint">支持 PDF, TXT, DOC, DOCX, MD, CSV, JSON, ZIP, 图片 (PNG, JPG...)</div>
           <input
             type="file"
             ref="fileInput"
@@ -142,58 +135,51 @@
           />
         </div>
 
-        <div class="flex-1 overflow-y-auto p-4">
-          <h3 class="text-xs font-semibold text-slate-200/70 uppercase tracking-wider mb-3">知识库</h3>
-          <ul class="space-y-3">
+        <div class="rag-sidebar__docs flex-1 overflow-y-auto">
+          <h3 class="brand-section-label">知识库</h3>
+          <ul class="rag-doc-list">
             <li
               v-for="doc in documents"
               :key="doc.name"
               :id="`doc-item-${sanitizeDomId(doc.name)}`"
-              :class="[
-                'group relative rounded-lg border p-3 shadow-sm shadow-black/20 transition-all',
-                highlightedDocName === doc.name
-                  ? 'bg-sky-400/15 border-sky-300/60 ring-1 ring-sky-300/40'
-                  : 'bg-white/5 border-white/10 hover:border-sky-300/30'
-              ]"
+              :class="['brand-list-row rag-doc-item', highlightedDocName === doc.name ? 'is-active' : '']"
             >
-              <div class="flex items-center justify-between mb-1">
-                <div class="flex items-center min-w-0">
-                  <div :class="['w-2 h-2 rounded-full mr-2 shrink-0', getDocColor(doc.type)]"></div>
-                  <span class="truncate text-xs font-semibold text-slate-100/90">{{ doc.name }}</span>
+              <div class="rag-doc-item__head">
+                <div class="rag-doc-item__name">
+                  <div :class="['rag-doc-dot', getDocColor(doc.type)]"></div>
+                  <span class="brand-list-row__title">{{ doc.name }}</span>
                 </div>
-                <button @click="confirmDelete(doc.name)" class="text-slate-400/60 hover:text-rose-300 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button @click="confirmDelete(doc.name)" class="rag-doc-delete" type="button" title="删除">
                   <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                   </svg>
                 </button>
               </div>
-              <div v-if="doc.summary" class="text-[10px] text-slate-200/70 line-clamp-2 leading-relaxed mt-1 italic border-t pt-1 border-white/10">
-                {{ doc.summary }}
-              </div>
+              <div v-if="doc.summary" class="brand-list-row__meta">{{ doc.summary }}</div>
             </li>
-            <li v-if="documents.length === 0" class="text-sm text-slate-300/70 italic text-center py-4">暂无文档库内容</li>
+            <li v-if="documents.length === 0" class="brand-empty">暂无文档库内容</li>
           </ul>
         </div>
       </div>
 
       <!-- 历史会话侧栏（Checkpointer 式） -->
       <aside
-        class="flex flex-col border-r border-white/10 bg-slate-950/70 transition-all duration-200 overflow-hidden"
-        :class="historyPanelOpen ? 'w-64' : 'w-0'"
+        class="rag-history-aside flex flex-col overflow-hidden"
+        :class="historyPanelOpen ? 'is-open' : ''"
         aria-label="历史会话"
       >
-        <div class="w-64 flex flex-col h-full">
-          <div class="p-3 border-b border-white/10 flex items-center justify-between gap-2">
-            <span class="text-xs font-semibold text-slate-200 uppercase tracking-wider">历史会话</span>
+        <div class="rag-history-aside__inner flex flex-col h-full">
+          <div class="rag-history-aside__head">
+            <span class="brand-section-label" style="margin:0">历史会话</span>
             <button
               type="button"
-              class="text-[11px] rounded border border-white/10 bg-white/5 hover:bg-white/10 px-2 py-0.5 text-slate-200"
+              class="brand-btn brand-btn--ghost rag-btn-compact"
               @click="newSession"
             >
               新会话
             </button>
           </div>
-          <div v-if="!sessionHistoryItems.length" class="p-4 text-xs text-slate-400 italic">
+          <div v-if="!sessionHistoryItems.length" class="brand-empty">
             暂无历史记录，发送消息后会自动保存。
           </div>
           <ul v-else class="rag-history-list flex-1 min-h-0">
@@ -237,28 +223,40 @@
         </div>
       </aside>
 
-      <div class="flex-1 flex flex-col bg-slate-950/40 border-l border-white/5 min-w-0">
-        <div class="px-4 py-2.5 border-b border-white/10 flex items-center justify-between gap-3 bg-slate-950/50">
-          <div class="min-w-0">
-            <h1 class="text-sm font-semibold text-slate-100 truncate">文曲 · 文档助手</h1>
-            <div class="text-[10px] text-slate-400 truncate">会话 {{ conversationId ? conversationId.slice(0, 8) + '…' : '未开始' }}</div>
+      <div class="rag-main flex-1 flex flex-col min-w-0">
+        <div class="rag-main__topbar">
+          <div class="min-w-0 flex items-center gap-2.5">
+            <img class="shrink-0 rounded-md" src="/brand/logos/rag.svg" alt="" width="28" height="28" />
+            <div class="min-w-0">
+              <h1 class="rag-main__title">文曲 · 文档助手</h1>
+              <div class="rag-main__session">会话 {{ conversationId ? conversationId.slice(0, 8) + '…' : '未开始' }}</div>
+            </div>
           </div>
           <div class="flex items-center gap-2 shrink-0">
             <button
               type="button"
-              class="text-[11px] rounded border px-2 py-1 transition-colors"
-              :class="historyPanelOpen ? 'border-sky-400/40 bg-sky-500/15 text-sky-100' : 'border-white/10 bg-white/5 text-slate-200 hover:bg-white/10'"
+              class="brand-btn rag-btn-compact"
+              :class="historyPanelOpen ? 'brand-btn--primary' : 'brand-btn--secondary'"
               @click="historyPanelOpen = !historyPanelOpen"
             >
               历史
             </button>
             <button
               type="button"
-              class="text-[11px] rounded border border-white/10 bg-white/5 hover:bg-white/10 px-2 py-1 text-slate-200"
+              class="brand-btn brand-btn--secondary rag-btn-compact"
               @click="newSession"
             >
               新会话
             </button>
+            <button
+              v-if="needAuth && isLoggedIn"
+              type="button"
+              class="brand-btn brand-btn--secondary rag-btn-compact"
+              @click="onLogout"
+            >
+              退出
+            </button>
+            <img class="rounded-lg border border-[var(--brand-dark-border)]" src="/brand/avatars/rag.svg" alt="" width="36" height="36" title="文曲虚拟形象" />
           </div>
         </div>
 
@@ -354,17 +352,15 @@
           >
             <div
               v-if="msg.role === 'assistant'"
-              class="shrink-0 mt-1 w-8 h-8 rounded-full bg-sky-500/15 border border-sky-400/25 flex items-center justify-center text-sm"
+              class="rag-avatar shrink-0"
               aria-hidden="true"
             >
               📄
             </div>
             <div
               :class="[
-                'max-w-[82%] px-4 py-3 rounded-2xl shadow-sm',
-                msg.role === 'user'
-                  ? 'bg-sky-500/90 text-white shadow-sky-500/10 rounded-br-md'
-                  : 'bg-slate-950/40 border border-white/10 text-slate-100/90 backdrop-blur rounded-bl-md'
+                'brand-msg',
+                msg.role === 'user' ? 'brand-msg--user' : 'brand-msg--assistant'
               ]"
             >
               <!-- 用户消息 -->
@@ -570,19 +566,19 @@
 
         </div>
 
-        <div class="p-4 bg-slate-950/60 border-t border-white/10">
+        <div class="rag-compose">
           <div class="rag-input-hint">{{ isLoading ? 'Esc 或点击取消停止' : 'Enter 发送' }}</div>
-          <div class="flex space-x-2">
+          <div class="rag-compose__row">
             <textarea
               v-model="userInput"
               rows="2"
               @keydown="onInputKeydown"
               placeholder="输入问题，我会根据已上传的文档回答…"
-              class="flex-1 bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-slate-100 placeholder:text-slate-300/60 focus:outline-none focus:ring-2 focus:ring-sky-400/40 resize-none min-h-[44px]"
+              class="rag-compose__input"
             />
             <button
               type="button"
-              class="rag-send-cancel bg-sky-500/90 text-white px-6 py-2 rounded-lg hover:bg-sky-400 transition disabled:opacity-50 font-semibold shrink-0 self-end"
+              class="brand-btn brand-btn--primary rag-send-cancel"
               :class="{ 'is-cancel': isLoading }"
               :disabled="!isLoading && !userInput.trim()"
               @click="onSendOrCancel"
@@ -598,12 +594,16 @@
 
 <script setup>
 import { ref, reactive, onMounted, onUnmounted, nextTick, computed, watch } from 'vue';
+import BrandMotif from '@brand/vue/BrandMotif.vue'
 
 const runtimeConfig = useRuntimeConfig()
 const needAuth = computed(() => String(runtimeConfig.public?.agentBrowserAuth ?? '1') !== '0')
-const { isLoggedIn, ready: authReady, loadFromStorage, authHeaders, token: clawhiveToken } = useClawhiveLogin()
+const { isLoggedIn, ready: authReady, loadFromStorage, authHeaders, token: clawhiveToken, logout } = useClawhiveLogin()
 function onLoginOk() {
   loadFromStorage()
+}
+function onLogout() {
+  logout()
 }
 function withAuthHeaders(init = {}) {
   const h = authHeaders()
@@ -614,7 +614,6 @@ function withAuthHeaders(init = {}) {
   }
   return { ...init, headers: { ...base, ...h } }
 }
-import * as THREE from 'three';
 import MarkdownIt from 'markdown-it';
 import * as echarts from 'echarts';
 import AppModal from './components/AppModal.vue';
@@ -647,7 +646,10 @@ function readTabRagSessionId() {
   }
 }
 
-useHead({ title: '文曲 · RAG Agent' });
+useHead({
+  title: '文曲 · RAG Agent',
+  link: [{ rel: 'icon', type: 'image/svg+xml', href: '/brand/logos/rag.svg' }],
+});
 
 const fileInput = ref(null);
 const isUploading = ref(false);
@@ -673,7 +675,6 @@ const DEFAULT_WELCOME = {
 };
 const messages = ref([{ ...DEFAULT_WELCOME }]);
 const chatContainer = ref(null);
-const starCanvas = ref(null);
 const conversationId = ref('');
 const historyPanelOpen = ref(true);
 const sessionHistoryItems = ref([]);
@@ -720,15 +721,6 @@ const intel = ref({
 const intelCurating = ref(false);
 const intelResetting = ref(false);
 
-let scene = null;
-let camera = null;
-let renderer = null;
-let galaxyPoints = null;
-let backgroundPoints = null;
-let coreSprite = null;
-let nebulaSprites = [];
-let nebulaSharedTexture = null;
-let animationId = null;
 let highlightTimer = null;
 
 const copyToClipboard = async (text) => {
@@ -2558,501 +2550,6 @@ const scrollToBottom = async () => {
   }
 };
 
-const createGalaxy = () => {
-  const disposeMaterial = (material) => {
-    if (!material) return;
-    if (Array.isArray(material)) {
-      for (const m of material) disposeMaterial(m);
-      return;
-    }
-    if (material.map) material.map.dispose();
-    material.dispose();
-  };
-
-  const disposeObjectDeep = (object) => {
-    if (!object) return;
-    object.traverse((child) => {
-      if (child.geometry) child.geometry.dispose();
-      if (child.material) disposeMaterial(child.material);
-    });
-  };
-
-  const disposePoints = (points) => {
-    if (!points) return;
-    scene.remove(points);
-    disposeObjectDeep(points);
-    if (points.geometry) points.geometry.dispose();
-    if (points.material) points.material.dispose();
-  };
-
-  const disposeSprite = (sprite) => {
-    if (!sprite) return;
-    scene.remove(sprite);
-    if (sprite.material) disposeMaterial(sprite.material);
-  };
-
-  const disposeNebulas = () => {
-    if (!nebulaSprites.length) return;
-    for (const sprite of nebulaSprites) {
-      if (!sprite) continue;
-      if (sprite.parent) sprite.parent.remove(sprite);
-      if (sprite.material) disposeMaterial(sprite.material);
-    }
-    nebulaSprites = [];
-    if (nebulaSharedTexture) {
-      nebulaSharedTexture.dispose();
-      nebulaSharedTexture = null;
-    }
-  };
-
-  disposePoints(galaxyPoints);
-  disposePoints(backgroundPoints);
-  disposeSprite(coreSprite);
-  disposeNebulas();
-  galaxyPoints = null;
-  backgroundPoints = null;
-  coreSprite = null;
-
-  const randomNormal = () => {
-    let u = 0;
-    let v = 0;
-    while (u === 0) u = Math.random();
-    while (v === 0) v = Math.random();
-    return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
-  };
-
-  const makeRadialTexture = () => {
-    const size = 256;
-    const canvas = document.createElement('canvas');
-    canvas.width = size;
-    canvas.height = size;
-    const ctx = canvas.getContext('2d');
-    const g = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
-    g.addColorStop(0.0, 'rgba(255, 245, 220, 1)');
-    g.addColorStop(0.35, 'rgba(170, 220, 255, 0.55)');
-    g.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, size, size);
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.minFilter = THREE.LinearFilter;
-    texture.magFilter = THREE.LinearFilter;
-    texture.generateMipmaps = false;
-    return texture;
-  };
-
-  const makeSoftAlphaTexture = () => {
-    const size = 512;
-    const canvas = document.createElement('canvas');
-    canvas.width = size;
-    canvas.height = size;
-    const ctx = canvas.getContext('2d');
-    const g = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
-    g.addColorStop(0.0, 'rgba(255, 255, 255, 0.95)');
-    g.addColorStop(0.18, 'rgba(255, 255, 255, 0.65)');
-    g.addColorStop(0.55, 'rgba(255, 255, 255, 0.18)');
-    g.addColorStop(1.0, 'rgba(255, 255, 255, 0)');
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, size, size);
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.minFilter = THREE.LinearFilter;
-    texture.magFilter = THREE.LinearFilter;
-    texture.generateMipmaps = false;
-    return texture;
-  };
-
-  const vertexShader = `
-    attribute float size;
-    attribute float alpha;
-    varying vec3 vColor;
-    varying float vAlpha;
-    void main() {
-      vColor = color;
-      vAlpha = alpha;
-      vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-      float dist = max(0.001, -mvPosition.z);
-      gl_PointSize = size * (520.0 / dist);
-      gl_Position = projectionMatrix * mvPosition;
-    }
-  `;
-
-  const fragmentShader = `
-    varying vec3 vColor;
-    varying float vAlpha;
-    void main() {
-      vec2 uv = gl_PointCoord - vec2(0.5);
-      float d = length(uv);
-      float a = smoothstep(0.5, 0.0, d);
-      a = pow(a, 2.2);
-      gl_FragColor = vec4(vColor, a * vAlpha);
-    }
-  `;
-
-  const galaxyRadius = 1350;
-  const arms = 4;
-  const twist = 0.014;
-  const armSpread = 0.36;
-  const diskThickness = 42;
-  const bulgeRadius = 260;
-  const armTightness = 0.22;
-  const dustLaneOffset = -0.18;
-  const dustLaneWidth = 0.13;
-
-  const galaxyCount = 26000;
-  const galaxyGeometry = new THREE.BufferGeometry();
-  const gPositions = new Float32Array(galaxyCount * 3);
-  const gColors = new Float32Array(galaxyCount * 3);
-  const gSizes = new Float32Array(galaxyCount);
-  const gAlphas = new Float32Array(galaxyCount);
-
-  const innerColor = new THREE.Color('#ffd0a6');
-  const outerColor = new THREE.Color('#9ad6ff');
-  const tempColor = new THREE.Color();
-  const warmStar = new THREE.Color('#ffb788');
-  const coolStar = new THREE.Color('#9ad6ff');
-  const neutralStar = new THREE.Color('#ffffff');
-  const redGiant = new THREE.Color('#ff6b6b');
-  const armTints = [
-    new THREE.Color('#7dd3fc'),
-    new THREE.Color('#22d3ee'),
-    new THREE.Color('#c084fc'),
-    new THREE.Color('#fb7185')
-  ];
-
-  for (let i = 0; i < galaxyCount; i++) {
-    const isBulge = Math.random() < 0.24;
-    const radiusBase = isBulge ? bulgeRadius : galaxyRadius;
-    const radiusPow = isBulge ? 0.55 : 1.85;
-    const radius = Math.pow(Math.random(), radiusPow) * radiusBase;
-    const armIndex = Math.floor(Math.random() * arms);
-    const baseAngle = (armIndex / arms) * Math.PI * 2.0;
-    const spiralAngle = radius * twist;
-    const angleJitter = randomNormal() * armSpread * (0.35 + 0.65 * (1.0 - radius / galaxyRadius));
-    const angle = baseAngle + spiralAngle + angleJitter;
-
-    const armDensity = Math.exp(-0.5 * Math.pow(angleJitter / armTightness, 2));
-    const lane = Math.exp(-0.5 * Math.pow((angleJitter - dustLaneOffset) / dustLaneWidth, 2));
-    const laneFactor = 1.0 - 0.65 * lane * (0.25 + 0.75 * (1.0 - radius / galaxyRadius));
-
-    const localNoise = randomNormal() * (radius * 0.014);
-    const x = Math.cos(angle) * radius + localNoise;
-    const z = Math.sin(angle) * radius + randomNormal() * (radius * 0.014);
-    const thickness = diskThickness * (isBulge ? 0.75 : 1.0) * (0.25 + 0.75 * (1.0 - radius / galaxyRadius));
-    const y = randomNormal() * thickness;
-
-    gPositions[i * 3] = x;
-    gPositions[i * 3 + 1] = y;
-    gPositions[i * 3 + 2] = z;
-
-    const t = Math.min(1, radius / galaxyRadius);
-    tempColor.copy(innerColor).lerp(outerColor, t * t);
-    const hueShift = (Math.random() - 0.5) * 0.08;
-    const hsl = { h: 0, s: 0, l: 0 };
-    tempColor.getHSL(hsl);
-    tempColor.setHSL(hsl.h + hueShift, Math.min(1, hsl.s * (0.8 + Math.random() * 0.5)), Math.min(1, hsl.l * (0.92 + Math.random() * 0.22)));
-
-    const tempPick = Math.random();
-    let starTemp = neutralStar;
-    if (tempPick < 0.12) starTemp = redGiant;
-    else if (tempPick < 0.32) starTemp = warmStar;
-    else if (tempPick < 0.58) starTemp = neutralStar;
-    else starTemp = coolStar;
-
-    const tempMix = isBulge ? 0.12 : 0.35;
-    tempColor.lerp(starTemp, tempMix);
-
-    if (!isBulge) {
-      const armTint = armTints[armIndex % armTints.length];
-      const armMix = Math.min(0.55, armDensity * (0.18 + 0.55 * (1.0 - t)));
-      tempColor.lerp(armTint, armMix);
-    }
-
-    const intensity = (isBulge ? 0.95 : (0.65 + 0.35 * armDensity)) * laneFactor;
-    tempColor.multiplyScalar(intensity);
-
-    gColors[i * 3] = tempColor.r;
-    gColors[i * 3 + 1] = tempColor.g;
-    gColors[i * 3 + 2] = tempColor.b;
-
-    const sizeBase = isBulge ? 8.5 : 4.2;
-    const sparkle = 1.0 + Math.pow(Math.random(), 10) * 3.5;
-    const size = (sizeBase + Math.random() * (isBulge ? 6.0 : 5.0)) * (1.05 - 0.45 * t) * sparkle;
-    gSizes[i] = size;
-
-    const alphaBase = isBulge ? 0.82 : 0.74;
-    const alpha = alphaBase * (0.6 + 0.4 * armDensity) * laneFactor * (0.75 + Math.random() * 0.25);
-    gAlphas[i] = Math.min(1.0, Math.max(0.05, alpha));
-  }
-
-  galaxyGeometry.setAttribute('position', new THREE.BufferAttribute(gPositions, 3));
-  galaxyGeometry.setAttribute('color', new THREE.BufferAttribute(gColors, 3));
-  galaxyGeometry.setAttribute('size', new THREE.BufferAttribute(gSizes, 1));
-  galaxyGeometry.setAttribute('alpha', new THREE.BufferAttribute(gAlphas, 1));
-
-  const galaxyMaterial = new THREE.ShaderMaterial({
-    vertexShader,
-    fragmentShader,
-    transparent: true,
-    blending: THREE.AdditiveBlending,
-    depthWrite: false,
-    vertexColors: true
-  });
-
-  galaxyPoints = new THREE.Points(galaxyGeometry, galaxyMaterial);
-  galaxyPoints.rotation.x = Math.PI / 2;
-  galaxyPoints.rotation.z = 0.25;
-  scene.add(galaxyPoints);
-
-  const dustCount = 18000;
-  const dustGeometry = new THREE.BufferGeometry();
-  const dPositions = new Float32Array(dustCount * 3);
-  const dColors = new Float32Array(dustCount * 3);
-  const dSizes = new Float32Array(dustCount);
-  const dAlphas = new Float32Array(dustCount);
-
-  const dustPalette = [
-    new THREE.Color('#a78bfa'),
-    new THREE.Color('#60a5fa'),
-    new THREE.Color('#22d3ee'),
-    new THREE.Color('#fb7185'),
-    new THREE.Color('#fbbf24')
-  ];
-  const white = new THREE.Color('#ffffff');
-
-  for (let i = 0; i < dustCount; i++) {
-    const radius = Math.pow(Math.random(), 1.65) * galaxyRadius;
-    const armIndex = Math.floor(Math.random() * arms);
-    const baseAngle = (armIndex / arms) * Math.PI * 2.0;
-    const spiralAngle = radius * twist;
-    const angleJitter = randomNormal() * (armSpread * 0.85) * (0.35 + 0.65 * (1.0 - radius / galaxyRadius));
-    const angle = baseAngle + spiralAngle + angleJitter;
-
-    const armDensity = Math.exp(-0.5 * Math.pow(angleJitter / (armTightness * 1.15), 2));
-    const x = Math.cos(angle) * radius + randomNormal() * (radius * 0.03);
-    const z = Math.sin(angle) * radius + randomNormal() * (radius * 0.03);
-    const y = randomNormal() * (diskThickness * 1.45) * (0.25 + 0.75 * (1.0 - radius / galaxyRadius));
-
-    dPositions[i * 3] = x;
-    dPositions[i * 3 + 1] = y;
-    dPositions[i * 3 + 2] = z;
-
-    const t = Math.min(1, radius / galaxyRadius);
-    const paletteColor = dustPalette[(armIndex + Math.floor(Math.random() * 2)) % dustPalette.length];
-    tempColor.copy(paletteColor);
-    tempColor.lerp(white, 0.08 + Math.random() * 0.08);
-    tempColor.multiplyScalar((0.22 + 0.55 * armDensity) * (0.55 + 0.45 * (1.0 - t)));
-
-    dColors[i * 3] = tempColor.r;
-    dColors[i * 3 + 1] = tempColor.g;
-    dColors[i * 3 + 2] = tempColor.b;
-
-    dSizes[i] = (6.0 + Math.random() * 18.0) * (1.05 - 0.45 * t);
-    dAlphas[i] = Math.min(0.55, (0.12 + 0.38 * armDensity) * (0.65 + Math.random() * 0.35));
-  }
-
-  dustGeometry.setAttribute('position', new THREE.BufferAttribute(dPositions, 3));
-  dustGeometry.setAttribute('color', new THREE.BufferAttribute(dColors, 3));
-  dustGeometry.setAttribute('size', new THREE.BufferAttribute(dSizes, 1));
-  dustGeometry.setAttribute('alpha', new THREE.BufferAttribute(dAlphas, 1));
-
-  const dustMaterial = new THREE.ShaderMaterial({
-    vertexShader,
-    fragmentShader,
-    transparent: true,
-    blending: THREE.AdditiveBlending,
-    depthWrite: false,
-    vertexColors: true
-  });
-
-  const dustPoints = new THREE.Points(dustGeometry, dustMaterial);
-  galaxyPoints.add(dustPoints);
-
-  const bgCount = 5200;
-  const bgGeometry = new THREE.BufferGeometry();
-  const bPositions = new Float32Array(bgCount * 3);
-  const bColors = new Float32Array(bgCount * 3);
-  const bSizes = new Float32Array(bgCount);
-  const bAlphas = new Float32Array(bgCount);
-
-  const bgColorA = new THREE.Color('#cfe9ff');
-  const bgColorB = new THREE.Color('#ffffff');
-
-  for (let i = 0; i < bgCount; i++) {
-    const r = 2200 + Math.pow(Math.random(), 0.35) * 3400;
-    const theta = Math.random() * Math.PI * 2;
-    const phi = Math.acos(2 * Math.random() - 1);
-    const x = r * Math.sin(phi) * Math.cos(theta);
-    const y = r * Math.cos(phi);
-    const z = r * Math.sin(phi) * Math.sin(theta);
-    bPositions[i * 3] = x;
-    bPositions[i * 3 + 1] = y;
-    bPositions[i * 3 + 2] = z;
-
-    tempColor.copy(bgColorA).lerp(bgColorB, Math.random());
-    const dim = 0.55 + Math.random() * 0.45;
-    tempColor.multiplyScalar(dim);
-    bColors[i * 3] = tempColor.r;
-    bColors[i * 3 + 1] = tempColor.g;
-    bColors[i * 3 + 2] = tempColor.b;
-
-    bSizes[i] = 6 + Math.random() * 12;
-    bAlphas[i] = 0.65 + Math.random() * 0.35;
-  }
-
-  bgGeometry.setAttribute('position', new THREE.BufferAttribute(bPositions, 3));
-  bgGeometry.setAttribute('color', new THREE.BufferAttribute(bColors, 3));
-  bgGeometry.setAttribute('size', new THREE.BufferAttribute(bSizes, 1));
-  bgGeometry.setAttribute('alpha', new THREE.BufferAttribute(bAlphas, 1));
-
-  const bgMaterial = new THREE.ShaderMaterial({
-    vertexShader,
-    fragmentShader,
-    transparent: true,
-    blending: THREE.AdditiveBlending,
-    depthWrite: false,
-    vertexColors: true
-  });
-
-  backgroundPoints = new THREE.Points(bgGeometry, bgMaterial);
-  scene.add(backgroundPoints);
-
-  nebulaSharedTexture = makeSoftAlphaTexture();
-  const nebulaColors = [
-    new THREE.Color('#a78bfa'),
-    new THREE.Color('#60a5fa'),
-    new THREE.Color('#22d3ee'),
-    new THREE.Color('#fb7185'),
-    new THREE.Color('#fbbf24'),
-    new THREE.Color('#34d399')
-  ];
-
-  for (let i = 0; i < 14; i++) {
-    const radius = 280 + Math.pow(Math.random(), 0.85) * 980;
-    const armIndex = Math.floor(Math.random() * arms);
-    const baseAngle = (armIndex / arms) * Math.PI * 2.0;
-    const angle = baseAngle + radius * twist + randomNormal() * (armSpread * 0.55);
-
-    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
-      map: nebulaSharedTexture,
-      transparent: true,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-      opacity: 0.12 + Math.random() * 0.18,
-      color: nebulaColors[(armIndex + i) % nebulaColors.length]
-    }));
-
-    sprite.position.set(
-      Math.cos(angle) * radius + randomNormal() * (radius * 0.08),
-      randomNormal() * (diskThickness * 1.1),
-      Math.sin(angle) * radius + randomNormal() * (radius * 0.08)
-    );
-
-    const s = 520 + Math.random() * 780;
-    sprite.scale.set(s, s, 1);
-    galaxyPoints.add(sprite);
-    nebulaSprites.push(sprite);
-  }
-
-  const coreTexture = makeRadialTexture();
-  const coreMaterial = new THREE.SpriteMaterial({
-    map: coreTexture,
-    transparent: true,
-    blending: THREE.AdditiveBlending,
-    depthWrite: false,
-    opacity: 0.92,
-    color: 0xffffff
-  });
-  coreSprite = new THREE.Sprite(coreMaterial);
-  coreSprite.scale.set(1100, 1100, 1);
-  coreSprite.position.set(0, 0, 0);
-  scene.add(coreSprite);
-};
-
-const initThree = () => {
-  if (!starCanvas.value) return;
-
-  scene = new THREE.Scene();
-
-  camera = new THREE.PerspectiveCamera(
-    60,
-    1,
-    0.1,
-    5000
-  );
-  camera.position.set(0, 140, 820);
-  camera.lookAt(0, 0, 0);
-
-  renderer = new THREE.WebGLRenderer({
-    canvas: starCanvas.value,
-    alpha: true,
-    antialias: true
-  });
-  renderer.setClearColor(0x000000, 1);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  handleResize();
-
-  createGalaxy();
-
-  const animate = () => {
-    animationId = requestAnimationFrame(animate);
-
-    if (galaxyPoints) {
-      galaxyPoints.rotation.z += 0.00045;
-    }
-    if (backgroundPoints) {
-      backgroundPoints.rotation.y += 0.00008;
-    }
-
-    renderer.render(scene, camera);
-  };
-
-  animate();
-
-  window.addEventListener('resize', handleResize);
-};
-
-const handleResize = () => {
-  if (!camera || !renderer || !starCanvas.value) return;
-  const rect = starCanvas.value.getBoundingClientRect();
-  const width = Math.max(1, Math.floor(rect.width));
-  const height = Math.max(1, Math.floor(rect.height));
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.setSize(width, height, false);
-  camera.aspect = width / height;
-  camera.updateProjectionMatrix();
-};
-
-const cleanupThree = () => {
-  if (animationId) {
-    cancelAnimationFrame(animationId);
-  }
-
-  window.removeEventListener('resize', handleResize);
-
-  if (scene) {
-    if (galaxyPoints) {
-      scene.remove(galaxyPoints);
-      if (galaxyPoints.geometry) galaxyPoints.geometry.dispose();
-      if (galaxyPoints.material) galaxyPoints.material.dispose();
-    }
-    if (backgroundPoints) {
-      scene.remove(backgroundPoints);
-      if (backgroundPoints.geometry) backgroundPoints.geometry.dispose();
-      if (backgroundPoints.material) backgroundPoints.material.dispose();
-    }
-    if (coreSprite) {
-      scene.remove(coreSprite);
-      if (coreSprite.material) {
-        if (coreSprite.material.map) coreSprite.material.map.dispose();
-        coreSprite.material.dispose();
-      }
-    }
-  }
-
-  if (renderer) {
-    renderer.dispose();
-  }
-};
-
 onMounted(() => {
   loadFromStorage();
   const _fetch = window.fetch.bind(window);
@@ -3083,7 +2580,6 @@ onMounted(() => {
   watch(clawhiveToken, (t, prev) => {
     if (t && !prev && needAuth.value) bootstrapServerSession();
   });
-  initThree();
 });
 
 onUnmounted(() => {
@@ -3093,7 +2589,6 @@ onUnmounted(() => {
   }
   for (const instance of chartState.instances.values()) instance.dispose();
   chartState.instances.clear();
-  cleanupThree();
 });
 </script>
 
@@ -3383,27 +2878,28 @@ onUnmounted(() => {
 .msg-action-btn {
   font-size: 11px;
   border-radius: 0.45rem;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(70, 120, 95, 0.22);
+  background: rgba(255, 255, 255, 0.45);
   padding: 0.15rem 0.55rem;
-  color: rgba(241, 245, 249, 0.92);
+  color: #2f4a3c;
 }
 .msg-action-btn:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.72);
 }
 .msg-action-btn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
 .msg-action-primary {
-  border-color: rgba(56, 189, 248, 0.35);
-  background: rgba(14, 165, 233, 0.22);
+  border-color: rgba(61, 139, 116, 0.4);
+  background: rgba(61, 139, 116, 0.16);
+  color: #1a2e24;
 }
 
 .rag-process-panel {
   border-radius: 0.75rem;
-  border: 1px solid rgba(56, 189, 248, 0.18);
-  background: rgba(2, 6, 23, 0.45);
+  border: 1px solid rgba(70, 120, 95, 0.2);
+  background: rgba(255, 255, 255, 0.42);
   overflow: hidden;
 }
 .rag-process-toggle {
@@ -3413,33 +2909,33 @@ onUnmounted(() => {
   gap: 0.45rem;
   padding: 0.45rem 0.65rem;
   font-size: 11px;
-  color: rgba(186, 230, 253, 0.92);
+  color: #2f4a3c;
   text-align: left;
 }
 .rag-process-toggle:hover {
-  background: rgba(56, 189, 248, 0.08);
+  background: rgba(61, 139, 116, 0.08);
 }
 .rag-process-count {
-  color: rgba(148, 163, 184, 0.85);
+  color: #5a7264;
   font-size: 10px;
 }
 .rag-process-elapsed {
   margin-left: auto;
   font-variant-numeric: tabular-nums;
-  color: rgba(125, 211, 252, 0.95);
+  color: #3d8b74;
   font-size: 10px;
 }
 .rag-process-chevron {
-  color: rgba(148, 163, 184, 0.75);
+  color: #5a7264;
   font-size: 10px;
 }
 .rag-process-steps {
-  border-top: 1px solid rgba(56, 189, 248, 0.12);
+  border-top: 1px solid rgba(70, 120, 95, 0.14);
   padding: 0.35rem 0.55rem 0.5rem;
   max-height: 16rem;
   overflow-y: auto;
   scrollbar-width: thin;
-  scrollbar-color: rgba(56, 189, 248, 0.35) rgba(15, 23, 42, 0.4);
+  scrollbar-color: rgba(61, 139, 116, 0.35) transparent;
 }
 .rag-process-step {
   display: flex;
@@ -3447,18 +2943,18 @@ onUnmounted(() => {
   gap: 0.45rem;
   font-size: 11px;
   line-height: 1.45;
-  color: rgba(203, 213, 225, 0.88);
+  color: #2f4a3c;
   padding: 0.2rem 0;
 }
 .rag-process-step-ms {
   margin-left: auto;
   flex-shrink: 0;
   font-variant-numeric: tabular-nums;
-  color: rgba(125, 211, 252, 0.75);
+  color: #5a7264;
   font-size: 9px;
 }
 .rag-process-step.kind-phase .rag-process-dot {
-  background: rgba(56, 189, 248, 0.95);
+  background: #3d8b74;
 }
 .rag-process-dot {
   width: 6px;
@@ -3466,15 +2962,28 @@ onUnmounted(() => {
   border-radius: 9999px;
   margin-top: 0.35rem;
   flex-shrink: 0;
-  background: rgba(56, 189, 248, 0.65);
+  background: rgba(61, 139, 116, 0.65);
 }
 .rag-process-step.kind-node .rag-process-dot {
-  background: rgba(167, 139, 250, 0.8);
+  background: #6b8fd4;
 }
 .rag-process-step.kind-tool .rag-process-dot {
-  background: rgba(52, 211, 153, 0.85);
+  background: #3d9a78;
 }
 .rag-process-step.kind-status .rag-process-text {
-  color: rgba(186, 230, 253, 0.95);
+  color: #327863;
+}
+</style>
+
+<style>
+html,
+body,
+#__nuxt {
+  margin: 0;
+  min-height: 100%;
+  background: transparent;
+}
+.rag-shell > .brand-motif {
+  z-index: 30;
 }
 </style>

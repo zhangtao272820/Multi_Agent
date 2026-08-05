@@ -1,0 +1,113 @@
+/* ClawHive 生产 Agent 共享视觉 — 克制、有层次、不花哨 */
+
+:root {
+  color-scheme: light;
+
+  --brand-bg: #eef1f6;
+  --brand-bg-elevated: #fbfcfe;
+  --brand-bg-subtle: #e4e9f1;
+  --brand-bg-hover: #dce3ee;
+  --brand-panel: rgba(251, 252, 254, 0.92);
+  --brand-panel-solid: #fbfcfe;
+  --brand-ink: #161a22;
+  --brand-text: #1c2230;
+  --brand-text-secondary: #4a5568;
+  --brand-text-muted: #6b778c;
+  --brand-border: #cfd7e4;
+  --brand-border-strong: #b0bccc;
+  --brand-sidebar: #141821;
+  --brand-sidebar-elevated: #1c2230;
+  --brand-sidebar-text: #d5dbe8;
+  --brand-sidebar-muted: #8b95a8;
+  --brand-sidebar-hover: rgba(255, 255, 255, 0.06);
+  --brand-sidebar-active: #252d3c;
+
+  --brand-accent: #5b6f9a;
+  --brand-accent-hover: #4a5d86;
+  --brand-accent-soft: rgba(91, 111, 154, 0.14);
+  --brand-accent-border: rgba(91, 111, 154, 0.35);
+  --brand-accent-muted: #7a8bb0;
+
+  --brand-success: #0f766e;
+  --brand-success-bg: #ecfdf8;
+  --brand-warning: #b45309;
+  --brand-warning-bg: #fff7ed;
+  --brand-danger: #b91c1c;
+  --brand-danger-bg: #fef2f2;
+
+  --brand-radius: 10px;
+  --brand-radius-sm: 7px;
+  --brand-radius-xs: 4px;
+  --brand-sidebar-width: 248px;
+  --brand-topbar-height: 60px;
+  --brand-content-gutter: clamp(18px, 3vw, 36px);
+
+  --brand-shadow-sm: 0 1px 2px rgba(22, 26, 34, 0.04);
+  --brand-shadow: 0 8px 28px rgba(22, 26, 34, 0.07);
+  --brand-shadow-panel: 0 1px 0 rgba(255, 255, 255, 0.65) inset, 0 10px 36px rgba(40, 55, 80, 0.06);
+
+  --brand-font-sans: "Manrope", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --brand-font-display: "Manrope", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --brand-font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --brand-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  --brand-motif-opacity: 0.55;
+  --brand-wash-a: rgba(91, 111, 154, 0.1);
+  --brand-wash-b: rgba(154, 123, 60, 0.07);
+
+  /* 深色工作区（聊天 / IDE / Hub） */
+  --brand-dark-bg: #12161e;
+  --brand-dark-bg-elevated: #1a2030;
+  --brand-dark-panel: rgba(28, 34, 48, 0.92);
+  --brand-dark-panel-solid: #1c2230;
+  --brand-dark-hover: rgba(255, 255, 255, 0.06);
+  --brand-dark-active: rgba(255, 255, 255, 0.1);
+  --brand-dark-border: rgba(213, 219, 232, 0.12);
+  --brand-dark-border-strong: rgba(213, 219, 232, 0.22);
+  --brand-dark-text: #e8ecf4;
+  --brand-dark-text-secondary: #a8b2c4;
+  --brand-dark-text-muted: #7a8498;
+  --brand-dark-shadow: 0 8px 28px rgba(0, 0, 0, 0.28);
+  --brand-dark-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+
+  /* 兼容各站既有变量名（渐进迁移） */
+  --bg: var(--brand-bg);
+  --bg-elevated: var(--brand-bg-elevated);
+  --bg-subtle: var(--brand-bg-subtle);
+  --bg-hover: var(--brand-bg-hover);
+  --border: var(--brand-border);
+  --border-strong: var(--brand-border-strong);
+  --text: var(--brand-text);
+  --text-secondary: var(--brand-text-secondary);
+  --text-muted: var(--brand-text-muted);
+  --accent: var(--brand-accent);
+  --accent-hover: var(--brand-accent-hover);
+  --accent-soft: var(--brand-accent-soft);
+  --accent-border: var(--brand-accent-border);
+  --accent-muted: var(--brand-accent-muted);
+  --ink: var(--brand-ink);
+  --ink-soft: var(--brand-sidebar-elevated);
+  --sidebar-bg: var(--brand-sidebar);
+  --sidebar-elevated: var(--brand-sidebar-elevated);
+  --sidebar-text: var(--brand-sidebar-text);
+  --sidebar-muted: var(--brand-sidebar-muted);
+  --sidebar-hover: var(--brand-sidebar-hover);
+  --sidebar-active: var(--brand-sidebar-active);
+  --success: var(--brand-success);
+  --success-bg: var(--brand-success-bg);
+  --warning: var(--brand-warning);
+  --warning-bg: var(--brand-warning-bg);
+  --danger: var(--brand-danger);
+  --danger-bg: var(--brand-danger-bg);
+  --radius: var(--brand-radius);
+  --radius-sm: var(--brand-radius-sm);
+  --radius-xs: var(--brand-radius-xs);
+  --font-sans: var(--brand-font-sans);
+  --font-mono: var(--brand-font-mono);
+  --ease-out: var(--brand-ease);
+}
+
+[data-agent] {
+  --brand-wash-a: color-mix(in srgb, var(--brand-accent) 18%, transparent);
+  --brand-wash-b: color-mix(in srgb, var(--brand-accent) 8%, transparent);
+}

@@ -14,6 +14,8 @@ import MaintainPanel from "./components/MaintainPanel";
 import ObservabilityHub from "./components/ObservabilityHub";
 import { fetchJsonSafe } from "./utils/api";
 import { agentListLabel } from "./agentDisplayNames";
+import { BRAND_AVATARS, BRAND_LOGOS } from "@brand/react/assetMap.js";
+import BrandMotif from "@brand/react/BrandMotif.jsx";
 
 const APP_ROUTES = [
   "overview",
@@ -1605,16 +1607,16 @@ export default function App() {
   return (
     <div className={`page ${token ? "page--admin" : ""}`}>
       {!token ? (
-        <div className="login-panel">
+        <div className="login-panel brand-shell" data-agent="platform">
+          <BrandMotif motif="moon" />
           <section className="card login-card">
             <div className="login-card__brand">
-              <span className="login-card__mark" aria-hidden>
-                紫
-              </span>
+              <img className="login-card__logo" src={BRAND_LOGOS.platform} alt="" width={44} height={44} />
               <div>
                 <h1 className="login-card__title">紫微</h1>
                 <p className="login-card__sub">Agent 控制面 · 运维治理与星曜集群</p>
               </div>
+              <img className="login-card__avatar" src={BRAND_AVATARS.platform} alt="" width={52} height={52} title="紫微虚拟形象" />
             </div>
             <h2>登录</h2>
             <p className="login-card__hint muted">

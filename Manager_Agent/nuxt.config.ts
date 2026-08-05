@@ -6,17 +6,31 @@ import { isManagerWsAuthRequired } from './server/utils/platform/managerEnvModes
 function agentSharedDir() {
   const docker = fileURLToPath(new URL('./agent-repo-shared', import.meta.url))
   const local = fileURLToPath(new URL('../shared', import.meta.url))
-  if (existsSync(join(docker, 'clawhiveJwt.ts')) || existsSync(join(docker, 'agentPgClient.ts'))) return docker
+  if (
+    existsSync(join(docker, 'brand')) ||
+    existsSync(join(docker, 'clawhiveJwt.ts')) ||
+    existsSync(join(docker, 'agentPgClient.ts'))
+  ) {
+    return docker
+  }
   return local
 }
 
+function agentBrandDir() {
+  return join(agentSharedDir(), 'brand')
+}
+
+const brandDir = agentBrandDir()
+
 export default defineNuxtConfig({
   alias: {
-    '#agent-shared': agentSharedDir()
+    '#agent-shared': agentSharedDir(),
+    '@brand': brandDir
   },
   // 组件按文件名注册（ManagerWorkbenchHeader），避免 workbench/ 前缀导致模板标签无法解析、高度塌缩为 0
   components: [{ path: '~/components', pathPrefix: false }],
   css: [
+    join(brandDir, 'index.css'),
     '~/assets/css/cosmic-chat-layout.css',
     '~/assets/css/claude-chat-theme.css',
     '~/assets/css/manager-fullscreen-layout.css',
@@ -27,15 +41,37 @@ export default defineNuxtConfig({
     '~/assets/css/manager-chat-rail.css',
     '~/assets/css/manager-index-scoped.css',
     '~/assets/css/manager-index-cosmic.css',
+    /* 节气换肤：在布局/cosmic 之后，HITL 之前 */
+    '~/assets/css/manager-season.css',
+    /* 近实底霜白壳：3-class Token + 表面强制覆盖，压过深色半透 */
+    '~/assets/css/manager-winter-shell.css',
     /* HITL SSOT 最后加载，避免 scoped/cosmic 盖掉计划卡与风险模态 */
     '~/assets/css/manager-hitl-panels.css',
   ],
   compatibilityDate: '2025-07-15',
   devtools: { enabled: process.env.NODE_ENV !== 'production' },
+  vite: {
+    resolve: {
+      alias: {
+        '@brand': brandDir
+      }
+    },
+    server: {
+      fs: { allow: [brandDir, agentSharedDir()] }
+    }
+  },
   nitro: {
     alias: {
-      '#agent-shared': agentSharedDir()
+      '#agent-shared': agentSharedDir(),
+      '@brand': brandDir
     },
+    publicAssets: [
+      {
+        baseURL: 'brand',
+        dir: brandDir,
+        maxAge: 60 * 60 * 24 * 7
+      }
+    ],
     experimental: {
       websocket: true
     },

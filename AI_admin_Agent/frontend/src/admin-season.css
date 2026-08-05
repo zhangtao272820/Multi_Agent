@@ -1,0 +1,539 @@
+/* Admin 节气主题 · 立秋/白露（本 Agent 本地，不挂进 brand 全局）
+ * 白露霜雾高亮强：玻璃须足够实、模糊够强，奶油字才可读。
+ */
+
+.admin-shell {
+  --admin-glass-bg: rgba(26, 18, 10, 0.78);
+  --admin-glass-bg-bar: rgba(22, 15, 8, 0.82);
+  --admin-glass-bg-soft: rgba(30, 22, 12, 0.68);
+  --admin-glass-bg-panel: rgba(20, 14, 8, 0.8);
+  --admin-glass-bg-input: rgba(14, 10, 6, 0.72);
+  --admin-glass-bg-board: rgba(24, 16, 9, 0.84);
+  --admin-glass-border: rgba(221, 185, 106, 0.42);
+  --admin-glass-border-strong: rgba(232, 198, 110, 0.62);
+  --admin-glass-highlight: rgba(255, 236, 190, 0.12);
+  --admin-glass-blur: 28px;
+  --admin-glass-blur-soft: 22px;
+  --admin-glass-shadow:
+    0 1px 0 var(--admin-glass-highlight) inset,
+    0 12px 40px rgba(8, 4, 2, 0.45);
+  --brand-motif-opacity: 0.28;
+  --admin-text: #f8f0de;
+  --admin-text-secondary: #e2d0a8;
+  --admin-text-muted: #b9a57a;
+  --brand-dark-text: var(--admin-text);
+  --brand-dark-text-secondary: var(--admin-text-secondary);
+  --brand-dark-text-muted: var(--admin-text-muted);
+  --brand-dark-panel: var(--admin-glass-bg-panel);
+  --brand-dark-panel-solid: var(--admin-glass-bg-board);
+  --brand-dark-bg-elevated: rgba(36, 26, 14, 0.72);
+  --brand-dark-bg: transparent;
+  --brand-dark-border: var(--admin-glass-border);
+  --brand-dark-border-strong: var(--admin-glass-border-strong);
+  --brand-dark-hover: rgba(201, 162, 74, 0.16);
+  --bg-color: transparent;
+  --text-main: var(--admin-text);
+  --text-dim: var(--admin-text-muted);
+  --primary: #f8f0de;
+  --primary-glow: rgba(201, 162, 74, 0.5);
+  --secondary: #ddb96a;
+  --secondary-glow: rgba(221, 185, 106, 0.32);
+  --panel-bg: var(--admin-glass-bg-panel);
+  --border-color: var(--admin-glass-border);
+  --border-glow: rgba(201, 162, 74, 0.28);
+  --error: #ff9f9f;
+  --success: #8ee4ad;
+  --warning: #ffd089;
+
+  position: relative;
+  min-height: 100vh;
+  color: var(--admin-text);
+  background: transparent !important;
+  isolation: auto !important;
+  font-family: 'Segoe UI Variable', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+/* 卸掉 brand-shell 实色壳体 */
+.admin-brand-root.brand-shell,
+.admin-shell.brand-shell,
+.admin-brand-root.brand-shell--dark,
+.admin-shell.brand-shell--dark {
+  background: transparent !important;
+  color: var(--admin-text);
+  isolation: auto !important;
+}
+
+.admin-brand-root.brand-shell::before,
+.admin-brand-root.brand-shell::after,
+.admin-shell.brand-shell::before,
+.admin-shell.brand-shell::after,
+.admin-brand-root.brand-shell--dark::before,
+.admin-brand-root.brand-shell--dark::after,
+.admin-shell.brand-shell--dark::before,
+.admin-shell.brand-shell--dark::after {
+  content: none !important;
+  display: none !important;
+  opacity: 0 !important;
+  background: none !important;
+}
+
+.admin-brand-root.brand-shell > .admin-season-bg,
+.admin-shell > .admin-season-bg,
+.claw-login > .admin-season-bg {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 0 !important;
+  width: auto !important;
+  height: auto !important;
+  pointer-events: none;
+}
+
+.admin-brand-root.brand-shell > .brand-motif,
+.admin-shell > .brand-motif,
+.claw-login > .brand-motif {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 1 !important;
+  width: auto !important;
+  height: auto !important;
+  overflow: hidden !important;
+  pointer-events: none !important;
+  opacity: var(--brand-motif-opacity, 0.28);
+}
+
+.admin-shell > .app-sidebar,
+.admin-shell > .admin-main,
+.admin-shell > .claw-login__card,
+.admin-brand-root.brand-shell > .app-sidebar,
+.admin-brand-root.brand-shell > .admin-main {
+  position: relative !important;
+  z-index: 2 !important;
+}
+
+.admin-season-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-color: #14110e;
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+/* 压霜雾高光，给玻璃留可读底 */
+.admin-season-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 90% 70% at 50% 42%, rgba(28, 18, 8, 0.28) 0%, rgba(12, 8, 4, 0.55) 100%),
+    linear-gradient(
+      180deg,
+      rgba(18, 12, 6, 0.42) 0%,
+      rgba(20, 14, 8, 0.28) 28%,
+      rgba(18, 12, 7, 0.38) 62%,
+      rgba(8, 5, 3, 0.62) 100%
+    );
+}
+
+.admin-season-bg--liqiu {
+  background-image: url('@brand/backgrounds/autumn/liqiu-admin.png');
+}
+
+.admin-season-bg--bailu {
+  background-image: url('@brand/backgrounds/autumn/bailu-admin.png');
+}
+
+.admin-glass {
+  background: var(--admin-glass-bg);
+  border: 1px solid var(--admin-glass-border);
+  border-radius: 16px;
+  box-shadow: var(--admin-glass-shadow);
+  backdrop-filter: blur(var(--admin-glass-blur)) saturate(1.2);
+  -webkit-backdrop-filter: blur(var(--admin-glass-blur)) saturate(1.2);
+}
+
+.admin-glass--bar {
+  background: var(--admin-glass-bg-bar);
+  border: 1px solid var(--admin-glass-border);
+  backdrop-filter: blur(24px) saturate(1.15);
+  -webkit-backdrop-filter: blur(24px) saturate(1.15);
+  box-shadow: var(--admin-glass-shadow);
+}
+
+.admin-glass--soft {
+  background: var(--admin-glass-bg-soft);
+  border-color: rgba(221, 185, 106, 0.32);
+}
+
+.admin-glass--panel {
+  background: var(--admin-glass-bg-panel);
+  border: 1px solid rgba(221, 185, 106, 0.38);
+  border-radius: 16px;
+  box-shadow: var(--admin-glass-shadow);
+  backdrop-filter: blur(var(--admin-glass-blur-soft)) saturate(1.15);
+  -webkit-backdrop-filter: blur(var(--admin-glass-blur-soft)) saturate(1.15);
+}
+
+.claw-login .admin-glass {
+  background: rgba(28, 18, 10, 0.86);
+  border-color: var(--admin-glass-border-strong);
+}
+
+/* 落叶点缀 */
+.admin-shell .brand-motif-leaves__leaf,
+.claw-login .brand-motif-leaves__leaf {
+  background:
+    radial-gradient(
+      ellipse at 35% 30%,
+      hsl(var(--leaf-hue, 32) 72% 68%),
+      hsl(calc(var(--leaf-hue, 32) + 10) 55% 44%)
+    );
+  opacity: calc(var(--leaf-op, 0.45) * 1.25);
+  box-shadow: 0 0 6px rgba(221, 160, 70, 0.28);
+}
+
+.admin-shell .brand-motif-leaves__haze,
+.claw-login .brand-motif-leaves__haze {
+  background:
+    radial-gradient(ellipse 70% 40% at 80% 0%, rgba(220, 150, 60, 0.12), transparent 55%),
+    radial-gradient(ellipse 50% 35% at 15% 90%, rgba(180, 100, 40, 0.08), transparent 50%);
+}
+
+/* —— 壳层 / 看板玻璃 —— */
+.admin-shell .app-sidebar {
+  background: var(--admin-glass-bg-panel) !important;
+  border-right: 1px solid var(--admin-glass-border) !important;
+  backdrop-filter: blur(var(--admin-glass-blur)) saturate(1.15);
+  -webkit-backdrop-filter: blur(var(--admin-glass-blur)) saturate(1.15);
+  box-shadow: 4px 0 32px rgba(0, 0, 0, 0.28);
+}
+
+.admin-shell .app-assistant-card,
+.admin-shell .app-metric-card,
+.admin-shell .admin-hub__section,
+.admin-shell .admin-hub__hero,
+.admin-shell .app-welcome-card {
+  background: var(--admin-glass-bg-board) !important;
+  border: 1px solid var(--admin-glass-border) !important;
+  backdrop-filter: blur(var(--admin-glass-blur-soft)) saturate(1.15);
+  -webkit-backdrop-filter: blur(var(--admin-glass-blur-soft)) saturate(1.15);
+  box-shadow: var(--admin-glass-shadow);
+  color: var(--admin-text);
+}
+
+.admin-shell .app-metric-label {
+  color: var(--admin-text-muted) !important;
+  text-shadow: none;
+}
+
+.admin-shell .app-metric-value {
+  color: var(--admin-text) !important;
+  font-weight: 700;
+}
+
+.admin-shell .app-page-header {
+  background: var(--admin-glass-bg-bar) !important;
+  border-bottom: 1px solid var(--admin-glass-border) !important;
+  backdrop-filter: blur(24px) saturate(1.15);
+  -webkit-backdrop-filter: blur(24px) saturate(1.15);
+}
+
+.admin-shell .app-page-title {
+  color: var(--admin-text) !important;
+}
+
+.admin-shell .app-page-subtitle {
+  color: var(--admin-text-muted) !important;
+}
+
+.admin-shell .app-sidebar-foot {
+  background: var(--admin-glass-bg-soft) !important;
+  border-color: rgba(221, 185, 106, 0.32) !important;
+  color: var(--admin-text-secondary);
+}
+
+.admin-shell .app-sidebar-foot .admin-foot-muted {
+  color: var(--admin-text-muted);
+}
+
+.admin-shell .app-sidebar-foot .admin-foot-meta {
+  color: var(--admin-text-secondary);
+}
+
+.admin-shell .admin-hub__prompt {
+  background: rgba(40, 28, 14, 0.72) !important;
+  border-color: rgba(221, 185, 106, 0.32);
+  color: var(--admin-text);
+}
+
+.admin-shell .app-nav-item {
+  color: var(--admin-text-secondary);
+}
+
+.admin-shell .app-nav-item:hover {
+  background: var(--brand-dark-hover);
+  color: var(--admin-text);
+  border-color: rgba(221, 185, 106, 0.28);
+}
+
+.admin-shell .app-nav-item--active {
+  border-color: var(--admin-glass-border-strong);
+  background: rgba(201, 162, 74, 0.32);
+  color: var(--admin-text);
+}
+
+.admin-shell .app-status-pill,
+.admin-shell .app-btn-ghost {
+  background: rgba(40, 28, 14, 0.65) !important;
+  border-color: var(--admin-glass-border) !important;
+  color: var(--admin-text-secondary) !important;
+}
+
+.admin-shell .app-btn-ghost:hover {
+  background: rgba(201, 162, 74, 0.28) !important;
+  color: var(--admin-text) !important;
+}
+
+/* 日程 / 邮件 / 待办 双栏看板 */
+.admin-shell .mail-list-panel,
+.admin-shell .mail-detail-panel {
+  background: var(--admin-glass-bg-board) !important;
+  border: 1px solid var(--admin-glass-border) !important;
+  backdrop-filter: blur(var(--admin-glass-blur-soft)) saturate(1.15);
+  -webkit-backdrop-filter: blur(var(--admin-glass-blur-soft)) saturate(1.15);
+  box-shadow: var(--admin-glass-shadow);
+}
+
+.admin-shell .mail-list-head,
+.admin-shell .mail-detail-head {
+  border-bottom-color: rgba(221, 185, 106, 0.28) !important;
+  color: var(--admin-text) !important;
+}
+
+.admin-shell .mail-row:hover {
+  background: rgba(201, 162, 74, 0.14) !important;
+}
+
+.admin-shell .mail-row--active {
+  border-color: var(--admin-glass-border-strong) !important;
+  background: rgba(201, 162, 74, 0.26) !important;
+}
+
+.admin-shell .mail-sender,
+.admin-shell .mail-detail-subject,
+.admin-shell .mail-subject,
+.admin-shell .detail-field-value {
+  color: var(--admin-text) !important;
+}
+
+.admin-shell .mail-date,
+.admin-shell .mail-preview,
+.admin-shell .mail-detail-meta,
+.admin-shell .detail-field-label {
+  color: var(--admin-text-muted) !important;
+}
+
+.admin-shell .detail-fields {
+  color: var(--admin-text-secondary);
+}
+
+.admin-shell .mail-avatar,
+.admin-shell .mail-detail-avatar {
+  background: rgba(201, 162, 74, 0.28) !important;
+  color: var(--admin-text) !important;
+  border: 1px solid rgba(221, 185, 106, 0.35);
+}
+
+.admin-shell .app-btn-primary {
+  background: #c9a24a !important;
+  color: #1a140c !important;
+  border: none;
+  font-weight: 700;
+}
+
+.admin-shell .app-btn-primary:hover:not(:disabled) {
+  background: #d4b05a !important;
+}
+
+/* 对话区半透明 → 秋玻璃 */
+.admin-shell .admin-history-aside,
+.admin-shell .admin-history-inner,
+.admin-shell .admin-composer,
+.admin-shell .admin-composer__inner {
+  background: var(--admin-glass-bg-bar) !important;
+  border-color: var(--admin-glass-border) !important;
+  backdrop-filter: blur(var(--admin-glass-blur-soft)) saturate(1.1);
+  -webkit-backdrop-filter: blur(var(--admin-glass-blur-soft)) saturate(1.1);
+}
+
+.admin-shell .admin-agent-bubble {
+  background: rgba(36, 26, 14, 0.78) !important;
+  border-color: rgba(221, 185, 106, 0.3) !important;
+  color: var(--admin-text) !important;
+}
+
+.admin-shell .admin-composer__input {
+  background: var(--admin-glass-bg-input) !important;
+  border-color: var(--admin-glass-border) !important;
+  color: var(--admin-text) !important;
+}
+
+.admin-shell .admin-composer__send {
+  background: #c9a24a !important;
+  color: #1a140c !important;
+}
+
+.admin-logout {
+  flex-shrink: 0;
+  width: 100%;
+  margin-top: 10px;
+  padding: 9px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #1a140c;
+  background: #c9a24a;
+  border: 1px solid rgba(240, 210, 140, 0.65);
+  border-radius: 11px;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(20, 12, 4, 0.35);
+  text-shadow: none;
+}
+
+.admin-logout:hover {
+  background: #d4b05a;
+  border-color: rgba(255, 230, 170, 0.8);
+  color: #120e08;
+}
+
+/* —— 登录页 —— */
+.claw-login {
+  position: relative;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 28px 20px;
+  color: var(--admin-text);
+  box-sizing: border-box;
+  background: transparent !important;
+}
+
+.claw-login__card {
+  position: relative;
+  z-index: 2;
+  width: min(480px, 94vw);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 36px 34px;
+}
+
+.claw-login__brand {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 6px;
+}
+
+.claw-login__logo {
+  border-radius: 14px;
+  border: 1px solid rgba(201, 162, 74, 0.5);
+  box-shadow: 0 0 28px rgba(201, 162, 74, 0.28);
+  flex-shrink: 0;
+}
+
+.claw-login__eyebrow {
+  margin: 0 0 6px;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--admin-text-muted);
+  font-weight: 600;
+}
+
+.claw-login__card h1 {
+  margin: 0;
+  font-size: 1.55rem;
+  font-weight: 750;
+  letter-spacing: 0.02em;
+  color: var(--admin-text);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+}
+
+.claw-login__sub {
+  margin: 8px 0 0;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--admin-text-secondary);
+}
+
+.claw-login__field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--admin-text-secondary);
+}
+
+.claw-login__field input {
+  padding: 13px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(221, 185, 106, 0.4);
+  background: var(--admin-glass-bg-input);
+  color: var(--admin-text);
+  font: inherit;
+  outline: none;
+  text-shadow: none;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.claw-login__field input::placeholder {
+  color: rgba(185, 165, 122, 0.65);
+}
+
+.claw-login__field input:focus {
+  border-color: rgba(201, 162, 74, 0.75);
+  background: rgba(20, 14, 8, 0.82);
+  box-shadow: 0 0 0 3px rgba(201, 162, 74, 0.22);
+}
+
+.claw-login__field input:-webkit-autofill,
+.claw-login__field input:-webkit-autofill:hover,
+.claw-login__field input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #f8f0de;
+  caret-color: #f8f0de;
+  transition: background-color 99999s ease-out;
+  box-shadow: 0 0 0 1000px rgba(28, 18, 10, 0.85) inset;
+}
+
+.claw-login__card button[type='submit'] {
+  margin-top: 6px;
+  padding: 13px 16px;
+  border-radius: 12px;
+  border: none;
+  background: #c9a24a;
+  color: #1a140c;
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+  text-shadow: none;
+}
+
+.claw-login__card button[type='submit']:hover:not(:disabled) {
+  background: #d4b05a;
+}
+
+.claw-login__card button[type='submit']:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.claw-login__err {
+  color: #ffb0b0;
+  margin: 0;
+  font-size: 0.9rem;
+}

@@ -1,0 +1,128 @@
+/* DB 节气主题 · 谷雨玻璃（本 Agent 本地，不挂进 brand 全局） */
+
+.db-shell {
+  position: relative;
+  min-height: 100vh;
+  color: #f4fffc;
+  background: transparent;
+  isolation: auto;
+
+  /* 玻璃：加深遮罩 + 强模糊，背景仍可透出，文字可读 */
+  --db-glass-bg: rgba(6, 22, 24, 0.52);
+  --db-glass-bg-bar: rgba(4, 18, 20, 0.58);
+  --db-glass-bg-soft: rgba(8, 28, 30, 0.38);
+  --db-glass-bg-composer: rgba(4, 16, 18, 0.62);
+  --db-glass-bg-message: rgba(6, 20, 22, 0.48);
+  --db-glass-bg-input: rgba(2, 12, 14, 0.45);
+  --db-glass-border: rgba(180, 236, 220, 0.38);
+  --db-glass-border-strong: rgba(120, 220, 200, 0.55);
+  --db-glass-highlight: rgba(255, 255, 255, 0.14);
+  --db-glass-blur: 18px;
+  --db-glass-blur-bar: 16px;
+  --db-glass-blur-soft: 12px;
+  --db-glass-shadow:
+    0 1px 0 var(--db-glass-highlight) inset,
+    0 12px 40px rgba(0, 8, 10, 0.42),
+    0 2px 8px rgba(0, 0, 0, 0.2);
+  --brand-motif-opacity: 0.32;
+  --db-accent-glow: rgba(46, 196, 182, 0.35);
+  --db-text: #f4fffc;
+  --db-text-secondary: #d4f0e8;
+  --db-text-muted: #b0d8ce;
+  --db-text-faint: rgba(176, 216, 206, 0.78);
+
+  /* 覆盖 brand 在亮景上的偏淡次级色 */
+  --brand-dark-text: var(--db-text);
+  --brand-dark-text-secondary: var(--db-text-secondary);
+  --brand-dark-text-muted: var(--db-text-muted);
+}
+
+.db-shell > :not(.db-season-bg):not(.brand-motif) {
+  position: relative;
+  z-index: 1;
+}
+
+.db-season-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-color: #0a1412;
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+/* 四周压暗、中部留景：玻璃字更稳，风景仍在 */
+.db-season-bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 90% 70% at 50% 42%, rgba(4, 18, 16, 0.12) 0%, rgba(2, 10, 12, 0.42) 100%),
+    linear-gradient(
+      180deg,
+      rgba(2, 10, 12, 0.38) 0%,
+      rgba(4, 14, 16, 0.22) 28%,
+      rgba(4, 14, 16, 0.28) 62%,
+      rgba(2, 8, 10, 0.55) 100%
+    );
+}
+
+.db-season-bg--yushui {
+  background-image: url("/brand/backgrounds/spring/yushui-db.png");
+}
+
+.db-season-bg--guyu {
+  background-image: url("/brand/backgrounds/spring/guyu-db.png");
+}
+
+.db-glass {
+  background: var(--db-glass-bg);
+  border: 1px solid var(--db-glass-border);
+  border-radius: 16px;
+  box-shadow: var(--db-glass-shadow);
+  backdrop-filter: blur(var(--db-glass-blur)) saturate(1.35);
+  -webkit-backdrop-filter: blur(var(--db-glass-blur)) saturate(1.35);
+}
+
+.db-glass--bar {
+  background: var(--db-glass-bg-bar);
+  backdrop-filter: blur(var(--db-glass-blur-bar)) saturate(1.3);
+  -webkit-backdrop-filter: blur(var(--db-glass-blur-bar)) saturate(1.3);
+}
+
+.db-glass--soft {
+  background: var(--db-glass-bg-soft);
+  border-color: rgba(180, 236, 220, 0.22);
+}
+
+/* 登录卡与浮层：再实一点 */
+.claw-login .db-glass,
+.db-user-menu-panel.db-glass {
+  background: rgba(6, 24, 26, 0.62);
+  border-color: var(--db-glass-border-strong);
+}
+
+/* 春雨点缀：偏青绿，贴合谷雨背景 */
+.db-shell .brand-motif-rain__drop {
+  background: linear-gradient(180deg, transparent, rgba(150, 220, 200, 0.5));
+}
+
+.db-shell .brand-motif-rain__sheet {
+  background: linear-gradient(180deg, rgba(80, 160, 140, 0.06), transparent 55%);
+}
+
+/* 顶栏次级按钮：跟随深色玻璃，避免浅色主题反差 */
+.db-shell .brand-btn--secondary {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(180, 236, 220, 0.35);
+  color: #f2fffb;
+  backdrop-filter: blur(8px);
+}
+
+.db-shell .brand-btn--secondary:hover {
+  background: rgba(46, 196, 182, 0.18);
+  border-color: rgba(46, 196, 182, 0.5);
+  color: #fff;
+}

@@ -76,6 +76,7 @@ export function TalkScreen({
   const [edge, setEdge] = useState<{ affinity: number; stage: string; track: string }>(prep.edge);
   const [soft, setSoft] = useState<string[]>(prep.soft_options || []);
   const [lastLine, setLastLine] = useState(prep.opening_line || "");
+  const [thought, setThought] = useState(prep.target.mind?.thought || "");
   const [pending, setPending] = useState(false);
   const [actionNote, setActionNote] = useState<string | null>(
     isDate ? "约会短场景 · 本时段内可自由聊天" : null,
@@ -126,6 +127,8 @@ export function TalkScreen({
       const res = await onSend(t || display, verb);
       setLog((prev) => [...prev, { role: "npc", text: res.line }]);
       setLastLine(res.line);
+      if (res.thought) setThought(res.thought);
+      else if (res.thought === "") setThought("");
       setSoft(res.soft_options || []);
       setEdge(res.edge);
       if (res.sprite?.path) setSprite(res.sprite.path);
@@ -193,6 +196,11 @@ export function TalkScreen({
       </header>
 
       <div className="talk-stage sprite-stage">
+        {thought && (
+          <p className="talk-thought-bubble" aria-label="内心">
+            「{thought}」
+          </p>
+        )}
         <div className="sprite-stage-figure is-focus">
           <SpriteStage
             src={sprite}

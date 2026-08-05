@@ -1,0 +1,395 @@
+/* Code 节气 · 立夏/小满扁平玻璃（本地，不进 brand 全局） */
+
+.code-shell {
+  --code-glass: rgba(22, 14, 6, 0.34);
+  --code-glass-bar: rgba(24, 14, 6, 0.4);
+  --code-glass-panel: rgba(20, 12, 6, 0.32);
+  --code-glass-monaco: rgba(16, 10, 4, 0.26);
+  --code-glass-input: rgba(12, 8, 4, 0.36);
+  --code-border: rgba(240, 200, 140, 0.34);
+  --code-border-strong: rgba(232, 162, 58, 0.5);
+  --code-blur: 14px;
+  --brand-motif-opacity: 0.9;
+  --code-text: #fff8ee;
+  --code-text-secondary: #f0e0c8;
+  --code-text-muted: #d4b898;
+  --brand-dark-text: var(--code-text);
+  --brand-dark-text-secondary: var(--code-text-secondary);
+  --brand-dark-text-muted: var(--code-text-muted);
+  --ink: var(--code-text);
+  --muted: var(--code-text-muted);
+  --accent: #e8a23a;
+  --accent-2: #c4782a;
+
+  position: relative;
+  min-height: 100vh;
+  color: var(--code-text);
+  background: transparent !important;
+  isolation: auto !important;
+  font-family: 'Segoe UI Variable', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+}
+
+.code-brand-root.brand-shell,
+.code-shell.brand-shell {
+  background: transparent !important;
+  color: var(--code-text);
+  isolation: auto !important;
+}
+
+.code-brand-root.brand-shell::before,
+.code-brand-root.brand-shell::after,
+.code-shell.brand-shell::before,
+.code-shell.brand-shell::after {
+  content: none !important;
+  display: none !important;
+}
+
+/* brand-shell 默认给非 motif 子节点 z-index:1，会把底图盖住雷纹 → 分层：底图0 / 雷暴1 / UI2 */
+.code-brand-root.brand-shell > .code-season-bg,
+.code-shell > .code-season-bg,
+.claw-login > .code-season-bg {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 0 !important;
+  width: auto !important;
+  height: auto !important;
+  pointer-events: none;
+}
+
+.code-brand-root.brand-shell > .brand-motif,
+.code-shell > .brand-motif,
+.code-brand-root.brand-shell > .code-storm,
+.code-shell > .code-storm,
+.claw-login > .code-storm {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 1 !important;
+  width: auto !important;
+  height: auto !important;
+  pointer-events: none;
+}
+
+.code-shell > .shell,
+.code-shell > .claw-login__card,
+.code-brand-root.brand-shell > .shell {
+  position: relative !important;
+  z-index: 2 !important;
+}
+
+.code-season-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: #1a1008 center / cover no-repeat;
+}
+
+.code-season-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(12, 8, 4, 0.12), rgba(10, 6, 2, 0.28));
+}
+
+.code-season-bg--lixia {
+  background-image: url('@brand/backgrounds/summer/lixia-code.png');
+}
+
+.code-season-bg--xiaoman {
+  background-image: url('@brand/backgrounds/summer/xiaoman-code.png');
+}
+
+.code-glass,
+.code-glass--bar,
+.code-glass--panel,
+.code-glass--monaco {
+  background: var(--code-glass);
+  border: 1px solid var(--code-border);
+  border-radius: 14px;
+  backdrop-filter: blur(var(--code-blur));
+  -webkit-backdrop-filter: blur(var(--code-blur));
+}
+
+.code-glass--bar {
+  background: var(--code-glass-bar);
+}
+
+.code-glass--panel {
+  background: var(--code-glass-panel);
+}
+
+.code-glass--monaco {
+  background: var(--code-glass-monaco);
+  overflow: hidden;
+}
+
+.code-glass--monaco .monaco-editor,
+.code-glass--monaco .monaco-editor-background,
+.code-glass--monaco .monaco-editor .margin,
+.code-glass--monaco .monaco-editor .overflow-guard {
+  background-color: transparent !important;
+}
+
+.claw-login .code-glass {
+  background: rgba(28, 16, 8, 0.56);
+  border-color: var(--code-border-strong);
+}
+
+/* —— 夏雷暴层：云层骤亮 + 多道闪电 —— */
+.code-storm {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.code-storm__sheet {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 90% 55% at 72% -5%, rgba(255, 248, 230, 0.75), transparent 55%),
+    radial-gradient(ellipse 70% 45% at 18% 0%, rgba(190, 215, 255, 0.5), transparent 50%),
+    radial-gradient(ellipse 100% 80% at 50% 20%, rgba(255, 255, 255, 0.2), transparent 60%);
+  opacity: 0;
+  animation: code-storm-sheet 6.5s ease-in-out infinite;
+}
+
+.code-storm__bolt {
+  position: absolute;
+  top: -2%;
+  height: 42vh;
+  width: 28px;
+  background: linear-gradient(180deg, #fffef5 0%, #ffe08a 35%, rgba(232, 162, 58, 0.15) 100%);
+  clip-path: polygon(45% 0, 100% 0, 58% 38%, 92% 38%, 18% 100%, 42% 52%, 8% 52%);
+  opacity: 0;
+  transform-origin: top center;
+  filter: drop-shadow(0 0 12px rgba(255, 240, 180, 0.9));
+}
+
+.code-storm__bolt--a {
+  left: 68%;
+  animation: code-storm-bolt 6.5s ease-in-out infinite;
+}
+
+.code-storm__bolt--b {
+  left: 22%;
+  height: 34vh;
+  width: 22px;
+  animation: code-storm-bolt 6.5s ease-in-out 2.1s infinite;
+}
+
+.code-storm__bolt--c {
+  left: 48%;
+  top: 4%;
+  height: 28vh;
+  width: 18px;
+  animation: code-storm-bolt 8s ease-in-out 4.2s infinite;
+}
+
+@keyframes code-storm-sheet {
+  0%,
+  78%,
+  100% {
+    opacity: 0;
+  }
+  80% {
+    opacity: 0.95;
+  }
+  82% {
+    opacity: 0.12;
+  }
+  84% {
+    opacity: 0.75;
+  }
+  87% {
+    opacity: 0;
+  }
+}
+
+@keyframes code-storm-bolt {
+  0%,
+  78%,
+  100% {
+    opacity: 0;
+    transform: scaleY(0.35);
+  }
+  80% {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+  81.5% {
+    opacity: 0;
+  }
+  83.5% {
+    opacity: 0.75;
+    transform: scaleY(0.92);
+  }
+  85% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .code-storm__sheet {
+    animation: none;
+    opacity: 0.12;
+  }
+  .code-storm__bolt {
+    animation: none;
+    opacity: 0;
+  }
+}
+
+.code-shell .brand-motif-thunder__pulse {
+  background:
+    radial-gradient(ellipse 80% 50% at 70% 0%, rgba(255, 245, 210, 0.55), transparent 58%),
+    radial-gradient(ellipse 55% 40% at 20% 8%, rgba(170, 200, 255, 0.35), transparent 52%);
+  animation: code-storm-sheet 6.5s ease-in-out infinite;
+}
+
+.code-shell .brand-motif-thunder__bolt {
+  background: linear-gradient(180deg, #fff8e0, rgba(232, 162, 58, 0.2));
+  filter: drop-shadow(0 0 10px rgba(255, 230, 160, 0.85));
+  animation-duration: 6.5s !important;
+}
+
+.code-shell .brand-motif-thunder__vein {
+  opacity: 0.4;
+  background: repeating-linear-gradient(
+    -18deg,
+    transparent 0 46px,
+    rgba(232, 162, 58, 0.06) 46px 47px
+  );
+}
+
+.code-topbar__eyebrow {
+  margin: 0 0 2px;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--code-text-muted);
+  font-weight: 650;
+}
+
+.code-logout {
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #1a1208;
+  background: #e8a23a;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.code-logout:hover {
+  background: #d4922e;
+}
+
+.claw-login {
+  position: relative;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 28px 20px;
+  color: var(--code-text);
+  background: transparent !important;
+}
+
+.claw-login__card {
+  position: relative;
+  z-index: 1;
+  width: min(480px, 94vw);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 32px;
+}
+
+.claw-login__brand {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.claw-login__logo {
+  border-radius: 12px;
+  border: 1px solid var(--code-border);
+  flex-shrink: 0;
+}
+
+.claw-login__eyebrow {
+  margin: 0 0 6px;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--code-text-muted);
+}
+
+.claw-login__card h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 750;
+}
+
+.claw-login__sub {
+  margin: 6px 0 0;
+  font-size: 14px;
+  color: var(--code-text-secondary);
+}
+
+.claw-login__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--code-text-secondary);
+}
+
+.claw-login__field input {
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--code-border);
+  background: var(--code-glass-input);
+  color: var(--code-text);
+  font: inherit;
+  outline: none;
+}
+
+.claw-login__field input:focus {
+  border-color: var(--code-border-strong);
+}
+
+.claw-login__field input:-webkit-autofill,
+.claw-login__field input:-webkit-autofill:hover,
+.claw-login__field input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #fff8ee;
+  caret-color: #fff8ee;
+  transition: background-color 99999s ease-out;
+  box-shadow: 0 0 0 1000px rgba(32, 20, 10, 0.55) inset;
+}
+
+.claw-login__card button[type='submit'] {
+  margin-top: 4px;
+  padding: 12px;
+  border-radius: 10px;
+  border: none;
+  background: #e8a23a;
+  color: #1a1208;
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.claw-login__card button[type='submit']:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.claw-login__err {
+  margin: 0;
+  color: #ffb0b0;
+  font-size: 0.9rem;
+}

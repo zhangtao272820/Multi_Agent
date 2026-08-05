@@ -1,20 +1,17 @@
-FROM docker.m.daocloud.io/library/node:20-bullseye AS build
+# build context = Agent 仓库根目录（含 shared/）
+ARG NODE_BASE_IMAGE=docker.m.daocloud.io/library/node:20-bullseye
 
-WORKDIR /app
-
+FROM ${NODE_BASE_IMAGE} AS build
+WORKDIR /build/Manage-platform_Agent/frontend
 ENV NPM_CONFIG_REGISTRY=https://registry.npmmirror.com
-
-COPY package*.json ./
+COPY Manage-platform_Agent/frontend/package*.json ./
 RUN npm ci
-
-COPY . .
+COPY Manage-platform_Agent/frontend/ ./
+COPY shared /build/shared
 RUN npm run build
 
 FROM docker.m.daocloud.io/library/nginx:1.27-alpine
-
-COPY --from=build /app/dist /usr/share/nginx/html
-COPY nginx/default.conf /etc/nginx/conf.d/default.conf
-
-EXPOSE 5173
-
+COPY --from=build /build/Manage-platform_Agent/frontend/dist /usr/share/nginx/html
+COPY Manage-platform_Agent/frontend/nginx/default.conf /etc/nginx/conf.d/default.conf
+EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]

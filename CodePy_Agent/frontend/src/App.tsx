@@ -1,18 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import AutumnBackground from './AutumnBackground'
+import BrandMotif from '@brand/react/BrandMotif.jsx'
+import { brandAvatarUrl, brandLogoUrl } from '@brand/react/assetMap.js'
 import FileTree from './FileTree'
 import MonacoPane from './MonacoPane'
 import DiffViewer from './DiffViewer'
-import { withAccessToken } from './clawhiveAuth'
+import { logout, withAccessToken } from './clawhiveAuth'
 
 type Entry = { name: string; path: string; type: 'file' | 'dir'; size?: number }
 type ChatLine = { role: 'user' | 'assistant' | 'system'; text: string }
+type Props = { onLogout?: () => void }
 
-export default function App() {
+export default function App({ onLogout }: Props) {
   const [rootPath, setRootPath] = useState('')
   const [agentMode, setAgentMode] = useState<'ask' | 'edit'>('ask')
   const [entries, setEntries] = useState<Entry[]>([])
-  const [cwd, setCwd] = useState('')
+  const [treeKey, setTreeKey] = useState(0)
   const [selected, setSelected] = useState('')
   const [editorValue, setEditorValue] = useState('')
   const [dirty, setDirty] = useState(false)
@@ -32,27 +34,50 @@ export default function App() {
     return `${proto}://${location.host}/_ws`
   }, [])
 
-  const loadDir = useCallback(async (path = '') => {
+  function handleLogout() {
+    wsRef.current?.close()
+    logout()
+    onLogout?.()
+  }
+
+  const fetchEntries = useCallback(async (path = '') => {
+    const q = new URLSearchParams()
+    if (path) q.set('path', path)
+    if (rootPath) q.set('root', rootPath)
+    const res = await fetch(`/api/files?${q}`)
+    const data = await res.json()
+    if (!res.ok) throw new Error(data?.detail || 'list failed')
+    if (!rootPath && data.root) setRootPath(data.root)
+    return (data.entries || []) as Entry[]
+  }, [rootPath])
+
+  const loadRoot = useCallback(async (resetTree = false) => {
     setTreeLoading(true)
     try {
-      const q = new URLSearchParams()
-      if (path) q.set('path', path)
-      if (rootPath) q.set('root', rootPath)
-      const res = await fetch(`/api/files?${q}`)
-      const data = await res.json()
-      if (!res.ok) throw new Error(data?.detail || 'list failed')
-      setEntries(data.entries || [])
-      setCwd(path)
-      if (!rootPath && data.root) setRootPath(data.root)
+      const list = await fetchEntries('')
+      setEntries(list)
+      if (resetTree) setTreeKey((k) => k + 1)
     } catch (e) {
       setChat((c) => [...c, { role: 'system', text: String((e as Error).message || e) }])
     } finally {
       setTreeLoading(false)
     }
-  }, [rootPath])
+  }, [fetchEntries])
+
+  const loadChildren = useCallback(
+    async (path: string) => {
+      try {
+        return await fetchEntries(path)
+      } catch (e) {
+        setChat((c) => [...c, { role: 'system', text: String((e as Error).message || e) }])
+        return []
+      }
+    },
+    [fetchEntries],
+  )
 
   useEffect(() => {
-    void loadDir('')
+    void loadRoot()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function applyRoot() {
@@ -63,7 +88,7 @@ export default function App() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ root }),
     })
-    await loadDir('')
+    await loadRoot(true)
   }
 
   async function openFile(path: string) {
@@ -78,11 +103,6 @@ export default function App() {
     setSelected(path)
     setEditorValue(data.content || '')
     setDirty(false)
-  }
-
-  function onTreeSelect(path: string, type: 'file' | 'dir') {
-    if (type === 'dir') void loadDir(path)
-    else void openFile(path)
   }
 
   async function saveFile() {
@@ -193,26 +213,50 @@ export default function App() {
   }
 
   return (
-    <div className="layout">
-      <AutumnBackground />
+    <div className="layout brand-shell code-brand-root code-shell" data-agent="code">
+      <div className="code-season-bg code-season-bg--xiaoman" aria-hidden="true" />
+      <BrandMotif motif="thunder" />
+      <div className="code-storm" aria-hidden="true">
+        <span className="code-storm__sheet" />
+        <span className="code-storm__bolt code-storm__bolt--a" />
+        <span className="code-storm__bolt code-storm__bolt--b" />
+        <span className="code-storm__bolt code-storm__bolt--c" />
+      </div>
       <div className="shell">
-        <header className="topbar card">
-          <div className="brand">
-            <div className="title">武曲 · 代码助手</div>
-            <div className="subtitle">CodePy · Ask / Edit · Diff 确认写盘</div>
-          </div>
-          <div className="controls">
-            <label className="label">
-              <span>项目根目录</span>
-              <input
-                className="rootInput"
-                value={rootPath}
-                onChange={(e) => setRootPath(e.target.value)}
-                placeholder="Docker 填 /workspace；本机可填仓库路径"
-              />
-              <button type="button" className="button" onClick={() => void applyRoot()}>
-                应用
+        <header className="topbar code-glass--bar">
+          <div className="topbar__row topbar__row--brand">
+            <div className="brand">
+              <img className="brand-logo" src={brandLogoUrl('code')} alt="" width={40} height={40} />
+              <div className="brand__text">
+                <p className="code-topbar__eyebrow">小满 · 武曲</p>
+                <div className="title">武曲 · 代码助手</div>
+                <div className="subtitle">Ask / Edit · Diff 确认写盘</div>
+              </div>
+            </div>
+            <div className="topbar__user">
+              <span className="infraStatus" title={wsUrl}>
+                {status}
+              </span>
+              <img className="brand-avatar" src={brandAvatarUrl('code')} alt="" width={40} height={40} title="武曲虚拟形象" />
+              <button type="button" className="code-logout" onClick={handleLogout}>
+                退出登录
               </button>
+            </div>
+          </div>
+          <div className="topbar__row topbar__row--controls">
+            <label className="label label--grow">
+              <span>项目根目录</span>
+              <div className="root-row">
+                <input
+                  className="rootInput"
+                  value={rootPath}
+                  onChange={(e) => setRootPath(e.target.value)}
+                  placeholder="Docker 填 /workspace；本机可填仓库路径"
+                />
+                <button type="button" className="button secondary" onClick={() => void applyRoot()}>
+                  应用
+                </button>
+              </div>
             </label>
             <label className="label">
               <span>模式</span>
@@ -230,21 +274,27 @@ export default function App() {
               </button>
             </div>
           </div>
-          <div className="infraStatus">{status} · {wsUrl}</div>
         </header>
 
         <div className="workspace">
-          <aside className="panel left card">
+          <aside className="panel left code-glass--panel">
             <div className="panel-head">
-              <span>文件</span>
-              <button type="button" className="button tiny" onClick={() => void loadDir(cwd ? cwd.split('/').slice(0, -1).join('/') : '')}>
-                上级
+              <span>文件树</span>
+              <button type="button" className="button tiny" onClick={() => void loadRoot(true)}>
+                刷新
               </button>
             </div>
-            <FileTree entries={entries} selected={selected} onSelect={onTreeSelect} loading={treeLoading} />
+            <FileTree
+              key={treeKey}
+              entries={entries}
+              selected={selected}
+              loading={treeLoading}
+              loadChildren={loadChildren}
+              onOpenFile={(path) => void openFile(path)}
+            />
           </aside>
 
-          <main className="panel center card">
+          <main className="panel center code-glass--monaco">
             <MonacoPane
               path={selected}
               value={editorValue}
@@ -255,9 +305,14 @@ export default function App() {
             />
           </main>
 
-          <aside className="panel right card">
-            <div className="panel-head">对话</div>
+          <aside className="panel right code-glass--panel">
+            <div className="panel-head">
+              <span>对话</span>
+            </div>
             <div className="chat-log">
+              {chat.length === 0 ? (
+                <p className="brand-empty muted">发送消息开始对话；Edit 模式会产出 Diff 供确认。</p>
+              ) : null}
               {chat.map((line, i) => (
                 <div key={i} className={`chat-line ${line.role}`}>
                   <span className="role">{line.role}</span>
@@ -271,7 +326,9 @@ export default function App() {
                 {sending ? '思考中…' : '发送'}
               </button>
             </div>
-            <div className="panel-head">Diff</div>
+            <div className="panel-head panel-head--sub">
+              <span>Diff</span>
+            </div>
             <DiffViewer diff={diff} files={diffFiles} />
           </aside>
         </div>

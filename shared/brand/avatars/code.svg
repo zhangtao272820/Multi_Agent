@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none">
+  <defs>
+    <linearGradient id="g-code" x1="20" y1="8" x2="108" y2="120" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#c4782a" stop-opacity=".95"/>
+      <stop offset="1" stop-color="#5a3412"/>
+    </linearGradient>
+    <linearGradient id="e-code" x1="48" y1="36" x2="80" y2="52" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#e8f4ff"/>
+      <stop offset="1" stop-color="#c4782a"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="16" fill="#0e1218"/>
+  <path d="M64 14l18 8 8 20-6 10 10 14-8 8 4 16-26 18-26-18 4-16-8-8 10-14-6-10 8-20z" fill="url(#g-code)" opacity=".35"/>
+  <path d="M64 22c10 0 18 4 22 10l4 12-8 6v8l12 10-4 10-10 4 2 14-18 12-18-12 2-14-10-4-4-10 12-10v-8l-8-6 4-12c4-6 12-10 22-10z" fill="url(#g-code)" stroke="#c4782a" stroke-width="1.5"/>
+  <path d="M52 44h24l2 8H50z" fill="#5a3412"/>
+  <path d="M54 48h20c0 6-4 10-10 10s-10-4-10-10z" fill="url(#e-code)"/>
+  <path d="M58 50h4v3h-4zm8 0h4v3h-4z" fill="#5a3412"/>
+  <path d="M40 70l-10 8 6 18 12-6m48-20l10 8-6 18-12-6" stroke="#c4782a" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M48 88l-4 22 20 10 20-10-4-22" stroke="#c4782a" stroke-width="2.5" fill="#5a3412" fill-opacity=".4"/>
+  <path d="M64 54v8M60 62h8" stroke="#dff" stroke-width="1.5" opacity=".8"/>
+  <circle cx="64" cy="58" r="2" fill="#fff" opacity=".9"/>
+</svg>

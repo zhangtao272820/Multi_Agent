@@ -86,8 +86,9 @@ const {
     </div>
 
     <div v-else ref="chatContainer" class="messages">
-      <div v-if="messages.length === 0" class="empty">
-        请输入问题，例如：张三老人信息
+      <div v-if="messages.length === 0" class="brand-empty empty">
+        <p class="db-empty-lead">谷雨 · 用自然语言查库</p>
+        <p class="db-empty-hint">例如「张三最近一周的健康记录」或「60岁以上住在北京的男性」</p>
       </div>
       <div
         v-for="(m, idx) in messages"
@@ -226,7 +227,7 @@ const {
           {{ loading ? '取消' : '发送' }}
         </button>
       </div>
-      <label style="display:flex;align-items:center;gap:8px;color:#aab2d5;font-size:12px;">
+      <label class="db-stream-toggle">
         <input type="checkbox" v-model="useStream" :disabled="loading" />
         实时显示思考过程
       </label>

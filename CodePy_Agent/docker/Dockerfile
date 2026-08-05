@@ -3,10 +3,11 @@ ARG NODE_BASE_IMAGE=docker.m.daocloud.io/library/node:20-bookworm-slim
 
 FROM ${NODE_BASE_IMAGE} AS frontend_build
 ARG NPM_CONFIG_REGISTRY=https://registry.npmmirror.com
-WORKDIR /frontend
+WORKDIR /build/CodePy_Agent/frontend
 COPY CodePy_Agent/frontend/package.json ./
 RUN npm install --registry=${NPM_CONFIG_REGISTRY}
 COPY CodePy_Agent/frontend/ ./
+COPY shared /build/shared
 RUN npm run build
 
 FROM ${PYTHON_BASE_IMAGE}
@@ -29,7 +30,7 @@ COPY CodePy_Agent/app ./app
 COPY CodePy_Agent/scripts ./scripts
 COPY CodePy_Agent/skills ./skills
 COPY CodePy_Agent/frontend/dist-fallback ./frontend/dist-fallback
-COPY --from=frontend_build /frontend/dist ./frontend/dist
+COPY --from=frontend_build /build/CodePy_Agent/frontend/dist ./frontend/dist
 
 EXPOSE ${DEFAULT_PORT}
 HEALTHCHECK --interval=15s --timeout=8s --retries=12 --start-period=40s \

@@ -1,4 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from "react";
+import BrandMotif from "@brand/react/BrandMotif.jsx";
+import { brandAvatarUrl, brandLogoUrl } from "@brand/react/assetMap.js";
 
 type WsStageMsg = {
   type: "stage";
@@ -262,11 +264,19 @@ export default function App() {
   }, []);
 
   return (
-    <div className="layout">
-      <h1>破军 · Video Agent · 10 秒短视频</h1>
-      <p className="sub">
-        LangGraph：总管 → 导演 → 镜头 → 通义万相 → BGM → 合成 → 质检（不通过回退镜头，最多 2 轮）。左侧为可读的协作时间线；万相为异步任务，中间可能等待数分钟。
-      </p>
+    <div className="brand-shell video-brand-root" data-agent="video">
+      <BrandMotif motif="thunder" />
+      <div className="layout">
+      <header className="video-brand-bar">
+        <img className="brand-logo" src={brandLogoUrl("video")} alt="" width={36} height={36} />
+        <div>
+          <h1>破军 · Video Agent · 10 秒短视频</h1>
+          <p className="sub">
+            LangGraph：总管 → 导演 → 镜头 → 通义万相 → BGM → 合成 → 质检（不通过回退镜头，最多 2 轮）。左侧为可读的协作时间线；万相为异步任务，中间可能等待数分钟。
+          </p>
+        </div>
+        <img className="brand-avatar" src={brandAvatarUrl("video")} alt="" width={48} height={48} title="破军虚拟形象" />
+      </header>
 
       <div className="row">
         <textarea
@@ -417,6 +427,7 @@ export default function App() {
             <p className="muted-p">{busy ? "生成结束后将在此展示播放器与要点。" : "尚无结果，点击「开始生成」。"}</p>
           )}
         </div>
+      </div>
       </div>
     </div>
   );

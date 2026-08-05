@@ -20,13 +20,12 @@
     "smoke:enterprise-h": "npx --yes tsx scripts/smoke-rag-enterprise-h.ts",
     "reindex": "npx --yes tsx scripts/reindex-from-store.ts"
   },
-    "dependencies": {
+  "dependencies": {
+    "echarts": "^5.5.1",
+    "markdown-it": "^14.1.0",
     "nuxt": "^4.4.2",
     "pg": "^8.20.0",
     "sharp": "^0.34.5",
-    "echarts": "^5.5.1",
-    "markdown-it": "^14.1.0",
-    "three": "^0.183.2",
     "vue": "^3.5.30",
     "vue-router": "^5.0.4",
     "xlsx": "^0.18.5"

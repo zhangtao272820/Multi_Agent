@@ -72,6 +72,16 @@ export function PeriodRecapOverlay({ recap, open, onClose, onTalkIntent, onTalkE
               )}
             </article>
           )}
+          {(recap.world_events || []).length > 0 && (
+            <article className="period-recap-block world">
+              <em>班级见闻</em>
+              <ul>
+                {(recap.world_events || []).slice(0, 5).map((w, i) => (
+                  <li key={`${w.a || "a"}-${w.b || "b"}-${i}`}>{w.blurb}</li>
+                ))}
+              </ul>
+            </article>
+          )}
           {intents.length > 0 && (
             <article className="period-recap-block intents">
               <em>有人想找你</em>

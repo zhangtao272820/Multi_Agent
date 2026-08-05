@@ -19,9 +19,8 @@
       'posture-plan': collaborationPosture === 'plan'
     }"
   >
-    <ClientOnly>
-      <CosmicGalaxyLane side="full" class="spring-bg-unified" :agent-thinking="agentCosmicActive" aria-hidden="true" />
-    </ClientOnly>
+    <div class="mgr-season-bg mgr-season-bg--xiaoxue" aria-hidden="true" />
+    <BrandMotif motif="snow" />
     <div class="spring-container cosmic-command-deck">
       <div class="cosmic-hud-readout" :class="{ 'is-chat-hud': workbenchMode === 'chat' }" aria-hidden="true">
         <span class="cosmic-hud-tag">STELLAR CMD</span>
@@ -125,6 +124,7 @@
 </template>
 
 <script setup lang="ts">
+import BrandMotif from '@brand/vue/BrandMotif.vue'
 import AppModal from '~/components/AppModal.vue'
 import ManagerTraceDrawer from '~/components/workbench/ManagerTraceDrawer.vue'
 

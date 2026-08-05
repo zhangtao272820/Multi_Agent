@@ -155,7 +155,21 @@ export function CampusMapScreen({
         </aside>
       )}
 
-      <p className="map-hint">点击地点进入 · 点击同学头像可直达立绘 · 「主动来信」可对话</p>
+      {(hub.world_events || []).length > 0 && (
+        <aside className="gossip-strip" aria-label="班级见闻">
+          <em className="gossip-kicker">班级见闻</em>
+          <ul>
+            {(hub.world_events || []).slice(0, 3).map((w, i) => (
+              <li key={`${w.a}-${w.b}-${i}`}>{w.blurb}</li>
+            ))}
+          </ul>
+          <button type="button" className="btn ghost small" disabled={busy} onClick={onBoard}>
+            看板
+          </button>
+        </aside>
+      )}
+
+      <p className="map-hint">点击地点进入 · 点击同学头像可直达立绘 · 「主动来信」可对话 · 见闻可在看板查看</p>
 
       <CampusMapView
         locations={hub.locations}
@@ -433,6 +447,17 @@ export function LocationScreen({
           >
             找{hub.active_event.talk_npc_name || "同学"}聊聊
           </button>
+        </aside>
+      )}
+
+      {(hub.world_events || []).length > 0 && (
+        <aside className="gossip-strip loc-gossip" aria-label="班级见闻">
+          <em className="gossip-kicker">见闻</em>
+          <ul>
+            {(hub.world_events || []).slice(0, 2).map((w, i) => (
+              <li key={`${w.a}-${w.b}-${i}`}>{w.blurb}</li>
+            ))}
+          </ul>
         </aside>
       )}
 

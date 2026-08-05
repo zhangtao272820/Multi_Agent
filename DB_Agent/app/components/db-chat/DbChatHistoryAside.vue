@@ -22,7 +22,7 @@ const {
         <span class="db-chat-toolbar-title">历史会话</span>
         <button type="button" class="db-toolbar-btn" @click="newSession">新会话</button>
       </div>
-      <div v-if="!sessionHistoryItems.length" class="empty" style="padding: 1rem; font-size: 12px;">
+      <div v-if="!sessionHistoryItems.length" class="brand-empty">
         暂无历史记录，发送消息后会自动保存。
       </div>
       <ul v-else class="db-history-list">

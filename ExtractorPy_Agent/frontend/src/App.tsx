@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import SpringBackground from './SpringBackground'
+import BrandMotif from '@brand/react/BrandMotif.jsx'
+import { brandAvatarUrl, brandLogoUrl } from '@brand/react/assetMap.js'
+import { logout } from './clawhiveAuth'
 
 type LogLine = { level: string; message: string; ts?: number }
+type Props = { onLogout?: () => void }
 
 function formatTs(ts?: number) {
   if (!ts) return '--:--:--'
@@ -20,7 +23,7 @@ function translateLevel(level: string) {
   return level || '日志'
 }
 
-export default function App() {
+export default function App({ onLogout }: Props) {
   const [task, setTask] = useState('帮我爬取豆瓣 top 10 的电影信息')
   const [seeds, setSeeds] = useState('')
   const [networkOn, setNetworkOn] = useState(true)
@@ -29,6 +32,12 @@ export default function App() {
   const [logs, setLogs] = useState<LogLine[]>([])
   const [resultText, setResultText] = useState('')
   const wsRef = useRef<WebSocket | null>(null)
+
+  function handleLogout() {
+    wsRef.current?.close()
+    logout()
+    onLogout?.()
+  }
 
   const wsUrl = useMemo(() => {
     const proto = location.protocol === 'https:' ? 'wss' : 'ws'
@@ -144,49 +153,56 @@ export default function App() {
   const showQuerying = running && !resultText
 
   return (
-    <div className="container">
-      <SpringBackground />
-      <div className="content-wrapper">
-        <header className="main-header">
-          <div className="header-row">
-            <h1 className="title">巨门 · 数据提取</h1>
-            <span className="capability-badge">ExtractorPy</span>
-          </div>
-          <div className="glitch-line" />
-          <p className="subtitle">自主网络智能查询与数据提取 · SearXNG / CRW / Playwright MCP</p>
-          <div className="config-strip">
-            <span>端口 13104</span>
-            <span>cap=crawler</span>
-            <span>T0 CAP_ROUTE</span>
-            <span>{networkOn ? '联网增强' : '离线种子'}</span>
-          </div>
-        </header>
+    <div className="extractor-shell" data-agent="extractor">
+      <div className="extractor-season-bg extractor-season-bg--jingzhe" aria-hidden="true" />
+      <BrandMotif motif="rain" />
 
-        <section className="task-section">
-          <div className="form-group">
-            <div className="label-row">
-              <label htmlFor="task">任务参数</label>
-              <button
-                type="button"
-                className={`network-toggle ${networkOn ? 'on' : ''}`}
-                disabled={running}
-                onClick={() => setNetworkOn((v) => !v)}
-              >
-                {networkOn ? '+ 联网' : '离线'}
-              </button>
+      <header className="extractor-topbar extractor-glass--bar">
+        <div className="extractor-topbar__brand">
+          <img className="extractor-topbar__logo" src={brandLogoUrl('extractor')} alt="" width={44} height={44} />
+          <div>
+            <p className="extractor-topbar__eyebrow">惊蛰 · 巨门</p>
+            <h1 className="extractor-topbar__title">巨门 · 数据提取</h1>
+          </div>
+        </div>
+        <div className="extractor-topbar__meta" aria-label="运行信息">
+          <span>端口 13104</span>
+          <span>cap=crawler</span>
+          <span>{networkOn ? '联网增强' : '离线种子'}</span>
+          <span className={`status-chip status-${status}`}>{status}</span>
+        </div>
+        <img className="extractor-topbar__avatar" src={brandAvatarUrl('extractor')} alt="" width={40} height={40} title="巨门虚拟形象" />
+        <button type="button" className="extractor-logout" onClick={handleLogout}>
+          退出登录
+        </button>
+      </header>
+
+      <main className="extractor-work">
+        <section className="extractor-compose extractor-glass">
+          <div className="extractor-compose__head">
+            <div>
+              <h2>任务参数</h2>
+              <p className="extractor-compose__sub">SearXNG / CRW / Playwright MCP · 种子优先</p>
             </div>
-            <div className="input-container">
-              <textarea
-                id="task"
-                className="input-field"
-                rows={5}
-                value={task}
-                onChange={(e) => setTask(e.target.value)}
-                placeholder="请描述您的数据提取任务..."
-              />
-              <div className="input-corner-tl" />
-              <div className="input-corner-br" />
-            </div>
+            <button
+              type="button"
+              className={`network-toggle ${networkOn ? 'on' : ''}`}
+              disabled={running}
+              onClick={() => setNetworkOn((v) => !v)}
+            >
+              {networkOn ? '+ 联网' : '离线'}
+            </button>
+          </div>
+
+          <div className="input-container">
+            <textarea
+              id="task"
+              className="input-field"
+              rows={5}
+              value={task}
+              onChange={(e) => setTask(e.target.value)}
+              placeholder="请描述您的数据提取任务..."
+            />
           </div>
 
           <details className="manager-panel">
@@ -206,14 +222,14 @@ export default function App() {
           <div className="action-bar">
             <div className="button-group">
               <button type="button" className="btn btn-primary" disabled={running || !task.trim()} onClick={connectAndStart}>
-                <span className="btn-text">开始任务</span>
+                开始任务
               </button>
               <button type="button" className="btn btn-secondary" disabled={!running} onClick={cancel}>
-                <span className="btn-text">中止任务</span>
+                中止任务
               </button>
             </div>
             <div className="ws-status">
-              <span className="ws-label">后端地址</span>
+              <span className="ws-label">后端</span>
               <span className={`ws-value status-${status}`} title={wsUrl}>
                 <span className="status-dot" />
                 {wsUrl}
@@ -223,7 +239,7 @@ export default function App() {
         </section>
 
         <div className="output-grid">
-          <div className="panel log-panel">
+          <div className="panel log-panel extractor-glass--panel">
             <div className="panel-header">
               <span className="panel-icon">◈</span>
               参数提取日志
@@ -243,7 +259,7 @@ export default function App() {
             </div>
           </div>
 
-          <div className="panel result-panel">
+          <div className="panel result-panel extractor-glass--panel">
             <div className="panel-header">
               <span className="panel-icon">◈</span>
               提取结果
@@ -255,17 +271,16 @@ export default function App() {
                   正在提取中…
                 </div>
               ) : (
-                <pre className="result-pre">{resultText || '// 正在提取中...'}</pre>
+                <pre className="result-pre">{resultText || '// 结果将显示在这里'}</pre>
               )}
             </div>
           </div>
         </div>
 
         <footer className="main-footer">
-          <div className="footer-line" />
           <p>FASTAPI · REACT · SEED-FIRST · QWEN</p>
         </footer>
-      </div>
+      </main>
     </div>
   )
 }

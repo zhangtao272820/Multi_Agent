@@ -5,13 +5,20 @@ import { fileURLToPath } from 'node:url'
 function agentSharedDir() {
   const docker = fileURLToPath(new URL('./agent-repo-shared', import.meta.url))
   const local = fileURLToPath(new URL('../shared', import.meta.url))
-  if (existsSync(join(docker, 'agentPgClient.ts'))) return docker
+  if (existsSync(join(docker, 'brand')) || existsSync(join(docker, 'agentPgClient.ts'))) return docker
   return local
 }
 
+function agentBrandDir() {
+  return join(agentSharedDir(), 'brand')
+}
+
+const brandDir = agentBrandDir()
+
 export default defineNuxtConfig({
   alias: {
-    '#agent-shared': agentSharedDir()
+    '#agent-shared': agentSharedDir(),
+    '@brand': brandDir
   },
   compatibilityDate: '2024-11-01',
   devtools: { enabled: process.env.NODE_ENV !== 'production' },
@@ -19,7 +26,11 @@ export default defineNuxtConfig({
     port: Number(((globalThis as any).process?.env?.PORT ?? (globalThis as any).process?.env?.RAG_PORT ?? 13102))
   },
   modules: ['@nuxtjs/tailwindcss'],
-  css: ['~/assets/css/rag-cursor-chat.css'],
+  css: [
+    join(brandDir, 'index.css'),
+    '~/assets/css/rag-season.css',
+    '~/assets/css/rag-cursor-chat.css',
+  ],
   runtimeConfig: {
     public: {
       clawhiveAuthUrl:
@@ -31,12 +42,28 @@ export default defineNuxtConfig({
   },
   nitro: {
     alias: {
-      '#agent-shared': agentSharedDir()
-    }
+      '#agent-shared': agentSharedDir(),
+      '@brand': brandDir
+    },
+    publicAssets: [
+      {
+        baseURL: 'brand',
+        dir: brandDir,
+        maxAge: 60 * 60 * 24 * 7
+      }
+    ]
   },
   vite: {
+    resolve: {
+      alias: {
+        '@brand': brandDir
+      }
+    },
+    server: {
+      fs: { allow: [brandDir, agentSharedDir()] }
+    },
     optimizeDeps: {
-      include: ['markdown-it', 'echarts', 'three'],
+      include: ['markdown-it', 'echarts'],
     },
   },
 })

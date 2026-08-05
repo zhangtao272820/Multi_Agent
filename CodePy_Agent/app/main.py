@@ -131,12 +131,10 @@ async def compute(
 
 @app.get("/api/files")
 async def files(
-    request: Request,
     path: str = "",
     root: str | None = None,
     tree: int = Query(default=0),
 ) -> dict[str, Any]:
-    _check_internal_token(request)
     try:
         if tree:
             entries = list_tree(root_override=root)
@@ -149,11 +147,9 @@ async def files(
 
 @app.get("/api/file")
 async def file_get(
-    request: Request,
     path: str,
     root: str | None = None,
 ) -> dict[str, Any]:
-    _check_internal_token(request)
     try:
         data = read_file(path, root_override=root)
         return {"ok": True, **data}
@@ -162,8 +158,7 @@ async def file_get(
 
 
 @app.post("/api/write-file")
-async def file_write(body: WriteFileBody, request: Request) -> dict[str, Any]:
-    _check_internal_token(request)
+async def file_write(body: WriteFileBody) -> dict[str, Any]:
     try:
         data = write_file(body.path, body.content, root_override=body.root, require_write_enabled=True)
         return data
@@ -172,8 +167,7 @@ async def file_write(body: WriteFileBody, request: Request) -> dict[str, Any]:
 
 
 @app.post("/api/search-replace")
-async def search_replace(body: SearchReplaceBody, request: Request) -> dict[str, Any]:
-    _check_internal_token(request)
+async def search_replace(body: SearchReplaceBody) -> dict[str, Any]:
     try:
         if body.apply:
             return apply_search_replace(body.patch, root_override=body.root, require_write_enabled=True)
@@ -183,9 +177,8 @@ async def search_replace(body: SearchReplaceBody, request: Request) -> dict[str,
 
 
 @app.post("/api/set-root")
-async def set_root(body: dict[str, Any], request: Request) -> dict[str, Any]:
+async def set_root(body: dict[str, Any]) -> dict[str, Any]:
     """Update PROJECT_DIR for this process (UI convenience)."""
-    _check_internal_token(request)
     root = str(body.get("root") or "").strip()
     if not root:
         raise HTTPException(status_code=400, detail="missing root")

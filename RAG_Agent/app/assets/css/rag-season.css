@@ -1,0 +1,261 @@
+/* RAG 节气主题 · 清明雾青绿玻璃（可读优先 + 春雨点缀） */
+
+.rag-shell,
+.claw-login {
+  /* 雾面玻璃：略实，保证字清晰，仍透茶园色 */
+  --rag-glass-bg: rgba(248, 252, 249, 0.78);
+  --rag-glass-bg-bar: rgba(245, 250, 247, 0.82);
+  --rag-glass-bg-soft: rgba(255, 255, 255, 0.62);
+  --rag-glass-bg-composer: rgba(248, 252, 249, 0.84);
+  --rag-glass-bg-message: rgba(255, 255, 255, 0.86);
+  --rag-glass-bg-input: rgba(255, 255, 255, 0.9);
+  --rag-glass-border: rgba(55, 100, 78, 0.18);
+  --rag-glass-border-strong: rgba(45, 95, 72, 0.32);
+  --rag-glass-highlight: rgba(255, 255, 255, 0.65);
+  --rag-glass-blur: 22px;
+  --rag-glass-blur-bar: 18px;
+  --rag-glass-blur-soft: 14px;
+  --rag-glass-shadow:
+    0 1px 0 var(--rag-glass-highlight) inset,
+    0 14px 40px rgba(18, 42, 30, 0.14),
+    0 2px 10px rgba(18, 40, 28, 0.06);
+  --rag-accent: #2f7a64;
+  --rag-accent-soft: rgba(47, 122, 100, 0.14);
+  --rag-accent-glow: rgba(47, 122, 100, 0.28);
+  --rag-text: #10241c;
+  --rag-text-secondary: #1e3a2e;
+  --rag-text-muted: #3d5a4c;
+  --rag-text-faint: rgba(61, 90, 76, 0.82);
+}
+
+.rag-shell,
+.rag-shell[data-agent="rag"] {
+  position: relative;
+  min-height: 100vh;
+  color: var(--rag-text);
+  background: transparent;
+  isolation: auto;
+  /* 春雨盖在 UI 之上（pointer-events:none），明显高于绿景 */
+  --brand-motif-opacity: 0.72;
+  --brand-accent: var(--rag-accent);
+  --brand-accent-hover: #266552;
+  --brand-accent-soft: var(--rag-accent-soft);
+  --brand-accent-border: rgba(47, 122, 100, 0.42);
+  --brand-accent-muted: #3d8b74;
+  --brand-dark-text: var(--rag-text);
+  --brand-dark-text-secondary: var(--rag-text-secondary);
+  --brand-dark-text-muted: var(--rag-text-muted);
+  --brand-dark-border: var(--rag-glass-border);
+  --brand-dark-border-strong: var(--rag-glass-border-strong);
+  --brand-dark-hover: rgba(255, 255, 255, 0.55);
+  --brand-radius: 14px;
+  --brand-radius-sm: 10px;
+  font-family: var(--brand-font-sans, "Manrope", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif);
+}
+
+.rag-shell > :not(.rag-season-bg):not(.brand-motif) {
+  position: relative;
+  z-index: 2;
+}
+
+.rag-season-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-color: #b8cdb8;
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  /* 轻微锐利风景边缘，减轻「硬贴」感 */
+  filter: saturate(0.92) brightness(0.96) contrast(0.96);
+}
+
+/* 柔雾衔接：四周压雾、中部留景，避免面板与硬景硬切 */
+.rag-season-bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 75% 60% at 55% 45%, rgba(255, 255, 255, 0.08) 0%, transparent 62%),
+    radial-gradient(ellipse 100% 90% at 50% 50%, transparent 35%, rgba(28, 52, 40, 0.28) 100%),
+    linear-gradient(
+      180deg,
+      rgba(22, 42, 34, 0.22) 0%,
+      rgba(30, 52, 40, 0.08) 26%,
+      rgba(30, 52, 40, 0.06) 62%,
+      rgba(18, 36, 28, 0.34) 100%
+    );
+}
+
+.rag-season-bg--chunfen {
+  background-image: url("/brand/backgrounds/spring/chunfen-rag.png");
+}
+
+.rag-season-bg--qingming {
+  background-image: url("/brand/backgrounds/spring/qingming-rag.png");
+}
+
+.rag-glass {
+  background: var(--rag-glass-bg);
+  border: 1px solid var(--rag-glass-border);
+  border-radius: 18px;
+  box-shadow: var(--rag-glass-shadow);
+  backdrop-filter: blur(var(--rag-glass-blur)) saturate(1.2);
+  -webkit-backdrop-filter: blur(var(--rag-glass-blur)) saturate(1.2);
+}
+
+.rag-glass--bar {
+  background: var(--rag-glass-bg-bar);
+  backdrop-filter: blur(var(--rag-glass-blur-bar)) saturate(1.15);
+  -webkit-backdrop-filter: blur(var(--rag-glass-blur-bar)) saturate(1.15);
+}
+
+.rag-glass--soft {
+  background: var(--rag-glass-bg-soft);
+  border-color: rgba(55, 100, 78, 0.14);
+}
+
+.claw-login .rag-glass {
+  background: rgba(248, 252, 249, 0.86);
+  border-color: var(--rag-glass-border-strong);
+}
+
+/*
+ * 春雨动态点缀（BrandMotif motif=rain）
+ * 盖在布局之上，银白雨丝对茶园景清晰可见
+ */
+.rag-shell .brand-motif,
+.claw-login .brand-motif {
+  z-index: 30;
+}
+
+.rag-shell .brand-motif-rain__drop,
+.claw-login .brand-motif-rain__drop {
+  width: 2.6px;
+  height: calc(var(--drop-len, 14px) * 2.1);
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.35) 12%,
+    rgba(220, 240, 255, 0.95) 100%
+  );
+  box-shadow:
+    0 0 5px rgba(220, 240, 255, 0.65),
+    0 0 10px rgba(180, 210, 240, 0.35);
+  opacity: calc(var(--drop-op, 0.55) * 2.1);
+}
+
+.rag-shell .brand-motif-rain__sheet,
+.claw-login .brand-motif-rain__sheet {
+  background:
+    linear-gradient(180deg, rgba(190, 215, 235, 0.22), transparent 48%),
+    linear-gradient(105deg, transparent 34%, rgba(170, 200, 225, 0.14) 50%, transparent 66%);
+}
+
+.rag-shell .brand-btn--primary {
+  background: var(--rag-accent);
+  color: #f4fffb;
+  border-color: transparent;
+  box-shadow: 0 4px 16px var(--rag-accent-glow);
+}
+
+.rag-shell .brand-btn--primary:hover {
+  background: var(--brand-accent-hover);
+}
+
+.rag-shell .brand-btn--secondary {
+  background: rgba(255, 255, 255, 0.72);
+  border-color: var(--rag-glass-border);
+  color: var(--rag-text);
+  backdrop-filter: blur(8px);
+  font-weight: 600;
+}
+
+.rag-shell .brand-btn--secondary:hover {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: var(--rag-glass-border-strong);
+  color: var(--rag-text);
+}
+
+.rag-shell .brand-btn--ghost {
+  color: var(--rag-text-secondary);
+  font-weight: 600;
+}
+
+.rag-shell .brand-msg {
+  background:
+    linear-gradient(160deg, var(--rag-accent-soft), transparent 55%),
+    var(--rag-glass-bg-message);
+  border-color: var(--rag-glass-border);
+  color: var(--rag-text);
+  backdrop-filter: blur(var(--rag-glass-blur-soft)) saturate(1.15);
+  -webkit-backdrop-filter: blur(var(--rag-glass-blur-soft)) saturate(1.15);
+  box-shadow: var(--rag-glass-shadow);
+}
+
+.rag-shell .brand-msg--user {
+  background: color-mix(in srgb, var(--rag-accent) 14%, var(--rag-glass-bg-message));
+  border-color: var(--rag-glass-border-strong);
+}
+
+.rag-shell .brand-msg--assistant {
+  background: var(--rag-glass-bg-message);
+}
+
+.rag-shell .brand-stat {
+  padding: 8px 10px;
+  border-color: rgba(55, 100, 78, 0.16);
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.7) inset;
+}
+
+.rag-shell .brand-stat__label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--rag-text-muted);
+}
+
+.rag-shell .brand-stat__value {
+  font-size: 14px;
+  font-weight: 750;
+  color: var(--rag-text);
+}
+
+.rag-shell .brand-list-row {
+  border-color: rgba(55, 100, 78, 0.16);
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.rag-shell .brand-list-row:hover {
+  background: rgba(255, 255, 255, 0.94);
+}
+
+.rag-shell .brand-list-row.is-active {
+  background: color-mix(in srgb, var(--rag-accent) 12%, #fff);
+  border-color: var(--rag-glass-border-strong);
+  box-shadow: inset 3px 0 0 var(--rag-accent);
+}
+
+.rag-shell .brand-list-row__title {
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--rag-text);
+}
+
+.rag-shell .brand-list-row__meta {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--rag-text-muted);
+}
+
+.rag-shell .brand-section-label {
+  color: var(--rag-text-muted);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+
+.rag-shell .brand-empty {
+  color: var(--rag-text-muted);
+  font-weight: 500;
+}

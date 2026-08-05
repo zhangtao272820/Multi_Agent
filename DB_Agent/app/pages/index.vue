@@ -1,7 +1,5 @@
 <template>
-  <main class="page">
-    <canvas ref="oceanCanvas" class="ocean-canvas" aria-hidden="true"></canvas>
-    <div class="space-rim" aria-hidden="true"></div>
+  <main class="page db-page">
     <DbChatHeader />
     <div class="db-workspace">
       <DbChatHistoryAside />
@@ -11,32 +9,40 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, provide } from "vue";
+import { provide } from "vue";
 import { DbChatKey } from "~/components/db-chat/context";
 import { useDbChatPage } from "~/composables/useDbChatPage";
-import { useOceanCanvasRef } from "~/composables/useOceanCanvas";
 
 useHead({
   title: "禄存 · DB Agent",
   bodyAttrs: {
-    class: "space-bg",
+    class: "db-body",
   },
-  style: [
-    {
-      innerHTML: `
-        .space-bg { background: #05060b; overflow: hidden; }
-      `,
-    },
-  ],
 });
 
 const chat = useDbChatPage();
 provide(DbChatKey, chat);
-
-const { oceanCanvas, mountOceanCanvas } = useOceanCanvasRef();
-onMounted(() => {
-  void mountOceanCanvas();
-});
 </script>
 
 <style src="~/assets/css/db-chat.css"></style>
+<style>
+.db-body {
+  background: transparent;
+  overflow: hidden;
+}
+.db-page {
+  position: relative;
+}
+
+@media (max-width: 720px) {
+  .db-page.page {
+    padding: 10px 10px 12px;
+  }
+  .header-avatar {
+    display: none;
+  }
+  .title {
+    font-size: 17px;
+  }
+}
+</style>

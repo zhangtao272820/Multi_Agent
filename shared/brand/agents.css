@@ -1,0 +1,144 @@
+/* 每站强调色 — 挂在 [data-agent="..."] 根节点
+ * 四站深色工作区各自有色调，不强制同一灰底 */
+
+[data-agent="platform"] {
+  --brand-accent: #9a7b3c;
+  --brand-accent-hover: #826632;
+  --brand-accent-soft: rgba(154, 123, 60, 0.14);
+  --brand-accent-border: rgba(154, 123, 60, 0.38);
+  --brand-accent-muted: #b8954a;
+  --brand-wash-a: rgba(107, 79, 154, 0.08);
+  --brand-wash-b: rgba(154, 123, 60, 0.09);
+}
+
+[data-agent="manager"] {
+  --brand-accent: #2f7fd1;
+  --brand-accent-hover: #2569b0;
+  --brand-accent-soft: rgba(47, 127, 209, 0.14);
+  --brand-accent-border: rgba(47, 127, 209, 0.38);
+  --brand-accent-muted: #5a9adc;
+}
+
+/* 禄存 · 雨意青绿 */
+[data-agent="db"] {
+  --brand-accent: #2ec4b6;
+  --brand-accent-hover: #24a99c;
+  --brand-accent-soft: rgba(46, 196, 182, 0.18);
+  --brand-accent-border: rgba(46, 196, 182, 0.42);
+  --brand-accent-muted: #5ed9cc;
+  --brand-wash-a: rgba(32, 160, 180, 0.22);
+  --brand-wash-b: rgba(20, 90, 110, 0.28);
+  --brand-dark-bg: #0c1618;
+  --brand-dark-bg-elevated: #122226;
+  --brand-dark-panel: rgba(18, 36, 40, 0.9);
+  --brand-dark-panel-solid: #15282c;
+  --brand-dark-border: rgba(94, 217, 204, 0.22);
+  --brand-dark-border-strong: rgba(94, 217, 204, 0.38);
+  --brand-dark-text: #f2fbf9;
+  --brand-dark-text-secondary: #c8ece6;
+  --brand-dark-text-muted: #a8d4cc;
+  --brand-motif-opacity: 0.48;
+}
+
+/* 文曲 · 月色靛青 */
+[data-agent="rag"] {
+  --brand-accent: #6b8fd4;
+  --brand-accent-hover: #5578bc;
+  --brand-accent-soft: rgba(107, 143, 212, 0.2);
+  --brand-accent-border: rgba(107, 143, 212, 0.45);
+  --brand-accent-muted: #93b0e4;
+  --brand-wash-a: rgba(90, 120, 200, 0.26);
+  --brand-wash-b: rgba(140, 110, 190, 0.16);
+  --brand-dark-bg: #10131c;
+  --brand-dark-bg-elevated: #171c2c;
+  --brand-dark-panel: rgba(26, 32, 50, 0.9);
+  --brand-dark-panel-solid: #1a2236;
+  --brand-dark-border: rgba(147, 176, 228, 0.14);
+  --brand-dark-border-strong: rgba(147, 176, 228, 0.28);
+  --brand-dark-text: #e9eef8;
+  --brand-dark-text-secondary: #a8b6d4;
+  --brand-dark-text-muted: #7a88a8;
+  --brand-motif-opacity: 0.52;
+}
+
+/* 武曲 · 琥珀黄（恢复偏黄主色） */
+[data-agent="code"] {
+  --brand-accent: #e8a23a;
+  --brand-accent-hover: #d48c28;
+  --brand-accent-soft: rgba(232, 162, 58, 0.2);
+  --brand-accent-border: rgba(232, 162, 58, 0.48);
+  --brand-accent-muted: #f0bc62;
+  --brand-wash-a: rgba(232, 162, 58, 0.22);
+  --brand-wash-b: rgba(180, 80, 30, 0.16);
+  --brand-dark-bg: #16110a;
+  --brand-dark-bg-elevated: #22180e;
+  --brand-dark-panel: rgba(38, 26, 14, 0.88);
+  --brand-dark-panel-solid: #2a1c10;
+  --brand-dark-border: rgba(240, 188, 98, 0.16);
+  --brand-dark-border-strong: rgba(240, 188, 98, 0.32);
+  --brand-dark-text: #f6e7d0;
+  --brand-dark-text-secondary: #d4b892;
+  --brand-dark-text-muted: #9a7f5c;
+  --brand-motif-opacity: 0.42;
+}
+
+[data-agent="extractor"] {
+  --brand-accent: #3d8f55;
+  --brand-accent-hover: #327846;
+  --brand-accent-soft: rgba(61, 143, 85, 0.14);
+  --brand-accent-border: rgba(61, 143, 85, 0.38);
+  --brand-accent-muted: #5aa870;
+}
+
+/* 天梁 · 暖金褐 */
+[data-agent="admin"] {
+  --brand-accent: #c9a24a;
+  --brand-accent-hover: #b08c3c;
+  --brand-accent-soft: rgba(201, 162, 74, 0.18);
+  --brand-accent-border: rgba(201, 162, 74, 0.42);
+  --brand-accent-muted: #ddb96a;
+  --brand-wash-a: rgba(201, 162, 74, 0.18);
+  --brand-wash-b: rgba(90, 70, 40, 0.22);
+  --brand-dark-bg: #14110e;
+  --brand-dark-bg-elevated: #1e1a15;
+  --brand-dark-panel: rgba(36, 30, 24, 0.9);
+  --brand-dark-panel-solid: #262018;
+  --brand-dark-border: rgba(221, 185, 106, 0.14);
+  --brand-dark-border-strong: rgba(221, 185, 106, 0.28);
+  --brand-dark-text: #f3ead8;
+  --brand-dark-text-secondary: #cbb897;
+  --brand-dark-text-muted: #8f8168;
+  --brand-motif-opacity: 0.46;
+}
+
+[data-agent="multimodal"] {
+  --brand-accent: #9a4db8;
+  --brand-accent-hover: #813fa0;
+  --brand-accent-soft: rgba(154, 77, 184, 0.12);
+  --brand-accent-border: rgba(154, 77, 184, 0.34);
+  --brand-accent-muted: #b070c8;
+}
+
+[data-agent="music"] {
+  --brand-accent: #c45a72;
+  --brand-accent-hover: #a84a60;
+  --brand-accent-soft: rgba(196, 90, 114, 0.14);
+  --brand-accent-border: rgba(196, 90, 114, 0.38);
+  --brand-accent-muted: #d4788c;
+}
+
+[data-agent="video"] {
+  --brand-accent: #d45a28;
+  --brand-accent-hover: #b44a20;
+  --brand-accent-soft: rgba(212, 90, 40, 0.14);
+  --brand-accent-border: rgba(212, 90, 40, 0.38);
+  --brand-accent-muted: #e07848;
+}
+
+[data-agent="lobster"] {
+  --brand-accent: #b84a58;
+  --brand-accent-hover: #9a3c48;
+  --brand-accent-soft: rgba(184, 74, 88, 0.14);
+  --brand-accent-border: rgba(184, 74, 88, 0.38);
+  --brand-accent-muted: #cc6874;
+}

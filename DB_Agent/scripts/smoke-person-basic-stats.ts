@@ -4,10 +4,13 @@
 import { assemblePlanSlotsOrNull } from '../utils/nlu/assemble_plan_slots.ts'
 import {
   applyExecutionShapeToPlan,
+  guardExecutionShapeForNamedEntityCount,
   guardExecutionShapeForPersonDistribution,
   guardExecutionShapeForRegionPopulation,
+  inferExecutionShapeStructural,
   isFilteredPersonDistributionPlan,
   isRegionPopulationCountPlan,
+  planLooksLikeNamedEntityCount,
 } from '../utils/nlu/dbQueryExecutionShapeLlm.ts'
 import {
   parsePersonStatFilters,
@@ -119,6 +122,37 @@ async function main() {
     guardExecutionShapeForRegionPopulation(paraphrasePlan, 'detail_rows') === 'scalar_lookup',
     'detail_rows LLM must be guarded to scalar_lookup for region count',
   )
+
+  // 专名+次数：即使 intent=detail / LLM 误标 detail_rows，也必须 scalar_lookup（COUNT）
+  const namedCountPlan = basePlan({
+    intent: 'detail',
+    subject: 'person',
+    data_domain: 'health',
+    entities: { names: ['林婉清'], locations: [], orgs: [], ids: [] },
+    metrics: ['足底压力检测次数'],
+    dimensions: [],
+  })
+  assert(planLooksLikeNamedEntityCount(namedCountPlan), 'named+次数 metrics is named entity count')
+  assert(
+    guardExecutionShapeForNamedEntityCount(namedCountPlan, 'detail_rows') === 'scalar_lookup',
+    'detail_rows must guard to scalar_lookup for named count',
+  )
+  assert(
+    inferExecutionShapeStructural(namedCountPlan)?.shape === 'scalar_lookup',
+    'structural infer prefers scalar_lookup for named count over intent=detail',
+  )
+  const namedDetailOnly = basePlan({
+    intent: 'detail',
+    entities: { names: ['林婉清'], locations: [], orgs: [], ids: [] },
+    metrics: ['足底压力测试报告明细'],
+    dimensions: [],
+  })
+  assert(!planLooksLikeNamedEntityCount(namedDetailOnly), '明细 metrics must not look like named count')
+  assert(
+    guardExecutionShapeForNamedEntityCount(namedDetailOnly, 'detail_rows') === 'detail_rows',
+    'named detail questions stay detail_rows',
+  )
+
   const paraphraseFilters = parsePersonStatFilters(paraphrasePlan)
   assert(paraphraseFilters?.regionLike === '河西区', 'region filters survive intent=detail coercion')
   const countSql = await runPersonInfoStatsFastPath(
@@ -251,10 +285,77 @@ async function main() {
   assert(deniedFast === null, 'allow_person_fast_path=false must refuse')
   void refuse
 
+  // 通用契约：Plan 已有 region + 分组维度时，即使未显式传 executionShape，也应走人员主表确定性分布
+  const genderWithoutShape = await tryPersonInfoFilteredStats(
+    {
+      query: async (sql: string, values?: unknown[]) => {
+        assert(/provinces_and_cities\s+LIKE/i.test(String(sql)), `sql must keep region predicate: ${sql}`)
+        assert(
+          Array.isArray(values) && values.some((v) => String(v).includes('东城区')),
+          `bound params must include region: ${JSON.stringify(values)}`,
+        )
+        return [
+          { gender: '男', count: 3 },
+          { gender: '女', count: 1 },
+        ]
+      },
+    } as any,
+    basePlan({
+      intent: 'aggregation',
+      subject: 'person',
+      data_domain: 'person_basic',
+      entities: { names: [], locations: ['东城区'], orgs: [], ids: [] },
+      metrics: ['男女人数'],
+      dimensions: ['性别'],
+      filters: {
+        time_range: { start: '', end: '', relative: '' },
+        where: [],
+        slots: [
+          { field_hint: 'region', value: '东城区', sql_match_value: '东城区' },
+          { field_hint: 'age', value: '60-69', sql_match_value: '60-69' },
+        ],
+      },
+    }),
+    // 不传 executionShape：依赖 isFilteredPersonDistributionPlan
+  )
+  assert(genderWithoutShape?.includes('男') && genderWithoutShape?.includes('3'), `shape-less gender dist: ${genderWithoutShape}`)
+
+  const { collectRequiredRegions, sqlMissingRequiredRegions, validateSqlAgainstPlanFilters } = await import(
+    '../utils/sql_plan_guard.ts'
+  )
+  const required = collectRequiredRegions(
+    basePlan({
+      entities: { names: [], locations: ['南开区'], orgs: [], ids: [] },
+      filters: {
+        time_range: { start: '', end: '', relative: '' },
+        where: [],
+        slots: [{ field_hint: 'region', value: '南开区', sql_match_value: '南开区' }],
+      },
+    }),
+  )
+  assert(required.includes('南开区'), `collectRequiredRegions: ${required.join(',')}`)
+  assert(
+    sqlMissingRequiredRegions('SELECT COUNT(*) FROM person_info WHERE age >= 60', required),
+    'age-only SQL must fail region presence check',
+  )
+  const regionGuard = validateSqlAgainstPlanFilters(
+    'SELECT COUNT(*) FROM person_info WHERE age >= 60',
+    basePlan({
+      entities: { names: [], locations: ['南开区'], orgs: [], ids: [] },
+      filters: {
+        time_range: { start: '', end: '', relative: '' },
+        where: [],
+        slots: [{ field_hint: 'region', value: '南开区', sql_match_value: '南开区' }],
+      },
+    }),
+  )
+  assert(!regionGuard.ok && regionGuard.reason === 'missing_region_filter', 'plan filter guard rejects dropped region')
+
   const routeNode = await import('node:fs').then((fs) =>
     fs.readFileSync(new URL('../utils/route/pickPath.ts', import.meta.url), 'utf8'),
   )
   assert(routeNode.includes('personInfoStatsEligible(plan)'), 'route uses plan-only eligibility')
+  assert(routeNode.includes('isFilteredPersonDistributionPlan'), 'route prefers filtered distribution over L4')
 
   console.log('smoke-person-basic-stats: OK')
 }

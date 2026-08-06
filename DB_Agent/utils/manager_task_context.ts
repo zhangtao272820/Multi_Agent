@@ -158,7 +158,7 @@ export { queryPlanReadyToSkipSlotLlm };
  */
 export function shouldPreferManagerQueryPlan(mgr: ManagerDbTaskContext | null | undefined): boolean {
   if (!mgr?.query_plan_json?.trim()) return false;
-  if (mgr.source === "manager" && mgr.prefetch_reuse !== true) return false;
+  // query_plan 复用与 prefetch_reuse（表锁）解耦：omit 场景可跳过 plan LLM 而不锁表
   const p = parseQueryPlan(mgr.query_plan_json);
   const hasNames = (p.entities?.names?.length ?? 0) > 0;
   const hasIds = (p.entities?.ids?.length ?? 0) > 0;

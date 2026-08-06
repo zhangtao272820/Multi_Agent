@@ -2,7 +2,7 @@
   "version": 2,
   "notes": "romance T0/T1 加厚含危机幕；T2 轻副本；linked 关系向；书璃 L0 主轴；幕 sprites/事件 sprite_hint 尽量挂钩已有立绘包。",
   "pc": {
-    "summary": "落脚小镇的上班族；亲妹妹沈书璃、义妹沈枫音同住。",
+    "summary": "沈予安：落脚小镇的上班族；亲妹妹沈书璃、义妹沈枫音同住。",
     "home_with": [
       "shuli",
       "fengyin"

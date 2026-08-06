@@ -867,7 +867,7 @@ export default function App() {
     }
     setPending(true);
     try {
-      const data = await createWorldSave(uid, authRef.current?.display_name || "我");
+      const data = await createWorldSave(uid, "沈予安");
       setWorld(data.world);
       setHub(data.hub);
       setWorldSaveId(data.world.save_id);

@@ -77,6 +77,49 @@ export function stripStructuredExecReport(text: string): string {
 const ADMIN_PREAMBLE_BLOCK_RE =
   /(?:^|\n)(?:(?:admin|error)\s*[:：]\s*)?仅处理下列个人助理能力[^\n]*(?:\n(?:·\s[^\n]+|勿混入[^\n]+|会议与日程须[^\n]+|路线\/地图[^\n]+|用户说「从这[^\n]+|若已给出会议[^\n]+))*/gi
 
+/** 中文阶段标签行（专才 dump 前缀，非用户叙述） */
+const PHASE_STEP_LABEL_SRC = '^(查数据库|采集网页|清洗数据|计算数据|撰写报告|检索知识库|生成图表)[：:]'
+
+/** 库表/专才「找到 N 条记录」原文 dump（可无阶段前缀） */
+const RECORD_DUMP_RE =
+  /根据您的查询[，,]\s*找到|找到\s*\d+\s*条相关记录|记录\s*\d+\s*[：:].{0,40}(客户姓名|姓名|指标)/
+
+/** 剥离主列里的阶段标签前缀，保留后文结论 */
+export function stripPhaseStepLabels(text: string): string {
+  return String(text || '')
+    .replace(new RegExp(PHASE_STEP_LABEL_SRC, 'gm'), '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
+
+/** 是否像被 clip 截断的正文（末尾省略号） */
+export function looksLikeTruncatedSummary(text: string): boolean {
+  const s = String(text || '').trim()
+  if (!s) return false
+  return /…\s*$/.test(s) || /\.\.\.\s*$/.test(s)
+}
+
+/**
+ * 主列是否像「步骤 dump」拼接（composeFinal / 用户视图用来回退完整 synth）。
+ * 含：阶段标签行、库表「找到 N 条记录」原文、截断专才串。
+ * 注意：人员档案等多行「字段：值」是合法用户答案，不得仅凭字段行数判 dump。
+ */
+export function looksLikeStepDumpSummary(text: string): boolean {
+  const s = String(text || '').trim()
+  if (!s) return true
+  if (/^(db|rag|crawler|code|clean|visualize|report|admin|gui)\s*已完成$/i.test(s)) return true
+  if (/已完成$/.test(s) && s.length <= 24) return true
+  if (/^\{[\s\S]*\}$/.test(s) && /"(answer|ok|sources|facts)"\s*:/.test(s)) return true
+  if (/已机械合并/.test(s) && s.length < 200) return true
+  if (/^deferred_to_synth$/i.test(s)) return true
+  const labeled = (s.match(new RegExp(PHASE_STEP_LABEL_SRC, 'gm')) || []).length
+  if (labeled >= 1) return true
+  if (RECORD_DUMP_RE.test(s)) return true
+  if (/report\s*已完成/i.test(s)) return true
+  if (/已机械合并/.test(s) && /\{[\s\S]*"answer"/.test(s)) return true
+  return false
+}
+
 /** 去掉 Synth 误复述的内部上下文标记 + 执行摘要审计块 */
 export function stripSynthPromptLeakage(text: string): string {
   let s = String(text ?? '')

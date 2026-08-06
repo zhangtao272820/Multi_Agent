@@ -82,13 +82,7 @@ export function createPrefetchNode(deps: CreatePrefetchNodeDeps) {
             question: dbPrefetchQuestion,
             timeoutMs: dbPrefetchTimeout,
             dbId: opts.dbId,
-            traceId: opts.runId,
-            managerTask: {
-              source: 'manager',
-              refined_question: dbPrefetchQuestion,
-              must_filters: [],
-              schema_search_keywords: ''
-            }
+            traceId: opts.runId
           })
         : Promise.resolve(null),
       wantRag
@@ -117,20 +111,20 @@ export function createPrefetchNode(deps: CreatePrefetchNodeDeps) {
 
     if (dbRes) {
       metaPatch.dbPlanPrefetch = { ...dbRes, question: dbPrefetchQuestion }
-      const dbBlock = formatDbPrefetchForPlanner(dbRes)
+      // 透传协议：Planner 永不下发表名，避免步骤文案锁错表
+      const dbBlock = formatDbPrefetchForPlanner(dbRes, { omitTableHints: true })
       if (dbBlock) metaPatch.dbPrefetchPlannerHint = dbBlock
       const unified = dbRes.unified_task_plan as {
         hints?: { suggested_tables?: string[] }
         entities?: { names?: string[]; locations?: string[] }
         prefetch_ready?: boolean
       } | null | undefined
-      const tables = (unified?.hints?.suggested_tables ?? []).map((t) => String(t ?? '').trim()).filter(Boolean)
       const names = (unified?.entities?.names ?? []).map((t) => String(t ?? '').trim()).filter(Boolean)
       const locations = (unified?.entities?.locations ?? []).map((t) => String(t ?? '').trim()).filter(Boolean)
       if (dbRes.ok) {
         const parts: string[] = [`DB plan ${dbRes.ms}ms`]
-        if (unified?.prefetch_ready) parts.push('可复用 plan+schema')
-        if (tables.length) parts.push(`表 ${tables.slice(0, 3).join('、')}`)
+        if (unified?.prefetch_ready) parts.push('可复用 plan')
+        parts.push('选表交 DB 自举')
         if (locations.length) parts.push(`地区 ${locations.slice(0, 2).join('、')}`)
         if (names.length) parts.push(`实体 ${names.slice(0, 2).join('、')}`)
         notes.push(parts.join(' · '))

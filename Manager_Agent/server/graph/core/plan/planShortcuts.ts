@@ -24,7 +24,10 @@ export type DbChartShortcutInput = {
   /** decompose 子句标注的 agent */
   clauseAgents?: string[]
   constraints?: TaskConstraints
-  probe?: { db?: { matched?: boolean; tables?: string[] } }
+  probe?: {
+    db?: { matched?: boolean; tables?: string[]; routingRelevant?: boolean }
+    rag?: { hits?: number; hasDocs?: boolean }
+  }
   sessionId?: string
   /** 意图识别节点输出（优先） */
   intentClassify?: IntentClassifyResult | null
@@ -54,7 +57,26 @@ function hasDbProbe(input: DbChartShortcutInput): boolean {
   const tables = Array.isArray(input.probe?.db?.tables)
     ? input.probe!.db!.tables!.map((s) => String(s ?? '').trim()).filter(Boolean)
     : []
-  return Boolean(input.probe?.db?.matched) && tables.length > 0
+  return Boolean(input.probe?.db?.matched || input.probe?.db?.routingRelevant) && tables.length > 0
+}
+
+function hasRagProbe(input: DbChartShortcutInput): boolean {
+  const hits = Number(input.probe?.rag?.hits ?? 0)
+  return hits > 0 || Boolean(input.probe?.rag?.hasDocs)
+}
+
+/** probe 单侧命中：用于提前锁死单源，防止乱派 db+rag */
+function probeFavorsDbOnly(input: DbChartShortcutInput): boolean {
+  return hasDbProbe(input) && !hasRagProbe(input)
+}
+
+function probeFavorsRagOnly(input: DbChartShortcutInput): boolean {
+  return hasRagProbe(input) && !hasDbProbe(input)
+}
+
+function metaPrimaryPlane(input: DbChartShortcutInput): string {
+  const m = input.meta as { dataPlanePrimaryPlane?: string } | null | undefined
+  return String(m?.dataPlanePrimaryPlane || '').trim().toLowerCase()
 }
 
 function wantsVisualize(input: DbChartShortcutInput): boolean {
@@ -224,6 +246,18 @@ export function shouldUseRagOnlyShortcut(input: DbChartShortcutInput): boolean {
   const text = shortcutUserText(input)
   if (kind === 'rag_only') return passesStructuralGate('rag_only', input)
   if (kind !== 'none') return false
+  const plane = metaPrimaryPlane(input)
+  // probe 预判：仅 RAG 命中且非 db 锚点 → 强制单源
+  if (
+    probeFavorsRagOnly(input) &&
+    !wantsVisualize(input) &&
+    !wantsReport(input) &&
+    !isDbAnchored(input) &&
+    !needsAdmin(input) &&
+    (plane === 'rag' || plane === '' || isRagAnchored(input) || looksLikeSimpleRagKbQuery(text))
+  ) {
+    return passesStructuralGate('rag_only', { ...input, shortcutKind: 'rag_only', intent: 'rag' })
+  }
   if (
     looksLikeSimpleRagKbQuery(text) &&
     !wantsVisualize(input) &&
@@ -270,6 +304,16 @@ export function shouldUseDbOnlyShortcut(input: DbChartShortcutInput): boolean {
   const kind = resolveShortcutKind(input)
   if (kind === 'db_only') return passesStructuralGate('db_only', input)
   if (kind !== 'none') return false
+  // probe 预判：仅 DB 命中且数据面为 db / 未声明 rag → 强制单源
+  const plane = metaPrimaryPlane(input)
+  if (
+    probeFavorsDbOnly(input) &&
+    !wantsVisualize(input) &&
+    !wantsReport(input) &&
+    (plane === 'db' || plane === '' || isDbAnchored(input) || String(input.intent || '') === 'db')
+  ) {
+    return passesStructuralGate('db_only', { ...input, shortcutKind: 'db_only', intent: 'db' })
+  }
   if (isDbAnchored(input) && !wantsVisualize(input) && !wantsReport(input)) {
     return passesStructuralGate('db_only', { ...input, shortcutKind: 'db_only' })
   }

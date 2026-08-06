@@ -5,11 +5,13 @@ function headerValue(headers: Record<string, string | string[] | undefined>, nam
   return String(Array.isArray(raw) ? raw[0] : raw || "").trim();
 }
 
+/**
+ * 仅显式编排头视为 Manager 编排态。
+ * 不得因仅有 x-trace-id / x-run-id 切入编排管线（透传问句应走独立端 retrieve-first）。
+ */
 export function isManagerOrchestratedRequest(event: {
   node?: { req?: { headers?: Record<string, string | string[] | undefined> } };
 }): boolean {
   const headers = event?.node?.req?.headers || {};
-  if (headerValue(headers, "x-manager-orchestrated") === "1") return true;
-  if (headerValue(headers, "x-trace-id") || headerValue(headers, "x-run-id")) return true;
-  return false;
+  return headerValue(headers, "x-manager-orchestrated") === "1";
 }

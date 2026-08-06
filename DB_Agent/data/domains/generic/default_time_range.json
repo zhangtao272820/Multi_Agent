@@ -1,0 +1,6 @@
+{
+  "default": {
+    "relative_days": 30,
+    "description": "未指定时间时默认最近 30 天（按事实表时间列；列名以 schema 注释为准）"
+  }
+}

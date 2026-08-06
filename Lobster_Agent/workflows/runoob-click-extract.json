@@ -1,0 +1,35 @@
+{
+  "id": "runoob-click-extract",
+  "name": "菜鸟教程点击抽取（黄金宏 C1）",
+  "description": "打开 runoob 首页，点击首个教程类链接，抽取页面标题后结束（无支付/登录）",
+  "args": ["startUrl"],
+  "steps": [
+    {
+      "action": "goto",
+      "url": "{{startUrl}}",
+      "waitUntil": "domcontentloaded"
+    },
+    {
+      "action": "snapshot",
+      "assignTo": "landing"
+    },
+    {
+      "action": "click",
+      "selector": "a[href*='/html/'], a[href*='/js/'], a[href*='/css/'], .item-top a, #nav a[href*='.htm']",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "wait",
+      "ms": 800
+    },
+    {
+      "action": "extract",
+      "selector": "h1, title, .article-body h1",
+      "assignTo": "page_title"
+    },
+    {
+      "action": "finish",
+      "answer": "工作流 runoob-click-extract 完成。标题={{page_title}}；落地={{landing}}"
+    }
+  ]
+}

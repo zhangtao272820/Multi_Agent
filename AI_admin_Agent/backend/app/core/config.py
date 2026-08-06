@@ -51,6 +51,11 @@ class Settings(BaseSettings):
     IMAP_PORT: int = int(os.getenv("IMAP_PORT", 993))
     IMAP_USER: str = os.getenv("IMAP_USER", "")
     IMAP_PASS: str = os.getenv("IMAP_PASS", "")
+    # Per-user mailbox binding (Fernet). Public default: no global .env fallback.
+    ADMIN_MAIL_FERNET_KEY: str = os.getenv("ADMIN_MAIL_FERNET_KEY", "")
+    ADMIN_MAIL_ALLOW_GLOBAL_FALLBACK: bool = os.getenv(
+        "ADMIN_MAIL_ALLOW_GLOBAL_FALLBACK", "0"
+    ).strip().lower() in ("1", "true", "yes", "on")
 
     # Weather API settings (QWeather)
     WEATHER_API_KEY: str = os.getenv("WEATHER_API_KEY", "")

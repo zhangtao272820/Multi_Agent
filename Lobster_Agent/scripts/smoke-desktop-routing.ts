@@ -9,6 +9,7 @@ import {
 import { toLobsterTaskSpec } from '../server/services/lobsterTaskUnderstandSchema'
 import {
   isLobsterDesktopMcpEnabled,
+  isLobsterHandsOnly,
   resolveLobsterDesktopMcpServers,
 } from '../server/utils/lobster_env'
 import { desktopAutomationPromptAddon } from '../server/utils/lobsterSkillLoader'
@@ -59,5 +60,11 @@ assert(
 
 const addon = desktopAutomationPromptAddon()
 assert(addon.includes('执行规则') || addon.includes('Windows'), 'desktop skill loaded')
+
+assert(
+  !isLobsterHandsOnly({ LOBSTER_HANDS_ONLY: '0' } as NodeJS.ProcessEnv),
+  'hands only default off',
+)
+assert(isLobsterHandsOnly({ LOBSTER_HANDS_ONLY: '1' } as NodeJS.ProcessEnv), 'hands only on')
 
 console.log('smoke-desktop-routing: PASS')

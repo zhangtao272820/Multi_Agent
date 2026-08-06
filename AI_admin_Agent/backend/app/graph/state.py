@@ -1580,7 +1580,10 @@ def create_agent_graph():
             code = str(structured_res.get("code", ""))
             if name == "reply_email" and code == "email_not_found_in_cache":
                 sid = str(processed_args.get("session_id", session_id) or session_id)
-                refresh_res = AVAILABLE_TOOLS["list_emails"](session_id=sid, limit=10, unread_only=False)
+                refresh_kwargs = {"session_id": sid, "limit": 10, "unread_only": False}
+                if processed_args.get("user_id"):
+                    refresh_kwargs["user_id"] = processed_args["user_id"]
+                refresh_res = AVAILABLE_TOOLS["list_emails"](**refresh_kwargs)
                 refresh_struct = _normalize_tool_output("list_emails", refresh_res)
                 if refresh_struct.get("ok"):
                     retried = AVAILABLE_TOOLS["reply_email"](**processed_args)
@@ -1666,9 +1669,46 @@ def create_agent_graph():
                 else:
                     processed_args[arg_name] = arg_value
 
-            # 将 session_id 注入需要会话上下文的工具参数
-            if name in {"get_weather", "list_pending_actions", "decide_action", "confirm_action", "list_emails", "reply_email"}:
+            # 将 session_id / user_id 注入需要会话上下文的工具参数
+            _MAIL_CTX_TOOLS = {
+                "get_weather",
+                "list_pending_actions",
+                "decide_action",
+                "confirm_action",
+                "list_emails",
+                "search_emails",
+                "mark_email_read",
+                "reply_email",
+                "forward_email",
+                "delete_email",
+                "get_email_detail",
+                "draft_email_reply",
+                "classify_emails",
+                "list_email_attachments",
+                "save_email_attachment",
+                "send_email",
+                "triage_emails",
+            }
+            if name in _MAIL_CTX_TOOLS:
                 processed_args.setdefault("session_id", session_id)
+            if name in _MAIL_CTX_TOOLS or name in {
+                "send_email",
+                "reply_email",
+                "forward_email",
+                "delete_email",
+                "list_emails",
+                "search_emails",
+                "mark_email_read",
+                "draft_email_reply",
+                "classify_emails",
+                "list_email_attachments",
+                "save_email_attachment",
+                "get_email_detail",
+                "triage_emails",
+            }:
+                uid = str(state.get("user_id") or "").strip()
+                if uid:
+                    processed_args.setdefault("user_id", uid)
 
             if name in AVAILABLE_TOOLS:
                 try:

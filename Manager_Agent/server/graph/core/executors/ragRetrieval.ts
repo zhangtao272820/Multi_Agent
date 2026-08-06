@@ -13,7 +13,6 @@ import { isHardExpertFailureRaw } from '../runtime/expertFailure'
 import { extractStructuredPayload } from '../shared'
 import { countRagEvidenceUnits, RAG_EMPTY_EVIDENCE_CLARIFY } from './sharedHelpers'
 import type { AgentExecutorOpts, AgentStepOutcome } from './types'
-import type { ManagerRagTaskPayload } from '#agent-shared/managerSubAgentProtocol'
 
 export async function resolveRagRetrievalBundle(
   deps: { ragScopeHintJudge?: RagScopeHintJudge; ragEvidenceMatchJudge?: RagEvidenceMatchJudge },
@@ -127,7 +126,6 @@ export async function tryRagRetrieveAlignedPath(input: {
   state: ManagerGraphState
   question: string
   leanRagQuery: string
-  managerRagTask?: ManagerRagTaskPayload | null
   probeRag?: { hits?: number; sources?: string[]; snippets?: string[] } | null
   opts: AgentExecutorOpts
   timeoutMs: number
@@ -171,7 +169,6 @@ export async function tryRagRetrieveAlignedPath(input: {
           rawQuery: input.question,
           userId: input.opts.userId,
           traceId: input.opts.runId,
-          managerRagTask: input.managerRagTask,
           skipLlmRerank: callOpts.skipLlmRerank,
           skipEvidenceSelect: callOpts.skipEvidenceSelect,
           signal: input.opts.signal

@@ -47,6 +47,23 @@ if (Test-Path $internal) {
   }
 }
 
+# Hard fail if bootloader essentials are missing (flash-crash root cause)
+$pyDll = Get-ChildItem $internal -Filter "python3*.dll" -File -ErrorAction SilentlyContinue |
+  Where-Object { $_.Name -match '^python3\d+\.dll$' } |
+  Select-Object -First 1
+$pydCount = @(Get-ChildItem $internal -Recurse -Filter "*.pyd" -File -ErrorAction SilentlyContinue).Count
+$baseLib = Join-Path $internal "base_library.zip"
+if (-not $pyDll) {
+  throw "Build incomplete: python3xx.dll missing under _internal (exe would flash-exit)."
+}
+if (-not (Test-Path $baseLib)) {
+  throw "Build incomplete: base_library.zip missing under _internal."
+}
+if ($pydCount -lt 1) {
+  throw "Build incomplete: no .pyd extension modules under _internal (bundle corrupted)."
+}
+Write-Host "Verify OK: $($pyDll.Name), $pydCount .pyd modules" -ForegroundColor Cyan
+
 Write-Host ""
 Write-Host "Done. Launch:" -ForegroundColor Green
 Write-Host "  $AppDir\CompanionAgent.exe"

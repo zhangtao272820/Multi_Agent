@@ -88,13 +88,17 @@ def daily_briefing(city: str = "", session_id: str = "default", include_emails: 
     lines.extend(["**待办**", ttext, ""])
 
     email_summary = ""
-    if include_emails and (settings.IMAP_USER or settings.SMTP_USER):
-        em = email.list_emails(limit=5)
-        et = em.get("human_message", str(em)) if isinstance(em, dict) else str(em)
-        email_summary = et
-        lines.extend(["**最近邮件**", et, ""])
-    elif include_emails:
-        lines.extend(["**邮件**", "（IMAP 未配置，跳过邮件摘要）", ""])
+    if include_emails:
+        em = email.list_emails(limit=5, session_id=session_id or "default", user_id="")
+        if isinstance(em, dict) and em.get("ok"):
+            et = em.get("human_message", str(em))
+            email_summary = et
+            lines.extend(["**最近邮件**", et, ""])
+        elif isinstance(em, dict) and em.get("code") in ("email_not_bound", "imap_not_configured"):
+            lines.extend(["**邮件**", "（邮箱未绑定，请先连接国内邮箱）", ""])
+        else:
+            et = em.get("human_message", str(em)) if isinstance(em, dict) else str(em)
+            lines.extend(["**邮件**", et or "（暂无法读取邮箱）", ""])
 
     body = "\n".join(lines).strip()
     return _tool_ok(
@@ -104,21 +108,22 @@ def daily_briefing(city: str = "", session_id: str = "default", include_emails: 
     )
 
 
-def triage_emails(limit: int = 20, session_id: str = "default") -> dict:
+def triage_emails(limit: int = 20, session_id: str = "default", user_id: str = "") -> dict:
     """列出并分类邮件，给出优先级建议。"""
-    if not (settings.IMAP_USER or settings.SMTP_USER):
-        return _tool_err(
-            "邮件分拣需要配置 IMAP/SMTP（.env 中 IMAP_USER / SMTP_USER）。",
-            code="imap_not_configured",
-        )
-    listed = email.list_emails(limit=max(5, min(int(limit or 20), 50)))
+    uid = str(user_id or "").strip()
+    listed = email.list_emails(
+        limit=max(5, min(int(limit or 20), 50)),
+        session_id=session_id,
+        user_id=uid,
+        unread_only=False,
+    )
     if isinstance(listed, dict) and not listed.get("ok", True):
         return listed
-    classified = email.classify_emails(session_id=session_id)
+    classified = email.classify_emails(session_id=session_id, user_id=uid)
     ltext = listed.get("human_message", "") if isinstance(listed, dict) else str(listed)
     ctext = classified.get("human_message", str(classified)) if isinstance(classified, dict) else str(classified)
     body = f"**收件箱概览**\n{ltext}\n\n**分类与优先级**\n{ctext}"
-    return _tool_ok(body, data={"limit": limit}, code="triage_ok")
+    return _tool_ok(body, data={"limit": limit, "user_id": uid}, code="triage_ok")
 
 
 def prepare_meeting(
@@ -220,24 +225,25 @@ def prepare_meeting(
         lines.append(f"（工作区共 {len(file_items)} 项；给出会议主题关键词可筛选）")
     lines.append("")
 
-    if settings.IMAP_USER or settings.SMTP_USER:
-        try:
-            em = email.list_emails(session_id=session_id or "default", limit=10, unread_only=False)
-            em_items = _tool_items(em)
-            matched_mail = [
-                it
-                for it in em_items
-                if _text_matches(f"{it.get('subject') or ''} {it.get('sender') or ''}", tokens)
-            ]
-            lines.append("**相关邮件（主题）**")
-            if matched_mail:
-                for it in matched_mail[:8]:
-                    lines.append(f"- #{it.get('id')} {it.get('subject')} | {it.get('sender')}")
-            else:
-                lines.append("（最近邮件中无主题匹配）")
-            lines.append("")
-        except Exception:
-            pass
+    try:
+        em = email.list_emails(session_id=session_id or "default", limit=10, unread_only=False)
+        em_items = _tool_items(em)
+        matched_mail = [
+            it
+            for it in em_items
+            if _text_matches(f"{it.get('subject') or ''} {it.get('sender') or ''}", tokens)
+        ]
+        lines.append("**相关邮件（主题）**")
+        if isinstance(em, dict) and em.get("code") in ("email_not_bound", "imap_not_configured"):
+            lines.append("（邮箱未绑定）")
+        elif matched_mail:
+            for it in matched_mail[:8]:
+                lines.append(f"- #{it.get('id')} {it.get('subject')} | {it.get('sender')}")
+        else:
+            lines.append("（最近邮件中无主题匹配）")
+        lines.append("")
+    except Exception:
+        pass
 
     hint = (
         f"**建议备忘**（{local_now_aware().strftime('%Y-%m-%d %H:%M')}）\n"

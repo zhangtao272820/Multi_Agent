@@ -105,6 +105,73 @@ export function shouldPassthroughDbOnly(input: {
   return false
 }
 
+const RAG_EMPTY_ANSWER_MARKERS = [
+  '暂未找到',
+  '未检索到',
+  '知识库检索未找到',
+  '未找到相关',
+  '查不到',
+  '未找到相关背景信息',
+  'RAG_NEEDS_CLARIFY',
+  '【需要补充信息】'
+] as const
+
+/** 单源 RAG 且知识库已有非空结论 → chat 模式可直通；专业模式走 Synth LLM */
+export function shouldPassthroughRagOnly(input: {
+  intent?: string
+  planSteps?: Array<{ agent?: string }>
+  results?: Record<string, unknown> | null
+  evidence?: Array<{ kind?: string; empty?: boolean; agentResult?: { ok?: boolean } }> | null
+  meta?: unknown
+  professionalMode?: boolean
+}): boolean {
+  if (input.professionalMode === true) return false
+  const rag = String(input.results?.rag ?? '').trim()
+  if (!rag || rag.length < 8) return false
+
+  const steps = Array.isArray(input.planSteps) ? input.planSteps : []
+  const stepAgents = steps.map((s) => String(s?.agent ?? '')).filter(Boolean)
+  if (stepAgents.includes('report') || stepAgents.includes('clean') || stepAgents.includes('code')) return false
+  if (wantsNarrativeReportSynth({ meta: input.meta, planSteps: input.planSteps })) return false
+
+  const ragEv = (Array.isArray(input.evidence) ? input.evidence : []).find(
+    (e) => String(e?.kind ?? '') === 'rag'
+  )
+  if (ragEv?.empty) return false
+  if (ragEv?.agentResult?.ok === false) return false
+
+  if (textIncludesAny(rag, RAG_EMPTY_ANSWER_MARKERS) && rag.length < 120) return false
+
+  const otherAgents = [
+    'db',
+    'crawler',
+    'code',
+    'admin',
+    'gui',
+    'clean',
+    'visualize',
+    'report',
+    'music',
+    'video',
+    'multimodal'
+  ]
+  const hasOtherOutput = otherAgents.some((a) => String(input.results?.[a] ?? '').trim().length > 0)
+  if (hasOtherOutput) return false
+
+  const intent = String(input.intent ?? '').trim()
+
+  if (intent === 'rag') return true
+
+  if (intent === 'multi') {
+    if (stepAgents.length === 0) return true
+    if (stepAgents.length === 1 && stepAgents[0] === 'rag') return true
+    const dataAgents = ['db', 'rag', 'crawler', 'code'].filter((a) => stepAgents.includes(a))
+    if (dataAgents.length === 1 && dataAgents[0] === 'rag') return true
+  }
+
+  return false
+}
+
 const NARRATIVE_AGENTS = [
   'rag',
   'db',

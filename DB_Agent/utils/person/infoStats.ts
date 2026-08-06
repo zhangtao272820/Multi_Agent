@@ -105,6 +105,8 @@ function wantsPersonGenderDistribution(
   if (!plan) return false;
   if ((plan.entities?.names?.length ?? 0) > 0) return false;
   if (planMentionsGender(plan)) return true;
+  // Plan 已是带过滤的人口分布 → 走人员主表确定性聚合，避免掉进可能漏槽位的自由 SQL
+  if (isFilteredPersonDistributionPlan(plan) && parsePersonStatFilters(plan) != null) return true;
   // 执行形态已是 distribution 且已有人员过滤槽 → person_info 默认按性别聚合（避免明细列表）
   if (executionShape === "distribution" && parsePersonStatFilters(plan) != null) return true;
   if (executionShape === "distribution" && isFilteredPersonDistributionPlan(plan)) return true;

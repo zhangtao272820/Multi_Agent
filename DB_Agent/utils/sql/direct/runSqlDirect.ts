@@ -286,6 +286,11 @@ export async function runSqlDirect(params: {
     !params.relaxed;
   const rowLimit = selectRowLimit(params.executionShape);
   if (useQueryIr) {
+    const irGuardCtx = {
+      queryPlan: params.queryPlan,
+      preflight: params.preflight,
+      judge: params.schemaGround?.table_judge ?? null,
+    };
     const ir = await linkColumnsToQueryIr(params.model, {
       question: q,
       queryPlan: params.queryPlan,
@@ -294,9 +299,10 @@ export async function runSqlDirect(params: {
     if (ir) {
       const compiled = compileQueryIrToSql(ir);
       if (compiled.ok) {
-        const checkedIr = isReadOnlySelectSql(compiled.sql);
-        if (checkedIr.ok) {
-          const withHintIr = prepareSelectForExecution(checkedIr.sql, rowLimit);
+        // Plan 已声明 region/姓名等过滤时，QueryIR 必须通过 plan guard，禁止漏条件落库
+        const irValidated = validateGeneratedSelectSql(compiled.sql, irGuardCtx, { extract: false });
+        if (irValidated.ok) {
+          const withHintIr = prepareSelectForExecution(irValidated.sql, rowLimit);
           try {
             const rows = (await params.ds.query(withHintIr)) as any[];
             if (!rowsLookEmpty(rows)) {
@@ -313,9 +319,9 @@ export async function runSqlDirect(params: {
               schemaSummary: params.schemaGround?.schema_summary,
             });
             if (repaired) {
-              const checkedFix = isReadOnlySelectSql(repaired);
-              if (checkedFix.ok) {
-                const withHintFix = prepareSelectForExecution(checkedFix.sql, rowLimit);
+              const fixValidated = validateGeneratedSelectSql(repaired, irGuardCtx, { extract: false });
+              if (fixValidated.ok) {
+                const withHintFix = prepareSelectForExecution(fixValidated.sql, rowLimit);
                 try {
                   const rows = (await params.ds.query(withHintFix)) as any[];
                   if (!rowsLookEmpty(rows)) {
@@ -361,7 +367,9 @@ export async function runSqlDirect(params: {
   const relaxNote = params.relaxed
     ? "\n[重试提示] 上次无结果：必须保留姓名/专有名词过滤，禁止去掉 WHERE 中的姓名条件。可尝试 LIKE '%名%' 或适当放宽时间范围。"
     : "";
-  const guardNote = params.guardRetry ? "\n[纠正] 上次 SQL 未落实查询计划中的姓名过滤，或误用扩展从表；请只查主记录表并加上姓名 WHERE。" : "";
+  const guardNote = params.guardRetry
+    ? "\n[纠正] 上次 SQL 未落实查询计划中的姓名/地区过滤，或误用扩展从表；请只查主记录表并加上姓名与地区 WHERE（禁止只按年龄统计全市）。"
+    : "";
 
   const shapeBlock = formatExecutionShapeForSqlAgent(params.executionShape);
   const context = [planBlock, shapeBlock, preBlock, schemaBlock, joinBlock, routeBlock, prefBlock, experienceBlock, templateBlock, evolveBlock, relaxNote, guardNote]

@@ -31,7 +31,7 @@ add_task, add_task_with_due, modify_task, list_tasks, complete_task, delete_task
 add_event, list_events, complete_event, modify_event, delete_event, delete_all_meeting_reminders,
 import_calendar_ics, fetch_and_import_calendar, export_calendar_ics,
 add_note, list_notes, delete_note,
-send_email, list_emails, reply_email, draft_email_reply, classify_emails,
+send_email, list_emails, search_emails, mark_email_read, reply_email, forward_email, delete_email, draft_email_reply, classify_emails,
 web_search, knowledge_retrieval, get_weather,
 list_files, read_file_content, write_file, move_file, create_directory,
 read_office_document, write_office_document,

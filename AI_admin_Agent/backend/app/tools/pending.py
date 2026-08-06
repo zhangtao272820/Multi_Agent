@@ -142,6 +142,13 @@ def decide_action(session_id: str, action_id: int, decision: str) -> str:
         db.commit()
         tool_name = action.tool_name
         db.close()
+        if tool_name in ("send_email", "reply_email", "forward_email", "delete_email"):
+            try:
+                from app.core.mail_metrics import mail_metric_inc
+
+                mail_metric_inc("mail_hitl_cancel")
+            except Exception:
+                pass
         _audit(session_id, f"decide:{tool_name}", {"action_id": action_id, "decision": decision}, "cancelled", status="ok")
         return _tool_ok(
             f"已取消操作 [{action_id}]：{tool_name}",

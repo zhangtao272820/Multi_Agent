@@ -8,12 +8,18 @@ import {
   pickTopRecallHitForUser
 } from '../../../server/graph/core/memory/userIntentSupremacy'
 import { shouldUseIntentRagFastPath } from '../../../server/graph/core/rag/intentRagRecallCore'
-import { alignOrchestratorBundleToUserIntent } from '../../../server/graph/llm/userIntentAlignLlm'
+import {
+  alignOrchestratorBundleToUserIntent,
+  shouldRejectEmptyAlignCap
+} from '../../../server/graph/llm/userIntentAlignLlm'
 import { parseOrchestratorForTest } from '../../../server/graph/llm/taskOrchestrator'
 
 function assert(cond: unknown, msg: string) {
   if (!cond) throw new Error(msg)
 }
+
+process.env.MANAGER_LLM_FIRST_ROUTE ??= '1'
+process.env.MANAGER_USER_INTENT_ALIGN_LLM ??= '1'
 
 const financeQ = '在知识库中查询我的月度财务状况'
 const caps = parseUserExplicitCapabilities(financeQ)
@@ -101,5 +107,70 @@ const aligned = await alignOrchestratorBundleToUserIntent({
 assert(aligned.aligned, 'user align LLM runs')
 assert(!aligned.bundle.allowedAgents.includes('db'), 'align removes spurious db')
 assert(aligned.bundle.allowedAgents.includes('rag') && aligned.bundle.allowedAgents.includes('crawler'), 'align keeps rag+crawler')
+
+assert(shouldRejectEmptyAlignCap([]), 'empty cap helper rejects')
+assert(!shouldRejectEmptyAlignCap(['db']), 'non-empty cap helper accepts')
+
+const personQ = '龙奶奶的基本信息和联系方式'
+const personBundle = parseOrchestratorForTest({
+  turnScopeMode: 'current_only',
+  clauses: [{ id: 'c1', text: personQ, agents: ['db'] }],
+  dataSources: ['db'],
+  suggestedAgents: ['db'],
+  allowedAgents: ['db'],
+  isDbAnchored: true,
+  needsWeb: false,
+  isMulti: false,
+  primaryIntent: 'db',
+  planShortcut: 'db_only',
+  intent: 'db',
+  routedQuery: personQ,
+  confidence: 0.85
+})
+assert(personBundle, 'person info bundle fixture')
+
+const emptyAlign = await alignOrchestratorBundleToUserIntent({
+  lastUser: personQ,
+  bundle: personBundle!,
+  llmInvoke: async () => ({
+    text: JSON.stringify({
+      allowedAgents: [],
+      clauses: [{ id: 'c1', text: personQ, agents: ['rag'] }],
+      dataSources: ['rag'],
+      isDbAnchored: false,
+      needsAdmin: false,
+      needsWeb: false,
+      rationale: '误清空 cap'
+    }),
+    resources: {},
+    meta: {}
+  }),
+  state: { meta: { llmFirstRoute: true } }
+})
+assert(!emptyAlign.aligned, 'empty align cap discarded')
+assert(emptyAlign.bundle.allowedAgents.includes('db'), 'empty align keeps original db')
+assert(!emptyAlign.bundle.allowedAgents.includes('rag'), 'empty align does not inject rag')
+
+const personAlign = await alignOrchestratorBundleToUserIntent({
+  lastUser: personQ,
+  bundle: personBundle!,
+  llmInvoke: async () => ({
+    text: JSON.stringify({
+      allowedAgents: ['db'],
+      clauses: [{ id: 'c1', text: '查询龙奶奶基本信息与联系方式', agents: ['db'] }],
+      dataSources: ['db'],
+      isDbAnchored: true,
+      needsAdmin: false,
+      needsWeb: false,
+      rationale: '结构化个人档案 → db'
+    }),
+    resources: {},
+    meta: {}
+  }),
+  state: { meta: { llmFirstRoute: true } }
+})
+assert(personAlign.aligned, 'person info align succeeds')
+assert(personAlign.bundle.allowedAgents.includes('db'), 'person info keeps db')
+assert(personAlign.bundle.intentClassify.isDbAnchored === true, 'person info isDbAnchored')
 
 console.log('smoke: user intent supremacy ok')

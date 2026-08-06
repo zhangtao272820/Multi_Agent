@@ -271,7 +271,7 @@ export function formatAgentResultSourcesForSynth(
 export function dbSourcesFromResult(raw: DbResult): AgentSource[] | undefined {
   const sources: AgentSource[] = []
   if (raw.run_id) sources.push({ type: 'sql', ref: raw.run_id })
-  if (raw.transport) sources.push({ type: 'table', ref: `transport:${raw.transport}` })
+  // transport 只放 structured，禁止伪造成 table（否则汇总会说「查了 transport:ws 表」）
   return sources.length ? sources : undefined
 }
 

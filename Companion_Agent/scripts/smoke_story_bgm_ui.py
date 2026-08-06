@@ -20,8 +20,8 @@ def main() -> int:
     cat = json.loads((ROOT / "data" / "presentation_catalog.json").read_text(encoding="utf-8"))
     slides = cat.get("opening", {}).get("slides") or []
     brief = cat.get("opening", {}).get("world_brief") or []
-    if not (3 <= len(slides) <= 5):
-        fail(f"opening slides expected 3–5 beats, got {len(slides)}")
+    if not (5 <= len(slides) <= 7):
+        fail(f"opening slides expected 5–7 beats, got {len(slides)}")
     else:
         print(f"OK opening beats={len(slides)}")
 
@@ -35,6 +35,9 @@ def main() -> int:
             continue
         if len(lines) < 1:
             fail(f"slide[{i}] empty lines")
+        chars = sum(len(str(x)) for x in lines)
+        if chars < 80:
+            fail(f"slide[{i}] ({slide.get('id')}) expected >=80 chars, got {chars}")
         total_lines += len(lines)
         if "duration_ms" in slide:
             fail(f"slide[{i}] should not auto-advance (duration_ms present)")
@@ -43,6 +46,11 @@ def main() -> int:
     else:
         print(f"OK opening lines={total_lines}")
 
+    joined_brief = "\n".join(str(x) for x in brief)
+    if "沈予安" not in joined_brief:
+        fail("world_brief should name 沈予安")
+    else:
+        print("OK world_brief names 沈予安")
     if len(brief) < 3:
         fail(f"world_brief expected >=3, got {len(brief)}")
     else:

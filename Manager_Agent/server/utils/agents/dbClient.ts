@@ -3,7 +3,6 @@ import { structuralAnswerVerdict } from '../../graph/core/agent/agentAnswerJudge
 import { withTimeout, LruCache, normalizeDbWsUrl, dbHttpBaseFromWsUrl } from './agentTransport'
 import { fetchWithExpertPolicy } from '../../graph/core/runtime/expertFailure'
 import { buildAgentTraceHeaders, withTraceBody } from './agentTrace'
-import { MANAGER_ORCHESTRATED_HEADER } from '../route/managerSubAgentHelpers'
 import { wrapDbResult } from './agentResult'
 import type { ChatMessage, DbResult } from './types'
 
@@ -37,7 +36,6 @@ export async function fetchDbTaskPlan(params: {
   timeoutMs: number;
   dbId?: string;
   traceId?: string;
-  managerTask?: Record<string, unknown>;
 }) {
   const url = `${params.dbAgentHttpUrl.replace(/\/+$/, '')}/api/plan`
   const res = await withTimeout(
@@ -48,10 +46,7 @@ export async function fetchDbTaskPlan(params: {
         withTraceBody(
           {
             question: params.question,
-            dbId: params.dbId,
-            ...(params.managerTask && Object.keys(params.managerTask).length
-              ? { managerTask: params.managerTask }
-              : {})
+            dbId: params.dbId
           },
           params.traceId
         )
@@ -62,7 +57,12 @@ export async function fetchDbTaskPlan(params: {
   )
   if (!res.ok) {
     if (res.status === 404) return null
-    throw new Error(`db plan failed: ${res.status}`)
+    const statusText = String(res.statusText || '').trim()
+    const hint =
+      res.status === 401
+        ? statusText || 'login_required（检查子 Agent CLAWHIVE_INTERNAL_TOKEN 是否与 Manager 一致）'
+        : statusText
+    throw new Error(hint ? `db plan failed: ${res.status} ${hint}` : `db plan failed: ${res.status}`)
   }
   return await res.json()
 }
@@ -91,8 +91,6 @@ export async function callDbAgent(params: {
   traceId?: string
   /** 与总管 session 对齐，支持 DB 多轮追问 */
   sessionId?: string
-  /** 总管结构化拆解，透传 DB_Agent /api/ask */
-  managerTask?: Record<string, unknown>
   sendThinking?: (text: string) => void
   httpOnly?: boolean
   signal?: AbortSignal
@@ -100,8 +98,7 @@ export async function callDbAgent(params: {
   const question = String(params.messages?.[params.messages.length - 1]?.content ?? '').trim()
   const wsUrl = normalizeDbWsUrl(params.dbAgentWsUrl)
   const sessionKey = String(params.sessionId || '').trim()
-  const taskKey = params.managerTask ? JSON.stringify(params.managerTask) : ''
-  const cacheKey = `db|${wsUrl}|${String(params.dbId || 'default')}|${sessionKey}|${question}|${taskKey}`
+  const cacheKey = `db|${wsUrl}|${String(params.dbId || 'default')}|${sessionKey}|${question}`
   const cached = dbCache.get(cacheKey)
   // 不缓存「空结果」：避免误查/短超时后的空答案长期命中，造成「总管 HTTP 永远查不到」假象
   if (cached && !cached.empty) return cached
@@ -121,8 +118,7 @@ export async function callDbAgent(params: {
             {
               messages: params.messages.length ? params.messages : [{ role: 'user', content: question }],
               dbId: params.dbId,
-              ...(sessionKey ? { session_id: sessionKey, sessionId: sessionKey } : {}),
-              ...(params.managerTask && Object.keys(params.managerTask).length ? { managerTask: params.managerTask } : {})
+              ...(sessionKey ? { session_id: sessionKey, sessionId: sessionKey } : {})
             },
             params.traceId
           )
@@ -167,16 +163,16 @@ export async function callDbAgent(params: {
 
   const tryWs = async (): Promise<DbResult> => {
     params.sendThinking?.('数据库 Agent：通过 WebSocket 调用中…')
-    const orchestrated = Boolean(params.managerTask && Object.keys(params.managerTask).length)
     const ws = new WebSocket(wsUrl, {
       headers: {
-        ...buildAgentTraceHeaders(params.traceId),
-        ...(orchestrated ? { [MANAGER_ORCHESTRATED_HEADER]: '1' } : {})
+        ...buildAgentTraceHeaders(params.traceId)
       }
     })
+    type WsPayload = { answer: string; meta?: Record<string, unknown> | null }
     return await withTimeout(
-      new Promise<string>((resolve, reject) => {
+      new Promise<WsPayload>((resolve, reject) => {
         let lastMessage = ''
+        let lastMeta: Record<string, unknown> | null = null
         let sawEnd = false
         const onAbort = () => {
           cleanup()
@@ -199,8 +195,7 @@ export async function callDbAgent(params: {
                 {
                   messages: params.messages,
                   dbId: params.dbId,
-                  ...(sessionKey ? { session_id: sessionKey, sessionId: sessionKey } : {}),
-                  ...(params.managerTask && Object.keys(params.managerTask).length ? { managerTask: params.managerTask } : {})
+                  ...(sessionKey ? { session_id: sessionKey, sessionId: sessionKey } : {})
                 },
                 params.traceId
               )
@@ -217,7 +212,7 @@ export async function callDbAgent(params: {
               if (s === 'end') {
                 sawEnd = true
                 cleanup()
-                resolve(lastMessage)
+                resolve({ answer: lastMessage, meta: lastMeta })
               }
               return
             }
@@ -226,11 +221,19 @@ export async function callDbAgent(params: {
               if (t) params.sendThinking?.(`数据库 Agent：${t}`)
               return
             }
+            if (event === 'meta') {
+              if (data?.data && typeof data.data === 'object') {
+                lastMeta = data.data as Record<string, unknown>
+              }
+              return
+            }
             if (event === 'message') {
               lastMessage = String(data?.data || '')
-              // DB WS 协议中 message 就是最终答案；直接返回，避免等待 end 导致超时
-              cleanup()
-              resolve(lastMessage)
+              // DB WS 协议中 message 多为最终答案；若已有 meta 可立刻返回，否则仍等 end/close 以尽量带上 meta
+              if (lastMeta) {
+                cleanup()
+                resolve({ answer: lastMessage, meta: lastMeta })
+              }
               return
             }
             if (event === 'error') {
@@ -248,24 +251,65 @@ export async function callDbAgent(params: {
         })
         ws.on('close', () => {
           if (sawEnd) return
-          if (lastMessage) resolve(lastMessage)
+          if (lastMessage) resolve({ answer: lastMessage, meta: lastMeta })
           else reject(new Error('dbAgent websocket closed before producing a reply'))
         })
       }),
       params.timeoutMs,
       'dbAgent(ws)',
       params.signal
-    ).then((answer) => {
-      const text = String(answer ?? '')
-      const empty = inferDbAnswerEmpty(text)
+    ).then((payload) => {
+      const text = String(payload?.answer ?? '')
+      const meta = payload?.meta && typeof payload.meta === 'object' ? payload.meta : null
+      const metaEmpty =
+        meta?.empty === true ||
+        meta?.error_code === 'empty_result' ||
+        meta?.error_code === 'schema_miss'
+      const empty = metaEmpty ? true : inferDbAnswerEmpty(text)
+      const reason =
+        typeof meta?.fail_reason === 'string' && meta.fail_reason
+          ? String(meta.fail_reason)
+          : empty
+            ? 'no_data_or_unmatched'
+            : 'ok'
+      const executedSql = typeof meta?.executed_sql === 'string' ? String(meta.executed_sql).trim() : ''
+      const errorCode =
+        typeof meta?.error_code === 'string' && meta.error_code
+          ? String(meta.error_code)
+          : empty
+            ? 'empty_result'
+            : undefined
+      const explain =
+        Array.isArray(meta?.explain_preflight)
+          ? (meta!.explain_preflight as unknown[]).map((x) => String(x ?? '').trim()).filter(Boolean)
+          : []
+      const serverAgentResult = {
+        ok: !empty && !Boolean(meta?.needs_clarification),
+        agent: 'db',
+        trace_id: params.traceId,
+        answer: text,
+        sources: undefined as undefined,
+        structured: {
+          empty,
+          reason,
+          transport: 'ws' as const,
+          ...(executedSql ? { executed_sql: executedSql } : {}),
+          ...(errorCode ? { error_code: errorCode } : {}),
+          ...(typeof meta?.path === 'string' && meta.path ? { path: String(meta.path) } : {}),
+          ...(explain.length ? { explain_preflight: explain } : {})
+        },
+        needs_clarify: Boolean(meta?.needs_clarification),
+        error_code: errorCode,
+      }
       return finalizeDbResult(
         {
           answer: text,
           empty,
-          reason: empty ? 'no_data_or_unmatched' : 'ok',
+          reason,
           transport: 'ws' as const
         },
-        params.traceId
+        params.traceId,
+        serverAgentResult
       )
     })
   }

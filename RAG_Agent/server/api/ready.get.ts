@@ -1,9 +1,11 @@
 import { auditVectorStoreHealth, getUploadedDocuments, getVectorBackend, getVectorStore } from '../utils/vectorStore'
 import { getRagMemoryStatus } from '../../utils/learning_signal_store'
 import { getAmpSummary } from '#agent-shared/agentMemoryPolicy'
+import { resolveInternalAuthReady } from '#agent-shared/nitroClawhiveAuth'
 
-/** 总管 probe：health=进程存活，ready=向量库 + 记忆 PG 可达 */
+/** 总管 probe：health=进程存活，ready=向量库 + 记忆 PG 可达 + 鉴权可服务间调用 */
 export default defineEventHandler(async () => {
+  const auth = resolveInternalAuthReady()
   try {
     await getVectorStore()
     const backend = await getVectorBackend()
@@ -16,8 +18,19 @@ export default defineEventHandler(async () => {
       memory.backend === 'file' ||
       (memory.backend === 'dual' && (!memory.pgConfigured || memory.pgReachable)) ||
       (memory.backend === 'postgres' && memory.pgConfigured && memory.pgReachable)
-    const ready = vectorReady && memoryReady
-    const error_code = !vectorReady ? 'vector_not_ready' : !memoryReady ? 'vector_not_ready' : undefined
+    const ready = vectorReady && memoryReady && auth.ok
+    const error_code = !auth.ok
+      ? 'auth_misconfigured'
+      : !vectorReady
+        ? 'vector_not_ready'
+        : !memoryReady
+          ? 'vector_not_ready'
+          : undefined
+    const detail = !auth.ok
+      ? String(auth.detail || 'internal_token_missing_with_browser_auth')
+      : ready
+        ? `vector_${backend}_memory_${memory.backend}`
+        : `vector_${vectorReady ? 'ok' : 'drift'}_memory_${memory.backend}`
     return {
       ok: true,
       ready,
@@ -25,13 +38,17 @@ export default defineEventHandler(async () => {
       vectorBackend: backend,
       docCount: docs.length,
       audit,
+      auth: {
+        browserAuthEnabled: auth.browserAuthEnabled,
+        internalTokenConfigured: auth.internalTokenConfigured
+      },
       memory: {
         backend: memory.backend,
         pgConfigured: memory.pgConfigured,
         pgReachable: memory.pgReachable,
         policyVersion: amp.version
       },
-      detail: ready ? `vector_${backend}_memory_${memory.backend}` : `vector_${vectorReady ? 'ok' : 'drift'}_memory_${memory.backend}`,
+      detail,
       ...(error_code ? { error_code } : {}),
       ts: new Date().toISOString()
     }
@@ -41,6 +58,10 @@ export default defineEventHandler(async () => {
       ok: false,
       ready: false,
       service: 'rag_agent',
+      auth: {
+        browserAuthEnabled: auth.browserAuthEnabled,
+        internalTokenConfigured: auth.internalTokenConfigured
+      },
       detail,
       error_code: 'vector_not_ready',
       ts: new Date().toISOString()

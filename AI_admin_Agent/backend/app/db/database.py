@@ -82,6 +82,24 @@ class Note(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
 
+class MailboxBinding(Base):
+    """Per-user domestic mailbox binding (auth code stored encrypted)."""
+
+    __tablename__ = "mailbox_bindings"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, unique=True, index=True, nullable=False)
+    provider = Column(String, nullable=False, default="qq")
+    email_address = Column(String, nullable=False)
+    auth_code_cipher = Column(Text, nullable=False)
+    imap_server = Column(String, nullable=False)
+    imap_port = Column(Integer, default=993)
+    smtp_server = Column(String, nullable=False)
+    smtp_port = Column(Integer, default=465)
+    verified_at = Column(DateTime, nullable=True)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+
 def _ensure_sqlite_schema() -> None:
     """
     Very small, pragmatic schema migration for sqlite.

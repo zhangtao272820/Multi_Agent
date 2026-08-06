@@ -142,8 +142,9 @@ export function buildDbNode(deps: CreateExecutionNodesDeps) {
       const allowRagSupplement = shouldAlsoRag && ragHits && !isEmpty
       if (isEmpty) {
         opts.sendEvent({ event: 'thinking', data: '数据库暂未查到结果，将结合其他信息汇总报告。', from: 'manager' })
+        const emptyText = String(answer || '').trim() || '数据库中未找到相关记录。'
         return {
-          results: { db: '数据库中未找到相关记录。' },
+          results: { db: emptyText },
           evidence: [{ ...dbEvidence, empty: true, reason: (dbEvidence as { reason?: string }).reason || 'No data' }]
         }
       }

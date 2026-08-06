@@ -56,7 +56,11 @@ AVAILABLE_TOOLS = {
     # Mail
     "send_email": email.send_email,
     "list_emails": email.list_emails,
+    "search_emails": email.search_emails,
+    "mark_email_read": email.mark_email_read,
     "reply_email": email.reply_email,
+    "forward_email": email.forward_email,
+    "delete_email": email.delete_email,
     "draft_email_reply": email.draft_email_reply,
     "classify_emails": email.classify_emails,
     "list_email_attachments": email_attachments.list_email_attachments,
@@ -140,6 +144,8 @@ RISKY_TOOLS = frozenset(
     {
         "send_email",
         "reply_email",
+        "forward_email",
+        "delete_email",
         "delete_task",
         "delete_event",
         "delete_all_meeting_reminders",

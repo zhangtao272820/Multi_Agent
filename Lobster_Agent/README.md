@@ -1,7 +1,8 @@
 # Lobster Agent
 
 > **学习文档**：[入门](../docs/Agent学习指南-入门版.md) · [进阶](../docs/Agent学习指南-进阶版.md) · [Lobster 专篇](学习指南.md)  
-> **协议 SSOT**：[Lobster升级SSOT](doc/Lobster升级SSOT.md) · [Docker 与宿主机动手](doc/Docker与宿主机动手部署.md)
+> **协议 SSOT**：[Lobster升级SSOT](doc/Lobster升级SSOT.md) · [Docker 与宿主机动手](doc/Docker与宿主机动手部署.md)  
+> **能力升级规划**（与 Admin 双动手）：[`docs/动手Agent升级-Admin与Lobster.md`](../docs/动手Agent升级-Admin与Lobster.md)
 
 基于 **Nuxt 4 + Playwright + LangGraph** 的网页 **GUI / RPA** Agent。平台能力 id 为 **`gui`**，服务名 `lobster_agent`，默认端口 **13108**（noVNC 常见 **6080**）。compose 生产入口为本目录 Dockerfile。
 
@@ -18,7 +19,8 @@
 | verify / recover | 动作后校验；失败进入恢复分支 |
 | 风控 gate | 高风险动作限制或人工确认 |
 | 执行模式 | `auto`=网页 **Stagehand only**；`stagehand` / `mcp` / `classic` 为单引擎锁 |
-| Workflow Macro | `workflows/*.json` + 总管 `workflow_id` |
+| Workflow Macro | `workflows/*.json` + 总管 `workflow_id`（含 runoob / httpbin） |
+| Hands 侧车 | `LOBSTER_HANDS_ONLY=1` · 默认 `:13109` · 见 [`hands/README.md`](hands/README.md) |
 | MCP 导出 | 默认可暴露 `/api/mcp`（见环境变量） |
 
 ### 执行模式（`LOBSTER_EXECUTION_MODE`）

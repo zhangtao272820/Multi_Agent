@@ -96,6 +96,10 @@ export const TaskOrchestratorSchema = z.object({
   wantsVisualize: z.boolean().default(false),
   wantsReport: z.boolean().default(false),
   dataSources: z.array(z.enum(['rag', 'db', 'crawler'])).max(3).default([]),
+  /** 任务形态：structured_query→db；document_retrieval→rag；hybrid→双源 */
+  taskIntent: z
+    .enum(['structured_query', 'document_retrieval', 'hybrid', 'action', 'chitchat', 'unknown'])
+    .default('unknown'),
   primaryIntent: z.enum(ROUTE_INTENTS).default('multi'),
   isMulti: z.boolean().default(true),
   suggestedAgents: z.array(z.enum(EXEC_AGENTS)).max(8).default([]),

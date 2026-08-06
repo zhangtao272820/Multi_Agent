@@ -20,6 +20,7 @@ import {
   runScalarLookupDirect,
   runSqlDirect,
 } from "../../sql_direct";
+import { tryFootPressureFastPath } from "../../foot_pressure_fastpath";
 import { parseExecutionShapeFromState } from "../helpers";
 import type { DbGraphState } from "../state";
 import type { DbGraphDeps } from "../types";
@@ -62,6 +63,32 @@ export function createSqlDirectNode(deps: DbGraphDeps): GraphNode<typeof DbGraph
     const mgr = parseManagerDbTaskFromJson(String(state.manager_task_json || ""));
     const managerContextBlob = formatManagerContextBlob(mgr);
     const completeness = parsePlanCompletenessJson(String(state.plan_completeness_json || ""));
+
+    // 足底专名次数/明细优先于 person_info 性别分布，避免「做过几次足底」被抢答成男女人数
+    if (!shouldBypassFastPathsForQuestion(q)) {
+      const footFast = await tryFootPressureFastPath(ds, {
+        question: q,
+        plan,
+        schemaGround,
+        managerContextBlob,
+        executionShape,
+        wantsCount: executionShape === "scalar_lookup",
+      });
+      if (footFast) {
+        recordQueryMetric({
+          path: "sql_direct",
+          ok: true,
+          empty: footFast.rowCount <= 0,
+          reason: "foot_pressure_fastpath",
+          question: q,
+          data_domain: plan.data_domain,
+          tables: schemaGround?.candidate_tables,
+        });
+        setRunMeta({ path: "sql_direct", data_domain: plan.data_domain, intent: plan.intent });
+        return { answer: footFast.answer, sql_direct_fail_reason: "" };
+      }
+    }
+
     if (personInfoStatsEligible(plan)) {
       progress?.("人员主表：按地区/年龄统计…");
       const personStats = await runPersonInfoStatsFastPath(ds, plan, executionShape, completeness);

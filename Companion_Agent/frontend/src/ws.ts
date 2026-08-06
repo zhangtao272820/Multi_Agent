@@ -92,7 +92,7 @@ export function wsWorldStart(
       payload: {
         user_id: opts.userId,
         save_id: opts.saveId || "",
-        protagonist_name: opts.protagonistName || "我",
+        protagonist_name: opts.protagonistName || "沈予安",
       },
     }),
   );

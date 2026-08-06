@@ -40,9 +40,31 @@ assert(!dbSys.includes(ORCH_PACK_MARKERS.rag_web), 'db-only omits rag_web')
 assert(!dbSys.includes(ORCH_PACK_MARKERS.gui_interact), 'db-only omits gui_interact pack')
 
 const both: OrchestratorPromptAssembleInput = { probeDbRelevant: true, probeRagHits: true }
+const bothPacks = listOrchestratorExamplePacks(both)
+assert(bothPacks.includes('rag_only'), 'db+rag mounts rag_only (B2 boundary)')
+assert(bothPacks.includes('db_only'), 'db+rag mounts db_only boundary')
+assert(!bothPacks.includes('multi_three'), 'db+rag without session multi omits multi_three')
 const bothSys = assembleOrchestratorSystemPrompt(both)
-assert(bothSys.includes(ORCH_PACK_MARKERS.multi_three), 'db+rag has multi_three')
-assert(!bothSys.includes(ORCH_PACK_MARKERS.db_only), 'db+rag omits db_only singleton')
+assert(bothSys.includes(ORCH_PACK_MARKERS.rag_only), 'db+rag has rag_only marker')
+assert(bothSys.includes(ORCH_PACK_MARKERS.db_only), 'db+rag has db_only marker')
+assert(!bothSys.includes(ORCH_PACK_MARKERS.multi_three), 'db+rag omits multi_three by default')
+assert(bothSys.includes('taskIntent') || bothSys.includes('document_retrieval'), 'base teaches taskIntent')
+assert(bothSys.includes('高龄津贴') || bothSys.includes('津贴补贴'), 'rag_only pack covers B2 subsidy example')
+
+const bothMulti: OrchestratorPromptAssembleInput = {
+  probeDbRelevant: true,
+  probeRagHits: true,
+  sessionIsMulti: true
+}
+const bothMultiSys = assembleOrchestratorSystemPrompt(bothMulti)
+assert(bothMultiSys.includes(ORCH_PACK_MARKERS.multi_three), 'explicit multi keeps multi_three')
+assert(bothMultiSys.includes(ORCH_PACK_MARKERS.rag_only), 'explicit multi still mounts rag_only')
+
+const ragOnlyProbe: OrchestratorPromptAssembleInput = { probeDbRelevant: false, probeRagHits: true }
+const ragOnlySys = assembleOrchestratorSystemPrompt(ragOnlyProbe)
+assert(ragOnlySys.includes(ORCH_PACK_MARKERS.rag_only), 'rag-only probe mounts rag_only')
+assert(!ragOnlySys.includes(ORCH_PACK_MARKERS.db_only), 'rag-only probe omits db_only')
+assert(!ragOnlySys.includes(ORCH_PACK_MARKERS.multi_three), 'rag-only probe omits multi_three')
 
 const action: OrchestratorPromptAssembleInput = { sessionPrimaryPlane: 'action' }
 const actionSys = assembleOrchestratorSystemPrompt(action)
@@ -77,6 +99,8 @@ for (const [name, text] of [
   ['cold', coldSys],
   ['db', dbSys],
   ['both', bothSys],
+  ['bothMulti', bothMultiSys],
+  ['ragOnly', ragOnlySys],
   ['action', actionSys],
   ['crawler', crawlerSys],
   ['compact', compact]

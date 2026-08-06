@@ -23,6 +23,7 @@ import {
   readStagehandPageTitle,
   readStagehandPageUrl,
   resolveStagehandPlanSteps,
+  STAGEHAND_PLAN_MAX_STEPS,
   stagehandStepInstruction
 } from './stagehandPlanLoop'
 import {
@@ -31,7 +32,12 @@ import {
   playwrightExtractBasics,
   playwrightFillAndSubmit,
 } from './stagehandPlaywrightBridge'
-import { isHttpBrowseUrl, isUnreachableBrowseUrl, looksLikeNetworkFailure } from '#agent-shared/lobsterRunVerifyLite'
+import {
+  evaluateSuccessCriteria,
+  normalizeWebFailureCode,
+  resolveStructuredSuccessCriteria,
+} from './lobsterSuccessCriteria'
+import { savePlaybook } from './lobsterPlaybookCache'
 
 const RISKY_TASK_PATTERN =
   /(支付|下单|购买|删除|注销|上传|投稿|checkout|pay\b|delete|remove|upload|purchase)/i
@@ -140,19 +146,34 @@ export async function runLobsterStagehandAgent(params: RunParams) {
     sanitizeExtractedHttpUrl(String(params.taskSpec?.start_url || '').trim()) ||
     extractFirstHttpUrl(params.task) ||
     ''
-  const planSteps = resolveStagehandPlanSteps({
+  const planResolved = resolveStagehandPlanSteps({
     task: params.task,
     startUrl,
     taskSpec: params.taskSpec,
   })
+  const planSteps = planResolved.steps
+  const playbookKey = planResolved.playbookKey
   const goals = params.taskSpec?.goals
   const mustLeave = goalsNeedLeaveStart(goals, params.task)
+  const structuredCriteria = resolveStructuredSuccessCriteria({
+    taskSpec: params.taskSpec,
+    task: params.task,
+    startUrl,
+  })
   let leaveStartOk = !mustLeave
   let clickAttempted = false
   let lastClickFailReason = ''
+  let stepBudgetExceeded = false
+  /** 交互步预算（不含 init）；超顶截断并带 step_budget_exceeded */
+  const actionBudget = STAGEHAND_PLAN_MAX_STEPS
+  let actionStepsUsed = 0
 
   try {
-    emitMilestoneLog('Stagehand：初始化…')
+    emitMilestoneLog(
+      playbookKey
+        ? `Stagehand：初始化（剧本命中 ${playbookKey.slice(0, 8)}…）`
+        : 'Stagehand：初始化…',
+    )
     params.emit({ type: 'state', payload: { phase: 'stagehand_init', stepCount: 0, pageUrl: startUrl || '' } })
     await stagehand.init()
     stepCount++
@@ -223,7 +244,7 @@ export async function runLobsterStagehandAgent(params: RunParams) {
       }
       const netPage = await detectStagehandNetworkErrorPage(stagehand, startUrl)
       if (navFailed || netPage.unreachable) {
-        const failureType = 'network'
+        const failureType = normalizeWebFailureCode('network')
         const pageHint = netPage.url || startUrl
         const titleHint = netPage.title ? `，标题：${netPage.title}` : ''
         const failAnswer = `无法访问目标页面（网络/DNS 或浏览器错误页）${
@@ -237,6 +258,7 @@ export async function runLobsterStagehandAgent(params: RunParams) {
             finalUrl: pageHint,
             plan: planSteps,
             goals: goals || undefined,
+            successCriteria: structuredCriteria,
             stats: {
               stepCount,
               planSteps: planSteps.length,
@@ -275,6 +297,11 @@ export async function runLobsterStagehandAgent(params: RunParams) {
 
     for (const step of actionSteps) {
       if (params.signal?.aborted) throw new Error('canceled')
+      if (actionStepsUsed >= actionBudget) {
+        stepBudgetExceeded = true
+        emitLog('warn', `步数预算耗尽（${actionBudget}），截断后续步骤`)
+        break
+      }
       stepIdx++
       const instruction = stagehandStepInstruction(step, params.task)
       const withHint = [actTpl && step.op === 'click' ? `操作提示：${actTpl}` : '', instruction]
@@ -290,6 +317,7 @@ export async function runLobsterStagehandAgent(params: RunParams) {
             await stagehand.observe(withHint)
           }
           stepCount++
+          actionStepsUsed++
         } catch (e: any) {
           emitLog('warn', `${step.op} 跳过：${String(e?.message || e).slice(0, 100)}`)
         }
@@ -297,6 +325,7 @@ export async function runLobsterStagehandAgent(params: RunParams) {
       }
 
       emitThinking('step', `${stepIdx}/${planSteps.length} ${step.op}`)
+      actionStepsUsed++
 
       // Playwright-first：click/type/submit 不依赖 Stagehand LLM JSON（Qwen 常 Bad Request / 长文解析失败）
       if (step.op === 'click') {
@@ -416,7 +445,13 @@ export async function runLobsterStagehandAgent(params: RunParams) {
     // mustLeave 失败：禁止把首页 extract 当成功产物，直接 navigation_unverified → router gui-plus
     if (mustLeave && startUrl && isStillOnStartUrl(finalUrl || startUrl, startUrl)) {
       leaveStartOk = false
-      const failureType = 'navigation_unverified'
+      const failureType = normalizeWebFailureCode(
+        stepBudgetExceeded
+          ? 'step_budget_exceeded'
+          : lastClickFailReason && /no_candidates|not_found|click_fail/i.test(lastClickFailReason)
+            ? 'element_not_found'
+            : 'navigation_unverified',
+      )
       const failAnswer = `浏览器任务未完成（${failureType}）：仍停留在起始页${
         lastClickFailReason ? `（click=${lastClickFailReason}）` : clickAttempted ? '' : '（未执行点击）'
       }。当前页：${finalUrl || startUrl}`
@@ -427,6 +462,7 @@ export async function runLobsterStagehandAgent(params: RunParams) {
           finalUrl: finalUrl || startUrl,
           plan: planSteps,
           goals: goals || undefined,
+          successCriteria: structuredCriteria,
           stats: {
             stepCount,
             planSteps: planSteps.length,
@@ -511,6 +547,18 @@ export async function runLobsterStagehandAgent(params: RunParams) {
       lastActNote ||
       (pageTitle ? `标题：${pageTitle}\n链接：${finalUrl}` : '')
 
+    const extractCount = Math.max(
+      titleOut ? 1 : 0,
+      Array.isArray(extracted?.items) ? extracted!.items!.filter((it) => it?.title || it?.text || it?.url).length : 0,
+      answerText ? 1 : 0,
+    )
+    const criteriaEval = evaluateSuccessCriteria({
+      url: finalUrl || startUrl || '',
+      title: titleOut || pageTitle,
+      extractCount,
+      criteria: structuredCriteria,
+    })
+
     const rawOutput = wrapLobsterOutput(
       {
         traceId,
@@ -519,11 +567,13 @@ export async function runLobsterStagehandAgent(params: RunParams) {
         pageTitle: titleOut || pageTitle || undefined,
         plan: planSteps,
         goals: goals || undefined,
+        successCriteria: structuredCriteria,
         stats: {
           stepCount,
           planSteps: planSteps.length,
           latency_ms: Date.now() - startedAt,
           enginePath: 'playwright_first',
+          actionStepsUsed,
         },
         data: [
           {
@@ -570,18 +620,38 @@ export async function runLobsterStagehandAgent(params: RunParams) {
         /* ignore */
       }
     }
+    if (!failureType && stepBudgetExceeded) {
+      failureType = 'step_budget_exceeded'
+    }
+    if (!failureType && !criteriaEval.ok) {
+      failureType = 'success_criteria_unmet'
+    }
+    if (failureType) {
+      failureType = normalizeWebFailureCode(failureType)
+    }
+
+    const failDetail =
+      failureType === 'success_criteria_unmet'
+        ? criteriaEval.missing.join(';') || criteriaEval.reason
+        : verify.hints?.[0] || '请检查是否已进入目标页并提取到标题'
 
     const output = wrapLobsterOutput(
       {
         ...rawOutput,
-        verify: { ok: !failureType && verify.ok, reason: failureType || verify.reason },
+        verify: {
+          ok: !failureType && verify.ok,
+          reason: failureType || verify.reason,
+          ...(failureType === 'success_criteria_unmet'
+            ? { missing: criteriaEval.missing }
+            : {}),
+        },
         failureType,
       },
       'stagehand',
       {
         confirmCount,
         answer: failureType
-          ? `浏览器任务未完成（${failureType}）：${verify.hints?.[0] || '请检查是否已进入目标页并提取到标题'}。当前页：${finalUrl || startUrl || ''}`
+          ? `浏览器任务未完成（${failureType}）：${failDetail}。当前页：${finalUrl || startUrl || ''}`
           : answerText,
         failureType,
       },
@@ -591,6 +661,16 @@ export async function runLobsterStagehandAgent(params: RunParams) {
       emitLog('error', `verify 失败：${failureType}`)
     } else {
       emitMilestoneLog(`完成 · ${String(titleOut || pageTitle || '').slice(0, 80)}`)
+      try {
+        savePlaybook({
+          startUrl: startUrl || finalUrl,
+          taskKind: params.taskSpec?.task_kind,
+          goals: params.taskSpec?.goals,
+          plan_steps: planSteps,
+        })
+      } catch {
+        /* playbook 写入失败不影响主路径 */
+      }
     }
 
     params.emit({ type: 'result', payload: output })

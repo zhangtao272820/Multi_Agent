@@ -119,4 +119,44 @@ assert(
 assert(prefetchHasDbHints(llmJudgeMeta), 'prefetchHasDbHints true')
 assert(!prefetchHasDbHints({}), 'prefetchHasDbHints false when empty')
 
+/** omitSchemaHints：预取建议了任意错表时，不得注入 hint_tables / query_plan */
+const commentCollisionMeta = {
+  dbPlanPrefetch: {
+    ok: true,
+    question: '查李四的业务档案明细',
+    unified_task_plan: {
+      entities: { names: ['李四'], records: [], locations: [], dates: [] },
+      prefetch_ready: true,
+      query_plan_json: JSON.stringify({
+        intent: 'detail',
+        confidence: 0.8,
+        entities: { names: ['李四'] },
+        metrics: ['业务档案明细']
+      }),
+      hints: {
+        suggested_tables: ['domain_a_sensor_log', 'domain_b_archive'],
+        evidence: '传感器域-检测记录'
+      }
+    }
+  }
+}
+const omitBase = {
+  source: 'manager' as const,
+  refined_question: '查李四的业务档案明细',
+  must_filters: [] as string[],
+  schema_search_keywords: '',
+  query_plan_json: JSON.stringify({ intent: 'detail', entities: { names: ['李四'] } }),
+  execution_shape_hint: 'detail_rows' as const
+}
+const omitted = enrichManagerDbTaskFromPrefetch(omitBase, commentCollisionMeta, {
+  omitSchemaHints: true,
+  allowReuse: true
+})
+assert(!(omitted?.hint_tables ?? []).includes('domain_a_sensor_log'), 'omit must strip wrong hint_tables')
+assert(!(omitted?.hint_tables ?? []).length, 'omit must not inject any hint_tables')
+assert(!omitted?.prefetch_schema_ground_json, 'omit must strip prefetch_schema_ground_json')
+assert(omitted?.prefetch_reuse !== true, 'omit must not lock prefetch_reuse')
+assert(!String(omitted?.query_plan_json || '').trim(), 'omit must strip query_plan_json')
+assert(!omitted?.execution_shape_hint, 'omit must strip execution_shape_hint')
+
 console.log('smoke: db prefetch reuse ok')

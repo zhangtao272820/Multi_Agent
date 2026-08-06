@@ -92,12 +92,16 @@ EMBEDDING_MODEL=text-embedding-v1
 
 ## 新库接入 checklist
 
+权威细则：[data/domains/README.md](data/domains/README.md)。摘要：
+
 1. `.env` 设 `MYSQL_*`；`DB_AGENT_DOMAIN=generic` 试跑  
 2. 为业务表/列写清中文 `COMMENT`  
-3. 手工提 10–20 条典型问句，确认 `sql_direct` 与选表  
-4. 复制 `data/domains/p2026/` → `data/domains/<新库>/`，只改 JSON  
-5. Docker 镜像需含 `data/domains/`；一库一实例  
-6. `GET /api/config` 看 `patch.id`；`GET /api/metrics` 看 path / `llm_calls`
+3. 手工提 10–20 条**真实客户**典型问句，确认 `sql_direct` 与选表  
+4. 需要领域 hint：复制 `data/domains/generic/`（或 `p2026/`）→ `data/domains/<新库>/`，**只改 JSON**  
+5. Docker 镜像需含 `data/domains/`；**一库一实例**  
+6. `GET /api/config` 看 `patch.id`；`GET /api/metrics` 看 path / `llm_calls`  
+
+总管侧提示词/演示题与库解耦：见 Manager `doc/真实用户域解耦.md`。不重写 NL2SQL 主链。
 
 ## 能力边界
 

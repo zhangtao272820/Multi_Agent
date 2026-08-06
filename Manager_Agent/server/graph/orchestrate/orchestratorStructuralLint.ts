@@ -171,6 +171,32 @@ export function lintOrchestratorBundle(input: OrchestratorLintInput): string[] {
   if (input.clauses.length === 1 && dataAgentCount <= 1 && input.planBlueprint?.steps && input.planBlueprint.steps.length >= 4) {
     issues.push('单源简单任务蓝图步数过多，可能过度流水线')
   }
+  if (dataAgentCount === 1 && input.planBlueprint?.steps && input.planBlueprint.steps.length >= 2) {
+    const sole =
+      [...new Set((input.classify.dataSources ?? []).map(String).filter((d) => d === 'db' || d === 'rag'))][0] ||
+      input.allowedAgents.find((a) => a === 'db' || a === 'rag')
+    const steps = input.planBlueprint.steps
+    const allSame =
+      sole &&
+      steps.every((s) => String((s as { agent?: string })?.agent || '').trim() === sole)
+    if (allSame) {
+      issues.push('单源同 agent 蓝图步数≥2，须折叠为一步')
+    }
+  }
+  if (dataAgentCount === 1 && input.clauses.length >= 2) {
+    const sole =
+      [...new Set((input.classify.dataSources ?? []).map(String).filter((d) => d === 'db' || d === 'rag'))][0] ||
+      input.allowedAgents.find((a) => a === 'db' || a === 'rag')
+    const allSame =
+      sole &&
+      input.clauses.every((c) => {
+        const agents = (c.agents ?? []).map(String)
+        return agents.length > 0 && agents.every((a) => a === sole)
+      })
+    if (allSame) {
+      issues.push('单源同 agent 子句数≥2，须折叠为一步')
+    }
+  }
 
   issues.push(...spuriousDownstreamAgents(input))
   issues.push(...lintWeatherBoundToCrawler({ clauses: input.clauses, planBlueprint: input.planBlueprint }))
@@ -191,7 +217,8 @@ export function orchestratorLintSeverity(issues: string[]): 'ok' | 'warn' | 'fai
       i.includes('无 crawler 子句') ||
       i.includes('镜像非公网子句') ||
       i.includes('须改 admin') ||
-      i.includes('get_weather')
+      i.includes('get_weather') ||
+      i.includes('须折叠为一步')
   )
   return critical ? 'fail' : 'warn'
 }

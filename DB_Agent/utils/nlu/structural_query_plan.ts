@@ -60,10 +60,15 @@ export function inferQueryPlanStructural(question: string): QueryPlan {
       plan.metrics = Array.from(new Set([...(plan.metrics ?? []), "人数"])).slice(0, 8);
     }
   }
+  // 基本信息/联系方式：锁定 person_basic，避免后续 Judge 把健康表留在 primary 后翻成 person_health
+  if (basicHit && !healthHit && !footHit) {
+    plan.subject = "person";
+    plan.data_domain = "person_basic";
+  }
 
   const metricHints = [
     ...collectMetricHints(blob, footMarkers),
-    ...collectMetricHints(blob, healthHit ? HEALTH_METRIC_HINTS : []),
+    ...collectMetricHints(blob, healthHit && !basicHit ? HEALTH_METRIC_HINTS : []),
     ...collectMetricHints(blob, basicHit ? BASIC_METRIC_HINTS : []),
   ];
   if (metricHints.length) plan.metrics = Array.from(new Set(metricHints)).slice(0, 8);
@@ -79,8 +84,8 @@ export function inferQueryPlanStructural(question: string): QueryPlan {
     plan.confidence = 0.7;
   } else if (footHit || healthHit || basicHit || names.length) {
     plan.intent = "detail";
-    plan.subject = names.length ? "person" : "record";
-    plan.confidence = names.length ? 0.78 : 0.55;
+    plan.subject = names.length || basicHit ? "person" : "record";
+    plan.confidence = names.length || basicHit ? 0.78 : 0.55;
   }
 
   if (plan.intent === "unknown" && statHit) {

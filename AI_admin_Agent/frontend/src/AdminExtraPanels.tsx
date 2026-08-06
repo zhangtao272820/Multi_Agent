@@ -67,6 +67,7 @@ export function HubPanel(props: {
 
   const shortcuts = [
     { label: '今日简报', action: () => void loadBriefing() },
+    { label: '连接邮箱', action: () => onOpenTab('Mail') },
     { label: '玩法台', action: () => onOpenTab('Playground') },
     { label: '每日一句', action: () => onQuickChat('来一句适合今天的话，顺便讲讲为什么') },
     { label: '百科盲盒', action: () => onQuickChat('给我开一个百科盲盒，用朋友聊天的语气讲讲') },

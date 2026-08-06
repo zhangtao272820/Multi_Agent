@@ -1,5 +1,6 @@
 import { resolveEffectiveLlmTier, resolveStageModel } from '../shared/modelTier'
 import type { LlmInvokeOptions } from '../shared/modelTier'
+import { withLlmRateLimitRetry } from '../../../utils/chat/llmRateLimit'
 
 export function isManagerSynthStreamEnabled(): boolean {
   const v = String(process.env.MANAGER_SYNTH_STREAM ?? '1').trim().toLowerCase()
@@ -163,7 +164,9 @@ export function createManagerRuntime(deps: CreateManagerRuntimeDeps) {
     let outText = ''
     let resp: unknown = null
     if (useStream && typeof (model as { stream?: (messages: unknown[]) => AsyncIterable<unknown> }).stream === 'function') {
-      const stream = await (model as { stream: (messages: unknown[]) => AsyncIterable<unknown> }).stream(messages)
+      const stream = await withLlmRateLimitRetry(() =>
+        (model as { stream: (messages: unknown[]) => AsyncIterable<unknown> }).stream(messages)
+      )
       for await (const chunk of stream) {
         ensureNotAborted()
         const delta = String((chunk as { content?: string })?.content ?? '')
@@ -174,7 +177,7 @@ export function createManagerRuntime(deps: CreateManagerRuntimeDeps) {
     } else {
       resp = await traceRun(
         `manager_llm_${stage}`,
-        async () => await model.invoke(messages),
+        async () => await withLlmRateLimitRetry(() => model.invoke(messages)),
         {
           stage,
           model: effectiveModel,

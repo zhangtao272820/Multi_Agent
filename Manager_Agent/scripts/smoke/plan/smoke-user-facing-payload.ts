@@ -15,8 +15,12 @@ import {
   resolveReplyTier,
   isSystemAuditColumn
 } from '../../../server/graph/core/output'
-import { stripSynthPromptLeakage } from '../../../agent-repo-shared/synthOutputSanitize'
-import { shouldPassthroughAdminWriteOnly } from '../../../agent-repo-shared/deterministicPassthrough'
+import { stripSynthPromptLeakage, looksLikeStepDumpSummary } from '../../../agent-repo-shared/synthOutputSanitize'
+import {
+  shouldPassthroughAdminWriteOnly,
+  shouldPassthroughRagOnly,
+  shouldPassthroughDbOnly
+} from '../../../agent-repo-shared/deterministicPassthrough'
 
 function assert(cond: unknown, msg: string): void {
   if (!cond) throw new Error(msg)
@@ -651,4 +655,172 @@ const stdTier = resolveReplyTier({
 })
 assert(stdTier === 'standard', 'single db is standard')
 
+/** 回归：db 单步 + 富 synth 不得被「查数据库：」专才 dump 盖住 */
+const dbDumpRaw = [
+  '根据您的查询，找到 1 条相关记录：记录 1: 客户姓名：王建国 - 客户生日：1958-07-23 - 空腹血糖：6.8 - 餐后血糖：9.2 - 糖化血红蛋白：6.2'
+].join('')
+const medicalSynth = [
+  '根据 2025-11-17 健康档案，王建国空腹血糖 6.8 mmol/L、餐后血糖 9.2 mmol/L、糖化血红蛋白 6.2%，整体评估为风险。',
+  '',
+  '### 血糖相关指标',
+  '',
+  '| 指标 | 测值 | 参考范围 | 状态 |',
+  '| --- | --- | --- | --- |',
+  '| 空腹血糖 | 6.8 mmol/L | 3.9-6.1 mmol/L | 偏高 |',
+  '| 餐后血糖 | 9.2 mmol/L | <7.8 mmol/L | 偏高 |',
+  '| 糖化血红蛋白 | 6.2% | <6.0% | 偏高 |'
+].join('\n')
+
+const dbRichSynthBundle = composeFinalBundleFromGraphResult({
+  final: medicalSynth,
+  intent: 'db',
+  results: { db: dbDumpRaw },
+  plan: [{ id: 's1', agent: 'db', query: '查王建国血糖' }],
+  evidence: [
+    {
+      kind: 'db',
+      handoff: {
+        summary: `查数据库：${dbDumpRaw}`,
+        evidenceRefs: [],
+        confidence: 0.9
+      }
+    }
+  ],
+  meta: {
+    synthStreamBody: medicalSynth,
+    lastStepRecords: [{ id: 's1', agent: 'db', status: 'ok', summary: `查数据库：${dbDumpRaw}` }]
+  }
+})
+assert(dbRichSynthBundle.userFacing.summary.includes('空腹血糖'), 'db+synth keeps medical narrative')
+assert(dbRichSynthBundle.userFacing.summary.includes('风险'), 'db+synth keeps risk conclusion')
+assert(!/查数据库[：:]/.test(dbRichSynthBundle.userFacing.summary), 'db+synth summary no labeled dump')
+assert(!/^根据您的查询，找到/.test(dbRichSynthBundle.userFacing.summary.trim()), 'db+synth not raw record dump')
+
+/** 无 synth、仅 handoff：不得出现裸「查数据库：」前缀 */
+const dbHandoffOnly = buildUserFacingPayload({
+  synth: '',
+  intent: 'db',
+  results: { db: dbDumpRaw },
+  planSteps: [{ agent: 'db' }],
+  evidence: [
+    {
+      kind: 'db',
+      handoff: {
+        summary: '查数据库：库表统计：男性 5 人、女性 3 人',
+        evidenceRefs: [],
+        confidence: 0.9
+      }
+    }
+  ],
+  meta: {}
+})
+assert(!/查数据库[：:]/.test(dbHandoffOnly.summary), 'handoff-only no phase label prefix')
+assert(dbHandoffOnly.summary.includes('男性') || /暂无结论|汇总未生成/.test(dbHandoffOnly.summary), 'handoff-only keeps short conclusion or hint')
+
+/** 回归：无阶段前缀的「根据您的查询，找到」dump + 流式正文更长 → summary 用完整 synth */
+const recordDumpClipped = [
+  '根据您的查询，找到 1 条相关记录：',
+  '记录 1:',
+  '客户姓名：王建国',
+  '客户生日：1958-07-23',
+  '空腹血糖(mmol/L)：6.8',
+  '总胆固醇(mmol/L)：5.3',
+  '糖化血红蛋白(%)：6.2',
+  'C…'
+].join('\n')
+const recordDumpFull = [
+  '根据您的查询，找到 1 条相关记录：记录 1: 客户姓名：王建国 - 客户生日：1958-07-23 - 空腹血糖(mmol/L)：6.8 - 餐后血糖(mmol/L)：9.2 - 总胆固醇(mmol/L)：5.3 - 糖化血红蛋白(%)：6.2 - C-反应蛋白(pg/L)：8.5 - 血尿酸：320'
+].join('')
+assert(looksLikeStepDumpSummary(recordDumpClipped), 'clipped record dump detected')
+assert(looksLikeStepDumpSummary(recordDumpFull), 'full record dump detected')
+
+const dbRecordAlign = composeFinalBundleFromGraphResult({
+  final: recordDumpFull,
+  intent: 'db',
+  results: { db: recordDumpFull },
+  plan: [{ id: 's1', agent: 'db', query: '查王建国' }],
+  evidence: [
+    {
+      kind: 'db',
+      handoff: { summary: recordDumpClipped, evidenceRefs: [], confidence: 0.9 }
+    }
+  ],
+  meta: { synthStreamBody: recordDumpFull }
+})
+assert(dbRecordAlign.userFacing.summary.includes('餐后血糖'), 'record dump prefers full synth over clipped handoff')
+assert(!/C…\s*$/.test(dbRecordAlign.userFacing.summary), 'record dump summary not clipped ellipsis')
+
+// —— A5：人员档案多行「字段：值」不得当 step dump ——
+const personProfile = [
+  '姓名：龙奶奶',
+  '性别：女',
+  '年龄：82',
+  '联系电话：13896377203',
+  '详细地址：河西区陈塘庄街道幸福里001号',
+  '紧急联系人：龙先生'
+].join('\n')
+assert(!looksLikeStepDumpSummary(personProfile), 'person profile field lines must not lookLikeStepDumpSummary')
+const personFacing = buildUserFacingPayload({
+  synth: personProfile,
+  intent: 'db',
+  results: { db: personProfile },
+  planSteps: [{ agent: 'db' }],
+  evidence: [
+    {
+      kind: 'db',
+      handoff: { summary: personProfile, evidenceRefs: [], confidence: 0.92 }
+    }
+  ],
+  meta: {}
+})
+assert(personFacing.summary.includes('13896377203'), 'userFacing keeps person phone')
+assert(personFacing.summary.includes('龙奶奶'), 'userFacing keeps person name')
+assert(
+  shouldPassthroughDbOnly({
+    intent: 'db',
+    planSteps: [{ agent: 'db' }],
+    results: { db: personProfile },
+    evidence: [{ kind: 'db', empty: false }]
+  }) === true,
+  'A5 person profile should passthrough db-only'
+)
+
+// —— B1：单源 RAG 直通 ——
+const ragRatio =
+  '全失能老人的护理员配比标准是 1:3，也就是说每位护理员最多照顾 3 位全失能老人。'
+assert(
+  shouldPassthroughRagOnly({
+    intent: 'rag',
+    planSteps: [{ agent: 'rag' }],
+    results: { rag: ragRatio },
+    evidence: [{ kind: 'rag', agentResult: { ok: true } }]
+  }) === true,
+  'B1 rag ratio should passthrough rag-only'
+)
+assert(
+  shouldPassthroughRagOnly({
+    intent: 'rag',
+    planSteps: [{ agent: 'rag' }],
+    results: { rag: ragRatio },
+    evidence: [{ kind: 'rag', agentResult: { ok: true } }],
+    professionalMode: true
+  }) === false,
+  'professional mode disables rag passthrough'
+)
+const ragFacing = buildUserFacingPayload({
+  synth: ragRatio,
+  intent: 'rag',
+  results: { rag: ragRatio },
+  planSteps: [{ agent: 'rag' }],
+  evidence: [
+    {
+      kind: 'rag',
+      handoff: { summary: ragRatio, evidenceRefs: ['doc:养老机构服务规范.docx'], confidence: 0.9 }
+    }
+  ],
+  meta: {}
+})
+assert(ragFacing.summary.includes('1:3'), 'userFacing keeps caregiver ratio 1:3')
+
 console.log('smoke-user-facing-payload: ok')
+

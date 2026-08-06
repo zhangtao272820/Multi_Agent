@@ -119,6 +119,7 @@ export default defineEventHandler(async (event) => {
 
     const agentResult = buildRagAgentResult({
       query: result.effectiveQuery,
+      // answer 由证据摘要填充（buildRagAgentResult）；勿再写问句
       needsClarify: result.needsClarify,
       ms: result.ms,
       evidence: result.evidence,

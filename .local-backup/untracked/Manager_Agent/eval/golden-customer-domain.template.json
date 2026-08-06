@@ -1,0 +1,31 @@
+{
+  "description": "客户域路由/澄清 golden 模板：复制为 golden-<客户>.json 后替换问句与 expectCap。与 p2026/测试域 golden 分离；不进生产 system prompt。见 doc/真实用户域解耦.md",
+  "cases": [
+    {
+      "id": "C1_db_single",
+      "expectCap": ["db"],
+      "user": "[替换：客户库单源统计问法，槽位齐全]"
+    },
+    {
+      "id": "C2_slot_clarify",
+      "expectCap": ["db"],
+      "expectNeedsClarify": true,
+      "user": "[替换：缺筛选维度的短问，应触发澄清]"
+    },
+    {
+      "id": "C3_rag_only",
+      "expectCap": ["rag"],
+      "user": "[替换：仅知识库规范/制度类问法]"
+    },
+    {
+      "id": "C4_rag_db_report",
+      "expectCap": ["rag", "db", "code", "report"],
+      "user": "[替换：知识库+数据库+写简报的复合问法]"
+    },
+    {
+      "id": "C5_gui_interact",
+      "expectCap": ["gui"],
+      "user": "[替换：打开站点并点击/填表类交互]"
+    }
+  ]
+}

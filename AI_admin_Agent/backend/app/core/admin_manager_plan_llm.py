@@ -80,7 +80,7 @@ def _manager_tool_catalog() -> str:
     """总管编排用的紧凑工具目录（禁止搜索/问数/玩法/浏览器）。"""
     lines = [
         "个人助理工具目录（tool_plan.name 须从中选取）：",
-        "- 邮件：send_email, list_emails, reply_email, draft_email_reply, classify_emails, triage_emails",
+        "- 邮件：send_email, list_emails, search_emails, mark_email_read, reply_email, forward_email, delete_email, draft_email_reply, classify_emails, triage_emails",
         "- 联系人：add_contact, search_contact, get_contact_email, list_contacts, import_contacts",
         "- 待办：add_task, add_task_with_due, modify_task, list_tasks, complete_task, delete_task",
         "- 日程：add_event, list_events, modify_event, delete_event, delete_all_meeting_reminders, complete_event, "

@@ -24,6 +24,7 @@ import {
   isStagehandEnabled,
   isLobsterDesktopMcpEnabled,
   isLobsterAndroidMcpEnabled,
+  isLobsterHandsOnly,
   resolveLobsterExecutionMode
 } from '../utils/lobster_env'
 import { verifyLobsterRunResult, isLobsterRetryableFailure } from './lobsterRunVerify'
@@ -31,6 +32,7 @@ import { isLobsterWorkflowId, runLobsterWorkflowAgent } from './lobsterWorkflowR
 import { listLobsterWorkflowIds } from './lobsterWorkflowLoader'
 import { runLobsterGuiPlusAgent } from './lobsterGuiPlusAgent'
 import { shouldAttemptGuiPlusFallback } from './lobsterGuiPlusFallback'
+import { wrapLobsterOutput } from './lobsterResultEnvelope'
 
 /** 里程碑日志（禁 DOM/JSON 刷屏；总管侧再硬截断） */
 function emitMilestone(params: RunParams, message: string) {
@@ -113,6 +115,58 @@ async function assertEngineReadyOrThrow(engine: LobsterEngineId): Promise<void> 
 
 /** classic | mcp | stagehand | auto（网页 = Stagehand only） */
 export async function runLobsterWithRouter(params: RunParams) {
+  const handsOnly = isLobsterHandsOnly()
+  const forcedHintEarly = String(params.engineHint || '').trim().toLowerCase()
+  const isDesktopRequest =
+    forcedHintEarly === 'desktop' ||
+    requiresDesktopEngine(params.task, params.startUrl) ||
+    params.taskSpec?.task_kind === 'desktop_app'
+
+  if (handsOnly && !isDesktopRequest) {
+    const failAnswer =
+      '当前为 Hands 桌面侧车（LOBSTER_HANDS_ONLY=1），不支持网页 Stagehand 任务。请走 Docker Lobster（LOBSTER_AGENT_WS_URL）或改用桌面任务。'
+    emitWarn(params, 'hands_web_not_supported')
+    const out = wrapLobsterOutput(
+      {
+        task: params.task,
+        finalUrl: '',
+        stats: { stepCount: 0 },
+        data: [{ via: 'hands', text: failAnswer }],
+        answer: failAnswer,
+        failureType: 'hands_web_not_supported',
+        verify: { ok: false, reason: 'hands_web_not_supported' },
+      },
+      'desktop',
+      { failureType: 'hands_web_not_supported', answer: failAnswer, confirmCount: 0 },
+    )
+    return ensureLobsterGuiFinalPayload(
+      { ...out, engine: 'desktop', actualEngine: 'desktop', failureType: 'hands_web_not_supported' },
+      params.task,
+    )
+  }
+
+  if (handsOnly && isDesktopRequest) {
+    await assertDesktopReady(params)
+    emitForcedEngineLocal('desktop')
+    const out = await runLobsterDesktopMcpAgent(params)
+    return ensureLobsterGuiFinalPayload(
+      { ...(out && typeof out === 'object' ? out : {}), engine: 'desktop', actualEngine: 'desktop' },
+      params.task,
+    )
+  }
+
+  function emitForcedEngineLocal(engine: string) {
+    const ts = Date.now()
+    params.emit({
+      type: 'engine_chain',
+      payload: { ts, chain: [engine], activeIndex: 0 },
+    })
+    params.emit({
+      type: 'engine_active',
+      payload: { ts, engine, actualEngine: engine, attemptIndex: 0 },
+    })
+  }
+
   const workflowId = String(params.workflowId || '').trim()
   if (workflowId && isLobsterWorkflowId(workflowId)) {
     const knownIds = listLobsterWorkflowIds()
@@ -132,15 +186,7 @@ export async function runLobsterWithRouter(params: RunParams) {
   const mode = resolveLobsterExecutionMode()
 
   const emitForcedEngine = (engine: string) => {
-    const ts = Date.now()
-    params.emit({
-      type: 'engine_chain',
-      payload: { ts, chain: [engine], activeIndex: 0 },
-    })
-    params.emit({
-      type: 'engine_active',
-      payload: { ts, engine, actualEngine: engine, attemptIndex: 0 },
-    })
+    emitForcedEngineLocal(engine)
   }
 
   if (mode === 'classic') {

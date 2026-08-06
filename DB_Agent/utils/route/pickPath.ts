@@ -1,5 +1,8 @@
 import type { QueryPlan } from "../nlu/query_plan";
-import { inferExecutionShapeStructural } from "../nlu/dbQueryExecutionShapeLlm";
+import {
+  inferExecutionShapeStructural,
+  isFilteredPersonDistributionPlan,
+} from "../nlu/dbQueryExecutionShapeLlm";
 import type { QueryTier } from "../nlu/dbComplexityLlm";
 import type { SchemaTableJudgeResult } from "../schema_table_judge";
 import {
@@ -102,20 +105,25 @@ export function pickExecutionPath(
   if (schemaFirst) {
     if (
       domainSkills &&
-      ["aggregation", "comparison"].includes(plan.intent) &&
-      personInfoStatsEligible(plan)
+      personInfoStatsEligible(plan) &&
+      (["aggregation", "comparison"].includes(plan.intent) || isFilteredPersonDistributionPlan(plan))
     ) {
-      reasons.push("人员主表域内聚合（地区/年龄/性别）→statistics");
+      reasons.push("人员主表域内聚合/过滤分布（Plan 槽位完备）→statistics（优先于 L4 QueryIR）");
       return { path: "statistics", scores, reasons };
     }
+    // 人员档案/联系方式：有姓名时常被抬到 L3/L5，仍须走 person_info，勿被 sql_direct 抢走
+    if (domainSkills && canUsePersonInfoSkill(alignment, plan, tableJudge)) {
+      reasons.push(
+        queryTier && queryTier !== "L1"
+          ? `人员主表档案（${queryTier}）→person_info（优先于 sql_direct）`
+          : "Judge 确认人员主表→person_info",
+      );
+      return { path: "person_info", scores, reasons };
+    }
     if (canUseL1SkillFastPath(queryTier, domainSkills)) {
-      if (looksLikePersonHealthQuery(plan, alignment, tableJudge) && personName) {
+      if (looksLikePersonHealthQuery(plan, alignment, tableJudge) && personName && plan.data_domain !== "person_basic") {
         reasons.push(`L1+Judge 确认健康档案主表→person_health（${personName}）`);
         return { path: "person_health", scores, reasons };
-      }
-      if (canUsePersonInfoSkill(alignment, plan, tableJudge)) {
-        reasons.push("L1+Judge 确认人员主表→person_info");
-        return { path: "person_info", scores, reasons };
       }
     }
     if (tierPrefersStructuredSql(queryTier)) {
@@ -131,17 +139,17 @@ export function pickExecutionPath(
     return { path: "sql_preflight", scores, reasons };
   }
 
-  if (looksLikePersonHealthQuery(plan, alignment, tableJudge) && personName) {
+  if (plan.data_domain === "person_basic" && plan.intent === "detail" && plan.subject === "person") {
+    reasons.push("人员基础档案→person_info");
+    return { path: "person_info", scores, reasons };
+  }
+  if (looksLikePersonHealthQuery(plan, alignment, tableJudge) && personName && plan.data_domain !== "person_basic") {
     reasons.push(`健康体征域+姓名（${personName}）→person_health_records JOIN 快路径`);
     return { path: "person_health", scores, reasons };
   }
   if (plan.data_domain === "person_health" && !alignment.hasPersonHealthRecords) {
     reasons.push("问句属健康域但 schema 无体征表→结构化 SQL");
     return { path: "sql_preflight", scores, reasons };
-  }
-  if (plan.data_domain === "person_basic" && plan.intent === "detail" && plan.subject === "person") {
-    reasons.push("人员基础档案→person_info");
-    return { path: "person_info", scores, reasons };
   }
   if (["aggregation", "trend", "comparison"].includes(plan.intent)) {
     const shape = inferExecutionShapeStructural(plan);

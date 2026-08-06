@@ -93,6 +93,14 @@ export type LobsterTaskSpec = {
   explicitly_avoid_login: boolean
   completion_criteria?: string
   success_criteria?: string
+  /** 结构化成功契约（可选；缺省由 resolveStructuredSuccessCriteria 组装） */
+  successCriteria?: {
+    urlIncludes?: string[]
+    urlMatches?: string
+    selectorPresent?: string
+    extractMin?: number
+    titleIncludes?: string[]
+  }
   plan_steps: LobsterPlanStep[]
   goals: LobsterTaskGoals
   target_app?: string

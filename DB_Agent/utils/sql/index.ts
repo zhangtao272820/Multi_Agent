@@ -26,6 +26,8 @@ export {
   guessTablesFromSql,
   collectRequiredPersonNames,
   sqlMissingRequiredPersonNames,
+  collectRequiredRegions,
+  sqlMissingRequiredRegions,
   validateSqlAgainstSchemaJudge,
   validateSqlAgainstPlanFilters,
   type SqlPlanGuardResult,

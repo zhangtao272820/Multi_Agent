@@ -268,6 +268,30 @@ export function isLobsterDesktopMcpEnabled(env: NodeJS.ProcessEnv = process.env)
   return String(env.LOBSTER_DESKTOP_MCP_ENABLED ?? '0').trim() === '1'
 }
 
+/**
+ * Hands-only 侧车模式：只跑桌面 MCP + ready/WS；拒绝纯网页 Stagehand。
+ * 生产：宿主 Hands 与 Docker 网页 Lobster 分端口（默认 Hands :13109）。
+ */
+export function isLobsterHandsOnly(env: NodeJS.ProcessEnv = process.env): boolean {
+  return String(env.LOBSTER_HANDS_ONLY ?? '0').trim() === '1'
+}
+
+export function resolveLobsterHandsHttpBase(env: NodeJS.ProcessEnv = process.env): string {
+  const fromEnv = String(env.LOBSTER_HANDS_HTTP_URL || '').trim().replace(/\/$/, '')
+  if (fromEnv) return fromEnv
+  // 从 WS URL 推导 http base（ws://host:port/_ws → http://host:port）
+  const ws = String(env.LOBSTER_HANDS_WS_URL || '').trim()
+  if (ws) {
+    try {
+      const u = new URL(ws.replace(/^ws/i, 'http'))
+      return `${u.protocol}//${u.host}`
+    } catch {
+      /* ignore */
+    }
+  }
+  return 'http://127.0.0.1:13109'
+}
+
 export function resolveLobsterDesktopMcpServers(env: NodeJS.ProcessEnv = process.env): McpServersConfig | null {
   if (!isLobsterDesktopMcpEnabled(env)) return null
   const fromEnv =

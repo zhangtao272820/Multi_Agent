@@ -2,7 +2,7 @@
   <Teleport to="body">
     <div
       v-if="modelValue"
-      class="fixed inset-0 z-[60] flex items-center justify-center"
+      class="db-modal-backdrop"
       role="presentation"
       @click.self="onBackdropClick"
     >
@@ -113,11 +113,22 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+.db-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(2, 6, 23, 0.62);
+  backdrop-filter: blur(4px);
+}
+
 .db-modal-dialog {
   position: relative;
   width: 100%;
   max-width: 22rem;
-  margin: 0 1rem;
   border-radius: 0.75rem;
   border: 1px solid rgba(179, 199, 255, 0.16);
   background: rgba(8, 10, 24, 0.96);

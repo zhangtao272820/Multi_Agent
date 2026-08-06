@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "description": "Offline slot-grounding fixtures: missingSlots must not imply needsClarify; proceed cases from 真实域 A-class.",
+  "cases": [
+    {
+      "id": "A1-proceed",
+      "routedQuery": "老人一共有多少人",
+      "expectNeedsClarify": false,
+      "expectAllowedIncludes": ["db"],
+      "allowMissingSlots": true,
+      "note": "Executable single-source DB; optional missingSlots telemetry only"
+    },
+    {
+      "id": "A2-proceed",
+      "routedQuery": "查一下张三的血压和血糖",
+      "expectNeedsClarify": false,
+      "expectAllowedIncludes": ["db"],
+      "allowMissingSlots": true
+    },
+    {
+      "id": "slot-true-clarify",
+      "routedQuery": "查一下对象",
+      "expectNeedsClarify": true,
+      "expectClarifyKind": "slot",
+      "note": "Only when LLM explicitly sets needsClarify"
+    }
+  ]
+}

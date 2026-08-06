@@ -60,7 +60,15 @@ export function pickHealthLinkCandidates(cols: TableColumnInfo[]) {
 }
 
 export function pickHealthNameColumn(cols: TableColumnInfo[]) {
-  const direct = pickFirstExisting(cols, ["person_name", "name", "elder_name", "oldman_name", "username"]);
+  const direct = pickFirstExisting(cols, [
+    "person_name",
+    "name",
+    "cus_name",
+    "elder_name",
+    "oldman_name",
+    "patient_name",
+    "username",
+  ]);
   if (direct) return direct;
   const byComment = cols.find((c) => /姓名/.test(String(c.comment ?? "")))?.name ?? null;
   return byComment ? String(byComment) : null;
@@ -96,6 +104,7 @@ export function pickFootNameColumn(cols: TableColumnInfo[]) {
   const direct = pickFirstExisting(cols, [
     "person_name",
     "name",
+    "cus_name",
     "elder_name",
     "oldman_name",
     "patient_name",
@@ -143,6 +152,24 @@ export function isIdKey(k: string) {
 export function isSensitiveKey(k: string) {
   const s = String(k || "").trim().toLowerCase();
   return /(id_card|idcard|身份证|phone|mobile|tel|password|passwd|secret|token)/.test(s);
+}
+
+/** 库表审计 / ORM 系统列（返回体结构清洗，非用户意图识别） */
+const SYSTEM_AUDIT_KEY_RE =
+  /^(del[_]?flag|is[_]?deleted|deleted|create[_]?by|update[_]?by|create[_]?time|update[_]?time|tenant[_]?id|created[_]?at|updated[_]?at|deleted[_]?at|gmt[_]?create|gmt[_]?modified)$/i;
+
+const SYSTEM_AUDIT_LABEL_RE =
+  /(逻辑删除|删除标志|创建人|创建时间|修改人|修改时间|del[_]?flag|is[_]?deleted|create[_]?by|update[_]?by|create[_]?time|update[_]?time|tenant[_]?id)/i;
+
+/** 是否系统审计列（列名或注释标签） */
+export function isSystemAuditKey(k: string, label?: string) {
+  const key = String(k || "").trim();
+  if (!key) return true;
+  if (SYSTEM_AUDIT_KEY_RE.test(key)) return true;
+  if (SYSTEM_AUDIT_LABEL_RE.test(key)) return true;
+  const lb = String(label || "").trim();
+  if (lb && SYSTEM_AUDIT_LABEL_RE.test(lb)) return true;
+  return false;
 }
 
 export function normalizeValue(v: any) {

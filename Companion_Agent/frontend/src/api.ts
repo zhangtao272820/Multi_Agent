@@ -112,7 +112,7 @@ export async function fetchWorldSaves(userId: string): Promise<import("./types")
   }
 }
 
-export async function createWorldSave(userId: string, protagonistName = "我") {
+export async function createWorldSave(userId: string, protagonistName = "沈予安") {
   const r = await fetch("/api/world/saves", {
     method: "POST",
     headers: { "Content-Type": "application/json" },

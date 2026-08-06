@@ -57,9 +57,9 @@ notify('admin', 'gate blocked')
 assert(captured?.agent === 'admin', 'agent_error payload agent')
 
 // P0-6 / P2-2: retrieve-first 策略
-assert(isManagerRagRetrieveFirstEnabled(), 'retrieve-first default on')
-process.env.MANAGER_RAG_RETRIEVE_FIRST = '0'
-assert(!isManagerRagRetrieveFirstEnabled(), 'retrieve-first can disable')
+assert(!isManagerRagRetrieveFirstEnabled(), 'retrieve-first default off (chat-first, align UI)')
+process.env.MANAGER_RAG_RETRIEVE_FIRST = '1'
+assert(isManagerRagRetrieveFirstEnabled(), 'retrieve-first can enable')
 delete process.env.MANAGER_RAG_RETRIEVE_FIRST
 
 const strict = ragRetrieveCallOptions('default', 2)

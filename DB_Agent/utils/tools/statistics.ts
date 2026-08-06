@@ -4,6 +4,7 @@
 import type { DataSource } from "typeorm";
 import { DB_AGENT_DEFAULTS } from "../db_agent_env";
 import type { QueryPlan } from "../nlu/query_plan";
+import { isFilteredPersonDistributionPlan } from "../nlu/dbQueryExecutionShapeLlm";
 import { resolveStatisticsKind, type StatisticsKind } from "../nlu/dbStatisticsRouteLlm";
 import { getDomainTable } from "../domain_patch";
 import { runPersonInfoStatsFastPath } from "../person";
@@ -159,7 +160,11 @@ export async function statisticsTool(
   question: string,
   opts?: { model?: import("@langchain/openai").ChatOpenAI | null; plan?: QueryPlan | null },
 ) {
-  const filtered = await runPersonInfoStatsFastPath(ds, opts?.plan);
+  const filtered = await runPersonInfoStatsFastPath(
+    ds,
+    opts?.plan,
+    isFilteredPersonDistributionPlan(opts?.plan) ? "distribution" : undefined,
+  );
   if (filtered) return filtered;
   const result = await statisticsToolRaw(ds, question, opts);
   if (!result) return null;

@@ -4,7 +4,7 @@
 import type { DataSource } from "typeorm";
 import { clipText } from "./nlu/text";
 import type { QueryPlan } from "./nlu/query_plan";
-import { getFootPressureConfig } from "./domain_patch";
+import { getFootPressureConfig, getFootPressureMarkers } from "./domain_patch";
 
 export type SchemaRelation = {
   from_table: string;
@@ -134,6 +134,22 @@ export function queryPlanWantsFootAreaDetail(plan?: QueryPlan | null): boolean {
   return markers.some((m) => planText.includes(m));
 }
 
+/** 查询计划槽位是否与足底域配置标记对齐（域配置驱动，非用户原话正则） */
+export function queryPlanAlignsWithFootDomain(plan?: QueryPlan | null): boolean {
+  if (!plan) return false;
+  if (queryPlanWantsFootAreaDetail(plan)) return true;
+  const planText = [
+    ...plan.metrics,
+    ...plan.dimensions,
+    ...plan.filters.where,
+    String(plan.data_domain || ""),
+    String(plan.subject || ""),
+  ].join(" ");
+  if (!planText.trim()) return false;
+  const markers = getFootPressureMarkers();
+  return markers.some((m) => m && planText.includes(m));
+}
+
 /** 候选表含足底相关表时，确保主记录表在列表中 */
 export function getFootLogTable(): string {
   return getFootPressureConfig().main_table;
@@ -157,12 +173,13 @@ export function ensureFootPressureCandidates(tables: string[]): string[] {
   return out;
 }
 
-/** 足底主从表同时出现时，默认主表在前（除非 plan 明确要求区域维度） */
+/** 足底主从表同时出现且 plan 对齐足底域时，主表在前（除非 plan 明确要求区域维度） */
 export function reorderFootPressureCandidates(
   tables: string[],
   comments: Record<string, string>,
   queryPlan?: QueryPlan | null,
 ): string[] {
+  if (!queryPlanAlignsWithFootDomain(queryPlan)) return tables;
   const main = getFootLogTable();
   const measure = getFootMeasureTable();
   let out = ensureFootPressureCandidates(tables);
@@ -439,8 +456,17 @@ LIMIT 5`;
   return lines.join("\n").trim();
 }
 
-function pickDetailNameColumn(meta: TableSchemaMeta): string | null {
-  const preferred = ["person_name", "name", "elder_name", "user_name", "username", "patient_name"];
+/** 明细表姓名列：schema 实际列 ∩ 偏好序；含 cus_name（护理/慢病表 SSOT） */
+export function pickDetailNameColumn(meta: TableSchemaMeta): string | null {
+  const preferred = [
+    "person_name",
+    "name",
+    "cus_name",
+    "elder_name",
+    "patient_name",
+    "user_name",
+    "username",
+  ];
   for (const p of preferred) {
     const hit = meta.columns.find((c) => c.name.toLowerCase() === p);
     if (hit) return hit.name;

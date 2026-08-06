@@ -54,6 +54,41 @@ const missingName = validateGeneratedSelectSql('SELECT COUNT(*) FROM person_info
 })
 assert(!missingName.ok && missingName.stage === 'plan_guard', 'plan guard catches missing name')
 
+const regionPlan = {
+  ...defaultQueryPlan(),
+  confidence: 0.9,
+  intent: 'aggregation' as const,
+  subject: 'person' as const,
+  data_domain: 'person_basic' as const,
+  entities: { names: [], locations: ['东城区'], orgs: [], ids: [] },
+  dimensions: ['性别'],
+  metrics: ['人数'],
+  filters: {
+    time_range: { start: '', end: '', relative: '' },
+    where: ['年龄段 60-69'],
+    slots: [
+      { field_hint: 'region', value: '东城区', sql_match_value: '东城区' },
+      { field_hint: 'age', value: '60-69', sql_match_value: '60-69' },
+    ],
+  },
+}
+const missingRegion = validateGeneratedSelectSql(
+  'SELECT is_gender, COUNT(*) c FROM person_info WHERE age BETWEEN 60 AND 69 GROUP BY is_gender',
+  { queryPlan: regionPlan },
+)
+assert(!missingRegion.ok && missingRegion.stage === 'plan_guard', 'plan guard catches missing region')
+assert(
+  String((missingRegion as { guard?: { reason?: string } }).guard?.reason || '') === 'missing_region_filter' ||
+    String((missingRegion as { reason?: string }).reason || '').includes('region'),
+  'missing_region_filter reason',
+)
+
+const regionOk = validateGeneratedSelectSql(
+  "SELECT is_gender, COUNT(*) c FROM person_info WHERE provinces_and_cities LIKE '%东城区%' AND age BETWEEN 60 AND 69 GROUP BY is_gender",
+  { queryPlan: regionPlan },
+)
+assert(regionOk.ok, 'region+age select passes plan guard')
+
 const ok = validateGeneratedSelectSql("SELECT * FROM person_info WHERE name LIKE '%张三%'", {
   queryPlan: plan,
   preflight: { refined_question: '张三', schema_search_keywords: '张三', sql_intent_summary: '', must_filters: ['张三'], risk_notes: [] },
@@ -66,6 +101,7 @@ assert(prepared.includes('MAX_EXECUTION_TIME'), 'prepare adds timeout hint')
 
 const runSqlDirect = readFileSync(join(root, '../utils/sql/direct/runSqlDirect.ts'), 'utf8')
 assert(runSqlDirect.includes('validateGeneratedSelectSql'), 'sql_direct uses guard pipeline')
+assert(runSqlDirect.includes('irValidated'), 'query_ir uses plan guard before execute')
 assert(!runSqlDirect.includes('DIRECT_SYSTEM_INLINE'), 'sql_direct inline prompt removed')
 
 const preflightTs = readFileSync(join(root, '../utils/sql_preflight.ts'), 'utf8')

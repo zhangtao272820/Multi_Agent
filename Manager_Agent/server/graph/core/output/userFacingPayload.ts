@@ -10,13 +10,17 @@ import {
 } from '#agent-shared/chartOption'
 import {
   looksLikeExecAuditDump,
+  looksLikeStepDumpSummary,
+  looksLikeTruncatedSummary,
+  stripPhaseStepLabels,
   stripStructuredExecReport,
   stripSynthPromptLeakage
 } from '#agent-shared/synthOutputSanitize'
-import { planAgentLabel } from '../runtime/phaseLabels'
+
 import type { SpecialistHandoff } from '../../../utils/agents/types'
 import { buildActionCardsFromHumanConfirm } from './actionCard'
 
+export { looksLikeStepDumpSummary, looksLikeTruncatedSummary, stripPhaseStepLabels }
 export { looksLikeExecAuditDump, stripStructuredExecReport }
 
 /** 与 synthShapePolicy / dbPipeline 对齐：≥2 个数据面专才有输出即多源 */
@@ -331,20 +335,18 @@ export function resolveReplyTier(input: {
   return 'standard'
 }
 
-/** 主列是否像「步骤 dump」拼接（composeFinal 用来回退完整 synth） */
-export function looksLikeStepDumpSummary(text: string): boolean {
-  const s = String(text || '').trim()
-  if (!s) return true
-  if (looksLikeHandoffStubOrBlob(s)) return true
-  const labeled = (s.match(/^(查数据库|采集网页|清洗数据|计算数据|撰写报告|检索知识库|生成图表)[：:]/gm) || [])
-    .length
-  if (labeled >= 2) return true
-  if (/report\s*已完成/i.test(s)) return true
-  if (/已机械合并/.test(s) && /\{[\s\S]*"answer"/.test(s)) return true
-  return false
-}
-
 const SYNTH_MISSING_HINT = '汇总未生成可用正文，请重试本轮任务。'
+const LIGHT_MISSING_HINT = '暂无结论。可查看上方进展，或换个说法再试一次。'
+
+/** handoff 回退：去掉阶段标签后取可用短结论；仍像 dump 则空 */
+function normalizeHandoffFallback(joined: string): string {
+  const stripped = stripPhaseStepLabels(String(joined || '').trim())
+  if (!stripped) return ''
+  if (looksLikeDeveloperDump(stripped) || looksLikeHandoffStubOrBlob(stripped) || looksLikeStepDumpSummary(stripped)) {
+    return ''
+  }
+  return stripped
+}
 
 function outcomeLabelZh(outcome: UserFacingOutcome): string {
   if (outcome === 'failed') return '未完成'
@@ -371,14 +373,15 @@ function collectHandoffSummaries(input: {
 }): string[] {
   const out: string[] = []
   const seen = new Set<string>()
-  const push = (raw: string, agent?: string) => {
-    const cleaned = stripDeveloperJargon(raw)
+  const push = (raw: string, _agent?: string) => {
+    // 用户主列禁止「查数据库：」等阶段标签前缀；专才原文留给过程/开发视图
+    const cleaned = stripPhaseStepLabels(stripDeveloperJargon(raw))
     if (!cleaned || looksLikeDeveloperDump(cleaned) || looksLikeHandoffStubOrBlob(cleaned)) return
+    if (looksLikeStepDumpSummary(cleaned)) return
     const key = cleaned.slice(0, 120)
     if (seen.has(key)) return
     seen.add(key)
-    const label = agent ? planAgentLabel(agent) : ''
-    out.push(label && !cleaned.startsWith(label) ? `${label}：${cleaned}` : cleaned)
+    out.push(cleaned)
   }
 
   for (const ev of Array.isArray(input.evidence) ? input.evidence : []) {
@@ -402,7 +405,10 @@ function collectHandoffSummaries(input: {
     if (['clean', 'visualize', 'report'].includes(agent)) continue
     const text = String(raw ?? '').trim()
     if (!text || looksLikeDeveloperDump(text) || looksLikeHandoffStubOrBlob(text)) continue
+    // 禁止把库表全文/截断 dump 拼进用户主列（流式 synth 才是主叙述）
+    if (looksLikeStepDumpSummary(text)) continue
     const brief = text.length > 400 ? `${text.slice(0, 400).trim()}…` : text
+    if (looksLikeStepDumpSummary(brief) || looksLikeTruncatedSummary(brief)) continue
     if (out.length < 4) push(brief, agent)
   }
 
@@ -803,34 +809,52 @@ export function buildUserFacingPayload(input: {
   })
 
   let summary = fromSynth
-  if (!summary || looksLikeDeveloperDump(summary)) {
-    if (heavy) {
-      // 复杂任务：宁可提示重试，也不把步骤 dump / report 已完成 塞进主列
-      const light = stripStructuredExecReport(stripDeveloperJargon(stripSynthPromptLeakage(synth)))
-      summary =
-        light && !looksLikeDeveloperDump(light) && !looksLikeStepDumpSummary(light)
-          ? light
-          : SYNTH_MISSING_HINT
+  // synth 流式正文优先保留（含库表原文回显）；仅开发者腔 / 阶段标签拼接 / stub 才回退
+  const phaseLabeled =
+    ((summary || '').match(
+      /^(查数据库|采集网页|清洗数据|计算数据|撰写报告|检索知识库|生成图表)[：:]/gm
+    ) || []).length >= 1
+  if (!summary || looksLikeDeveloperDump(summary) || looksLikeHandoffStubOrBlob(summary) || phaseLabeled) {
+    const light = stripStructuredExecReport(stripDeveloperJargon(stripSynthPromptLeakage(synth)))
+    const lightPhase =
+      ((light || '').match(
+        /^(查数据库|采集网页|清洗数据|计算数据|撰写报告|检索知识库|生成图表)[：:]/gm
+      ) || []).length >= 1
+    if (
+      light &&
+      !looksLikeDeveloperDump(light) &&
+      !looksLikeHandoffStubOrBlob(light) &&
+      !lightPhase
+    ) {
+      summary = light
+    } else if (heavy) {
+      summary = SYNTH_MISSING_HINT
     } else {
       const handoffs = collectHandoffSummaries({
         evidence: input.evidence,
         meta,
         results: input.results
       })
-      summary = handoffs.length
-        ? handoffs.join('\n\n')
-        : '暂无结论。可查看上方进展，或换个说法再试一次。'
+      summary = normalizeHandoffFallback(handoffs.join('\n\n')) || LIGHT_MISSING_HINT
     }
   }
 
   summary = stripSystemAuditColumnsFromMarkdown(
     stripStructuredExecReport(stripDeveloperJargon(stripSynthPromptLeakage(summary)))
   )
+  summary = stripPhaseStepLabels(summary)
   if (!summary) {
-    summary = heavy ? SYNTH_MISSING_HINT : '暂无结论。可查看上方进展，或换个说法再试一次。'
+    summary = heavy ? SYNTH_MISSING_HINT : LIGHT_MISSING_HINT
   }
-  if (heavy && looksLikeStepDumpSummary(summary)) {
-    summary = SYNTH_MISSING_HINT
+  // 截断 dump：若完整 synth 更长，回升到 synth（与流式预览对齐）
+  if (
+    looksLikeTruncatedSummary(summary) &&
+    synth &&
+    stripPhaseStepLabels(synth).length > summary.length * 1.05
+  ) {
+    summary = stripSystemAuditColumnsFromMarkdown(
+      stripStructuredExecReport(stripDeveloperJargon(stripSynthPromptLeakage(stripPhaseStepLabels(synth))))
+    )
   }
 
   const outcome = resolveOutcome(meta)

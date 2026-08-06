@@ -63,7 +63,8 @@ import {
   hasDeterministicReportEvidence,
   shouldPassthroughAdminWriteOnly,
   shouldPassthroughDbOnly,
-  shouldPassthroughDeterministicReport
+  shouldPassthroughDeterministicReport,
+  shouldPassthroughRagOnly
 } from '#agent-shared/deterministicPassthrough'
 import { formatAdminWriteUserFacingReply } from '../../core/output/adminWriteUserReply'
 import { isMultiSourceDataPipeline } from '#agent-shared/dbPipelineDeterministic'
@@ -268,6 +269,27 @@ export function buildSynthNodeRun(deps: CreateFinalNodesDeps) {
         }
 
         if (
+          shouldPassthroughRagOnly({
+            intent: String(state.intent ?? ''),
+            planSteps: effectivePlanSteps,
+            results,
+            evidence: evidences,
+            meta: merged.meta,
+            professionalMode: resolveManagerInteractionMode(state.meta) === 'professional'
+          })
+        ) {
+          const ragText = String(results.rag || '').trim()
+          opts.sendEvent({
+            event: 'thinking',
+            data: 'Synth：单源 RAG 直通（跳过汇总 LLM，保留知识库原文）',
+            from: 'manager'
+          })
+          const refs = formatReferences(evidences)
+          const finalText = polishFinalPayload(`${ragText}${refs}`)
+          return { final: finalText, results, evidence: evidences, resources: merged.resources, meta: merged.meta }
+        }
+
+        if (
           shouldPassthroughAdminWriteOnly({
             intent: String(state.intent ?? ''),
             planSteps: effectivePlanSteps,
@@ -381,8 +403,18 @@ export function buildSynthNodeRun(deps: CreateFinalNodesDeps) {
         for (const agent of agents) {
           const val = results[agent]
           if (!val) continue
-          /** 已有 handoff 的专才：跳过全文 CTX，仅保留 crawler 表等特殊渲染钩子 */
+          /** 已有 handoff 的专才：默认跳过全文；db/rag 仍注入原文片段，避免 handoff 截断后丢失配比/档案 */
           if (handoffAgents.has(agent) && agent !== 'crawler' && agent !== 'gui') {
+            if (agent === 'db' || agent === 'rag') {
+              const raw = String(val).trim()
+              if (raw.length >= 8) {
+                const clipped = raw.length > 2400 ? `${raw.slice(0, 2400)}…` : raw
+                const wrapped = prepareUntrustedForSynth(agent, clipped, sanitizeUntrustedText, 2400)
+                if (wrapped) {
+                  synthBlocks.push(`[CTX:${agent}]\n${wrapped}\n[/CTX]`)
+                }
+              }
+            }
             continue
           }
           if (agent === 'gui') {

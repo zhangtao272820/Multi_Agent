@@ -156,6 +156,82 @@ async function main() {
     )
   }
 
+  // A3：林婉清足底压力检测 3 次（remote_activity_foot_log）
+  const footTable = 'remote_activity_foot_log'
+  const [footTables] = await c.query(
+    `SELECT TABLE_NAME FROM information_schema.TABLES
+     WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? LIMIT 1`,
+    [cfg.database, footTable],
+  )
+  let footSeeded = 0
+  if (Array.isArray(footTables) && footTables.length) {
+    const [cols] = await c.query(
+      `SELECT COLUMN_NAME, DATA_TYPE, COLUMN_KEY, EXTRA
+       FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?`,
+      [cfg.database, footTable],
+    )
+    const colSet = new Set((cols || []).map((r) => String(r.COLUMN_NAME || '')))
+    const nameCol = ['person_name', 'name', 'elder_name', 'oldman_name', 'patient_name'].find((x) =>
+      colSet.has(x),
+    )
+    if (nameCol) {
+      // 幂等：先清该人名旧种子再插入 3 条
+      await c.query(`DELETE FROM \`${footTable}\` WHERE \`${nameCol}\` = ? OR \`${nameCol}\` LIKE ?`, [
+        '林婉清',
+        '%林婉清%',
+      ])
+      const idMeta = (cols || []).find((r) => String(r.COLUMN_NAME) === 'id')
+      const idAuto = idMeta && /auto_increment/i.test(String(idMeta.EXTRA || ''))
+      let nextId = 0
+      if (idMeta && !idAuto) {
+        const [[mx]] = await c.query(`SELECT COALESCE(MAX(id), 0) AS m FROM \`${footTable}\``)
+        nextId = Number(mx?.m || 0)
+      }
+      for (let i = 0; i < 3; i++) {
+        const fields = [nameCol]
+        const values = ['林婉清']
+        if (idMeta && !idAuto) {
+          nextId += 1
+          fields.unshift('id')
+          values.unshift(nextId)
+        }
+        if (colSet.has('deleted')) {
+          fields.push('deleted')
+          values.push(0)
+        }
+        if (colSet.has('tenant_id')) {
+          fields.push('tenant_id')
+          values.push(TENANT)
+        }
+        if (colSet.has('create_time')) {
+          fields.push('create_time')
+          values.push(new Date(NOW.getTime() - i * 86400000))
+        }
+        if (colSet.has('update_time')) {
+          fields.push('update_time')
+          values.push(NOW)
+        }
+        // create_by / update_by 在本库多为整型用户 id，勿写入字符串
+        const byMeta = (cols || []).find((r) => String(r.COLUMN_NAME) === 'create_by')
+        if (byMeta && /int|decimal|double|float|bigint/i.test(String(byMeta.DATA_TYPE || ''))) {
+          fields.push('create_by')
+          values.push(0)
+        }
+        await c.query(
+          `INSERT INTO \`${footTable}\` (${fields.map((x) => '`' + x + '`').join(', ')}) VALUES (${fields
+            .map(() => '?')
+            .join(', ')})`,
+          values,
+        )
+        footSeeded += 1
+      }
+    } else {
+      console.warn('[seed] foot table exists but no name column; skip foot seed')
+    }
+  } else {
+    console.warn('[seed] table remote_activity_foot_log missing; skip foot seed')
+  }
+
   const [[pi]] = await c.query('SELECT COUNT(*) c FROM person_info WHERE deleted=0')
   const [[ph]] = await c.query('SELECT COUNT(*) c FROM person_health_records WHERE deleted=0')
   const [[ec]] = await c.query('SELECT COUNT(*) c FROM person_emergency_contact WHERE deleted=0')
@@ -167,6 +243,7 @@ async function main() {
   console.log('[seed] person_health_records:', ph.c)
   console.log('[seed] person_emergency_contact:', ec.c)
   console.log('[seed] 河西区70-79性别:', hexiRows)
+  console.log('[seed] remote_activity_foot_log 林婉清 rows:', footSeeded)
 
   await c.end()
   console.log('[seed] OK')

@@ -117,81 +117,80 @@ export async function executeRagStep(
   })
   const leanRagQuery = bundle.leanQuery || input.baseQuery
   const ragMessage = bundle.message || leanRagQuery
-  const managerRagTask = bundle.managerRagTask ?? null
   const ragUi = { leanRagQuery, sendThinking: input.sendThinking, sendDelta: input.sendDelta }
   if (bundle.meta?.mode === 'heuristic_v1') {
     input.onStrategyHint?.(bundle.meta)
   }
 
-  const aligned = await tryRagRetrieveAlignedPath({
-    state: input.state,
-    question: input.question,
-    leanRagQuery,
-    managerRagTask,
-    probeRag,
-    opts,
-    timeoutMs: input.timeoutMs,
-    mode: 'default',
-    ragEvidenceMatchJudge: deps.ragEvidenceMatchJudge
-  })
-  if (isRagHardFailureBlob(aligned)) {
-    return ragHardFailOutcome({
-      query: leanRagQuery,
-      errorCode: String(aligned.error_code || 'network'),
-      detail: String(aligned.error_code || 'retrieve hard failure'),
-      agentResult: aligned.agentResult
-    })
-  }
-  if (!aligned && isManagerRagRetrieveFirstEnabled()) {
-    const relaxed = await tryRagRetrieveAlignedPath({
+  const probeHitCount = Number(probeRag?.hits ?? 0) || 0
+  // 仅显式 MANAGER_RAG_RETRIEVE_FIRST=1 时用事实块当终答；默认与独立端同走 /api/chat
+  if (isManagerRagRetrieveFirstEnabled()) {
+    const aligned = await tryRagRetrieveAlignedPath({
       state: input.state,
       question: input.question,
       leanRagQuery,
-      managerRagTask,
       probeRag,
       opts,
       timeoutMs: input.timeoutMs,
-      mode: 'relaxed',
+      mode: 'default',
       ragEvidenceMatchJudge: deps.ragEvidenceMatchJudge
     })
-    if (isRagHardFailureBlob(relaxed)) {
+    if (isRagHardFailureBlob(aligned)) {
       return ragHardFailOutcome({
         query: leanRagQuery,
-        errorCode: String(relaxed.error_code || 'network'),
-        agentResult: relaxed.agentResult
+        errorCode: String(aligned.error_code || 'network'),
+        detail: String(aligned.error_code || 'retrieve hard failure'),
+        agentResult: aligned.agentResult
       })
     }
-    if (relaxed) {
+    if (!aligned) {
+      const relaxed = await tryRagRetrieveAlignedPath({
+        state: input.state,
+        question: input.question,
+        leanRagQuery,
+        probeRag,
+        opts,
+        timeoutMs: input.timeoutMs,
+        mode: 'relaxed',
+        ragEvidenceMatchJudge: deps.ragEvidenceMatchJudge
+      })
+      if (isRagHardFailureBlob(relaxed)) {
+        return ragHardFailOutcome({
+          query: leanRagQuery,
+          errorCode: String(relaxed.error_code || 'network'),
+          agentResult: relaxed.agentResult
+        })
+      }
+      if (relaxed) {
+        return finishRagFastPath(
+          ragUi,
+          opts,
+          probeRag,
+          relaxed,
+          'RAG Agent：retrieve-first 宽松模式命中…'
+        )
+      }
+    }
+    if (aligned) {
       return finishRagFastPath(
         ragUi,
         opts,
         probeRag,
-        relaxed,
-        'RAG Agent：retrieve-first 宽松模式命中…'
+        aligned,
+        'RAG Agent：检索命中，快路径整理事实块…'
       )
     }
-  }
-  if (aligned) {
-    return finishRagFastPath(
-      ragUi,
-      opts,
-      probeRag,
-      aligned,
-      'RAG Agent：检索命中，快路径整理事实块…'
-    )
-  }
-
-  const probeHitCount = Number(probeRag?.hits ?? 0) || 0
-  if (probeHitCount > 0) {
-    const probeFast = tryRagProbeSnippetFastPath({ leanRagQuery, probeRag })
-    if (probeFast) {
-      return finishRagFastPath(
-        ragUi,
-        opts,
-        probeRag,
-        probeFast,
-        `RAG Agent：probe 命中 ${probeHitCount} 条，快路径输出…`
-      )
+    if (probeHitCount > 0) {
+      const probeFast = tryRagProbeSnippetFastPath({ leanRagQuery, probeRag })
+      if (probeFast) {
+        return finishRagFastPath(
+          ragUi,
+          opts,
+          probeRag,
+          probeFast,
+          `RAG Agent：probe 命中 ${probeHitCount} 条，快路径输出…`
+        )
+      }
     }
   }
 
@@ -242,7 +241,6 @@ export async function executeRagStep(
       timeoutMs,
       message,
       retrievalQuery: leanRagQuery,
-      managerRagTask,
       history: ragHistory,
       conversationId: opts.ragConversationId,
       userId: opts.userId,
@@ -264,7 +262,7 @@ export async function executeRagStep(
     })
 
   try {
-    const chatMessage = probeHitCount > 0 ? leanRagQuery : ragMessage
+    const chatMessage = leanRagQuery || ragMessage
     const chatTimeout = probeHitCount > 0 ? Math.min(input.timeoutMs, 28_000) : input.timeoutMs
     const ragCall = await callRag(chatMessage, chatTimeout)
     let ragOut = unwrapAgentCall(ragCall as string | AgentCallResult).answer.trim()
@@ -317,7 +315,6 @@ export async function executeRagStep(
         state: input.state,
         question: input.question,
         leanRagQuery,
-        managerRagTask,
         probeRag,
         opts,
         timeoutMs: Math.min(input.timeoutMs, 25_000),

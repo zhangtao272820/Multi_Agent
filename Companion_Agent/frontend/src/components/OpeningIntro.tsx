@@ -73,9 +73,6 @@ export default function OpeningIntro({ slides, onDone }: Props) {
 
   const period = slide.period || "afternoon";
   const multi = slide.sprites || [];
-  const beatLabel = `${beatIdx + 1} / ${total}`;
-  const lineHint =
-    lines.length > 1 ? ` · ${lineIdx + 1}/${lines.length}` : "";
 
   return (
     <div
@@ -122,10 +119,7 @@ export default function OpeningIntro({ slides, onDone }: Props) {
         {slide.title ? <p className="gal-opening-name">{slide.title}</p> : null}
         <p className="gal-opening-line">{text}</p>
         <div className="gal-opening-controls">
-          <span className="muted">
-            {beatLabel}
-            {lineHint} · 点击 / 空格继续
-          </span>
+          <span className="muted">点击 / 空格继续</span>
           <button
             type="button"
             className="gal-nav-btn"

@@ -108,6 +108,8 @@ a = Analysis(
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
+# UPX off: on Windows it often corrupts / strips python3xx.dll and extension
+# modules, which shows up as instant exe flash-exit (Failed to load Python DLL).
 exe = EXE(
     pyz,
     a.scripts,
@@ -117,7 +119,7 @@ exe = EXE(
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=True,
+    upx=False,
     console=True,
     disable_windowed_traceback=False,
     argv_emulation=False,
@@ -133,7 +135,7 @@ coll = COLLECT(
     a.zipfiles,
     a.datas,
     strip=False,
-    upx=True,
+    upx=False,
     upx_exclude=[],
     name="CompanionAgent",
 )

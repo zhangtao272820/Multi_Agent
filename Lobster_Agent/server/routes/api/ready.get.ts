@@ -3,6 +3,7 @@ import {
   isLobsterDesktopMcpEnabled,
   isLobsterAndroidMcpEnabled,
   isLobsterMcpEnabled,
+  isLobsterHandsOnly,
   isStagehandEnabled,
   resolveLobsterExecutionMode,
   lobsterMcpTransportMode,
@@ -21,21 +22,27 @@ import { listLobsterMcpToolNames, listLobsterSkillIds, loadLobsterSkillsManifest
 
 /** 总管 probe：health=进程存活，ready=至少一种执行引擎可用 */
 export default defineEventHandler(async () => {
+  const handsOnly = isLobsterHandsOnly()
   const executionMode = resolveLobsterExecutionMode()
   let browserReady = false
   let detail = 'playwright_missing'
-  try {
-    const exe = chromium.executablePath()
-    browserReady = Boolean(exe)
-    detail = browserReady ? 'playwright_installed' : 'playwright_missing'
-  } catch {
-    detail = 'playwright_check_failed'
+  if (!handsOnly) {
+    try {
+      const exe = chromium.executablePath()
+      browserReady = Boolean(exe)
+      detail = browserReady ? 'playwright_installed' : 'playwright_missing'
+    } catch {
+      detail = 'playwright_check_failed'
+    }
+  } else {
+    detail = 'skipped_hands_only'
   }
 
   let mcp: { enabled: boolean; ok: boolean; toolCount: number; error?: string } = {
-    enabled: isLobsterMcpEnabled(),
+    enabled: !handsOnly && isLobsterMcpEnabled(),
     ok: false,
-    toolCount: 0
+    toolCount: 0,
+    ...(handsOnly ? { error: 'skipped_hands_only' } : {}),
   }
   if (mcp.enabled) {
     const probe = await probeLobsterMcpReady()
@@ -43,8 +50,9 @@ export default defineEventHandler(async () => {
   }
 
   let stagehand: { enabled: boolean; ok: boolean; error?: string } = {
-    enabled: isStagehandEnabled(),
-    ok: false
+    enabled: !handsOnly && isStagehandEnabled(),
+    ok: false,
+    ...(handsOnly ? { error: 'skipped_hands_only' } : {}),
   }
   if (stagehand.enabled) {
     const probe = await probeStagehandReady()
@@ -58,19 +66,30 @@ export default defineEventHandler(async () => {
     platform: string
     error?: string
   } = {
-    enabled: isLobsterDesktopMcpEnabled(),
+    // Hands-only 默认视为应启用桌面；仍尊重显式 LOBSTER_DESKTOP_MCP_ENABLED
+    enabled: handsOnly ? true : isLobsterDesktopMcpEnabled(),
     ok: false,
     toolCount: 0,
-    platform: process.platform
+    platform: process.platform,
   }
-  if (desktop.enabled) {
-    const probe = await probeLobsterDesktopReady()
-    desktop = {
-      enabled: true,
-      ok: probe.ok,
-      toolCount: probe.toolCount,
-      platform: process.platform,
-      error: probe.error
+  if (desktop.enabled || handsOnly) {
+    if (!isLobsterDesktopMcpEnabled() && handsOnly) {
+      desktop = {
+        enabled: true,
+        ok: false,
+        toolCount: 0,
+        platform: process.platform,
+        error: 'lobster_desktop_mcp_disabled: set LOBSTER_DESKTOP_MCP_ENABLED=1',
+      }
+    } else if (isLobsterDesktopMcpEnabled()) {
+      const probe = await probeLobsterDesktopReady()
+      desktop = {
+        enabled: true,
+        ok: probe.ok,
+        toolCount: probe.toolCount,
+        platform: process.platform,
+        error: probe.error,
+      }
     }
   } else if (process.platform !== 'win32') {
     desktop.error = 'requires_win32_host'
@@ -84,10 +103,11 @@ export default defineEventHandler(async () => {
     error?: string
     mode?: string
   } = {
-    enabled: isLobsterAndroidMcpEnabled(),
+    enabled: !handsOnly && isLobsterAndroidMcpEnabled(),
     ok: false,
     toolCount: 0,
     deviceCount: 0,
+    ...(handsOnly ? { error: 'skipped_hands_only' } : {}),
   }
   if (android.enabled) {
     const probe = await probeLobsterAndroidReady()
@@ -102,20 +122,29 @@ export default defineEventHandler(async () => {
   }
 
   const engines = {
-    classic: { ok: browserReady, detail: browserReady ? 'playwright_installed' : detail },
+    classic: {
+      ok: !handsOnly && browserReady,
+      detail: handsOnly ? 'skipped_hands_only' : browserReady ? 'playwright_installed' : detail,
+    },
     mcp: { ok: mcp.enabled && mcp.ok, toolCount: mcp.toolCount, error: mcp.error },
     stagehand: { ok: stagehand.enabled && stagehand.ok, error: stagehand.error },
     desktop: { ok: desktop.enabled && desktop.ok, toolCount: desktop.toolCount, error: desktop.error },
-    mobile: { ok: android.enabled && android.ok, toolCount: android.toolCount, deviceCount: android.deviceCount, error: android.error },
+    mobile: {
+      ok: android.enabled && android.ok,
+      toolCount: android.toolCount,
+      deviceCount: android.deviceCount,
+      error: android.error,
+    },
   }
 
-  const classicReady = browserReady
+  const classicReady = !handsOnly && browserReady
   const mcpReady = mcp.enabled && mcp.ok
   const stagehandReady = stagehand.enabled && stagehand.ok
   const desktopReady = desktop.enabled && desktop.ok
   const mobileReady = android.enabled && android.ok
-  const ready =
-    executionMode === 'mcp'
+  const ready = handsOnly
+    ? desktopReady
+    : executionMode === 'mcp'
       ? mcpReady
       : executionMode === 'stagehand'
         ? stagehandReady
@@ -129,9 +158,10 @@ export default defineEventHandler(async () => {
   return {
     ok: true,
     ready,
-    service: 'lobster-agent',
+    service: handsOnly ? 'lobster-hands' : 'lobster-agent',
+    handsOnly,
     executionMode,
-    browser: browserReady ? 'installed' : 'missing',
+    browser: handsOnly ? 'skipped_hands_only' : browserReady ? 'installed' : 'missing',
     browserProfile: {
       mode: browserProfile,
       label: browserProfileLabel(browserProfile, browserCdpUrl || undefined),
@@ -148,6 +178,6 @@ export default defineEventHandler(async () => {
     android,
     engines,
     detail,
-    ts: Date.now()
+    ts: Date.now(),
   }
 })

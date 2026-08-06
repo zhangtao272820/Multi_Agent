@@ -111,6 +111,9 @@ const ALLOWED_FAILURE_MODES = new Set([
     evidence: [{ source: "规范.docx", content: "配比 1:10", ingest_at: "2026-07-01T00:00:00.000Z" }],
   });
   assert(!ok.structured?.retrieval_failure_mode, "success path has no failure mode");
+  assert(String(ok.answer || "").includes("1:10"), "answer must be evidence body not query");
+  assert(ok.answer !== "test", "answer must not equal query");
+  assert(String(ok.structured?.query || "") === "test", "query stays in structured");
 }
 
 // —— H5 / I1 citation + faithfulness fixtures ——

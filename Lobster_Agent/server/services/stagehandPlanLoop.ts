@@ -1,9 +1,10 @@
 /**
  * Stagehand 分步计划环：goto → observe/act → extract → 真实 finalUrl
  */
-import type { LobsterPlanStep, LobsterTaskGoals, LobsterTaskSpec } from './lobsterTaskUnderstandSchema'
+import type { LobsterPlanStep, LobsterTaskSpec } from './lobsterTaskUnderstandSchema'
 import { defaultPlanStepsForTask } from './lobsterTaskUnderstandSchema'
 import { isUnreachableBrowseUrl, looksLikeNetworkFailure } from '#agent-shared/lobsterRunVerifyLite'
+import { lookupPlaybook, touchPlaybookHit } from './lobsterPlaybookCache'
 
 /** 短计划硬上限（goto + act* + extract） */
 export const STAGEHAND_PLAN_MAX_STEPS = 6
@@ -20,19 +21,31 @@ export function resolveStagehandPlanSteps(input: {
   task: string
   startUrl?: string
   taskSpec?: LobsterTaskSpec | null
-}): LobsterPlanStep[] {
+}): { steps: LobsterPlanStep[]; playbookKey?: string } {
+  const startUrl = input.startUrl || input.taskSpec?.start_url
   const fromSpec = input.taskSpec?.plan_steps
+
+  const hit = lookupPlaybook({
+    startUrl,
+    taskKind: input.taskSpec?.task_kind,
+    goals: input.taskSpec?.goals,
+  })
+  if (hit?.plan_steps?.length) {
+    touchPlaybookHit(hit.key)
+    return { steps: capPlanSteps(hit.plan_steps), playbookKey: hit.key }
+  }
+
   const raw =
     Array.isArray(fromSpec) && fromSpec.length > 0
       ? fromSpec
       : defaultPlanStepsForTask({
           task: input.task,
-          startUrl: input.startUrl || input.taskSpec?.start_url,
+          startUrl,
           taskKind: input.taskSpec?.task_kind,
           goals: input.taskSpec?.goals,
           completionCriteria: input.taskSpec?.success_criteria || input.taskSpec?.completion_criteria,
         })
-  return capPlanSteps(raw)
+  return { steps: capPlanSteps(raw) }
 }
 
 export function stagehandStepInstruction(step: LobsterPlanStep, task: string): string {

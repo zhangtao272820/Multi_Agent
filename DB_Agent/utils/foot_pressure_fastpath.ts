@@ -52,25 +52,13 @@ export function shouldTryFootPressureFastPath(input: {
   question: string;
   plan?: QueryPlan | null;
   schemaGround?: SchemaGroundResult | null;
-  /** 总管 schema_search_keywords / hint_tables 等补充线索 */
+  /** 总管侧车仅作日志/诊断；不得单独触发足底快路径（表名含 foot 会误抢慢病等问句） */
   managerContextBlob?: string;
 }): boolean {
   if (!schemaHasFootPressureTable(input.schemaGround)) return false;
   if (!resolvePersonNameFromPlanOrQuestion(input.plan ?? ({} as QueryPlan), input.question)) return false;
-  const ctx = String(input.managerContextBlob ?? "");
-  const primary = input.schemaGround?.table_judge?.primary_tables ?? [];
-  const footPrimary = primary.some((t) => tableNameLooksLikeFootPressure(t));
-  if (
-    footPrimary &&
-    (questionMentionsFootPressure(ctx) || /foot|足压|足底/.test(ctx))
-  ) {
-    return true;
-  }
-  return (
-    questionMentionsFootPressure(input.question) ||
-    planMentionsFootPressure(input.plan) ||
-    questionMentionsFootPressure(ctx)
-  );
+  // 仅问句或 plan metrics/domain 命中足底 markers；禁止 managerContextBlob / 表名触发
+  return questionMentionsFootPressure(input.question) || planMentionsFootPressure(input.plan);
 }
 
 export type FootPressureFastPathResult = {

@@ -228,7 +228,7 @@ export default function SpriteGalleryScreen({
   const [picks, setPicks] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
-  const [filter, setFilter] = useState<"all" | "romance" | "neutral">("all");
+  const [filter, setFilter] = useState<"all" | "romance" | "neutral" | "linked">("all");
   const [viewer, setViewer] = useState<ViewerState | null>(null);
   const [chromeHidden, setChromeHidden] = useState(false);
   const stageRef = useRef<HTMLDivElement | null>(null);

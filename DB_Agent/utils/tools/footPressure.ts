@@ -7,6 +7,7 @@ import {
   getTableColumns,
   isIdKey,
   isSensitiveKey,
+  isSystemAuditKey,
   normalizeValueKeepEmpty,
   pickFootNameColumn,
   pickFootTimeColumn,
@@ -67,13 +68,16 @@ export async function queryFootPressureReportTool(
       nameFilter = personName;
     }
   }
-  if (!Number.isFinite(c) || c <= 0) return null;
+  const count = Number.isFinite(c) && c > 0 ? Math.floor(c) : 0;
 
+  // 查数：0 次是合法结论（≠查失败）；明细模式无行仍返回 null
   if (params.answerMode === "count") {
     const label =
       table === "remote_activity_foot_measure_log" ? "足底压力区域检测" : "足底压力检测";
-    return `${personName} 的${label}次数：${Math.floor(c)} 次。`;
+    return `${personName} 的${label}次数：${count} 次。`;
   }
+
+  if (count <= 0) return null;
 
   const sql = `SELECT * FROM \`${table}\` WHERE \`${nameCol}\` = ? OR \`${nameCol}\` LIKE ?${
     safeTime ? ` ORDER BY \`${safeTime}\` DESC` : ""
@@ -94,8 +98,9 @@ export async function queryFootPressureReportTool(
     for (const k of orderedKeys) {
       if (!k) continue;
       if (isIdKey(k) || isSensitiveKey(k)) continue;
-      const v = normalizeValueKeepEmpty((r as any)[k]);
       const label = String(commentByName[k] || k);
+      if (isSystemAuditKey(k, label)) continue;
+      const v = normalizeValueKeepEmpty((r as any)[k]);
       lines.push(`- ${label}：${v}`);
     }
     lines.push("");

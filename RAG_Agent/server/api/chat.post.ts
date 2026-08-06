@@ -256,7 +256,7 @@ export default defineEventHandler(async (event) => {
     const sanitizedMessage = sanitizeIncomingQuestion(rawMessage, managerTask) || rawMessage;
     const isManagerOrchestrated =
       looksLikeManagerRetrievalTask(rawMessage) ||
-      Boolean(traceId) ||
+      Boolean(managerTask) ||
       String(event.node.req.headers["x-manager-orchestrated"] ?? "").trim() === "1";
     setOrchestratedByManager(isManagerOrchestrated);
 
@@ -421,6 +421,7 @@ export default defineEventHandler(async (event) => {
       if (retrieveFirst.usage) sendData({ type: "usage", usage: retrieveFirst.usage });
       const agentResult = buildRagAgentResult({
         query: sanitizedMessage,
+        answer: finalAnswer,
         ms: Date.now() - startedAt,
         evidence: evidenceRows,
         trace_id: traceId,
@@ -478,6 +479,7 @@ export default defineEventHandler(async (event) => {
         type: "agentResult",
         agentResult: buildRagAgentResult({
           query: sanitizedMessage,
+          answer: clarify,
           ms: Date.now() - startedAt,
           evidence: [],
           trace_id: traceId,
@@ -685,6 +687,7 @@ export default defineEventHandler(async (event) => {
     if (lastUsage) sendData({ type: "usage", usage: lastUsage });
     const agentResult = buildRagAgentResult({
       query: sanitizedMessage,
+      answer: finalAnswer,
       ms: Date.now() - startedAt,
       evidence: evidenceRows,
       trace_id: traceId,

@@ -36,6 +36,8 @@ import {
   orchestratorPromptInputFromRuntime,
   wrapUntrustedBlock
 } from '../orchestratorPromptProfiles'
+import { isLlmRateLimitError } from '../../../utils/chat/llmRateLimit'
+import { isLlmRateLimitError } from '../../../utils/chat/llmRateLimit'
 
 export type OrchestratorLlmResult = {
   bundle: TaskOrchestratorBundle | null
@@ -82,7 +84,7 @@ async function invokeOrchestratorLlm(
   const schemaHint =
     mode === 'compact'
       ? `schema: ${COMPACT_SCHEMA_HINT}`
-      : 'schema: {"turnScopeMode":"current_only|continuation|topic_shift|chitchat","directChitchatSynth":bool,"coalescedTask":string,"clauses":[{"id":"c1","text":"...","agents":["rag"]}],"timeHints":[],"subjectHints":[],"fieldHints":[],"wantsVisualize":bool,"wantsReport":bool,"dataSources":["rag"|"db"|"crawler"],"primaryIntent":"...","isMulti":bool,"suggestedAgents":[],"isDbAnchored":bool,"needsAdmin":bool,"needsWeb":bool,"explicitWantsReport":bool,"explicitWantsVisualize":bool,"planShortcut":"none|...","requiresAgentPipeline":bool,"allowChatWebDirect":bool,"intent":"...","allowedAgents":[],"routedQuery":"...","needsWebSearch":bool,"needsClarify":bool,"clarifyKind":"none|slot|plane|output_disambiguation","clarifyQuestions":[],"planBlueprint":{"rationale":"","steps":[{"agent":"rag","queryFocus":"..."}]},"confidence":0-1,"rationale":"...","complexity":"low|mid|high","needsPlanPreview":bool,"suggestedPosture":"ask|plan|agent|debug","upgradeReason":"...","upgradeConfidence":0-1}'
+      : 'schema: {"turnScopeMode":"current_only|continuation|topic_shift|chitchat","directChitchatSynth":bool,"coalescedTask":string,"clauses":[{"id":"c1","text":"...","agents":["rag"]}],"timeHints":[],"subjectHints":[],"fieldHints":[],"wantsVisualize":bool,"wantsReport":bool,"dataSources":["rag"|"db"|"crawler"],"taskIntent":"structured_query|document_retrieval|hybrid|action|chitchat|unknown","primaryIntent":"...","isMulti":bool,"suggestedAgents":[],"isDbAnchored":bool,"needsAdmin":bool,"needsWeb":bool,"explicitWantsReport":bool,"explicitWantsVisualize":bool,"planShortcut":"none|db_only|rag_only|...","requiresAgentPipeline":bool,"allowChatWebDirect":bool,"intent":"...","allowedAgents":[],"routedQuery":"...","needsWebSearch":bool,"needsClarify":bool,"clarifyKind":"none|slot|plane|output_disambiguation","clarifyQuestions":[],"planBlueprint":{"rationale":"","steps":[{"agent":"rag","queryFocus":"..."}]},"confidence":0-1,"rationale":"...","complexity":"low|mid|high","needsPlanPreview":bool,"suggestedPosture":"ask|plan|agent|debug","upgradeReason":"...","upgradeConfidence":0-1}'
 
   return input.llmInvoke(
     'route',
@@ -153,6 +155,7 @@ export async function resolveTaskOrchestrationByLlm(input: {
       ? ['compact', 'full']
       : ['full', 'compact']
 
+  let skipRepairForRateLimit = false
   for (const stage of stages) {
     try {
       const resp = await invokeOrchestratorLlm(input, stage, llmFirst && stage === 'full' ? { thinkingLabel: '编排决策' } : undefined)
@@ -174,31 +177,39 @@ export async function resolveTaskOrchestrationByLlm(input: {
         stage,
         reason: e instanceof Error ? e.message : `${stage} LLM 异常`
       })
+      // 限流不是坏 JSON：禁止再打 repair 放大请求
+      if (isLlmRateLimitError(e)) {
+        skipRepairForRateLimit = true
+        break
+      }
     }
   }
 
-  const maxRepairs = llmFirst ? 2 : 1
-  for (let r = 0; r < maxRepairs; r++) {
-    const repairHint = failures.length
-      ? failures.map((f) => `${f.stage}: ${f.reason}`).join('；')
-      : undefined
-    if (!repairHint) break
-    try {
-      const resp = await invokeOrchestratorLlm(
-        {
-          ...input,
-          judgeFeedback: `JSON/schema 须修正（第 ${r + 1} 次）：${repairHint.slice(0, 600)}`
-        },
-        'full',
-        { quiet: true }
-      )
-      const repaired = parseOrchestratorJson(String(resp.text ?? '').trim(), last)
-      if (repaired.raw) {
-        return { bundle: bundleFromOrchestratorRaw(repaired.raw), stage: 'full', failures }
+  if (!skipRepairForRateLimit) {
+    const maxRepairs = llmFirst ? 2 : 1
+    for (let r = 0; r < maxRepairs; r++) {
+      const repairHint = failures.length
+        ? failures.map((f) => `${f.stage}: ${f.reason}`).join('；')
+        : undefined
+      if (!repairHint) break
+      try {
+        const resp = await invokeOrchestratorLlm(
+          {
+            ...input,
+            judgeFeedback: `JSON/schema 须修正（第 ${r + 1} 次）：${repairHint.slice(0, 600)}`
+          },
+          'full',
+          { quiet: true }
+        )
+        const repaired = parseOrchestratorJson(String(resp.text ?? '').trim(), last)
+        if (repaired.raw) {
+          return { bundle: bundleFromOrchestratorRaw(repaired.raw), stage: 'full', failures }
+        }
+        if (repaired.error) failures.push({ stage: 'full', reason: `repair${r + 1}: ${repaired.error}` })
+      } catch (e) {
+        failures.push({ stage: 'full', reason: e instanceof Error ? e.message : `repair${r + 1} LLM 异常` })
+        if (isLlmRateLimitError(e)) break
       }
-      if (repaired.error) failures.push({ stage: 'full', reason: `repair${r + 1}: ${repaired.error}` })
-    } catch (e) {
-      failures.push({ stage: 'full', reason: e instanceof Error ? e.message : `repair${r + 1} LLM 异常` })
     }
   }
 

@@ -2,7 +2,13 @@ import { computed, nextTick, onBeforeUnmount, onMounted, provide, ref, watch } f
 import { resolveClientMediaUrl } from '#agent-shared/mediaUrls'
 import { normalizeModelReplyHtml } from '#agent-shared/replyHtmlNormalize'
 import { extractAuxBlocksStructural, pickRicherNarrativeWithAuxBlocks } from '#agent-shared/auxBlocks'
-import { stripSynthPromptLeakage, stripStructuredExecReport, looksLikeExecAuditDump } from '#agent-shared/synthOutputSanitize'
+import {
+  stripSynthPromptLeakage,
+  stripStructuredExecReport,
+  looksLikeExecAuditDump,
+  looksLikeStepDumpSummary,
+  looksLikeTruncatedSummary
+} from '#agent-shared/synthOutputSanitize'
 import { resolveRenderableEchartsOptionFromText } from '#agent-shared/codeAuthorityPayload'
 import { isRenderableChartOption, readChartTitle, readPanelCount, suggestChartContainerHeight } from '#agent-shared/chartOption'
 import { buildChartPngExportMeta } from '#agent-shared/chartExportMeta'
@@ -1651,11 +1657,31 @@ export function useManagerChatPage() {
   }
 
   function replyMarkdownBody(text: string, turn?: TurnGroup): string {
+    let source = String(text || '')
     if (thoughtViewMode.value === 'user' && turn?.userFacing?.summary) {
-      return stripDeveloperJargonUi(String(turn.userFacing.summary))
+      const uf = String(turn.userFacing.summary || '').trim()
+      const finalText = String(text || '').trim()
+      // 与流式对齐：userFacing 若是步骤/库表 dump、被截断、或明显短于 final，则取更完整正文
+      if (!uf) {
+        source = finalText
+      } else if (
+        looksLikeStepDumpSummary(uf) ||
+        looksLikeTruncatedSummary(uf) ||
+        (finalText.length > uf.length * 1.15 && finalText.length >= 80)
+      ) {
+        source = pickRicherNarrativeWithAuxBlocks(uf, finalText)
+        if (
+          (looksLikeTruncatedSummary(source) || looksLikeStepDumpSummary(source)) &&
+          finalText.length > source.length
+        ) {
+          source = finalText
+        }
+      } else {
+        source = uf
+      }
     }
-    const { narrative } = extractAuxBlocksStructural(String(text || ''))
-    let s = preprocessReplyMarkdown(stripMediaLabelLines(narrative || String(text || '')))
+    const { narrative } = extractAuxBlocksStructural(source)
+    let s = preprocessReplyMarkdown(stripMediaLabelLines(narrative || source))
     s = s
       .split('\n')
       .filter((line) => {

@@ -146,7 +146,14 @@ export function isLikelyPersonNameColumn(columnName: string): boolean {
   if (/姓名|人员名|老人名|长者名|住户名|客户名|长者姓名|老人姓名/.test(k)) return true;
   const s = k.toLowerCase();
   if (s === "name" || s === "fullname" || s === "full_name") return true;
-  if (s.includes("person_name") || s.includes("user_name") || s.includes("resident_name") || s.includes("elder_name")) return true;
+  if (
+    s.includes("person_name") ||
+    s.includes("cus_name") ||
+    s.includes("user_name") ||
+    s.includes("resident_name") ||
+    s.includes("elder_name")
+  )
+    return true;
   if (s.endsWith("_name") && !s.includes("user_name") && !s.includes("file_name") && !s.includes("class_name")) return true;
   return false;
 }

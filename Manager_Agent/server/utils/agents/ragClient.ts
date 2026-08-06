@@ -1,7 +1,5 @@
 import crypto from 'node:crypto'
 import { resolveLeanRagQuery } from '../../graph/core/probe/retrieverPlan'
-import type { ManagerRagTaskPayload } from '#agent-shared/managerSubAgentProtocol'
-import { resolveOrchestratedClientHistory } from '#agent-shared/turnScope'
 import { ragProbeTimeoutMs } from '../../graph/core/probe/probeConfig'
 import { withTimeout, LruCache } from './agentTransport'
 import { fetchWithExpertPolicy } from '../../graph/core/runtime/expertFailure'
@@ -108,7 +106,6 @@ export async function callRagProbe(params: {
   userId?: string
   traceId?: string
   signal?: AbortSignal
-  managerRagTask?: ManagerRagTaskPayload | null
 }): Promise<RagProbeResponse | null> {
   const base = String(params.ragAgentHttpUrl || '').trim().replace(/\/+$/, '')
   const q = String(params.query || '').trim()
@@ -123,17 +120,13 @@ export async function callRagProbe(params: {
         headers: {
           'Content-Type': 'application/json',
           ...buildAgentTraceHeaders(params.traceId),
-          'x-manager-orchestrated': '1',
           ...(uid ? { 'x-user-id': uid } : {})
         },
         body: JSON.stringify(
           withTraceBody(
             {
               query: q,
-              k,
-              ...(params.managerRagTask
-                ? { manager_rag_task_json: JSON.stringify(params.managerRagTask) }
-                : {})
+              k
             },
             params.traceId
           )
@@ -233,7 +226,6 @@ export async function callRagRetrieve(params: {
   traceId?: string
   skipLlmRerank?: boolean
   skipEvidenceSelect?: boolean
-  managerRagTask?: ManagerRagTaskPayload | null
   signal?: AbortSignal
 }): Promise<RagRetrieveResponse | null> {
   const base = String(params.ragAgentHttpUrl || '').trim().replace(/\/+$/, '')
@@ -247,7 +239,6 @@ export async function callRagRetrieve(params: {
         headers: {
           'Content-Type': 'application/json',
           ...buildAgentTraceHeaders(params.traceId),
-          'x-manager-orchestrated': '1',
           ...(uid ? { 'x-user-id': uid } : {})
         },
         body: JSON.stringify(
@@ -258,9 +249,6 @@ export async function callRagRetrieve(params: {
               rawQuery: String(params.rawQuery || q).trim() || q,
               skipLlmRerank: Boolean(params.skipLlmRerank),
               skipEvidenceSelect: Boolean(params.skipEvidenceSelect),
-              ...(params.managerRagTask
-                ? { manager_rag_task_json: JSON.stringify(params.managerRagTask) }
-                : {}),
               ...(uid ? { userId: uid } : {})
             },
             params.traceId
@@ -273,8 +261,13 @@ export async function callRagRetrieve(params: {
     )
     // R3：HTTP 失败也返回带码结构，禁止一律 null 吞错
     if (!res.ok) {
-      const code = res.status >= 500 ? 'http_5xx' : 'business'
-      return ragFailureRetrieveResponse(code, q, `HTTP ${res.status}`)
+      const code = res.status === 401 || res.status === 403 ? 'auth' : res.status >= 500 ? 'http_5xx' : 'business'
+      const statusText = String(res.statusText || '').trim()
+      const detail =
+        res.status === 401
+          ? `HTTP 401 ${statusText || 'login_required'}（检查 RAG CLAWHIVE_INTERNAL_TOKEN）`
+          : `HTTP ${res.status}${statusText ? ` ${statusText}` : ''}`
+      return ragFailureRetrieveResponse(code, q, detail)
     }
     const data = (await res.json()) as RagRetrieveResponse
     if (data?.ok === false && data?.agentResult) return data
@@ -302,7 +295,7 @@ export async function listRagDocs(params: { ragAgentHttpUrl: string; timeoutMs: 
   return await res.json()
 }
 
-/** 总管与文档助手 UI 统一：仅 /api/chat（SSE 含 tool_output / agentResult） */
+/** 总管与文档助手 UI 统一：仅 /api/chat（SSE 含 tool_output / agentResult）；透传问句，无编排侧车 */
 export async function callRagAgent(params: {
   ragAgentHttpUrl: string
   timeoutMs: number
@@ -312,7 +305,6 @@ export async function callRagAgent(params: {
   conversationId?: string
   userId?: string
   traceId?: string
-  managerRagTask?: ManagerRagTaskPayload | null
   sendThinking?: (text: string) => void
   sendDelta?: (delta: string) => void
   signal?: AbortSignal
@@ -330,10 +322,7 @@ export async function callRagAgent(params: {
     isManagerStreamDeltaEnabled() && typeof params.sendDelta === 'function' ? params.sendDelta : undefined
 
   const url = `${params.ragAgentHttpUrl.replace(/\/+$/, '')}/api/chat`
-  const chatHistory = resolveOrchestratedClientHistory(
-    params.managerRagTask?.turn_scope ?? null,
-    Array.isArray(params.history) ? params.history : []
-  )
+  const chatHistory = Array.isArray(params.history) ? params.history : []
   const historyKey = JSON.stringify(chatHistory.slice(-12))
   const cacheKey = ragCacheKey({
     url,
@@ -360,7 +349,6 @@ export async function callRagAgent(params: {
         headers: {
           'Content-Type': 'application/json',
           ...buildAgentTraceHeaders(params.traceId),
-          ...(params.traceId ? { 'x-manager-orchestrated': '1' } : {}),
           ...(uid ? { 'x-user-id': uid } : {})
         },
         body: JSON.stringify(
@@ -369,9 +357,6 @@ export async function callRagAgent(params: {
               message: chatMessage,
               history: chatHistory,
               conversationId: params.conversationId || undefined,
-              ...(params.managerRagTask
-                ? { manager_rag_task_json: JSON.stringify(params.managerRagTask) }
-                : {}),
               ...(uid ? { userId: uid } : {})
             },
             params.traceId

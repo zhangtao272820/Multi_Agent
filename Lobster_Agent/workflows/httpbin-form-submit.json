@@ -1,0 +1,42 @@
+{
+  "id": "httpbin-form-submit",
+  "name": "httpbin 表单填写并提交（黄金宏）",
+  "description": "打开 httpbin forms/post，填写 Customer name，HITL 确认后点提交，抽取结果页片段",
+  "args": ["customer_name", "startUrl"],
+  "steps": [
+    {
+      "action": "goto",
+      "url": "{{startUrl}}",
+      "waitUntil": "domcontentloaded"
+    },
+    {
+      "action": "type",
+      "selector": "input[name=\"custname\"]",
+      "text": "{{customer_name}}",
+      "clear": true
+    },
+    {
+      "action": "approve",
+      "title": "确认提交表单",
+      "message": "已在 Customer name 填入 {{customer_name}}。确认后将点击提交（演示站，无真实支付）。"
+    },
+    {
+      "action": "click",
+      "selector": "form button[type=\"submit\"], form input[type=\"submit\"], button",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "wait",
+      "ms": 1000
+    },
+    {
+      "action": "extract",
+      "selector": "body",
+      "assignTo": "submit_body"
+    },
+    {
+      "action": "finish",
+      "answer": "工作流 httpbin-form-submit 完成。Customer name={{customer_name}}；结果摘要={{submit_body}}"
+    }
+  ]
+}

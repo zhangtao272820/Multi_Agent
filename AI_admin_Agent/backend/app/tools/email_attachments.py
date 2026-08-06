@@ -1,4 +1,4 @@
-"""邮件附件列出与落盘到 workspace（IMAP，免费）。"""
+"""邮件附件列出与落盘到 workspace（IMAP，按用户凭据）。"""
 from __future__ import annotations
 
 from email import message_from_bytes
@@ -7,8 +7,8 @@ from typing import Any
 
 import imaplib
 
-from app.tools.common import _MAIL_CACHE_BY_SESSION, _tool_err, _tool_ok
-from app.tools.email import _decode_mime_text, _imap_credentials
+from app.tools.common import get_mail_cache, _tool_err, _tool_ok
+from app.tools.email import _decode_mime_text, _require_creds
 from app.tools.files import _rel_display, _resolve_workspace_path, _workspace_root
 
 
@@ -33,9 +33,10 @@ def _iter_attachments(msg):
         yield idx, name, part
 
 
-def _fetch_cached_message(email_id: int, session_id: str = "default"):
+def _fetch_cached_message(email_id: int, session_id: str = "default", user_id: str = ""):
     sid = (session_id or "default").strip() or "default"
-    cache = _MAIL_CACHE_BY_SESSION.get(sid, {})
+    uid = str(user_id or "").strip()
+    cache = get_mail_cache(uid, sid)
     meta = cache.get(int(email_id))
     if not meta:
         return None, None, _tool_err(
@@ -46,12 +47,13 @@ def _fetch_cached_message(email_id: int, session_id: str = "default"):
     imap_uid = meta.get("imap_uid")
     if not imap_uid:
         return None, None, _tool_err("邮件缓存不完整，请刷新收件箱。", code="email_cache_stale")
-    server, port, user, password = _imap_credentials()
-    if not user or not password:
-        return None, None, _tool_err("IMAP 未配置。", code="imap_not_configured")
-    mailbox = imaplib.IMAP4_SSL(server, port)
-    mailbox.login(user, password)
-    mailbox.select("INBOX", readonly=True)
+    creds, err = _require_creds(uid)
+    if err:
+        return None, None, err
+    folder = meta.get("mailbox") or "INBOX"
+    mailbox = imaplib.IMAP4_SSL(creds.imap_server, creds.imap_port)
+    mailbox.login(creds.email_address, creds.auth_code)
+    mailbox.select(folder, readonly=True)
     status, msg_data = mailbox.fetch(str(imap_uid).encode(), "(RFC822)")
     mailbox.logout()
     if status != "OK" or not msg_data or not msg_data[0]:
@@ -60,9 +62,9 @@ def _fetch_cached_message(email_id: int, session_id: str = "default"):
     return meta, msg, None
 
 
-def list_email_attachments(email_id: int, session_id: str = "default") -> Any:
+def list_email_attachments(email_id: int, session_id: str = "default", user_id: str = "") -> Any:
     """列出某封邮件的附件名（需先 list_emails）。"""
-    meta, msg, err = _fetch_cached_message(email_id, session_id)
+    meta, msg, err = _fetch_cached_message(email_id, session_id, user_id=user_id)
     if err is not None:
         return err
     items = []
@@ -103,9 +105,10 @@ def save_email_attachment(
     filename: str = "",
     dest_path: str = "",
     session_id: str = "default",
+    user_id: str = "",
 ) -> Any:
     """将邮件附件保存到工作区（IMAP 免费路径）。"""
-    meta, msg, err = _fetch_cached_message(email_id, session_id)
+    meta, msg, err = _fetch_cached_message(email_id, session_id, user_id=user_id)
     if err is not None:
         return err
     attachments = list(_iter_attachments(msg))

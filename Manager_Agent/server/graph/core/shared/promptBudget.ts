@@ -34,7 +34,7 @@ export function handoffSummaryMaxChars(): number {
 
 /** Synth / Critic 等 SystemMessage 软上限（字符）；超限应拆 profile 而非 silent 截断正文语义 */
 export function promptBudgetSystemChars(): number {
-  return envInt('MANAGER_PROMPT_BUDGET_SYSTEM_CHARS', 4500, 1200, 16000)
+  return envInt('MANAGER_PROMPT_BUDGET_SYSTEM_CHARS', 5200, 1200, 16000)
 }
 
 export function assertSystemPromptWithinBudget(text: string, context: string): void {

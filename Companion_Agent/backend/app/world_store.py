@@ -162,7 +162,7 @@ class WorldSave(BaseModel):
     tenant_id: str = "default"
     kind: SaveKind = "auto"
     label: str = ""
-    protagonist_name: str = "我"
+    protagonist_name: str = "沈予安"
     protagonist: ProtagonistLife = Field(default_factory=ProtagonistLife)
     calendar: CalendarState = Field(default_factory=CalendarState)
     # 季度/节日航点（season_waypoints.json）；跳过中间空日
@@ -392,7 +392,7 @@ def _build_blank_world(
     save_id: str,
     user_id: str,
     tenant_id: str = "default",
-    protagonist_name: str = "我",
+    protagonist_name: str = "沈予安",
     kind: SaveKind = "auto",
     label: str = "",
 ) -> WorldSave:
@@ -414,7 +414,7 @@ def _build_blank_world(
         tenant_id=(tenant_id or "default").strip() or "default",
         kind=kind,
         label=(label or "").strip()[:48],
-        protagonist_name=(protagonist_name or "我").strip()[:32] or "我",
+        protagonist_name=(protagonist_name or "沈予安").strip()[:32] or "沈予安",
         protagonist=ProtagonistLife.model_validate(default_protagonist_fields()),
         calendar=CalendarState(
             day_index=1,
@@ -470,7 +470,7 @@ def get_auto_save(user_id: str) -> WorldSave | None:
     return None
 
 
-def reset_auto_save(*, user_id: str, protagonist_name: str = "我") -> WorldSave:
+def reset_auto_save(*, user_id: str, protagonist_name: str = "沈予安") -> WorldSave:
     """新游戏：重置唯一自动档（保留 save_id）；无则新建。"""
     init_world_db()
     existing = get_auto_save(user_id)
@@ -487,7 +487,7 @@ def reset_auto_save(*, user_id: str, protagonist_name: str = "我") -> WorldSave
     return save
 
 
-def ensure_auto_save(*, user_id: str, protagonist_name: str = "我") -> WorldSave:
+def ensure_auto_save(*, user_id: str, protagonist_name: str = "沈予安") -> WorldSave:
     existing = get_auto_save(user_id)
     if existing:
         return existing
@@ -497,7 +497,7 @@ def ensure_auto_save(*, user_id: str, protagonist_name: str = "我") -> WorldSav
 def create_world_save(
     *,
     user_id: str,
-    protagonist_name: str = "我",
+    protagonist_name: str = "沈予安",
 ) -> WorldSave:
     """新游戏入口：覆盖自动档。"""
     return reset_auto_save(user_id=user_id, protagonist_name=protagonist_name)

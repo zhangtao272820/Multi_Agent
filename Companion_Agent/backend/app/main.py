@@ -465,7 +465,7 @@ def saves_delete(save_id: str, user_id: str = ""):
 
 class WorldCreateIn(BaseModel):
     user_id: str
-    protagonist_name: str = "我"
+    protagonist_name: str = "沈予安"
 
 
 class WorldManualSaveIn(BaseModel):
@@ -682,7 +682,7 @@ async def websocket_chat(ws: WebSocket):
                 else:
                     save = ensure_auto_save(
                         user_id=user_id,
-                        protagonist_name=str(payload.get("protagonist_name") or "我"),
+                        protagonist_name=str(payload.get("protagonist_name") or "沈予安"),
                     )
                 await ws.send_json(
                     {

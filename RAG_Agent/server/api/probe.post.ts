@@ -8,6 +8,7 @@ import { parseManagerRagTaskFromJson } from "../utils/incoming_question";
 
 /**
  * 总管路由探针：混合检索快路径（BM25+向量+RRF+进程内重排），与 /api/retrieve 召回一致、延迟可控。
+ * 契约：evidence 为权威成对字段；sources/snippets 等长同序（禁止 Set 去重后按索引 zip）。
  */
 export default defineEventHandler(async (event) => {
   await applyPlatformModelOverrides({});
@@ -24,7 +25,16 @@ export default defineEventHandler(async (event) => {
     const docs = await getUploadedDocuments();
 
     if (!query) {
-      return { ok: true, hasDocs: docs.length > 0, hits: 0, sources: [], snippets: [], mode: "idle" };
+      return {
+        ok: true,
+        hasDocs: docs.length > 0,
+        hits: 0,
+        evidence: [],
+        sources: [],
+        snippets: [],
+        uniqueSources: [],
+        mode: "idle",
+      };
     }
 
     const sanitized = sanitizeIncomingQuestion(query, managerTask) || query;
@@ -34,18 +44,27 @@ export default defineEventHandler(async (event) => {
       probeMode: true,
     });
 
-    const evidence = (result.evidence || []).slice(0, k);
-    const sources = Array.from(new Set(evidence.map((e) => e.source).filter(Boolean))).slice(0, k);
-    const snippets = evidence
-      .map((e) => String(e.content ?? "").replace(/\s+/g, " ").slice(0, 480))
-      .filter(Boolean);
+    const paired = (result.evidence || [])
+      .slice(0, k)
+      .map((e) => {
+        const content = String(e.content ?? "").replace(/\s+/g, " ").trim().slice(0, 480);
+        const source = String(e.source ?? "").trim() || "unknown";
+        return content ? { source, content } : null;
+      })
+      .filter((row): row is { source: string; content: string } => Boolean(row));
+
+    const sources = paired.map((e) => e.source);
+    const snippets = paired.map((e) => e.content);
+    const uniqueSources = Array.from(new Set(sources));
 
     return {
       ok: true,
       hasDocs: docs.length > 0,
-      hits: snippets.length,
+      hits: paired.length,
+      evidence: paired,
       sources,
       snippets,
+      uniqueSources,
       mode: "hybrid_probe",
       rerank_mode: result.rerankMode,
       routing_mode: result.routingMode,

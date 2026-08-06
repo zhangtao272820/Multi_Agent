@@ -47,7 +47,6 @@ export async function prefetchDbTaskPlan(params: {
   timeoutMs: number
   dbId?: string
   traceId?: string
-  managerTask?: Record<string, unknown>
 }): Promise<DbPlanPrefetchResult> {
   const t0 = Date.now()
   try {
@@ -56,8 +55,7 @@ export async function prefetchDbTaskPlan(params: {
       question: params.question,
       timeoutMs: params.timeoutMs,
       dbId: params.dbId,
-      traceId: params.traceId,
-      managerTask: params.managerTask
+      traceId: params.traceId
     })
     return {
       ok: Boolean(res?.unified_task_plan),
@@ -92,11 +90,17 @@ type PrefetchUnified = {
   prefetch_ready?: boolean
 }
 
-/** 注入 Planner：DB plan 预取摘要 */
-export function formatDbPrefetchForPlanner(prefetch?: DbPlanPrefetchResult | null): string {
+/** 注入 Planner：DB plan 预取摘要。omitTableHints 时不下发建议表/schema 摘要，避免注释撞车锁错表。 */
+export function formatDbPrefetchForPlanner(
+  prefetch?: DbPlanPrefetchResult | null,
+  opts?: { omitTableHints?: boolean }
+): string {
   if (!prefetch) return ''
   const unified = prefetch.unified_task_plan as PrefetchUnified | null | undefined
-  const tables = (unified?.hints?.suggested_tables ?? []).map((t) => String(t ?? '').trim()).filter(Boolean)
+  const omitTables = Boolean(opts?.omitTableHints)
+  const tables = omitTables
+    ? []
+    : (unified?.hints?.suggested_tables ?? []).map((t) => String(t ?? '').trim()).filter(Boolean)
   const names = (unified?.entities?.names ?? []).map((t) => String(t ?? '').trim()).filter(Boolean)
   const lines: string[] = [
     prefetch.ok
@@ -104,11 +108,20 @@ export function formatDbPrefetchForPlanner(prefetch?: DbPlanPrefetchResult | nul
       : '【DB plan 预取（未完成，规划时勿假定已有 entities）】'
   ]
   if (prefetch.ms != null) lines.push(`- 耗时：${prefetch.ms}ms`)
-  if (unified?.prefetch_ready) lines.push('- 预取可复用：query_plan + schema_ground（执行步可跳过 plan/探表 LLM）')
+  if (unified?.prefetch_ready) {
+    lines.push(
+      omitTables
+        ? '- 预取可复用：query_plan（执行步可跳过 plan LLM；选表由 DB 自举）'
+        : '- 预取可复用：query_plan + schema_ground（执行步可跳过 plan/探表 LLM）'
+    )
+  }
   if (tables.length) lines.push(`- 建议表：${tables.slice(0, 4).join('、')}`)
+  else if (omitTables && prefetch.ok) lines.push('- 建议表：省略（由 DB 执行期自举，避免预取锁表）')
   if (names.length) lines.push(`- 实体：${names.slice(0, 4).join('、')}`)
-  const evidence = String(unified?.hints?.evidence ?? '').replace(/\s+/g, ' ').trim().slice(0, 200)
-  if (evidence) lines.push(`- schema 摘要：${evidence}`)
+  if (!omitTables) {
+    const evidence = String(unified?.hints?.evidence ?? '').replace(/\s+/g, ' ').trim().slice(0, 200)
+    if (evidence) lines.push(`- schema 摘要：${evidence}`)
+  }
   return lines.join('\n')
 }
 

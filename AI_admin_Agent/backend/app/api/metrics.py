@@ -100,6 +100,13 @@ def admin_metrics() -> dict[str, Any]:
     by_phase_p95 = {k: _p95(v) for k, v in sorted(by_phase_latencies.items())}
     overall = _p95(latencies)
 
+    try:
+        from app.core.mail_metrics import mail_metrics_snapshot
+
+        mail_counters = mail_metrics_snapshot()
+    except Exception:
+        mail_counters = {}
+
     return {
         "ok": True,
         "service": "AI_admin_Agent",
@@ -112,6 +119,7 @@ def admin_metrics() -> dict[str, Any]:
             "errorCodes": error_codes,
             "pendingWaitP95Ms": _p95(pending_waits),
             "byPath": by_path,
+            "mail": mail_counters,
         },
         "capabilityAudit": {
             "CAP_ROUTE": os.getenv("CAP_ROUTE"),

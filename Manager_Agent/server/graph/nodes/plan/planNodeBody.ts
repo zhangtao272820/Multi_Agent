@@ -89,12 +89,6 @@ export async function runPlanNodeBody(state: any, deps: any, helpers: any) {
         const planHeuristicsText = planHeuristicsFor(state)
         const dbPlanQuestion = (full: string) =>
           resolveDbPrefetchQuestionFromState(state, lastMsg, String(full || question).trim())
-        const buildDbPlanManagerTask = (scopedQuestion: string) => ({
-          source: 'manager',
-          refined_question: scopedQuestion,
-          must_filters: [] as string[],
-          schema_search_keywords: ''
-        })
         const fetchDbPlanWithScope = async (full: string) => {
           const scopedQ = dbPlanQuestion(full)
           return fetchDbTaskPlan({
@@ -102,8 +96,7 @@ export async function runPlanNodeBody(state: any, deps: any, helpers: any) {
             question: scopedQ,
             timeoutMs: Math.min(8_000, opts.timeoutMs),
             dbId: opts.dbId,
-            traceId: runId,
-            managerTask: buildDbPlanManagerTask(scopedQ)
+            traceId: runId
           })
         }
         const clauses = clausesFromMeta(state.meta)
@@ -176,8 +169,9 @@ export async function runPlanNodeBody(state: any, deps: any, helpers: any) {
 
         const p = state.probe
         const probeContext = [
-          p?.rag?.hits > 0 ? `RAG命中: ${p.rag.hits}条结果 (来源: ${p.rag.sources.join(',')})` : 'RAG未命中',
-          p?.db?.matched ? `DB匹配表: ${p.db.tables.join(',')}` : 'DB未匹配到表'
+          p?.rag?.hits > 0 ? `RAG命中: ${p.rag.hits}条结果` : 'RAG未命中',
+          // 不下发具体表名，避免 Planner 把 top-N 表写进步骤（选表交 DB 自举）
+          p?.db?.matched || p?.db?.routingRelevant ? 'DB探测：有业务表命中' : 'DB未匹配到表'
         ].join('; ')
         const dbPrefetchHint =
           String(state.meta?.dbPrefetchPlannerHint || '').trim() ||

@@ -119,6 +119,34 @@ export function requireBrowserOrInternalAuth(
   }
 }
 
+/**
+ * AGENT_BROWSER_AUTH=1 时必须配置 internal token，否则 Manager 调度 /api/plan|/api/retrieve 会 401。
+ * 供 /api/ready 暴露，避免「进程 healthy 但业务 API 全拒」。
+ */
+export function resolveInternalAuthReady(env: NodeJS.ProcessEnv = process.env): {
+  browserAuthEnabled: boolean
+  internalTokenConfigured: boolean
+  ok: boolean
+  detail?: string
+} {
+  const browserAuthEnabled = isAgentBrowserAuthEnabled(env)
+  const internalTokenConfigured = Boolean(
+    String(env.CLAWHIVE_INTERNAL_TOKEN || env.AGENT_INTERNAL_TOKEN || '').trim()
+  )
+  if (!browserAuthEnabled) {
+    return { browserAuthEnabled, internalTokenConfigured, ok: true }
+  }
+  if (internalTokenConfigured) {
+    return { browserAuthEnabled, internalTokenConfigured, ok: true }
+  }
+  return {
+    browserAuthEnabled,
+    internalTokenConfigured,
+    ok: false,
+    detail: 'internal_token_missing_with_browser_auth'
+  }
+}
+
 /** Nitro middleware 路径白名单 */
 export function isPublicAgentPath(path: string): boolean {
   const p = String(path || '').split('?')[0] || ''

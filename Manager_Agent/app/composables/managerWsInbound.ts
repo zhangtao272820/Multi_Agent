@@ -307,12 +307,27 @@ export function handleManagerWsInboundMessage(evt: MessageEvent, ctx: ManagerWsI
       return
     }
     if (event === 'phase') {
-      const phase = String(data.data || '')
+      const raw = data.data
+      let phase = ''
+      if (typeof raw === 'string') {
+        phase = raw
+      } else if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+        const o = raw as { name?: unknown; runPhase?: unknown; phase?: unknown }
+        const name = String(o.name ?? o.phase ?? '').trim()
+        const runPhase = Number(o.runPhase)
+        if (name && Number.isFinite(runPhase) && runPhase > 0) {
+          phase = `${name}:phase${runPhase}`
+        } else {
+          phase = name
+        }
+      } else {
+        phase = String(raw || '')
+      }
       ctx.currentPhase.value = phase
       const agent = phase.startsWith('execute:') ? phase.slice('execute:'.length) : ''
       if (agent) ctx.setCollabStatus(agent, 'running')
       // synth_stream 仅驱动流式 UI，避免与 synth 重复写入过程日志
-      if (phase !== 'synth_stream') {
+      if (phase && phase !== 'synth_stream') {
         ctx.add('phase', phase, data.from, turn, runId)
       }
       return
@@ -488,6 +503,19 @@ export function handleManagerWsInboundMessage(evt: MessageEvent, ctx: ManagerWsI
         ctx.stepResultsByTurn.value = {
           ...ctx.stepResultsByTurn.value,
           [turn]: [...list.filter((x) => x.stepId !== p.stepId), p]
+        }
+        const st = String(p.status || '').trim()
+        if (st === 'success' || st === 'failed') {
+          ctx.updatePlanStepFromStatus({
+            stepId: p.stepId,
+            agent: p.agent,
+            status: st,
+            pct: st === 'success' ? 100 : undefined,
+            error: p.error,
+            query: p.query
+          })
+          if (st === 'success') ctx.setCollabStatus(String(p.agent || ''), 'success')
+          else ctx.setCollabStatus(String(p.agent || ''), 'failed')
         }
       }
       return

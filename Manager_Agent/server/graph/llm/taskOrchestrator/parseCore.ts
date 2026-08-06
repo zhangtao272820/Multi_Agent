@@ -296,6 +296,83 @@ function stripSpuriousOptionalOrchestratorAgents(o: Record<string, unknown>): vo
   if (!explicit.has('admin')) o.needsAdmin = false
 }
 
+const SINGLE_SOURCE_DATA_AGENTS = new Set(['db', 'rag'])
+const SINGLE_SOURCE_BLOCKING_DOWNSTREAM = new Set([
+  'code',
+  'report',
+  'visualize',
+  'admin',
+  'crawler',
+  'gui',
+  'multimodal',
+  'music',
+  'video'
+])
+
+/**
+ * 单源同数据面 agent：把「基本信息 + 联系方式」这类过度拆分折叠为一步，
+ * 并关闭假 isMulti / requiresAgentPipeline，恢复 db_only|rag_only。
+ * @returns 是否发生了折叠/标志修正
+ */
+export function collapseSingleSourceSameAgentOrchestrator(
+  o: Record<string, unknown>,
+  lastUser = ''
+): boolean {
+  if (o.explicitWantsReport === true || o.wantsReport === true) return false
+  if (o.explicitWantsVisualize === true || o.wantsVisualize === true) return false
+
+  const allowed = filterExecAgents(o.allowedAgents)
+  const suggested = filterExecAgents(o.suggestedAgents)
+  const sources = Array.isArray(o.dataSources)
+    ? (o.dataSources as unknown[]).map((d) => String(d)).filter((d) => SINGLE_SOURCE_DATA_AGENTS.has(d))
+    : []
+  const cap = [...new Set([...allowed, ...suggested])]
+  const dataInCap = cap.filter((a) => SINGLE_SOURCE_DATA_AGENTS.has(a))
+  const soleFromSources = sources.length === 1 ? sources[0]! : ''
+  const sole = dataInCap.length === 1 ? dataInCap[0]! : soleFromSources
+  if (!sole || !SINGLE_SOURCE_DATA_AGENTS.has(sole)) return false
+  if (dataInCap.length > 1) return false
+  if (cap.some((a) => SINGLE_SOURCE_BLOCKING_DOWNSTREAM.has(a))) return false
+
+  const clauses = Array.isArray(o.clauses) ? (o.clauses as Record<string, unknown>[]) : []
+  const clauseAgents = clauses.flatMap((c) => filterExecAgents(c.agents))
+  if (clauseAgents.length && !clauseAgents.every((a) => a === sole)) return false
+
+  const bp = o.planBlueprint as
+    | { rationale?: string; confidence?: number; steps?: Array<{ agent?: string; queryFocus?: string }> }
+    | undefined
+  const steps = Array.isArray(bp?.steps) ? bp!.steps! : []
+  if (steps.length >= 2 && !steps.every((s) => String(s.agent || '').trim() === sole)) return false
+
+  const needsCollapse = clauses.length >= 2 || steps.length >= 2 || o.isMulti === true || o.requiresAgentPipeline === true
+  if (!needsCollapse && String(o.planShortcut || '') === `${sole}_only`) return false
+
+  const focus =
+    String(o.coalescedTask || '').trim() ||
+    String(o.routedQuery || '').trim() ||
+    String(lastUser || '').trim() ||
+    String(steps[0]?.queryFocus || clauses[0]?.text || '').trim()
+  if (focus.length < 4) return false
+
+  o.clauses = [{ id: 'c1', text: focus.slice(0, 480), agents: [sole] }]
+  o.planBlueprint = {
+    rationale: String(bp?.rationale || '单源同 agent 折叠为一步').slice(0, 520),
+    steps: [{ agent: sole, queryFocus: focus.slice(0, 320), clauseIds: ['c1'] }],
+    confidence: typeof bp?.confidence === 'number' ? Math.min(1, Math.max(0, bp.confidence)) : 0.85
+  }
+  o.isMulti = false
+  o.requiresAgentPipeline = false
+  o.allowChatWebDirect = true
+  o.planShortcut = sole === 'db' ? 'db_only' : 'rag_only'
+  o.intent = sole
+  o.primaryIntent = sole
+  o.allowedAgents = [sole]
+  o.suggestedAgents = [sole]
+  o.dataSources = [sole]
+  o.complexity = 'low'
+  return true
+}
+
 export function normalizeOrchestratorPayload(raw: unknown, lastUser: string): unknown {
   if (!raw || typeof raw !== 'object') return raw
   const o = { ...(raw as Record<string, unknown>) }
@@ -433,6 +510,7 @@ export function normalizeOrchestratorPayload(raw: unknown, lastUser: string): un
     o.upgradeConfidence = Math.min(1, Math.max(0, Number(o.upgradeConfidence)))
   }
   stripSpuriousOptionalOrchestratorAgents(o)
+  collapseSingleSourceSameAgentOrchestrator(o, last)
   enforceOrchestratorSchemaBounds(o)
   return o
 }

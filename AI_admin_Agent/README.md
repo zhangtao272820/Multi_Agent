@@ -1,6 +1,7 @@
 # AI Admin Agent
 
-> **学习文档**：[入门](../docs/Agent学习指南-入门版.md) · [进阶](../docs/Agent学习指南-进阶版.md) · [Admin 专篇](学习指南.md)
+> **学习文档**：[入门](../docs/Agent学习指南-入门版.md) · [进阶](../docs/Agent学习指南-进阶版.md) · [Admin 专篇](学习指南.md)  
+> **能力升级规划**（Admin + Lobster，能力优先）：[`docs/动手Agent升级-Admin与Lobster.md`](../docs/动手Agent升级-Admin与Lobster.md)
 
 基于 **FastAPI + React (Vite) + LangGraph** 的个人办公助理。对应平台 `ai_admin_agent`，默认端口 **13105**；总管能力 cap 为 `admin`。
 

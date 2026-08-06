@@ -115,9 +115,20 @@ def main() -> None:
         assert len((pres.get("endings") or {}).get(bid, {}).get("pages") or []) >= 2, bid
         assert bid in allowed_by_cid.get(cid, set()), (bid, cid)
 
-    # opening ~11 pages
+    # opening: 5–7 long-form beats
     slides = (pres.get("opening") or {}).get("slides") or []
-    assert len(slides) >= 11, len(slides)
+    assert 5 <= len(slides) <= 7, len(slides)
+    for slide in slides:
+        lines = slide.get("lines") or ([slide["caption"]] if slide.get("caption") else [])
+        assert lines, slide.get("id")
+        assert sum(len(str(x)) for x in lines) >= 80, (slide.get("id"), lines)
+    brief = (pres.get("opening") or {}).get("world_brief") or []
+    assert any("沈予安" in str(x) for x in brief), brief
+    assert any(
+        "沈予安" in str(x)
+        for x in ((slide.get("lines") or []) + [slide.get("caption") or ""])
+        for slide in slides
+    ), "opening should name 沈予安"
 
     # secret/good ending pages
     ends = pres.get("endings") or {}

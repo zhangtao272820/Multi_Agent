@@ -51,8 +51,86 @@ import {
   mergeDataSourcesWithClauses
 } from '../core/probe/probeRoutingAnchor'
 import type { ProbeDbSlice } from '../core/probe/probeInterpretation'
+import { collapseSingleSourceSameAgentOrchestrator } from '../llm/taskOrchestrator/parseCore'
 
 const WEB_CAP_AGENTS = new Set(['crawler', 'music', 'video'])
+
+/** 单源同 agent 过度拆分：在 invariants 入口再折叠一次（覆盖 PU seed / 未走 normalize 的路径） */
+function collapseBundleSingleSource(bundle: TaskOrchestratorBundle, lastUser: string): TaskOrchestratorBundle {
+  const o: Record<string, unknown> = {
+    ...(bundle.raw as unknown as Record<string, unknown>),
+    clauses: bundle.clauses,
+    planBlueprint: bundle.planBlueprint ?? undefined,
+    allowedAgents: bundle.allowedAgents,
+    suggestedAgents: bundle.raw.suggestedAgents ?? bundle.allowedAgents,
+    dataSources: bundle.intentClassify.dataSources,
+    isMulti: bundle.intentClassify.isMulti,
+    requiresAgentPipeline: bundle.intentClassify.requiresAgentPipeline,
+    planShortcut: bundle.intentClassify.planShortcut,
+    intent: bundle.intent,
+    primaryIntent: bundle.intentClassify.primaryIntent,
+    coalescedTask: bundle.coalescedTask,
+    routedQuery: bundle.routedQuery,
+    explicitWantsReport: bundle.intentClassify.explicitWantsReport,
+    explicitWantsVisualize: bundle.intentClassify.explicitWantsVisualize,
+    wantsReport: bundle.constraints?.wantsReport,
+    wantsVisualize: bundle.constraints?.wantsVisualize
+  }
+  const did = collapseSingleSourceSameAgentOrchestrator(o, lastUser)
+  if (!did) return bundle
+  const sole = filterCapSole(o.allowedAgents as string[])
+  if (!sole) return bundle
+  const clauses = (Array.isArray(o.clauses) ? o.clauses : bundle.clauses) as TaskClause[]
+  const planBlueprint = (o.planBlueprint as TaskOrchestratorBundle['planBlueprint']) ?? bundle.planBlueprint
+  const intent = String(o.intent || sole)
+  const focus = String(o.coalescedTask || o.routedQuery || lastUser || '').trim()
+  const stepDispatchDraft = [
+    {
+      agent: sole,
+      scopedUserLanguage: focus.slice(0, 480) || String(clauses[0]?.text || '').slice(0, 480),
+      clauseIds: ['c1']
+    }
+  ]
+  return {
+    ...bundle,
+    clauses,
+    planBlueprint,
+    allowedAgents: [sole] as ExecutableAgent[],
+    intent,
+    coalescedTask: String(o.coalescedTask || bundle.coalescedTask),
+    routedQuery: String(o.routedQuery || bundle.routedQuery),
+    stepDispatchDraft,
+    intentClassify: {
+      ...bundle.intentClassify,
+      isMulti: false,
+      requiresAgentPipeline: false,
+      allowChatWebDirect: true,
+      planShortcut: sole === 'db' ? 'db_only' : 'rag_only',
+      primaryIntent: sole as typeof bundle.intentClassify.primaryIntent,
+      dataSources: [sole] as typeof bundle.intentClassify.dataSources,
+      suggestedAgents: [sole] as typeof bundle.intentClassify.suggestedAgents
+    },
+    raw: {
+      ...bundle.raw,
+      isMulti: false,
+      requiresAgentPipeline: false,
+      planShortcut: sole === 'db' ? 'db_only' : 'rag_only',
+      intent,
+      primaryIntent: sole,
+      allowedAgents: [sole],
+      suggestedAgents: [sole],
+      dataSources: [sole],
+      clauses,
+      planBlueprint: planBlueprint ?? undefined
+    }
+  }
+}
+
+function filterCapSole(agents: string[] | undefined): 'db' | 'rag' | null {
+  const data = (agents ?? []).map(String).filter((a) => a === 'db' || a === 'rag')
+  const uniq = [...new Set(data)]
+  return uniq.length === 1 ? (uniq[0] as 'db' | 'rag') : null
+}
 
 /** 编排置信 → meta.routeConfidence；禁止落成 0（会被学习看板当成「无置信」） */
 function clampRouteConfidence(raw: unknown): number {
@@ -274,39 +352,40 @@ function applyLlmFirstOrchestratorDecision(input: {
   turnScope: TurnRoutingScope
   state?: { meta?: unknown; probe?: { db?: ProbeDbSlice; rag?: { hits?: number } } }
 }): OrchestratorDecision {
-  let clauses = input.bundle.clauses
-  let classify = input.bundle.intentClassify
-  const constraints = input.bundle.constraints
+  const collapsed = collapseBundleSingleSource(input.bundle, input.turnScope.lastOnly)
+  let clauses = collapsed.clauses
+  let classify = collapsed.intentClassify
+  const constraints = collapsed.constraints
   const explicitAgents = collectExplicitOrchestratorAgents({
     classify,
     clauses,
-    suggestedAgents: input.bundle.raw.suggestedAgents
+    suggestedAgents: collapsed.raw.suggestedAgents
   })
   classify = reconcileClassifyAgainstExplicitAgents(classify, explicitAgents)
   if (
     !adminExplicitlyRequested({
       classify,
       clauses,
-      suggestedAgents: input.bundle.raw.suggestedAgents
+      suggestedAgents: collapsed.raw.suggestedAgents
     })
   ) {
     classify = { ...classify, needsAdmin: false, suggestedAgents: classify.suggestedAgents.filter((a) => a !== 'admin') }
   }
-  let allowed = sortAgentsByPipelineOrder([...input.bundle.allowedAgents]) as ExecutableAgent[]
+  let allowed = sortAgentsByPipelineOrder([...collapsed.allowedAgents]) as ExecutableAgent[]
   allowed = stripSpuriousOptionalAgents(allowed, explicitAgents)
   const aligned = applyOrchestratorCapAlignment({
     allowed,
     classify,
     clauses,
-    suggestedAgents: input.bundle.raw.suggestedAgents
+    suggestedAgents: collapsed.raw.suggestedAgents
   })
   allowed = aligned.allowed
   classify = aligned.classify
   allowed = filterAgentsRespectingWriteGate(allowed, input.state ?? {}) as ExecutableAgent[]
-  let planBlueprint = input.bundle.planBlueprint ?? null
+  let planBlueprint = collapsed.planBlueprint ?? null
   const routingMeta = input.state?.meta
-  let alignedDraft = input.bundle.stepDispatchDraft?.length
-    ? input.bundle.stepDispatchDraft
+  let alignedDraft = collapsed.stepDispatchDraft?.length
+    ? collapsed.stepDispatchDraft
     : stepDispatchDraftFromMeta(routingMeta)
 
   // 天气/地图能力契约：crawler 误绑 → admin（须在 stripUnboundCrawler 之前）
@@ -342,7 +421,7 @@ function applyLlmFirstOrchestratorDecision(input: {
     needsAdmin: allowed.map(String).includes('admin') ? true : classify.needsAdmin
   }
   const userTask = String(
-    input.bundle.coalescedTask || input.turnScope.lastOnly || input.bundle.routedQuery || ''
+    collapsed.coalescedTask || input.turnScope.lastOnly || collapsed.routedQuery || ''
   ).trim()
 
   if (alignedDraft.length >= 1) {
@@ -356,7 +435,7 @@ function applyLlmFirstOrchestratorDecision(input: {
   }
 
   const pipelineRequired = requiresAgentPipelineExecution(classify, allowed)
-  let intent = finalizeLlmRouteIntent(input.bundle.intent, allowed, null)
+  let intent = finalizeLlmRouteIntent(collapsed.intent || input.bundle.intent, allowed, null)
   intent = ensureMultiIntentForPipeline(intent, allowed, pipelineRequired)
   const capSet = new Set(allowed.map(String))
   planBlueprint = filterBlueprintToCap(planBlueprint, capSet)
@@ -368,7 +447,7 @@ function applyLlmFirstOrchestratorDecision(input: {
       (weatherFix.changed && weatherFix.needsWebSearch === false) ||
       (mapFix.changed && mapFix.needsWebSearch === false)
         ? false
-        : input.bundle.needsWebSearch === true
+        : collapsed.needsWebSearch === true
   })
   const routeConfidence = clampRouteConfidence(classify.confidence)
   const metaPatch: Record<string, unknown> = {
@@ -385,27 +464,27 @@ function applyLlmFirstOrchestratorDecision(input: {
     needsWebSearch,
     requiresAgentPipeline: pipelineRequired,
     allowChatWebDirect: classify.allowChatWebDirect,
-    nlHeuristicTask: input.bundle.coalescedTask,
-    needsClarify: input.bundle.needsClarify,
-    clarifyQuestions: input.bundle.needsClarify ? input.bundle.clarifyQuestions : [],
+    nlHeuristicTask: collapsed.coalescedTask,
+    needsClarify: collapsed.needsClarify,
+    clarifyQuestions: collapsed.needsClarify ? collapsed.clarifyQuestions : [],
     routeConfidence,
     uncertainty: routeConfidence >= 0.75 ? 'low' : routeConfidence >= 0.5 ? 'medium' : 'high',
     ...(alignedDraft.length ? { stepDispatchDraft: alignedDraft } : {}),
-    ...(input.bundle.raw.codeMode && input.bundle.raw.codeMode !== 'auto'
-      ? { codeMode: input.bundle.raw.codeMode }
+    ...(collapsed.raw.codeMode && collapsed.raw.codeMode !== 'auto'
+      ? { codeMode: collapsed.raw.codeMode }
       : {}),
-    ...planUpgradeMetaFromRaw(input.bundle.raw as unknown as Record<string, unknown>)
+    ...planUpgradeMetaFromRaw(collapsed.raw as unknown as Record<string, unknown>)
   }
   return {
-    ...input.bundle,
+    ...collapsed,
     clauses,
     intentClassify: classify,
     intent,
     allowedAgents: allowed,
     planBlueprint,
     needsWebSearch,
-    needsClarify: input.bundle.needsClarify,
-    clarifyQuestions: input.bundle.needsClarify ? input.bundle.clarifyQuestions : [],
+    needsClarify: collapsed.needsClarify,
+    clarifyQuestions: collapsed.needsClarify ? collapsed.clarifyQuestions : [],
     metaPatch
   }
 }
@@ -418,56 +497,60 @@ export function applyOrchestratorInvariants(input: {
   routerCapBaseline?: ExecutableAgent[]
   capPolicy?: OrchestratorCapPolicy
 }): OrchestratorDecision {
-  const routingMeta = input.state?.meta
+  const collapsedInput = {
+    ...input,
+    bundle: collapseBundleSingleSource(input.bundle, input.turnScope.lastOnly)
+  }
+  const routingMeta = collapsedInput.state?.meta
   if (isLlmFirstRouteEnabled()) {
-    return applyLlmFirstOrchestratorDecision(input)
+    return applyLlmFirstOrchestratorDecision(collapsedInput)
   }
-  if (shouldApplyFrozenPuCap(routingMeta, input.capPolicy)) {
-    return applyFrozenPuOrchestratorDecision(input)
+  if (shouldApplyFrozenPuCap(routingMeta, collapsedInput.capPolicy)) {
+    return applyFrozenPuOrchestratorDecision(collapsedInput)
   }
-  let clauses = input.bundle.clauses
-  let classify = mergeDataSourcesWithClauses(input.bundle.intentClassify, clauses)
+  let clauses = collapsedInput.bundle.clauses
+  let classify = mergeDataSourcesWithClauses(collapsedInput.bundle.intentClassify, clauses)
   classify = inferDbAnchorFromProbe({
     classify,
-    probe: input.state?.probe ?? null,
+    probe: collapsedInput.state?.probe ?? null,
     clauses
   })
   const repairedDs = (classify.dataSources ?? []) as Array<'rag' | 'db' | 'crawler'>
   if (repairedDs.length >= 2) {
-    clauses = repairOrchestratorClauses(clauses, repairedDs, input.turnScope.lastOnly)
+    clauses = repairOrchestratorClauses(clauses, repairedDs, collapsedInput.turnScope.lastOnly)
     classify = mergeDataSourcesWithClauses(classify, clauses)
   }
   classify = reconcileIntentClassifyDataPlane(classify, clauses)
-  const constraints = input.bundle.constraints
+  const constraints = collapsedInput.bundle.constraints
   const explicitAgents = collectExplicitOrchestratorAgents({
     classify,
     clauses,
-    suggestedAgents: input.bundle.raw.suggestedAgents
+    suggestedAgents: collapsedInput.bundle.raw.suggestedAgents
   })
   classify = reconcileClassifyAgainstExplicitAgents(classify, explicitAgents)
   if (
     !adminExplicitlyRequested({
       classify,
       clauses,
-      suggestedAgents: input.bundle.raw.suggestedAgents
+      suggestedAgents: collapsedInput.bundle.raw.suggestedAgents
     })
   ) {
     classify = { ...classify, needsAdmin: false, suggestedAgents: classify.suggestedAgents.filter((a) => a !== 'admin') }
   }
-  const baseline = input.routerCapBaseline ?? input.bundle.allowedAgents
+  const baseline = collapsedInput.routerCapBaseline ?? collapsedInput.bundle.allowedAgents
 
   let allowed = alignAllowedAgentsWithUnderstanding({
     routerAllowed: [...baseline],
     intentClassify: classify,
     clauses,
     constraints,
-    userText: input.turnScope.lastOnly
+    userText: collapsedInput.turnScope.lastOnly
   })
 
   allowed = alignAllowedAgentsWithDataPlane(allowed, classify, baseline)
 
   allowed = finalizeLlmAllowedAgents(
-    finalizeLlmRouteIntent(input.bundle.intent, allowed, null),
+    finalizeLlmRouteIntent(collapsedInput.bundle.intent, allowed, null),
     allowed,
     null
   )
@@ -477,21 +560,24 @@ export function applyOrchestratorInvariants(input: {
     allowed,
     classify,
     clauses,
-    suggestedAgents: input.bundle.raw.suggestedAgents
+    suggestedAgents: collapsedInput.bundle.raw.suggestedAgents
   })
   allowed = aligned.allowed
   classify = aligned.classify
-  allowed = filterAgentsRespectingWriteGate(allowed, input.state ?? {}) as ExecutableAgent[]
+  allowed = filterAgentsRespectingWriteGate(allowed, collapsedInput.state ?? {}) as ExecutableAgent[]
   allowed = sortAgentsByPipelineOrder(allowed) as ExecutableAgent[]
-  let classicDraft = stepDispatchDraftFromMeta(input.state?.meta)
+  let classicDraft =
+    collapsedInput.bundle.stepDispatchDraft?.length
+      ? collapsedInput.bundle.stepDispatchDraft
+      : stepDispatchDraftFromMeta(collapsedInput.state?.meta)
 
   const weatherFixClassic = rematerializeWeatherCrawlerMisbind({
     allowedAgents: allowed,
     clauses,
     classify,
-    planBlueprint: input.bundle.planBlueprint ?? null,
+    planBlueprint: collapsedInput.bundle.planBlueprint ?? null,
     stepDispatchDraft: classicDraft,
-    needsWebSearch: input.bundle.needsWebSearch === true
+    needsWebSearch: collapsedInput.bundle.needsWebSearch === true
   })
   const mapFixClassic = rematerializeMapCrawlerMisbind({
     allowedAgents: weatherFixClassic.allowedAgents,

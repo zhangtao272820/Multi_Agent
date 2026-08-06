@@ -36,6 +36,7 @@ import { rematerializeWeatherCrawlerMisbind } from './weatherAdminBoundary'
 import { rematerializeMapCrawlerMisbind } from './mapAdminBoundary'
 import { sortAgentsByPipelineOrder } from '../core/routing/clauses'
 import type { ExecutableAgent } from '../core/routing/routeFinalize'
+import { isLlmRateLimitError } from '../../utils/chat/llmRateLimit'
 
 const EXEC_COVER = new Set(['rag', 'db', 'crawler', 'clean', 'code', 'visualize', 'report', 'admin', 'gui', 'multimodal', 'music', 'video'])
 
@@ -225,6 +226,9 @@ export async function resolveOrchestratorPipeline(
   const llmFailureNote = first.failures?.map((f) => `${f.stage}:${f.reason}`).join(' | ')
 
   if (!bundle) {
+    if (llmFailureNote && isLlmRateLimitError(llmFailureNote)) {
+      throw new Error('orchestrator_llm_exhausted (模型限流 429，请稍后重试)')
+    }
     throw new Error(
       llmFailureNote ? `orchestrator_llm_exhausted (${llmFailureNote.slice(0, 480)})` : 'orchestrator_llm_exhausted'
     )

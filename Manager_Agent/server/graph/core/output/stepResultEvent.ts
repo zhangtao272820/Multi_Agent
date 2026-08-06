@@ -1,5 +1,6 @@
 import type { AgentStepOutcome } from '../executors'
 import { errorCodeFromStepOutcome } from '../runtime/expertFailure'
+import { buildStepStatus } from '../runtime/stepStatus'
 
 const AGENT_LABELS: Record<string, string> = {
   db: '数据库查询',
@@ -93,6 +94,22 @@ export function emitStepResultEvent(
   input: { stepId: string; agent: string; outcome: AgentStepOutcome; ms?: number }
 ) {
   const data = buildStepResultPayload({ ...input, runId: opts.runId })
+  // 单步路径（ragNode/dbNode）只发 step_result 时 UI 会卡在 running：始终补发终态 step_status
+  opts.sendEvent({
+    event: 'step_status',
+    data: buildStepStatus(
+      {
+        stepId: data.stepId,
+        agent: data.agent,
+        status: data.status,
+        pct: data.status === 'success' ? 100 : undefined,
+        error: data.error,
+        query: data.query
+      },
+      opts.runId
+    ),
+    from: 'manager'
+  })
   if (!data.preview && data.status === 'success') return
   opts.sendEvent({ event: 'step_result', data, from: 'manager' })
   if (opts.runId) {

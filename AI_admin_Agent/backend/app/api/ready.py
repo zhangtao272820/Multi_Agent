@@ -43,6 +43,11 @@ async def ready_check():
             and (settings.IMAP_PASS or settings.SMTP_PASS)
         ),
     }
+    checks["mailbox_binding"] = {
+        "per_user": True,
+        "allow_global_fallback": bool(getattr(settings, "ADMIN_MAIL_ALLOW_GLOBAL_FALLBACK", False)),
+        "hint": "用户可在「连接邮箱」绑定国内 IMAP/SMTP 授权码",
+    }
     checks["weather"] = {
         "configured": bool(settings.WEATHER_API_KEY and settings.WEATHER_API_HOST),
         "has_key": bool(settings.WEATHER_API_KEY),

@@ -159,11 +159,16 @@ export async function runScalarLookupDirect(params: {
     schemaGround: params.schemaGround,
   });
   if (ir) {
+    const irGuardCtx = {
+      queryPlan: params.queryPlan,
+      preflight: null as null,
+      judge: params.schemaGround?.table_judge ?? null,
+    };
     const compiled = compileQueryIrToSql(ir);
     if (compiled.ok) {
-      const checked = isReadOnlySelectSql(compiled.sql);
-      if (checked.ok) {
-        const withHint = prepareSelectForExecution(checked.sql, 10);
+      const irValidated = validateGeneratedSelectSql(compiled.sql, irGuardCtx, { extract: false });
+      if (irValidated.ok) {
+        const withHint = prepareSelectForExecution(irValidated.sql, 10);
         try {
           const rows = (await params.ds.query(withHint)) as any[];
           if (!rowsLookEmpty(rows)) {
@@ -184,9 +189,9 @@ export async function runScalarLookupDirect(params: {
             schemaSummary: params.schemaGround?.schema_summary,
           });
           if (repaired) {
-            const checkedFix = isReadOnlySelectSql(repaired);
-            if (checkedFix.ok) {
-              const withHintFix = prepareSelectForExecution(checkedFix.sql, 10);
+            const fixValidated = validateGeneratedSelectSql(repaired, irGuardCtx, { extract: false });
+            if (fixValidated.ok) {
+              const withHintFix = prepareSelectForExecution(fixValidated.sql, 10);
               try {
                 const rows = (await params.ds.query(withHintFix)) as any[];
                 if (!rowsLookEmpty(rows)) {

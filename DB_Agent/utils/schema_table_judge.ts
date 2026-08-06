@@ -11,9 +11,11 @@ import {
   getFootLogTable,
   getFootMeasureTable,
   planWantsTableExtension,
+  queryPlanAlignsWithFootDomain,
   queryPlanWantsFootAreaDetail,
   tableCommentLooksLikeExtensionDetail,
   tableCommentLooksLikeMainRecord,
+  tableNameLooksLikePersonHealthRecords,
   type SchemaRelation,
 } from "./schema_relations";
 
@@ -163,11 +165,12 @@ export function formatSchemaJudgeHint(judge: SchemaTableJudgeResult | null | und
   return clipText(lines.join("\n"), 560);
 }
 
-/** 足底压力已知主从表对：用表注释硬配对，跳过 LLM 误判 */
+/** 配置域主从表硬配对：仅当 queryPlan 槽位对齐该域时才跳过 LLM；否则交模型选表 */
 export function tryStructuralFootTableJudge(
   briefs: TableBrief[],
   queryPlan?: QueryPlan | null,
 ): SchemaTableJudgeResult | null {
+  if (!queryPlanAlignsWithFootDomain(queryPlan)) return null;
   const mainTable = getFootLogTable();
   const measureTable = getFootMeasureTable();
   const nameSet = new Set(briefs.map((b) => b.name));
@@ -180,7 +183,7 @@ export function tryStructuralFootTableJudge(
     ranked_tables: [mainTable, measureTable, ...others],
     primary_tables: [mainTable],
     auxiliary_tables: [measureTable],
-    reasoning: "足底压力：检测记录主表与区域信息扩展从表（表注释主从关系）",
+    reasoning: "配置域主从表：检测记录主表与区域扩展从表（表注释主从关系）",
     sql_hint: `默认只查 ${mainTable}，按姓名与时间过滤；勿单独 FROM ${measureTable}`,
   };
 }
@@ -204,7 +207,11 @@ export function applyMasterDetailJudgeFromSchema(
 
   const mainTable = getFootLogTable();
   const measureTable = getFootMeasureTable();
-  if (briefByName.has(mainTable) && briefByName.has(measureTable)) {
+  if (
+    queryPlanAlignsWithFootDomain(queryPlan) &&
+    briefByName.has(mainTable) &&
+    briefByName.has(measureTable)
+  ) {
     const extBrief = briefByName.get(measureTable)!;
     const mainBrief = briefByName.get(mainTable)!;
     if (!planWantsTableExtension(queryPlan, extBrief.comment) && !queryPlanWantsFootAreaDetail(queryPlan)) {
@@ -213,7 +220,7 @@ export function applyMasterDetailJudgeFromSchema(
       auxiliary = [measureTable, ...auxiliary.filter((t) => t !== measureTable && t !== mainTable)];
       ranked = [mainTable, measureTable, ...ranked.filter((t) => t !== mainTable && t !== measureTable)];
       sqlHint = `默认查主记录表 ${mainTable}（${mainBrief.comment || mainBrief.name}），落实查询计划中的姓名/时间过滤；${measureTable} 为区域扩展从表，本问题不需要 JOIN。`;
-      reasoning = `${reasoning}；已据足底主从表注释校正：以 ${mainTable} 为主查表。`.trim();
+      reasoning = `${reasoning}；已据配置域主从表注释校正：以 ${mainTable} 为主查表。`.trim();
     }
   }
 
@@ -285,18 +292,37 @@ export function applyPersonBasicPrimaryTableConstraint(
 
   let primary = [...judge.primary_tables];
   let ranked = [...judge.ranked_tables];
+  let auxiliary = [...(judge.auxiliary_tables ?? [])];
   if (!primary.includes(personMaster)) {
     primary = [personMaster, ...primary.filter((t) => t !== personMaster)];
   }
   ranked = [personMaster, ...ranked.filter((t) => t !== personMaster)];
+
+  // 档案/具名人员：健康体征表不得留在 primary（否则 inferDataDomain 会翻成 person_health）
+  const demoteHealth =
+    queryPlan.data_domain === "person_basic" ||
+    (namedEntity && queryPlan.intent === "detail" && queryPlan.subject === "person");
+  if (demoteHealth) {
+    const kept: string[] = [];
+    for (const t of primary) {
+      if (t !== personMaster && tableNameLooksLikePersonHealthRecords(t)) {
+        if (!auxiliary.includes(t)) auxiliary.push(t);
+        continue;
+      }
+      kept.push(t);
+    }
+    primary = kept.length ? kept : [personMaster];
+  }
+
   const why = namedEntity ? "具名人员属性" : "person_basic 聚合";
   const reasoning = judge.reasoning
-    ? `${judge.reasoning}；${why}已锁主表 ${personMaster}。`
-    : `${why}已锁主表 ${personMaster}。`;
+    ? `${judge.reasoning}；${why}已锁主表 ${personMaster}${demoteHealth ? "，健康表降为附属" : ""}。`
+    : `${why}已锁主表 ${personMaster}${demoteHealth ? "，健康表降为附属" : ""}。`;
   return {
     ...judge,
     ranked_tables: [...new Set(ranked)],
     primary_tables: [...new Set(primary)],
+    auxiliary_tables: [...new Set(auxiliary)],
     reasoning: clipText(reasoning, 480),
   };
 }

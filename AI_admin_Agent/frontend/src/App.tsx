@@ -6,8 +6,9 @@ import './admin-cursor-chat.css';
 import { AppModal } from './AppModal';
 import { AdminReplyCards, parseAdminUiCards, type AdminUiCard } from './AdminReplyCards';
 import { ContactsPanel, HubPanel, IntegrationsPanel, SearchPanel } from './AdminExtraPanels';
+import { MailboxBindingPanel } from './MailboxBindingPanel';
+import { authHeaders, getStoredUser, logout } from './clawhiveAuth';
 import { PlaygroundPanel } from './PlaygroundPanel';
-import { logout } from './clawhiveAuth';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? '/api';
 const SESSION_KEY = 'admin_agent_session_id';
@@ -1038,7 +1039,16 @@ function App() {
   const loadInbox = async () => {
     setMailLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/mail/inbox?session_id=${encodeURIComponent(conversationId || 'default')}&limit=20&unread_only=true`);
+      const uid = adminUserId() || getStoredUser()?.userId || '';
+      const qs = new URLSearchParams({
+        session_id: conversationId || 'default',
+        limit: '20',
+        unread_only: 'true',
+      });
+      if (uid) qs.set('user_id', uid);
+      const res = await fetch(`${API_BASE_URL}/mail/inbox?${qs.toString()}`, {
+        headers: { ...authHeaders() },
+      });
           const data = await res.json();
           const text = String(data.inbox || '');
           setInboxText(text);
@@ -1090,7 +1100,12 @@ function App() {
     }
     let cancelled = false;
     setMailBodyLoading(true);
-    fetch(`${API_BASE_URL}/mail/inbox/${selectedMailId}?session_id=${encodeURIComponent(conversationId || 'default')}`)
+    const uid = adminUserId() || getStoredUser()?.userId || '';
+    const qs = new URLSearchParams({ session_id: conversationId || 'default' });
+    if (uid) qs.set('user_id', uid);
+    fetch(`${API_BASE_URL}/mail/inbox/${selectedMailId}?${qs.toString()}`, {
+      headers: { ...authHeaders() },
+    })
       .then(res => res.json())
       .then(data => {
         if (cancelled) return;
@@ -2946,6 +2961,9 @@ function App() {
 
         {activeTab === 'Mail' && (
           <div className="app-chat-scroll flex-1 overflow-y-auto p-5 md:p-6">
+            <div className="mb-4">
+              <MailboxBindingPanel compact />
+            </div>
             <div className="app-content-shell mail-page">
               {inboxItems.length > 0 ? (
                 <div className="mail-layout">

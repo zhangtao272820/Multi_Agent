@@ -28,8 +28,25 @@ export type AgentResult = {
 
 type EvidenceRow = { source?: string; content?: string; ingest_at?: string; source_version?: string };
 
+/** 检索路径：用证据正文拼用户可见摘要（禁止把问句当 answer） */
+export function summarizeRagEvidenceAnswer(evidence: EvidenceRow[] | undefined, maxChars = 1200): string {
+  const parts: string[] = [];
+  for (const row of evidence || []) {
+    const content = String(row?.content ?? "").trim();
+    if (content.length < 4) continue;
+    const source = String(row?.source ?? "").trim();
+    parts.push(source ? `${content}\n（来源：${source}）` : content);
+    if (parts.join("\n\n").length >= maxChars) break;
+  }
+  const joined = parts.join("\n\n").trim();
+  if (!joined) return "";
+  return joined.length > maxChars ? `${joined.slice(0, maxChars)}…` : joined;
+}
+
 export function buildRagAgentResult(params: {
   query: string;
+  /** 用户可见答案正文（chat finalAnswer / retrieve 证据摘要）；禁止传问句 */
+  answer?: string;
   needsClarify?: boolean;
   ms?: number;
   evidence?: EvidenceRow[];
@@ -46,8 +63,10 @@ export function buildRagAgentResult(params: {
   for (const row of params.evidence || []) {
     const ref = String(row?.source || "").trim();
     if (ref) sources.push({ type: "doc", ref });
+    const excerpt = String(row?.content || "").trim().slice(0, 400);
     citations.push({
       source: ref,
+      ...(excerpt ? { excerpt } : {}),
       ...(row?.ingest_at ? { ingest_at: String(row.ingest_at) } : {}),
       ...(row?.source_version ? { source_version: String(row.source_version) } : {}),
     });
@@ -67,17 +86,23 @@ export function buildRagAgentResult(params: {
       error_code === "business" ||
       needsClarify ||
       !sources.length);
+  const query = String(params.query || "").trim();
+  const answerFromParam = String(params.answer ?? "").trim();
+  const answerFromEvidence = summarizeRagEvidenceAnswer(params.evidence);
+  // 契约：answer 必须是可见答案；query 只进 structured，禁止把问句当 answer
+  const answer = answerFromParam || answerFromEvidence || (failed ? query : "");
   return {
     ok: !failed,
     agent: "rag",
     trace_id: params.trace_id,
-    answer: params.query,
+    answer,
     sources: sources.length ? sources : undefined,
     structured: {
       content_trust: "untrusted",
       content_trust_source: "rag",
       evidence_count: params.evidence?.length ?? 0,
       ms: params.ms,
+      ...(query ? { query } : {}),
       citations: citations.length ? citations : undefined,
       ...(params.detail ? { detail: params.detail } : {}),
       ...(error_code ? { error_code } : {}),
@@ -94,21 +119,24 @@ export function buildRagAgentResult(params: {
 export function buildRagFailureResult(params: {
   error_code: RagErrorCode;
   query?: string;
+  answer?: string;
   trace_id?: string;
   ms?: number;
   detail?: string;
 }): AgentResult {
+  const query = String(params.query || "").trim();
   return {
     ok: false,
     agent: "rag",
     trace_id: params.trace_id,
-    answer: params.query || "",
+    answer: String(params.answer || params.detail || query || "").trim(),
     structured: {
       content_trust: "untrusted",
       content_trust_source: "rag",
       evidence_count: 0,
       ms: params.ms,
       error_code: params.error_code,
+      ...(query ? { query } : {}),
       ...(params.detail ? { detail: params.detail } : {}),
     },
     error_code: params.error_code,

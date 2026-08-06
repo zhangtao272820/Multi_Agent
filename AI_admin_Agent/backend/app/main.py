@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Depends
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -117,6 +117,41 @@ class ReplyEmailRequest(BaseModel):
     email_id: int
     content: str
     session_id: str = "default"
+    user_id: str | None = None
+
+
+class MailboxBindingRequest(BaseModel):
+    user_id: str
+    provider: str
+    email_address: str
+    auth_code: str = ""
+    test_first: bool = True
+
+
+class MailboxTestRequest(BaseModel):
+    user_id: str
+    provider: str = "qq"
+    email_address: str = ""
+    auth_code: str = ""
+
+
+def _require_request_user_id(user_id: str | None, header_user: str | None = None) -> str:
+    from app.core.mailbox_binding import sanitize_user_id
+
+    uid = sanitize_user_id(user_id) or sanitize_user_id(header_user)
+    if not uid:
+        raise HTTPException(status_code=400, detail="user_id required")
+    return uid
+
+
+def _assert_same_user(request_user: str, path_or_body_user: str) -> str:
+    from app.core.mailbox_binding import sanitize_user_id
+
+    a = sanitize_user_id(request_user)
+    b = sanitize_user_id(path_or_body_user)
+    if not a or not b or a != b:
+        raise HTTPException(status_code=403, detail="forbidden: user_id mismatch")
+    return a
 
 
 class FeedbackRequest(BaseModel):
@@ -453,6 +488,91 @@ async def api_web_search(q: str = "", mode: str = "general", limit: int = 8):
     }
 
 
+def _assert_binding_user_allowed(request_user_id: str, auth_user_id: str | None) -> str:
+    """When browser JWT is present, body/query user_id must match token sub."""
+    from app.core.mailbox_binding import sanitize_user_id
+
+    uid = sanitize_user_id(request_user_id)
+    if not uid:
+        raise HTTPException(status_code=400, detail="user_id required")
+    auth_uid = sanitize_user_id(auth_user_id or "")
+    if auth_uid and auth_uid != uid:
+        raise HTTPException(status_code=403, detail="forbidden: user_id mismatch")
+    return uid
+
+
+def _jwt_user_from_request(request: Request) -> str | None:
+    try:
+        from app.core.browser_auth import _bearer, verify_jwt
+
+        auth = request.headers.get("authorization")
+        token = _bearer(auth) or str(request.headers.get("x-clawhive-user-token") or "").strip()
+        if not token:
+            return None
+        payload = verify_jwt(token)
+        return str(payload.get("user_id") or "") or None
+    except Exception:
+        return None
+
+
+@app.get("/api/mailbox/providers")
+async def api_mailbox_providers():
+    from app.core.mailbox_binding import list_provider_presets
+
+    return {"ok": True, "providers": list_provider_presets()}
+
+
+@app.get("/api/mailbox/binding")
+async def api_mailbox_binding_get(request: Request, user_id: str = ""):
+    from app.core.mailbox_binding import binding_public_status
+
+    uid = _assert_binding_user_allowed(user_id, _jwt_user_from_request(request))
+    return binding_public_status(uid)
+
+
+@app.put("/api/mailbox/binding")
+async def api_mailbox_binding_put(request: Request, body: MailboxBindingRequest):
+    from app.core.mailbox_binding import upsert_binding
+    from app.core.mail_metrics import mail_metric_inc
+
+    uid = _assert_binding_user_allowed(body.user_id, _jwt_user_from_request(request))
+    result = upsert_binding(
+        uid,
+        provider=body.provider,
+        email_address=body.email_address,
+        auth_code=body.auth_code,
+        test_first=bool(body.test_first),
+    )
+    if result.get("ok"):
+        mail_metric_inc("mail_bind")
+        return result
+    raise HTTPException(status_code=400, detail=result.get("human_message") or result.get("code") or "bind failed")
+
+
+@app.post("/api/mailbox/binding/test")
+async def api_mailbox_binding_test(request: Request, body: MailboxTestRequest):
+    from app.core.mailbox_binding import test_binding_input
+
+    uid = _assert_binding_user_allowed(body.user_id, _jwt_user_from_request(request))
+    result = test_binding_input(
+        uid,
+        provider=body.provider,
+        email_address=body.email_address,
+        auth_code=body.auth_code,
+    )
+    if result.get("ok"):
+        return result
+    raise HTTPException(status_code=400, detail=result.get("human_message") or result.get("code") or "test failed")
+
+
+@app.delete("/api/mailbox/binding")
+async def api_mailbox_binding_delete(request: Request, user_id: str = ""):
+    from app.core.mailbox_binding import delete_binding
+
+    uid = _assert_binding_user_allowed(user_id, _jwt_user_from_request(request))
+    return delete_binding(uid)
+
+
 @app.get("/api/briefing")
 async def api_daily_briefing(session_id: str = "default", city: str = "", include_emails: bool = True):
     from app.tools.briefing import daily_briefing
@@ -470,14 +590,31 @@ async def api_daily_briefing(session_id: str = "default", city: str = "", includ
 
 
 @app.get("/api/mail/inbox")
-async def get_mail_inbox(session_id: str = "default", limit: int = 10, unread_only: bool = True):
-    result = list_emails(session_id=session_id, limit=limit, unread_only=unread_only)
-    return {"inbox": _tool_text(result), "items": _tool_items(result), "ok": isinstance(result, dict) and result.get("ok")}
+async def get_mail_inbox(
+    session_id: str = "default",
+    limit: int = 10,
+    unread_only: bool = True,
+    user_id: str = "",
+    mailbox: str = "INBOX",
+):
+    result = list_emails(
+        session_id=session_id,
+        limit=limit,
+        unread_only=unread_only,
+        user_id=user_id,
+        mailbox=mailbox,
+    )
+    return {
+        "inbox": _tool_text(result),
+        "items": _tool_items(result),
+        "ok": isinstance(result, dict) and result.get("ok"),
+        "raw": result if isinstance(result, dict) else {},
+    }
 
 
 @app.get("/api/mail/inbox/{email_id}")
-async def get_mail_detail_api(email_id: int, session_id: str = "default"):
-    result = get_email_detail(email_id=email_id, session_id=session_id)
+async def get_mail_detail_api(email_id: int, session_id: str = "default", user_id: str = ""):
+    result = get_email_detail(email_id=email_id, session_id=session_id, user_id=user_id)
     if isinstance(result, dict) and result.get("ok") is False:
         raise HTTPException(status_code=404, detail=_tool_text(result))
     return {"mail": _tool_data(result, {}), "ok": True}
@@ -868,8 +1005,11 @@ async def websocket_endpoint(websocket: WebSocket):
             session_id = str(message_data.get("session_id") or "default").strip() or "default"
             chat_mode = str(message_data.get("mode") or "normal").strip().lower()
             user_message_index = message_data.get("user_message_index")
+            raw_client_context = message_data.get("client_context")
+            client_context = raw_client_context if isinstance(raw_client_context, dict) else {}
             user_id = str(
                 message_data.get("user_id")
+                or client_context.get("user_id")
                 or websocket.headers.get("x-user-id")
                 or ""
             ).strip() or None
@@ -880,8 +1020,6 @@ async def websocket_endpoint(websocket: WebSocket):
                 or websocket.headers.get("x-run-id")
                 or ""
             ).strip() or None
-            raw_client_context = message_data.get("client_context")
-            client_context = raw_client_context if isinstance(raw_client_context, dict) else {}
             if client_context.get("manager_task") and not client_context.get("manager_orchestrated"):
                 client_context["manager_orchestrated"] = True
             # 总管显式传 auto_confirm_risky=false 时不得覆盖（写闸 / HITL 由 Manager 控制）

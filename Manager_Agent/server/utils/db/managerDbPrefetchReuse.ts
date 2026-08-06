@@ -91,7 +91,7 @@ function queryPlanUsableForPrefetch(raw: string | undefined): string | undefined
   }
 }
 
-/** 预取与执行问句不一致时，去掉会锁错表的 prefetch 侧车字段 */
+/** 去掉全部 prefetch 侧车（问句不对齐：表线索 + query_plan） */
 export function stripMisalignedPrefetchFromManagerTask(
   payload: ManagerDbTaskPayload | null
 ): ManagerDbTaskPayload | null {
@@ -108,6 +108,43 @@ export function stripMisalignedPrefetchFromManagerTask(
   return { ...rest, prefetch_reuse: undefined, prefetch_schema_ground_json: undefined, query_plan_json: undefined }
 }
 
+/**
+ * omitSchemaHints：剥掉全部不可信预取侧车（锁表字段 + query_plan / execution_shape），
+ * 让 DB 用执行问句自行跑 plan LLM，与独立端同权。
+ */
+export function stripTableLockingPrefetchFields(
+  payload: ManagerDbTaskPayload | null
+): ManagerDbTaskPayload | null {
+  if (!payload) return null
+  const {
+    prefetch_reuse: _pr,
+    prefetch_schema_ground_json: _sg,
+    hint_tables: _ht,
+    hint_fields: _hf,
+    schema_fk_hints: _fk,
+    query_plan_json: _qp,
+    execution_shape_hint: _esh,
+    ...rest
+  } = payload
+  return {
+    ...rest,
+    prefetch_reuse: undefined,
+    prefetch_schema_ground_json: undefined,
+    hint_tables: undefined,
+    hint_fields: undefined,
+    schema_fk_hints: undefined,
+    query_plan_json: undefined,
+    execution_shape_hint: undefined
+  }
+}
+
+function resolvePrefetchUnified(meta: unknown): PrefetchUnified | null {
+  const cached = (meta as { dbPlanPrefetch?: { ok?: boolean; unified_task_plan?: PrefetchUnified } } | null)
+    ?.dbPlanPrefetch
+  if (!cached?.ok || !cached.unified_task_plan) return null
+  return cached.unified_task_plan
+}
+
 /** 将 prefetch 节点 /api/plan 结果并入 managerTask；仅 LLM 选表后才 prefetch_reuse 跳过二次选表 */
 export function enrichManagerDbTaskFromPrefetch(
   payload: ManagerDbTaskPayload | null,
@@ -115,31 +152,22 @@ export function enrichManagerDbTaskFromPrefetch(
   opts?: { omitSchemaHints?: boolean; allowReuse?: boolean }
 ): ManagerDbTaskPayload | null {
   if (opts?.allowReuse === false) return stripMisalignedPrefetchFromManagerTask(payload)
-  if (opts?.omitSchemaHints && opts?.allowReuse !== true) return payload
-  if (String(process.env.MANAGER_DB_PREFETCH_REUSE ?? '1').trim() === '0') return payload
-  const cached = (meta as { dbPlanPrefetch?: { ok?: boolean; unified_task_plan?: PrefetchUnified } } | null)
-    ?.dbPlanPrefetch
-  if (!cached?.ok || !cached.unified_task_plan) return payload
+  if (String(process.env.MANAGER_DB_PREFETCH_REUSE ?? '1').trim() === '0') {
+    return opts?.omitSchemaHints ? stripTableLockingPrefetchFields(payload) : payload
+  }
 
-  const unified = cached.unified_task_plan
+  const unified = resolvePrefetchUnified(meta)
+  if (!unified) {
+    return opts?.omitSchemaHints ? stripTableLockingPrefetchFields(payload) : payload
+  }
+
   const hints = unified.hints ?? {}
-  const tables = uniqStrings(
-    [...(hints.suggested_tables ?? []), ...(payload?.hint_tables ?? [])],
-    6
-  )
-  const fields = uniqStrings([...(hints.suggested_fields ?? []), ...(payload?.hint_fields ?? [])], 12)
-  const fk = String(hints.schema_fk_hints ?? payload?.schema_fk_hints ?? '').trim()
   const queryPlan =
     queryPlanUsableForPrefetch(unified.query_plan_json) ||
     queryPlanUsableForPrefetch(payload?.query_plan_json)
   const executionShapeHint =
     payload?.execution_shape_hint ||
     executionShapeHintFromQueryPlanJson(queryPlan || payload?.query_plan_json)
-  const fromApi = String(unified.schema_ground_json ?? '').trim()
-  const schemaGround = fromApi || schemaGroundJsonFromPrefetch(hints, tables) || undefined
-  const hasLlmJudge = schemaGroundHasLlmTableJudge(schemaGround)
-
-  if (!tables.length && !queryPlan && !fk && !fields.length && !schemaGround) return payload
 
   const base: ManagerDbTaskPayload = payload ?? {
     source: 'manager',
@@ -147,6 +175,23 @@ export function enrichManagerDbTaskFromPrefetch(
     must_filters: [],
     schema_search_keywords: ''
   }
+
+  // omit：禁止锁表与预取 plan 短路，DB 自主 NLU（与独立端同权）
+  if (opts?.omitSchemaHints) {
+    return stripTableLockingPrefetchFields(payload)
+  }
+
+  const tables = uniqStrings(
+    [...(hints.suggested_tables ?? []), ...(payload?.hint_tables ?? [])],
+    6
+  )
+  const fields = uniqStrings([...(hints.suggested_fields ?? []), ...(payload?.hint_fields ?? [])], 12)
+  const fk = String(hints.schema_fk_hints ?? payload?.schema_fk_hints ?? '').trim()
+  const fromApi = String(unified.schema_ground_json ?? '').trim()
+  const schemaGround = fromApi || schemaGroundJsonFromPrefetch(hints, tables) || undefined
+  const hasLlmJudge = schemaGroundHasLlmTableJudge(schemaGround)
+
+  if (!tables.length && !queryPlan && !fk && !fields.length && !schemaGround) return payload
 
   return {
     ...base,

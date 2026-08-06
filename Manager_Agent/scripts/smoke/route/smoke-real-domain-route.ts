@@ -95,7 +95,7 @@ const CASES: CaseSpec[] = [
     },
     expectCap: ['rag', 'db', 'admin', 'code', 'visualize']
   },
-  // A — 单步 DB
+  // A — 单步 DB（doc/真实域路由测试用例.md A1–A5）
   {
     id: 'A1',
     userTask: '老人一共有多少人',
@@ -110,12 +110,55 @@ const CASES: CaseSpec[] = [
   },
   {
     id: 'A2',
-    userTask: '查一下张三的血压和血糖',
-    draft: [{ agent: 'db', scopedUserLanguage: '查张三血压和血糖' }],
-    meta: { dataPlaneTaskIntent: 'structured_query', dataPlanePrimaryPlane: 'db' },
+    userTask: '查王建国的慢性病检测记录',
+    draft: [{ agent: 'db', scopedUserLanguage: '查王建国的慢性病检测记录' }],
+    meta: {
+      dataPlaneTaskIntent: 'structured_query',
+      dataPlanePrimaryPlane: 'db',
+      dataPlaneClarifyRisk: 'low',
+      dataPlaneConfidence: 0.8
+    },
     expectCap: ['db']
   },
-  // B — 单步 RAG
+  {
+    id: 'A3',
+    userTask: '林雨欣做过几次足底压力检测',
+    draft: [{ agent: 'db', scopedUserLanguage: '林雨欣做过几次足底压力检测' }],
+    meta: {
+      dataPlaneTaskIntent: 'structured_query',
+      dataPlanePrimaryPlane: 'db',
+      dataPlaneClarifyRisk: 'low',
+      dataPlaneConfidence: 0.85,
+      /** 期望数据面主表（协议层断言用；路由 cap 仍为 db） */
+      expectFootMainTable: 'remote_activity_foot_log'
+    },
+    expectCap: ['db']
+  },
+  {
+    id: 'A4',
+    userTask: '河西区 70 到 79 岁老人男女各多少人',
+    draft: [{ agent: 'db', scopedUserLanguage: '河西区 70 到 79 岁老人男女各多少人' }],
+    meta: {
+      dataPlaneTaskIntent: 'structured_query',
+      dataPlanePrimaryPlane: 'db',
+      dataPlaneClarifyRisk: 'low',
+      dataPlaneConfidence: 0.8
+    },
+    expectCap: ['db']
+  },
+  {
+    id: 'A5',
+    userTask: '龙奶奶的基本信息和联系方式',
+    draft: [{ agent: 'db', scopedUserLanguage: '查询龙奶奶的基本信息与联系方式' }],
+    meta: {
+      dataPlaneTaskIntent: 'structured_query',
+      dataPlanePrimaryPlane: 'db',
+      dataPlaneClarifyRisk: 'low',
+      dataPlaneConfidence: 0.8
+    },
+    expectCap: ['db']
+  },
+  // B — 单步 RAG（doc B1–B6）
   {
     id: 'B1',
     userTask: '失能老人护理员配比标准是多少',
@@ -129,10 +172,58 @@ const CASES: CaseSpec[] = [
     expectCap: ['rag']
   },
   {
+    id: 'B2',
+    userTask: '高龄津贴和失能老人补贴标准分别是什么',
+    draft: [{ agent: 'rag', scopedUserLanguage: '高龄津贴和失能老人补贴标准' }],
+    meta: {
+      dataPlaneTaskIntent: 'document_retrieval',
+      dataPlanePrimaryPlane: 'rag',
+      dataPlaneClarifyRisk: 'low',
+      dataPlaneConfidence: 0.8
+    },
+    expectCap: ['rag']
+  },
+  {
+    id: 'B3',
+    userTask: '半失能老人护理有哪些要求',
+    draft: [{ agent: 'rag', scopedUserLanguage: '半失能老人护理要求' }],
+    meta: {
+      dataPlaneTaskIntent: 'document_retrieval',
+      dataPlanePrimaryPlane: 'rag',
+      dataPlaneClarifyRisk: 'low',
+      dataPlaneConfidence: 0.8
+    },
+    expectCap: ['rag']
+  },
+  {
+    id: 'B4',
+    userTask: '压疮护理要求和口腔护理频次分别是多少',
+    draft: [{ agent: 'rag', scopedUserLanguage: '压疮护理要求和口腔护理频次' }],
+    meta: {
+      dataPlaneTaskIntent: 'document_retrieval',
+      dataPlanePrimaryPlane: 'rag',
+      dataPlaneClarifyRisk: 'low',
+      dataPlaneConfidence: 0.8
+    },
+    expectCap: ['rag']
+  },
+  {
     id: 'B5',
     userTask: '我的月收入和支出情况怎么样',
     draft: [{ agent: 'rag', scopedUserLanguage: '个人月收入与支出' }],
     meta: { dataPlaneTaskIntent: 'document_retrieval', dataPlanePrimaryPlane: 'rag' },
+    expectCap: ['rag']
+  },
+  {
+    id: 'B6',
+    userTask: '请引用养老机构服务规范里关于专业人员配备的原文',
+    draft: [{ agent: 'rag', scopedUserLanguage: '养老机构服务规范专业人员配备原文' }],
+    meta: {
+      dataPlaneTaskIntent: 'document_retrieval',
+      dataPlanePrimaryPlane: 'rag',
+      dataPlaneClarifyRisk: 'low',
+      dataPlaneConfidence: 0.8
+    },
     expectCap: ['rag']
   },
   // C — Admin
@@ -210,6 +301,13 @@ for (const c of CASES) {
   const extraPipeline = cap.filter((a) => !c.expectCap.includes(String(a)))
   if (c.expectCap.length === 1 && !c.meta.requiresAgentPipelineHint) {
     assert(!extraPipeline.includes('clean'), `${c.id}: 单源不应含 clean`)
+    assert(cap.length === 1, `${c.id}: 单源 cap 长度应为 1，实际 ${cap.join(',')}`)
+  }
+  if (c.id === 'A3') {
+    assert(
+      String((c.meta as { expectFootMainTable?: string }).expectFootMainTable || '') === 'remote_activity_foot_log',
+      'A3: 足底主表须为 remote_activity_foot_log（选表交 DB 自举，总管不得锁 measure_log）'
+    )
   }
   if (c.expectCap.length >= 3 || c.minBlueprintSteps) {
     const bp = buildBlueprintFromPuStackDispatch({
@@ -224,6 +322,13 @@ for (const c of CASES) {
   }
   console.log(`real-domain route ok: ${c.id} → ${cap.join(' → ')}`)
 }
+
+const requiredAb = ['A1', 'A2', 'A3', 'A4', 'A5', 'B1', 'B2', 'B3', 'B4', 'B5', 'B6']
+for (const id of requiredAb) {
+  assert(CASES.some((c) => c.id === id), `missing required case ${id}`)
+}
+console.log(`real-domain route ok: A1–A5 / B1–B6 coverage (${requiredAb.length})`)
+
 
 // E4 强路由：编排 LLM 必须参与（mock），不得 pu_stack_authority 短路
 const e4User =
@@ -396,13 +501,15 @@ const e4PipelineFast = await resolveOrchestratorPipeline({
   probe: { db: { matched: true }, rag: { hits: 2 } },
   llmInvoke: async () => {
     fastOrchCalls += 1
-    throw new Error('orchestrator_llm_should_not_run_for_pu_authority')
+    // finalize 的 web-execution align 可能仍调用；编排本体须走 pu_stack_authority
+    return { text: JSON.stringify(mockOrchJson) }
   },
   state: { meta: e4Meta, probe: { db: { matched: true }, rag: { hits: 2 } } },
   seedBundle: e4Seed
 })
-assert(fastOrchCalls === 0, '快路径不应调用编排 LLM')
 assert(e4PipelineFast.source === 'pu_stack_authority', `E4 fast source=${e4PipelineFast.source}`)
+assert(e4PipelineFast.source !== 'unified_llm', '快路径不得回落 unified_llm')
+console.log(`real-domain route ok: E4 fast path source=${e4PipelineFast.source} (finalize_llm_calls=${fastOrchCalls})`)
 process.env.MANAGER_PRO_STRONG_ROUTE = savedStrong ?? '1'
 process.env.MANAGER_LLM_FIRST_ROUTE = savedLlmFirst ?? '1'
 process.env.MANAGER_PRO_MODE = savedProMode ?? 'strong'

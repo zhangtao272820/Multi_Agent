@@ -2,9 +2,12 @@ import { shouldSkipRagEvidenceSelect } from './ragPrefetch'
 
 export type RagRetrieveAttemptMode = 'default' | 'relaxed'
 
-/** 总管编排默认 retrieve-first；设 0 则与旧版相同（先 chat 为主） */
+/**
+ * 是否用 retrieve/probe 事实块作为终答快路径。
+ * 默认关闭：与独立文档助手一致，主路径走 /api/chat；设 1 可恢复旧 retrieve-first。
+ */
 export function isManagerRagRetrieveFirstEnabled(): boolean {
-  return String(process.env.MANAGER_RAG_RETRIEVE_FIRST ?? '1').trim() !== '0'
+  return String(process.env.MANAGER_RAG_RETRIEVE_FIRST ?? '0').trim() === '1'
 }
 
 export function ragRetrieveCallOptions(mode: RagRetrieveAttemptMode, probeHits: number) {

@@ -16,6 +16,7 @@
     "smoke:metrics": "npx --yes tsx --tsconfig tsconfig.smoke.json scripts/smoke-metrics.ts",
     "smoke:slot-ssot": "npx --yes tsx --tsconfig tsconfig.smoke.json scripts/smoke-slot-ssot.ts",
     "smoke:person": "npx --yes tsx --tsconfig tsconfig.smoke.json scripts/smoke-person-basic-stats.ts",
+    "smoke:person-info-a5": "npx --yes tsx --tsconfig tsconfig.smoke.json scripts/smoke-person-info-a5-path.ts",
     "smoke:nlu": "npx --yes tsx --tsconfig tsconfig.smoke.json scripts/smoke-db-nlu.ts",
     "smoke:query-plan-prompt-packs": "npx --yes tsx --tsconfig tsconfig.smoke.json scripts/smoke-query-plan-prompt-packs.ts",
     "smoke:decompose": "npx --yes tsx --tsconfig tsconfig.smoke.json scripts/smoke-decompose-regression.ts",

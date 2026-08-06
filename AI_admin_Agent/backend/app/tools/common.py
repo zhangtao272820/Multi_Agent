@@ -26,6 +26,22 @@ _WEATHER_LAST_CALL_AT = WEATHER_LAST_CALL_AT
 _MAIL_CACHE_BY_SESSION = MAIL_CACHE_BY_SESSION
 
 
+def mail_cache_key(user_id: str | None, session_id: str | None) -> str:
+    uid = str(user_id or "").strip() or "_"
+    sid = str(session_id or "default").strip() or "default"
+    return f"{uid}::{sid}"
+
+
+def get_mail_cache(user_id: str | None, session_id: str | None) -> Dict[int, Dict[str, str]]:
+    return MAIL_CACHE_BY_SESSION.get(mail_cache_key(user_id, session_id), {})
+
+
+def set_mail_cache(
+    user_id: str | None, session_id: str | None, cache: Dict[int, Dict[str, str]]
+) -> None:
+    MAIL_CACHE_BY_SESSION[mail_cache_key(user_id, session_id)] = cache
+
+
 def tool_ok(human_message: str, data: dict | None = None, code: str = "ok") -> dict:
     return {
         "ok": True,

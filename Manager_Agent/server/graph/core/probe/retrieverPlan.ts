@@ -171,13 +171,13 @@ export function buildManagerRagTaskPayload(input: {
 
 /**
  * @param scopeHint 由模型生成的检索范围说明（可选，来自 createRagScopeHintJudge）
- * @param retrievalKeywords / excludeHints 由模型规划侧车（可选）
+ * @param retrievalKeywords / excludeHints 保留参数兼容；透传协议下不写入 message/sidecar
  */
 export function buildRagRetrievalMessage(
   userTask: string,
   stepQuery: string,
   probeRag?: RagProbeHint | null,
-  scopeHint?: string,
+  _scopeHint?: string,
   planSidecar?: { retrievalKeywords?: string[]; excludeHints?: string[]; turnScopeMode?: string | null; turnKind?: string | null }
 ) {
   const stripped = stripPlanConstraintsFromQuery(String(stepQuery || userTask || '').trim())
@@ -185,57 +185,21 @@ export function buildRagRetrievalMessage(
     resolveLeanRagQuery(String(stepQuery || userTask || '').trim(), String(userTask || '').trim()) ||
     compactQuery(stripped) ||
     compactQuery(stripPlanConstraintsFromQuery(String(userTask || '').trim()))
-  if (!isRetrieverPlanEnabled()) {
-    return { message: leanQuery, leanQuery, meta: { mode: 'passthrough' as const } }
-  }
-  const core = leanQuery
   const hits = Number(probeRag?.hits ?? 0) || 0
-  const sources = Array.isArray(probeRag?.sources) ? probeRag!.sources!.map((x) => String(x || '').trim()).filter(Boolean).slice(0, 8) : []
-  const snippets = Array.isArray(probeRag?.snippets) ? probeRag!.snippets!.map((x) => String(x || '').trim()).filter(Boolean).slice(0, 6) : []
-  const sourceHint =
-    hits > 0 && sources.length
-      ? `\n【索引线索】知识库可能相关来源：${sources.join('；')}`
-      : hits > 0
-        ? '\n【索引线索】知识库探测显示有命中文档，请紧扣检索问句并引用出处；主题不符时应明确说明未找到。'
-        : ''
-  const probeHint = snippets.length
-    ? `\n【探测片段（供对照，勿遗漏其中与问句相关的条目）】\n${snippets.map((s, i) => `${i + 1}. ${s}`).join('\n')}`
-    : ''
-  const scopeTrimmed = String(scopeHint || '').trim()
-  const catalogHint = scopeTrimmed ? `\n【检索范围（模型）】${scopeTrimmed.slice(0, 600)}` : ''
-
-  const message = [
-    '【检索任务】请仅依据与问句主题直接相关的已索引文档作答；文档不足时说明缺口，不要编造。',
-    '【排除】明显与问句主题无关的文档/条款不得写入回答；若检索范围（模型）已给出 excludeHints 须遵守。',
-    `【核心问句】${core}`,
-    sourceHint,
-    probeHint,
-    catalogHint,
-    '\n【输出要求】',
-    '- 只输出要点列表（每条一行，格式如「- 字段：值（来源：文件名）」），禁止长段落、寒暄、反问、重复解释计算过程；',
-    '- 仅列出与检索问句主题直接相关的可核对事实（数字、日期、实体等）；',
-    '- 文档中无某类信息时一句说明缺失，禁止用 0 或猜测填补；',
-    '- 若需澄清，最多 1～2 个具体问题。'
-  ]
-    .filter(Boolean)
-    .join('\n')
-
+  const sources = Array.isArray(probeRag?.sources)
+    ? probeRag!.sources!.map((x) => String(x || '').trim()).filter(Boolean).slice(0, 8)
+    : []
+  // 透传：message = lean NL，不包装【检索任务】、不带 managerRagTask
   return {
-    message,
-    leanQuery: core,
-    managerRagTask: buildManagerRagTaskPayload({
-      leanQuery: core,
-      scopeHint: scopeTrimmed,
-      userTask: String(userTask || '').trim(),
-      retrievalKeywords: planSidecar?.retrievalKeywords,
-      excludeHints: planSidecar?.excludeHints,
-      turnScopeMode: planSidecar?.turnScopeMode,
-      turnKind: planSidecar?.turnKind,
-    }),
+    message: leanQuery,
+    leanQuery,
+    managerRagTask: undefined,
     meta: {
-      mode: 'heuristic_v1' as const,
+      mode: 'passthrough' as const,
       probeHits: hits,
-      sourceCount: sources.length
+      sourceCount: sources.length,
+      turnScopeMode: planSidecar?.turnScopeMode ?? null,
+      turnKind: planSidecar?.turnKind ?? null
     }
   }
 }

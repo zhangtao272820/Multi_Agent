@@ -70,7 +70,7 @@ bash scripts/install-linux.sh --no-monitor   # 或去掉 --no-monitor / 加 --ex
 客户机: 填 .env.agents-lan → bash scripts/install-linux.sh --offline
 ```
 
-公网只开 **80/443** 反代 UI，勿把 PG / Redis / 子 Agent 端口写进安全组。详见 [公网演示部署](../docs/公网演示部署.md)。
+公网只开 **80/443** 反代 UI，勿把 PG / Redis / 子 Agent 端口写进安全组。详见 [公网演示部署](../docs/公网演示部署.md)（含 **§2b 专家失败决策 / 会话退出** 与生产封顶 env）。
 
 ---
 

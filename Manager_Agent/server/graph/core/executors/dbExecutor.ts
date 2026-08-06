@@ -1,15 +1,14 @@
-import { ensureDbProbeHintsForPlan } from '../../../utils/db/managerDbHintsLlm'
-import { judgeDbPrefetchAlignment } from '../../../utils/db/managerDbPrefetchAlignLlm'
-import { prefetchHasDbHints, enrichManagerDbTaskFromPrefetch, stripMisalignedPrefetchFromManagerTask } from '../../../utils/db/managerDbPrefetchReuse'
 import { pickRichestDbQuestion, resolveLeanDbUserQuestionAsync, dbAnchorCtx } from '../../../utils/db/managerDbQuestionLlm'
-import { shouldOmitManagerDbSchemaHints } from '../../../utils/db/managerDbSchemaHintsPolicy'
-import { buildManagerDbTaskPayloadFromState } from '../../../utils/db/managerDbTaskPayload'
 import { resolveSubAgentScopeByLlm } from '../../../utils/route/managerSubAgentScopeLlm'
 import type { LlmInvokeFn } from '../../llm/taskConstraintsLlm'
 import type { ManagerGraphState } from '../../state/state'
-import { prefetchDbTaskPlan } from '../db/dbPrefetch'
-import { resolveDbStepQuestionSync, hasOrchestratedDbScope, dbQueryFocusFromMeta } from '../db/dbStepQuestion'
-import { buildDbHistoryFromState, resolveManagerAgentSessionId, resolveSubAgentTurnScope } from '../runtime/sessionBridge'
+import {
+  resolveDbStepQuestionSync,
+  hasOrchestratedDbScope,
+  dbQueryFocusFromMeta,
+  sanitizeSubAgentBusinessQuestion
+} from '../db/dbStepQuestion'
+import { resolveManagerAgentSessionId } from '../runtime/sessionBridge'
 import { extractStructuredPayload } from '../shared'
 import { CTX_SEP } from './sharedHelpers'
 import type { AgentExecutorDeps, AgentExecutorOpts, AgentStepOutcome } from './types'
@@ -27,41 +26,9 @@ export async function executeDbStep(
   }
 ): Promise<AgentStepOutcome> {
   const lastU = deps.lastUserText(input.state.messages)
-  let execState = input.state
-  const omitSchemaHints = shouldOmitManagerDbSchemaHints({
-    question: input.effQuery,
-    lastUser: lastU,
-    meta: execState.meta,
-    intent: execState.intent
-  })
-  const probeTableCount = Array.isArray(execState.probe?.db?.tables) ? execState.probe!.db!.tables!.length : 0
-  if (
-    !omitSchemaHints &&
-    !execState.meta?.dbProbeHints &&
-    !prefetchHasDbHints(execState.meta) &&
-    execState.probe?.db?.matched &&
-    input.llmInvoke &&
-    probeTableCount >= 2
-  ) {
-    const dbProbeHints = await ensureDbProbeHintsForPlan({
-      state: execState,
-      question: input.effQuery,
-      llmInvoke: input.llmInvoke,
-      willUseDb: true
-    })
-    if (dbProbeHints.hintTables.length || dbProbeHints.riskNotes.length) {
-      execState = {
-        ...execState,
-        meta: { ...(execState.meta || {}), dbProbeHints }
-      }
-    }
-  }
+  const execState = input.state
   const queryParts = String(input.effQuery ?? '').split(CTX_SEP)
-  const stepCore = resolveDbStepQuestionSync(
-    String(queryParts[0] || '').trim(),
-    lastU,
-    execState.meta
-  )
+  const stepCore = resolveDbStepQuestionSync(String(queryParts[0] || '').trim(), lastU, execState.meta)
   const lockDbScope = hasOrchestratedDbScope(execState.meta)
   let dbQuestion: string
   if (lockDbScope) {
@@ -89,73 +56,14 @@ export async function executeDbStep(
     })
     dbQuestion = pickRichestDbQuestion(refinedCore, lastU, dbAnchorCtx(execState), { meta: execState.meta })
   }
-  const dbUserMessage =
+  const finalDbMessage = sanitizeSubAgentBusinessQuestion(
     queryParts.length > 1
       ? `${dbQuestion}${CTX_SEP}${queryParts.slice(1).join(CTX_SEP)}`
       : dbQuestion
-
-  const prefetchQ = String(
-    (execState.meta as { dbPlanPrefetch?: { question?: string } } | null)?.dbPlanPrefetch?.question || ''
-  ).trim()
-  const prefetchTables =
-    ((execState.meta as { dbPlanPrefetch?: { unified_task_plan?: { hints?: { suggested_tables?: string[] } } } } | null)
-      ?.dbPlanPrefetch?.unified_task_plan?.hints?.suggested_tables as string[] | undefined) ?? []
-  const align = await judgeDbPrefetchAlignment({
-    prefetchQuestion: prefetchQ,
-    execQuestion: dbQuestion,
-    userTask: lastU,
-    suggestedTables: prefetchTables,
-    llmInvoke: input.llmInvoke,
-    state: execState
-  })
-  const finalDbMessage =
-    align.dbQuestion && align.dbQuestion !== dbQuestion
-      ? queryParts.length > 1
-        ? `${align.dbQuestion}${CTX_SEP}${queryParts.slice(1).join(CTX_SEP)}`
-        : align.dbQuestion
-      : dbUserMessage
-  if (!align.aligned && prefetchQ) {
-    input.sendThinking(
-      `数据库：预取问句与执行问句不一致，已跳过 schema 复用（${align.rationale || 'misaligned'}）`
-    )
-  }
-  let allowPrefetchReuse = align.aligned
-  if (!align.aligned && opts.dbAgentHttpUrl) {
-    const execPlanQ = String(align.dbQuestion || finalDbMessage).split(CTX_SEP)[0]!.trim()
-    const fresh = await prefetchDbTaskPlan({
-      dbAgentHttpUrl: opts.dbAgentHttpUrl,
-      question: execPlanQ,
-      timeoutMs: Math.min(input.timeoutMs, 12_000),
-      dbId: opts.dbId,
-      traceId: opts.runId,
-      managerTask: {
-        source: 'manager',
-        refined_question: execPlanQ,
-        must_filters: [],
-        schema_search_keywords: ''
-      }
-    })
-    if (fresh.ok && fresh.unified_task_plan) {
-      execState = {
-        ...execState,
-        meta: {
-          ...(execState.meta || {}),
-          dbPlanPrefetch: { ...fresh, question: execPlanQ }
-        }
-      }
-      allowPrefetchReuse = true
-      input.sendThinking(`数据库：已按执行问句重新预取 schema（${fresh.ms}ms）`)
-    }
-  }
+  )
   try {
     const dbSessionId = resolveManagerAgentSessionId(opts)
-    const subScope = resolveSubAgentTurnScope(execState.meta)
-    const turnScopeMode =
-      subScope?.mode ??
-      (String((execState.meta as { turnScopeMode?: string } | null)?.turnScopeMode || '').trim() || null)
-    const turnKind =
-      subScope?.turn_kind ??
-      (String((execState.meta as { turnKind?: string } | null)?.turnKind || '').trim() || null)
+    // 透传：仅 NL 问句，等同独立端 /api/ask（不传 managerTask / 编排头）
     const dbRes = await deps.callDbAgent({
       dbAgentWsUrl: opts.dbAgentWsUrl,
       dbAgentHttpUrl: opts.dbAgentHttpUrl,
@@ -163,27 +71,33 @@ export async function executeDbStep(
       traceId: opts.runId,
       sessionId: dbSessionId,
       timeoutMs: input.timeoutMs,
-      messages: buildDbHistoryFromState(input.state.messages, finalDbMessage, { turnScopeMode, turnKind }),
-      managerTask: (() => {
-        const base = buildManagerDbTaskPayloadFromState(finalDbMessage, execState)
-        const enriched = enrichManagerDbTaskFromPrefetch(base, execState.meta, {
-          omitSchemaHints: omitSchemaHints && !allowPrefetchReuse,
-          allowReuse: allowPrefetchReuse
-        })
-        return allowPrefetchReuse ? enriched : stripMisalignedPrefetchFromManagerTask(enriched)
-      })() ?? undefined,
+      messages: [{ role: 'user', content: finalDbMessage }],
       sendThinking: input.sendThinking,
       ...(String(process.env.MANAGER_DB_HTTP_ONLY ?? '').trim() === '1' ? { httpOnly: true as const } : {}),
       signal: opts.signal
     })
     let output = String(dbRes?.answer ?? '')
     const ar = dbRes.agentResult
-    const isEmpty =
-      Boolean(dbRes?.empty) ||
-      Boolean(ar?.structured?.empty) ||
-      ar?.error_code === 'empty_result' ||
-      ar?.error_code === 'schema_miss' ||
-      deps.isDbNoData(output)
+    const serverOk =
+      ar?.ok === true &&
+      ar?.error_code !== 'empty_result' &&
+      ar?.error_code !== 'schema_miss' &&
+      ar?.structured?.empty !== true &&
+      dbRes?.empty !== true
+    // 空结果以 DB empty / error_code 为准；服务端 ok 时不以文案启发式 isDbNoData 误杀短统计答。
+    // 无 agentResult 但正文足够长且不像拒答时，也不用启发式误杀（协议对齐：保留专才 Artifact）。
+    const heuristicEmpty = ar?.ok !== true && deps.isDbNoData(output)
+    const richNonEmptyAnswer =
+      !ar &&
+      output.trim().length >= 40 &&
+      !heuristicEmpty
+    const isEmpty = serverOk || richNonEmptyAnswer
+      ? false
+      : Boolean(dbRes?.empty) ||
+        Boolean(ar?.structured?.empty) ||
+        ar?.error_code === 'empty_result' ||
+        ar?.error_code === 'schema_miss' ||
+        heuristicEmpty
     const arFailed = ar?.ok === false
     const stepOk = !isEmpty && !arFailed
     if (isEmpty) {
@@ -201,13 +115,36 @@ export async function executeDbStep(
       })
     }
     const errorCode = String(ar?.error_code || (isEmpty ? 'empty_result' : '')).trim() || undefined
+    if (!stepOk) {
+      return {
+        ok: false,
+        agent: 'db',
+        output,
+        query: finalDbMessage,
+        parsed: extractStructuredPayload(output),
+        error: errorCode || dbRes.reason || 'db_step_failed',
+        evidence: {
+          kind: 'db',
+          query: finalDbMessage,
+          transport: dbRes.transport,
+          run_id: dbRes.run_id,
+          trace_id: dbRes.trace_id || opts.runId,
+          sources: ar?.sources,
+          empty: isEmpty,
+          reason: dbRes.reason,
+          error_code: errorCode,
+          executed_sql: ar?.structured?.executed_sql,
+          ...(explainPreflight.length ? { explain_preflight: explainPreflight } : {})
+        },
+        meta: ar ? { agentResult: ar } : {}
+      }
+    }
     return {
-      ok: stepOk,
+      ok: true,
       agent: 'db',
       output,
       query: finalDbMessage,
       parsed: extractStructuredPayload(output),
-      error: stepOk ? undefined : errorCode || dbRes.reason || 'db_step_failed',
       evidence: {
         kind: 'db',
         query: finalDbMessage,
@@ -215,7 +152,7 @@ export async function executeDbStep(
         run_id: dbRes.run_id,
         trace_id: dbRes.trace_id || opts.runId,
         sources: ar?.sources,
-        empty: isEmpty,
+        empty: false,
         reason: dbRes.reason,
         error_code: errorCode,
         executed_sql: ar?.structured?.executed_sql,
@@ -232,4 +169,3 @@ export async function executeDbStep(
     return { ok: false, agent: 'db', output, query: finalDbMessage, error: err }
   }
 }
-

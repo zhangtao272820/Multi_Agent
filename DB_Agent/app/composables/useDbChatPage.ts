@@ -659,7 +659,7 @@ const syncTruncateToServer = async (
   const hasIdx = typeof fromUserIndex === "number" && fromUserIndex >= 0;
   if (!sid || !hasIdx) return false;
   try {
-    await $fetch("/api/session-feedback/delete", {
+    await $fetch("/api/session-feedback.delete", {
       method: "POST",
       body: {
         sessionId: sid,
@@ -964,7 +964,7 @@ const onAppModalConfirm = async (inputValue?: string) => {
         method: "POST",
         body: { sessionId: deletedId },
       });
-      await $fetch("/api/session-feedback/delete", {
+      await $fetch("/api/session-feedback.delete", {
         method: "POST",
         body: { sessionId: deletedId, deleteAll: true },
       }).catch(() => undefined);

@@ -56,7 +56,10 @@ function refsFromEvidence(evidence?: Record<string, unknown> | null): string[] {
       if (!c || typeof c !== 'object') continue
       const row = c as Record<string, unknown>
       const s = String(row.source || row.title || row.url || '').trim()
-      if (s) out.push(`cite:${s.slice(0, 120)}`)
+      const excerpt = String(row.excerpt || '').trim()
+      if (s && excerpt) out.push(`cite:${s.slice(0, 80)}|${excerpt.slice(0, 160)}`)
+      else if (s) out.push(`cite:${s.slice(0, 120)}`)
+      else if (excerpt) out.push(`cite:excerpt:${excerpt.slice(0, 160)}`)
     }
   }
   return Array.from(new Set(out)).slice(0, 12)
@@ -78,21 +81,32 @@ function confidenceFromInput(input: HandoffBuildInput): number {
 
 /**
  * 从步结果确定性组装 SpecialistHandoff。
- * raw 全文不进返回的 summary；rawRef 指向 stepId/agent 句柄。
+ * 失败时 summary 只用 error_code / 短失败信息，禁止把长 answer（如错域遥测）当结论。
+ * 成功时优先步输出 output（含 RAG 事实块），勿被 agentResult.answer=问句盖住。
  */
 export function buildSpecialistHandoffFromStep(input: HandoffBuildInput): SpecialistHandoff {
   const agent = String(input.agent || '').trim() || 'unknown'
   const stepId = String(input.stepId || '').trim()
   const ar = input.agentResult
-  const rawFull = String(ar?.answer || input.output || '').trim()
+  const stepOutput = String(input.output || '').trim()
+  const arAnswer = String(ar?.answer || '').trim()
+  // 步输出优先：RAG 旧契约曾把 ar.answer 写成问句，会盖住事实块
+  const rawFull = stepOutput || arAnswer
   const err = String(input.error || ar?.error_code || '').trim()
   const failed = input.ok === false || Boolean(err) || ar?.ok === false
 
   let summary = ''
-  if (ar?.handoff?.summary) summary = trimSummary(ar.handoff.summary)
-  if (!summary) summary = trimSummary(rawFull)
-  if (!summary && err) summary = trimSummary(err, 160)
-  if (!summary) summary = failed ? `${agent} 未产出可用结论` : `${agent} 已完成`
+  if (failed) {
+    // 失败：禁止倾倒全文；只用短失败语义
+    if (ar?.handoff?.failure?.message) summary = trimSummary(ar.handoff.failure.message, 160)
+    if (!summary && err) summary = trimSummary(err, 160)
+    if (!summary && ar?.handoff?.summary) summary = trimSummary(ar.handoff.summary, 160)
+    if (!summary) summary = `${agent} 未产出可用结论`
+  } else {
+    if (ar?.handoff?.summary) summary = trimSummary(ar.handoff.summary)
+    if (!summary) summary = trimSummary(rawFull)
+    if (!summary) summary = `${agent} 已完成`
+  }
   summary = clipHandoffSummary(summary)
 
   const evidenceRefs = Array.from(
@@ -132,8 +146,15 @@ export function buildSpecialistHandoffFromStep(input: HandoffBuildInput): Specia
 export function formatHandoffForParentContext(
   agent: string,
   handoff: SpecialistHandoff,
-  opts?: { includeRawHint?: boolean; includeConfidence?: boolean }
+  opts?: { includeRawHint?: boolean; includeConfidence?: boolean; failureOnly?: boolean }
 ): string {
+  if (opts?.failureOnly && handoff.failure) {
+    return [
+      `[HANDOFF:${agent}]`,
+      `失败：${handoff.failure.code} — ${trimSummary(handoff.failure.message, 160)}`,
+      `[/HANDOFF]`
+    ].join('\n')
+  }
   const lines = [
     `[HANDOFF:${agent}]`,
     `结论：${clipHandoffSummary(handoff.summary)}`,
@@ -150,15 +171,21 @@ export function formatHandoffForParentContext(
   return lines.filter(Boolean).join('\n')
 }
 
-/** 从 evidence 列表抽取 handoff 块供 synth（跳过超长 raw） */
+/** 从 evidence 列表抽取 handoff 块供 synth（跳过超长 raw；error 步只输出失败行） */
 export function formatHandoffsFromEvidence(evidences: Array<Record<string, unknown>>): string {
   const blocks: string[] = []
   for (const ev of Array.isArray(evidences) ? evidences : []) {
     if (!ev || typeof ev !== 'object') continue
     const handoff = ev.handoff as SpecialistHandoff | undefined
     const agent = String(ev.agent || ev.kind || '').trim()
-    if (!handoff?.summary || !agent) continue
-    if (String(ev.kind || '') === 'error' && !handoff.failure) continue
+    if (!handoff || !agent) continue
+    const isError = String(ev.kind || '') === 'error'
+    if (isError) {
+      if (!handoff.failure) continue
+      blocks.push(formatHandoffForParentContext(agent, handoff, { failureOnly: true }))
+      continue
+    }
+    if (!handoff.summary) continue
     blocks.push(formatHandoffForParentContext(agent, handoff))
   }
   return blocks.join('\n\n')

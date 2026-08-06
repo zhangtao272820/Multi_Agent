@@ -142,12 +142,18 @@ export function buildGuiAgentResult(params: {
           : undefined) ||
         (verify.reason === 'task_blocked' ? verify.failureType || 'task_blocked' : undefined) ||
         (verify.reason &&
-        /^(navigation_unverified|incomplete_|search_no_results|search_extract_empty|empty_result|network_unreachable)/.test(
+        /^(navigation_unverified|incomplete_|search_no_results|search_extract_empty|empty_result|network_unreachable|success_criteria_unmet|step_budget_exceeded|element_not_found)/.test(
           String(verify.reason),
         )
           ? String(verify.reason === 'network_unreachable' ? 'network' : verify.reason)
           : undefined) ||
         params.error_code ||
+        (failureType &&
+        /^(navigation_unverified|success_criteria_unmet|step_budget_exceeded|element_not_found|network|captcha|timeout|canceled)/.test(
+          failureType,
+        )
+          ? failureType
+          : undefined) ||
         (failureType && failureType !== 'empty_result' ? failureType : undefined) ||
         (!finalUrl && !directAnswer && !data.length ? 'empty_result' : 'task_blocked'),
     // handoff（验证码/登录/需人工）≠ 缺槽澄清；HITL 只靠 failureType / structured.failureType

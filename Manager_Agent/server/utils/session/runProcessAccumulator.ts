@@ -60,7 +60,13 @@ function eventText(event: string, data: unknown): string {
     if (typeof o.text === 'string') return o.text
     if (typeof o.summary === 'string') return o.summary
     if (typeof o.message === 'string') return o.message
-    if (event === 'phase') return String(o.phase ?? o.data ?? '')
+    if (event === 'phase') {
+      const name = String(o.name ?? o.phase ?? '').trim()
+      const runPhase = Number(o.runPhase)
+      if (name && Number.isFinite(runPhase) && runPhase > 0) return `${name}:phase${runPhase}`
+      if (name) return name
+      return String(o.phase ?? o.data ?? '')
+    }
     try {
       return JSON.stringify(data)
     } catch {

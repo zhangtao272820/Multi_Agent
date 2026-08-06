@@ -79,6 +79,23 @@ def _wait_ready(port: int, timeout: float = 25.0) -> dict | None:
 
 
 def main() -> int:
+    try:
+        return _main_inner()
+    except Exception as exc:
+        # Keep console visible on frozen builds so flash-exit still leaves a clue.
+        print(f"[Companion] fatal: {exc}", file=sys.stderr)
+        import traceback
+
+        traceback.print_exc()
+        if getattr(sys, "frozen", False):
+            try:
+                input("按回车键退出…")
+            except EOFError:
+                time.sleep(8)
+        return 1
+
+
+def _main_inner() -> int:
     port, dist = _prepare_env()
     if not dist.is_dir():
         print(f"[Companion] frontend dist missing: {dist}", file=sys.stderr)
@@ -89,6 +106,11 @@ def main() -> int:
     health = _wait_ready(port)
     if not health:
         print(f"[Companion] server failed to start on port {port}", file=sys.stderr)
+        if getattr(sys, "frozen", False):
+            try:
+                input("按回车键退出…")
+            except EOFError:
+                time.sleep(8)
         return 1
 
     if health.get("has_key"):

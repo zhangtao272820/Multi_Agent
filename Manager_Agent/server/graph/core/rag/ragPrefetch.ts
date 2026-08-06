@@ -4,8 +4,7 @@ import { classifyAndDetectHard, isHardExpertFailureRaw } from '../runtime/expert
 import { resolvePrefetchTargets, type PrefetchGateState } from '../probe/prefetchGate'
 import {
   resolveLeanRagQuery,
-  resolveRagPrefetchLeanQuery,
-  buildRagPrefetchTaskPayload
+  resolveRagPrefetchLeanQuery
 } from '../probe/retrieverPlan'
 
 export type RagRetrievePrefetchResult = {
@@ -102,18 +101,11 @@ export async function prefetchRagRetrieve(params: {
     lastUser
   if (!q) return { ok: false, ms: Date.now() - t0, error: 'empty query（预取问句为空，请检查 routedQuery/用户输入）' }
 
-  const managerRagTask = buildRagPrefetchTaskPayload({
-    ragLeanQuery: q,
-    userTask,
-    turnScopeMode: params.turnScopeMode,
-    turnKind: params.turnKind
-  })
-
   const probeTimeout = Math.min(params.timeoutMs, 20_000)
   const retrieveTimeout = Math.max(probeTimeout, Math.min(params.timeoutMs, 45_000))
 
   try {
-    /** orchestrate 后始终 fresh probe（与 RAG /api/probe 同内核），带 manager_rag_task_json */
+    /** orchestrate 后始终 fresh probe（与 RAG /api/probe 同内核）；透传不带 sidecar */
     let freshProbe: Awaited<ReturnType<typeof callRagProbe>> = null
     try {
       freshProbe = await callRagProbe({
@@ -122,8 +114,7 @@ export async function prefetchRagRetrieve(params: {
         query: q,
         k: 8,
         userId: params.userId,
-        traceId: params.traceId,
-        managerRagTask
+        traceId: params.traceId
       })
     } catch (probeErr: unknown) {
       const detected = classifyAndDetectHard({ error: probeErr })
@@ -176,7 +167,6 @@ export async function prefetchRagRetrieve(params: {
       rawQuery: userTask || q,
       userId: params.userId,
       traceId: params.traceId,
-      managerRagTask,
       skipLlmRerank: shouldSkipRagEvidenceSelect(),
       skipEvidenceSelect: shouldSkipRagEvidenceSelect()
     })

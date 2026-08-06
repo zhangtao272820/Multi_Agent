@@ -21,11 +21,21 @@ function assert(cond: unknown, msg: string) {
 clearLobsterWorkflowCache()
 const ids = listLobsterWorkflowIds()
 assert(ids.includes('httpbin-form-fill'), `ids=${ids.join(',')}`)
+assert(ids.includes('httpbin-form-submit'), 'httpbin-form-submit macro')
+assert(ids.includes('runoob-click-extract'), 'runoob-click-extract macro')
 
 const def = loadLobsterWorkflow('httpbin-form-fill')
 assert(def.steps.length >= 4, 'steps')
 assert(def.steps.some((s) => s.action === 'approve'), 'has approve')
 assert(def.steps.some((s) => s.action === 'finish'), 'has finish')
+
+const runoob = loadLobsterWorkflow('runoob-click-extract')
+assert(runoob.steps.some((s) => s.action === 'click'), 'runoob click')
+assert(runoob.steps.some((s) => s.action === 'extract'), 'runoob extract')
+
+const submit = loadLobsterWorkflow('httpbin-form-submit')
+assert(submit.steps.some((s) => s.action === 'approve'), 'submit approve')
+assert(submit.steps.some((s) => s.action === 'click'), 'submit click')
 
 const vars = resolveWorkflowArgs(def, {
   customer_name: 'alice',

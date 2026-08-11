@@ -255,6 +255,9 @@ def build_system_prompt(
     mbti_section = f"\n\n{mbti_block}" if mbti_block else ""
     memory_section = f"\n\n{memory_block}" if memory_block else ""
     human_block = _human_chat_rules(profile)
+    from .romance_voice import voice_prompt_block
+
+    voice_block = voice_prompt_block(profile.character_id or "")
     story_mode = "【专属故事" in (event_snippet or "")
     length_rule = (
         "4. 本场为专属故事幕：括号外 spoken 约 80~180 字，可带短场景描写，仍保持口语，勿写成说明文。"
@@ -268,6 +271,7 @@ def build_system_prompt(
 
 【背景】
 {backstory}
+{voice_block}
 
 {personality_block}
 {mbti_section}

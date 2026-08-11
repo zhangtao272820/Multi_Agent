@@ -68,6 +68,8 @@ export type RoutePlanCardData = {
 
 export type UserFacingPayload = {
   summary?: string
+  /** 顶栏一行结论（服务端确定性截取） */
+  headline?: string
   metrics?: Array<{ label: string; value: string }>
   chart?: { title: string; option: object }
   table?: { headers: string[]; rows: string[][] }

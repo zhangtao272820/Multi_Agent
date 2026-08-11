@@ -18,12 +18,21 @@ export function sanitizeUntrustedText(text: string) {
   return s.trim()
 }
 
-export type StructuredFact = { key: string; value: any; source?: string }
+export type StructuredFact = { key: string; value: any; label?: string; source?: string }
 
 const StructuredPayloadSchema = z
   .object({
     answer: z.string().optional(),
-    facts: z.array(z.object({ key: z.string().min(1), value: z.any(), source: z.string().optional() })).optional(),
+    facts: z
+      .array(
+        z.object({
+          key: z.string().min(1),
+          value: z.any(),
+          label: z.string().optional(),
+          source: z.string().optional()
+        })
+      )
+      .optional(),
     missingFields: z.array(z.string().min(1)).optional(),
     citations: z
       .array(

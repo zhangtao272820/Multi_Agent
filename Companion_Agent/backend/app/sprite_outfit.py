@@ -55,6 +55,31 @@ _PR_BATH_OUTFITS = (
     "pr_rinse_up",
     "pr_foam_hug",
 )
+# §2.9 私密吊带自拍：romance T0–T2 + 中立 L；晚间居家高亲和，插在 max_* 之后、§2.2 擦边链之前
+_INTIMATE_SELFIE_OUTFITS = (
+    "intimate_selfie_slip",
+    "intimate_selfie_micro",
+    "intimate_selfie_strappy",
+    "intimate_selfie_shirt",
+    "intimate_selfie_backless",
+    "intimate_selfie_sofa",
+    "intimate_selfie_kneel",
+    "intimate_selfie_garter",
+    "intimate_selfie_wet",
+    "intimate_selfie_ribbon",
+)
+_PR_INTIMATE_SELFIE_OUTFITS = (
+    "pr_intimate_selfie_slip",
+    "pr_intimate_selfie_micro",
+    "pr_intimate_selfie_strappy",
+    "pr_intimate_selfie_shirt",
+    "pr_intimate_selfie_backless",
+    "pr_intimate_selfie_sofa",
+    "pr_intimate_selfie_kneel",
+    "pr_intimate_selfie_garter",
+    "pr_intimate_selfie_wet",
+    "pr_intimate_selfie_ribbon",
+)
 # §2.7 / §2.8：仅图鉴；永不进入 resolve 候选链
 _GALLERY_ONLY_OUTFITS = frozenset(
     {
@@ -101,6 +126,9 @@ _ROMANCE_ADVANCE_OUTFITS = frozenset(
         "window_night",
         # romance T0–T2 魅力极限（§2.3）
         *_MAX_APPEAL_OUTFITS,
+        # §2.9 私密吊带自拍
+        *_INTIMATE_SELFIE_OUTFITS,
+        *_PR_INTIMATE_SELFIE_OUTFITS,
         # romance T0–T2 洗浴泡沫（§2.5）+ 半写实（§2.6）
         *_BATH_FOAM_OUTFITS,
         *_PR_BATH_OUTFITS,
@@ -128,6 +156,13 @@ def _bath_chain(sprite_style: str = "") -> tuple[str, ...]:
     if (sprite_style or "").strip().lower() == "photoreal":
         return (*_PR_BATH_OUTFITS, *_BATH_FOAM_OUTFITS)
     return _BATH_FOAM_OUTFITS
+
+
+def _selfie_chain(sprite_style: str = "") -> tuple[str, ...]:
+    """§2.9 自拍候选：photoreal 优先 pr_*，否则仅 anime。"""
+    if (sprite_style or "").strip().lower() == "photoreal":
+        return (*_PR_INTIMATE_SELFIE_OUTFITS, *_INTIMATE_SELFIE_OUTFITS)
+    return _INTIMATE_SELFIE_OUTFITS
 
 
 def _morning_extras(sprite_style: str = "") -> tuple[str, ...]:
@@ -337,6 +372,7 @@ def resolve_outfit(
     partner_ok = _partner_stage_for_advance(cid, stage)
     intimate_ok = _allows_intimate_advance(cid, stage)
     bath = _bath_chain(style)
+    selfie = _selfie_chain(style)
     # 解析仅冬天请求季节装；春夏秋图留磁盘供图鉴，不抢日常
     winter_key = "season_winter" if season == "winter" else ""
     story_hints = normalize_story_outfit_hints(story_outfit_hints)
@@ -386,7 +422,7 @@ def resolve_outfit(
 
     home_like = loc in {"home", "room"}
 
-    # 关系进阶：romance/破门后 linked 走亲密全链；linked 未破门仅 max_* + 洗浴（故意展示）
+    # 关系进阶：romance/破门后 linked 走亲密全链；linked 未破门仅 max_* + 自拍 + 洗浴（故意展示）
     if (
         intimate_ok
         and home_like
@@ -397,6 +433,7 @@ def resolve_outfit(
         add(
             "intimate_implied",
             *_MAX_APPEAL_OUTFITS,
+            *selfie,
             *bath,
             "intimate_lingerie",
             *_INTIMATE_NIGHT_EXTRAS,
@@ -414,6 +451,7 @@ def resolve_outfit(
         if intimate_ok:
             add(
                 *_MAX_APPEAL_OUTFITS,
+                *selfie,
                 *bath,
                 "intimate_lingerie",
                 *_INTIMATE_NIGHT_EXTRAS,
@@ -422,7 +460,7 @@ def resolve_outfit(
                 "casual",
             )
         else:
-            add(*_MAX_APPEAL_OUTFITS, *bath, "home", "casual")
+            add(*_MAX_APPEAL_OUTFITS, *selfie, *bath, "home", "casual")
     elif (
         intimate_ok
         and home_like
@@ -430,7 +468,7 @@ def resolve_outfit(
         and stage in {"dating", "married"}
         and affinity >= INTIMATE_LINGERIE_AFFINITY_MIN
     ):
-        add("intimate_lingerie", *_INTIMATE_NIGHT_EXTRAS, "intimate_lounge", "home", "casual")
+        add(*selfie, "intimate_lingerie", *_INTIMATE_NIGHT_EXTRAS, "intimate_lounge", "home", "casual")
     elif intimate_ok and home_like and per in {"evening", "night"} and affinity >= INTIMATE_AFFINITY_MIN:
         add("intimate_lounge", "home", "casual")
 

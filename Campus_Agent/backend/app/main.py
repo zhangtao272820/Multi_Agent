@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 
 from . import bgm as bgm_mod
 from . import campus_engine
+from . import gallery as gallery_mod
 from . import sprites as sprites_mod
 from .campus_store import store
 from .config import data_dir, frontend_dist, is_desktop
@@ -30,7 +31,8 @@ app.add_middleware(
 class NewGameBody(BaseModel):
     name: str = ""
     grade_tier: str = Field(..., min_length=1)
-    mbti: str = Field(..., min_length=1)
+    stats: dict[str, int] | None = None
+    mbti: str | None = None  # legacy ignored
 
 
 class TravelBody(BaseModel):
@@ -92,7 +94,8 @@ def campus_new(body: NewGameBody) -> dict[str, Any]:
         return campus_engine.create_new(
             name=body.name,
             grade_tier=body.grade_tier,
-            mbti=body.mbti.upper(),
+            stats=body.stats,
+            mbti=body.mbti,
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
@@ -272,6 +275,11 @@ def campus_delete_save(save_id: str) -> dict[str, Any]:
     if not ok:
         raise HTTPException(status_code=404, detail="save_not_found")
     return {"ok": True}
+
+
+@app.get("/api/campus/gallery")
+def campus_gallery(save_id: str | None = None) -> dict[str, Any]:
+    return gallery_mod.build_gallery_payload(save_id=save_id or None)
 
 
 @app.get("/api/campus/sprite/{student_id}")

@@ -3,40 +3,110 @@ label: 玻璃门内
 priority: 5
 once: true
 chance: 1.0
-scene_id: ""
+scene_id: ''
 trigger:
-  character_ids: [jingliu]
+  character_ids:
+  - jingliu
   stage_min: friend
   affinity_min: 55
-  flags_absent: [jl_kept_after_meeting]
-prompt_snippet: |
-  【专属故事 · 权力差的另一侧 · 第1幕 · 玻璃门内】
+  flags_absent:
+  - jl_kept_after_meeting
+prompt_snippet: '【专属故事 · 权力差的另一侧 · 第1幕 · 玻璃门内】
+
+  '
 advance: on_player_turn
 beats:
-  - id: b1
-    narration: "玻璃隔间里她站着听汇报，指尖点平板，语速冷而准——散会后却多看了你一眼。"
-    pc_thought: "玻璃门里她是上司。门一关，我还站不站得住？"
-    brief: "汇报语速冷准；散会多看一眼。等他跟议程、会后确认或注意疲态。"
-    summary: "汇报语速冷准；散会多看一眼。等他跟议程、会后确认或注意疲态。"
-    sprite_hint: [boardroom_stand, work, season_winter, home_eating, home_sleeping]
-    soft_options: ["紧跟议程", "会后单独确认", "注意她的疲态"]
-  - id: b2
-    narration: "电梯里只剩两人。她摘下耳机，忽然问你周末有没有空——不像上司，像试探。"
-    pc_thought: "面具摘了半寸。我想看全，又怕被职场反噬。"
-    brief: "电梯问周末有没有空；试探私人边界。等他给空档、推脱或反问用意。"
-    summary: "电梯问周末有没有空；试探私人边界。等他给空档、推脱或反问用意。"
-    sprite_hint: [sample_swatch, lookbook_flip, season_winter, home_eating, home_sleeping]
-    soft_options: ["说可以", "问是公事还是私事", "保守说看排期"]
-  - id: b3
-    narration: "便利店灯下她买黑咖啡，笑说「别跟同事说我也会饿」——面具裂开一道细缝。"
-    pc_thought: "这句别传出去。我是共犯，还是只想再看她裂开的那一寸？"
-    brief: "便利店露疲态；求别告诉同事。等他认真接住、打趣或守密。"
-    summary: "便利店露疲态；求别告诉同事。等他认真接住、打趣或守密。"
-    sprite_hint: [lookbook_flip, press_kit, season_winter, home_eating, home_sleeping]
-    soft_options: ["说秘密我守", "递热水", "笑说上司也会饿"]
+- id: b1
+  narration: 玻璃隔间里她站着听汇报，指尖点平板，语速冷而准——散会后却多看了你一眼。工牌边缘硌了一下手指。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。空气有点静，连呼吸都听得见。
+  pc_thought: 玻璃门里她是上司。门一关，我还站不站得住？我想靠近，又怕说错一句。
+  brief: 汇报语速冷准；散会多看一眼。等他跟议程、会后确认或注意疲态。
+  summary: 汇报语速冷准；散会多看一眼。等他跟议程、会后确认或注意疲态。
+  sprite_hint:
+  - boardroom_stand
+  - sample_swatch
+  - lookbook_flip
+  - work
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 紧跟议程
+  - 会后单独确认
+  - 注意她的疲态
+  pages:
+  - text: 玻璃隔间里她站着听汇报，指尖点平板，语速冷而准——散会后却多看了你一眼。工牌边缘硌了一下手指。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。空气有点静，连呼吸都听得见。
+    voice: narration
+    sprite:
+      outfit: boardroom_stand
+      emotion: neutral
+  - text: 玻璃门里她是上司。门一关，我还站不站得住？我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: boardroom_stand
+      emotion: shy
+- id: b2
+  narration: 电梯里只剩两人。她摘下耳机，忽然问你周末有没有空——不像上司，像试探。静宁在边上翻过一页笔记。走廊尽头有人低头看手机，像不经意。工牌边缘硌了一下手指。她没再多说，只是看着你。
+  pc_thought: 面具摘了半寸。我想看全，又怕被职场反噬。我想靠近，又怕说错一句。
+  brief: 电梯问周末有没有空；试探私人边界。等他给空档、推脱或反问用意。
+  summary: 电梯问周末有没有空；试探私人边界。等他给空档、推脱或反问用意。
+  sprite_hint:
+  - boardroom_stand
+  - sample_swatch
+  - lookbook_flip
+  - work
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 说可以
+  - 问是公事还是私事
+  - 保守说看排期
+  pages:
+  - text: 电梯里只剩两人。她摘下耳机，忽然问你周末有没有空——不像上司，像试探。静宁在边上翻过一页笔记。走廊尽头有人低头看手机，像不经意。工牌边缘硌了一下手指。她没再多说，只是看着你。
+    voice: narration
+    sprite:
+      outfit: boardroom_stand
+      emotion: neutral
+  - text: 面具摘了半寸。我想看全，又怕被职场反噬。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: boardroom_stand
+      emotion: shy
+- id: b3
+  narration: 便利店灯下她买黑咖啡，笑说「别跟同事说我也会饿」——面具裂开一道细缝。工牌边缘硌了一下手指。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。空气有点静，连呼吸都听得见。
+  pc_thought: 这句别传出去。我是共犯，还是只想再看她裂开的那一寸？我想靠近，又怕说错一句。
+  brief: 便利店露疲态；求别告诉同事。等他认真接住、打趣或守密。
+  summary: 便利店露疲态；求别告诉同事。等他认真接住、打趣或守密。
+  sprite_hint:
+  - boardroom_stand
+  - sample_swatch
+  - lookbook_flip
+  - work
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 说秘密我守
+  - 递热水
+  - 笑说上司也会饿
+  pages:
+  - text: 便利店灯下她买黑咖啡，笑说「别跟同事说我也会饿」——面具裂开一道细缝。工牌边缘硌了一下手指。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。空气有点静，连呼吸都听得见。
+    voice: narration
+    sprite:
+      outfit: boardroom_stand
+      emotion: neutral
+  - text: 这句别传出去。我是共犯，还是只想再看她裂开的那一寸？我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: boardroom_stand
+      emotion: shy
 rewards:
-  flags_set: [jl_kept_after_meeting]
+  flags_set:
+  - jl_kept_after_meeting
 choice_effects:
-  - { trust_delta: 3, affinity_delta: 3 }
-  - { trust_delta: 2, affinity_delta: 2 }
-  - { trust_delta: -2, affinity_delta: -1 }
+- trust_delta: 3
+  affinity_delta: 3
+- trust_delta: 2
+  affinity_delta: 2
+- trust_delta: -2
+  affinity_delta: -1

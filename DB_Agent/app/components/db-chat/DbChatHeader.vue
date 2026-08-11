@@ -94,8 +94,14 @@ const {
           <button type="button" class="intel-btn" :disabled="intelCurating" @click="runCurator">
             {{ intelCurating ? "整理中…" : "整理学习记录" }}
           </button>
+          <button type="button" class="intel-btn intel-btn-danger" :disabled="intelResetting" @click="resetLearning('learning')">
+            清除学习记忆
+          </button>
+          <button type="button" class="intel-btn intel-btn-danger" :disabled="intelResetting" @click="resetLearning('prompts')">
+            重置自我进化
+          </button>
           <button type="button" class="intel-btn intel-btn-danger" :disabled="intelResetting" @click="resetLearning('all')">
-            恢复默认设置
+            全部恢复默认
           </button>
         </div>
       </details>

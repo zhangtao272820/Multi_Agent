@@ -1,7 +1,11 @@
 import { AIMessage, BaseMessage, HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { resolveOrchestratedClientHistory, allowsOrchestratedDialogMerge } from "#agent-shared/turnScope";
+import { isManagerSubAgentSessionId } from "#agent-shared/managerStepSession";
+import { buildEvolutionApplied } from "#agent-shared/evolutionApplied";
 import { createAgent } from "../utils/agent";
 import { sanitizeIncomingQuestion, looksLikeManagerRetrievalTask, parseManagerRagTaskFromJson } from "../utils/incoming_question";
+import { resolveRagStandaloneTurnScope } from "../utils/ragTurnScope";
+import { listPromptPatches } from "../utils/prompt_evolution";
 import { getRagAgentEnv } from "../utils/rag_agent_env";
 import {
   buildFilteredAgentSummaryInjection,
@@ -163,6 +167,7 @@ async function persistStandaloneTurn(params: {
   existingSummary?: string;
 }) {
   if (params.isManagerOrchestrated) return;
+  if (isManagerSubAgentSessionId(params.sessionId, "rag")) return;
   const user = String(params.userMessage || "").trim();
   const assistant = sanitizeUserFacingAnswer(String(params.assistantMessage || "").trim());
   if (!user || !assistant) return;
@@ -187,6 +192,40 @@ async function persistStandaloneTurn(params: {
   } catch (e) {
     console.warn("[RagChat] summary update failed:", e);
   }
+}
+
+function snapshotRagEvolutionApplied(toolOutput?: string): ReturnType<typeof buildEvolutionApplied> {
+  let experienceHits = 0;
+  let banditArm = "";
+  const raw = String(toolOutput || "");
+  const idx = raw.lastIndexOf("[retrieval_meta]");
+  if (idx >= 0) {
+    const jsonPart = raw.slice(idx + "[retrieval_meta]".length).trim();
+    const start = jsonPart.indexOf("{");
+    const end = jsonPart.lastIndexOf("}");
+    if (start >= 0 && end > start) {
+      try {
+        const meta = JSON.parse(jsonPart.slice(start, end + 1)) as {
+          experienceHits?: number;
+          banditArm?: string;
+        };
+        experienceHits = Number(meta.experienceHits) || 0;
+        banditArm = String(meta.banditArm || "").trim();
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+  const patches = listPromptPatches()
+    .filter((p) => !p.promotedAt)
+    .sort((a, b) => b.hits - a.hits)
+    .slice(0, 4)
+    .map((p) => ({ id: p.id, stage: p.stage, hits: p.hits }));
+  return buildEvolutionApplied({
+    promptPatches: patches,
+    experienceHits,
+    banditArm: banditArm || null,
+  });
 }
 
 export default defineEventHandler(async (event) => {
@@ -254,6 +293,7 @@ export default defineEventHandler(async (event) => {
     );
     setManagerRagTask(managerTask);
     const sanitizedMessage = sanitizeIncomingQuestion(rawMessage, managerTask) || rawMessage;
+    const isManagerStepSession = isManagerSubAgentSessionId(sessionId, "rag");
     const isManagerOrchestrated =
       looksLikeManagerRetrievalTask(rawMessage) ||
       Boolean(managerTask) ||
@@ -261,7 +301,8 @@ export default defineEventHandler(async (event) => {
     setOrchestratedByManager(isManagerOrchestrated);
 
     let serverHistoryItems: ChatHistoryItem[] = [];
-    if (providedSessionId && !hasClientHistory && !isManagerOrchestrated) {
+    // 总管步进 session（mgr-*-rag-*）透传时空 history：禁止 readRagSession 回灌
+    if (providedSessionId && !hasClientHistory && !isManagerOrchestrated && !isManagerStepSession) {
       const serverSession = await readRagSession(sessionId);
       serverHistoryItems = serverSession.messages.map((m) => ({
         role: m.role,
@@ -275,14 +316,36 @@ export default defineEventHandler(async (event) => {
       managerTask?.turn_scope ?? null,
       normalizedHistory,
     );
-    const effectiveHistory = isManagerOrchestrated ? orchestratedHistory : mergedHistory;
+
+    let standaloneHistory = mergedHistory;
+    let standaloneTurnScope = managerTask?.turn_scope ?? null;
+    if (!isManagerOrchestrated && !isManagerStepSession && !managerTask?.turn_scope) {
+      standaloneTurnScope = await resolveRagStandaloneTurnScope({
+        question: sanitizedMessage,
+        chatHistory: mergedHistory,
+        managerTurnScope: null,
+        model: null,
+      });
+      if (standaloneTurnScope.suppress_history && !standaloneTurnScope.narrow_output_followup) {
+        standaloneHistory = [];
+      } else if (standaloneTurnScope.narrow_output_followup) {
+        standaloneHistory = mergedHistory.slice(-2);
+      }
+    }
+
+    const effectiveHistory = isManagerOrchestrated
+      ? orchestratedHistory
+      : isManagerStepSession
+        ? []
+        : standaloneHistory;
     const historyMessages = historyToMessages(effectiveHistory).slice(-12);
 
-    let session = providedSessionId && env.enableLayeredSessionMemory && !isManagerOrchestrated
-      ? getSessionMemory(sessionId)
-      : { summary: "", topics: [], updatedAt: Date.now() };
+    let session =
+      providedSessionId && env.enableLayeredSessionMemory && !isManagerOrchestrated && !isManagerStepSession
+        ? getSessionMemory(sessionId)
+        : { summary: "", topics: [], updatedAt: Date.now() };
 
-    if (!isManagerOrchestrated && providedSessionId && env.enableLayeredSessionMemory) {
+    if (!isManagerOrchestrated && !isManagerStepSession && providedSessionId && env.enableLayeredSessionMemory) {
       const topics = mergeTopics(
         session.topics,
         extractTopicKeywords(sanitizedMessage),
@@ -315,7 +378,7 @@ export default defineEventHandler(async (event) => {
     setRetrievalUserKey(userKey);
 
     const sessionRetrievalAnchor =
-      !isManagerOrchestrated && providedSessionId
+      !isManagerOrchestrated && !isManagerStepSession && providedSessionId
         ? getRagSessionRetrievalAnchor(sessionId)
         : null;
 
@@ -328,8 +391,17 @@ export default defineEventHandler(async (event) => {
           .filter(Boolean)
           .join("\n"),
         sessionAnchor: sessionRetrievalAnchor,
-        skipMerge: isManagerOrchestrated && !allowsOrchestratedDialogMerge(managerTask?.turn_scope ?? null),
-        suppressAnchor: Boolean(managerTask?.turn_scope?.suppress_anchor),
+        skipMerge:
+          (isManagerOrchestrated && !allowsOrchestratedDialogMerge(managerTask?.turn_scope ?? null)) ||
+          isManagerStepSession ||
+          Boolean(standaloneTurnScope?.suppress_history && !standaloneTurnScope?.narrow_output_followup),
+        suppressAnchor:
+          Boolean(managerTask?.turn_scope?.suppress_anchor) ||
+          Boolean(standaloneTurnScope?.suppress_anchor),
+        turnKind:
+          managerTask?.turn_scope?.turn_kind ||
+          standaloneTurnScope?.turn_kind ||
+          null,
       }),
     ]);
     setRagMergedUnderstand(mergedUnderstand);
@@ -346,7 +418,7 @@ export default defineEventHandler(async (event) => {
         hasDialogContext,
         dialogPreview,
       }),
-      !isManagerOrchestrated && providedSessionId
+      !isManagerOrchestrated && !isManagerStepSession && providedSessionId
         ? buildFilteredAgentSummaryInjection(session, sanitizedMessage)
         : Promise.resolve(""),
     ]);
@@ -428,6 +500,7 @@ export default defineEventHandler(async (event) => {
         needsClarify: Boolean(retrieveFirst.clarifyOnly),
         usage: resolveAgentUsage({ llmUsage: retrieveFirst.usage, answerText: finalAnswer }),
         retrievalFailureMode: retrieveFirst.retrievalFailureMode,
+        evolutionApplied: snapshotRagEvolutionApplied(retrieveFirst.toolOutput),
       });
       sendData({
         type: "phase",
@@ -486,6 +559,7 @@ export default defineEventHandler(async (event) => {
           needsClarify: true,
           usage: resolveAgentUsage({ answerText: clarify }),
           retrievalFailureMode: "weak_evidence",
+          evolutionApplied: snapshotRagEvolutionApplied(),
         }),
         evidence: [],
       });
@@ -695,6 +769,7 @@ export default defineEventHandler(async (event) => {
       usage: resolveAgentUsage({ llmUsage: lastUsage, answerText: finalAnswer }),
       retrievalFailureMode:
         retrievalNeedsClarify && !hasEvidence ? "weak_evidence" : undefined,
+      evolutionApplied: snapshotRagEvolutionApplied(lastToolOutput),
     });
     sendData({
       type: "phase",
@@ -717,6 +792,7 @@ export default defineEventHandler(async (event) => {
       });
       if (
         !isManagerOrchestrated &&
+        !isManagerStepSession &&
         providedSessionId &&
         mergedUnderstand.multiTurn &&
         finalAnswer.trim() &&

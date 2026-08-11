@@ -14,8 +14,9 @@ trigger:
   flags_absent:
   - sr_midautumn_page
   waypoint_min: q_autumn_midautumn
-prompt_snippet: |
-  【专属故事 · 三岛栞 · 节日加幕 · 中秋·未读页】
+prompt_snippet: '【专属故事 · 三岛栞 · 节日加幕 · 中秋·未读页】
+
+  '
 advance: on_player_turn
 beats:
 - id: b1
@@ -25,44 +26,83 @@ beats:
   - season_winter
   - home_eating
   - home_sleeping
-  - intimate_lounge
+  - date
+  - casual
+  - home
   soft_options:
   - 夸她
   - 点头
   - 沉默
-  narration: 纸墨与坡道夜风里，中秋她穿节日装站在柜台后，月饼旁放着未拆封的新书。
-  pc_thought: 她荐别人的书很准。空白页才是她自己。
+  narration: 纸墨与坡道夜风里，中秋她穿节日装站在柜台后，月饼旁放着未拆封的新书。荐书单墨迹刚干。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 她荐别人的书很准。空白页才是她自己。我想靠近，又怕说错一句。
   brief: 中秋她穿节日装站在柜台后，月饼旁放着未拆封的新书。等你回应。
+  pages:
+  - text: 纸墨与坡道夜风里，中秋她穿节日装站在柜台后，月饼旁放着未拆封的新书。荐书单墨迹刚干。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: festival_midautumn
+      emotion: neutral
+  - text: 她荐别人的书很准。空白页才是她自己。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: festival_midautumn
+      emotion: shy
 - id: b2
-  summary: "书签夹着一张空卡：「要不要写——只给你看的那页。」。等你回应。"
+  summary: 书签夹着一张空卡：「要不要写——只给你看的那页。」。等你回应。
   sprite_hint:
   - festival_midautumn
-  - date
   - season_winter
   - home_eating
   - home_sleeping
+  - date
+  - casual
+  - home
   soft_options:
   - 接住
   - 问清楚
   - 退一步
-  narration: "纸墨与坡道夜风里，书签夹着一张空卡：「要不要写——只给你看的那页。」。"
-  pc_thought: 坡上月亮很亮。我想读她未写完的那一行——想起书。
-  brief: "书签夹着一张空卡：「要不要写——只给你看的那页。」。等你回应。"
+  narration: 纸墨与坡道夜风里，书签夹着一张空卡：「要不要写——只给你看的那页。」。荐书单墨迹刚干。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 坡上月亮很亮。我想读她未写完的那一行——想起书。我想靠近，又怕说错一句。
+  brief: 书签夹着一张空卡：「要不要写——只给你看的那页。」。等你回应。
+  pages:
+  - text: 纸墨与坡道夜风里，书签夹着一张空卡：「要不要写——只给你看的那页。」。荐书单墨迹刚干。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: festival_midautumn
+      emotion: neutral
+  - text: 坡上月亮很亮。我想读她未写完的那一行——想起书。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: festival_midautumn
+      emotion: shy
 - id: b3
   summary: 月圆将尽；写或不写，会决定空白页是留给你，还是永久未读。等你回应。
   sprite_hint:
   - festival_midautumn
-  - home
   - season_winter
   - home_eating
   - home_sleeping
+  - date
+  - casual
+  - home
   soft_options:
   - 承诺
   - 诚实犹豫
   - 拒绝
-  narration: 纸墨与坡道夜风里，月圆将尽；写或不写，会决定空白页是留给你，还是永久未读。
-  pc_thought: 窗边朗读像告白预演。我鼓掌还是接过笔？
+  narration: 纸墨与坡道夜风里，月圆将尽；写或不写，会决定空白页是留给你，还是永久未读。荐书单墨迹刚干。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 窗边朗读像告白预演。我鼓掌还是接过笔？我想靠近，又怕说错一句。
   brief: 月圆将尽；写或不写，会决定空白页是留给你，还是永久未读。等你回应。
+  pages:
+  - text: 纸墨与坡道夜风里，月圆将尽；写或不写，会决定空白页是留给你，还是永久未读。荐书单墨迹刚干。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: festival_midautumn
+      emotion: neutral
+  - text: 窗边朗读像告白预演。我鼓掌还是接过笔？我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: festival_midautumn
+      emotion: shy
 rewards:
   flags_set:
   - sr_midautumn_page

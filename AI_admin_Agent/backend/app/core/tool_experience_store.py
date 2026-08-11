@@ -17,6 +17,28 @@ def _normalize_question_key(question: str) -> str:
     return s[:120]
 
 
+def _tenant_id() -> str:
+    return (os.getenv("AGENT_TENANT_ID") or os.getenv("TENANT_ID") or "default").strip() or "default"
+
+
+def _standalone_exclude_federated() -> bool:
+    v = (os.getenv("EXPERIENCE_STANDALONE_EXCLUDE_FEDERATED") or "1").strip().lower()
+    return v not in ("0", "false", "off", "no")
+
+
+def _is_manager_orchestrated_row(row: dict[str, Any]) -> bool:
+    plane = str(row.get("source_plane") or "").strip().lower()
+    if plane in ("manager_orchestrated", "orchestrated"):
+        return True
+    src = str(row.get("source") or "").strip().lower()
+    return (
+        "manager_finalize_sync" in src
+        or "manager_feedback_confirmed" in src
+        or "federation" in src
+        or src.startswith("mgr_")
+    )
+
+
 def _connect():
     import psycopg
     from psycopg.rows import dict_row
@@ -40,21 +62,43 @@ def hydrate_admin_tool_experience_cache(max_rows: int = 400) -> None:
         return
     gated = os.getenv("ADM_TOOL_EXPERIENCE_REQUIRE_FEEDBACK", "1").strip().lower() not in ("0", "false", "no")
     status_filter = "AND status = 'confirmed'" if gated else "AND status != 'revoked'"
+    tid = _tenant_id()
     try:
         with _connect() as conn:
             rows = conn.execute(
                 f"""
-                SELECT question_norm, tool_name, scenario, hint
+                SELECT question_norm, tool_name, scenario, hint, source, source_plane, tenant_id
                 FROM adm_tool_experience
-                WHERE 1=1 {status_filter}
+                WHERE tenant_id = %s {status_filter}
                 ORDER BY id DESC
                 LIMIT %s
                 """,
-                (max_rows,),
+                (tid, max_rows),
             ).fetchall()
-        _experience_cache = list(reversed(rows))
+        cached = list(reversed(rows))
+        if _standalone_exclude_federated():
+            cached = [r for r in cached if not _is_manager_orchestrated_row(r)]
+        _experience_cache = cached
     except Exception:
-        _experience_cache = []
+        # 兼容未跑 017 迁移（无 tenant_id/source_plane）
+        try:
+            with _connect() as conn:
+                rows = conn.execute(
+                    f"""
+                    SELECT question_norm, tool_name, scenario, hint, source
+                    FROM adm_tool_experience
+                    WHERE 1=1 {status_filter}
+                    ORDER BY id DESC
+                    LIMIT %s
+                    """,
+                    (max_rows,),
+                ).fetchall()
+            cached = list(reversed(rows))
+            if _standalone_exclude_federated():
+                cached = [r for r in cached if not _is_manager_orchestrated_row(r)]
+            _experience_cache = cached
+        except Exception:
+            _experience_cache = []
 
 
 def _token_overlap(a: str, b: str) -> float:

@@ -133,17 +133,18 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   padding: 16px;
-  background: rgba(2, 6, 23, 0.62);
-  backdrop-filter: blur(4px);
+  background: rgba(30, 50, 75, 0.48);
+  backdrop-filter: blur(8px);
 }
 
 .app-modal-panel {
   width: min(440px, 100%);
-  border-radius: 16px;
-  border: 1px solid rgba(125, 211, 252, 0.35);
-  background: linear-gradient(165deg, rgba(8, 14, 40, 0.96) 0%, rgba(14, 8, 36, 0.94) 100%);
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55), 0 0 48px rgba(56, 189, 248, 0.12);
+  border-radius: 14px;
+  border: 1px solid rgba(122, 168, 212, 0.55);
+  background: linear-gradient(165deg, rgba(255, 255, 255, 0.98) 0%, rgba(238, 245, 252, 0.96) 100%);
+  box-shadow: 0 24px 56px rgba(18, 45, 78, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.9);
   overflow: hidden;
+  color: #0e1f30;
 }
 
 .app-modal-header {
@@ -154,7 +155,7 @@ onBeforeUnmount(() => {
   margin: 0;
   font-size: 16px;
   font-weight: 700;
-  color: #f8fbff;
+  color: #0e1f30;
 }
 
 .app-modal-body {
@@ -165,7 +166,7 @@ onBeforeUnmount(() => {
   margin: 0 0 12px;
   font-size: 14px;
   line-height: 1.55;
-  color: rgba(226, 232, 240, 0.92);
+  color: #3a536c;
   white-space: pre-wrap;
 }
 
@@ -173,17 +174,17 @@ onBeforeUnmount(() => {
   width: 100%;
   box-sizing: border-box;
   border-radius: 10px;
-  border: 1px solid rgba(125, 211, 252, 0.28);
-  background: rgba(15, 23, 42, 0.72);
-  color: #f8fbff;
+  border: 1px solid rgba(122, 168, 212, 0.55);
+  background: rgba(255, 255, 255, 0.96);
+  color: #0e1f30;
   font-size: 14px;
   padding: 10px 12px;
   outline: none;
 }
 
 .app-modal-input:focus {
-  border-color: rgba(56, 189, 248, 0.55);
-  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.15);
+  border-color: rgba(47, 127, 209, 0.65);
+  box-shadow: 0 0 0 2px rgba(47, 127, 209, 0.16);
 }
 
 .app-modal-footer {
@@ -191,7 +192,7 @@ onBeforeUnmount(() => {
   justify-content: flex-end;
   gap: 8px;
   padding: 12px 18px 16px;
-  border-top: 1px solid rgba(125, 211, 252, 0.12);
+  border-top: 1px solid rgba(122, 168, 212, 0.35);
 }
 
 .app-modal-btn {

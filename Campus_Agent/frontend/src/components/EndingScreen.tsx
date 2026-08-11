@@ -8,10 +8,19 @@ interface Props {
   onBoard?: () => void;
 }
 
+const VERDICT_LABEL: Record<string, string> = {
+  true: "真结局",
+  good: "好结局",
+  soft: "软结局",
+  bad: "坏结局",
+};
+
 export function EndingScreen({ ending, onTitle, onBoard }: Props) {
   const romance = ending.romance;
   const hero = romance?.sprite?.path || romance?.q_sprite?.path || null;
+  const qHero = romance?.q_sprite?.path || null;
   const epilogue = ending.social_epilogue;
+  const verdict = ending.verdict || "soft";
 
   return (
     <section
@@ -30,12 +39,22 @@ export function EndingScreen({ ending, onTitle, onBoard }: Props) {
             <SpriteStage src={hero} name={romance?.name || "终章"} size="talk" />
           </div>
         )}
+        {qHero && (
+          <div className="ending-q-strip" aria-hidden>
+            <FaceChip src={qHero} name={romance?.name || ""} className="q-mood-chip is-speaking" />
+          </div>
+        )}
       </div>
 
       <div className="ending-copy">
         <p className="hud-kicker">人工学园 · 高考结算</p>
         <h1>{ending.title}</h1>
         <p className="ending-tone">{ending.tone}</p>
+        <p className={`ending-verdict verdict-${verdict}`}>
+          {VERDICT_LABEL[verdict] || verdict}
+          {ending.with_you_ok ? " · 和你算好结局" : " · 与你仍有距离"}
+        </p>
+        {ending.epilogue_line && <p className="ending-epilogue-line">{ending.epilogue_line}</p>}
         {(ending.ending_id || ending.grade_band) && (
           <p className="ending-meta">
             {ending.ending_id ? `结局 · ${ending.ending_id}` : ""}
@@ -89,7 +108,8 @@ export function EndingScreen({ ending, onTitle, onBoard }: Props) {
                 <div>
                   <strong>{romance.name}</strong>
                   <p>
-                    {romance.stage_label || romance.stage} · 亲和 {Math.round(romance.affinity)}
+                    {romance.relation_display || romance.stage_label || romance.stage} · 亲和{" "}
+                    {Math.round(romance.affinity)}
                   </p>
                 </div>
               </div>
@@ -104,8 +124,15 @@ export function EndingScreen({ ending, onTitle, onBoard }: Props) {
               <p>{epilogue.blurb}</p>
               {(epilogue.couples || []).length > 0 && (
                 <ul className="ending-couples">
-                  {epilogue.couples.slice(0, 4).map((c) => (
+                  {(epilogue.couples || []).slice(0, 4).map((c) => (
                     <li key={c.label}>{c.label}</li>
+                  ))}
+                </ul>
+              )}
+              {(epilogue.exes || []).length > 0 && (
+                <ul className="ending-couples">
+                  {(epilogue.exes || []).slice(0, 3).map((c) => (
+                    <li key={`ex-${c.label}`}>前任 · {c.label}</li>
                   ))}
                 </ul>
               )}

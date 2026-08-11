@@ -74,10 +74,19 @@
     "ending_breakup"
   ],
   "npc_policy": {
-    "ids": [],
+    "ids": [
+      "npc_cafe_owner",
+      "npc_bookstore_regular",
+      "npc_office_lead",
+      "npc_dorm_aunt",
+      "npc_flower_supplier",
+      "npc_dance_coach",
+      "npc_idol_manager",
+      "npc_neighbor_couple"
+    ],
     "allowed_endings": [],
     "story_branches": false,
-    "note": "无有名 NPC；路人立绘仅地点背景装饰，不参与结局与分支"
+    "note": "有名镇民=背景土壤，不可攻略；不参与结局与分支。旁白/world_facts 可点名。"
   },
   "characters": {
     "xiaoyou": {
@@ -211,6 +220,21 @@
           "flags": [
             "xy_third_pen_crisis"
           ]
+        },
+        {
+          "id": "act_married_expecting",
+          "title": "画室里的新页",
+          "beat": "婚后孕期居家短拍；maternity",
+          "sprites": [
+            "maternity",
+            "home",
+            "casual"
+          ],
+          "flags": [
+            "xy_expecting_home"
+          ],
+          "event_id": "story_xiaoyou_married_expecting",
+          "stage_min": "married"
         }
       ],
       "branches": {
@@ -361,6 +385,21 @@
           "flags": [
             "wy_cover_storm"
           ]
+        },
+        {
+          "id": "act_married_expecting",
+          "title": "关店后的温牛奶",
+          "beat": "婚后孕期居家短拍；maternity",
+          "sprites": [
+            "maternity",
+            "home",
+            "casual"
+          ],
+          "flags": [
+            "wy_expecting_home"
+          ],
+          "event_id": "story_wanyu_married_expecting",
+          "stage_min": "married"
         }
       ],
       "branches": {
@@ -511,6 +550,21 @@
           "flags": [
             "rl_red_pen_crisis"
           ]
+        },
+        {
+          "id": "act_married_expecting",
+          "title": "红笔之外的请假条",
+          "beat": "婚后孕期居家短拍；maternity",
+          "sprites": [
+            "maternity",
+            "home",
+            "casual"
+          ],
+          "flags": [
+            "rl_expecting_home"
+          ],
+          "event_id": "story_ruolin_married_expecting",
+          "stage_min": "married"
         }
       ],
       "branches": {
@@ -662,6 +716,21 @@
           "flags": [
             "jl_cousin_glass"
           ]
+        },
+        {
+          "id": "act_married_expecting",
+          "title": "玻璃门后的晨光",
+          "beat": "婚后孕期居家短拍；maternity",
+          "sprites": [
+            "maternity",
+            "home",
+            "casual"
+          ],
+          "flags": [
+            "jl_expecting_home"
+          ],
+          "event_id": "story_jingliu_married_expecting",
+          "stage_min": "married"
         }
       ],
       "branches": {
@@ -814,6 +883,21 @@
           "flags": [
             "al_friend_audit"
           ]
+        },
+        {
+          "id": "act_married_expecting",
+          "title": "花茎旁的新芽",
+          "beat": "婚后孕期居家短拍；maternity",
+          "sprites": [
+            "maternity",
+            "home",
+            "casual"
+          ],
+          "flags": [
+            "al_expecting_home"
+          ],
+          "event_id": "story_aili_married_expecting",
+          "stage_min": "married"
         }
       ],
       "branches": {
@@ -965,6 +1049,21 @@
           "flags": [
             "lx_overtime_break"
           ]
+        },
+        {
+          "id": "act_married_expecting",
+          "title": "末班车之后的留白",
+          "beat": "婚后孕期居家短拍；maternity",
+          "sprites": [
+            "maternity",
+            "home",
+            "casual"
+          ],
+          "flags": [
+            "lx_expecting_home"
+          ],
+          "event_id": "story_linxi_married_expecting",
+          "stage_min": "married"
         }
       ],
       "branches": {

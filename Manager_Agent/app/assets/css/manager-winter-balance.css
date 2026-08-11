@@ -1,0 +1,761 @@
+/* ═══════════════════════════════════════════════════════════════
+   冬景平衡层 · 雪景可见 + 深字高对比 + 品牌左对齐
+   加载：manager-hitl-panels.css 之后（最终对比度 SSOT）
+   策略：壳层半透透景；消息卡/表格/输入坞实底；全文深海军色
+   ═══════════════════════════════════════════════════════════════ */
+
+.spring-root.cosmic-theme.cursor-workbench,
+.manager-shell .spring-root.cosmic-theme.cursor-workbench {
+  color: #0a1a28;
+  --mgr-shell-pad: 14px;
+  --mgr-shell-gap: 16px;
+  --mgr-glass: rgba(247, 251, 255, 0.55);
+  --mgr-glass-strong: rgba(255, 255, 255, 0.9);
+  --mgr-border: rgba(122, 168, 212, 0.45);
+  --chat-text-primary: #0a1a28;
+  --chat-text-secondary: #1e3a52;
+  --chat-text-muted: #2a4560;
+  --brand-dark-text: #0a1a28;
+  --brand-dark-text-secondary: #1e3a52;
+  --brand-dark-text-muted: #2a4560;
+  --cosmic-text: #0a1a28;
+  --cosmic-text-secondary: #1e3a52;
+  --cosmic-text-muted: #2a4560;
+  --brand-motif-opacity: 0.32;
+}
+
+/* 轻 scrim：雪景清晰可见 */
+.manager-shell .mgr-season-bg::after,
+.spring-root > .mgr-season-bg::after {
+  background: linear-gradient(
+    180deg,
+    rgba(210, 228, 245, 0.16) 0%,
+    rgba(232, 242, 252, 0.05) 32%,
+    rgba(220, 234, 246, 0.08) 70%,
+    rgba(180, 205, 230, 0.2) 100%
+  ) !important;
+}
+
+/* 壳层半透 */
+.spring-root.cosmic-theme.cursor-workbench .spring-topbar,
+.spring-root.cosmic-theme.cursor-workbench .spring-history-sidebar,
+.spring-root.cosmic-theme.cursor-workbench .spring-sidebar {
+  background: rgba(247, 251, 255, 0.55) !important;
+  border: 1px solid rgba(122, 168, 212, 0.42) !important;
+  color: #0a1a28 !important;
+  backdrop-filter: blur(16px) saturate(1.15) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(1.15) !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.65) inset,
+    0 10px 28px rgba(18, 45, 78, 0.1) !important;
+}
+
+/* 主列更透，内容靠卡片 */
+.spring-root.cosmic-theme.cursor-workbench .spring-chat-column,
+.spring-root.cosmic-theme.cursor-workbench .cursor-chat-main {
+  background: rgba(247, 251, 255, 0.22) !important;
+  border: 1px solid rgba(122, 168, 212, 0.28) !important;
+  color: #0a1a28 !important;
+  box-shadow: none !important;
+  backdrop-filter: blur(6px) saturate(1.05) !important;
+  -webkit-backdrop-filter: blur(6px) saturate(1.05) !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .spring-topbar-secondary {
+  background: rgba(238, 245, 252, 0.38) !important;
+  border-top-color: rgba(122, 168, 212, 0.28) !important;
+}
+
+/* ── 品牌标题钉在顶栏最左 ── */
+.spring-root.cosmic-theme.cursor-workbench .spring-topbar-primary {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  flex-wrap: nowrap !important;
+  gap: 12px !important;
+  padding: 10px 16px !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .spring-topbar-main {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  flex: 0 1 auto !important;
+  margin-right: auto !important;
+  min-width: 0 !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .spring-brand-row {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  margin: 0 !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .spring-brand-text {
+  text-align: left !important;
+  align-items: flex-start !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .spring-topbar-actions {
+  flex: 0 0 auto !important;
+  margin-left: auto !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .spring-title {
+  color: #0a1a28 !important;
+  text-align: left !important;
+  font-weight: 750 !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .spring-brand-sub {
+  color: #1e3a52 !important;
+  font-weight: 600 !important;
+}
+
+/* ── 内容卡实底（可读） ── */
+.spring-root.cosmic-theme.cursor-workbench .reply-panel .reply-panel-inner,
+.spring-root.cosmic-theme.cursor-workbench .reply-panel-inner.cosmic-bubble-reply,
+.spring-root.cursor-workbench.cosmic-theme .chat-thread .reply-panel .reply-panel-inner.cosmic-bubble-reply,
+.spring-root.cosmic-theme.cursor-workbench .cosmic-bubble-user,
+.spring-root.cursor-workbench.cosmic-theme .chat-thread .cosmic-bubble-user,
+.spring-root.cosmic-theme.cursor-workbench .spring-input.cosmic-input-dock,
+.spring-root.cursor-workbench.cosmic-theme .spring-input.cosmic-input-dock,
+.spring-root.cosmic-theme.cursor-workbench .md-table-scroll,
+.spring-root.cosmic-theme.cursor-workbench .data-table-wrap,
+.spring-root.cosmic-theme.cursor-workbench .chart-wrap,
+.spring-root.cosmic-theme.cursor-workbench .turn-agent-pipeline-inner,
+.spring-root.cosmic-theme.cursor-workbench .cursor-thought-panel.process-panel,
+.spring-root.cosmic-theme.cursor-workbench .conv-stream-bubble,
+.spring-root.cosmic-theme.cursor-workbench .quick-card {
+  background: rgba(255, 255, 255, 0.9) !important;
+  color: #0a1a28 !important;
+  border-color: rgba(122, 168, 212, 0.48) !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .spring-history-row,
+.spring-root.cosmic-theme.cursor-workbench .spring-history-item,
+.spring-root.cosmic-theme.cursor-workbench .spring-side-section {
+  background: rgba(255, 255, 255, 0.78) !important;
+  color: #0a1a28 !important;
+  border-color: rgba(122, 168, 212, 0.4) !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .spring-history-row.active {
+  background: rgba(232, 242, 252, 0.92) !important;
+  border-color: rgba(47, 127, 209, 0.55) !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .spring-input-field,
+.spring-root.cursor-workbench.cosmic-theme .spring-input-field {
+  background: rgba(255, 255, 255, 0.95) !important;
+  color: #0a1a28 !important;
+  border-color: rgba(122, 168, 212, 0.5) !important;
+}
+
+/* ── 高对比文字：消灭灰白浅字 ── */
+.spring-root.cosmic-theme.cursor-workbench .spring-log-text,
+.spring-root.cosmic-theme.cursor-workbench .md-body,
+.spring-root.cosmic-theme.cursor-workbench .md-body.reply-chat,
+.spring-root.cosmic-theme.cursor-workbench .md-p,
+.spring-root.cosmic-theme.cursor-workbench .reply-chat,
+.spring-root.cosmic-theme.cursor-workbench .reply-chat .md-p,
+.spring-root.cosmic-theme.cursor-workbench .reply-chat li,
+.spring-root.cosmic-theme.cursor-workbench .md-table th,
+.spring-root.cosmic-theme.cursor-workbench .md-table td,
+.spring-root.cosmic-theme.cursor-workbench .reply-panel-title,
+.spring-root.cosmic-theme.cursor-workbench .reply-panel-header,
+.spring-root.cosmic-theme.cursor-workbench .spring-history-title,
+.spring-root.cosmic-theme.cursor-workbench .spring-history-item-title,
+.spring-root.cosmic-theme.cursor-workbench .spring-side-title,
+.spring-root.cosmic-theme.cursor-workbench .process-step-text,
+.spring-root.cosmic-theme.cursor-workbench .turn-agent-pipeline-title,
+.spring-root.cosmic-theme.cursor-workbench .report-card-title,
+.spring-root.cosmic-theme.cursor-workbench .quick-card-title,
+.spring-root.cursor-workbench.cosmic-theme .reply-primary-section .reply-chat .md-p,
+.spring-root.cursor-workbench.cosmic-theme .reply-primary-section .md-body.reply-chat .md-p,
+.spring-root.cursor-workbench.cosmic-theme .reply-chat .md-h3,
+.spring-root.cosmic-theme .spring-constraints-list {
+  color: #0a1a28 !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .spring-history-item-meta,
+.spring-root.cosmic-theme.cursor-workbench .spring-history-mode-hint,
+.spring-root.cosmic-theme.cursor-workbench .spring-history-empty,
+.spring-root.cosmic-theme.cursor-workbench .cosmic-chat-empty-hint,
+.spring-root.cosmic-theme.cursor-workbench .process-panel-preview,
+.spring-root.cosmic-theme.cursor-workbench .reply-attachments-summary,
+.spring-root.cosmic-theme.cursor-workbench .meta-pill,
+.spring-root.cosmic-theme.cursor-workbench .spring-step-progress,
+.spring-root.cosmic-theme.cursor-workbench .conv-live-label,
+.spring-root.cosmic-theme.cursor-workbench .spring-phase .badge,
+.spring-root.cosmic-theme.cursor-workbench .composer-posture-option-desc {
+  color: #1e3a52 !important;
+  opacity: 1 !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .spring-input-field::placeholder,
+.spring-root.cosmic-theme.cursor-workbench input::placeholder,
+.spring-root.cosmic-theme.cursor-workbench textarea::placeholder,
+.spring-root.cursor-workbench.cosmic-theme .spring-input-field::placeholder,
+.spring-root.cursor-workbench .spring-input-field.spring-input-area::placeholder {
+  color: #3a536c !important;
+  opacity: 1 !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .spring-seg button,
+.spring-root.cosmic-theme.cursor-workbench .spring-seg-btn,
+.spring-root.cosmic-theme.cursor-workbench .spring-history-mode-btn,
+.spring-root.cosmic-theme.cursor-workbench .spring-history-action-btn,
+.spring-root.cosmic-theme.cursor-workbench .spring-attach-btn,
+.spring-root.cosmic-theme.cursor-workbench .spring-btn.alt,
+.spring-root.cosmic-theme.cursor-workbench .collab-mini,
+.spring-root.cosmic-theme.cursor-workbench .spring-conn,
+.spring-root.cosmic-theme.cursor-workbench .reply-tool-btn,
+.spring-root.cosmic-theme.cursor-workbench .media-btn {
+  color: #0e1f30 !important;
+  opacity: 1 !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .spring-seg button.is-active,
+.spring-root.cosmic-theme.cursor-workbench .spring-seg-btn.is-active,
+.spring-root.cosmic-theme.cursor-workbench .spring-history-mode-btn.is-active,
+.spring-root.cosmic-theme .spring-seg.active,
+.spring-root.cosmic-theme .spring-phase .badge.active {
+  background: rgba(47, 127, 209, 0.18) !important;
+  color: #0a4a86 !important;
+  border-color: rgba(47, 127, 209, 0.45) !important;
+  font-weight: 700 !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .spring-btn:not(.alt),
+.spring-root.cosmic-theme.cursor-workbench .spring-btn-send-cancel,
+.spring-root.cosmic-theme.cursor-workbench .plan-mode-primary {
+  background: #2f7fd1 !important;
+  color: #ffffff !important;
+  border: 1px solid #2a74c2 !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .md-table thead th,
+.spring-root.cosmic-theme.cursor-workbench .md-body.reply-chat .md-table th,
+.spring-root.cursor-workbench.cosmic-theme .chat-thread .reply-chat .md-table th {
+  background: rgba(214, 232, 248, 0.92) !important;
+  color: #0a1a28 !important;
+  font-weight: 700 !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .md-badge-ok,
+.spring-root.cursor-workbench.cosmic-theme .chat-thread .reply-chat .md-badge-ok {
+  color: #0f5c45 !important;
+  background: rgba(16, 185, 129, 0.2) !important;
+  border: 1px solid rgba(15, 92, 69, 0.45) !important;
+  font-weight: 700 !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .md-badge-warn,
+.spring-root.cursor-workbench.cosmic-theme .chat-thread .reply-chat .md-badge-warn {
+  color: #8a4b08 !important;
+  background: rgba(245, 158, 11, 0.22) !important;
+  border: 1px solid rgba(138, 75, 8, 0.45) !important;
+  font-weight: 700 !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench input,
+.spring-root.cosmic-theme.cursor-workbench textarea,
+.spring-root.cosmic-theme.cursor-workbench select {
+  color: #0a1a28 !important;
+}
+
+/* ── 计划 / 编排 / 决策卡：消灭深色主题浅青字 ── */
+.spring-root.cosmic-theme.cursor-workbench .conv-route-plan-label,
+.spring-root.cosmic-theme.cursor-workbench .conv-plan-preview-constraints-label,
+.spring-root.cosmic-theme.cursor-workbench .process-orch-detail-label,
+.spring-root.cosmic-theme.cursor-workbench .process-orch-title,
+.spring-root.mode-professional .process-orch-title,
+.spring-root.cosmic-theme.cursor-workbench .spring-plan-todo-title,
+.spring-root.cosmic-theme.cursor-workbench .spring-plan-todo-agent,
+.spring-root.cosmic-theme.cursor-workbench .step-result-badge,
+.spring-root.cosmic-theme.cursor-workbench .cursor-step-results-head,
+.spring-root.mode-professional .cursor-step-results-head,
+.spring-root.cosmic-theme.cursor-workbench .spring-constraints-k,
+.spring-root.cosmic-theme.cursor-workbench .spring-run-phase-name,
+.spring-root.cosmic-theme.cursor-workbench .conv-live-route,
+.spring-root.cosmic-theme.cursor-workbench .spring-step-progress {
+  color: #0a4a86 !important;
+  opacity: 1 !important;
+  font-weight: 700 !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .conv-route-plan-value,
+.spring-root.cosmic-theme.cursor-workbench .conv-route-plan-dag,
+.spring-root.cosmic-theme.cursor-workbench .conv-route-plan-block,
+.spring-root.cosmic-theme.cursor-workbench .conv-route-clause-id,
+.spring-root.cosmic-theme.cursor-workbench .conv-route-clause-agents,
+.spring-root.cosmic-theme.cursor-workbench .conv-plan-preview-agent,
+.spring-root.cosmic-theme.cursor-workbench .conv-plan-preview-query,
+.spring-root.cosmic-theme.cursor-workbench .conv-plan-preview-check,
+.spring-root.cosmic-theme.cursor-workbench .conv-plan-preview-meta,
+.spring-root.cosmic-theme.cursor-workbench .conv-plan-preview-hint,
+.spring-root.cosmic-theme.cursor-workbench .process-orch-detail-row,
+.spring-root.cosmic-theme.cursor-workbench .process-orch-clause-list,
+.spring-root.cosmic-theme.cursor-workbench .process-orch-judge,
+.spring-root.cosmic-theme.cursor-workbench .process-orch-dag,
+.spring-root.cosmic-theme.cursor-workbench .step-result-title,
+.spring-root.cosmic-theme.cursor-workbench .step-result-tag,
+.spring-root.cosmic-theme.cursor-workbench .step-result-query,
+.spring-root.cosmic-theme.cursor-workbench .step-result-preview,
+.spring-root.cosmic-theme.cursor-workbench .conv-stream-title,
+.spring-root.cosmic-theme.cursor-workbench .conv-stream-body {
+  color: #0a1a28 !important;
+  opacity: 1 !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .conv-route-plan-block,
+.spring-root.cosmic-theme.cursor-workbench .process-orchestration-card,
+.spring-root.mode-professional .process-orchestration-route,
+.spring-root.mode-professional .process-orchestration-route-detail,
+.spring-root.mode-professional .process-orchestration-plan,
+.spring-root.mode-professional .process-orch-step,
+.spring-root.mode-professional .cursor-tool-card.step-result-card,
+.spring-root.cosmic-theme.cursor-workbench .conv-plan-preview-item,
+.spring-root.cosmic-theme.cursor-workbench .step-result-card {
+  background: rgba(255, 255, 255, 0.94) !important;
+  color: #0a1a28 !important;
+  border-color: rgba(122, 168, 212, 0.45) !important;
+}
+
+.spring-root.mode-professional .process-orch-step-idx,
+.spring-root.mode-professional .process-agent-trail .agent-chip-sm {
+  color: #0a4a86 !important;
+  background: rgba(232, 242, 252, 0.95) !important;
+  border-color: rgba(47, 127, 209, 0.42) !important;
+}
+
+/* ── 思考过程 / 决策气泡 ── */
+.spring-root.cosmic-theme.cursor-workbench .cursor-thought-panel.process-panel,
+.spring-root.cosmic-theme.cursor-workbench .kind-thinking .spring-log-bubble,
+.spring-root.cosmic-theme.cursor-workbench .kind-phase .spring-log-bubble,
+.spring-root.cosmic-theme.cursor-workbench .kind-status .spring-log-bubble,
+.spring-root.cosmic-theme.cursor-workbench .conv-stream-bubble {
+  background: rgba(255, 255, 255, 0.92) !important;
+  color: #0a1a28 !important;
+  border-color: rgba(122, 168, 212, 0.45) !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .cursor-thought-panel > .process-panel-summary,
+.spring-root.cosmic-theme.cursor-workbench .cursor-thought-panel .process-panel-label,
+.spring-root.cosmic-theme.cursor-workbench .cursor-thought-panel .process-step-text,
+.spring-root.cosmic-theme.cursor-workbench .cursor-thought-panel .process-step-code,
+.spring-root.cosmic-theme.cursor-workbench .cursor-thought-panel .process-step.kind-thinking .process-step-text,
+.spring-root.cosmic-theme.cursor-workbench .kind-thinking .spring-log-text,
+.spring-root.cosmic-theme.cursor-workbench .kind-phase .spring-log-text,
+.spring-root.cosmic-theme.cursor-workbench .kind-status .spring-log-text {
+  color: #0a1a28 !important;
+  opacity: 1 !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .cursor-thought-panel .process-panel-preview,
+.spring-root.cosmic-theme.cursor-workbench .cursor-thought-panel .process-step-kind,
+.spring-root.cosmic-theme.cursor-workbench .cursor-thought-panel .process-step-from,
+.spring-root.cosmic-theme.cursor-workbench .cursor-thought-panel .process-step-meta .meta-time,
+.spring-root.cosmic-theme.cursor-workbench .cursor-thought-panel .meta-time,
+.spring-root.cosmic-theme.cursor-workbench .chat-thread .meta-time,
+.spring-root.cosmic-theme.cursor-workbench .kind-thinking .spring-log-meta,
+.spring-root.cosmic-theme.cursor-workbench .kind-phase .spring-log-meta,
+.spring-root.cosmic-theme.cursor-workbench .kind-status .spring-log-meta {
+  color: #1e3a52 !important;
+  opacity: 1 !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .cursor-thought-panel .process-step-kind {
+  background: rgba(255, 255, 255, 0.92) !important;
+  border: 1px solid rgba(122, 168, 212, 0.45) !important;
+  color: #0a4a86 !important;
+  font-weight: 700 !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .cursor-thought-panel .process-step-from {
+  background: rgba(232, 242, 252, 0.95) !important;
+  border: 1px solid rgba(47, 127, 209, 0.4) !important;
+  color: #0a4a86 !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .cursor-thought-panel .agent-chip-sm,
+.spring-root.cosmic-theme.cursor-workbench .cursor-thought-panel .process-panel-badge,
+.spring-root.cosmic-theme.cursor-workbench .meta-pill,
+.spring-root.cosmic-theme.cursor-workbench .kind-thinking .meta-pill {
+  color: #0a4a86 !important;
+  background: rgba(232, 242, 252, 0.95) !important;
+  border-color: rgba(47, 127, 209, 0.4) !important;
+  opacity: 1 !important;
+}
+
+/* 阶段条（resource / tool_health 等）：浅底深字，禁止浅紫/白字 */
+.spring-root.cosmic-theme.cursor-workbench .cursor-thought-panel .process-step-phase,
+.spring-root.cursor-workbench.cosmic-theme .cursor-thought-panel .process-step-phase,
+.spring-root.cosmic-theme.cursor-workbench .process-step.kind-phase .process-step-phase {
+  color: #0a1a28 !important;
+  background: rgba(255, 255, 255, 0.94) !important;
+  border: 1px solid rgba(122, 168, 212, 0.5) !important;
+  font-weight: 700 !important;
+  opacity: 1 !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .cursor-thought-panel .process-step.kind-phase .process-step-body,
+.spring-root.cosmic-theme.cursor-workbench .cursor-thought-panel .process-step.kind-status .process-step-body,
+.spring-root.cosmic-theme.cursor-workbench .cursor-thought-panel .process-step.kind-thinking .process-step-body {
+  background: rgba(255, 255, 255, 0.88) !important;
+  color: #0a1a28 !important;
+  border-color: rgba(122, 168, 212, 0.4) !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .user-thought-text,
+.spring-root.cosmic-theme.cursor-workbench .spring-thoughts-text,
+.spring-root.cosmic-theme.cursor-workbench .spring-thoughts > summary,
+.spring-root.cosmic-theme.cursor-workbench .spring-examples-summary {
+  color: #0a1a28 !important;
+  opacity: 1 !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .chat-thread .reply-chat .md-quote,
+.spring-root.cosmic-theme.cursor-workbench .chat-thread .md-body.reply-chat .md-quote {
+  color: #0e3a52 !important;
+  background: rgba(214, 232, 248, 0.55) !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .chat-thread .reply-panel-kind {
+  color: #1e3a52 !important;
+  background: rgba(232, 242, 252, 0.95) !important;
+  border-color: rgba(122, 168, 212, 0.4) !important;
+}
+
+/* ── 工具侧栏 / 快捷卡 / 表单标签 ── */
+.spring-root.cosmic-theme.cursor-workbench .cursor-tools-pane,
+.spring-root.cosmic-theme.cursor-workbench .spring-sidebar .spring-side-section,
+.spring-root.cosmic-theme.cursor-workbench .spring-side-fold,
+.spring-root.cosmic-theme.cursor-workbench .spring-task-constraints,
+.spring-root.cosmic-theme.cursor-workbench .spring-run-observability {
+  color: #0a1a28 !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .spring-side-title,
+.spring-root.cosmic-theme.cursor-workbench .quick-card-title,
+.spring-root.cursor-workbench.cosmic-theme .quick-card-title,
+.spring-root.cosmic-theme.cursor-workbench .spring-constraints-list,
+.spring-root.cosmic-theme.cursor-workbench .spring-side-fold > summary,
+.spring-root.cosmic-theme.cursor-workbench .spring-evolution summary,
+.spring-root.cosmic-theme.cursor-workbench .spring-user-goals summary,
+.spring-root.cosmic-theme.cursor-workbench .spring-task-stack summary,
+.spring-root.cosmic-theme.cursor-workbench .spring-task-stack-title {
+  color: #0a1a28 !important;
+  font-weight: 700 !important;
+  opacity: 1 !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .quick-card-desc,
+.spring-root.cosmic-theme.cursor-workbench .spring-side-section label,
+.spring-root.cosmic-theme.cursor-workbench .spring-sidebar label,
+.spring-root.cosmic-theme.cursor-workbench .spring-sidebar .hint,
+.spring-root.cosmic-theme.cursor-workbench .spring-sidebar .meta,
+.spring-root.cosmic-theme.cursor-workbench .health-chip,
+.spring-root.cosmic-theme.cursor-workbench .message-action-btn,
+.spring-root.cosmic-theme.cursor-workbench .spring-task-stack-hint,
+.spring-root.cosmic-theme.cursor-workbench .spring-task-stack-note,
+.spring-root.cosmic-theme.cursor-workbench .spring-task-stack-deadline,
+.spring-root.cosmic-theme.cursor-workbench .spring-task-stack-field,
+.spring-root.cosmic-theme.cursor-workbench .spring-task-stack-status,
+.spring-root.cosmic-theme.cursor-workbench .spring-task-stack-priority,
+.spring-root.cosmic-theme.cursor-workbench .evo-pill,
+.spring-root.cosmic-theme.cursor-workbench .spring-learning-title,
+.spring-root.cosmic-theme.cursor-workbench .spring-evo-exp-title,
+.spring-root.cosmic-theme.cursor-workbench .spring-evo-exp-rationale {
+  color: #1e3a52 !important;
+  opacity: 1 !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .quick-card,
+.spring-root.cursor-workbench.cosmic-theme .quick-card,
+.spring-root.cosmic-theme.cursor-workbench .spring-btn.alt,
+.spring-root.cosmic-theme.cursor-workbench .collab-mini {
+  background: rgba(255, 255, 255, 0.92) !important;
+  color: #0a1a28 !important;
+  border-color: rgba(122, 168, 212, 0.48) !important;
+}
+
+/* 任务栈：浅底深字（禁止深色 HUD 输入底 + 全局深字导致黑底黑字） */
+.spring-root.cosmic-theme.cursor-workbench .spring-task-stack,
+.spring-root.cosmic-theme.cursor-workbench .spring-task-stack-item,
+.spring-root.cosmic-theme.cursor-workbench .spring-task-stack-body {
+  color: #0a1a28 !important;
+  background: rgba(255, 255, 255, 0.88) !important;
+  border-color: rgba(122, 168, 212, 0.42) !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .spring-task-stack-input,
+.spring-root.cosmic-theme.cursor-workbench .spring-task-stack-select,
+.spring-root.cosmic-theme.cursor-workbench .spring-task-stack-datetime,
+.spring-root.cosmic-theme.cursor-workbench .spring-ops-token-input {
+  background: rgba(255, 255, 255, 0.96) !important;
+  color: #0a1a28 !important;
+  border-color: rgba(122, 168, 212, 0.5) !important;
+  box-shadow: none !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .spring-task-stack-input::placeholder,
+.spring-root.cosmic-theme.cursor-workbench .spring-ops-token-input::placeholder {
+  color: #3a536c !important;
+  opacity: 1 !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .spring-task-stack-link {
+  color: #0a4a86 !important;
+  background: rgba(232, 242, 252, 0.95) !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .spring-history-item-meta,
+.spring-root.cosmic-theme.cursor-workbench .spring-history-action-btn,
+.spring-root.cosmic-theme.cursor-workbench .spring-history-mode-hint {
+  color: #2a4560 !important;
+  opacity: 1 !important;
+  font-weight: 600 !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .plan-mode-badge,
+.spring-root.cosmic-theme.cursor-workbench .plan-mode-title-row strong,
+.spring-root.cosmic-theme.cursor-workbench .conv-plan-preview-agent,
+.spring-root.mode-professional .conv-plan-preview.is-professional-plan .conv-plan-preview-head strong,
+.spring-root.mode-professional .spring-plan-todo-title {
+  color: #0a4a86 !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .plan-mode-card,
+.spring-root.cosmic-theme.cursor-workbench .conv-plan-preview,
+.spring-root.mode-professional .spring-plan-todo,
+.spring-root.mode-professional .conv-plan-preview-item {
+  color: #0a1a28 !important;
+  background: rgba(255, 255, 255, 0.95) !important;
+}
+
+.spring-root.thought-view-user .cursor-thought-panel.thought-panel-user,
+.spring-root.thought-view-user .cursor-thought-panel.thought-panel-user > .process-panel-summary {
+  background: rgba(255, 255, 255, 0.92) !important;
+  color: #0a1a28 !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .spring-btn.alt,
+.spring-root.cosmic-theme.cursor-workbench .hitl-btn:not(.hitl-btn-danger):not(.plan-mode-primary) {
+  color: #0e1f30 !important;
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-color: rgba(122, 168, 212, 0.55) !important;
+  font-weight: 650 !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .turn-agent-pipeline-title,
+.spring-root.cosmic-theme.cursor-workbench .turn-agent-step-label,
+.spring-root.cosmic-theme.cursor-workbench .turn-agent-route-label,
+.spring-root.cosmic-theme.cursor-workbench .turn-agent-pipeline-live {
+  color: #0a4a86 !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .turn-agent-step-query,
+.spring-root.cosmic-theme.cursor-workbench .turn-agent-step-summary,
+.spring-root.cosmic-theme.cursor-workbench .turn-agent-pipeline-count,
+.spring-root.cosmic-theme.cursor-workbench .turn-agent-clauses-title {
+  color: #1e3a52 !important;
+}
+
+/* 兜底：对话列 / 侧栏内残留浅色字一律压成深海军色 */
+.spring-root.cosmic-theme.cursor-workbench .spring-chat-column,
+.spring-root.cosmic-theme.cursor-workbench .cursor-chat-main,
+.spring-root.cosmic-theme.cursor-workbench .spring-sidebar,
+.spring-root.cosmic-theme.cursor-workbench .cursor-tools-pane {
+  --chat-text-primary: #0a1a28;
+  --chat-text-secondary: #1e3a52;
+  --chat-text-muted: #2a4560;
+  --cosmic-text: #0a1a28;
+  --cosmic-text-secondary: #1e3a52;
+  --cosmic-text-muted: #2a4560;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .chat-thread .reply-attachments-summary,
+.spring-root.cosmic-theme.cursor-workbench .process-step-expand-btn,
+.spring-root.cosmic-theme.cursor-workbench .spring-search-sources-panel > summary,
+.spring-root.cosmic-theme.cursor-workbench .rag-evidence-excerpt {
+  color: #1e3a52 !important;
+  opacity: 1 !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .spring-more-label,
+.spring-root.cosmic-theme.cursor-workbench .spring-more-panel-title,
+.spring-root.cosmic-theme.cursor-workbench .spring-more-trigger {
+  color: #0a1a28 !important;
+  opacity: 1 !important;
+}
+
+/* ── 报错：浅玫底 + 深红字（禁止深底被全局深字盖成黑底黑字） ── */
+.spring-root.cosmic-theme.cursor-workbench .kind-error .spring-log-bubble,
+.spring-root.cosmic-theme.cursor-workbench .spring-error-bubble,
+.spring-root.cursor-workbench.cosmic-theme .chat-messenger .kind-error .spring-log-bubble,
+.spring-root.cursor-workbench.cosmic-theme .chat-messenger .spring-error-bubble,
+.spring-root.cosmic-theme.cursor-workbench .spring-thoughts-item.kind-error {
+  background: rgba(255, 240, 242, 0.96) !important;
+  border: 1px solid rgba(196, 61, 90, 0.45) !important;
+  color: #7a1f32 !important;
+  box-shadow: 0 4px 14px rgba(127, 29, 29, 0.08) !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .kind-error .spring-log-text,
+.spring-root.cosmic-theme.cursor-workbench .spring-error-text,
+.spring-root.cosmic-theme.cursor-workbench .spring-thoughts-item.kind-error .spring-thoughts-text,
+.spring-root.cursor-workbench.cosmic-theme .chat-messenger .kind-error .spring-log-text {
+  color: #7a1f32 !important;
+  opacity: 1 !important;
+  font-weight: 650 !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .kind-error .spring-log-meta,
+.spring-root.cosmic-theme.cursor-workbench .kind-error .meta-time,
+.spring-root.cosmic-theme.cursor-workbench .spring-error-stack-label {
+  color: #9a2a42 !important;
+  opacity: 1 !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .kind-error .meta-pill,
+.spring-root.cosmic-theme.cursor-workbench .kind-error .meta-pill.alt {
+  color: #9a2a42 !important;
+  background: rgba(254, 226, 226, 0.95) !important;
+  border-color: rgba(196, 61, 90, 0.45) !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .spring-error-dismiss,
+.spring-root.cosmic-theme.cursor-workbench .spring-error-dismiss-all {
+  color: #9a2a42 !important;
+  background: rgba(255, 255, 255, 0.9) !important;
+  border: 1px solid rgba(196, 61, 90, 0.4) !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .spring-error-dismiss:hover,
+.spring-root.cosmic-theme.cursor-workbench .spring-error-dismiss-all:hover {
+  color: #7a1f32 !important;
+  background: rgba(254, 226, 226, 0.98) !important;
+}
+
+/* ── 任务要点 / 等待徽章 / 消息操作 ── */
+.spring-root.cosmic-theme.cursor-workbench .turn-agent-clause-list li {
+  background: rgba(255, 255, 255, 0.94) !important;
+  border: 1px solid rgba(122, 168, 212, 0.45) !important;
+  color: #0a1a28 !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .turn-agent-clause-text,
+.spring-root.cosmic-theme.cursor-workbench .turn-agent-dev-row,
+.spring-root.cosmic-theme.cursor-workbench .turn-agent-dev-code {
+  color: #0a1a28 !important;
+  opacity: 1 !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .turn-agent-pipeline-dev {
+  background: rgba(255, 255, 255, 0.94) !important;
+  border-color: rgba(122, 168, 212, 0.45) !important;
+  color: #0a1a28 !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .turn-agent-pipeline-dev > summary,
+.spring-root.cosmic-theme.cursor-workbench .turn-agent-dev-k {
+  color: #0a4a86 !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .turn-agent-step-status {
+  color: #0a4a86 !important;
+  background: rgba(232, 242, 252, 0.98) !important;
+  border: 1px solid rgba(47, 127, 209, 0.42) !important;
+  font-weight: 700 !important;
+  opacity: 1 !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .turn-agent-step.is-success .turn-agent-step-status {
+  color: #0f5c45 !important;
+  background: rgba(16, 185, 129, 0.16) !important;
+  border-color: rgba(15, 92, 69, 0.4) !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .turn-agent-step.is-running .turn-agent-step-status {
+  color: #0a4a86 !important;
+  background: rgba(47, 127, 209, 0.14) !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .turn-agent-step.is-failed .turn-agent-step-status {
+  color: #9a2a42 !important;
+  background: rgba(196, 61, 90, 0.12) !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .message-actions,
+.spring-root.cursor-workbench.cosmic-theme .message-actions {
+  opacity: 1 !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .message-action-btn,
+.spring-root.cursor-workbench.cosmic-theme .chat-thread .message-action-btn,
+.spring-root.cosmic-theme.cursor-workbench .user-msg-actions button {
+  color: #0a4a86 !important;
+  background: rgba(255, 255, 255, 0.95) !important;
+  border: 1px solid rgba(122, 168, 212, 0.55) !important;
+  font-weight: 650 !important;
+  opacity: 1 !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .message-action-btn:hover:not(:disabled),
+.spring-root.cursor-workbench.cosmic-theme .chat-thread .message-action-btn:hover:not(:disabled) {
+  color: #0a1a28 !important;
+  background: rgba(232, 242, 252, 0.98) !important;
+  border-color: rgba(47, 127, 209, 0.55) !important;
+}
+
+/* ── 报告 / 图表卡：浅底深字 ── */
+.spring-root.cosmic-theme.cursor-workbench .report-details,
+.spring-root.cosmic-theme.cursor-workbench .report-card,
+.spring-root.cosmic-theme.cursor-workbench .chart-details.reply-inline-analytics,
+.spring-root.cosmic-theme.cursor-workbench .reply-inline-analytics .chart-card,
+.spring-root.cursor-workbench.cosmic-theme .report-details,
+.spring-root.cursor-workbench.cosmic-theme .report-card {
+  background: rgba(255, 255, 255, 0.94) !important;
+  border-color: rgba(122, 168, 212, 0.45) !important;
+  color: #0a1a28 !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .report-details .report-label,
+.spring-root.cosmic-theme.cursor-workbench .report-details .report-card-head,
+.spring-root.cosmic-theme.cursor-workbench .report-card-title,
+.spring-root.cosmic-theme.cursor-workbench .chart-card-title,
+.spring-root.cosmic-theme.cursor-workbench .chart-details > summary,
+.spring-root.cursor-workbench.cosmic-theme .report-card-title,
+.spring-root.cursor-workbench.cosmic-theme .report-details .report-card-head {
+  color: #0a1a28 !important;
+  font-weight: 700 !important;
+  opacity: 1 !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .report-details[open] .report-label,
+.spring-root.cosmic-theme.cursor-workbench .report-details[open] .report-card-head {
+  color: #0a4a86 !important;
+  border-bottom-color: rgba(122, 168, 212, 0.35) !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .report-card-body,
+.spring-root.cosmic-theme.cursor-workbench .report-card-body .md-p,
+.spring-root.cosmic-theme.cursor-workbench .report-card-body .md-h1,
+.spring-root.cosmic-theme.cursor-workbench .report-card-body .md-h2,
+.spring-root.cosmic-theme.cursor-workbench .report-card-body .md-h3,
+.spring-root.cosmic-theme.cursor-workbench .report-card-body .md-h4,
+.spring-root.cosmic-theme.cursor-workbench .report-card-body li,
+.spring-root.cursor-workbench.cosmic-theme .report-details .report-card-body .md-p {
+  color: #0a1a28 !important;
+  opacity: 1 !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .chart-download-btn,
+.spring-root.cosmic-theme.cursor-workbench .md-download-btn {
+  color: #0a4a86 !important;
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-color: rgba(122, 168, 212, 0.5) !important;
+}

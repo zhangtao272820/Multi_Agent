@@ -29,11 +29,17 @@ import {
 } from '../core/routing/proRoutePolicy'
 import { isLlmFirstRouteEnabled } from './unifiedRouting'
 import { alignOrchestratorBundleToUserIntent, isUserIntentAlignLlmEnabled } from '../llm/userIntentAlignLlm'
+import { rejudgePlaneCoverageByInventory } from '../llm/planeCoverageRejudgeLlm'
 import { stepDispatchDraftFromMeta } from '../core/proPuStack'
 import { buildBlueprintFromPuStackDispatch } from '../llm/planBlueprintLlm'
 import { alignOrchestratorWebExecutionMode } from './orchestratorWebExecutionAlign'
 import { rematerializeWeatherCrawlerMisbind } from './weatherAdminBoundary'
 import { rematerializeMapCrawlerMisbind } from './mapAdminBoundary'
+import {
+  isClearSolePlaneNoWeb,
+  shouldSkipWebAlignLlm,
+  stripUnboundCrawlerArtifacts
+} from './stripUnboundCrawler'
 import { sortAgentsByPipelineOrder } from '../core/routing/clauses'
 import type { ExecutableAgent } from '../core/routing/routeFinalize'
 import { isLlmRateLimitError } from '../../utils/chat/llmRateLimit'
@@ -45,13 +51,15 @@ function reapplyAdminApiCrawlerBoundary(decision: OrchestratorDecision): Orchest
   const draft = Array.isArray(decision.metaPatch?.stepDispatchDraft)
     ? (decision.metaPatch.stepDispatchDraft as Parameters<typeof rematerializeWeatherCrawlerMisbind>[0]['stepDispatchDraft'])
     : decision.stepDispatchDraft
+  const commitmentRaw = decision.raw as unknown as Record<string, unknown>
   const weatherFixed = rematerializeWeatherCrawlerMisbind({
     allowedAgents: decision.allowedAgents as ExecutableAgent[],
     clauses: decision.clauses,
     classify: decision.intentClassify,
     planBlueprint: decision.planBlueprint,
     stepDispatchDraft: draft,
-    needsWebSearch: decision.needsWebSearch
+    needsWebSearch: decision.needsWebSearch,
+    sourceCommitmentRaw: commitmentRaw
   })
   const fixed = rematerializeMapCrawlerMisbind({
     allowedAgents: weatherFixed.allowedAgents,
@@ -59,7 +67,8 @@ function reapplyAdminApiCrawlerBoundary(decision: OrchestratorDecision): Orchest
     classify: weatherFixed.classify,
     planBlueprint: weatherFixed.planBlueprint,
     stepDispatchDraft: weatherFixed.stepDispatchDraft,
-    needsWebSearch: weatherFixed.needsWebSearch
+    needsWebSearch: weatherFixed.needsWebSearch,
+    sourceCommitmentRaw: commitmentRaw
   })
   if (!weatherFixed.changed && !fixed.changed) return decision
   const allowed = sortAgentsByPipelineOrder(fixed.allowedAgents) as OrchestratorDecision['allowedAgents']
@@ -81,20 +90,62 @@ function reapplyAdminApiCrawlerBoundary(decision: OrchestratorDecision): Orchest
   }
 }
 
+function applyStripUnboundCrawlerDecision(decision: OrchestratorDecision): OrchestratorDecision {
+  const draft = Array.isArray(decision.metaPatch?.stepDispatchDraft)
+    ? (decision.metaPatch.stepDispatchDraft as Array<{ agent?: string }>)
+    : decision.stepDispatchDraft
+  const stripped = stripUnboundCrawlerArtifacts({
+    allowedAgents: decision.allowedAgents,
+    clauses: decision.clauses,
+    classify: decision.intentClassify,
+    planBlueprint: decision.planBlueprint,
+    stepDispatchDraft: draft,
+    needsWebSearch: decision.needsWebSearch,
+    sourceCommitmentRaw: decision.raw as unknown as Record<string, unknown>,
+    compositeDataWebRoute: decision.metaPatch?.compositeDataWebRoute === true
+  })
+  if (!stripped.changed) return decision
+  const allowed = sortAgentsByPipelineOrder(stripped.allowedAgents) as OrchestratorDecision['allowedAgents']
+  return {
+    ...decision,
+    allowedAgents: allowed,
+    intentClassify: stripped.classify,
+    planBlueprint: stripped.planBlueprint,
+    needsWebSearch: stripped.needsWebSearch === false ? false : decision.needsWebSearch,
+    metaPatch: {
+      ...decision.metaPatch,
+      intentClassify: stripped.classify,
+      taskClauses: stripped.clauses,
+      planBlueprint: stripped.planBlueprint ?? undefined,
+      needsWebSearch: stripped.needsWebSearch === false ? false : decision.needsWebSearch,
+      ...(stripped.stepDispatchDraft?.length ? { stepDispatchDraft: stripped.stepDispatchDraft } : {})
+    }
+  }
+}
+
 async function finalizeOrchestratorDecision(
   input: OrchestratorPipelineInput,
   decision: OrchestratorDecision,
 ): Promise<OrchestratorDecision> {
   const toolHealth = (input.state as { toolHealth?: { agents?: Array<{ agent: string; status: string }> } })
     ?.toolHealth
-  const aligned = await alignOrchestratorWebExecutionMode({
-    decision,
-    userTask: input.lastUser,
-    llmInvoke: input.llmInvoke,
-    state: input.state,
-    toolHealth,
+  const skipWeb = shouldSkipWebAlignLlm({
+    allowedAgents: decision.allowedAgents,
+    needsWeb: decision.intentClassify?.needsWeb,
+    needsWebSearch: decision.needsWebSearch,
+    sourceCommitmentRaw: decision.raw as unknown as Record<string, unknown>
   })
-  return reapplyAdminApiCrawlerBoundary(aligned)
+  const aligned = skipWeb
+    ? decision
+    : await alignOrchestratorWebExecutionMode({
+        decision,
+        userTask: input.lastUser,
+        llmInvoke: input.llmInvoke,
+        state: input.state,
+        toolHealth,
+      })
+  // web-align / composite 之后再硬剥幽灵 crawler（lint 告警不够）
+  return applyStripUnboundCrawlerDecision(reapplyAdminApiCrawlerBoundary(aligned))
 }
 
 export function isOrchestratorLlmOnlyMode(env: NodeJS.ProcessEnv = process.env): boolean {
@@ -234,7 +285,16 @@ export async function resolveOrchestratorPipeline(
     )
   }
 
-  if (isUserIntentAlignLlmEnabled()) {
+  const soleClearNoWeb = isClearSolePlaneNoWeb({
+    allowedAgents: bundle.allowedAgents,
+    planShortcut: bundle.intentClassify?.planShortcut,
+    needsWeb: bundle.intentClassify?.needsWeb,
+    needsWebSearch: bundle.needsWebSearch,
+    sourceCommitmentRaw: bundle.raw as unknown as Record<string, unknown>
+  })
+
+  // 清晰单数据面：跳过 align / planeCoverage LLM，避免单步路由连打 3～4 次 plus
+  if (isUserIntentAlignLlmEnabled() && !soleClearNoWeb) {
     const weakHints = [puHint, draftBinding].filter(Boolean).join('\n')
     const aligned = await alignOrchestratorBundleToUserIntent({
       lastUser: userTask,
@@ -250,6 +310,48 @@ export async function resolveOrchestratorPipeline(
       }
       source = `${source}_user_align`
     }
+  } else if (soleClearNoWeb) {
+    source = `${source}_skip_align`
+  }
+
+  // 库存存在性再判：单源 db↔rag 纠正（目录能答/不能答），禁止扩 multi
+  if (!soleClearNoWeb) {
+    const probeForCover =
+      (input.probe as { db?: unknown; rag?: unknown } | null | undefined) ??
+      (input.state as { probe?: { db?: unknown; rag?: unknown } } | null)?.probe ??
+      null
+    const covered = await rejudgePlaneCoverageByInventory({
+      lastUser: userTask,
+      bundle: bundle!,
+      probe: probeForCover as Parameters<typeof rejudgePlaneCoverageByInventory>[0]['probe'],
+      llmInvoke: input.llmInvoke,
+      state: input.state
+    })
+    if (covered.rewritten) {
+      bundle = covered.bundle
+      source = `${source}_plane_cover`
+    }
+    if (covered.noCoverageClarify && bundle) {
+      const qs =
+        bundle.clarifyQuestions?.length > 0
+          ? bundle.clarifyQuestions
+          : ['当前环境库存似乎无法覆盖该查询，请确认要查的库表/文档，或换一种问法。']
+      bundle = {
+        ...bundle,
+        needsClarify: true,
+        clarifyKind: 'plane',
+        clarifyQuestions: qs,
+        raw: {
+          ...bundle.raw,
+          needsClarify: true,
+          clarifyKind: 'plane',
+          clarifyQuestions: qs
+        }
+      }
+      source = `${source}_no_cover_clarify`
+    }
+  } else {
+    source = `${source}_skip_plane_cover`
   }
 
   const maxRetries = orchestratorReflexMaxRetries()

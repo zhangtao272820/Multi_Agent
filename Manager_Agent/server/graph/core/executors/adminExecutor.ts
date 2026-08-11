@@ -205,6 +205,7 @@ export async function executeAdminStep(
       message: adminMessage,
       sessionId: resolveManagerAgentSessionId(opts),
       traceId: opts.runId,
+      userId: String(opts.userId || '').trim() || undefined,
       autoConfirmRisky: autoDecision.autoConfirm,
       autoConfirmReason: autoDecision.reason,
       clientContext: resolveAdminClientContext(
@@ -318,6 +319,7 @@ export async function executeAdminStep(
             originalUserMessage: scopedAction,
             sessionId: resolveManagerAgentSessionId(opts),
             traceId: opts.runId,
+            userId: String(opts.userId || '').trim() || undefined,
             clientContext: decideClientContext,
             sendThinking: input.sendThinking,
             signal: opts.signal

@@ -1,0 +1,102 @@
+id: story_aili_married_expecting
+label: 花茎旁的新芽
+priority: 7
+once: true
+chance: 1.0
+scene_id: home_afternoon
+trigger:
+  character_ids:
+  - aili
+  stage_min: married
+  affinity_min: 80
+  flags_absent:
+  - al_expecting_home
+prompt_snippet: '【专属故事 · 婚后 · 花茎旁的新芽】
+
+  孕期居家；立绘优先 maternity。
+
+  '
+advance: on_player_turn
+beats:
+- id: b1
+  summary: 温室味还在指尖，她却坐在沙发上，说这回要照看的不是花束，是会自己长大的新芽。等你回应。
+  sprite_hint:
+  - maternity
+  - home
+  - casual
+  soft_options:
+  - 握住她的手
+  - 问她想喝什么
+  - 帮她放下花剪
+  narration: 泥土与花茎汁里，温室味还在指尖，她却坐在沙发上，说这回要照看的不是花束，是会自己长大的新芽。花茎切口还渗着水。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 再选择之后的日常，终于有了真正的新页。我想靠近，又怕说错一句。
+  brief: 她说要照看会自己长大的新芽。等你回应。
+  pages:
+  - text: 泥土与花茎汁里，温室味还在指尖，她却坐在沙发上，说这回要照看的不是花束，是会自己长大的新芽。花茎切口还渗着水。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: maternity
+      emotion: neutral
+  - text: 再选择之后的日常，终于有了真正的新页。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: maternity
+      emotion: shy
+- id: b2
+  summary: 她笑着说花卡上可以写你们的名字，但肚子里的那位暂时只收温水和你的准时。等你回应。
+  sprite_hint:
+  - maternity
+  - home
+  - casual
+  soft_options:
+  - 写下一句承诺
+  - 吻她手背
+  - 一起整理待产清单
+  narration: 她笑着说花卡上可以写你们的名字，但肚子里的那位暂时只收温水和你的准时。花茎切口还渗着水。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。空气有点静，连呼吸都听得见。
+  pc_thought: 花店打烊后，家才是真正的花房。我想靠近，又怕说错一句。她没再多说，只是看着你。
+  brief: 她说暂时只收温水和准时。等你回应。
+  pages:
+  - text: 她笑着说花卡上可以写你们的名字，但肚子里的那位暂时只收温水和你的准时。花茎切口还渗着水。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。空气有点静，连呼吸都听得见。
+    voice: narration
+    sprite:
+      outfit: maternity
+      emotion: neutral
+  - text: 花店打烊后，家才是真正的花房。我想靠近，又怕说错一句。她没再多说，只是看着你。
+    voice: pc
+    sprite:
+      outfit: maternity
+      emotion: shy
+- id: b3
+  summary: 她把你的手按在腹前，说这不是结局CG，是明天还要继续的日常。等你回应。
+  sprite_hint:
+  - maternity
+  - home
+  - casual
+  soft_options:
+  - 认真点头
+  - 轻声答应
+  - 亲吻她的发顶
+  narration: 她把你的手按在腹前，说这不是结局CG，是明天还要继续的日常。花茎切口还渗着水。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。空气有点静，连呼吸都听得见。
+  pc_thought: 孕装立绘之外，是愿意一起把日子过下去的承诺。我想靠近，又怕说错一句。
+  brief: 她说这是明天还要继续的日常。等你回应。
+  pages:
+  - text: 她把你的手按在腹前，说这不是结局CG，是明天还要继续的日常。花茎切口还渗着水。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。空气有点静，连呼吸都听得见。
+    voice: narration
+    sprite:
+      outfit: maternity
+      emotion: neutral
+  - text: 孕装立绘之外，是愿意一起把日子过下去的承诺。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: maternity
+      emotion: shy
+rewards:
+  flags_set:
+  - al_expecting_home
+choice_effects:
+- trust_delta: 3
+  affinity_delta: 3
+- trust_delta: 2
+  affinity_delta: 2
+- trust_delta: 1
+  affinity_delta: 1

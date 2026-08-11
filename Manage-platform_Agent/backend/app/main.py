@@ -2610,6 +2610,68 @@ async def manager_observability(
     return build_manager_observability()
 
 
+class AgentPlaneResetBody(BaseModel):
+    agent: str  # manager | db | rag | admin
+    scope: str = "learning"  # memory|summaries|evolution|learning|prompts|all|experience
+    tenant_id: str | None = None
+
+
+@app.post("/api/agents/plane-reset")
+async def agents_plane_reset(
+    body: AgentPlaneResetBody,
+    current: UserRecord = Depends(require_roles("operator", "admin")),
+):
+    """分 Agent 清除记忆/进化（本平面），用于污染回滚。"""
+    api_requests_total.labels(endpoint="/api/agents/plane-reset", method="POST").inc()
+    from .internal_http import post_json
+    from .config import get_settings
+
+    settings = get_settings()
+    agent = str(body.agent or "").strip().lower()
+    scope = str(body.scope or "learning").strip().lower()
+    tid = str(body.tenant_id or getattr(current, "tenant_id", None) or "default").strip() or "default"
+
+    if agent == "manager":
+        host = str(settings.manager_agent_host or "localhost").strip()
+        port = str(settings.manager_agent_port or "13106").strip()
+        mgr_scope = {
+            "memory": "summaries",
+            "summaries": "summaries",
+            "evolution": "evolution",
+            "experience": "experience",
+            "learning": "experience",
+            "all": "all",
+        }.get(scope, "experience")
+        url = f"http://{host}:{port}/api/manager/memory-clear"
+        result = post_json(
+            url,
+            {"scope": mgr_scope, "tenantId": tid, "includeSubAgents": False},
+            timeout_sec=20.0,
+        )
+    elif agent in ("db", "rag", "admin"):
+        if agent == "db":
+            host = str(settings.db_agent_host or "localhost").strip()
+            port = str(settings.db_agent_port or "13101").strip()
+        elif agent == "rag":
+            host = str(settings.rag_agent_host or "localhost").strip()
+            port = str(settings.rag_agent_port or "13102").strip()
+        else:
+            host = str(settings.ai_admin_agent_host or "localhost").strip()
+            port = str(settings.ai_admin_agent_port or "13105").strip()
+        url = f"http://{host}:{port}/api/learning/reset"
+        result = post_json(
+            url,
+            {"scope": scope, "tenant_id": tid, "tenantId": tid},
+            timeout_sec=20.0,
+        )
+    else:
+        raise HTTPException(status_code=400, detail="agent must be manager|db|rag|admin")
+
+    if not result.get("ok"):
+        raise HTTPException(status_code=502, detail=str(result.get("error") or "agent_unreachable"))
+    return {"ok": True, "agent": agent, "scope": scope, "tenant_id": tid, "result": result.get("data")}
+
+
 @app.get("/api/manager/evolution/global-candidates")
 async def manager_evolution_global_candidates(
     status: str = "pending",

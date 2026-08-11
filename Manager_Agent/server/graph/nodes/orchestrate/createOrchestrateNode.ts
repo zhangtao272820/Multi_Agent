@@ -24,7 +24,8 @@ import {
   postureAllowsDebugRerun,
   postureForcesReadOnly,
   postureLabelZh,
-  resolveCollaborationPosture
+  resolveCollaborationPosture,
+  resolveEffectiveCollaborationPosture
 } from '../../../utils/platform/collaborationPosture'
 import { resolveUnifiedOrchestration } from '../../orchestrate/unifiedOrchestrate'
 import { resolveOrchestratorRoutingContext } from '../../orchestrate/unifiedRouting'
@@ -136,7 +137,9 @@ export function createOrchestrateNode(deps: CreateOrchestrateNodeDeps) {
     const clarifyMerged = String(metaObj.clarifyMergedQuery || '').trim()
     const lastOnly = clarifyReplan && clarifyMerged ? clarifyMerged : lastOnlyRaw
     const workbenchMode = resolveManagerInteractionMode(state.meta)
+    /** 用户显式姿态；门禁用有效姿态（可回落 suggestedPosture） */
     const collaborationPosture = resolveCollaborationPosture(state.meta)
+    const effectivePosture = resolveEffectiveCollaborationPosture(state.meta)
     const sessionAnchor = sessionIntentAnchorFromMeta(state.meta)
 
     let turnScope = resolveTurnRoutingScope({
@@ -150,14 +153,18 @@ export function createOrchestrateNode(deps: CreateOrchestrateNodeDeps) {
     turnScope = applyProfessionalChitchatContinuation(turnScope, workbenchMode)
 
     if (!state?.meta?.lowCostMode) {
+      const postureNote =
+        effectivePosture !== collaborationPosture
+          ? `（编排建议 ${postureLabelZh(effectivePosture)}）`
+          : ''
       opts.sendEvent({
         event: 'thinking',
-        data: `编排工作台：${workbenchMode === 'professional' ? '专业（PU-Stack·域任务）' : '对话（闲聊/联网/代码）'} · 姿态 ${postureLabelZh(collaborationPosture)}`,
+        data: `编排工作台：${workbenchMode === 'professional' ? '专业（PU-Stack·域任务）' : '对话（闲聊/联网/代码）'} · 姿态 ${postureLabelZh(collaborationPosture)}${postureNote}`,
         from: 'manager'
       })
     }
 
-    if (collaborationPosture === 'debug' && !postureAllowsDebugRerun('debug', state.meta)) {
+    if (effectivePosture === 'debug' && !postureAllowsDebugRerun('debug', state.meta)) {
       const msg =
         'Debug 姿态需要上轮/本轮 Step Observation（步证据）才能定点重验。请先切到 Agent 跑一轮，或在上下文中附带步状态后再进 Debug。'
       opts.sendEvent({
@@ -304,14 +311,14 @@ export function createOrchestrateNode(deps: CreateOrchestrateNodeDeps) {
     try {
       const unified = await resolveUnifiedOrchestration(orchInput)
       let { decision, orchestratorSource, pipelineResult } = unified
-      const filteredAgents = filterAgentsForPosture(decision.allowedAgents as string[], collaborationPosture)
+      const filteredAgents = filterAgentsForPosture(decision.allowedAgents as string[], effectivePosture)
       if (filteredAgents.length !== decision.allowedAgents.length) {
         decision = {
           ...decision,
           allowedAgents: filteredAgents as typeof decision.allowedAgents
         }
         onThinking(
-          `姿态 ${postureLabelZh(collaborationPosture)}：已剔除写副作用专才（Ask/Debug 只读）`
+          `姿态 ${postureLabelZh(effectivePosture)}：已剔除写副作用专才（Ask/Debug 只读）`
         )
       }
       const modeLabel = workbenchMode === 'professional' ? '专业' : '对话'
@@ -321,11 +328,24 @@ export function createOrchestrateNode(deps: CreateOrchestrateNodeDeps) {
           | { mode?: string }
           | undefined
         const webHint = webMode?.mode ? ` web=${webMode.mode}` : ''
+        const planes = decision.allowedAgents.filter((a) => ['db', 'rag', 'crawler', 'gui', 'admin'].includes(String(a)))
+        const summary = [
+          `${modeLabel}编排[${orchestratorSource}]：${decision.intent}`,
+          `数据/工具面=${planes.join('+') || '（加工链）'}`,
+          `执行链=${decision.allowedAgents.join('→')}`,
+          `蓝图=${bp}${webHint}`,
+          decision.intentClassify?.needsWeb ? '含公网腿' : '无公网腿'
+        ].join('｜')
         opts.sendEvent({
           event: 'thinking',
-          data: `${modeLabel}编排[${orchestratorSource}]：${decision.intent}｜cap=${decision.allowedAgents.join('→')}｜蓝图=${bp}${webHint}`,
+          data: summary,
           from: 'manager'
         })
+        onThinking(
+          `路由结论：${planes.length ? `选用 ${planes.join('、')}` : '仅加工链'}；${
+            decision.intentClassify?.needsWeb ? '需要公网采集' : '不调用采集网页'
+          }；计划 ${bp}`
+        )
       }
       return finishOrchestrateTurn({
         state,
@@ -336,7 +356,8 @@ export function createOrchestrateNode(deps: CreateOrchestrateNodeDeps) {
         orchestratorMetaBase: {
           ...(unified.orchestratorMetaBase ?? {}),
           collaborationPosture,
-          ...(postureForcesReadOnly(collaborationPosture) ? { postureReadOnly: true } : {})
+          effectivePosture,
+          ...(postureForcesReadOnly(effectivePosture) ? { postureReadOnly: true } : {})
         },
         mergeMeta,
         opts

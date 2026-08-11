@@ -59,6 +59,7 @@ from .world_engine import (
     hub_public,
     list_available_dates,
     load_date_catalog,
+    public_date_script,
     travel,
     who_is_here,
 )
@@ -391,6 +392,83 @@ def scene_bg_asset(name: str):
 @app.get("/api/presentation")
 def presentation_catalog():
     return public_presentation()
+
+
+@app.get("/api/cast-stars")
+def cast_stars_catalog():
+    from .cast_star_tiers import public_star_tiers
+
+    return public_star_tiers()
+
+
+@app.get("/api/intro-cards")
+def intro_cards_catalog():
+    from .intro_cards import public_intro_cards_catalog
+
+    return public_intro_cards_catalog()
+
+
+@app.get("/api/intro-cards/{character_id}")
+def intro_card_one(character_id: str):
+    from .intro_cards import public_intro_card
+
+    card = public_intro_card(character_id)
+    if not card:
+        raise HTTPException(404, "intro card not found")
+    return card
+
+
+@app.get("/api/sprites/intro_cards/{character_id}/{filename}")
+def intro_card_asset(character_id: str, filename: str):
+    cid = (character_id or "").strip()
+    name = Path(filename or "").name
+    if not cid or not name or ".." in name or not name.endswith((".png", ".jpg", ".jpeg", ".webp")):
+        raise HTTPException(404)
+    path = PROJECT_ROOT / "data" / "sprites" / "intro_cards" / cid / name
+    if not path.is_file():
+        raise HTTPException(404)
+    media = "image/jpeg" if path.suffix.lower() in {".jpg", ".jpeg"} else "image/png"
+    return FileResponse(path, media_type=media)
+
+
+@app.get("/api/sprites/showcase")
+def sprites_showcase_catalog():
+    from .showcase_gallery import public_showcase_catalog
+
+    return public_showcase_catalog()
+
+
+@app.get("/api/sprites/showcase/{character_id}/{filename}")
+def showcase_asset(character_id: str, filename: str):
+    from .showcase_gallery import resolve_showcase_file
+
+    cid = (character_id or "").strip()
+    name = Path(filename or "").name
+    if not cid or not name or ".." in name:
+        raise HTTPException(404)
+    slot = name.rsplit(".", 1)[0] if "." in name else name
+    path = resolve_showcase_file(cid, slot)
+    if not path:
+        raise HTTPException(404)
+    media = "image/jpeg" if path.suffix.lower() in {".jpg", ".jpeg"} else "image/png"
+    return FileResponse(path, media_type=media, headers={"Cache-Control": "public, max-age=86400"})
+
+
+@app.get("/api/story-hint-pages/{character_id}")
+def story_hint_pages_one(
+    character_id: str,
+    hint_text: str = "",
+    character_name: str = "",
+    act_title: str = "",
+):
+    from .story_hint_pages import public_hint_pages
+
+    return public_hint_pages(
+        character_id,
+        hint_text=hint_text,
+        character_name=character_name,
+        act_title=act_title,
+    )
 
 
 @app.get("/api/bgm/catalog")
@@ -1078,41 +1156,34 @@ async def websocket_chat(ws: WebSocket):
                 save.bonds[character_id] = bond
                 save = advance_period(save, allow_day_roll=False)
                 upsert_world_save(save)
-                session = store.create_world_talk(
-                    world_save_id=save_id,
-                    character_id=character_id,
-                    date_snippet=date_def.prompt_snippet,
-                    scene_mode="date",
-                )
-                if not session:
-                    await ws.send_json({"type": "error", "payload": {"message": "创建约会会话失败"}})
-                    continue
-                opening = session.messages[-1]["content"] if session.messages else ""
-                parsed = _avatar_for_world(opening, save, character_id)
+                # 约会走手写 VN 剧本页，不再开 LLM 聊天场（galgame美德演绎升级）
                 scene = _resolve_scene_seasoned(
                     save, scene_id=date_def.scene_id or date_def.location_id
                 )
-                outfit = _sprite_outfit_for_session(session, save)
+                bond_now = save.bonds[character_id]
+                scene_bg = ""
+                if isinstance(scene, dict):
+                    scene_bg = str(scene.get("bg") or scene.get("id") or "").strip()
+                script = public_date_script(
+                    date_def,
+                    character_id=character_id,
+                    character_name=(bond_now.profile.name if bond_now.profile else "") or "",
+                    default_bg=scene_bg or date_def.scene_id or date_def.location_id,
+                )
                 await ws.send_json(
                     {
-                        "type": "session_created",
+                        "type": "date_script",
                         "payload": {
-                            "session_id": session.id,
                             "save_id": save_id,
                             "world_save_id": save_id,
                             "character_id": character_id,
-                            "greeting": opening,
-                            "avatar": parsed,
-                            "profile": session.profile.model_dump(),
-                            "relationship_state": session.relationship_state.model_dump(),
-                            "memories": [m.model_dump() for m in session.memories],
-                            "dialogue": [m.model_dump() for m in session.dialogue_turns],
-                            "scene": scene,
                             "mode": "date",
                             "date": {"id": date_def.id, "label": date_def.label},
+                            "script": script,
+                            "scene": scene,
                             "hub": hub_public(save),
-                            "sprite_outfit": outfit,
-                            **_session_talk_extras(session),
+                            "world": public_world(save),
+                            "relationship_state": bond_now.relationship_state.model_dump(),
                         },
                     }
                 )
@@ -1389,41 +1460,34 @@ async def websocket_chat(ws: WebSocket):
                 save.bonds[character_id] = bond
                 save = advance_period(save, allow_day_roll=False)
                 upsert_world_save(save)
-                session = store.create_world_talk(
-                    world_save_id=save_id,
-                    character_id=character_id,
-                    date_snippet=date_def.prompt_snippet,
-                    scene_mode="date",
-                )
-                if not session:
-                    await ws.send_json({"type": "error", "payload": {"message": "创建约会会话失败"}})
-                    continue
-                opening = session.messages[-1]["content"] if session.messages else ""
-                parsed = _avatar_for_world(opening, save, character_id)
+                # 约会走手写 VN 剧本页，不再开 LLM 聊天场（galgame美德演绎升级）
                 scene = _resolve_scene_seasoned(
                     save, scene_id=date_def.scene_id or date_def.location_id
                 )
-                outfit = _sprite_outfit_for_session(session, save)
+                bond_now = save.bonds[character_id]
+                scene_bg = ""
+                if isinstance(scene, dict):
+                    scene_bg = str(scene.get("bg") or scene.get("id") or "").strip()
+                script = public_date_script(
+                    date_def,
+                    character_id=character_id,
+                    character_name=(bond_now.profile.name if bond_now.profile else "") or "",
+                    default_bg=scene_bg or date_def.scene_id or date_def.location_id,
+                )
                 await ws.send_json(
                     {
-                        "type": "session_created",
+                        "type": "date_script",
                         "payload": {
-                            "session_id": session.id,
                             "save_id": save_id,
                             "world_save_id": save_id,
                             "character_id": character_id,
-                            "greeting": opening,
-                            "avatar": parsed,
-                            "profile": session.profile.model_dump(),
-                            "relationship_state": session.relationship_state.model_dump(),
-                            "memories": [m.model_dump() for m in session.memories],
-                            "dialogue": [m.model_dump() for m in session.dialogue_turns],
-                            "scene": scene,
                             "mode": "date",
                             "date": {"id": date_def.id, "label": date_def.label},
+                            "script": script,
+                            "scene": scene,
                             "hub": hub_public(save),
-                            "sprite_outfit": outfit,
-                            **_session_talk_extras(session),
+                            "world": public_world(save),
+                            "relationship_state": bond_now.relationship_state.model_dump(),
                         },
                     }
                 )

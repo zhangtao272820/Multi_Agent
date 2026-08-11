@@ -4,9 +4,17 @@
  */
 
 import { isAgentPgConfigured } from './agentPgClient'
-import { isConfirmedExperienceRow, isExperienceRecallConfirmedOnly } from './experienceRecallPolicy'
+import {
+  isConfirmedExperienceRow,
+  isExperienceRecallConfirmedOnly,
+  type ExperienceRecallPlane,
+  shouldRecallExperienceForPlane
+} from './experienceRecallPolicy'
 
 export type ExperienceDomain = 'manager' | 'db' | 'rag' | 'code' | 'crawler' | 'gui' | 'admin'
+
+/** 写入平面：联邦一律 manager_orchestrated；专家本地写 standalone */
+export type ExperienceSourcePlane = 'standalone' | 'manager_orchestrated'
 
 export type ExperienceSyncResult = {
   synced: boolean
@@ -16,6 +24,9 @@ export type ExperienceSyncResult = {
 export type ExperienceSyncOpts = {
   force?: boolean
 }
+
+export const EXPERIENCE_SOURCE_PLANE_ORCHESTRATED: ExperienceSourcePlane = 'manager_orchestrated'
+export const EXPERIENCE_SOURCE_PLANE_STANDALONE: ExperienceSourcePlane = 'standalone'
 
 /** 问句规范化：跨域 experience 主键 / ILIKE 共用 */
 export function normalizeExperienceQuestionKey(question: string, max = 120): string {
@@ -39,6 +50,11 @@ export function experienceSyncSource(opts?: ExperienceSyncOpts): string {
   return opts?.force ? 'manager_feedback_confirmed' : 'manager_finalize_sync'
 }
 
+/** 联邦写入固定平面（独立端召回默认排除） */
+export function experienceSyncSourcePlane(_opts?: ExperienceSyncOpts): ExperienceSourcePlane {
+  return EXPERIENCE_SOURCE_PLANE_ORCHESTRATED
+}
+
 export function experienceSyncStatus(opts?: ExperienceSyncOpts): 'confirmed' | 'pending' {
   return opts?.force ? 'confirmed' : 'confirmed'
 }
@@ -57,16 +73,20 @@ export function emptyQuestionResult(questionNorm: string): ExperienceSyncResult 
   return null
 }
 
-/** 召回侧：统一确认门控（jsonl / 无 status 列兜底） */
+/** 召回侧：统一确认门控 + 平面隔离 */
 export function mayRecallExperienceRow(
-  row: { source?: string; userConfirmed?: boolean; status?: string },
-  env: NodeJS.ProcessEnv = process.env
+  row: { source?: string; userConfirmed?: boolean; status?: string; source_plane?: string; sourcePlane?: string },
+  env: NodeJS.ProcessEnv = process.env,
+  plane: ExperienceRecallPlane = 'standalone'
 ): boolean {
+  if (!shouldRecallExperienceForPlane(plane, row, env)) return false
   if (!isExperienceRecallConfirmedOnly(env)) return true
   return isConfirmedExperienceRow(row)
 }
 
 export {
   isConfirmedExperienceRow,
-  isExperienceRecallConfirmedOnly
+  isExperienceRecallConfirmedOnly,
+  shouldRecallExperienceForPlane,
+  type ExperienceRecallPlane
 } from './experienceRecallPolicy'

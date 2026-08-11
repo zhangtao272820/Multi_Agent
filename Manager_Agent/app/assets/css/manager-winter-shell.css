@@ -1018,9 +1018,10 @@
 }
 
 .spring-root.cursor-workbench.cosmic-theme .cursor-thought-panel .process-step-phase {
-  background: linear-gradient(90deg, rgba(180, 215, 245, 0.45), rgba(210, 230, 250, 0.28)) !important;
-  border: 1px solid rgba(100, 155, 205, 0.4) !important;
-  color: #1a3a58 !important;
+  background: rgba(255, 255, 255, 0.94) !important;
+  border: 1px solid rgba(122, 168, 212, 0.5) !important;
+  color: #0a1a28 !important;
+  font-weight: 700 !important;
 }
 
 .spring-root.cursor-workbench.cosmic-theme .cursor-thought-panel .process-step-body {

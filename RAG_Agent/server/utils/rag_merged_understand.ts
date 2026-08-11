@@ -12,6 +12,7 @@ import {
 } from "./rag_multi_turn";
 import { extractTopicKeywords } from "./session_memory";
 import { isRagNluFeatureEnabled } from "./rag_nlu_mode";
+import { groundFollowupQuery, shouldGroundFollowupQuery } from "#agent-shared/followupQueryGrounding";
 
 export type RagMergedUnderstandResult = {
   effectiveQuery: string;
@@ -68,6 +69,7 @@ async function mergeByLlm(input: {
       "2) 保留时间、数字、否定与全部字段关键词；",
       "3) 去掉「从知识库检索」等元指令；",
       "4) 不编造文档里未出现的专有名词；",
+      "5) 若存在【上轮任务锚点】：必须在同一主题上合并，禁止另起新检索主题或新专名；",
       '只输出 JSON：{"coalesced":"...","retrieval_keywords":["..."]}',
     ].join("\n"),
   );
@@ -106,6 +108,8 @@ export async function mergeRagMultiTurnUnderstand(input: {
   sessionAnchor?: RagSessionRetrievalAnchor | null;
   skipMerge?: boolean;
   suppressAnchor?: boolean;
+  /** 独立 turnScope turn_kind，用于短承接强制锚定 */
+  turnKind?: string | null;
 }): Promise<RagMergedUnderstandResult> {
   const last = String(input.lastUser || "").trim();
   if (!last || input.skipMerge) {
@@ -119,14 +123,38 @@ export async function mergeRagMultiTurnUnderstand(input: {
     };
   }
 
+  const priorHuman = (() => {
+    const humans = input.messages
+      .filter((m) => m._getType() === "human")
+      .map((m) => String(m.content ?? "").trim())
+      .filter(Boolean);
+    if (!humans.length) return "";
+    const lastH = humans[humans.length - 1];
+    return lastH === last && humans.length >= 2 ? humans[humans.length - 2] : lastH === last ? "" : lastH;
+  })();
+  const anchorTask =
+    (!input.suppressAnchor && input.sessionAnchor?.coalescedTask) || priorHuman || "";
+
   const multiTurn = shouldRunRagMultiTurnMerge(input.messages, last);
   if (!multiTurn && (!input.sessionAnchor?.coalescedTask || input.suppressAnchor)) {
+    const passthrough = shouldGroundFollowupQuery({
+      turnKind: input.turnKind,
+      lastUser: last,
+      anchorTask,
+    })
+      ? groundFollowupQuery({
+          lastUser: last,
+          turnKind: input.turnKind,
+          anchorTask,
+          candidate: last,
+        })
+      : last;
     return {
-      effectiveQuery: last,
+      effectiveQuery: passthrough,
       multiTurn: false,
       needsCondense: false,
       retrievalKeywords: [],
-      topics: extractTopicKeywords(last),
+      topics: extractTopicKeywords(passthrough),
       source: "passthrough",
     };
   }
@@ -169,6 +197,21 @@ export async function mergeRagMultiTurnUnderstand(input: {
     } catch {
       /* keep structural */
     }
+  }
+
+  if (
+    shouldGroundFollowupQuery({
+      turnKind: input.turnKind || (multiTurn ? "continuation" : undefined),
+      lastUser: last,
+      anchorTask,
+    })
+  ) {
+    effectiveQuery = groundFollowupQuery({
+      lastUser: last,
+      turnKind: input.turnKind || "continuation",
+      anchorTask,
+      candidate: effectiveQuery,
+    });
   }
 
   const topics = extractTopicKeywords(effectiveQuery);

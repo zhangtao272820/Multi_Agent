@@ -63,6 +63,8 @@ export type ReplyTier = 'lite' | 'standard' | 'report'
 
 export type UserFacingPayload = {
   summary: string
+  /** 顶栏一行结论（确定性截取，非二次 LLM） */
+  headline?: string
   metrics?: UserFacingMetric[]
   chart?: { title: string; option: object }
   table?: { headers: string[]; rows: string[][] }
@@ -769,6 +771,52 @@ export function appendixOverlapsSummary(summary: string, appendix: string): bool
   return false
 }
 
+const HEADLINE_MAX_CHARS = 80
+const HEADLINE_SKIP_HINTS = /汇总未生成|暂无可用结论|未能生成|系统未找到足够/
+
+/**
+ * 从 summary 首段确定性截取一行 headline（非 LLM）。
+ * lite 档跳过；过短或占位提示跳过。
+ */
+export function extractUserFacingHeadline(
+  summary: string,
+  replyTier?: ReplyTier
+): string | undefined {
+  if (replyTier === 'lite') return undefined
+  const raw = String(summary || '').trim()
+  if (!raw || HEADLINE_SKIP_HINTS.test(raw)) return undefined
+
+  // 跳过开头的 markdown 标题行，取首个实质段落
+  const lines = raw.split(/\n+/).map((l) => l.trim()).filter(Boolean)
+  let first = ''
+  for (const line of lines) {
+    if (/^#{1,6}\s/.test(line)) continue
+    if (/^[-*|>]\s/.test(line) && !first) {
+      first = line.replace(/^[-*|>]\s+/, '')
+      break
+    }
+    first = line
+    break
+  }
+  if (!first) return undefined
+
+  // 去掉粗体/斜体标记，按句号截断
+  let text = first
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/\*([^*]+)\*/g, '$1')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/^\d+[\.\)]\s+/, '')
+    .trim()
+  const sentenceEnd = text.search(/[。！？.!?]/)
+  if (sentenceEnd >= 12) text = text.slice(0, sentenceEnd + 1)
+  text = text.replace(/\s+/g, ' ').trim()
+  if (text.length < 8) return undefined
+  if (text.length > HEADLINE_MAX_CHARS) {
+    text = `${text.slice(0, HEADLINE_MAX_CHARS - 1).trim()}…`
+  }
+  return text
+}
+
 /**
  * 从 graph 结果组装 UserFacingPayload。
  * 优先 synth 叙述；简单任务可回退 handoff.summary；复杂/多源禁止专才 dump join。
@@ -872,6 +920,8 @@ export function buildUserFacingPayload(input: {
     outcomeLabel: outcomeLabelZh(outcome),
     replyTier
   }
+  const headline = extractUserFacingHeadline(summary, replyTier)
+  if (headline) payload.headline = headline
   if (meta.evidenceGatePassed === false) {
     payload.badge = 'evidence_rejected'
     payload.badgeLabel = '无证据拒答'

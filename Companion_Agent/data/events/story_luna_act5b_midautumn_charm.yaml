@@ -14,8 +14,9 @@ trigger:
   flags_absent:
   - ln_midautumn_charm
   waypoint_min: q_autumn_midautumn
-prompt_snippet: |
-  【专属故事 · 月露宁 · 节日加幕 · 中秋·护符】
+prompt_snippet: '【专属故事 · 月露宁 · 节日加幕 · 中秋·护符】
+
+  '
 advance: on_player_turn
 beats:
 - id: b1
@@ -27,33 +28,68 @@ beats:
   - 夸她
   - 点头
   - 沉默
-  narration: 塔罗牌与夜班灯里，中秋她穿节日装坐在店后门，月饼旁放着一枚未系绳的护符。
-  pc_thought: 月咒护符像玩笑。当真时，班次就不是班次。
+  narration: 塔罗牌与夜班灯里，中秋她穿节日装坐在店后门，月饼旁放着一枚未系绳的护符。杯托上印着浅浅的月牙。她没再多说，只是看着你。
+  pc_thought: 月咒护符像玩笑。当真时，班次就不是班次
   brief: 中秋她穿节日装坐在店后门，月饼旁放着一枚未系绳的护符。等你回应。
+  pages:
+  - text: 塔罗牌与夜班灯里，中秋她穿节日装坐在店后门，月饼旁放着一枚未系绳的护符。杯托上印着浅浅的月牙。她没再多说，只是看着你。
+    voice: narration
+    sprite:
+      outfit: festival_midautumn
+      emotion: neutral
+  - text: 月咒护符像玩笑。当真时，班次就不是班次
+    voice: pc
+    sprite:
+      outfit: festival_midautumn
+      emotion: shy
 - id: b2
-  summary: "她轻声说：护符只给一个名字——写你，或收进抽屉。等你回应。"
+  summary: 她轻声说：护符只给一个名字——写你，或收进抽屉。等你回应。
   sprite_hint:
   - festival_midautumn
+  - season_winter
   - date
   soft_options:
   - 接住
   - 问清楚
   - 退一步
-  narration: "塔罗牌与夜班灯里，她轻声说：护符只给一个名字——写你，或收进抽屉。"
+  narration: 塔罗牌与夜班灯里，她轻声说：护符只给一个名字——写你，或收进抽屉。杯托上印着浅浅的月牙。她没再多说，只是看着你。
   pc_thought: 星夜柜台很静。假护符一拆，她还肯看我吗？
-  brief: "她轻声说：护符只给一个名字——写你，或收进抽屉。等你回应。"
+  brief: 她轻声说：护符只给一个名字——写你，或收进抽屉。等你回应。
+  pages:
+  - text: 塔罗牌与夜班灯里，她轻声说：护符只给一个名字——写你，或收进抽屉。杯托上印着浅浅的月牙。她没再多说，只是看着你。
+    voice: narration
+    sprite:
+      outfit: festival_midautumn
+      emotion: neutral
+  - text: 星夜柜台很静。假护符一拆，她还肯看我吗？
+    voice: pc
+    sprite:
+      outfit: festival_midautumn
+      emotion: shy
 - id: b3
   summary: 月圆将尽；当真或当玩笑，会决定月亮班次是恋人，还是客人。等你回应。
   sprite_hint:
   - festival_midautumn
+  - season_winter
   - home
   soft_options:
   - 承诺
   - 诚实犹豫
   - 拒绝
-  narration: 塔罗牌与夜班灯里，月圆将尽；当真或当玩笑，会决定月亮班次是恋人，还是客人。
-  pc_thought: 冬塔罗冷。我想听解读，也想听她本人。
+  narration: 塔罗牌与夜班灯里，月圆将尽；当真或当玩笑，会决定月亮班次是恋人，还是客人。杯托上印着浅浅的月牙。她没再多说，只是看着你。
+  pc_thought: 冬塔罗冷。我想听解读，也想听她本人。我想靠近，又怕说错一句。
   brief: 月圆将尽；当真或当玩笑，会决定月亮班次是恋人，还是客人。等你回应。
+  pages:
+  - text: 塔罗牌与夜班灯里，月圆将尽；当真或当玩笑，会决定月亮班次是恋人，还是客人。杯托上印着浅浅的月牙。她没再多说，只是看着你。
+    voice: narration
+    sprite:
+      outfit: festival_midautumn
+      emotion: neutral
+  - text: 冬塔罗冷。我想听解读，也想听她本人。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: festival_midautumn
+      emotion: shy
 rewards:
   flags_set:
   - ln_midautumn_charm

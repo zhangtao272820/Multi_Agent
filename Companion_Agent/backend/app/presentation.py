@@ -22,6 +22,9 @@ _OUTFIT_FALLBACK = (
     "home",
     "work",
 )
+# 婚后日常/怀孕等：点名后优先居家链，禁止先抢 end_* / max_*
+_DOMESTIC_OUTFITS = frozenset({"maternity", "bridal", "home", "casual", "date", "work"})
+_DOMESTIC_FALLBACK = ("maternity", "bridal", "home", "casual", "date", "work", "")
 
 
 def _path() -> Path:
@@ -100,10 +103,20 @@ def resolve_ending_sprite(
     outfit_candidates: list[str] = []
     if preferred_outfit:
         outfit_candidates.append(preferred_outfit)
-    for key in _OUTFIT_FALLBACK:
-        if key not in outfit_candidates:
-            outfit_candidates.append(key)
-    # 其余 end_* / max_* 也参与候选（保持仪式感）
+
+    domestic = preferred_outfit in _DOMESTIC_OUTFITS
+    if domestic:
+        for key in _DOMESTIC_FALLBACK:
+            if key not in outfit_candidates:
+                outfit_candidates.append(key)
+        for key in _OUTFIT_FALLBACK:
+            if key not in outfit_candidates:
+                outfit_candidates.append(key)
+    else:
+        for key in _OUTFIT_FALLBACK:
+            if key not in outfit_candidates:
+                outfit_candidates.append(key)
+    # 其余 end_* / max_* 也参与候选（保持仪式感）；domestic 时排在居家链之后
     for key in sorted(have):
         if key.startswith(("end_", "max_")) and key not in outfit_candidates:
             outfit_candidates.append(key)

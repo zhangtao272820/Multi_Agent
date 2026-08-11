@@ -1,10 +1,12 @@
 /**
  * 总管 → 子 Agent 入站协议 SSOT（RAG / DB / Admin 对齐）。
  *
- * 约定：
- * - **自然语言层**：message / question（可含总管模板包装，子 Agent 必须 sanitize）
- * - **结构化侧车**：manager_*_task_json（推荐；避免从长模板 regex 二次解析）
- * - **编排标记**：HTTP `x-manager-orchestrated: 1` + `x-trace-id`
+ * 约定（passthrough 优先）：
+ * - **单源 db/rag**：outbound message/content ≡ 用户末轮原文；不传 managerTask / 编排头；history=[]；
+ *   conversationId/sessionId 用步进隔离（mgr-{runId}-{agent}[-{step}]），禁止复用 Manager session。
+ * - **真 multi**：每步 = 该 clause / queryFocus（一次切分）；禁止二次 LLM refine；sanitize 仅剥 planner 痕迹。
+ * - **结构化侧车** manager_*_task_json：可选；happy path 不发送（与独立端同构）。
+ * - **编排标记**：仅在显式编排模式使用 HTTP `x-manager-orchestrated: 1` + `x-trace-id`。
  */
 
 import {

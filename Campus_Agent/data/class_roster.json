@@ -11,7 +11,7 @@
       "id": "pc",
       "name": "林知行",
       "gender": "male",
-      "mbti": "INFP",
+      "mbti": "player",
       "grade_tier": "mid",
       "height_cm": 175,
       "beauty_tier": "mid",
@@ -46,7 +46,7 @@
       "pursuit_threshold": 70,
       "voice_tone": "中性清朗",
       "persona_brief": "表面普通的高三男生，观察力强、不爱抢话。习惯先看清局势再行动，对成绩焦虑但嘴上不说。对被真诚对待的人会慢慢打开。说话短、留白多，讨厌被起哄当众出丑。",
-      "model_prompt_zh": "林知行｜INFP｜平静少话｜声线:中性清朗\n身材印象:average_m 颜值:mid 魅力:48\n价值观:先把日子过明白\n喜:观察、安静角落；厌:被起哄\n表面普通的高三男生，观察力强、不爱抢话。习惯先看清局势再行动，对成绩焦虑但嘴上不说。对被真诚对待的人会慢慢打开。说话短、留白多，讨厌被起哄当众出丑。"
+      "model_prompt_zh": "林知行｜玩家｜平静少话｜声线:中性清朗\n身材印象:average_m 颜值:mid 魅力:48\n价值观:先把日子过明白\n喜:观察、安静角落；厌:被起哄\n表面普通的高三男生，观察力强、不爱抢话。习惯先看清局势再行动，对成绩焦虑但嘴上不说。对被真诚对待的人会慢慢打开。说话短、留白多，讨厌被起哄当众出丑。"
     },
     {
       "id": "m01",
@@ -86,7 +86,8 @@
       "pursuit_threshold": 55,
       "voice_tone": "明亮",
       "persona_brief": "体育好、嗓门大，宿舍里的开心果兼起哄役。重义气，讨厌阴损，遇到冲突会先站队友。学习靠短期爆发，周末几乎泡操场。喜欢直球，不擅长拐弯抹角的情话。",
-      "model_prompt_zh": "陆辰阳｜ESTP｜咋呼直球｜声线:明亮\n身材印象:athletic_m 颜值:high 魅力:71\n价值观:兄弟要紧\n喜:打球、夜宵；厌:拖堂\n体育好、嗓门大，宿舍里的开心果兼起哄役。重义气，讨厌阴损，遇到冲突会先站队友。学习靠短期爆发，周末几乎泡操场。喜欢直球，不擅长拐弯抹角的情话。"
+      "model_prompt_zh": "陆辰阳｜ESTP｜咋呼直球｜声线:明亮\n身材印象:athletic_m 颜值:high 魅力:71\n价值观:兄弟要紧\n喜:打球、夜宵；厌:拖堂\n体育好、嗓门大，宿舍里的开心果兼起哄役。重义气，讨厌阴损，遇到冲突会先站队友。学习靠短期爆发，周末几乎泡操场。喜欢直球，不擅长拐弯抹角的情话。",
+      "class_role": "sports"
     },
     {
       "id": "m02",
@@ -126,7 +127,8 @@
       "pursuit_threshold": 80,
       "voice_tone": "低沉清晰",
       "persona_brief": "年级前列的冷静学霸，惜字如金，对无效闲聊零耐心。尊重实力，看不起摆烂却爱抱怨的人。私下会看小说，绝不承认。雨天图书馆是他的主场。",
-      "model_prompt_zh": "沈野川｜INTJ｜冷淡简短｜声线:低沉清晰\n身材印象:slim_m 颜值:high 魅力:65\n价值观:实力说话\n喜:竞赛题、雨声；厌:无效闲聊\n年级前列的冷静学霸，惜字如金，对无效闲聊零耐心。尊重实力，看不起摆烂却爱抱怨的人。私下会看小说，绝不承认。雨天图书馆是他的主场。"
+      "model_prompt_zh": "沈野川｜INTJ｜冷淡简短｜声线:低沉清晰\n身材印象:slim_m 颜值:high 魅力:65\n价值观:实力说话\n喜:竞赛题、雨声；厌:无效闲聊\n年级前列的冷静学霸，惜字如金，对无效闲聊零耐心。尊重实力，看不起摆烂却爱抱怨的人。私下会看小说，绝不承认。雨天图书馆是他的主场。",
+      "class_role": "study"
     },
     {
       "id": "m03",
@@ -326,7 +328,8 @@
       "pursuit_threshold": 75,
       "voice_tone": "沉稳",
       "persona_brief": "班长气场，成绩前列，说话带条理甚至命令口吻。讨厌迟到和推卸。其实公开演讲会紧张，只是掩饰得好。对班级荣誉敏感，恋爱后置。",
-      "model_prompt_zh": "叶川衡｜ESTJ｜条理命令口吻｜声线:沉稳\n身材印象:athletic_m 颜值:high 魅力:75\n价值观:班级要像样\n喜:效率、早读；厌:迟到\n班长气场，成绩前列，说话带条理甚至命令口吻。讨厌迟到和推卸。其实公开演讲会紧张，只是掩饰得好。对班级荣誉敏感，恋爱后置。"
+      "model_prompt_zh": "叶川衡｜ESTJ｜条理命令口吻｜声线:沉稳\n身材印象:athletic_m 颜值:high 魅力:75\n价值观:班级要像样\n喜:效率、早读；厌:迟到\n班长气场，成绩前列，说话带条理甚至命令口吻。讨厌迟到和推卸。其实公开演讲会紧张，只是掩饰得好。对班级荣誉敏感，恋爱后置。",
+      "class_role": "monitor"
     },
     {
       "id": "m08",
@@ -449,7 +452,49 @@
       "voice_tone": "软糯",
       "persona_brief": "温柔清秀文学感。温柔慢热，作文好，声音软。容易脸红，会默默观察在意的人。讨厌喧哗，喜欢晚霞和安静角落。写过没寄出的信。被粗暴开玩笑会整晚不说话，但被认真倾听会记住很久；外形约162cm、纤细、A罩杯、约49kg。",
       "model_prompt_zh": "苏晚晴｜INFP｜轻声软糯｜声线:软糯\n身材印象:slim_f 罩杯:A 身高:162cm 体重:49kg 颜值:high 魅力:59\n外形参考:温柔清秀·墨黑软波浪薄刘海·柔卵圆脸浅笑\n价值观:温柔但不讨好一切\n喜:作文、晚霞、安静图书馆；厌:大声喧哗\n温柔清秀文学感。温柔慢热，作文好，声音软。容易脸红，会默默观察在意的人。讨厌喧哗，喜欢晚霞和安静角落。写过没寄出的信。被粗暴开玩笑会整晚不说话，但被认真倾听会记住很久；外形约162cm、纤细、A罩杯、约49kg。",
-      "weight_kg": 49
+      "weight_kg": 49,
+      "signature_plan": [
+        {
+          "id": "library_essay",
+          "action": "sig_library_essay",
+          "outfit": "summer",
+          "locations": [
+            "library"
+          ],
+          "emotions": [
+            "neutral",
+            "shy",
+            "happy"
+          ],
+          "label": "图书馆作文"
+        },
+        {
+          "id": "rooftop_read",
+          "action": "sig_rooftop_read",
+          "outfit": "summer",
+          "locations": [
+            "rooftop"
+          ],
+          "emotions": [
+            "neutral",
+            "shy"
+          ],
+          "label": "天台默读"
+        },
+        {
+          "id": "pass_note_blush",
+          "action": "sig_pass_note_blush",
+          "outfit": "summer",
+          "locations": [
+            "classroom"
+          ],
+          "emotions": [
+            "shy",
+            "happy"
+          ],
+          "label": "传条脸红"
+        }
+      ]
     },
     {
       "id": "f02",
@@ -491,7 +536,48 @@
       "voice_tone": "清脆",
       "persona_brief": "明艳琥珀栗高马尾运动感。外向活泼，语速快，敢拉人周末出门。讨厌闷在宿舍。快乐要分享，失落时用运动发泄。直球邀约型，被拒绝也能笑着说下次；外形约165cm、运动、B罩杯、约54kg。",
       "model_prompt_zh": "林夏薇｜ESFP｜快语热络｜声线:清脆\n身材印象:athletic_f 罩杯:B 身高:165cm 体重:54kg 颜值:high 魅力:59\n外形参考:明艳运动·琥珀栗高马尾·深目高鼻小麦肤\n价值观:快乐要分享\n喜:打球、周末出门；厌:闷在宿舍\n明艳琥珀栗高马尾运动感。外向活泼，语速快，敢拉人周末出门。讨厌闷在宿舍。快乐要分享，失落时用运动发泄。直球邀约型，被拒绝也能笑着说下次；外形约165cm、运动、B罩杯、约54kg。",
-      "weight_kg": 54
+      "weight_kg": 54,
+      "signature_plan": [
+        {
+          "id": "playground_invite",
+          "action": "sig_playground_invite",
+          "outfit": "summer",
+          "locations": [
+            "playground"
+          ],
+          "emotions": [
+            "happy",
+            "neutral"
+          ],
+          "label": "操场邀约"
+        },
+        {
+          "id": "shop_weekend",
+          "action": "sig_shop_weekend",
+          "outfit": "casual",
+          "locations": [
+            "shop",
+            "dorm_gate"
+          ],
+          "emotions": [
+            "happy",
+            "shy"
+          ],
+          "label": "周末小卖部"
+        },
+        {
+          "id": "rooftop_cheer",
+          "action": "sig_rooftop_cheer",
+          "outfit": "summer",
+          "locations": [
+            "rooftop"
+          ],
+          "emotions": [
+            "happy"
+          ],
+          "label": "天台打气"
+        }
+      ]
     },
     {
       "id": "f03",
@@ -534,7 +620,48 @@
       "voice_tone": "清冷",
       "persona_brief": "清冷直发学霸感。极高颜值学霸，礼貌却疏离。家教严，怕辜负期待。曾被起哄叫校花，现在更烦被人拿外貌比较。距离感是自我保护；被平等对待、不消费外貌的人会松一点口风；外形约168cm、高挑纤细、B罩杯、约52kg。",
       "model_prompt_zh": "白芷柔｜INFJ｜礼貌疏离｜声线:清冷\n身材印象:tall_slim_f 罩杯:B 身高:168cm 体重:52kg 颜值:high 魅力:67\n外形参考:清冷学霸·腰长墨黑冰直无刘海·窄眼淡妆\n价值观:距离换安全感\n喜:阅读、独处；厌:被起哄比颜值、被围观\n清冷直发学霸感。极高颜值学霸，礼貌却疏离。家教严，怕辜负期待。曾被起哄叫校花，现在更烦被人拿外貌比较。距离感是自我保护；被平等对待、不消费外貌的人会松一点口风；外形约168cm、高挑纤细、B罩杯、约52kg。",
-      "weight_kg": 52
+      "weight_kg": 52,
+      "signature_plan": [
+        {
+          "id": "library_alone",
+          "action": "sig_library_alone",
+          "outfit": "summer",
+          "locations": [
+            "library"
+          ],
+          "emotions": [
+            "neutral",
+            "angry"
+          ],
+          "label": "图书馆独处"
+        },
+        {
+          "id": "classroom_top",
+          "action": "sig_classroom_top",
+          "outfit": "summer",
+          "locations": [
+            "classroom"
+          ],
+          "emotions": [
+            "neutral",
+            "happy"
+          ],
+          "label": "教室前排"
+        },
+        {
+          "id": "hallway_glance",
+          "action": "sig_hallway_glance",
+          "outfit": "summer",
+          "locations": [
+            "hallway"
+          ],
+          "emotions": [
+            "neutral",
+            "shy"
+          ],
+          "label": "走廊侧目"
+        }
+      ]
     },
     {
       "id": "f04",
@@ -577,7 +704,49 @@
       "voice_tone": "奶气但清晰",
       "persona_brief": "橘红碎刘海短波波元气娇小。点子多、跳脱，娇小体型的高三女生。讨厌被当小孩哄。夜里会突然想很多。甜食和新鲜事能让她眼前一亮；认真讨论她的想法比夸可爱更有效；外形约152cm、娇小、AA罩杯、约42kg。",
       "model_prompt_zh": "姜橙柚｜ENFP｜跳脱连珠｜声线:奶气但清晰\n身材印象:petite 罩杯:AA 身高:152cm 体重:42kg 颜值:high 魅力:51\n外形参考:元气娇小·橘红碎刘海短波波·圆脸亮笑成人比例\n价值观:好玩的事情优先\n喜:点子、甜食、小动物；厌:被当小孩哄\n橘红碎刘海短波波元气娇小。点子多、跳脱，娇小体型的高三女生。讨厌被当小孩哄。夜里会突然想很多。甜食和新鲜事能让她眼前一亮；认真讨论她的想法比夸可爱更有效；外形约152cm、娇小、AA罩杯、约42kg。",
-      "weight_kg": 42
+      "weight_kg": 42,
+      "signature_plan": [
+        {
+          "id": "club_brainstorm",
+          "action": "sig_club_brainstorm",
+          "outfit": "summer",
+          "locations": [
+            "club_room",
+            "classroom"
+          ],
+          "emotions": [
+            "happy",
+            "neutral"
+          ],
+          "label": "社团脑暴"
+        },
+        {
+          "id": "cafeteria_scheme",
+          "action": "sig_cafeteria_scheme",
+          "outfit": "summer",
+          "locations": [
+            "cafeteria"
+          ],
+          "emotions": [
+            "happy",
+            "shy"
+          ],
+          "label": "食堂出主意"
+        },
+        {
+          "id": "shop_gadget",
+          "action": "sig_shop_gadget",
+          "outfit": "casual",
+          "locations": [
+            "shop"
+          ],
+          "emotions": [
+            "happy",
+            "neutral"
+          ],
+          "label": "小卖部淘宝"
+        }
+      ]
     },
     {
       "id": "f05",
@@ -619,7 +788,8 @@
       "voice_tone": "端正",
       "persona_brief": "黑发低丸子细圆框眼镜邻家清爽。纪律委员气质，笔记整洁，规则优先。讨厌拖延。恋爱后置，欣赏守时与靠谱。说话端正，很少开玩笑；一旦认可会非常稳定地支持对方；外形约164cm、匀称、B罩杯、约55kg。",
       "model_prompt_zh": "程安然｜ISTJ｜端正简短｜声线:端正\n身材印象:average_f 罩杯:B 身高:164cm 体重:55kg 颜值:mid 魅力:56\n外形参考:邻家清爽·黑发低丸子细圆框眼镜·方圆脸干净\n价值观:规则保护人\n喜:笔记、秩序；厌:拖延\n黑发低丸子细圆框眼镜邻家清爽。纪律委员气质，笔记整洁，规则优先。讨厌拖延。恋爱后置，欣赏守时与靠谱。说话端正，很少开玩笑；一旦认可会非常稳定地支持对方；外形约164cm、匀称、B罩杯、约55kg。",
-      "weight_kg": 55
+      "weight_kg": 55,
+      "class_role": "discipline"
     },
     {
       "id": "f06",
@@ -661,7 +831,50 @@
       "voice_tone": "轻",
       "persona_brief": "灰紫波波头文艺。美术生感，慢声细语，娇小敏感。成绩一般，情绪细腻。速写本里可能有同学侧脸。讨厌被催作业。感觉对了才靠近，急推会逃；外形约155cm、娇小、A罩杯、约44kg。",
       "model_prompt_zh": "许念慈｜ISFP｜慢声细｜声线:轻\n身材印象:petite 罩杯:A 身高:155cm 体重:44kg 颜值:extreme 魅力:62\n外形参考:文艺静气·灰紫齐刘海下巴波波·单眼皮薄唇\n价值观:感觉对了才靠近\n喜:画画、雨天窗边；厌:被催交作业\n灰紫波波头文艺。美术生感，慢声细语，娇小敏感。成绩一般，情绪细腻。速写本里可能有同学侧脸。讨厌被催作业。感觉对了才靠近，急推会逃；外形约155cm、娇小、A罩杯、约44kg。",
-      "weight_kg": 44
+      "weight_kg": 44,
+      "class_role": "arts",
+      "signature_plan": [
+        {
+          "id": "art_sketch",
+          "action": "sig_art_sketch",
+          "outfit": "summer",
+          "locations": [
+            "club_room",
+            "classroom"
+          ],
+          "emotions": [
+            "neutral",
+            "shy"
+          ],
+          "label": "速写本"
+        },
+        {
+          "id": "rooftop_palette",
+          "action": "sig_rooftop_palette",
+          "outfit": "summer",
+          "locations": [
+            "rooftop"
+          ],
+          "emotions": [
+            "happy",
+            "shy"
+          ],
+          "label": "天台调色"
+        },
+        {
+          "id": "library_muse",
+          "action": "sig_library_muse",
+          "outfit": "summer",
+          "locations": [
+            "library"
+          ],
+          "emotions": [
+            "neutral",
+            "shy"
+          ],
+          "label": "图书馆发呆"
+        }
+      ]
     },
     {
       "id": "f07",
@@ -703,7 +916,48 @@
       "voice_tone": "御姐沉稳",
       "persona_brief": "侧辫高骨相御姐。学生会风御姐气场，利落决断，成绩顶尖。讨厌无理取闹。尊重实力与边界。私下听抒情歌。对示弱无脑的人没兴趣，对能扛事的人会多看一眼；外形约170cm、御姐体、D罩杯、约61kg。",
       "model_prompt_zh": "何清澜｜ENTJ｜利落决断｜声线:御姐沉稳\n身材印象:oneesan 罩杯:D 身高:170cm 体重:61kg 颜值:extreme 魅力:90\n外形参考:高骨相御姐·墨黑侧辫微褐光泽·凤眼高颧\n价值观:尊重实力与边界\n喜:效率、掌控节奏；厌:无理取闹\n侧辫高骨相御姐。学生会风御姐气场，利落决断，成绩顶尖。讨厌无理取闹。尊重实力与边界。私下听抒情歌。对示弱无脑的人没兴趣，对能扛事的人会多看一眼；外形约170cm、御姐体、D罩杯、约61kg。",
-      "weight_kg": 61
+      "weight_kg": 61,
+      "signature_plan": [
+        {
+          "id": "classroom_preside",
+          "action": "sig_classroom_preside",
+          "outfit": "summer",
+          "locations": [
+            "classroom"
+          ],
+          "emotions": [
+            "neutral",
+            "angry"
+          ],
+          "label": "学生会主持"
+        },
+        {
+          "id": "hallway_clipboard",
+          "action": "sig_hallway_clipboard",
+          "outfit": "summer",
+          "locations": [
+            "hallway"
+          ],
+          "emotions": [
+            "neutral",
+            "happy"
+          ],
+          "label": "走廊夹板"
+        },
+        {
+          "id": "club_meeting",
+          "action": "sig_club_meeting",
+          "outfit": "summer",
+          "locations": [
+            "club_room"
+          ],
+          "emotions": [
+            "neutral",
+            "happy"
+          ],
+          "label": "干部例会"
+        }
+      ]
     },
     {
       "id": "f08",
@@ -745,7 +999,52 @@
       "voice_tone": "温暖",
       "persona_brief": "暖黑齐肩软刘海柔软照顾型。暖声劝慰，爱分享零食，慢热但认定后很稳。讨厌冷嘲热讽。稳定比刺激重要。适合一起吃饭聊天，不适合突然高密度告白；外形约161cm、柔软微肉、C罩杯、约56kg。",
       "model_prompt_zh": "赵柔意｜ISFJ｜暖声劝慰｜声线:温暖\n身材印象:soft_f 罩杯:C 身高:161cm 体重:56kg 颜值:high 魅力:69\n外形参考:柔软照顾型·暖黑齐肩软刘海·杏眼浅笑微肉\n价值观:稳定比刺激重要\n喜:分享零食、照顾人；厌:冷嘲热讽\n暖黑齐肩软刘海柔软照顾型。暖声劝慰，爱分享零食，慢热但认定后很稳。讨厌冷嘲热讽。稳定比刺激重要。适合一起吃饭聊天，不适合突然高密度告白；外形约161cm、柔软微肉、C罩杯、约56kg。",
-      "weight_kg": 56
+      "weight_kg": 56,
+      "class_role": "life",
+      "signature_plan": [
+        {
+          "id": "cafeteria_share",
+          "action": "sig_cafeteria_share",
+          "outfit": "summer",
+          "locations": [
+            "cafeteria"
+          ],
+          "emotions": [
+            "happy",
+            "shy"
+          ],
+          "label": "食堂分零食"
+        },
+        {
+          "id": "dorm_snack",
+          "action": "sig_dorm_snack",
+          "outfit": "casual",
+          "locations": [
+            "dorm_f1",
+            "dorm_f2",
+            "dorm_f3",
+            "dorm_f4"
+          ],
+          "emotions": [
+            "happy",
+            "neutral"
+          ],
+          "label": "宿舍零食"
+        },
+        {
+          "id": "hallway_thermos",
+          "action": "sig_hallway_thermos",
+          "outfit": "summer",
+          "locations": [
+            "hallway"
+          ],
+          "emotions": [
+            "happy",
+            "shy"
+          ],
+          "label": "走廊递水"
+        }
+      ]
     },
     {
       "id": "f09",
@@ -787,7 +1086,49 @@
       "voice_tone": "明亮有力",
       "persona_brief": "蜜金长卷班长明媚。班长型热情，会主动关心同学。倒追时其实也会害羞。讨厌推卸。先顾大家，再顾自己。被真诚需要时行动力很强；外形约166cm、纤细、B罩杯、约51kg。",
       "model_prompt_zh": "温岚星｜ENFJ｜热情带头｜声线:明亮有力\n身材印象:slim_f 罩杯:B 身高:166cm 体重:51kg 颜值:extreme 魅力:74\n外形参考:明媚班长·蜜金中分垂腰长卷·大眼暖肤\n价值观:先顾大家\n喜:班集体、鼓励别人；厌:推卸\n蜜金长卷班长明媚。班长型热情，会主动关心同学。倒追时其实也会害羞。讨厌推卸。先顾大家，再顾自己。被真诚需要时行动力很强；外形约166cm、纤细、B罩杯、约51kg。",
-      "weight_kg": 51
+      "weight_kg": 51,
+      "class_role": "league_sec",
+      "signature_plan": [
+        {
+          "id": "classroom_roll",
+          "action": "sig_classroom_roll",
+          "outfit": "summer",
+          "locations": [
+            "classroom"
+          ],
+          "emotions": [
+            "neutral",
+            "happy"
+          ],
+          "label": "班长点名"
+        },
+        {
+          "id": "hallway_care",
+          "action": "sig_hallway_care",
+          "outfit": "summer",
+          "locations": [
+            "hallway"
+          ],
+          "emotions": [
+            "happy",
+            "shy"
+          ],
+          "label": "走廊关心"
+        },
+        {
+          "id": "rooftop_talk",
+          "action": "sig_rooftop_talk",
+          "outfit": "summer",
+          "locations": [
+            "rooftop"
+          ],
+          "emotions": [
+            "neutral",
+            "happy"
+          ],
+          "label": "天台谈心"
+        }
+      ]
     },
     {
       "id": "f10",
@@ -829,7 +1170,48 @@
       "voice_tone": "俏皮",
       "persona_brief": "黑狼尾马尾灵动。俏皮抬杠，辩论爱好者，成绩中等靠小聪明。讨厌一本正经说教。有趣的灵魂最加分。拌嘴是亲近方式，认真生气时会突然沉默；外形约163cm、运动、B罩杯、约53kg。",
       "model_prompt_zh": "沈星野｜ENTP｜俏皮抬杠｜声线:俏皮\n身材印象:athletic_f 罩杯:B 身高:163cm 体重:53kg 颜值:extreme 魅力:70\n外形参考:灵动嘴贫·纯黑高马尾狼尾层·方颌狐眼坏笑\n价值观:有趣的灵魂最加分\n喜:辩论、段子；厌:一本正经说教\n黑狼尾马尾灵动。俏皮抬杠，辩论爱好者，成绩中等靠小聪明。讨厌一本正经说教。有趣的灵魂最加分。拌嘴是亲近方式，认真生气时会突然沉默；外形约163cm、运动、B罩杯、约53kg。",
-      "weight_kg": 53
+      "weight_kg": 53,
+      "signature_plan": [
+        {
+          "id": "classroom_debate",
+          "action": "sig_classroom_debate",
+          "outfit": "summer",
+          "locations": [
+            "classroom"
+          ],
+          "emotions": [
+            "happy",
+            "angry"
+          ],
+          "label": "教室抬杠"
+        },
+        {
+          "id": "library_argue",
+          "action": "sig_library_argue",
+          "outfit": "summer",
+          "locations": [
+            "library"
+          ],
+          "emotions": [
+            "happy",
+            "neutral"
+          ],
+          "label": "图书馆拌嘴"
+        },
+        {
+          "id": "cafeteria_tease",
+          "action": "sig_cafeteria_tease",
+          "outfit": "summer",
+          "locations": [
+            "cafeteria"
+          ],
+          "emotions": [
+            "happy",
+            "shy"
+          ],
+          "label": "食堂玩笑"
+        }
+      ]
     },
     {
       "id": "f11",
@@ -913,7 +1295,49 @@
       "voice_tone": "甜亮",
       "persona_brief": "铜棕丰盈卷发甜美社交。热络八卦腔，消息灵通，敢约人吃饭。讨厌被排挤。人缘也是能力。尺度上不恶意中伤；若你保密她也会保密；外形约164cm、曲线、C罩杯、约57kg。",
       "model_prompt_zh": "阮歌辞｜ESFJ｜热络八卦腔｜声线:甜亮\n身材印象:curvy_f 罩杯:C 身高:164cm 体重:57kg 颜值:extreme 魅力:76\n外形参考:甜美社交·铜棕丰盈卷发·蜜光圆下颌\n价值观:人缘也是能力\n喜:聚会、消息；厌:被排挤\n铜棕丰盈卷发甜美社交。热络八卦腔，消息灵通，敢约人吃饭。讨厌被排挤。人缘也是能力。尺度上不恶意中伤；若你保密她也会保密；外形约164cm、曲线、C罩杯、约57kg。",
-      "weight_kg": 57
+      "weight_kg": 57,
+      "signature_plan": [
+        {
+          "id": "cafeteria_table",
+          "action": "sig_cafeteria_table",
+          "outfit": "summer",
+          "locations": [
+            "cafeteria"
+          ],
+          "emotions": [
+            "happy",
+            "neutral"
+          ],
+          "label": "食堂攒局"
+        },
+        {
+          "id": "shop_invite",
+          "action": "sig_shop_invite",
+          "outfit": "casual",
+          "locations": [
+            "shop",
+            "dorm_gate"
+          ],
+          "emotions": [
+            "happy",
+            "shy"
+          ],
+          "label": "约饭邀请"
+        },
+        {
+          "id": "rooftop_party",
+          "action": "sig_rooftop_party",
+          "outfit": "summer",
+          "locations": [
+            "rooftop"
+          ],
+          "emotions": [
+            "happy",
+            "shy"
+          ],
+          "label": "天台热闹"
+        }
+      ]
     },
     {
       "id": "f13",
@@ -955,7 +1379,48 @@
       "voice_tone": "低冷",
       "persona_brief": "墨黑超短纹理狼尾酷感运动。酷短句，短发运动风，体育好成绩一般。讨厌被摸头。少说多做，亲近后会用行动关心，比如递水或陪练；外形约169cm、运动、B罩杯、约57kg。",
       "model_prompt_zh": "纪雪晴｜ISTP｜酷短句｜声线:低冷\n身材印象:athletic_f 罩杯:B 身高:169cm 体重:57kg 颜值:high 魅力:55\n外形参考:酷感运动·墨黑超短纹理狼尾·锐眼薄唇嘴角小痣\n价值观:少说多做\n喜:体育、独处练；厌:被摸头\n墨黑超短纹理狼尾酷感运动。酷短句，短发运动风，体育好成绩一般。讨厌被摸头。少说多做，亲近后会用行动关心，比如递水或陪练；外形约169cm、运动、B罩杯、约57kg。",
-      "weight_kg": 57
+      "weight_kg": 57,
+      "signature_plan": [
+        {
+          "id": "playground_sprint",
+          "action": "sig_playground_sprint",
+          "outfit": "summer",
+          "locations": [
+            "playground"
+          ],
+          "emotions": [
+            "happy",
+            "neutral"
+          ],
+          "label": "操场冲刺"
+        },
+        {
+          "id": "rooftop_stretch",
+          "action": "sig_rooftop_stretch",
+          "outfit": "summer",
+          "locations": [
+            "rooftop"
+          ],
+          "emotions": [
+            "happy",
+            "neutral"
+          ],
+          "label": "天台拉伸"
+        },
+        {
+          "id": "hallway_sweat",
+          "action": "sig_hallway_sweat",
+          "outfit": "summer",
+          "locations": [
+            "hallway"
+          ],
+          "emotions": [
+            "happy",
+            "shy"
+          ],
+          "label": "运动后走廊"
+        }
+      ]
     },
     {
       "id": "f14",
@@ -997,7 +1462,48 @@
       "voice_tone": "柔雅",
       "persona_brief": "烟灰蓝调直发清贵文静。文雅慢热，爱诗与月色，暗恋会写日记。讨厌粗鲁。心意要藏得体面。适合安静陪伴，不适合起哄逼问；外形约165cm、纤细、B罩杯、约51kg。",
       "model_prompt_zh": "梁月白｜INFJ｜文雅慢｜声线:柔雅\n身材印象:slim_f 罩杯:B 身高:165cm 体重:51kg 颜值:extreme 魅力:78\n外形参考:清贵文静·烟灰黑侧分直长微蓝调·细凤眼瓷肌\n价值观:心意要藏得体面\n喜:诗集、月色；厌:粗鲁\n烟灰蓝调直发清贵文静。文雅慢热，爱诗与月色，暗恋会写日记。讨厌粗鲁。心意要藏得体面。适合安静陪伴，不适合起哄逼问；外形约165cm、纤细、B罩杯、约51kg。",
-      "weight_kg": 51
+      "weight_kg": 51,
+      "signature_plan": [
+        {
+          "id": "hallway_gaze",
+          "action": "sig_hallway_gaze",
+          "outfit": "summer",
+          "locations": [
+            "hallway"
+          ],
+          "emotions": [
+            "shy",
+            "neutral"
+          ],
+          "label": "走廊远望"
+        },
+        {
+          "id": "library_hide",
+          "action": "sig_library_hide",
+          "outfit": "summer",
+          "locations": [
+            "library"
+          ],
+          "emotions": [
+            "shy",
+            "neutral"
+          ],
+          "label": "书架后躲"
+        },
+        {
+          "id": "rooftop_shy",
+          "action": "sig_rooftop_shy",
+          "outfit": "summer",
+          "locations": [
+            "rooftop"
+          ],
+          "emotions": [
+            "shy",
+            "happy"
+          ],
+          "label": "天台害羞"
+        }
+      ]
     },
     {
       "id": "f15",
@@ -1165,7 +1671,51 @@
       "voice_tone": "空灵",
       "persona_brief": "亚麻长发梦幻感。梦幻飘，爱写歌词，心动就要说。讨厌被笑天真。情绪起伏大，需要接住而不是嘲笑；外形约163cm、纤细、A罩杯、约49kg。",
       "model_prompt_zh": "叶薇雨｜ENFP｜梦幻飘｜声线:空灵\n身材印象:slim_f 罩杯:A 身高:163cm 体重:49kg 颜值:extreme 魅力:66\n外形参考:梦幻感·亚麻浅棕中分直长发·半眯软妆\n价值观:心动就要说\n喜:歌词、想象；厌:被笑天真\n亚麻长发梦幻感。梦幻飘，爱写歌词，心动就要说。讨厌被笑天真。情绪起伏大，需要接住而不是嘲笑；外形约163cm、纤细、A罩杯、约49kg。",
-      "weight_kg": 49
+      "weight_kg": 49,
+      "signature_plan": [
+        {
+          "id": "rooftop_dream",
+          "action": "sig_rooftop_dream",
+          "outfit": "summer",
+          "locations": [
+            "rooftop"
+          ],
+          "emotions": [
+            "shy",
+            "happy"
+          ],
+          "label": "天台做梦"
+        },
+        {
+          "id": "dorm_diary",
+          "action": "sig_dorm_diary",
+          "outfit": "pajama",
+          "locations": [
+            "dorm_f1",
+            "dorm_f2",
+            "dorm_f3",
+            "dorm_f4"
+          ],
+          "emotions": [
+            "shy",
+            "neutral"
+          ],
+          "label": "宿舍日记"
+        },
+        {
+          "id": "hallway_confess",
+          "action": "sig_hallway_confess",
+          "outfit": "summer",
+          "locations": [
+            "hallway"
+          ],
+          "emotions": [
+            "shy",
+            "happy"
+          ],
+          "label": "走廊鼓起勇气"
+        }
+      ]
     },
     {
       "id": "f19",
@@ -1207,7 +1757,48 @@
       "voice_tone": "冷感",
       "persona_brief": "冰直黑发冷感御姐。冷感极高颜值学霸，气场偏御姐，极简冷淡。家长期望高。讨厌被围观或被拿去跟「校花」排名。会记住平等对待自己的人。倒追门槛极高；尊重与智力对话比甜言有效；外形约172cm、御姐体、D罩杯、约62kg。",
       "model_prompt_zh": "云舒晚｜INTJ｜极简冷淡｜声线:冷感\n身材印象:oneesan 罩杯:D 身高:172cm 体重:62kg 颜值:extreme 魅力:90\n外形参考:冷感御姐·腰长冰直纯黑中分·冷半眯眼瓷肌\n价值观:不被定义\n喜:竞赛、安静；厌:被围观\n冰直黑发冷感御姐。冷感极高颜值学霸，气场偏御姐，极简冷淡。家长期望高。讨厌被围观或被拿去跟「校花」排名。会记住平等对待自己的人。倒追门槛极高；尊重与智力对话比甜言有效；外形约172cm、御姐体、D罩杯、约62kg。",
-      "weight_kg": 62
+      "weight_kg": 62,
+      "signature_plan": [
+        {
+          "id": "library_ice",
+          "action": "sig_library_ice",
+          "outfit": "summer",
+          "locations": [
+            "library"
+          ],
+          "emotions": [
+            "neutral",
+            "angry"
+          ],
+          "label": "图书馆冷感"
+        },
+        {
+          "id": "classroom_silent",
+          "action": "sig_classroom_silent",
+          "outfit": "summer",
+          "locations": [
+            "classroom"
+          ],
+          "emotions": [
+            "neutral",
+            "angry"
+          ],
+          "label": "教室沉默"
+        },
+        {
+          "id": "rooftop_alone",
+          "action": "sig_rooftop_alone",
+          "outfit": "summer",
+          "locations": [
+            "rooftop"
+          ],
+          "emotions": [
+            "neutral",
+            "sad"
+          ],
+          "label": "天台独处"
+        }
+      ]
     },
     {
       "id": "f20",
@@ -1249,7 +1840,49 @@
       "voice_tone": "爽朗",
       "persona_brief": "外翻中短黑发阳光热心。开朗张罗，爱组织活动，讨厌阴阳怪气。气氛好一切好。适合一起忙班活，忙碌中产生羁绊；外形约162cm、柔软微肉、C罩杯、约57kg。",
       "model_prompt_zh": "宋晴川｜ESFJ｜开朗张罗｜声线:爽朗\n身材印象:soft_f 罩杯:C 身高:162cm 体重:57kg 颜值:high 魅力:69\n外形参考:阳光热心·外翻中短黑发·圆脸晒红颊大笑\n价值观:气氛好一切好\n喜:组织活动、阳光；厌:阴阳怪气\n外翻中短黑发阳光热心。开朗张罗，爱组织活动，讨厌阴阳怪气。气氛好一切好。适合一起忙班活，忙碌中产生羁绊；外形约162cm、柔软微肉、C罩杯、约57kg。",
-      "weight_kg": 57
+      "weight_kg": 57,
+      "signature_plan": [
+        {
+          "id": "playground_organize",
+          "action": "sig_playground_organize",
+          "outfit": "summer",
+          "locations": [
+            "playground"
+          ],
+          "emotions": [
+            "happy",
+            "neutral"
+          ],
+          "label": "操场张罗"
+        },
+        {
+          "id": "cafeteria_cheer",
+          "action": "sig_cafeteria_cheer",
+          "outfit": "summer",
+          "locations": [
+            "cafeteria"
+          ],
+          "emotions": [
+            "happy",
+            "shy"
+          ],
+          "label": "食堂起哄"
+        },
+        {
+          "id": "club_poster",
+          "action": "sig_club_poster",
+          "outfit": "summer",
+          "locations": [
+            "club_room",
+            "hallway"
+          ],
+          "emotions": [
+            "happy",
+            "neutral"
+          ],
+          "label": "社团海报"
+        }
+      ]
     },
     {
       "id": "f21",
@@ -1293,7 +1926,48 @@
       },
       "charm": 88,
       "model_prompt_zh": "顾今夏｜ENFP｜明快清亮｜声线:亮、清甜\n身材印象:slim_f 罩杯:E 身高:168cm 体重:56kg 颜值:school_belle 魅力:88\n外形参考:中系明艳清甜·墨黑直长发浅刘海·通透瓷肌亮瞳·E罩杯顶尖身材\n价值观:漂亮也要自己站得住\n喜:排球、日落、拍短视频；厌:被起哄比颜值、阴湿玩笑\n中系明艳清甜校花顾今夏：杂志封面级通透瓷肌、大而清的黑眼、墨黑直长发浅刘海，高挑利落，全班回头率。活泼开朗，讨厌被起哄比颜值。漂亮也要自己站得住；被尊重地聊兴趣比空夸外貌有效；外形约168cm、纤细腰肢、E罩杯顶尖身材、约56kg。",
-      "weight_kg": 56
+      "weight_kg": 56,
+      "signature_plan": [
+        {
+          "id": "rooftop_sun",
+          "action": "sig_rooftop_sun",
+          "outfit": "summer",
+          "locations": [
+            "rooftop"
+          ],
+          "emotions": [
+            "happy",
+            "shy"
+          ],
+          "label": "天台阳光"
+        },
+        {
+          "id": "hallway_wave",
+          "action": "sig_hallway_wave",
+          "outfit": "summer",
+          "locations": [
+            "hallway"
+          ],
+          "emotions": [
+            "happy",
+            "neutral"
+          ],
+          "label": "走廊挥手"
+        },
+        {
+          "id": "playground_bright",
+          "action": "sig_playground_bright",
+          "outfit": "summer",
+          "locations": [
+            "playground"
+          ],
+          "emotions": [
+            "happy",
+            "shy"
+          ],
+          "label": "操场明艳"
+        }
+      ]
     },
     {
       "id": "f22",
@@ -1337,7 +2011,48 @@
       },
       "charm": 90,
       "model_prompt_zh": "沈霜华｜INFJ｜轻、慢、干净｜声线:清泉\n身材印象:slim_f 罩杯:D 身高:166cm 体重:55kg 颜值:school_belle 魅力:90\n外形参考:中系清冷仙气·银月白直发细长凤眼·冷玉肤·D罩杯顶尖身材\n价值观:干净地活着\n喜:白茶、夜读、安静走廊；厌:被摸头发、吵闹起哄\n中系清冷仙气校花沈霜华：银月白直发、鹅蛋骨相、细长凤眼、冷玉肤色，疏离贵气顶配，成绩顶尖。讨厌被摸头发或吵闹起哄。距离感强，但对不消费外貌的人会慢慢松口。安静陪伴比甜言更管用；外形约166cm、纤细腰肢、D罩杯顶配身材、约55kg。",
-      "weight_kg": 55
+      "weight_kg": 55,
+      "signature_plan": [
+        {
+          "id": "rooftop_moon",
+          "action": "sig_rooftop_moon",
+          "outfit": "summer",
+          "locations": [
+            "rooftop"
+          ],
+          "emotions": [
+            "neutral",
+            "shy"
+          ],
+          "label": "天台清冷"
+        },
+        {
+          "id": "library_frost",
+          "action": "sig_library_frost",
+          "outfit": "summer",
+          "locations": [
+            "library"
+          ],
+          "emotions": [
+            "neutral",
+            "sad"
+          ],
+          "label": "图书馆霜意"
+        },
+        {
+          "id": "hallway_distant",
+          "action": "sig_hallway_distant",
+          "outfit": "summer",
+          "locations": [
+            "hallway"
+          ],
+          "emotions": [
+            "neutral",
+            "shy"
+          ],
+          "label": "走廊疏离"
+        }
+      ]
     },
     {
       "id": "f23",
@@ -1381,7 +2096,48 @@
       },
       "charm": 88,
       "model_prompt_zh": "尹恩彩｜ESFJ｜软、会照顾场面｜声线:软甜清晰\n身材印象:slim_f 罩杯:B 身高:163cm 体重:49kg 颜值:school_belle 魅力:88\n外形参考:韩系第一视觉·厚帘幕刘海玻璃肌小V脸·巧克力棕柔波\n价值观:体面且善意\n喜:拍照构图、护肤、团体活动；厌:被说整容脸、冷场\n韩系校花尹恩彩：第一视觉级小V脸、水光玻璃肌、厚重帘幕刘海巧克力棕柔波，精致亲和会照顾场面。讨厌被说整容脸或网红脸。体面且善意；一起做事、被认真对待比空夸外貌更容易靠近；外形约163cm、纤细、B罩杯、约49kg。",
-      "weight_kg": 49
+      "weight_kg": 49,
+      "signature_plan": [
+        {
+          "id": "hallway_host",
+          "action": "sig_hallway_host",
+          "outfit": "summer",
+          "locations": [
+            "hallway"
+          ],
+          "emotions": [
+            "happy",
+            "neutral"
+          ],
+          "label": "走廊会照顾"
+        },
+        {
+          "id": "cafeteria_care",
+          "action": "sig_cafeteria_care",
+          "outfit": "summer",
+          "locations": [
+            "cafeteria"
+          ],
+          "emotions": [
+            "happy",
+            "shy"
+          ],
+          "label": "食堂照顾场面"
+        },
+        {
+          "id": "rooftop_smile",
+          "action": "sig_rooftop_smile",
+          "outfit": "summer",
+          "locations": [
+            "rooftop"
+          ],
+          "emotions": [
+            "happy",
+            "shy"
+          ],
+          "label": "天台亲和"
+        }
+      ]
     },
     {
       "id": "f24",
@@ -1425,7 +2181,48 @@
       },
       "charm": 87,
       "model_prompt_zh": "夏目葵｜ISFP｜轻声、偶尔日语词｜声线:软、害羞\n身材印象:soft_f 罩杯:B 身高:160cm 体重:55kg 颜值:school_belle 魅力:87\n外形参考:日系柔美优雅·深棕侧分柔波杏眼·清透健康肌\n价值观:温柔地诚实\n喜:手作、胶片感照片、便利店甜品；厌:突然大声起哄、被推到台前\n日系柔美校花夏目葵：清透健康肌、柔和杏眼、深棕黑中长发轻侧分柔波，成熟甜感害羞优雅。讨厌突然大声起哄或被推到台前。温柔地诚实；安静的共同兴趣比起哄式表白更容易走进她的世界；外形约160cm、柔软微肉、B罩杯、约55kg。",
-      "weight_kg": 55
+      "weight_kg": 55,
+      "signature_plan": [
+        {
+          "id": "library_shy",
+          "action": "sig_library_shy",
+          "outfit": "summer",
+          "locations": [
+            "library"
+          ],
+          "emotions": [
+            "shy",
+            "neutral"
+          ],
+          "label": "图书馆害羞"
+        },
+        {
+          "id": "rooftop_petal",
+          "action": "sig_rooftop_petal",
+          "outfit": "summer",
+          "locations": [
+            "rooftop"
+          ],
+          "emotions": [
+            "shy",
+            "happy"
+          ],
+          "label": "天台柔美"
+        },
+        {
+          "id": "hallway_bow",
+          "action": "sig_hallway_bow",
+          "outfit": "summer",
+          "locations": [
+            "hallway"
+          ],
+          "emotions": [
+            "shy",
+            "happy"
+          ],
+          "label": "走廊轻鞠躬"
+        }
+      ]
     },
     {
       "id": "f25",
@@ -1469,7 +2266,51 @@
       },
       "charm": 71,
       "model_prompt_zh": "汤糯圆｜ESFP｜软糯黏人｜声线:糯、笑音多\n身材印象:plump_f 罩杯:D 身高:156cm 体重:58kg 颜值:high 魅力:71\n外形参考:圆脸亲和·软黑内扣中发·微胖丰满健康气色\n价值观:开心要分享\n喜:奶茶、抱枕、一起吃饭；厌:被叫胖子、被当吉祥物无视意见\n软黑内扣中发圆脸亲和微胖。童颜、微胖丰满，黏人好说话。讨厌被叫胖子或被当吉祥物无视意见。开心要分享；一起吃饭、认真听她说话，比取笑身材更容易让她靠近；外形约156cm、微胖丰满、D罩杯、约58kg。",
-      "weight_kg": 58
+      "weight_kg": 58,
+      "signature_plan": [
+        {
+          "id": "cafeteria_cling",
+          "action": "sig_cafeteria_cling",
+          "outfit": "summer",
+          "locations": [
+            "cafeteria"
+          ],
+          "emotions": [
+            "happy",
+            "shy"
+          ],
+          "label": "食堂黏人"
+        },
+        {
+          "id": "dorm_snack_share",
+          "action": "sig_dorm_snack_share",
+          "outfit": "casual",
+          "locations": [
+            "dorm_f1",
+            "dorm_f2",
+            "dorm_f3",
+            "dorm_f4"
+          ],
+          "emotions": [
+            "happy",
+            "shy"
+          ],
+          "label": "宿舍分享"
+        },
+        {
+          "id": "hallway_link",
+          "action": "sig_hallway_link",
+          "outfit": "summer",
+          "locations": [
+            "hallway"
+          ],
+          "emotions": [
+            "happy",
+            "shy"
+          ],
+          "label": "走廊挽臂感"
+        }
+      ]
     }
   ]
 }

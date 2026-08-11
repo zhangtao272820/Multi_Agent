@@ -11,6 +11,7 @@ import { sanitizeSubAgentBusinessQuestion, resolveDbStepQuestionSync } from '../
 import { buildRagRetrievalMessage } from '../../../server/graph/core/probe/retrieverPlan'
 import { coalesceSimpleDbRoute, coalesceSimpleRagRoute } from '../../../server/graph/core/plan/planShortcuts'
 import { formatDbPrefetchForPlanner } from '../../../server/graph/core/db/dbPrefetch'
+import { formatRuntimeCatalogsForOrchestrator } from '../../../server/graph/core/probe/probeInterpretation'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -164,5 +165,23 @@ assert(
   !/x-trace-id/.test(ragOrchSrc) || !/headerValue\(headers,\s*"x-trace-id"\)/.test(ragOrchSrc),
   'RAG isManagerOrchestratedRequest must not treat x-trace-id alone as orchestrated'
 )
+
+const catalogs = formatRuntimeCatalogsForOrchestrator({
+  db: {
+    matched: true,
+    tables: ['person_info'],
+    tableInventory: ['person_info', 'health_log', 'dify_knowledge_doc']
+  },
+  rag: {
+    hits: 0,
+    hasDocs: true,
+    sources: [],
+    docInventory: ['规范.docx', '个人材料.txt']
+  }
+})
+assert(/库存表：/.test(catalogs) && /person_info/.test(catalogs), 'db catalog shows inventory')
+assert(!/dify_knowledge_doc/.test(catalogs), 'db inventory filters rag infra tables')
+assert(/库存文档：/.test(catalogs) && /规范\.docx/.test(catalogs), 'rag catalog shows inventory')
+assert(/本轮命中：无/.test(catalogs), 'empty hits still show inventory')
 
 console.log('smoke: db/rag passthrough protocol ok')

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "principle": "社会式：线与线有联系，又各自独立完整可单线通关。禁止必须收集全员 flag 才能开主线。",
+  "principle": "社会式共世：线与线有联系，又各自独立完整可单线通关。有名镇民=土壤（town_npcs），不可攻略。禁止必须收集全员 flag 才能开主线。",
   "independence": {
     "rule": "每条 romance/N 线有自己的 Acts、flag、难度、立绘钩子、结局；只玩一人也能闭环。",
     "t0_true_gate": "中立守门只卡真结局；good/soft/bad 可不靠守门达成。",
@@ -13,7 +13,8 @@
       "shuli",
       "fengyin"
     ],
-    "weather_festival": "china_calendar_2026.json"
+    "weather_festival": "china_calendar_2026.json",
+    "town_npcs": "town_npcs.json"
   },
   "gate_edges": [
     {
@@ -46,7 +47,8 @@
   "weak_coupling": [
     "跨线只注入已解锁系统事实（认识过、同场过、flag）",
     "女主 LLM 禁止编造未见面角色的秘密",
-    "个人幕 sprite_hint 只服务本线；跨线最多 Hub 偶遇一句"
+    "个人幕 sprite_hint 只服务本线；跨线最多 Hub 偶遇一句",
+    "有名镇民只进 world_facts/旁白点名；女主禁止编造未写明的 NPC 秘密，禁止对其恋爱"
   ],
   "batch6_narration_hooks": [
     {
@@ -95,5 +97,127 @@
     "T1": "深线 3 幕加厚；真/好/软",
     "T2": "轻副本：2+季节幕；好/软/专属坏；少跨线",
     "N": "守门羁绊 2 幕加厚；可卡 T0 真结局"
-  }
+  },
+  "batch7_town_echo_hooks": [
+    {
+      "event_id": "story_xiaoyou_act1_threshold",
+      "beat_id": "b1",
+      "note": "对门刘家阳台有人咳了一声，像提醒这栋楼谁都听得见门铃。"
+    },
+    {
+      "event_id": "story_xiaoyou_act2_deadline",
+      "beat_id": "b2",
+      "note": "楼道里飘过邻居家的油烟，和松节油挤在一起，deadline 忽然很人间。"
+    },
+    {
+      "event_id": "story_wanyu_act1_regular",
+      "beat_id": "b1",
+      "note": "陈婶在吧台后敲排班表，目光扫过熟客位——今晚谁走、谁留，她比蒸汽更早知道。"
+    },
+    {
+      "event_id": "story_wanyu_act2_close",
+      "beat_id": "b2",
+      "note": "打烊铃响前，老板娘只丢下一句「别让雨汐一个人收台」。"
+    },
+    {
+      "event_id": "story_shuli_act1_dinner",
+      "beat_id": "b1",
+      "note": "周阿姨在宿管室嘀咕晚归名单；家里饭香却像另一张门禁。"
+    },
+    {
+      "event_id": "story_shuli_act4_jealous",
+      "beat_id": "b1",
+      "note": "袖口像沾过松节油——画室方向的味道，比任何情话都先一步抵达嫉妒。"
+    },
+    {
+      "event_id": "story_linxi_act1_desk",
+      "beat_id": "b2",
+      "note": "赵组经过工位门口，只敲了敲门框：进度表还在，人别先垮。"
+    },
+    {
+      "event_id": "story_linxi_act3_print",
+      "beat_id": "b1",
+      "note": "前辈留下的便利贴只有三个字「对齐过了」，打印室灯却像审判。"
+    },
+    {
+      "event_id": "story_aili_act1_balcony",
+      "beat_id": "b1",
+      "note": "花市老金的进货单压在账本上，枯枝也要算成本——风里全是务实。"
+    },
+    {
+      "event_id": "story_aili_act2_stem",
+      "beat_id": "b3",
+      "note": "艾辰审核的目光比花茎更硬；老金今天只留了半打好枝。"
+    },
+    {
+      "event_id": "story_taotao_act1_practice",
+      "beat_id": "b2",
+      "note": "经纪人小梁在门外看表：加训可以，镜头前不许哭。"
+    },
+    {
+      "event_id": "story_taotao_act4_encore_pressure",
+      "beat_id": "b1",
+      "note": "小梁催下一场通告时，冰袋还贴在她膝盖上。"
+    },
+    {
+      "event_id": "story_qingcai_act1_mirror",
+      "beat_id": "b1",
+      "note": "韩教练拍镜框：「掌声不是成绩。别只当吉祥物。」"
+    },
+    {
+      "event_id": "story_qingcai_act2_festival",
+      "beat_id": "b2",
+      "note": "教练离开后镜房只剩汗味；元气外壳忽然很轻。"
+    },
+    {
+      "event_id": "story_shiori_act1_shelf",
+      "beat_id": "b1",
+      "note": "常客老周在窗边翻书，假装不听荐书——其实听得很清。"
+    },
+    {
+      "event_id": "story_shizuku_act1_screen",
+      "beat_id": "b2",
+      "note": "老周还书时点头致意，像把安静也登记进借阅史。"
+    },
+    {
+      "event_id": "story_ruolin_act1_lecture",
+      "beat_id": "b1",
+      "note": "助教铃可的红笔名单在门边；越线的关心先被挡在讲台外。"
+    },
+    {
+      "event_id": "story_jingliu_act1_glass",
+      "beat_id": "b2",
+      "note": "静宁的观察笔记翻过一页；组里前辈在走廊尽头假装看手机。"
+    },
+    {
+      "event_id": "story_qiansha_act1_diff",
+      "beat_id": "b1",
+      "note": "赵组在评审会丢下一句「diff 要干净」——她听着，像在听旧恋。"
+    },
+    {
+      "event_id": "story_fengyin_act1_door",
+      "beat_id": "b1",
+      "note": "隔墙书璃的夜灯还亮；宿管楼道感应灯忽明忽灭。"
+    },
+    {
+      "event_id": "story_luna_act1_tarot",
+      "beat_id": "b1",
+      "note": "陈婶排班把她按在夜班；塔罗牌比人先开口。"
+    },
+    {
+      "event_id": "story_miara_act1_booth",
+      "beat_id": "b2",
+      "note": "卸假发时店铃响了一下——像提醒戏服之外还有账单与本体。"
+    },
+    {
+      "event_id": "story_xingnai_act1_bento",
+      "beat_id": "b1",
+      "note": "旧便当盒边缘有刮痕；楼道宿管的广播隐约在催晚归。"
+    },
+    {
+      "event_id": "story_xiaoyang_act1_club",
+      "beat_id": "b2",
+      "note": "社团海报油墨未干；校园门禁灯一闪，像提醒别越界起哄。"
+    }
+  ]
 }

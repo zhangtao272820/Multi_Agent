@@ -59,6 +59,7 @@ def build_gallery_payload(
     user_id: str = "",
     mode: str = "pick",
 ) -> dict[str, Any]:
+    from .cast_star_tiers import stars_for_gallery
     from .sprite_unlock import enrich_character_gallery
     from .world_store import get_world_save
 
@@ -83,6 +84,7 @@ def build_gallery_payload(
             pick = picks.get(cid) or {}
             emotions = list_emotions_for(cid)
             outfits = list_outfits_for(cid)
+            star = stars_for_gallery(cid)
             entry = {
                 "character_id": cid,
                 "name": profile.get("name") or row.get("label") or cid,
@@ -100,6 +102,10 @@ def build_gallery_payload(
                 ),
                 "pick": pick.get("kind") or (social.cast_kind if social else "romance"),
                 "note": pick.get("note") or "",
+                "story_weight": star.get("story_weight") or 0,
+                "tier_stars": star.get("tier_stars") or "",
+                "tier_label": star.get("tier_label") or "",
+                "resource_tier": star.get("resource_tier") or "",
             }
             bond = save.bonds.get(cid) if save else None
             entry = enrich_character_gallery(entry, bond, save=save, mode=mode_n)

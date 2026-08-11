@@ -20,6 +20,22 @@ import {
 import { resolveNeedsCondense } from "../../nlu/dbCondenseLlm";
 import type { DbGraphState } from "../state";
 import type { DbGraphEarlyDeps } from "../types";
+import { groundFollowupQuery, shouldGroundFollowupQuery } from "#agent-shared/followupQueryGrounding";
+import { parseTurnScopePayload } from "#agent-shared/turnScope";
+
+function priorUserFromHistory(hist: any[], question: string): string {
+  const q = String(question || "").trim();
+  const humans = (hist || [])
+    .filter((m: any) => {
+      const r = String(m?.role || m?._getType?.() || "").toLowerCase();
+      return r === "user" || r === "human";
+    })
+    .map((m: any) => String(m?.content ?? m?.kwargs?.content ?? "").trim())
+    .filter(Boolean);
+  if (!humans.length) return "";
+  const last = humans[humans.length - 1];
+  return last === q && humans.length >= 2 ? humans[humans.length - 2] : last === q ? "" : last;
+}
 
 export function createCondenseNode(deps: DbGraphEarlyDeps): GraphNode<typeof DbGraphState> {
   const { model, nluModel, progress, standaloneQuestionChain } = deps;
@@ -54,17 +70,40 @@ export function createCondenseNode(deps: DbGraphEarlyDeps): GraphNode<typeof DbG
     }
     const q = sanitizeIncomingQuestion(String(state.question ?? "").trim());
     if (shouldSuppressDbHistory(mgr)) return { standalone_question: q };
-    const shouldCondense = await resolveNeedsCondense(condenseModel, q);
-    if (!shouldCondense) return { standalone_question: q };
+
+    const scope = parseTurnScopePayload(mgr?.turn_scope) || null;
     const hist = state.chat_history as any;
-    if (Array.isArray(hist) && hist.length > 0) {
+    const histArr = Array.isArray(hist) ? hist : [];
+    const anchorTask = priorUserFromHistory(histArr, q);
+    const turnKind = scope?.turn_kind || undefined;
+
+    const shouldCondense = await resolveNeedsCondense(condenseModel, q);
+    if (!shouldCondense) {
+      if (shouldGroundFollowupQuery({ turnKind, lastUser: q, anchorTask })) {
+        return {
+          standalone_question: sanitizeIncomingQuestion(
+            groundFollowupQuery({ lastUser: q, turnKind, anchorTask, candidate: q }),
+          ),
+        };
+      }
+      return { standalone_question: q };
+    }
+    if (histArr.length > 0) {
       const out = await standaloneQuestionChain.invoke({
         chat_history: hist,
         question: q,
       });
       incrementLlmCallCount(1);
-      const sq = sanitizeCondensedQuestion(out);
-      return { standalone_question: sanitizeIncomingQuestion(sq || q) };
+      let sq = sanitizeCondensedQuestion(out) || q;
+      if (shouldGroundFollowupQuery({ turnKind: turnKind || "continuation", lastUser: q, anchorTask })) {
+        sq = groundFollowupQuery({
+          lastUser: q,
+          turnKind: turnKind || "continuation",
+          anchorTask,
+          candidate: sq,
+        });
+      }
+      return { standalone_question: sanitizeIncomingQuestion(sq) };
     }
     return { standalone_question: q };
   };

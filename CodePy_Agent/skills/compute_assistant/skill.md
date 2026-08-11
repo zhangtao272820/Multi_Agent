@@ -15,6 +15,11 @@ owner: codepy_agent
 若任务涉及改库/迁移/脚本，输出可执行的 SQL 或代码建议到 data.scripts（字符串数组），但不要声称已对生产库执行。
 输出合法 JSON（含 answer、facts、可选 data）；answer 用 2～4 句概括全部关键数字与计算口径。
 
+facts 契约：每项必须为 `{ "key", "value", "label" }`。
+- `key`：稳定机器 id（可用英文 snake_case）
+- `value`：可核对的数值或原文
+- `label`：面向用户的展示名，语言与用户任务一致（中文任务写中文）；禁止把 raw snake_case key 当作 label
+
 ## UserTail
 
-请基于以上上下文做计算/整理/推导。输出 JSON，facts 覆盖上下文中全部可核对数字字段。
+请基于以上上下文做计算/整理/推导。输出 JSON；facts 覆盖上下文中全部可核对数字字段，且每项含与任务语言一致的 label。

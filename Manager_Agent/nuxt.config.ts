@@ -45,8 +45,10 @@ export default defineNuxtConfig({
     '~/assets/css/manager-season.css',
     /* 近实底霜白壳：3-class Token + 表面强制覆盖，压过深色半透 */
     '~/assets/css/manager-winter-shell.css',
-    /* HITL SSOT 最后加载，避免 scoped/cosmic 盖掉计划卡与风险模态 */
+    /* HITL SSOT：计划卡与风险模态结构 */
     '~/assets/css/manager-hitl-panels.css',
+    /* 雪景高对比深字：最后加载，压过深色主题浅青残留 */
+    '~/assets/css/manager-winter-balance.css',
   ],
   compatibilityDate: '2025-07-15',
   devtools: { enabled: process.env.NODE_ENV !== 'production' },

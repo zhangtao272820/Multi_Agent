@@ -15,7 +15,7 @@ def main() -> int:
     from app.campus_store import store
     from app import seating as seating_mod
 
-    hub = campus_engine.create_new(name="测试生", grade_tier="mid", mbti="INFP")
+    hub = campus_engine.create_new(name="测试生", grade_tier="mid", stats={"study": 3, "social": 3, "stamina": 3, "luck": 3})
     assert hub["student_count"] == 35
     assert hub["calendar"]["period_id"] == "morning_study"
     assert hub["calendar"]["weather_id"]
@@ -25,6 +25,26 @@ def main() -> int:
     assert len(save.seating) == 35
     rel = seating_mod.relation_between(save.seating, "pc", save.seating[1]["student_id"])
     assert rel in {"deskmate", "aisle", "front_back", "diagonal", "note", "none"}
+
+    # AA2: class roles unique + relation labels + verdict + breakup
+    from app import relationship as rel_mod
+    roles = [s.get("class_role") for s in save.students if s.get("class_role")]
+    assert len(roles) == len(set(roles)), roles
+    rel_mod.validate_class_roles(save.students)
+    edge_ff = {"a": "f01", "b": "f02", "affinity": 60, "stage": "close", "track": "ff", "bond_kind": "friendship", "was_dating": False, "memories": []}
+    lab = rel_mod.resolve_campus_relation(edge_ff, gender_a="female", gender_b="female", seat_relation="deskmate", class_role_b="monitor")
+    assert lab["primary_label"] == "闺蜜"
+    assert "同桌" in lab["context_tags"]
+    assert "班长" in lab["context_tags"]
+    edge_ex = {"a": "pc", "b": "f01", "affinity": 50, "stage": "friend", "track": "mf", "bond_kind": "friendship", "was_dating": True, "memories": []}
+    lab_ex = rel_mod.resolve_campus_relation(edge_ex, gender_a="male", gender_b="female")
+    assert lab_ex["primary_label"] == "前任"
+    dating = {"a": "pc", "b": "f01", "affinity": 92, "stage": "dating", "track": "mf", "bond_kind": "romance", "was_dating": True, "memories": []}
+    rel_mod.break_up(dating, day_index=50)
+    assert dating["was_dating"] and dating["stage"] != "dating"
+    lab2 = rel_mod.resolve_campus_relation(dating, gender_a="male", gender_b="female")
+    assert lab2["primary_label"] == "前任"
+
 
     # advance through a class period somehow
     while store.require_active().period_id != "class_am":
@@ -111,7 +131,7 @@ def main() -> int:
     # weekly event on day 1
     from app import relationship as rel_mod
 
-    hub_w = campus_engine.create_new(name="事件生", grade_tier="mid", mbti="INFJ")
+    hub_w = campus_engine.create_new(name="事件生", grade_tier="mid", stats={"study": 3, "social": 3, "stamina": 3, "luck": 3})
     ev = hub_w.get("active_event")
     assert ev and ev.get("id") == "week1_roster", ev
     assert ev.get("source") == "weekly"
@@ -157,7 +177,7 @@ def main() -> int:
     # M12–M14: talk dual-layer + interact verbs + club
     from app import catalog
 
-    hub_m = campus_engine.create_new(name="互动生", grade_tier="mid", mbti="ENFP")
+    hub_m = campus_engine.create_new(name="互动生", grade_tier="mid", stats={"study": 3, "social": 3, "stamina": 3, "luck": 3})
     campus_engine.travel("classroom")
     present = [p for p in campus_engine.hub_public(store.require_active())["present"] if not p.get("is_pc")]
     assert present, "need classmates present"
@@ -248,7 +268,7 @@ def main() -> int:
     # M18: ask_out accepted → date talk prep (force accept path)
     from unittest.mock import patch
 
-    hub_d = campus_engine.create_new(name="约会生", grade_tier="mid", mbti="ENFP")
+    hub_d = campus_engine.create_new(name="约会生", grade_tier="mid", stats={"study": 3, "social": 3, "stamina": 3, "luck": 3})
     while store.require_active().day_kind != "weekend":
         campus_engine.advance_period()
         if store.require_active().day_index > 14:
@@ -300,7 +320,11 @@ def main() -> int:
     assert q.get("kind") == "q"
     assert "path" in q
 
-    hub_q = campus_engine.create_new(name="终章生", grade_tier="mid", mbti="INTJ")
+    hub_q = campus_engine.create_new(name="终章生", grade_tier="mid", stats={"study": 3, "social": 3, "stamina": 3, "luck": 3})
+    pc_pub = next(p for p in hub_q["present"] if p.get("is_pc"))
+    assert "mbti" not in pc_pub or not pc_pub.get("mbti")
+    npc_pub = next(p for p in hub_q["present"] if not p.get("is_pc"))
+    assert npc_pub.get("mbti")
     present_npc = next(s for s in hub_q["present"] if not s.get("is_pc"))
     assert present_npc.get("q_sprite") is not None
     sample = next(p for loc in hub_q["locations"] for p in (loc.get("present_preview") or []) if not p.get("is_pc"))
@@ -320,6 +344,8 @@ def main() -> int:
     assert end_hub.get("ending")
     assert end_hub["ending"]["kind"] == "gaokao"
     assert end_hub["ending"]["ending_id"]
+    assert end_hub["ending"]["verdict"] in {"true", "good", "soft", "bad"}
+    assert end_hub["ending"].get("epilogue_line")
     assert end_hub["ending"]["grade_band"] in {"top", "good", "mid", "low"}
     assert end_hub["ending"]["pc_rank"] >= 1
     assert end_hub["ending"].get("social_epilogue")
@@ -329,7 +355,7 @@ def main() -> int:
     assert again.get("ended") is True
 
     # —— Phase B: schedule + NPC social + world_events ——
-    hub_s = campus_engine.create_new(name="社交生", grade_tier="mid", mbti="INFJ")
+    hub_s = campus_engine.create_new(name="社交生", grade_tier="mid", stats={"study": 3, "social": 3, "stamina": 3, "luck": 3})
     save_s = store.require_active()
     assert any(
         "pc" not in {e.get("a"), e.get("b")} for e in save_s.edges

@@ -26,19 +26,23 @@ def main() -> int:
         for ch in base.get("characters") or []:
             chars[ch["id"]] = (base["id"], ch)
 
-    # 现行 SSOT：romance×17 + neutral×6 + npc×0 = 23（`moran` 已删；路人立绘为无名背景）
-    if len(chars) != 23:
-        errors.append(f"model_roles characters={len(chars)} want 23")
-    if len(social) != 23:
-        errors.append(f"social_graph characters={len(social)} want 23")
-    if len(routes) != 23:
-        errors.append(f"route_catalog routes={len(routes)} want 23")
+    # 现行 SSOT：romance×16 + linked×6 + npc×0 = 22（`moran` 已删；路人立绘为无名背景）
+    if len(chars) != 22:
+        errors.append(f"model_roles characters={len(chars)} want 22")
+    if len(social) != 22:
+        errors.append(f"social_graph characters={len(social)} want 22")
+    if len(routes) != 22:
+        errors.append(f"route_catalog routes={len(routes)} want 22")
 
     romance = [cid for cid, s in social.items() if s.get("cast_kind") == "romance"]
+    linked = [cid for cid, s in social.items() if s.get("cast_kind") == "linked"]
     neutral = [cid for cid, s in social.items() if s.get("cast_kind") == "neutral"]
     npc = [cid for cid, s in social.items() if s.get("cast_kind") == "npc"]
-    if len(romance) != 17 or len(neutral) != 6 or len(npc) != 0:
-        errors.append(f"cast counts romance={len(romance)} neutral={len(neutral)} npc={len(npc)}")
+    if len(romance) != 16 or len(linked) != 6 or len(neutral) != 0 or len(npc) != 0:
+        errors.append(
+            f"cast counts romance={len(romance)} linked={len(linked)} "
+            f"neutral={len(neutral)} npc={len(npc)}"
+        )
     for banned in ("moxi", "luli", "moran"):
         if banned in social or banned in chars or banned in routes:
             errors.append(f"{banned}: still registered as playable cast")
@@ -86,9 +90,9 @@ def main() -> int:
                 )
             if cid not in policy:
                 errors.append(f"{cid}: missing romance_policy")
-        elif kind == "neutral":
-            if rt.get("max_stage_id") != "close_friend":
-                errors.append(f"{cid}: neutral max_stage != close_friend")
+        elif kind == "linked":
+            if rt.get("max_stage_id") != "married":
+                errors.append(f"{cid}: linked max_stage != married")
             if cid not in weights:
                 errors.append(f"{cid}: missing cast_weights")
             else:
@@ -97,10 +101,16 @@ def main() -> int:
                     errors.append(
                         f"{cid}: weight name={w.get('name')!r} != {prof.get('name')!r}"
                     )
-                if w.get("tier") != "N":
-                    errors.append(f"{cid}: cast_weights.tier={w.get('tier')!r} want N")
+                tier = w.get("tier")
+                if cid == "shuli":
+                    if tier != "L0":
+                        errors.append(f"{cid}: cast_weights.tier={tier!r} want L0")
+                elif tier != "N":
+                    errors.append(f"{cid}: cast_weights.tier={tier!r} want N")
             if cid in policy:
-                errors.append(f"{cid}: neutral should not be in romance_policy")
+                errors.append(f"{cid}: linked should not be in romance_policy")
+        elif kind == "neutral":
+            errors.append(f"{cid}: cast_kind=neutral 已废弃，应改为 linked")
         else:
             if rt.get("max_stage_id") != "close_friend":
                 errors.append(f"{cid}: {kind} max_stage != close_friend")
@@ -131,7 +141,7 @@ def main() -> int:
             print(" -", e)
         return 1
     print(
-        f"OK identity align: romance={len(romance)} neutral={len(neutral)} npc={len(npc)}"
+        f"OK identity align: romance={len(romance)} linked={len(linked)} npc={len(npc)}"
     )
     return 0
 

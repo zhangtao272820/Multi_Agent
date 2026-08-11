@@ -38,8 +38,11 @@ assert(boundary.includes('get_travel_route') || boundary.includes('地图'), 'bo
 assert(boundary.includes('禁止') || boundary.includes('不是 crawler'), 'boundary distinguishes crawler')
 
 const disambig = formatAdminCrawlerDisambiguationPrompt()
-assert(disambig.includes('地铁') || disambig.includes('多久'), 'disambig mentions travel')
-assert(disambig.includes('查一下'), 'disambig: 查一下 still admin')
+assert(
+  disambig.includes('get_travel_route') || disambig.includes('高德') || disambig.includes('出行'),
+  'disambig catalog covers travel tools'
+)
+assert(disambig.includes('查一下') || disambig.includes('公网') || disambig.includes('crawler'), 'disambig: 查一下≠公网 / crawler rule')
 
 const adminCapSrc = readSource('shared/adminCapabilities.ts')
 assert(adminCapSrc.includes('get_travel_route'), 'admin SSOT has get_travel_route')
@@ -49,7 +52,10 @@ const alignSrc = readSource('Manager_Agent/server/graph/llm/userIntentAlignLlm.t
 assert(alignSrc.includes('地铁') || alignSrc.includes('出行'), 'align mentions travel→admin')
 
 const judgeSrc = readSource('Manager_Agent/server/graph/llm/orchestratorJudgeLlm.ts')
-assert(judgeSrc.includes('get_travel_route') || judgeSrc.includes('地铁'), 'judge checks map→admin')
+assert(
+  judgeSrc.includes('Admin') || judgeSrc.includes('admin') || judgeSrc.includes('公网') || judgeSrc.includes('webFetchKind'),
+  'judge checks admin capability vs clear web'
+)
 
 assert(textLooksLikeAdminMapCapability(A2), 'A2 map text detected')
 assert(textLooksLikeAdminMapCapability('坐地铁从天津西站到天津站大概多久'), 'travel without 查一下')

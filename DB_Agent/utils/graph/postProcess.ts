@@ -38,8 +38,8 @@ export type PostGraphDeps = {
   };
 };
 
-export function createPrepareGraphInput() {
-  return (input: any) => {
+export function createPrepareGraphInput(opts?: { model?: BaseLanguageModel | null }) {
+  return async (input: any) => {
       let manager_task_json = "";
       if (typeof input?.manager_task_json === "string" && String(input.manager_task_json).trim()) {
         manager_task_json = String(input.manager_task_json).trim();
@@ -51,22 +51,64 @@ export function createPrepareGraphInput() {
         }
       }
       resetLlmCallCount();
-      return {
-        question: clipText(
-          sanitizeIncomingQuestion(String(input?.question ?? "")),
-          getDbAgentBlueprintEnv().maxModelInputChars,
-        ),
-        chat_history: (() => {
-          const env = getDbAgentBlueprintEnv();
-          const mgrTask = parseManagerDbTaskFromJson(String(input?.manager_task_json || ""));
-          if (shouldSuppressDbHistory(mgrTask)) return [];
-          return trimChatHistoryForModel(
-            input?.chat_history ?? [],
+      const question = clipText(
+        sanitizeIncomingQuestion(String(input?.question ?? "")),
+        getDbAgentBlueprintEnv().maxModelInputChars,
+      );
+      const env = getDbAgentBlueprintEnv();
+      const mgrTask = parseManagerDbTaskFromJson(manager_task_json);
+      const rawHistory = Array.isArray(input?.chat_history) ? input.chat_history : [];
+      let chat_history = rawHistory;
+      if (shouldSuppressDbHistory(mgrTask)) {
+        chat_history = [];
+      } else if (!mgrTask?.turn_scope) {
+        const { resolveDbStandaloneTurnScope } = await import("../nlu/dbTurnScope");
+        const scope = await resolveDbStandaloneTurnScope({
+          question,
+          chatHistory: rawHistory.map((m: any) => ({
+            role: String(m?.role || m?._getType?.() || ""),
+            content: String(m?.content ?? m?.kwargs?.content ?? ""),
+          })),
+          managerTurnScope: null,
+          model: (opts?.model as any) || null,
+        });
+        if (scope.suppress_history && !scope.narrow_output_followup) {
+          chat_history = [];
+        } else if (scope.narrow_output_followup) {
+          // 仅保留末条 assistant（对齐 shared resolveOrchestratedClientHistory）
+          const asst = [...rawHistory]
+            .reverse()
+            .find((m: any) => {
+              const r = String(m?.role || m?._getType?.() || "").toLowerCase();
+              return r === "assistant" || r === "ai";
+            });
+          chat_history = asst ? [asst] : [];
+        } else {
+          chat_history = trimChatHistoryForModel(
+            rawHistory,
             env.chatHistoryMaxMessages,
             env.chatHistoryMaxChars,
             env.chatHistoryMessageMaxChars,
           );
-        })(),
+        }
+        // 把独立判定写回 manager_task_json 侧车，供下游 meta 观测
+        try {
+          const o = manager_task_json ? JSON.parse(manager_task_json) : {};
+          manager_task_json = JSON.stringify({ ...o, turn_scope: scope, source: o.source || "db_standalone_turn_scope" });
+        } catch {
+          manager_task_json = JSON.stringify({ turn_scope: scope, source: "db_standalone_turn_scope" });
+        }
+      } else {
+        chat_history = trimChatHistoryForModel(
+          rawHistory,
+          env.chatHistoryMaxMessages,
+          env.chatHistoryMaxChars,
+          env.chatHistoryMessageMaxChars,
+        );
+      }
+      return {
+        question,
+        chat_history,
         manager_task_json,
         session_id: String(input?.session_id ?? input?.sessionId ?? "").trim(),
         bypass_task_stack: Boolean(input?.bypass_task_stack),

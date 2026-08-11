@@ -177,7 +177,7 @@ async function resetLearning(scope: LearningResetScope) {
   const labels: Record<LearningResetScope, string> = {
     learning: "问答学习记录",
     route: "查询习惯",
-    prompts: "优化建议",
+    prompts: "自我进化（Prompt 优化）",
     all: "全部学习与优化设置",
   };
   if (!confirm(`确定要恢复默认吗？将清除「${labels[scope]}」，不影响数据库里的业务数据。`)) return;

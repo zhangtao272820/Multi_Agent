@@ -3,40 +3,107 @@ label: 警告
 priority: 5
 once: true
 chance: 1.0
-scene_id: ""
+scene_id: ''
 trigger:
-  character_ids: [lingke]
+  character_ids:
+  - lingke
   stage_min: friend
   affinity_min: 52
-  flags_absent: [boundary_guard_done]
-prompt_snippet: |
-  【专属故事 · 助教的红笔 · 第1幕 · 警告】
+  flags_absent:
+  - boundary_guard_done
+prompt_snippet: '【专属故事 · 助教的红笔 · 第1幕 · 警告】
+
+  '
 advance: on_player_turn
 beats:
-  - id: b1
-    narration: "办公室门口她拦下你：顾老师的答疑有名单——越线的关心，她会用红笔先挡。文件夹抱在胸前。"
-    pc_thought: "红笔在她手里。边界是护若铃，也是在考我。"
-    brief: "门口拦人；红笔挡越线关心。等你说明来意、预约正规答疑或承认太随便。"
-    summary: "门口拦人；红笔挡越线关心。等你说明来意、预约正规答疑或承认太随便。"
-    sprite_hint: [lecture_assist, work]
-    soft_options: ["说明来意", "预约正规答疑", "承认曾太随便"]
-  - id: b2
-    narration: "她说明伦理：迷恋可以，越界不行。是为了保护若铃，也保护你别毁了课。"
-    pc_thought: "通行证不是免罪金牌。师生线一松，闲话就来。"
-    brief: "伦理：迷恋可越界不行。等你承诺守界、问红线或接受书面提醒。"
-    summary: "伦理：迷恋可越界不行。等你承诺守界、问红线或接受书面提醒。"
-    sprite_hint: [ta_office, lecture_assist]
-    soft_options: ["承诺守界", "问红线在哪", "接受书面提醒"]
-  - id: b3
-    narration: "走廊里她给你一份须知并落章。守规则的人，才有资格谈对等——若铃真结局门从此可开。"
-    pc_thought: "答应不越线。道谢她护老师——我也在被护着别踩雷。"
-    brief: "须知落章；守规则才谈对等。等你答应不越线、道谢或改走正规渠道。"
-    summary: "须知落章；守规则才谈对等。等你答应不越线、道谢或改走正规渠道。"
-    sprite_hint: [ta_office, casual]
-    soft_options: ["答应不越线", "道谢护老师", "改走正规渠道"]
+- id: b1
+  narration: 办公室门口她拦下你：顾老师的答疑有名单——越线的关心，她会用红笔先挡。文件夹抱在胸前。名单页折了一道痕。她没再多说，只是看着你。
+  pc_thought: 红笔在她手里。边界是护若铃，也是在考我。我想靠近，又怕说错一句。
+  brief: 门口拦人；红笔挡越线关心。等你说明来意、预约正规答疑或承认太随便。
+  summary: 门口拦人；红笔挡越线关心。等你说明来意、预约正规答疑或承认太随便。
+  sprite_hint:
+  - lecture_assist
+  - ta_office
+  - work
+  - casual
+  - season_winter
+  - home_eating
+  soft_options:
+  - 说明来意
+  - 预约正规答疑
+  - 承认曾太随便
+  pages:
+  - text: 办公室门口她拦下你：顾老师的答疑有名单——越线的关心，她会用红笔先挡。文件夹抱在胸前。名单页折了一道痕。她没再多说，只是看着你。
+    voice: narration
+    sprite:
+      outfit: lecture_assist
+      emotion: neutral
+  - text: 红笔在她手里。边界是护若铃，也是在考我。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: lecture_assist
+      emotion: shy
+- id: b2
+  narration: 她说明伦理：迷恋可以，越界不行。是为了保护若铃，也保护你别毁了课。名单页折了一道痕。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 通行证不是免罪金牌。师生线一松，闲话就来。我想靠近，又怕说错一句。
+  brief: 伦理：迷恋可越界不行。等你承诺守界、问红线或接受书面提醒。
+  summary: 伦理：迷恋可越界不行。等你承诺守界、问红线或接受书面提醒。
+  sprite_hint:
+  - lecture_assist
+  - ta_office
+  - work
+  - casual
+  - season_winter
+  - home_eating
+  soft_options:
+  - 承诺守界
+  - 问红线在哪
+  - 接受书面提醒
+  pages:
+  - text: 她说明伦理：迷恋可以，越界不行。是为了保护若铃，也保护你别毁了课。名单页折了一道痕。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: lecture_assist
+      emotion: neutral
+  - text: 通行证不是免罪金牌。师生线一松，闲话就来。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: lecture_assist
+      emotion: shy
+- id: b3
+  narration: 走廊里她给你一份须知并落章。守规则的人，才有资格谈对等——若铃真结局门从此可开。名单页折了一道痕。她没再多说，只是看着你。
+  pc_thought: 答应不越线。道谢她护老师——我也在被护着别踩雷
+  brief: 须知落章；守规则才谈对等。等你答应不越线、道谢或改走正规渠道。
+  summary: 须知落章；守规则才谈对等。等你答应不越线、道谢或改走正规渠道。
+  sprite_hint:
+  - lecture_assist
+  - ta_office
+  - work
+  - casual
+  - season_winter
+  - home_eating
+  soft_options:
+  - 答应不越线
+  - 道谢护老师
+  - 改走正规渠道
+  pages:
+  - text: 走廊里她给你一份须知并落章。守规则的人，才有资格谈对等——若铃真结局门从此可开。名单页折了一道痕。她没再多说，只是看着你。
+    voice: narration
+    sprite:
+      outfit: lecture_assist
+      emotion: neutral
+  - text: 答应不越线。道谢她护老师——我也在被护着别踩雷
+    voice: pc
+    sprite:
+      outfit: lecture_assist
+      emotion: shy
 rewards:
-  flags_set: [boundary_guard_done]
+  flags_set:
+  - boundary_guard_done
 choice_effects:
-  - { trust_delta: 3, affinity_delta: 3 }
-  - { trust_delta: 2, affinity_delta: 2 }
-  - { trust_delta: -2, affinity_delta: -1 }
+- trust_delta: 3
+  affinity_delta: 3
+- trust_delta: 2
+  affinity_delta: 2
+- trust_delta: -2
+  affinity_delta: -1

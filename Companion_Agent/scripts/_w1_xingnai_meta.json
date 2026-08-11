@@ -1,0 +1,17 @@
+{
+  "name": "程星宁",
+  "appearance_lock": "深蓝短碎发波波头+刘海，琥珀金瞳，白水手服带墨点泼墨纹、深蓝领巾与百褶迷你裙；别过脸时耳尖会红",
+  "body_lock": "h158/r6.7/petite/bust:small/BWH 80-57-82",
+  "body_ref": "xingnai",
+  "clothing_forbid": "白色水手服上衣（墨点/泼墨纹）、深蓝水手领白条纹、深蓝领巾、深蓝百褶迷你裙、深蓝过膝袜、棕色乐福鞋整套基图校服轮廓",
+  "signature_plan": [
+    "rooftop_bento",
+    "bike_after_school",
+    "old_photo_album"
+  ],
+  "hints": {
+    "rooftop_bento": "天台便当：校服或私服，打开便当盒，傲娇别过脸仍递筷子",
+    "bike_after_school": "放学推车：校服裙，一手扶自行车车把，书包斜背",
+    "old_photo_album": "翻旧相册坐姿，居家或便装，相册摊开，耳尖红"
+  }
+}

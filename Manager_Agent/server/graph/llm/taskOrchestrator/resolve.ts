@@ -18,7 +18,7 @@ import type { IntentRagRecallResult } from '../../core/rag/intentRagRecallCore'
 import { ensureCodeInPipelineAgents } from '../../core/routing/clauses'
 import { reconcileIntentClassifyDataPlane } from '../../orchestrate/routeOrchestration'
 import type { MergedIntentUnderstandResult } from '../intentUnderstandLlm'
-import { formatProbeForOrchestrator } from '../../core/probe/probeInterpretation'
+import { formatProbeForOrchestrator, formatRuntimeCatalogsForOrchestrator } from '../../core/probe/probeInterpretation'
 import { routingDecisionLlmTier } from '../../core/shared/modelTier'
 import type { LlmInvokeOptions } from '../../core/shared/modelTier'
 import { buildTopologyBlueprintFromCap } from '../planBlueprintLlm'
@@ -37,7 +37,10 @@ import {
   wrapUntrustedBlock
 } from '../orchestratorPromptProfiles'
 import { isLlmRateLimitError } from '../../../utils/chat/llmRateLimit'
-import { isLlmRateLimitError } from '../../../utils/chat/llmRateLimit'
+import {
+  formatSoftHandoffsForContinuation,
+  softHandoffsFromMeta
+} from '../../core/routing/softHandoff'
 
 export type OrchestratorLlmResult = {
   bundle: TaskOrchestratorBundle | null
@@ -69,14 +72,21 @@ async function invokeOrchestratorLlm(
   const last = String(input.lastUser || '').trim()
   const ctx = String(input.routingContext || last).trim().slice(0, 2200)
   const anchorBlock = formatSessionAnchorBlock(input.sessionAnchor)
+  const softHandoffBlock = formatSoftHandoffsForContinuation(
+    softHandoffsFromMeta((input.state as { meta?: unknown } | null)?.meta)
+  )
   const ragBlock = String(input.ragRecall?.text || '').trim()
   const evo = String(input.evolutionHint || '').trim()
+  const hasAttachment = Boolean(
+    (input.state as { mediaAttachment?: { filePath?: string } } | null)?.mediaAttachment?.filePath
+  )
 
   const systemFull = assembleOrchestratorSystemPrompt(
     orchestratorPromptInputFromRuntime({
       probe: input.probe,
       sessionAnchor: input.sessionAnchor,
-      ragRecallText: ragBlock
+      ragRecallText: ragBlock,
+      hasAttachment
     })
   )
   const systemCompact = assembleOrchestratorCompactSystemPrompt()
@@ -84,7 +94,7 @@ async function invokeOrchestratorLlm(
   const schemaHint =
     mode === 'compact'
       ? `schema: ${COMPACT_SCHEMA_HINT}`
-      : 'schema: {"turnScopeMode":"current_only|continuation|topic_shift|chitchat","directChitchatSynth":bool,"coalescedTask":string,"clauses":[{"id":"c1","text":"...","agents":["rag"]}],"timeHints":[],"subjectHints":[],"fieldHints":[],"wantsVisualize":bool,"wantsReport":bool,"dataSources":["rag"|"db"|"crawler"],"taskIntent":"structured_query|document_retrieval|hybrid|action|chitchat|unknown","primaryIntent":"...","isMulti":bool,"suggestedAgents":[],"isDbAnchored":bool,"needsAdmin":bool,"needsWeb":bool,"explicitWantsReport":bool,"explicitWantsVisualize":bool,"planShortcut":"none|db_only|rag_only|...","requiresAgentPipeline":bool,"allowChatWebDirect":bool,"intent":"...","allowedAgents":[],"routedQuery":"...","needsWebSearch":bool,"needsClarify":bool,"clarifyKind":"none|slot|plane|output_disambiguation","clarifyQuestions":[],"planBlueprint":{"rationale":"","steps":[{"agent":"rag","queryFocus":"..."}]},"confidence":0-1,"rationale":"...","complexity":"low|mid|high","needsPlanPreview":bool,"suggestedPosture":"ask|plan|agent|debug","upgradeReason":"...","upgradeConfidence":0-1}'
+      : 'schema: {"turnScopeMode":"current_only|continuation|topic_shift|chitchat","directChitchatSynth":bool,"coalescedTask":string,"clauses":[{"id":"c1","text":"...","agents":["rag"],"taskForm":"rag_standard"}],"timeHints":[],"timeRange":{"start":"ISO","end":"ISO","label":"..."},"subjectHints":[],"fieldHints":[],"taskForm":"db_count|rag_standard|admin_weather|...","wantsVisualize":bool,"wantsReport":bool,"dataSources":["rag"|"db"|"crawler"],"taskIntent":"structured_query|document_retrieval|hybrid|action|chitchat|unknown","sourceCommitment":"clear|ambiguous|none","committedPlanes":["db"|"rag"|"crawler"|"admin"|...],"webFetchKind":"none|policy_page|general_page","adminCapabilityHints":["weather"|"calendar"|"map"|...],"primaryIntent":"...","isMulti":bool,"suggestedAgents":[],"isDbAnchored":bool,"needsAdmin":bool,"needsWeb":bool,"explicitWantsReport":bool,"explicitWantsVisualize":bool,"planShortcut":"none|db_only|rag_only|...","requiresAgentPipeline":bool,"allowChatWebDirect":bool,"intent":"...","allowedAgents":[],"routedQuery":"...","needsWebSearch":bool,"needsClarify":bool,"clarifyKind":"none|slot|plane|output_disambiguation","clarifyQuestions":[],"planBlueprint":{"rationale":"","steps":[{"agent":"rag","queryFocus":"...","taskForm":"rag_standard"}]},"confidence":0-1,"rationale":"...","complexity":"low|mid|high","needsPlanPreview":bool,"suggestedPosture":"ask|plan|agent|debug","upgradeReason":"...","upgradeConfidence":0-1}'
 
   return input.llmInvoke(
     'route',
@@ -98,7 +108,9 @@ async function invokeOrchestratorLlm(
             `【用户末轮】\n${last.slice(0, 1200)}`,
             wrapUntrustedBlock('routing_context', `【路由上下文】\n${ctx}`),
             wrapUntrustedBlock('session_anchor', anchorBlock),
+            wrapUntrustedBlock('soft_handoff', softHandoffBlock),
             wrapUntrustedBlock('probe', formatProbeForOrchestrator(input.probe)),
+            wrapUntrustedBlock('runtime_catalog', formatRuntimeCatalogsForOrchestrator(input.probe)),
             wrapUntrustedBlock(
               'intent_rag',
               ragBlock ? `【意图 RAG 召回（参考，不一致则以末轮为准）】\n${ragBlock.slice(0, 900)}` : ''
@@ -158,7 +170,15 @@ export async function resolveTaskOrchestrationByLlm(input: {
   let skipRepairForRateLimit = false
   for (const stage of stages) {
     try {
-      const resp = await invokeOrchestratorLlm(input, stage, llmFirst && stage === 'full' ? { thinkingLabel: '编排决策' } : undefined)
+      const resp = await invokeOrchestratorLlm(
+        input,
+        stage,
+        llmFirst && stage === 'full'
+          ? { thinkingLabel: '编排：判定数据面(db/rag)与公网/工具能力' }
+          : stage === 'full'
+            ? { thinkingLabel: '编排决策' }
+            : { thinkingLabel: '编排（精简）' }
+      )
       if (stage === 'compact') {
         const compactParsed = parseCompactOrchestratorJson(String(resp.text ?? '').trim(), last)
         if (compactParsed.raw) {

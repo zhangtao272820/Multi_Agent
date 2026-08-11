@@ -33,6 +33,14 @@ import {
   resolveGuiOperateKindByLlm,
 } from '../../../utils/gui/guiOperateKindLlm'
 import { resolveGuiWorkflowForTaskKind, sanitizeGuiWorkflowId } from '../../../utils/gui/guiWorkflowAllowlist'
+import {
+  HANDS_NOT_READY_ERROR_CODE,
+  HANDS_NOT_READY_MESSAGE,
+  isDesktopEngineReady,
+  probeLobsterReady,
+  resolveGuiDesktopWsUrl,
+  resolveLobsterHandsHttpBase,
+} from '../../../utils/gui/guiHandsReady'
 
 function parseMcpGuiRun(
   mcpOut: { ok: boolean; text: string; raw?: unknown },
@@ -445,8 +453,12 @@ export async function executeGuiStep(
       ...guiPayload,
       engineHint: hint || guiPayload.engineHint,
     }
+    const desktopWs =
+      isDesktopTask || hint === 'desktop'
+        ? resolveGuiDesktopWsUrl({ lobsterAgentWsUrl: opts.lobsterAgentWsUrl })
+        : ''
     return deps.callLobsterAgent({
-      lobsterAgentWsUrl: opts.lobsterAgentWsUrl,
+      lobsterAgentWsUrl: desktopWs || opts.lobsterAgentWsUrl,
       timeoutMs: timeoutOverrideMs ?? guiTimeoutMs,
       task,
       startUrl,
@@ -466,6 +478,42 @@ export async function executeGuiStep(
   }
 
   try {
+    if (isDesktopTask) {
+      const handsBase = resolveLobsterHandsHttpBase(process.env, opts.lobsterAgentWsUrl)
+      input.sendThinking(`GUI Agent：探测 Hands/desktop 就绪（${handsBase}）…`)
+      const probe = await probeLobsterReady({ httpBase: handsBase, timeoutMs: 2500 })
+      if (!isDesktopEngineReady(probe)) {
+        const detail = probe.error || probe.engines?.desktop?.error || probe.desktop?.error || 'desktop_down'
+        input.sendThinking(`GUI Agent：Hands 未就绪（${String(detail).slice(0, 120)}）→ 澄清，不假成功`)
+        return {
+          ok: false,
+          agent: 'gui',
+          output: HANDS_NOT_READY_MESSAGE,
+          query: task,
+          error: HANDS_NOT_READY_ERROR_CODE,
+          clarifyQuestions: [
+            '请在 Windows 宿主机启动 Hands 侧车（LOBSTER_HANDS_ONLY=1 + LOBSTER_DESKTOP_MCP_ENABLED=1），或设置 LOBSTER_HANDS_WS_URL。',
+          ],
+          meta: {
+            agentResult: {
+              ok: false,
+              agent: 'gui',
+              error_code: HANDS_NOT_READY_ERROR_CODE,
+              answer: HANDS_NOT_READY_MESSAGE,
+              needs_clarify: true,
+              clarify_questions: [
+                '请在 Windows 宿主机启动 Hands 侧车（LOBSTER_HANDS_ONLY=1 + LOBSTER_DESKTOP_MCP_ENABLED=1），或设置 LOBSTER_HANDS_WS_URL。',
+              ],
+              structured: { failureType: HANDS_NOT_READY_ERROR_CODE, probe },
+            },
+          },
+        }
+      }
+      input.sendThinking(
+        `GUI Agent：Hands/desktop 就绪${probe.handsOnly ? '（hands-only）' : ''} · tools=${probe.engines?.desktop?.toolCount ?? probe.desktop?.toolCount ?? '?'}`,
+      )
+    }
+
     const mcpDirect = resolveMcpDirectCallFromMeta(input.state.meta)
     if (mcpDirect && isManagerMcpToolNodeEnabled()) {
       input.sendThinking(`GUI/MCP：直调 ${mcpDirect.serverName}/${mcpDirect.toolName}…`)

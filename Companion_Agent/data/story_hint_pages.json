@@ -1,0 +1,314 @@
+{
+  "version": 1,
+  "notes": "Hub story_hints 点击后的短 VN；缺 character_id 时由前端/后端用 hint.text 合成。",
+  "characters": {
+    "xiaoyou": {
+      "pages": [
+        {
+          "text": "画室那边好像还悬着一扇门。门铃、松节油、未干的线——她在等你应不应。",
+          "voice": "narration",
+          "sprite": { "outfit": "casual", "emotion": "shy" }
+        },
+        {
+          "text": "去一趟也好。装路人太久，自己也会信。",
+          "voice": "pc",
+          "sprite": { "outfit": "casual", "emotion": "neutral" }
+        }
+      ]
+    },
+    "wanyu": {
+      "pages": [
+        {
+          "text": "咖啡店打烊前后，她总把话说得很短。像还有一杯没端给你。",
+          "voice": "narration",
+          "sprite": { "outfit": "work", "emotion": "neutral" }
+        },
+        {
+          "text": "别只当熟客。去问问她今天累不累。",
+          "voice": "pc",
+          "sprite": { "outfit": "work", "emotion": "shy" }
+        }
+      ]
+    },
+    "ruolin": {
+      "pages": [
+        {
+          "text": "答疑室的门缝透出一点茶香。红笔还在，边界也还在。",
+          "voice": "narration",
+          "sprite": { "outfit": "work", "emotion": "neutral" }
+        },
+        {
+          "text": "守规矩地靠近，比乱越线更难，也更值得。",
+          "voice": "pc",
+          "sprite": { "outfit": "work", "emotion": "shy" }
+        }
+      ]
+    },
+    "jingliu": {
+      "pages": [
+        {
+          "text": "玻璃门外她还是总监模样。工牌背后，好像藏着没说完的话。",
+          "voice": "narration",
+          "sprite": { "outfit": "work", "emotion": "neutral" }
+        },
+        {
+          "text": "去天台也好，去对桌也好。别只在会议纪要里见面。",
+          "voice": "pc",
+          "sprite": { "outfit": "work", "emotion": "shy" }
+        }
+      ]
+    },
+    "aili": {
+      "pages": [
+        {
+          "text": "花店后门风有点凉。旧伤不必再提，新芽却需要有人记得浇水。",
+          "voice": "narration",
+          "sprite": { "outfit": "casual", "emotion": "shy" }
+        },
+        {
+          "text": "第二次选择比第一次更沉。我得证明自己不是路过。",
+          "voice": "pc",
+          "sprite": { "outfit": "casual", "emotion": "neutral" }
+        }
+      ]
+    },
+    "linxi": {
+      "pages": [
+        {
+          "text": "加班灯下表格还开着。她把话写进便利贴，心却不在附件里。",
+          "voice": "narration",
+          "sprite": { "outfit": "work", "emotion": "neutral" }
+        },
+        {
+          "text": "对齐过了数字，也该对齐一句人话。",
+          "voice": "pc",
+          "sprite": { "outfit": "work", "emotion": "shy" }
+        }
+      ]
+    },
+    "shuli": {
+      "pages": [
+        {
+          "text": "家里晚饭热气还在。日程本摊着，她像在等你把话说清楚。",
+          "voice": "narration",
+          "sprite": { "outfit": "home_sibling", "emotion": "neutral" }
+        },
+        {
+          "text": "当面是兄妹。私下呢——我得先敢面对自己。",
+          "voice": "pc",
+          "sprite": { "outfit": "home_sibling", "emotion": "shy" }
+        }
+      ]
+    },
+    "taotao": {
+      "pages": [
+        {
+          "text": "应援灯灭了之后，她才又像普通人。舞台外还有一排空座位。",
+          "voice": "narration",
+          "sprite": { "outfit": "casual", "emotion": "happy" }
+        },
+        {
+          "text": "前排可以留给粉丝。我想站得更近一点。",
+          "voice": "pc",
+          "sprite": { "outfit": "casual", "emotion": "shy" }
+        }
+      ]
+    },
+    "shizuku": {
+      "pages": [
+        {
+          "text": "图书馆闭馆广播前，她的屏幕光还亮着。有些话适合轻声说。",
+          "voice": "narration",
+          "sprite": { "outfit": "casual", "emotion": "shy" }
+        },
+        {
+          "text": "并排座位还空着一半。去占一个也不迟。",
+          "voice": "pc",
+          "sprite": { "outfit": "casual", "emotion": "neutral" }
+        }
+      ]
+    },
+    "qiansha": {
+      "pages": [
+        {
+          "text": "PR 合上了，注释很干净。心事那条线，她还没 reopen。",
+          "voice": "narration",
+          "sprite": { "outfit": "work", "emotion": "neutral" }
+        },
+        {
+          "text": "专业归专业。人的事，得当面问。",
+          "voice": "pc",
+          "sprite": { "outfit": "work", "emotion": "shy" }
+        }
+      ]
+    },
+    "shiori": {
+      "pages": [
+        {
+          "text": "柜台上多一张荐书单。收件人写的是读者，不是恋人——先去看看也好。",
+          "voice": "narration",
+          "sprite": { "outfit": "casual", "emotion": "shy" }
+        },
+        {
+          "text": "空白页还空着。我想把名字写进去。",
+          "voice": "pc",
+          "sprite": { "outfit": "casual", "emotion": "love" }
+        }
+      ]
+    },
+    "miara": {
+      "pages": [
+        {
+          "text": "摊位帘后她在整样衣。契约是戏言，通票却是真的。",
+          "voice": "narration",
+          "sprite": { "outfit": "casual", "emotion": "happy" }
+        },
+        {
+          "text": "摊友价之外，还有没有别的价。",
+          "voice": "pc",
+          "sprite": { "outfit": "casual", "emotion": "shy" }
+        }
+      ]
+    },
+    "jingning": {
+      "pages": [
+        {
+          "text": "活动边上她还在记观察。堂姐的硬壳外面，她先把你看明白了。",
+          "voice": "narration",
+          "sprite": { "outfit": "casual", "emotion": "neutral" }
+        },
+        {
+          "text": "旁观者的位子坐久了。去问她一句真心话也好。",
+          "voice": "pc",
+          "sprite": { "outfit": "casual", "emotion": "shy" }
+        }
+      ]
+    },
+    "youwei": {
+      "pages": [
+        {
+          "text": "画室多一把学妹的椅子。改图层叠着，她嘴比笔还快。",
+          "voice": "narration",
+          "sprite": { "outfit": "casual", "emotion": "happy" }
+        },
+        {
+          "text": "心动先过晚悠那关——可这句，也该当面听她说。",
+          "voice": "pc",
+          "sprite": { "outfit": "casual", "emotion": "shy" }
+        }
+      ]
+    },
+    "yuxi": {
+      "pages": [
+        {
+          "text": "咖啡店顶班那会儿，她话少、眼神紧。护短不必吵，过眼却是真的。",
+          "voice": "narration",
+          "sprite": { "outfit": "work", "emotion": "neutral" }
+        },
+        {
+          "text": "别只当晚雨的屏障。去看看她自己累不累。",
+          "voice": "pc",
+          "sprite": { "outfit": "work", "emotion": "shy" }
+        }
+      ]
+    },
+    "lingke": {
+      "pages": [
+        {
+          "text": "答疑桌旁红笔还搁着。助教挡人时，规矩比脸冷。",
+          "voice": "narration",
+          "sprite": { "outfit": "work", "emotion": "neutral" }
+        },
+        {
+          "text": "先过这一关，再谈对等。去把话说明白。",
+          "voice": "pc",
+          "sprite": { "outfit": "work", "emotion": "shy" }
+        }
+      ]
+    },
+    "aichen": {
+      "pages": [
+        {
+          "text": "花店门口她像在查岗。闺蜜的冷脸，比账单还清楚。",
+          "voice": "narration",
+          "sprite": { "outfit": "casual", "emotion": "neutral" }
+        },
+        {
+          "text": "过审不是讨好。去证明你会站住，不是路过。",
+          "voice": "pc",
+          "sprite": { "outfit": "casual", "emotion": "shy" }
+        }
+      ]
+    },
+    "xingnai": {
+      "pages": [
+        {
+          "text": "旧相册还缺一张。青梅把话咽回去时，空气会顿一下。",
+          "voice": "narration",
+          "sprite": { "outfit": "casual", "emotion": "shy" }
+        },
+        {
+          "text": "缺口不是谜语。去补一句当面的话也好。",
+          "voice": "pc",
+          "sprite": { "outfit": "casual", "emotion": "neutral" }
+        }
+      ]
+    },
+    "fengyin": {
+      "pages": [
+        {
+          "text": "家门口她还在抢遥控器。屋檐遮雨，不等于通行无阻。",
+          "voice": "narration",
+          "sprite": { "outfit": "home", "emotion": "happy" }
+        },
+        {
+          "text": "先敲门。义妹的线，也要被认真对待。",
+          "voice": "pc",
+          "sprite": { "outfit": "home", "emotion": "shy" }
+        }
+      ]
+    },
+    "qingcai": {
+      "pages": [
+        {
+          "text": "练功房镜子还雾着。舞蹈社里，她只想被一个人真正看见。",
+          "voice": "narration",
+          "sprite": { "outfit": "casual", "emotion": "shy" }
+        },
+        {
+          "text": "台下比台上更难。去站到她看得见的地方。",
+          "voice": "pc",
+          "sprite": { "outfit": "casual", "emotion": "neutral" }
+        }
+      ]
+    },
+    "xiaoyang": {
+      "pages": [
+        {
+          "text": "海报摊边她还在直球搭话。怕越界，却又不肯装陌生人。",
+          "voice": "narration",
+          "sprite": { "outfit": "casual", "emotion": "happy" }
+        },
+        {
+          "text": "同学线也可以认真。去接住那句没说完的话。",
+          "voice": "pc",
+          "sprite": { "outfit": "casual", "emotion": "shy" }
+        }
+      ]
+    },
+    "luna": {
+      "pages": [
+        {
+          "text": "夜班柜台上塔罗还摊着。她认真喜欢时，话反而结巴。",
+          "voice": "narration",
+          "sprite": { "outfit": "work", "emotion": "shy" }
+        },
+        {
+          "text": "别只当趣味夜聊。去问问她今晚抽到什么。",
+          "voice": "pc",
+          "sprite": { "outfit": "work", "emotion": "neutral" }
+        }
+      ]
+    }
+  }
+}

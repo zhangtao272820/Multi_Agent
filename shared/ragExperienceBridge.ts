@@ -8,11 +8,13 @@ import {
   emptyQuestionResult,
   experienceSnippet,
   experienceSyncSource,
+  experienceSyncSourcePlane,
   guardExperiencePg,
   normalizeExperienceQuestionKey,
   type ExperienceSyncOpts,
   type ExperienceSyncResult
 } from './experienceBridgeContract'
+import { normalizeTenantId } from './tenantScope'
 
 export function isRagExperienceBridgeEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
   return String(env.MGR_RAG_EXPERIENCE_SYNC ?? '1').trim() !== '0'
@@ -50,6 +52,7 @@ export async function syncRagExperienceFromManagerRun(
     question: string
     ragPath?: string
     ragSources?: string[]
+    tenantId?: string
   },
   env: NodeJS.ProcessEnv = process.env,
   opts?: ExperienceSyncOpts
@@ -73,10 +76,11 @@ export async function syncRagExperienceFromManagerRun(
     sources
   })
 
+  const tid = normalizeTenantId(input.tenantId || env.AGENT_TENANT_ID || env.TENANT_ID)
   const res = await agentPgQuery(
     `INSERT INTO rag_learning_signals
-      (at, question, question_norm, score, comment, path, source)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      (at, question, question_norm, score, comment, path, source, tenant_id, source_plane)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
     [
       new Date().toISOString(),
       question.slice(0, 500),
@@ -84,7 +88,9 @@ export async function syncRagExperienceFromManagerRun(
       1,
       hint.slice(0, 500),
       String(input.ragPath || 'document_query').slice(0, 64),
-      sources[0] || experienceSyncSource(opts)
+      experienceSyncSource(opts),
+      tid,
+      experienceSyncSourcePlane(opts)
     ],
     env
   )

@@ -363,6 +363,7 @@ function App() {
   const [turnSeq, setTurnSeq] = useState(0);
   const [activeTurnId, setActiveTurnId] = useState(0);
   const [historyPanelOpen, setHistoryPanelOpen] = useState(true);
+  const [learningResetting, setLearningResetting] = useState(false);
   const [sessionHistoryItems, setSessionHistoryItems] = useState<SessionHistoryItem[]>([]);
   const [sessionSwitching, setSessionSwitching] = useState(false);
   const [feedbackByUserIndex, setFeedbackByUserIndex] = useState<Record<number, number>>({});
@@ -1726,6 +1727,54 @@ function App() {
     void fetchServerSessionHistory();
   };
 
+  const resetAdminLearning = async (scope: 'memory' | 'evolution' | 'all') => {
+    const labels = {
+      memory: '清除当前会话对话记忆',
+      evolution: '重置本 Agent 自我进化（shadow/evolved）',
+      all: '清除记忆并重置自我进化',
+    } as const;
+    const ok = window.confirm(`${labels[scope]}？仅影响 Admin 本平面，不影响总管/DB/RAG。`);
+    if (!ok) return;
+    setLearningResetting(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/learning/reset-local`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({
+          scope,
+          session_id: conversationId || conversationIdRef.current || 'default',
+          tenant_id: getStoredUser()?.tenantId || 'default',
+        }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      if (scope === 'memory' || scope === 'all') {
+        setMessages([]);
+        setTurnSeq(0);
+      }
+      setAppModal({
+        open: true,
+        mode: 'alert',
+        title: '已清除',
+        message: `${labels[scope]}完成。`,
+        inputValue: '',
+        inputPlaceholder: '',
+        pendingAction: null,
+      });
+    } catch (e) {
+      setAppModal({
+        open: true,
+        mode: 'alert',
+        title: '清除失败',
+        message: String((e as Error)?.message || e || '请稍后重试'),
+        inputValue: '',
+        inputPlaceholder: '',
+        pendingAction: null,
+      });
+    } finally {
+      setLearningResetting(false);
+    }
+  };
+
   const switchSession = async (id: string) => {
     if (!id || id === conversationIdRef.current) return;
     if (loading) {
@@ -2259,6 +2308,24 @@ function App() {
               </button>
               <button type="button" className="admin-toolbar-btn" onClick={() => newSession()}>
                 新会话
+              </button>
+              <button
+                type="button"
+                className="admin-toolbar-btn"
+                disabled={learningResetting}
+                onClick={() => void resetAdminLearning('memory')}
+                title="清除当前会话对话记忆"
+              >
+                {learningResetting ? '清除中…' : '清除记忆'}
+              </button>
+              <button
+                type="button"
+                className="admin-toolbar-btn"
+                disabled={learningResetting}
+                onClick={() => void resetAdminLearning('evolution')}
+                title="重置本 Agent 自我进化（shadow/evolved）"
+              >
+                重置进化
               </button>
             </div>
           )}
@@ -2961,8 +3028,13 @@ function App() {
 
         {activeTab === 'Mail' && (
           <div className="app-chat-scroll flex-1 overflow-y-auto p-5 md:p-6">
-            <div className="mb-4">
-              <MailboxBindingPanel compact />
+            <div className="mb-4" id="mailbox-binding">
+              <MailboxBindingPanel
+                compact
+                onBound={() => {
+                  void loadInbox();
+                }}
+              />
             </div>
             <div className="app-content-shell mail-page">
               {inboxItems.length > 0 ? (
@@ -3077,15 +3149,37 @@ function App() {
                   ) : (
                     <>
                       <div className="mail-empty-icon" aria-hidden>📭</div>
-                      <p className="text-base text-white/85">收件箱是空的</p>
-                      <p className="mt-2 max-w-md text-sm leading-relaxed text-white/50">
-                        {inboxText && !inboxText.includes('失败')
-                          ? inboxText
-                          : '没有未读邮件，或邮箱尚未连接。可在 .env 配置 QQ 邮箱授权码后刷新。'}
+                      <p className="text-base text-white/85">
+                        {/未绑定|email_not_bound|连接邮箱/.test(inboxText)
+                          ? '还没有绑定邮箱'
+                          : '收件箱是空的'}
                       </p>
-                      <button type="button" className="app-btn-primary mt-5" onClick={() => void loadInbox()}>
-                        重新加载
-                      </button>
+                      <p className="mt-2 max-w-md text-sm leading-relaxed text-white/50">
+                        {/未绑定|email_not_bound|连接邮箱/.test(inboxText)
+                          ? '请在上方「连接邮箱」卡片填写 QQ/163 等授权码并测通绑定；绑定成功后再点刷新。'
+                          : inboxText && !inboxText.includes('失败')
+                            ? inboxText
+                            : '没有未读邮件。若刚绑定，点下方刷新即可。'}
+                      </p>
+                      <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+                        {/未绑定|email_not_bound|连接邮箱/.test(inboxText) && (
+                          <button
+                            type="button"
+                            className="app-btn-primary"
+                            onClick={() => {
+                              document.getElementById('mailbox-binding')?.scrollIntoView({
+                                behavior: 'smooth',
+                                block: 'start',
+                              });
+                            }}
+                          >
+                            去连接邮箱
+                          </button>
+                        )}
+                        <button type="button" className="app-btn-ghost" onClick={() => void loadInbox()}>
+                          重新加载
+                        </button>
+                      </div>
                     </>
                   )}
                 </div>

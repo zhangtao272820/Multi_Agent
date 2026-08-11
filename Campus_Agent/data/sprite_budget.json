@@ -26,7 +26,7 @@
     },
     "high": {
       "tier": "T2",
-      "sprites_per_character": 50,
+      "sprites_per_character": 80,
       "ids": [
         "f01",
         "f02",
@@ -36,7 +36,8 @@
         "f13",
         "f20",
         "f25"
-      ]
+      ],
+      "note": "2026-08-07：配额与磁盘对齐（主包已按 80 交付）；花样波次另计签名/约会/end，不挤占本数字"
     },
     "mid": {
       "tier": "T3",
@@ -48,7 +49,7 @@
         "f16",
         "f17"
       ],
-      "note": "2026-07-30：校服再降 30→20；私密包仍全女统一 +20，不可少"
+      "note": "2026-07-30：校服再降 30→20；私密包仍全女统一 +20。2026-08-07：花样波次不含 T3，维持精简、不扩校园 sc/winter"
     },
     "low": {
       "tier": "T4",
@@ -190,12 +191,26 @@
     "naming": "{location}_{weather}.png"
   },
   "totals_estimate": {
-    "female_school": "4*80 + 8*80 + 8*50 + 5*20 + 0*20 = 1460",
+    "female_school": "4*80 + 8*80 + 8*80 + 5*20 + 0*20 = 1700",
     "female_private": "25*20 = 500",
-    "female": "1460 + 500 = 1960",
+    "female": "1700 + 500 = 2200",
     "male": "10*14 = 140",
     "q_min": "35*1 = 35",
-    "note": "2026-07-21：观感重排 T1/T2；取消 T4。2026-07-30：T3 校服 30→20，私密仍全女 +20。M11 起另计全员 Q 包。"
+    "note": "2026-07-21：观感重排 T1/T2；取消 T4。2026-07-30：T3 校服 30→20，私密仍全女 +20。M11 起另计全员 Q 包。2026-08-07：T2 配额 50→80 对齐磁盘；花样另计。"
   },
-  "notes": "校园两套校服 + 宿舍三套私密装；含场景互动 sc_* 与私密 actions_private。T3 校服精简但私密包不减。男全员15张。Q 版独立。详见 doc/archive/立绘生产计划.md"
+  "variety_wave": {
+    "scope": "T0/T1/T2 female only",
+    "exclude_tiers": ["T3"],
+    "exclude_male": true,
+    "signature_ssot": "sprite_signature_plans.json",
+    "date_actions": ["date_chat", "date_stroll", "date_walk"],
+    "date_emotions": ["happy", "shy", "neutral"],
+    "end_files": ["end_stand_happy.png", "end_stand_shy.png", "end_stand_neutral.png"],
+    "q_focus_extra": ["q_stand_sad.png"],
+    "intimate_selfie_slots": 20,
+    "intimate_selfie_split": "photoreal_vn_x10 + pr_semireal_x10",
+    "intimate_selfie_scope": "T0 school_belle + T1 extreme + T2 high = 20 females; total 400; additive to private_pack",
+    "note": "主包已齐后的花样层；W7 私密自拍见 doc/立绘资源补齐计划.md §W7（不改 private_pack +20）"
+  },
+  "notes": "校园两套校服 + 宿舍三套私密装；含场景互动 sc_* 与私密 actions_private。T3 校服精简且花样波次不含 T3。男全员 14 张可玩（见 male_pack_files；_identity 另计）。Q 版独立。花样见 doc/立绘资源补齐计划.md 与 sprite_signature_plans.json。W7 intimate_selfie 叠加于 private_pack，见 variety_wave.intimate_selfie_*"
 }

@@ -1,6 +1,9 @@
 /**
  * 路由/Planner 修复回归：图一纯 DB 问句 + 图二 RAG+DB+Web 复合问句（无 LLM）
+ * 本文件断言 classic invariants / probe 锚定；显式关闭 LLM-First。
  */
+process.env.MANAGER_LLM_FIRST_ROUTE = '0'
+
 import { applyOrchestratorInvariants } from '../../../server/graph/orchestrate/orchestratorInvariants'
 import { parseOrchestratorForTest } from '../../../server/graph/llm/taskOrchestrator'
 import {
@@ -171,5 +174,44 @@ const merged = mergeDataSourcesWithClauses(
   compoundRaw.clauses as any
 )
 assert(merged.dataSources?.includes('rag'), 'mergeDataSourcesWithClauses adds rag')
+
+// 单源 rag_only：编排误标 needsClarify 须被不变量清掉
+const ragClarifyRaw = {
+  turnScopeMode: 'current_only' as const,
+  coalescedTask: '文档事实问句',
+  clauses: [{ id: 'c1', text: '文档事实问句', agents: ['rag'] as const }],
+  dataSources: ['rag'] as const,
+  primaryIntent: 'rag' as const,
+  isMulti: false,
+  suggestedAgents: ['rag'] as const,
+  isDbAnchored: false,
+  planShortcut: 'rag_only' as const,
+  taskIntent: 'document_retrieval' as const,
+  intent: 'rag' as const,
+  allowedAgents: ['rag'] as const,
+  routedQuery: '文档事实问句',
+  needsClarify: true,
+  clarifyKind: 'slot' as const,
+  clarifyQuestions: ['缺月份？', '数据来源？'],
+  requiresAgentPipeline: false,
+  allowChatWebDirect: true,
+  confidence: 0.8,
+  rationale: 'fixture'
+}
+const ragClarifyBundle = parseOrchestratorForTest(ragClarifyRaw)
+assert(ragClarifyBundle, 'rag clarify fixture parses')
+const ragClarifyDecision = applyOrchestratorInvariants({
+  bundle: ragClarifyBundle!,
+  turnScope: resolveTurnRoutingScope({
+    messages: [new HumanMessage('文档事实问句')],
+    turnScopeLlm: { mode: 'current_only', directChitchatSynth: false, confidence: 0.9, rationale: '单轮' }
+  })
+})
+assert(ragClarifyDecision.needsClarify === false, 'single-source rag clears needsClarify')
+assert(ragClarifyDecision.metaPatch.needsClarify === false, 'metaPatch clears needsClarify')
+assert(
+  !((ragClarifyDecision.clarifyQuestions || []) as string[]).length,
+  'clarifyQuestions cleared'
+)
 
 console.log('smoke-routing-planner-fix: OK')

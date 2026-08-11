@@ -8,11 +8,13 @@ import {
   emptyQuestionResult,
   experienceSnippet,
   experienceSyncSource,
+  experienceSyncSourcePlane,
   guardExperiencePg,
   normalizeExperienceQuestionKey,
   type ExperienceSyncOpts,
   type ExperienceSyncResult
 } from './experienceBridgeContract'
+import { normalizeTenantId } from './tenantScope'
 
 export function isAdminExperienceBridgeEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
   return String(env.MGR_ADMIN_EXPERIENCE_SYNC ?? '1').trim() !== '0'
@@ -56,6 +58,7 @@ export async function syncAdminExperienceFromManagerRun(
     question: string
     scenarioKey?: string
     intent?: string
+    tenantId?: string
   },
   env: NodeJS.ProcessEnv = process.env,
   opts?: ExperienceSyncOpts
@@ -75,16 +78,20 @@ export async function syncAdminExperienceFromManagerRun(
   const toolName = (scenario && SCENARIO_TOOL[scenario]) || 'admin_task'
   const hint = buildAdminHint({ question, resultText: adminText, scenario, toolName })
 
+  const tid = normalizeTenantId(input.tenantId || env.AGENT_TENANT_ID || env.TENANT_ID)
   const res = await agentPgQuery(
-    `INSERT INTO adm_tool_experience (ts, question_norm, tool_name, scenario, hint, source, status, run_id, tools_json)
-     VALUES ($1, $2, $3, $4, $5, $6, 'confirmed', NULL, '[]'::jsonb)`,
+    `INSERT INTO adm_tool_experience
+      (ts, question_norm, tool_name, scenario, hint, source, status, run_id, tools_json, tenant_id, source_plane)
+     VALUES ($1, $2, $3, $4, $5, $6, 'confirmed', NULL, '[]'::jsonb, $7, $8)`,
     [
       new Date().toISOString(),
       question_norm,
       toolName,
       scenario ?? null,
       hint,
-      experienceSyncSource(opts)
+      experienceSyncSource(opts),
+      tid,
+      experienceSyncSourcePlane(opts)
     ],
     env
   )

@@ -112,6 +112,15 @@ assert(
   'B1 needsPlanPreview can force non-multi when steps exist'
 )
 
+// Plan/Todo 可见化：preview payload 含 todos
+const previewTodos = buildPlanPreviewPayload(sampleSteps, 'r1', 'p1', {
+  intent: 'multi',
+  meta: { suggestedPosture: 'plan' }
+})
+assert(Array.isArray(previewTodos.todos) && previewTodos.todos.length === sampleSteps.length, 'preview has todos')
+assert(previewTodos.todos.every((t) => t.status === 'pending'), 'todos pending by default')
+assert(previewTodos.suggestedPosture === 'plan', 'preview surfaces suggestedPosture')
+
 // 确认后改写 query + 跳过一步
 const merged = mergeConfirmedPlanSteps(sampleSteps, [
   { id: 's1', agent: 'db', query: '查本月人数', enabled: true },

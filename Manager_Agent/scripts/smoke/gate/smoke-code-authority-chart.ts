@@ -13,6 +13,8 @@ import {
   buildChartPlanFromFactsStructural,
   readChartPlanFromData,
   resolveCodeAuthorityPayload,
+  isMachineIdentifierLabel,
+  chartPlanHasUserFacingLabels,
   type LlmChartPlan
 } from '#agent-shared/codeAuthorityPayload'
 import { isRenderableChartOption, readChartTitle, readPanelCount, seriesPointCount, suggestChartContainerHeight } from '#agent-shared/chartOption'
@@ -399,7 +401,7 @@ const noisyPayload = resolveCodeAuthorityPayload({
       { key: '月收入', value: 6000 },
       { key: '月支出', value: 5000 },
       { key: 'net_savings', value: 1000, label: '月结余' },
-      { key: 'savings_rate', value: 16.67 },
+      { key: 'savings_rate', value: 16.67, label: '储蓄率' },
       { key: 'com', value: '[查询](https com/blog/article/1784414)' },
       { key: '5', value: '年末盘点 html)' },
       { key: '(说明', value: '目标站点返回 403/拦截' }
@@ -575,5 +577,41 @@ const extendedTypes: LlmChartPlan[] = [
 for (const plan of extendedTypes) {
   assertPlan(plan, 2)
 }
+
+// 用户可见标签：英文 snake_case key 不得原样上屏；有 label 时须保留
+if (!isMachineIdentifierLabel('monthly_income')) throw new Error('monthly_income should be machine id')
+if (isMachineIdentifierLabel('月收入')) throw new Error('月收入 should be user-facing')
+if (isMachineIdentifierLabel('月结余', 'net_savings')) throw new Error('labeled fact should be user-facing')
+
+const rawKeyPayload = resolveCodeAuthorityPayload({
+  code: JSON.stringify({
+    answer: '月收入 6000',
+    facts: [{ key: 'monthly_income', value: 6000 }]
+  })
+})!
+const rawKeyPlan = buildChartPlanFromFactsStructural(rawKeyPayload)
+if (!rawKeyPlan?.panels.length) throw new Error('raw-key structural plan missing')
+if (chartPlanHasUserFacingLabels(rawKeyPlan)) {
+  throw new Error('raw monthly_income plan must fail user-facing label gate')
+}
+const rawKeyOut = assembleVisualizeFromChartPlan(rawKeyPlan)
+if (rawKeyOut) throw new Error('assemble must refuse machine-identifier labels')
+if (rawKeyOut.includes('monthly_income')) throw new Error('monthly_income must not appear in visualize')
+
+const labeledPayload = resolveCodeAuthorityPayload({
+  code: JSON.stringify({
+    answer: '月收入 6000',
+    facts: [{ key: 'monthly_income', value: 6000, label: '月收入' }]
+  })
+})!
+if (labeledPayload.facts[0]?.label !== '月收入') throw new Error('resolve must keep fact.label')
+const labeledPlan = buildChartPlanFromFactsStructural(labeledPayload)
+if (!labeledPlan || !chartPlanHasUserFacingLabels(labeledPlan)) {
+  throw new Error('labeled monthly_income should pass user-facing gate')
+}
+const labeledOut = assembleVisualizeFromChartPlan(labeledPlan)
+if (!hasEchartsOptionBlock(labeledOut)) throw new Error('labeled fact visualize failed')
+if (labeledOut.includes('monthly_income')) throw new Error('machine key must not appear when label exists')
+if (!labeledOut.includes('月收入')) throw new Error('user-facing label 月收入 missing')
 
 console.log('smoke: generic multi-domain chart plan assemble ok')

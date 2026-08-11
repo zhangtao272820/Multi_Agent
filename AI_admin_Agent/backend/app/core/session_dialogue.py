@@ -435,6 +435,22 @@ def load_task_context(session_id: str) -> Dict[str, Any]:
         return {}
 
 
+def remember_last_intent(session_id: str, intent: str) -> None:
+    """跨轮记录上一轮 NLU intent，供 output_followup 锁定工具面。"""
+    label = str(intent or "").strip()
+    if not label or label in ("其他", "二次确认"):
+        return
+    ctx = load_task_context(session_id) or {}
+    if ctx.get("last_intent") == label:
+        return
+    save_task_context(session_id, {**ctx, "last_intent": label})
+
+
+def load_last_intent(session_id: str) -> str:
+    ctx = load_task_context(session_id) or {}
+    return str(ctx.get("last_intent") or "").strip()
+
+
 def clear_task_context(session_id: str) -> None:
     save_task_context(session_id, {})
 

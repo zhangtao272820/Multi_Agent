@@ -1,5 +1,5 @@
 {
-  "description": "真实域 + 协作路由 golden（doc/真实域路由测试用例.md A–H）",
+  "description": "真实域 + 协作路由 golden（doc/真实域路由测试用例.md A–H）+ 意图清晰度对照",
   "cases": [
     { "id": "A1", "expectCap": ["db"], "user": "老人一共有多少人" },
     { "id": "B1", "expectCap": ["rag"], "user": "失能老人护理员配比标准是多少" },
@@ -9,6 +9,9 @@
     { "id": "E4", "expectCap": ["rag", "db", "admin", "code", "visualize"], "user": "知识库查失能老人护理员配比，数据库查王建国的慢性病检测记录，对比分析并出图。并告诉我坐地铁从天津西站到天津站大概多久" },
     { "id": "H1", "expectCap": ["rag", "crawler", "code", "report"], "user": "对照知识库护理员配比标准，网上查最新民政部相关通知，汇总对比" },
     { "id": "H3", "expectCap": ["multimodal", "rag"], "user": "识图提取体检报告关键指标，并对照知识库里的护理规范原文" },
-    { "id": "H5", "expectCap": ["db", "code", "visualize", "admin"], "user": "查林婉清足底压力检测次数并出趋势图，同时帮我订明天下午三点的复查提醒" }
+    { "id": "H5", "expectCap": ["db", "code", "visualize", "admin"], "user": "查林婉清足底压力检测次数并出趋势图，同时帮我订明天下午三点的复查提醒" },
+    { "id": "SC_DEFAULT_WEATHER", "expectCap": ["admin"], "user": "今天天津天气怎么样" },
+    { "id": "SC_WEB_WEATHER", "expectCap": ["crawler"], "user": "请联网搜索一下天津今天的天气情况" },
+    { "id": "SC_AMBIGUOUS", "expectClarify": true, "user": "老人怎么样" }
   ]
 }

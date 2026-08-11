@@ -13,8 +13,9 @@ trigger:
   - tt_plain_face
   flags_present:
   - tt_stage_night
-prompt_snippet: |
-  【专属故事 · 灯牌与素颜 · 第3幕 · 卸妆之后】
+prompt_snippet: '【专属故事 · 灯牌与素颜 · 第3幕 · 卸妆之后】
+
+  '
 advance: on_player_turn
 beats:
 - id: b1
@@ -22,6 +23,8 @@ beats:
   sprite_hint:
   - stretch_break
   - home
+  - date
+  - casual
   - season_winter
   - home_eating
   - home_sleeping
@@ -29,13 +32,26 @@ beats:
   - 说更喜欢现在
   - 认真看她眼睛
   - 帮她拉筋计数
-  narration: 声乐棚回音与汗味里，练习后拉伸，素颜汗意未消；她问你还认不认得「台上的她」。
-  pc_thought: 破音也比完美假笑真。我想当观众，不是灯牌支架——想起素颜。
+  narration: 声乐棚回音与汗味里，练习后拉伸，素颜汗意未消；她问你还认不认得「台上的她」。耳返线还绕在她指节上。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 破音也比完美假笑真。我想当观众，不是灯牌支架——想起素颜
   brief: 练习后拉伸，素颜汗意未消；她问你还认不认得「台上的她」。等你回应。
+  pages:
+  - text: 声乐棚回音与汗味里，练习后拉伸，素颜汗意未消；她问你还认不认得「台上的她」。耳返线还绕在她指节上。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: stretch_break
+      emotion: neutral
+  - text: 破音也比完美假笑真。我想当观众，不是灯牌支架——想起素颜
+    voice: pc
+    sprite:
+      outfit: stretch_break
+      emotion: shy
 - id: b2
-  summary: "她坦白怕恋爱变成营业附属：想要一人专一，不是站哥名额。等你回应。"
+  summary: 她坦白怕恋爱变成营业附属：想要一人专一，不是站哥名额。等你回应。
   sprite_hint:
+  - stretch_break
   - home
+  - date
   - casual
   - season_winter
   - home_eating
@@ -44,14 +60,27 @@ beats:
   - 承诺不当站哥恋爱
   - 谈公开节奏
   - 问她真正想要
-  narration: "声乐棚回音与汗味里，她坦白怕恋爱变成营业附属：想要一人专一，不是站哥名额。"
-  pc_thought: 应急观众很好当——素颜观众才难。
-  brief: "她坦白怕恋爱变成营业附属：想要一人专一，不是站哥名额。等你回应。"
+  narration: 声乐棚回音与汗味里，她坦白怕恋爱变成营业附属：想要一人专一，不是站哥名额。耳返线还绕在她指节上。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 应急观众很好当——素颜观众才难。我想靠近，又怕说错一句。
+  brief: 她坦白怕恋爱变成营业附属：想要一人专一，不是站哥名额。等你回应。
+  pages:
+  - text: 声乐棚回音与汗味里，她坦白怕恋爱变成营业附属：想要一人专一，不是站哥名额。耳返线还绕在她指节上。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: stretch_break
+      emotion: neutral
+  - text: 应急观众很好当——素颜观众才难。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: stretch_break
+      emotion: shy
 - id: b3
   summary: 灯牌放下的瞬间她说喜欢你——要的是素颜也被选中。等你回应。
   sprite_hint:
-  - date
   - stretch_break
+  - home
+  - date
+  - casual
   - season_winter
   - home_eating
   - home_sleeping
@@ -59,14 +88,27 @@ beats:
   - 素颜告白回应
   - 说舞台外也陪
   - 确认彼此界限
-  narration: 声乐棚回音与汗味里，灯牌放下的瞬间她说喜欢你——要的是素颜也被选中。
-  pc_thought: 万人喜欢很吵。我想听她私下喘一口气的声音——想起灯牌。
+  narration: 声乐棚回音与汗味里，灯牌放下的瞬间她说喜欢你——要的是素颜也被选中。耳返线还绕在她指节上。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 万人喜欢很吵。我想听她私下喘一口气的声音——想起灯牌
   brief: 灯牌放下的瞬间她说喜欢你——要的是素颜也被选中。等你回应。
+  pages:
+  - text: 声乐棚回音与汗味里，灯牌放下的瞬间她说喜欢你——要的是素颜也被选中。耳返线还绕在她指节上。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: stretch_break
+      emotion: neutral
+  - text: 万人喜欢很吵。我想听她私下喘一口气的声音——想起灯牌
+    voice: pc
+    sprite:
+      outfit: stretch_break
+      emotion: shy
 - id: b4
-  summary: "她把麦克风支架推远：从今晚起，你是观众席外的位置。等你回应。"
+  summary: 她把麦克风支架推远：从今晚起，你是观众席外的位置。等你回应。
   sprite_hint:
-  - date
+  - stretch_break
   - home
+  - date
+  - casual
   - season_winter
   - home_eating
   - home_sleeping
@@ -74,9 +116,20 @@ beats:
   - 牵她离开练习室
   - 约一顿无镜头晚饭
   - 说「我选你」
-  narration: "声乐棚回音与汗味里，她把麦克风支架推远：从今晚起，你是观众席外的位置。"
-  pc_thought: 冰袋比灯牌烫手。经纪人在门外，我挡不挡？
-  brief: "她把麦克风支架推远：从今晚起，你是观众席外的位置。等你回应。"
+  narration: 声乐棚回音与汗味里，她把麦克风支架推远：从今晚起，你是观众席外的位置。耳返线还绕在她指节上。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 冰袋比灯牌烫手。经纪人在门外，我挡不挡？我想靠近，又怕说错一句。
+  brief: 她把麦克风支架推远：从今晚起，你是观众席外的位置。等你回应。
+  pages:
+  - text: 声乐棚回音与汗味里，她把麦克风支架推远：从今晚起，你是观众席外的位置。耳返线还绕在她指节上。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: stretch_break
+      emotion: neutral
+  - text: 冰袋比灯牌烫手。经纪人在门外，我挡不挡？我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: stretch_break
+      emotion: shy
 rewards:
   flags_set:
   - tt_plain_face

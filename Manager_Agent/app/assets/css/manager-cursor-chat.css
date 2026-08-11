@@ -8,13 +8,13 @@
   --chat-font-ui: 13px;
   --chat-font-meta: 12px;
   --chat-font-mono: 13px;
-  --chat-text-primary: #1a2f44;
-  --chat-text-secondary: #3a536c;
-  --chat-text-muted: #5a738c;
-  --mgr-glass-strong: rgba(255, 255, 255, 0.62);
-  --cursor-surface: rgba(255, 252, 255, 0.55);
-  --cursor-surface-elevated: rgba(255, 255, 255, 0.68);
-  --cursor-border: rgba(90, 140, 190, 0.4);
+  --chat-text-primary: #0a1a28;
+  --chat-text-secondary: #1e3a52;
+  --chat-text-muted: #2a4560;
+  --mgr-glass-strong: rgba(255, 255, 255, 0.9);
+  --cursor-surface: rgba(255, 255, 255, 0.88);
+  --cursor-surface-elevated: rgba(255, 255, 255, 0.94);
+  --cursor-border: rgba(122, 168, 212, 0.45);
 }
 
 /* ── 主滚动区：flex 子项可滚动 ── */
@@ -44,14 +44,14 @@
 .spring-root.cursor-workbench.cosmic-theme .chat-thread .cosmic-bubble-user {
   padding: 10px 14px !important;
   border-radius: 16px 16px 4px 16px !important;
-  background: linear-gradient(145deg, rgba(47, 127, 209, 0.18), rgba(120, 180, 230, 0.28)) !important;
-  border: 1px solid rgba(47, 127, 209, 0.42) !important;
-  box-shadow: 0 6px 20px rgba(40, 70, 110, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.85) !important;
-  color: #102838 !important;
+  background: linear-gradient(145deg, rgba(28, 95, 168, 0.92), rgba(36, 120, 196, 0.88)) !important;
+  border: 1px solid rgba(20, 70, 130, 0.55) !important;
+  box-shadow: 0 6px 20px rgba(40, 70, 110, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.35) !important;
+  color: #f4f9ff !important;
 }
 
 .spring-root.cursor-workbench.cosmic-theme .chat-thread .cosmic-bubble-user .spring-log-text {
-  color: #eff6ff !important;
+  color: #f4f9ff !important;
 }
 
 .spring-root.cursor-workbench.cosmic-theme .chat-thread .reply-panel .reply-panel-inner.cosmic-bubble-reply {
@@ -360,7 +360,7 @@
 }
 
 .spring-root.cursor-workbench .cursor-thought-panel .process-step.kind-thinking .process-step-text {
-  color: #93c5fd !important;
+  color: #0a1a28 !important;
 }
 
 .spring-root.cursor-workbench .cursor-thought-panel .process-step.kind-phase .process-step-dot,
@@ -376,7 +376,7 @@
 .spring-root.cursor-workbench .cursor-thought-panel .spring-search-sources-panel > summary {
   font-size: var(--chat-font-meta) !important;
   padding: 6px 0 !important;
-  color: #a5b4fc !important;
+  color: #0a4a86 !important;
 }
 
 .spring-root.cursor-workbench .cursor-thought-panel .spring-search-sources-list li {
@@ -387,7 +387,7 @@
   margin-bottom: 4px !important;
 }
 
-/* 对话轮次内顺序：用户 → 思考 → 回答 */
+/* 对话轮次内顺序：用户 → 任务执行 → 思考 → 回答 */
 .spring-root.cursor-workbench .spring-turn {
   display: flex;
   flex-direction: column;
@@ -420,6 +420,39 @@
 
 .spring-root.cursor-workbench .spring-turn > .spring-log-item.kind-error {
   order: 7;
+}
+
+/* DeepSeek 式一行结论（仅回复面板） */
+.spring-root.cursor-workbench .reply-headline {
+  margin: 0 0 10px;
+  padding: 0;
+  font-size: 1.05rem;
+  font-weight: 650;
+  line-height: 1.45;
+  letter-spacing: 0.01em;
+  color: var(--chat-text-primary, rgba(15, 23, 42, 0.92));
+}
+
+.spring-root.cursor-workbench.cosmic-theme .reply-headline {
+  color: rgba(248, 250, 252, 0.96);
+}
+
+/* 分型密度（仅回复面板） */
+.spring-root.cursor-workbench .reply-panel.reply-tier-lite .reply-panel-body {
+  padding-top: 4px;
+}
+
+.spring-root.cursor-workbench .reply-panel.reply-tier-lite .reply-primary-section .md-p {
+  margin-bottom: 0.45em;
+}
+
+.spring-root.cursor-workbench .reply-panel.reply-tier-report .reply-primary-section {
+  margin-bottom: 8px;
+}
+
+.spring-root.cursor-workbench .reply-panel.reply-tier-standard .reply-headline,
+.spring-root.cursor-workbench .reply-panel.reply-tier-report .reply-headline {
+  margin-bottom: 12px;
 }
 
 /* 反馈栏 */
@@ -607,12 +640,13 @@
 }
 
 .spring-root.cursor-workbench .cursor-thought-panel .process-step-phase {
-  font-size: 10px !important;
-  padding: 1px 7px !important;
-  border-radius: 999px !important;
-  background: rgba(79, 70, 229, 0.28) !important;
-  color: #c4b5fd !important;
-  border: 1px solid rgba(129, 140, 248, 0.25) !important;
+  font-size: 12px !important;
+  padding: 8px 12px !important;
+  border-radius: 10px !important;
+  background: rgba(255, 255, 255, 0.94) !important;
+  color: #0a1a28 !important;
+  border: 1px solid rgba(122, 168, 212, 0.5) !important;
+  font-weight: 700 !important;
 }
 
 .spring-root.cursor-workbench .cursor-thought-panel .process-step.is-latest .process-step-dot {
@@ -682,10 +716,10 @@
 .spring-root.cursor-workbench.cosmic-theme .chat-thread .md-body.reply-chat .md-quote {
   margin: 10px 0 12px !important;
   padding: 10px 12px 10px 14px !important;
-  border-left: 3px solid rgba(45, 212, 191, 0.55) !important;
+  border-left: 3px solid rgba(47, 127, 209, 0.55) !important;
   border-radius: 0 10px 10px 0 !important;
-  background: rgba(15, 118, 110, 0.12) !important;
-  color: #99f6e4 !important;
+  background: rgba(214, 232, 248, 0.55) !important;
+  color: #0e3a52 !important;
   font-size: var(--chat-font-secondary) !important;
 }
 
@@ -710,16 +744,16 @@
 
 .spring-root.cursor-workbench.cosmic-theme .chat-thread .reply-chat .md-badge-ok,
 .spring-root.cursor-workbench.cosmic-theme .chat-thread .md-body.reply-chat .md-badge-ok {
-  background: rgba(22, 163, 74, 0.2) !important;
-  color: #86efac !important;
-  border: 1px solid rgba(34, 197, 94, 0.25) !important;
+  background: rgba(16, 185, 129, 0.18) !important;
+  color: #0f5c45 !important;
+  border: 1px solid rgba(15, 92, 69, 0.4) !important;
 }
 
 .spring-root.cursor-workbench.cosmic-theme .chat-thread .reply-chat .md-badge-warn,
 .spring-root.cursor-workbench.cosmic-theme .chat-thread .md-body.reply-chat .md-badge-warn {
-  background: rgba(217, 119, 6, 0.18) !important;
-  color: #fcd34d !important;
-  border: 1px solid rgba(245, 158, 11, 0.28) !important;
+  background: rgba(245, 158, 11, 0.2) !important;
+  color: #8a4b08 !important;
+  border: 1px solid rgba(138, 75, 8, 0.4) !important;
 }
 
 .spring-root.cursor-workbench.cosmic-theme .chat-thread .reply-panel-avatar {
@@ -731,9 +765,9 @@
   font-size: 11px !important;
   padding: 2px 8px !important;
   border-radius: 6px !important;
-  background: rgba(51, 65, 85, 0.45) !important;
-  color: #94a3b8 !important;
-  border: 1px solid rgba(148, 163, 184, 0.12) !important;
+  background: rgba(232, 242, 252, 0.95) !important;
+  color: #1e3a52 !important;
+  border: 1px solid rgba(122, 168, 212, 0.4) !important;
 }
 
 .spring-root.cursor-workbench.cosmic-theme .reply-tone-chat .reply-panel-inner.cosmic-bubble-reply {
@@ -906,5 +940,5 @@
 .spring-root.cursor-workbench.cosmic-theme .chat-thread .reply-attachments-summary {
   padding: 8px 0 !important;
   font-size: var(--chat-font-ui) !important;
-  color: #94a3b8 !important;
+  color: #1e3a52 !important;
 }

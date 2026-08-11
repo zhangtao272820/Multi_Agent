@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "id": "shenyuan",
+  "label": "沈予安",
+  "notes": "男主定妆 SSOT。群像 W10 开画前须验收冻结 data/sprites/pc/shenyuan/neutral.png。禁止与女主撞脸。2026-08-11 已冻结 neutral/casual/date。",
+  "age_feel": "二十代中后，小镇上班职员",
+  "height_cm": 178,
+  "build": "偏瘦清爽，肩不夸张",
+  "hair": "短黑发，自然分缝，略碎刘海，不杀马特、不寸头",
+  "eyes": "深棕/黑瞳，温和，少攻击性眼神",
+  "face": "干净少年感偏成熟，薄唇，无络腮胡；五官不与任何女主雷同",
+  "default_outfit": "通勤：浅色衬衫或针织+深色休闲裤+运动鞋/皮鞋；可持公文包或钥匙",
+  "date_outfit": "简约外套+衬衫，约会干净感",
+  "casual_outfit": "家居 T 恤+长裤",
+  "forbid": [
+    "美型过度偶像脸",
+    "与女主同发型同瞳色同妆感",
+    "肌肉狂、大叔、幼态小学生脸",
+    "露点或过度性化"
+  ],
+  "theme_color": "#6b7c93",
+  "sprite_dir": "data/sprites/pc/shenyuan",
+  "existing": [
+    "neutral",
+    "casual",
+    "date"
+  ],
+  "frozen": true
+}

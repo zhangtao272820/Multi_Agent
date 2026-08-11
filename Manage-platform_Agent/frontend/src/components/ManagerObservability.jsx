@@ -1,3 +1,6 @@
+import { useState } from "react";
+import { fetchJsonSafe } from "../utils/api";
+
 function fmtNum(n) {
   if (n == null || Number.isNaN(Number(n))) return "—";
   return Number(n).toLocaleString();
@@ -43,8 +46,35 @@ function summarizeAgentMetrics(data) {
   return keys.map((k) => `${k}`).join(", ");
 }
 
-export default function ManagerObservability({ data, loading, onRefresh }) {
+export default function ManagerObservability({ data, loading, onRefresh, apiBase, authToken }) {
   const mgr = data?.manager || {};
+  const [planeBusy, setPlaneBusy] = useState("");
+  const [planeMsg, setPlaneMsg] = useState("");
+
+  async function resetAgentPlane(agent, scope) {
+    const label = `${agent}/${scope}`;
+    if (!window.confirm(`确认清除 ${label}？仅影响该 Agent 本平面，不会跨清其他专家。`)) return;
+    setPlaneBusy(label);
+    setPlaneMsg("");
+    try {
+      const { ok, error } = await fetchJsonSafe(`${apiBase}/api/agents/plane-reset`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ agent, scope }),
+      });
+      if (!ok) throw new Error(error || "请求失败");
+      setPlaneMsg(`${label} 已清除`);
+      onRefresh?.();
+    } catch (e) {
+      setPlaneMsg(`${label} 失败：${String(e?.message || e)}`);
+    } finally {
+      setPlaneBusy("");
+    }
+  }
+
   const token = mgr.token_summary || {};
   const phases = Object.entries(mgr.phases || {})
     .sort((a, b) => (b[1]?.avgMs || 0) - (a[1]?.avgMs || 0))
@@ -130,9 +160,34 @@ export default function ManagerObservability({ data, loading, onRefresh }) {
         <section className="card card--wide">
           <h2>学习情况</h2>
           <p className="muted" style={{ marginTop: 0 }}>
-            路由优先学习，但只作编排弱参考（Bandit / Strategy / 经验 hint）；矩阵门与 strict 反馈防污染。数据来自 Manager{" "}
+            总管进化折中：可写可看板，默认不注入编排 hint（gated）。矩阵门与 strict 反馈防污染。数据来自 Manager{" "}
             <code>evolution</code> / <code>registry.evolution</code>。
           </p>
+
+          <div style={{ marginBottom: 16, display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+            {[
+              ["manager", "experience", "总管·清经验"],
+              ["manager", "summaries", "总管·清摘要"],
+              ["manager", "evolution", "总管·重置进化"],
+              ["db", "learning", "DB·清学习"],
+              ["db", "prompts", "DB·重置进化"],
+              ["rag", "learning", "RAG·清学习"],
+              ["rag", "prompts", "RAG·重置进化"],
+              ["admin", "memory", "Admin·清记忆"],
+              ["admin", "evolution", "Admin·重置进化"],
+            ].map(([agent, scope, label]) => (
+              <button
+                key={`${agent}-${scope}`}
+                type="button"
+                className="btn btn--ghost"
+                disabled={Boolean(planeBusy)}
+                onClick={() => void resetAgentPlane(agent, scope)}
+              >
+                {planeBusy === `${agent}/${scope}` ? "…" : label}
+              </button>
+            ))}
+            {planeMsg ? <span className="muted">{planeMsg}</span> : null}
+          </div>
 
           <div className="kpi-grid kpi-grid--6" style={{ marginBottom: 16 }}>
             {learnFlags.map((f) => (

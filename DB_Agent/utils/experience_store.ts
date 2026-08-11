@@ -7,7 +7,7 @@ import {
   shouldWriteFile,
   shouldWritePostgres
 } from '#agent-shared/storageBackend'
-import { isExperienceRecallConfirmedOnly, isConfirmedExperienceRow } from '#agent-shared/experienceRecallPolicy'
+import { isExperienceRecallConfirmedOnly, isConfirmedExperienceRow, shouldRecallExperienceForPlane } from '#agent-shared/experienceRecallPolicy'
 import { normalizeTenantId, tenantPolicyDir } from '#agent-shared/tenantScope'
 
 export type DbExperienceRow = {
@@ -19,6 +19,7 @@ export type DbExperienceRow = {
   tables?: string[]
   hint: string
   source?: string
+  source_plane?: string
   userConfirmed?: boolean
   status?: string
   tenantId?: string
@@ -59,8 +60,10 @@ export async function hydrateDbExperienceCache(maxLines = 500, tenantId?: string
       data_domain: string | null
       tables: string[] | null
       hint: string
+      source: string | null
+      source_plane: string | null
     }>(
-      `SELECT ts, question_norm, path, data_domain, tables, hint
+      `SELECT ts, question_norm, path, data_domain, tables, hint, source, source_plane
        FROM db_query_experience WHERE tenant_id = $1 ORDER BY id DESC LIMIT $2`,
       [tid, maxLines]
     )
@@ -74,6 +77,8 @@ export async function hydrateDbExperienceCache(maxLines = 500, tenantId?: string
           data_domain: r.data_domain ?? undefined,
           tables: Array.isArray(r.tables) ? r.tables : undefined,
           hint: r.hint,
+          source: r.source ?? undefined,
+          source_plane: r.source_plane ?? undefined,
           tenantId: tid
         }))
       )
@@ -90,11 +95,16 @@ export function readDbExperienceSync(maxLines = 500, tenantId?: string): DbExper
   return readJsonl<DbExperienceRow>(experienceFile(tid), maxLines)
 }
 
-/** 召回专用：联邦门控时仅 confirmed 来源 */
+/** 召回专用：联邦门控 + 独立端排除 manager_orchestrated */
 export function readDbExperienceForRecall(maxLines = 500, tenantId?: string): DbExperienceRow[] {
   const all = readDbExperienceSync(maxLines, tenantId)
-  if (!isExperienceRecallConfirmedOnly()) return all
-  return all.filter((r) => isConfirmedExperienceRow(r))
+  return all.filter((r) => {
+    if (!shouldRecallExperienceForPlane('standalone', r)) return false
+    if (!isExperienceRecallConfirmedOnly()) return true
+    // 本地无 source 的旧行：放行；联邦源由 shouldRecall 已挡
+    if (!r.source && !r.source_plane) return true
+    return isConfirmedExperienceRow(r)
+  })
 }
 
 export async function persistDbExperience(row: DbExperienceRow): Promise<void> {
@@ -103,8 +113,9 @@ export async function persistDbExperience(row: DbExperienceRow): Promise<void> {
   const backend = resolveBackend()
   if (shouldWritePostgres(backend)) {
     await agentPgQuery(
-      `INSERT INTO db_query_experience (ts, question_norm, path, data_domain, tables, hint, tenant_id)
-       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+      `INSERT INTO db_query_experience
+        (ts, question_norm, path, data_domain, tables, hint, tenant_id, source, source_plane)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
       [
         withTenant.ts,
         withTenant.question_norm,
@@ -112,7 +123,9 @@ export async function persistDbExperience(row: DbExperienceRow): Promise<void> {
         withTenant.data_domain ?? null,
         withTenant.tables ? JSON.stringify(withTenant.tables) : null,
         withTenant.hint,
-        tid
+        tid,
+        withTenant.source ?? null,
+        withTenant.source_plane ?? 'standalone'
       ]
     )
   }

@@ -1754,6 +1754,8 @@ export default function App() {
           data={managerObservability}
           loading={loading}
           onRefresh={fetchManagerObservability}
+          apiBase={API_BASE}
+          authToken={token}
         />
       ) : null}
 

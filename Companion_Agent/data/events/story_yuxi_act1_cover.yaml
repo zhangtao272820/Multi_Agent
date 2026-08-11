@@ -3,40 +3,107 @@ label: 顶班
 priority: 5
 once: true
 chance: 1.0
-scene_id: ""
+scene_id: ''
 trigger:
-  character_ids: [yuxi]
+  character_ids:
+  - yuxi
   stage_min: friend
   affinity_min: 52
-  flags_absent: [shift_cover_done]
-prompt_snippet: |
-  【专属故事 · 顶班的死党 · 第1幕 · 顶班】
+  flags_absent:
+  - shift_cover_done
+prompt_snippet: '【专属故事 · 顶班的死党 · 第1幕 · 顶班】
+
+  '
 advance: on_player_turn
 beats:
-  - id: b1
-    narration: "换班口她把围裙抛来：晚雨今天状态不对——你是来喝杯就走，还是愿意顶半班？蒸汽糊住玻璃。"
-    pc_thought: "死党位很硬。接围裙像介入，也像被审查。"
-    brief: "抛围裙要你顶半班；晚雨状态不对。等你说明来意、收杯或问晚雨。"
-    summary: "抛围裙要你顶半班；晚雨状态不对。等你说明来意、收杯或问晚雨。"
-    sprite_hint: [cafe_bestie, work]
-    soft_options: ["说明来意", "帮忙收杯", "问晚雨是否还好"]
-  - id: b2
-    narration: "顶班时她观察你如何对熟客：对晚雨好，不是多点单，是别把她的停靠当成理所当然。"
-    pc_thought: "顶班信任不是恋爱通行证——我别搞混。"
-    brief: "观察你对熟客；别消费晚雨的停靠。等你否认消费、问真心或接受审查。"
-    summary: "观察你对熟客；别消费晚雨的停靠。等你否认消费、问真心或接受审查。"
-    sprite_hint: [school_memory, cafe_bestie]
-    soft_options: ["否认消费", "问怎样算真心", "接受死党审查"]
-  - id: b3
-    narration: "收工她在小本记下「可观察」。晚雨真结局的店门，从这一刻可以推开——她只说「别添班次乱」。"
-    pc_thought: "道谢放行。保证不添乱——死党账本比菜单重。"
-    brief: "记下可观察；店门可开。等你道谢、约转告保重或保证不添乱。"
-    summary: "记下可观察；店门可开。等你道谢、约转告保重或保证不添乱。"
-    sprite_hint: [cafe_bestie, casual]
-    soft_options: ["道谢放行", "约她转告保重", "保证不添班次乱"]
+- id: b1
+  narration: 换班口她把围裙抛来：晚雨今天状态不对——你是来喝杯就走，还是愿意顶半班？蒸汽糊住玻璃。围裙带松松挂着。她没再多说，只是看着你。
+  pc_thought: 死党位很硬。接围裙像介入，也像被审查。我想靠近，又怕说错一句。
+  brief: 抛围裙要你顶半班；晚雨状态不对。等你说明来意、收杯或问晚雨。
+  summary: 抛围裙要你顶半班；晚雨状态不对。等你说明来意、收杯或问晚雨。
+  sprite_hint:
+  - cafe_bestie
+  - work
+  - school_memory
+  - casual
+  - season_winter
+  - home_eating
+  soft_options:
+  - 说明来意
+  - 帮忙收杯
+  - 问晚雨是否还好
+  pages:
+  - text: 换班口她把围裙抛来：晚雨今天状态不对——你是来喝杯就走，还是愿意顶半班？蒸汽糊住玻璃。围裙带松松挂着。她没再多说，只是看着你。
+    voice: narration
+    sprite:
+      outfit: cafe_bestie
+      emotion: neutral
+  - text: 死党位很硬。接围裙像介入，也像被审查。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: cafe_bestie
+      emotion: shy
+- id: b2
+  narration: 顶班时她观察你如何对熟客：对晚雨好，不是多点单，是别把她的停靠当成理所当然。围裙带松松挂着。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 顶班信任不是恋爱通行证——我别搞混。我想靠近，又怕说错一句。
+  brief: 观察你对熟客；别消费晚雨的停靠。等你否认消费、问真心或接受审查。
+  summary: 观察你对熟客；别消费晚雨的停靠。等你否认消费、问真心或接受审查。
+  sprite_hint:
+  - cafe_bestie
+  - work
+  - school_memory
+  - casual
+  - season_winter
+  - home_eating
+  soft_options:
+  - 否认消费
+  - 问怎样算真心
+  - 接受死党审查
+  pages:
+  - text: 顶班时她观察你如何对熟客：对晚雨好，不是多点单，是别把她的停靠当成理所当然。围裙带松松挂着。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: cafe_bestie
+      emotion: neutral
+  - text: 顶班信任不是恋爱通行证——我别搞混。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: cafe_bestie
+      emotion: shy
+- id: b3
+  narration: 收工她在小本记下「可观察」。晚雨真结局的店门，从这一刻可以推开——她只说「别添班次乱」。围裙带松松挂着。她没再多说，只是看着你。
+  pc_thought: 道谢放行。保证不添乱——死党账本比菜单重。我想靠近，又怕说错一句。
+  brief: 记下可观察；店门可开。等你道谢、约转告保重或保证不添乱。
+  summary: 记下可观察；店门可开。等你道谢、约转告保重或保证不添乱。
+  sprite_hint:
+  - cafe_bestie
+  - work
+  - school_memory
+  - casual
+  - season_winter
+  - home_eating
+  soft_options:
+  - 道谢放行
+  - 约她转告保重
+  - 保证不添班次乱
+  pages:
+  - text: 收工她在小本记下「可观察」。晚雨真结局的店门，从这一刻可以推开——她只说「别添班次乱」。围裙带松松挂着。她没再多说，只是看着你。
+    voice: narration
+    sprite:
+      outfit: cafe_bestie
+      emotion: neutral
+  - text: 道谢放行。保证不添乱——死党账本比菜单重。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: cafe_bestie
+      emotion: shy
 rewards:
-  flags_set: [shift_cover_done]
+  flags_set:
+  - shift_cover_done
 choice_effects:
-  - { trust_delta: 3, affinity_delta: 3 }
-  - { trust_delta: 2, affinity_delta: 2 }
-  - { trust_delta: -2, affinity_delta: -1 }
+- trust_delta: 3
+  affinity_delta: 3
+- trust_delta: 2
+  affinity_delta: 2
+- trust_delta: -2
+  affinity_delta: -1

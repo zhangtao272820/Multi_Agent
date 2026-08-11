@@ -5,7 +5,8 @@
  */
 
 export type ManagerRouteMode = 'convergence' | /** @deprecated B4: 仅 smoke/迁移；主路径用 convergence */ 'legacy' | /** @deprecated B4: 仅 smoke/实验；主路径用 convergence */ 'heuristic'
-export type ManagerEvolutionMode = 'convergence' | 'learning' | 'off'
+/** gated = 可写可看板、路由 hint 默认不注入编排（防污染折中） */
+export type ManagerEvolutionMode = 'convergence' | 'learning' | 'gated' | 'off'
 export type ManagerProMode = 'strong' | 'fast' | 'off'
 export type ManagerPlatformMode = 'local' | 'sync'
 export type ManagerAuthMode = 'token' | 'open'
@@ -44,6 +45,7 @@ function parseEvolutionMode(raw: string): ManagerEvolutionMode | null {
   const v = String(raw ?? '').trim().toLowerCase()
   if (!v) return null
   if (v === 'off' || v === '0' || v === 'false' || v === 'no') return 'off'
+  if (v === 'gated' || v === 'gated_write' || v === 'write_no_inject') return 'gated'
   if (v === 'learning' || v === 'bandit' || v === 'full') return 'learning'
   if (v === 'convergence' || v === 'stable' || v === 'default') return 'convergence'
   return null
@@ -92,12 +94,15 @@ export function resolveManagerRouteMode(env: NodeJS.ProcessEnv = process.env): M
   return null
 }
 
-/** 自进化档位（EVO_MODE 与 MANAGER_EVOLUTION_MODE 等价） */
+/**
+ * 自进化档位：优先 MANAGER_EVOLUTION_MODE（总管专用折中如 gated），
+ * 再回落 EVO_MODE（集群 SSOT，专家仍可用 learning）。
+ */
 export function resolveManagerEvolutionMode(env: NodeJS.ProcessEnv = process.env): ManagerEvolutionMode | null {
-  const evo = parseEvolutionMode(String(env.EVO_MODE ?? ''))
-  if (evo) return evo
   const explicit = parseEvolutionMode(String(env.MANAGER_EVOLUTION_MODE ?? ''))
   if (explicit) return explicit
+  const evo = parseEvolutionMode(String(env.EVO_MODE ?? ''))
+  if (evo) return evo
   if (isEnvOnToken(env.MANAGER_ROUTE_BANDIT) || isEnvOnToken(env.MANAGER_ROUTE_STRATEGY)) return 'learning'
   if (isEnvOffToken(env.MANAGER_UNIFIED_LEARNING)) return 'off'
   return null
@@ -167,6 +172,7 @@ const ROUTE_PRESETS: Record<ManagerRouteMode, Record<string, boolean>> = {
     MANAGER_INTENT_MERGED_LLM: true,
     MANAGER_TURN_SCOPE_LLM: true,
     MANAGER_USER_INTENT_ALIGN_LLM: true,
+    MANAGER_PLANE_COVERAGE_REJUDGE: true,
     MANAGER_PU_STACK_LLM: false,
     MANAGER_ROUTE_UNDERSTAND_ALIGN: true,
     MANAGER_PLAN_BLUEPRINT_LLM: true,
@@ -248,6 +254,30 @@ const EVOLUTION_PRESETS: Record<ManagerEvolutionMode, Record<string, boolean>> =
     MANAGER_PROMPT_EVOLVE: false,
     MANAGER_IMPLICIT_LEARNING: false,
     MANAGER_PROMPT_AUTO_PROMOTE: false,
+  },
+  /** 折中：Bandit/统一学习可写；编排默认不注入路由 hint；规划侧 patch 可开 */
+  gated: {
+    MANAGER_ROUTE_BANDIT: true,
+    MANAGER_ROUTE_STRATEGY: true,
+    MANAGER_EVOLUTION_HINTS_ORCHESTRATOR: false,
+    MANAGER_ROUTE_POLICY_RL: false,
+    MANAGER_ROUTE_CAUSAL: false,
+    MANAGER_ROUTE_PREFERENCE_LEARN: false,
+    EVO_AGENT_PROMPT_EXECUTION_ONLY: true,
+    MANAGER_BANDIT_REQUIRES_MATRIX_PASS: true,
+    EVO_ROUTE_MATRIX_GATE: true,
+    MANAGER_EXPERIENCE_REQUIRES_ROUTE_PASS: true,
+    MANAGER_EXPERIENCE_REQUIRES_JUDGE_ACCEPT: true,
+    MANAGER_UNIFIED_LEARNING: true,
+    MANAGER_PROMPT_PATCHES: true,
+    MANAGER_PROMPT_PATCHES_ROUTER: true,
+    MANAGER_EXPERIENCE_REPLAY: false,
+    MANAGER_ROUTER_NEGATIVE_HINTS: false,
+    MANAGER_PROMPT_EVOLVE: true,
+    MANAGER_IMPLICIT_LEARNING: false,
+    MANAGER_PROMPT_AUTO_PROMOTE: false,
+    MANAGER_EVOLUTION_CURATOR: true,
+    MANAGER_EVOLUTION_AUTO_EXPERIMENT: true
   },
   learning: {
     MANAGER_ROUTE_BANDIT: true,
@@ -352,10 +382,12 @@ export const MANAGER_ENV_MODE_DOCS = {
   MANAGER_LLM_FIRST_ROUTE: '1=编排 LLM 单层决策，少 Judge/规则兜底（convergence 默认）',
   MANAGER_AUTO_MODEL_TIER: 'convergence 默认开：简单单意图辅助 LLM 走 T0 flash',
   MANAGER_INTENT_MERGED_LLM: 'convergence 默认开：合并理解减调用（golden 门禁后启用）',
+  MANAGER_USER_INTENT_ALIGN_LLM: '1=编排后用户末轮对齐（convergence 默认）',
+  MANAGER_PLANE_COVERAGE_REJUDGE: '1=对齐后按 runtime catalog 做单源 db↔rag 库存覆盖再判（convergence 默认）',
   MANAGER_PU_STACK_LLM: '1=LLM-First 下仍跑 PU-Stack 读题 LLM（convergence 默认关，仅 probe 弱参考）',
   MANAGER_PLAN_RULE_FALLBACK: '0=禁用 Planner 规则/模板兜底（convergence 默认）',
-  MANAGER_EVOLUTION_MODE: 'convergence | learning | off（与 EVO_MODE 对齐）',
-  EVO_MODE: 'convergence | learning | off（跨 Agent 自进化 SSOT）',
+  MANAGER_EVOLUTION_MODE: 'convergence | gated | learning | off（总管优先于 EVO_MODE；gated=可写不注入）',
+  EVO_MODE: 'convergence | learning | off（跨 Agent 自进化 SSOT；总管用 MANAGER_EVOLUTION_MODE）',
   ARTIFACT_FEEDBACK_MODE: 'strict | off（DB/RAG/Admin 产物学习门控）',
   MANAGER_PLATFORM_MODE: 'local | sync',
   MANAGER_AUTH_MODE: 'token | open',

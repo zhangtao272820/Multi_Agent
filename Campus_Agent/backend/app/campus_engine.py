@@ -20,10 +20,72 @@ from . import sprites as sprites_mod
 from . import weather as weather_mod
 from . import weekly_events as weekly_mod
 from .campus_store import CampusSave, clone_students, new_save_id, store
-from .llm_chat import run_character, run_date_decision, run_judge
+from .llm_chat import run_character, run_date_decision, run_ending_verdict, run_judge
 from .config import llm_api_key
 
 ACTIONABLE_KINDS = frozenset({"free", "free_day", "meal", "dorm"})
+STAT_KEYS = ("study", "social", "stamina", "luck")
+STAT_POOL = 12
+STAT_MIN = 1
+STAT_MAX = 5
+
+
+def normalize_pc_stats(raw: dict[str, Any] | None) -> dict[str, int]:
+    """Four-axis PC stats with pool=12, each 1..5."""
+    base = {k: 3 for k in STAT_KEYS}
+    if isinstance(raw, dict):
+        for k in STAT_KEYS:
+            try:
+                base[k] = int(raw.get(k, base[k]))
+            except (TypeError, ValueError):
+                pass
+    for k in STAT_KEYS:
+        base[k] = max(STAT_MIN, min(STAT_MAX, base[k]))
+    total = sum(base.values())
+    # Soft-fix if over pool: shrink highest until <= pool
+    while total > STAT_POOL:
+        kmax = max(STAT_KEYS, key=lambda k: base[k])
+        if base[kmax] <= STAT_MIN:
+            break
+        base[kmax] -= 1
+        total -= 1
+    while total < STAT_POOL:
+        kmin = min(STAT_KEYS, key=lambda k: base[k])
+        if base[kmin] >= STAT_MAX:
+            break
+        base[kmin] += 1
+        total += 1
+    return base
+
+
+def _pc_stats(save: CampusSave) -> dict[str, int]:
+    return normalize_pc_stats((save.protagonist or {}).get("stats"))
+
+
+def _study_stat_mult(save: CampusSave) -> float:
+    st = _pc_stats(save).get("study", 3)
+    return 0.85 + (st - 3) * 0.08
+
+
+def _social_action_bonus(save: CampusSave) -> int:
+    so = _pc_stats(save).get("social", 3)
+    return max(-1, min(2, so - 3))
+
+
+def _stamina_spot_mult(save: CampusSave) -> float:
+    sm = _pc_stats(save).get("stamina", 3)
+    return 0.9 + (sm - 3) * 0.06
+
+
+def _luck_weather_rng(seed: str, luck: int) -> random.Random:
+    # Higher luck slightly shifts RNG stream (deterministic bias via seed salt)
+    return random.Random(f"{seed}|luck{luck}")
+
+
+def _social_action_bonus_from_stats(stats: dict[str, int]) -> int:
+    return max(-1, min(2, int(stats.get("social", 3)) - 3))
+
+
 MAX_SKIP_STEPS = 12
 
 # roster schedule keys → period_id / kind fallbacks
@@ -78,7 +140,8 @@ def _subject_for_class(save: CampusSave, period: dict[str, Any]) -> str:
 def _study_mult(save: CampusSave) -> float:
     ev = save.active_event or {}
     effects = ev.get("effects") or {}
-    return float(effects.get("study_mult", 1.0))
+    base = float(effects.get("study_mult", 1.0))
+    return base * _study_stat_mult(save)
 
 
 def _schedule_location_for(student: dict[str, Any], save: CampusSave, kind: str, rng: random.Random) -> str | None:
@@ -196,25 +259,45 @@ def _student_public(s: dict[str, Any], save: CampusSave | None = None) -> dict[s
     else:
         sprite = sprites_mod.resolve_student_sprite(s["id"], emotion=sprite_emotion)
     q_sprite = sprites_mod.resolve_q_sprite(s["id"], emotion=sprite_emotion)
+    is_pc = bool(s.get("is_pc_slot")) or s["id"] == "pc"
     out: dict[str, Any] = {
         "id": s["id"],
         "name": s["name"],
         "gender": s["gender"],
-        "mbti": s["mbti"],
         "grade_tier": s["grade_tier"],
         "look_tag": s.get("look_tag", ""),
         "charm": s.get("charm") or charm_mod.compute_charm(s),
-        "is_pc": bool(s.get("is_pc_slot")) or s["id"] == "pc",
+        "is_pc": is_pc,
         "sprite": sprite,
         "q_sprite": q_sprite,
         "mind": mind,
     }
+    if not is_pc:
+        out["mbti"] = s.get("mbti") or ""
+        role = str(s.get("class_role") or "").strip()
+        if role:
+            out["class_role"] = role
+            out["class_role_label"] = rel.class_role_label(role)
     if save:
         if s["id"] in save.scores:
             out["scores"] = scores_mod.public_scores(save.scores[s["id"]])
         if save.locations_now:
             out["location_id"] = save.locations_now.get(s["id"])
     return out
+
+
+def _public_edge_for(save: CampusSave, edge: dict[str, Any]) -> dict[str, Any]:
+    students_by_id = {s["id"]: s for s in save.students}
+    a = str(edge.get("a") or "")
+    b = str(edge.get("b") or "")
+    seat_rel = seating_mod.relation_between(save.seating, a, b)
+    relation = rel.enrich_edge_relation(
+        edge,
+        students_by_id=students_by_id,
+        seat_relation=seat_rel if seat_rel != "none" else None,
+    )
+    edge["relation_display"] = relation.get("display")
+    return rel.public_edge(edge, relation=relation)
 
 
 def present_at(save: CampusSave, location_id: str | None = None) -> list[dict[str, Any]]:
@@ -313,9 +396,10 @@ _STAGE_LABEL_CN = {
 
 
 def compute_gaokao_ending(save: CampusSave) -> dict[str, Any]:
-    """D-0 高考结算：成绩排名 × 感情阶段矩阵（零 LLM）。"""
+    """D-0：成绩×感情矩阵 + 短 LLM verdict（失败则矩阵 fallback）。"""
     ranking = scores_mod.mock_exam_snapshot(save.scores)
     name_by_id = {s["id"]: s["name"] for s in save.students}
+    students_by_id = {s["id"]: s for s in save.students}
     pc_row = next((r for r in ranking if r["student_id"] == "pc"), None)
     pc_rank = int((pc_row or {}).get("rank") or len(ranking))
     pc_total = float((pc_row or {}).get("total") or 0)
@@ -335,19 +419,40 @@ def compute_gaokao_ending(save: CampusSave) -> dict[str, Any]:
 
     romance = None
     pc_edges = [e for e in save.edges if "pc" in {e.get("a"), e.get("b")}]
-    pc_edges.sort(key=lambda e: float(e.get("affinity") or 0), reverse=True)
+
+    def _edge_rank(e: dict[str, Any]) -> tuple:
+        dating = 1 if e.get("stage") == "dating" else 0
+        ex = 1 if (e.get("was_dating") and e.get("stage") != "dating") else 0
+        return (-dating, ex, -float(e.get("affinity") or 0))
+
+    pc_edges.sort(key=_edge_rank)
     if pc_edges and float(pc_edges[0].get("affinity") or 0) >= 35:
         best = pc_edges[0]
         other_id = best["b"] if best.get("a") == "pc" else best["a"]
         other = _student_by_id(save, other_id)
+        seat_rel = seating_mod.relation_between(save.seating, "pc", str(other_id))
+        relation = rel.enrich_edge_relation(
+            best,
+            students_by_id=students_by_id,
+            seat_relation=seat_rel if seat_rel != "none" else None,
+        )
         romance = {
             "id": other_id,
             "name": (other or {}).get("name") or name_by_id.get(other_id, other_id),
             "affinity": float(best.get("affinity") or 0),
             "stage": best.get("stage") or "stranger",
-            "stage_label": _STAGE_LABEL_CN.get(str(best.get("stage") or "stranger"), best.get("stage")),
+            "stage_label": relation.get("primary_label")
+            or _STAGE_LABEL_CN.get(str(best.get("stage") or "stranger"), best.get("stage")),
+            "was_dating": bool(best.get("was_dating")) or best.get("stage") == "dating",
+            "relation_display": relation.get("display"),
+            "primary_label": relation.get("primary_label"),
+            "mbti": (None if not other or other.get("is_pc_slot") else other.get("mbti")),
             "sprite": (
-                _resolve_sprite(other, save, emotion="happy", prefer_scene=False)
+                sprites_mod.resolve_ending_sprite(
+                    other_id,
+                    emotion="happy",
+                    verdict=None,
+                )
                 if other
                 else sprites_mod.resolve_student_sprite(other_id, emotion="happy")
             ),
@@ -357,6 +462,47 @@ def compute_gaokao_ending(save: CampusSave) -> dict[str, Any]:
     resolved = endings_mod.resolve_ending(pc_rank=pc_rank, pc_total=pc_total, romance=romance)
     social_epilogue = npc_social.build_social_epilogue(save)
 
+    summary_bits = [
+        f"矩阵结局={resolved['ending_id']}《{resolved['title']}》",
+        f"成绩档={resolved['grade_band']} 排名={pc_rank} 总分={pc_total:.0f}",
+    ]
+    if romance:
+        summary_bits.append(
+            f"主感情线={romance['name']} stage={romance['stage']} "
+            f"affinity={romance['affinity']:.0f} label={romance.get('relation_display')} "
+            f"mbti={romance.get('mbti') or '-'} was_dating={romance.get('was_dating')}"
+        )
+    else:
+        summary_bits.append("主感情线=无")
+    summary_bits.append(f"班级旁观={social_epilogue.get('blurb') or ''}")
+
+    verdict_llm = run_ending_verdict(summary="\n".join(summary_bits))
+    if verdict_llm:
+        verdict_payload = {
+            "verdict": verdict_llm.verdict,
+            "with_you_ok": bool(verdict_llm.with_you_ok),
+            "epilogue_line": verdict_llm.epilogue_line,
+            "judgment": verdict_llm.judgment,
+            "source": "llm",
+        }
+    else:
+        verdict_payload = endings_mod.fallback_verdict_from_matrix(
+            resolved["ending_id"], romance=romance
+        )
+
+    if romance and romance.get("id"):
+        v = str(verdict_payload.get("verdict") or "soft")
+        emo = "happy" if verdict_payload.get("with_you_ok", True) else "shy"
+        if v == "bad":
+            emo = "sad"
+        elif v == "soft":
+            emo = "shy"
+        romance["sprite"] = sprites_mod.resolve_ending_sprite(
+            str(romance["id"]),
+            emotion=emo,
+            verdict=v,
+        )
+
     return {
         "kind": "gaokao",
         "ending_id": resolved["ending_id"],
@@ -365,6 +511,11 @@ def compute_gaokao_ending(save: CampusSave) -> dict[str, Any]:
         "blurb": resolved["blurb"],
         "grade_band": resolved["grade_band"],
         "romance_bucket": resolved["romance_bucket"],
+        "verdict": verdict_payload.get("verdict"),
+        "with_you_ok": verdict_payload.get("with_you_ok"),
+        "epilogue_line": verdict_payload.get("epilogue_line"),
+        "verdict_judgment": verdict_payload.get("judgment"),
+        "verdict_source": verdict_payload.get("source"),
         "pc_rank": pc_rank,
         "pc_total": round(pc_total, 1),
         "pc_scores": scores_mod.public_scores(save.scores.get("pc", scores_mod.empty_scores())),
@@ -376,23 +527,45 @@ def compute_gaokao_ending(save: CampusSave) -> dict[str, Any]:
     }
 
 
-def create_new(*, name: str, grade_tier: str, mbti: str) -> dict[str, Any]:
+def create_new(
+    *,
+    name: str,
+    grade_tier: str,
+    stats: dict[str, Any] | None = None,
+    mbti: str | None = None,
+) -> dict[str, Any]:
     if grade_tier not in catalog.grade_tier_ids():
         raise ValueError(f"invalid_grade_tier:{grade_tier}")
-    if mbti not in catalog.mbti_types():
-        raise ValueError(f"invalid_mbti:{mbti}")
+    _ = mbti  # legacy clients may still send; PC has no MBTI
 
     roster = catalog.class_roster()
     students = clone_students(roster["students"])
     display_name = (name or "").strip() or "林知行"
+    pc_stats = normalize_pc_stats(stats)
+    rel.validate_class_roles(students)
+
     for s in students:
         s["charm"] = charm_mod.compute_charm(s)
         if s["id"] == "pc":
             s["name"] = display_name
-            s["mbti"] = mbti
+            s["mbti"] = "player"
             s["grade_tier"] = grade_tier
             s["gender"] = "male"
             s["is_pc_slot"] = True
+            s.pop("class_role", None)
+            s["stats"] = dict(pc_stats)
+            base_th = float(s.get("pursuit_threshold") or 70)
+            s["pursuit_threshold"] = max(55.0, base_th - (pc_stats["social"] - 3) * 3)
+            brief = str(s.get("persona_brief") or "")
+            likes = "、".join(s.get("likes") or [])
+            dislikes = "、".join(s.get("dislikes") or [])
+            s["model_prompt_zh"] = (
+                f"{display_name}｜玩家｜{s.get('speech_style', '')}｜声线:{s.get('voice_tone', '')}\n"
+                f"开局数值:学习{pc_stats['study']} 社交{pc_stats['social']} "
+                f"体能{pc_stats['stamina']} 运气{pc_stats['luck']}\n"
+                f"身材印象:{s.get('figure_archetype')} 颜值:{s.get('beauty_tier')}\n"
+                f"价值观:{s.get('values')}\n喜:{likes}；厌:{dislikes}\n{brief}"
+            )
             s["charm"] = charm_mod.compute_charm(s)
 
     males = [s for s in students if s.get("gender") == "male"]
@@ -408,16 +581,26 @@ def create_new(*, name: str, grade_tier: str, mbti: str) -> dict[str, Any]:
         )
 
     ids = [s["id"] for s in students]
-    seating = seating_mod.assign_seating(ids, rng=random.Random(display_name + grade_tier + mbti))
+    seed = (
+        f"{display_name}|{grade_tier}|"
+        f"{pc_stats['study']}{pc_stats['social']}{pc_stats['stamina']}{pc_stats['luck']}"
+    )
+    seating = seating_mod.assign_seating(ids, rng=random.Random(seed))
     score_map = {s["id"]: scores_mod.initial_scores(s["grade_tier"]) for s in students}
+    pc_sc = score_map["pc"]
+    bump = (pc_stats["study"] - 3) * 1.5
+    for sid in list(pc_sc.keys()):
+        pc_sc[sid] = round(float(pc_sc[sid]) + bump, 1)
 
     day_index = 1
     weekday = _weekday_from_day(day_index)
     day_kind = _day_kind(weekday)
     periods = catalog.period_ids(day_kind)
-    weather_id = weather_mod.roll_weather(random.Random(display_name))
+    weather_id = weather_mod.roll_weather(_luck_weather_rng(display_name, pc_stats["luck"]))
 
     cmap = catalog.campus_map()
+    chat_left = int(cmap.get("chat_actions_per_free", 3)) + _social_action_bonus_from_stats(pc_stats)
+    note_left = int(cmap.get("note_actions_per_free", 2)) + max(0, pc_stats["social"] - 3)
     save = CampusSave(
         save_id=new_save_id(),
         day_index=day_index,
@@ -426,19 +609,22 @@ def create_new(*, name: str, grade_tier: str, mbti: str) -> dict[str, Any]:
         period_id=periods[0],
         weather_id=weather_id,
         location_id="classroom",
-        protagonist={"name": display_name, "grade_tier": grade_tier, "mbti": mbti},
+        protagonist={
+            "name": display_name,
+            "grade_tier": grade_tier,
+            "stats": pc_stats,
+        },
         students=students,
         seating=seating,
         scores=score_map,
         edges=[],
-        chat_actions_left=int(cmap.get("chat_actions_per_free", 3)),
-        note_actions_left=int(cmap.get("note_actions_per_free", 2)),
+        chat_actions_left=max(1, chat_left),
+        note_actions_left=max(1, note_left),
         title=f"{display_name} · 入学",
     )
     _roll_day_event(save)
     _refresh_locations(save)
     npc_social.seed_initial_bonds(save)
-    # Day-1 life: one social pulse + colocated minds so map/location aren't empty
     save.world_events = npc_social.run_social_tick(save)
     npc_minds.apply_colocated_rule_minds(save)
     store.set_active(save)
@@ -539,11 +725,18 @@ def _start_new_day(save: CampusSave) -> None:
     save.day_kind = _day_kind(save.weekday)
     periods = catalog.period_ids(save.day_kind)
     save.period_id = periods[0]
-    save.weather_id = weather_mod.roll_weather(random.Random(f"{save.save_id}-{save.day_index}"))
+    luck = _pc_stats(save).get("luck", 3)
+    save.weather_id = weather_mod.roll_weather(
+        _luck_weather_rng(f"{save.save_id}-{save.day_index}", luck)
+    )
     _roll_day_event(save)
     cmap = catalog.campus_map()
-    save.chat_actions_left = int(cmap.get("chat_actions_per_free", 3))
-    save.note_actions_left = int(cmap.get("note_actions_per_free", 2))
+    save.chat_actions_left = max(
+        1, int(cmap.get("chat_actions_per_free", 3)) + _social_action_bonus(save)
+    )
+    save.note_actions_left = max(
+        1, int(cmap.get("note_actions_per_free", 2)) + max(0, _pc_stats(save).get("social", 3) - 3)
+    )
     save.club_action_used = False
     save.spot_action_used = False
     save.active_date = None
@@ -946,7 +1139,7 @@ def prepare_talk(target_id: str) -> dict[str, Any]:
 
     return {
         "target": target_pub,
-        "edge": rel.public_edge(edge),
+        "edge": _public_edge_for(save, edge),
         "seat_relation": seat_rel,
         "action_cost": cost,
         "chat_actions_left": save.chat_actions_left,
@@ -1104,7 +1297,7 @@ def chat_turn(*, target_id: str, text: str, verb: str | None = None) -> dict[str
         "judgment": getattr(line, "judgment", "") or "",
         "soft_options": soft,
         "public_deltas": public_deltas,
-        "edge": rel.public_edge(edge),
+        "edge": _public_edge_for(save, edge),
         "sprite": sprite,
         "q_sprite": q_sprite,
         "judge_ok": judge is not None,
@@ -1117,7 +1310,17 @@ def chat_turn(*, target_id: str, text: str, verb: str | None = None) -> dict[str
 
 
 INTERACT_VERBS = frozenset(
-    {"greet", "talk", "study_together", "invite", "note", "date_stroll", "date_chat", "date_walk_home"}
+    {
+        "greet",
+        "talk",
+        "study_together",
+        "invite",
+        "note",
+        "date_stroll",
+        "date_chat",
+        "date_walk_home",
+        "break_up",
+    }
 )
 
 _VERB_SEEDS = {
@@ -1129,6 +1332,7 @@ _VERB_SEEDS = {
     "date_stroll": "我们随便走走吧。",
     "date_chat": "其实有件事想跟你说说心里话。",
     "date_walk_home": "时间不早了，我送你回去吧。",
+    "break_up": "我们……还是分开比较好。",
 }
 
 
@@ -1159,6 +1363,67 @@ def interact(*, target_id: str, verb: str, text: str | None = None) -> dict[str,
     period = _period_meta(save)
     mind = npc_minds.mind_public(save, target_id)
 
+    if v == "break_up":
+        if edge.get("stage") != "dating":
+            raise ValueError("not_dating")
+        rel.break_up(edge, day_index=save.day_index)
+        save.world_events = (
+            [
+                {
+                    "type": "break_up",
+                    "a": "pc",
+                    "b": target_id,
+                    "a_name": save.protagonist.get("name") or "你",
+                    "b_name": target.get("name"),
+                    "blurb": f"你和{target.get('name')}分手了。",
+                    "dramatic": True,
+                }
+            ]
+            + list(save.world_events or [])
+        )[:8]
+        if save.active_date and save.active_date.get("partner_id") == target_id:
+            save.active_date = None
+        prev = save.npc_minds.get(target_id) or {}
+        save.npc_minds[target_id] = {
+            **prev,
+            "mood": "sad",
+            "thought": "原来真的走到这一步了……",
+            "updated_day": save.day_index,
+            "updated_period": save.period_id,
+        }
+        line = run_character(
+            student=target,
+            edge=edge,
+            weather_id=save.weather_id,
+            period_label=str(period.get("label")),
+            location_name=save.location_id,
+            seat_relation=None,
+            recent_turns=save.talk_log[-4:],
+            active_event=save.active_event,
+            user_text=user_text,
+            stance_hint="sad",
+            mind=mind,
+        )
+        save.talk_log.append({"role": "user", "text": user_text, "target": target_id})
+        save.talk_log.append({"role": "assistant", "text": line.line, "target": target_id})
+        store.persist(save, kind="auto")
+        return {
+            "line": line.line,
+            "emotion": line.emotion or "sad",
+            "thought": line.thought or "",
+            "judgment": getattr(line, "judgment", "") or "",
+            "soft_options": [],
+            "public_deltas": {"affinity_delta": -18, "stage": edge["stage"], "broke_up": True},
+            "edge": _public_edge_for(save, edge),
+            "sprite": _resolve_sprite(target, save, emotion="sad", verb=v, prefer_scene=False),
+            "q_sprite": sprites_mod.resolve_q_sprite(target_id, emotion="sad"),
+            "judge_ok": False,
+            "chat_actions_left": save.chat_actions_left,
+            "note_actions_left": save.note_actions_left,
+            "verb": v,
+            "action_blurb": f"分手：与{target.get('name')}成为前任",
+        }
+
     if v == "study_together":
         if period.get("kind") not in {"free", "free_day"}:
             raise ValueError("not_study_period")
@@ -1187,6 +1452,9 @@ def interact(*, target_id: str, verb: str, text: str | None = None) -> dict[str,
         if stage in {"friend", "close", "crush", "dating"}:
             delta = 1.2
         rel.apply_affinity_delta(edge, delta)
+        mems = list(edge.get("memories") or [])
+        mems.append("一起对题：并肩刷题")
+        edge["memories"] = mems[-12:]
         emotion = "happy"
         prev = save.npc_minds.get(target_id) or {}
         save.npc_minds[target_id] = {
@@ -1230,7 +1498,7 @@ def interact(*, target_id: str, verb: str, text: str | None = None) -> dict[str,
                 "score_gain": round(gain, 2),
                 "subject_id": subject,
             },
-            "edge": rel.public_edge(edge),
+            "edge": _public_edge_for(save, edge),
             "sprite": _resolve_sprite(
                 target, save, emotion=line.emotion, verb=v, prefer_scene=False
             ),
@@ -1291,7 +1559,7 @@ def interact(*, target_id: str, verb: str, text: str | None = None) -> dict[str,
         "judgment": getattr(line, "judgment", "") or "",
         "soft_options": line.soft_options or ["那就一起", "再聊两句"],
         "public_deltas": {"affinity_delta": 0.6, "stage": edge["stage"]},
-        "edge": rel.public_edge(edge),
+        "edge": _public_edge_for(save, edge),
         "sprite": _resolve_sprite(
             target, save, emotion=line.emotion, verb=v, prefer_scene=False
         ),
@@ -1416,7 +1684,7 @@ def spot_activity(*, action_id: str | None = None, focus_id: str | None = None) 
     if resolved == "exercise":
         label = "操场活动"
         thought = "运动完精神了不少。"
-        delta = 0.4
+        delta = 0.4 * _stamina_spot_mult(save)
         targets = present_ids[:5]
     elif resolved == "share_meal":
         label = "一起吃饭"
@@ -1462,6 +1730,10 @@ def spot_activity(*, action_id: str | None = None, focus_id: str | None = None) 
         )
         if delta > 0:
             rel.apply_affinity_delta(edge, delta)
+        if resolved == "share_meal":
+            mems = list(edge.get("memories") or [])
+            mems.append("食堂：一起吃饭")
+            edge["memories"] = mems[-12:]
         prev = save.npc_minds.get(sid) or {}
         save.npc_minds[sid] = {
             **prev,
@@ -1544,7 +1816,7 @@ def ask_out(*, target_id: str, location_id: str) -> dict[str, Any]:
         "accepted": accepted,
         "line": reply_line,
         "emotion": reply_emotion,
-        "edge": rel.public_edge(edge),
+        "edge": _public_edge_for(save, edge),
         "hub": hub_public(save),
         "judge_ok": decision is not None,
         "talk": None,
@@ -1637,7 +1909,7 @@ def board_public() -> dict[str, Any]:
     for e in save.edges:
         if "pc" not in {e.get("a"), e.get("b")}:
             continue
-        pe = rel.public_edge(e)
+        pe = _public_edge_for(save, e)
         other = pe["b"] if pe["a"] == "pc" else pe["a"]
         pe["other_id"] = other
         pe["other_name"] = name_by_id.get(other, other)
@@ -1687,7 +1959,20 @@ def meta_public() -> dict[str, Any]:
         "personality": {
             "grade_tiers": catalog.personality_catalog().get("grade_tiers"),
             "mbti_types": catalog.personality_catalog().get("mbti_types"),
+            "pc_stats": {
+                "keys": list(STAT_KEYS),
+                "pool": STAT_POOL,
+                "min": STAT_MIN,
+                "max": STAT_MAX,
+                "labels": {
+                    "study": "学习",
+                    "social": "社交",
+                    "stamina": "体能",
+                    "luck": "运气",
+                },
+            },
         },
+        "class_roles": [{"id": k, "label": v} for k, v in rel.CLASS_ROLES.items()],
         "subjects": catalog.subjects_catalog(),
         "weather": catalog.weather_catalog(),
         "class_name": catalog.class_roster().get("class_name", ""),

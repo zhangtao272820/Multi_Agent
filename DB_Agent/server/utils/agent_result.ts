@@ -75,6 +75,11 @@ export function buildDbAgentResult(params: {
   path?: string;
   latency_ms?: number;
   usage?: { tokens?: number; usd?: number; actual?: boolean };
+  evolutionApplied?: {
+    promptPatches?: Array<{ id?: string; stage?: string; hits?: number }> | number;
+    experienceHits?: number;
+    banditArm?: string;
+  };
 }): AgentResult {
   const sources: AgentSource[] = [];
   if (params.run_id) sources.push({ type: "sql", ref: params.run_id });
@@ -102,6 +107,17 @@ export function buildDbAgentResult(params: {
       ...(error_code ? { error_code } : {}),
       ...(params.executed_sql ? { executed_sql: params.executed_sql } : {}),
       ...(params.explain_preflight?.length ? { explain_preflight: params.explain_preflight } : {}),
+      ...(params.evolutionApplied
+        ? {
+            evolutionApplied: {
+              promptPatches: params.evolutionApplied.promptPatches ?? 0,
+              experienceHits: Math.max(0, Math.floor(Number(params.evolutionApplied.experienceHits) || 0)),
+              ...(params.evolutionApplied.banditArm
+                ? { banditArm: String(params.evolutionApplied.banditArm).slice(0, 64) }
+                : {}),
+            },
+          }
+        : {}),
     },
     needs_clarify: needsClarify,
     clarify_questions: needsClarify && params.clarification_question ? [params.clarification_question] : undefined,

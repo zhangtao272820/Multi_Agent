@@ -35,6 +35,8 @@ export type TaskClause = {
   agents: Step['agent'][]
   /** decompose LLM 可选语义层：取数 / 加工 / 输出 / 动作 */
   layer?: TaskClauseLayer
+  /** 任务级形态（可选）：仅约束职责形状，不改 cap */
+  taskForm?: string
   relevance?: Partial<Record<Step['agent'], number>>
 }
 
@@ -266,6 +268,8 @@ export function clausesFromMeta(meta: any): TaskClause[] {
       agents: (Array.isArray(c?.agents) ? c.agents : []).filter((a: string) =>
         (ALL_STEP_AGENTS as readonly string[]).includes(a)
       ) as Step['agent'][],
+      ...(c?.layer ? { layer: c.layer as TaskClauseLayer } : {}),
+      ...(c?.taskForm ? { taskForm: String(c.taskForm).trim().slice(0, 40) } : {}),
       relevance: c?.relevance || {}
     }))
     .filter((c: TaskClause) => c.text.length >= 4)

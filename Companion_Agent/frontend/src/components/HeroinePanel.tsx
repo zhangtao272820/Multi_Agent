@@ -18,6 +18,12 @@ import FaceChip from "./FaceChip";
 import HeartTrack from "./HeartTrack";
 import SpritePortrait from "./SpritePortrait";
 import { menuSpriteUrl } from "../spriteUrl";
+import {
+  fetchIntroCard,
+  ingameUrls,
+  IntroCardFlipViewer,
+  type IntroCardPayload,
+} from "./IntroGuideBrowser";
 
 export type CodexLiveOverride = {
   character_id: string;
@@ -121,6 +127,36 @@ function BondDetail({
       ? SPEAKING_STYLE_LABELS[bond.speaking_style as keyof typeof SPEAKING_STYLE_LABELS]
       : "";
   const accent = bond.theme_color || "#d4a574";
+  const [introCard, setIntroCard] = useState<IntroCardPayload | null>(null);
+  const [introViewerOpen, setIntroViewerOpen] = useState(false);
+  const [introViewerIdx, setIntroViewerIdx] = useState(0);
+  const ingameSlides = useMemo(() => ingameUrls(introCard?.images), [introCard]);
+
+  useEffect(() => {
+    if (!met) {
+      setIntroCard(null);
+      return;
+    }
+    let cancelled = false;
+    void fetchIntroCard(bond.character_id).then((card) => {
+      if (!cancelled) setIntroCard(card);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [bond.character_id, met]);
+
+  if (introViewerOpen && ingameSlides.length) {
+    return (
+      <IntroCardFlipViewer
+        title={bond.name || introCard?.name_zh || bond.character_id}
+        subtitle="设定卡"
+        slides={ingameSlides}
+        initialIndex={introViewerIdx}
+        onClose={() => setIntroViewerOpen(false)}
+      />
+    );
+  }
 
   return (
     <div className="gal-heroine-detail gal-codex-dossier">
@@ -274,6 +310,29 @@ function BondDetail({
             <section className="gal-codex-panel">
               <h4>往事</h4>
               <p className="gal-codex-personality">{bond.lore_codex}</p>
+            </section>
+          ) : null}
+
+          {ingameSlides.length > 0 ? (
+            <section className="gal-codex-panel gal-codex-panel--intro">
+              <h4>设定卡</h4>
+              <p className="gal-codex-hint-line">故事底色 · 予安所见 · 身材 · 今日生活</p>
+              <div className="gal-intro-thumb-row">
+                {ingameSlides.map((s, i) => (
+                  <button
+                    key={s.key}
+                    type="button"
+                    className="gal-intro-thumb"
+                    onClick={() => {
+                      setIntroViewerIdx(i);
+                      setIntroViewerOpen(true);
+                    }}
+                  >
+                    <img src={s.url} alt={s.label} />
+                    <span>{s.label}</span>
+                  </button>
+                ))}
+              </div>
             </section>
           ) : null}
 

@@ -87,14 +87,18 @@ export const ADMIN_CAPABILITY_GROUPS: ReadonlyArray<{
     tools: [
       'send_email',
       'list_emails',
+      'search_emails',
+      'mark_email_read',
       'reply_email',
+      'forward_email',
+      'delete_email',
       'draft_email_reply',
       'classify_emails',
       'triage_emails',
       'list_email_attachments',
       'save_email_attachment'
     ],
-    routeTerms: ['邮件', '发邮件', '写邮件', '收件箱', '回信', '分拣邮件', '未读邮件', '附件']
+    routeTerms: ['邮件', '发邮件', '写邮件', '收件箱', '回信', '分拣邮件', '未读邮件', '附件', '搜邮件', '已读', '转发']
   },
   {
     intent: '天气',
@@ -208,7 +212,20 @@ export const MANAGER_ADMIN_ROUTE_GROUPS: ReadonlyArray<{
   {
     key: '邮件',
     label: '发信/收件/分拣',
-    tools: ['send_email', 'list_emails', 'reply_email', 'draft_email_reply', 'classify_emails', 'triage_emails']
+    tools: [
+      'send_email',
+      'list_emails',
+      'search_emails',
+      'mark_email_read',
+      'reply_email',
+      'forward_email',
+      'delete_email',
+      'draft_email_reply',
+      'classify_emails',
+      'triage_emails',
+      'list_email_attachments',
+      'save_email_attachment'
+    ]
   },
   {
     key: '联系人',
@@ -437,10 +454,14 @@ const ADMIN_TOOL_ALLOWED_ARGS: Record<string, readonly string[]> = {
   add_task: ['title', 'description'],
   add_task_with_due: ['title', 'description', 'due_time_str', 'due_time_local', 'task_due_time_expression'],
   modify_task: ['task_id', 'title', 'description', 'due_time_str', 'due_time_local'],
-  send_email: ['to', 'subject', 'content', 'cc', 'bcc'],
-  reply_email: ['email_id', 'content', 'session_id'],
+  send_email: ['to', 'subject', 'content', 'cc', 'bcc', 'attachment_paths'],
+  reply_email: ['email_id', 'content', 'session_id', 'cc'],
+  forward_email: ['email_id', 'to', 'note', 'session_id'],
+  delete_email: ['email_id', 'session_id', 'permanent'],
   draft_email_reply: ['email_id', 'hint', 'tone', 'session_id'],
-  list_emails: ['limit', 'unread_only'],
+  list_emails: ['limit', 'unread_only', 'mailbox'],
+  search_emails: ['query', 'subject', 'from_addr', 'since', 'unread_only', 'limit', 'mailbox'],
+  mark_email_read: ['email_id', 'email_ids', 'unread', 'session_id'],
   get_weather: ['city', 'day'],
   get_travel_route: ['origin', 'destination', 'mode', 'compare_modes'],
   search_nearby_amap: ['keywords', 'near_address'],

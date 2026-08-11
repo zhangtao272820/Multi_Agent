@@ -253,9 +253,9 @@ export async function inferProPuStackUnified(input: {
       '- taskIntent: structured_query | document_retrieval | hybrid | action | unknown',
       '- primaryPlane: db | rag | crawler | admin | gui | none（hybrid 只能写在 taskIntent）',
       '- clarifyRisk: none | low | medium | high',
-      '【数据面】structured_query→db；document_retrieval→rag；hybrid→db+rag 并列；出行/路线/地铁/多久→admin。',
+      '【数据面】structured_query→db；document_retrieval→rag；hybrid→db+rag 并列；出行/路线/地铁/多久→admin（未清晰要网页时）。',
       '【stepDispatchDraft】每个数据面/动作面一条，scopedUserLanguage 仅该 agent 子任务；仅用户末轮，勿继承上下文中未提及的人名/查库。',
-      '【示例·RAG+联网】「对照知识库护理员配比标准，网上查最新民政部通知，汇总对比」→ taskShape=multi_source_parallel, inferred rag+crawler, 无 db/admin, draft 两条。',
+      '【示例·RAG+联网】「对照知识库标准，网上查最新官方通知，汇总对比」→ taskShape=multi_source_parallel, inferred rag+crawler, 无 db/admin, draft 两条。',
       '【示例·RAG+DB+Admin】仅当用户末轮同时提到知识库、数据库记录、出行时长时才含 db/admin；禁止套用历史轮次任务。'
     ].join('\n'),
     [
@@ -398,8 +398,8 @@ export async function inferProDataPlane(input: {
     DataPlaneSchema,
     [
       '你是专业工作台 DataPlane 推断器。领域无关：按任务形态推断 db/rag/crawler/admin。',
-      '- structured_query+db：统计/列表/记录/档案/检测日志',
-      '- document_retrieval+rag：规范/政策/手册/文档段落',
+      '- structured_query+db：库表行/聚合（统计/列表/记录/档案）；须对照库存表能否覆盖',
+      '- document_retrieval+rag：文档/手册/报告原文；须对照库存文档能否覆盖；听起来像个人情况≠默认 db',
       '- hybrid：并列库表+文档；inferredDataSources 含 db 与 rag',
       '- hybrid+action：并列取数+出行/天气/订会 → 含 admin；天气预报是 admin.get_weather，不是 crawler',
       '- 网页政策/公告/新闻 → crawler；城市天气预报 → admin',

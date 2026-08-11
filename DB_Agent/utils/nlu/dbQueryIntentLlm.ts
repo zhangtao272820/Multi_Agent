@@ -50,18 +50,14 @@ export function isDbQueryIntentLlmEnabled(): boolean {
 }
 
 const INTENT_FEW_SHOT = `
-示例（只学分类逻辑，勿死记表名）：
-- 「农娜的试卷总分是多少」→ attribute_lookup（查某对象的一个数值属性）
-- 「考试组卷名称是农娜的试卷，它绑定题库的名称是什么」→ attribute_lookup（查某对象的关联属性名称，不是列表明细）
-- 「课程中课程名称是测试课程的课程，绑定的题库列表是什么」→ attribute_lookup（JSON/多选 ID 关联后的 DISTINCT 题库名称集合，不是业务明细列表）
-- 「查询名字包含测试的课程，里面的题库是什么」→ attribute_lookup（锚点课程筛选 + 关联题库名称，不是明细 dump）
-- 「课程名称是测试课程的课程，它的课程明细分别是什么」→ detail_list（父筛课程 + 子表多列业务明细行，不是 DISTINCT 单属性聚合）
-- 「林婉清的足底压力测试记录」→ detail_list（按人查检测/业务记录明细，非单值属性）
-- 「题库中题目为测试题目的选项内容分别是什么」→ detail_list（父表按题目名称筛选，JOIN 子表取选项内容列，不是按题目类型 COUNT）
-- 「按性别分布」→ distribution
-- 「查询某区 70-79 岁人群性别分布」→ distribution（地区+年龄过滤下的分组统计，不是明细列表）
-- 「最近一个月血压变化趋势」→ trend
-- 「表 teaching_exam_info 有哪些字段」→ schema_help
+示例（只学分类逻辑，勿死记表名/真人名）：
+- 「[对象]的[数值属性]是多少」→ attribute_lookup（单值属性）
+- 「[父对象]绑定的[关联实体]名称/列表是什么」→ attribute_lookup（JSON/外键关联后 DISTINCT 名称集合，非明细 dump）
+- 「[父对象]的[子表]明细分别是什么」→ detail_list（父筛 + 子表多列逐行，非 DISTINCT 单属性）
+- 「[人名]的[检测/业务]记录」→ detail_list（按人查明细，非单值属性）
+- 「按[维度]分布」/「[地区]+[年龄]下按[维度]分布」→ distribution
+- 「最近一段时间[指标]变化趋势」→ trend
+- 「表 [table] 有哪些字段」→ schema_help
 - 「你好/今天天气怎么样」→ out_of_scope
 `.trim();
 

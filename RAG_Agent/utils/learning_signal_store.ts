@@ -1,6 +1,7 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { agentPgQuery } from '#agent-shared/agentPgClient'
+import { shouldRecallExperienceForPlane } from '#agent-shared/experienceRecallPolicy'
 import {
   isPostgresStorageEnabled,
   resolveStorageBackend,
@@ -16,6 +17,7 @@ export type RagLearningSignalRow = {
   comment?: string
   path?: string
   source?: string
+  source_plane?: string
   at: string
   tenantId?: string
 }
@@ -68,8 +70,8 @@ async function appendSignalToPg(row: RagLearningSignalRow): Promise<boolean> {
   const tid = normalizeTenantId(row.tenantId)
   const res = await agentPgQuery(
     `INSERT INTO rag_learning_signals
-      (at, question, question_norm, score, comment, path, source, tenant_id)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      (at, question, question_norm, score, comment, path, source, tenant_id, source_plane)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
     [
       row.at,
       row.question,
@@ -78,7 +80,8 @@ async function appendSignalToPg(row: RagLearningSignalRow): Promise<boolean> {
       row.comment ?? null,
       row.path ?? null,
       row.source ?? null,
-      tid
+      tid,
+      row.source_plane ?? 'standalone'
     ]
   )
   return Boolean(res)
@@ -94,8 +97,9 @@ async function readSignalsFromPg(maxLines = 500, tenantId?: string): Promise<Rag
     comment: string | null
     path: string | null
     source: string | null
+    source_plane: string | null
   }>(
-    `SELECT at, question, question_norm, score, comment, path, source
+    `SELECT at, question, question_norm, score, comment, path, source, source_plane
      FROM rag_learning_signals
      WHERE tenant_id = $1
      ORDER BY id DESC
@@ -111,6 +115,7 @@ async function readSignalsFromPg(maxLines = 500, tenantId?: string): Promise<Rag
     comment: r.comment ?? undefined,
     path: r.path ?? undefined,
     source: r.source ?? undefined,
+    source_plane: r.source_plane ?? undefined,
     tenantId: tid
   }))
 }
@@ -140,10 +145,11 @@ export function readRagLearningSignalsSync(maxLines = 500, tenantId?: string): R
   const tid = normalizeTenantId(tenantId)
   const backend = resolveRagStorageBackend()
   const cache = signalsCacheByTenant.get(tid)
-  if (isPostgresStorageEnabled(backend) && cache?.length) {
-    return cache.slice(-maxLines)
-  }
-  return readJsonlLines<RagLearningSignalRow>(signalsFilePath(tid), maxLines)
+  const rows =
+    isPostgresStorageEnabled(backend) && cache?.length
+      ? cache.slice(-maxLines)
+      : readJsonlLines<RagLearningSignalRow>(signalsFilePath(tid), maxLines)
+  return rows.filter((r) => shouldRecallExperienceForPlane('standalone', r))
 }
 
 export async function persistRagLearningSignal(row: RagLearningSignalRow): Promise<void> {

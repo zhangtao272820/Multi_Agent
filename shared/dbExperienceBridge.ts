@@ -8,6 +8,7 @@ import {
   emptyQuestionResult,
   experienceSnippet,
   experienceSyncSource,
+  experienceSyncSourcePlane,
   guardExperiencePg,
   normalizeExperienceQuestionKey,
   type ExperienceSyncOpts,
@@ -75,6 +76,7 @@ export async function syncDbExperienceFromManagerRun(
         tables: input.tables?.length ? input.tables : undefined,
         hint,
         source: experienceSyncSource(opts),
+        source_plane: experienceSyncSourcePlane(opts),
         userConfirmed: Boolean(opts?.force)
       }
     },

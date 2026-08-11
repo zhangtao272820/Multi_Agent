@@ -25,46 +25,85 @@ beats:
   sprite_hint:
   - season_winter
   - home
+  - casual
   - home_eating
   - home_sleeping
+  - date
   - intimate_lounge
   soft_options:
   - 递暖手宝
   - 帮她对词
   - 问要不要停练
-  narration: 声乐棚回音与汗味里，入冬排练厅暖气刚开；她素颜坐下，把外套披给你，说舞台外也要保暖。
-  pc_thought: 破音也比完美假笑真。我想当观众，不是灯牌支架——想起素颜。
+  narration: 声乐棚回音与汗味里，入冬排练厅暖气刚开；她素颜坐下，把外套披给你，说舞台外也要保暖。耳返线还绕在她指节上。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 破音也比完美假笑真。我想当观众，不是灯牌支架——想起素颜
   brief: 入冬排练厅暖气刚开；她素颜坐下，把外套披给你，说舞台外也要保暖。等你回应。
+  pages:
+  - text: 声乐棚回音与汗味里，入冬排练厅暖气刚开；她素颜坐下，把外套披给你，说舞台外也要保暖。耳返线还绕在她指节上。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: season_winter
+      emotion: neutral
+  - text: 破音也比完美假笑真。我想当观众，不是灯牌支架——想起素颜
+    voice: pc
+    sprite:
+      outfit: season_winter
+      emotion: shy
 - id: b2
   summary: 确认台下有人；顺口提醒别让家里人等太久。等你说有我、帮擦汗或先喝热水。
   sprite_hint:
   - season_winter
+  - home
   - casual
   - home_eating
   - home_sleeping
+  - date
   - intimate_lounge
   soft_options:
   - 说台下有我
   - 帮她擦汗
   - 先喝热水
-  narration: 她问你还愿不愿站前排——不是应援，是想确认有人在。换气间隙她哼一句：别让家里人等太久。
-  pc_thought: 灯牌外还有屋檐。她提醒家里人——像听见了别的线的回声。
+  narration: 她问你还愿不愿站前排——不是应援，是想确认有人在。换气间隙她哼一句：别让家里人等太久。耳返线还绕在她指节上。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 灯牌外还有屋檐。她提醒家里人——像听见了别的线的回声
   brief: 确认台下有人；顺口提醒别让家里人等太久。等你说有我、帮擦汗或先喝热水。
+  pages:
+  - text: 她问你还愿不愿站前排——不是应援，是想确认有人在。换气间隙她哼一句：别让家里人等太久。耳返线还绕在她指节上。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: season_winter
+      emotion: neutral
+  - text: 灯牌外还有屋檐。她提醒家里人——像听见了别的线的回声
+    voice: pc
+    sprite:
+      outfit: season_winter
+      emotion: shy
 - id: b3
   summary: 你是留下听完整段，还是提前离场；灯牌会被点亮或永久熄灭。等你回应。
   sprite_hint:
   - season_winter
-  - date
+  - home
+  - casual
   - home_eating
   - home_sleeping
+  - date
   - intimate_lounge
   soft_options:
   - 约加练不加班
   - 夸一句真听得见
   - 送她回家
-  narration: 声乐棚回音与汗味里，你是留下听完整段，还是提前离场；灯牌会被点亮或永久熄灭。
-  pc_thought: 万人喜欢很吵。我想听她私下喘一口气的声音——想起灯牌。
+  narration: 声乐棚回音与汗味里，你是留下听完整段，还是提前离场；灯牌会被点亮或永久熄灭。耳返线还绕在她指节上。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 万人喜欢很吵。我想听她私下喘一口气的声音——想起灯牌
   brief: 你是留下听完整段，还是提前离场；灯牌会被点亮或永久熄灭。等你回应。
+  pages:
+  - text: 声乐棚回音与汗味里，你是留下听完整段，还是提前离场；灯牌会被点亮或永久熄灭。耳返线还绕在她指节上。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: season_winter
+      emotion: neutral
+  - text: 万人喜欢很吵。我想听她私下喘一口气的声音——想起灯牌
+    voice: pc
+    sprite:
+      outfit: season_winter
+      emotion: shy
 rewards:
   flags_set:
   - tt_winter_stage

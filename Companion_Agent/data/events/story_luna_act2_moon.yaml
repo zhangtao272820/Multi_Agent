@@ -13,58 +13,111 @@ trigger:
   - ln_moon_shift
   flags_present:
   - ln_tarot
-prompt_snippet: |
-  【专属故事 · 深夜魔女的咖啡 · 第2幕 · 月班】
+prompt_snippet: '【专属故事 · 深夜魔女的咖啡 · 第2幕 · 月班】
+
+  '
 advance: on_player_turn
 beats:
 - id: b1
-  summary: "月圆她提早收摊，拉你到后巷：今晚不卖预言，只谈人——气氛忽然认真起来。等你回应。"
+  summary: 月圆她提早收摊，拉你到后巷：今晚不卖预言，只谈人——气氛忽然认真起来。等你回应。
   sprite_hint:
-  - work
+  - date
   - home
+  - casual
+  - work
   soft_options:
   - 跟她出去
   - 问为何选今天
   - 先听她说
-  narration: "塔罗牌与夜班灯里，月圆她提早收摊，拉你到后巷：今晚不卖预言，只谈人——气氛忽然认真起来。"
-  pc_thought: 月咒护符像玩笑。当真时，班次就不是班次。
-  brief: "月圆她提早收摊，拉你到后巷：今晚不卖预言，只谈人——气氛忽然认真起来。等你回应。"
+  narration: 塔罗牌与夜班灯里，月圆她提早收摊，拉你到后巷：今晚不卖预言，只谈人——。杯托上印着浅浅的月牙。她没再多说，只是看着你。
+  pc_thought: 月咒护符像玩笑。当真时，班次就不是班次
+  brief: 月圆她提早收摊，拉你到后巷：今晚不卖预言，只谈人——气氛忽然认真起来。等你回应。
+  pages:
+  - text: 塔罗牌与夜班灯里，月圆她提早收摊，拉你到后巷：今晚不卖预言，只谈人——。杯托上印着浅浅的月牙。她没再多说，只是看着你。
+    voice: narration
+    sprite:
+      outfit: date
+      emotion: neutral
+  - text: 月咒护符像玩笑。当真时，班次就不是班次
+    voice: pc
+    sprite:
+      outfit: date
+      emotion: shy
 - id: b2
-  summary: "她摘下帽子：喜欢你，不想再用「魔女设定」挡在前面——气氛忽然认真起来。等你回应。"
+  summary: 她摘下帽子：喜欢你，不想再用「魔女设定」挡在前面——气氛忽然认真起来。等你回应。
   sprite_hint:
-  - casual
   - date
+  - home
+  - casual
+  - work
   soft_options:
   - 回应告白
   - 说设定可爱但更爱本人
   - 问能否交往
-  narration: "塔罗牌与夜班灯里，她摘下帽子：喜欢你，不想再用「魔女设定」挡在前面——气氛忽然认真起来。"
+  narration: 塔罗牌与夜班灯里，她摘下帽子：喜欢你，不想再用「魔女设定」挡在前面——。杯托上印着浅浅的月牙。她没再多说，只是看着你。
   pc_thought: 星夜柜台很静。假护符一拆，她还肯看我吗？
-  brief: "她摘下帽子：喜欢你，不想再用「魔女设定」挡在前面——气氛忽然认真起来。等你回应。"
+  brief: 她摘下帽子：喜欢你，不想再用「魔女设定」挡在前面——气氛忽然认真起来。等你回应。
+  pages:
+  - text: 塔罗牌与夜班灯里，她摘下帽子：喜欢你，不想再用「魔女设定」挡在前面——。杯托上印着浅浅的月牙。她没再多说，只是看着你。
+    voice: narration
+    sprite:
+      outfit: date
+      emotion: neutral
+  - text: 星夜柜台很静。假护符一拆，她还肯看我吗？
+    voice: pc
+    sprite:
+      outfit: date
+      emotion: shy
 - id: b3
   summary: 她怕日常太素会让你失望；月亮班次之外，她也只是人——气氛忽然认真起来。等你回应。
   sprite_hint:
-  - home
   - date
+  - home
+  - casual
+  - work
   soft_options:
   - 说素颜也留下
   - 承诺不消费人设
   - 约白天见面
-  narration: 塔罗牌与夜班灯里，她怕日常太素会让你失望；月亮班次之外，她也只是人——气氛忽然认真起来。
-  pc_thought: 冬塔罗冷。我想听解读，也想听她本人。
+  narration: 塔罗牌与夜班灯里，她怕日常太素会让你失望；月亮班次之外，她也只是人——。杯托上印着浅浅的月牙。她没再多说，只是看着你。
+  pc_thought: 冬塔罗冷。我想听解读，也想听她本人。我想靠近，又怕说错一句。
   brief: 她怕日常太素会让你失望；月亮班次之外，她也只是人——气氛忽然认真起来。等你回应。
+  pages:
+  - text: 塔罗牌与夜班灯里，她怕日常太素会让你失望；月亮班次之外，她也只是人——。杯托上印着浅浅的月牙。她没再多说，只是看着你。
+    voice: narration
+    sprite:
+      outfit: date
+      emotion: neutral
+  - text: 冬塔罗冷。我想听解读，也想听她本人。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: date
+      emotion: shy
 - id: b4
   summary: 护符绳系在你腕上；她说——月亮班次，从今晚起有固定客人——气氛忽然认真起来。等你回应。
   sprite_hint:
   - date
+  - home
   - casual
+  - work
   soft_options:
   - 系紧回礼
   - 吻她指尖
   - 说「我签到了」
-  narration: 塔罗牌与夜班灯里，护符绳系在你腕上；她说——月亮班次，从今晚起有固定客人——气氛忽然认真起来。
-  pc_thought: 中秋护符线缠着手指。戏言与认真只差一句。
+  narration: 塔罗牌与夜班灯里，护符绳系在你腕上；她说——月亮班次，从今晚起有固定客人——。杯托上印着浅浅的月牙。
+  pc_thought: 中秋护符线缠着手指。戏言与认真只差一句
   brief: 护符绳系在你腕上；她说——月亮班次，从今晚起有固定客人——气氛忽然认真起来。等你回应。
+  pages:
+  - text: 塔罗牌与夜班灯里，护符绳系在你腕上；她说——月亮班次，从今晚起有固定客人——。杯托上印着浅浅的月牙。
+    voice: narration
+    sprite:
+      outfit: date
+      emotion: neutral
+  - text: 中秋护符线缠着手指。戏言与认真只差一句
+    voice: pc
+    sprite:
+      outfit: date
+      emotion: shy
 rewards:
   flags_set:
   - ln_moon_shift

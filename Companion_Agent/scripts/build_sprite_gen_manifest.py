@@ -108,6 +108,27 @@ EXTRA_OUTFITS = [
     {"id": "ad_lace_campaign", "label": "广告·蕾丝企划"},
     {"id": "ad_silk_lookbook", "label": "广告·丝质 lookbook"},
     {"id": "ad_editorial", "label": "广告·杂志写真"},
+    # §2.9 私密吊带自拍
+    {"id": "intimate_selfie_slip", "label": "私密·自拍·吊带"},
+    {"id": "intimate_selfie_micro", "label": "私密·自拍·微摆"},
+    {"id": "intimate_selfie_strappy", "label": "私密·自拍·绑带"},
+    {"id": "intimate_selfie_shirt", "label": "私密·自拍·衬衫"},
+    {"id": "intimate_selfie_backless", "label": "私密·自拍·露背"},
+    {"id": "intimate_selfie_sofa", "label": "私密·自拍·沙发"},
+    {"id": "intimate_selfie_kneel", "label": "私密·自拍·跪坐"},
+    {"id": "intimate_selfie_garter", "label": "私密·自拍·袜夹"},
+    {"id": "intimate_selfie_wet", "label": "私密·自拍·湿发"},
+    {"id": "intimate_selfie_ribbon", "label": "私密·自拍·缎带"},
+    {"id": "pr_intimate_selfie_slip", "label": "私密·自拍·半写实·吊带"},
+    {"id": "pr_intimate_selfie_micro", "label": "私密·自拍·半写实·微摆"},
+    {"id": "pr_intimate_selfie_strappy", "label": "私密·自拍·半写实·绑带"},
+    {"id": "pr_intimate_selfie_shirt", "label": "私密·自拍·半写实·衬衫"},
+    {"id": "pr_intimate_selfie_backless", "label": "私密·自拍·半写实·露背"},
+    {"id": "pr_intimate_selfie_sofa", "label": "私密·自拍·半写实·沙发"},
+    {"id": "pr_intimate_selfie_kneel", "label": "私密·自拍·半写实·跪坐"},
+    {"id": "pr_intimate_selfie_garter", "label": "私密·自拍·半写实·袜夹"},
+    {"id": "pr_intimate_selfie_wet", "label": "私密·自拍·半写实·湿发"},
+    {"id": "pr_intimate_selfie_ribbon", "label": "私密·自拍·半写实·缎带"},
 ]
 
 BASE_ADVANCE = {
@@ -136,6 +157,30 @@ MAX_BASE = {
     "max_over_shoulder": "魅力极限：露背回眸，肩带滑落将落未落，遮挡充分；禁止露点与性器官",
     "max_sofa_lie": "魅力极限：沙发半躺，睡裙上移仍遮挡胸臀；禁止露点、性器官与性行为姿势",
     "max_ribbon_cover": "魅力极限：缎带/薄纱战略遮挡，敏感部位不可辨；禁止露点、性器官与性行为姿势",
+}
+
+# §2.9 私密吊带自拍（anime + 半写实；过审侧面措辞：phone selfie / knees softly angled）
+SELFIE_BASE = {
+    "intimate_selfie_slip": "私密自拍：极短丝质吊带居家裙乳白/藕粉；坐姿手机高举自拍，膝部对镜头自然分开，裙摆遮臀；上胸曲线可见仍遮点；禁止露点、乳晕、性器官与性行为姿势",
+    "intimate_selfie_micro": "私密自拍：更短微摆吊带，大腿根将露未露；坐姿腿前伸对镜头，一手理肩带；禁止露点与性行为姿势",
+    "intimate_selfie_strappy": "私密自拍：细带绑带短睡裙深 scoop 仍遮点；镜前站姿自拍，髋微侧露肩背；禁止露点",
+    "intimate_selfie_shirt": "私密自拍：过大男友衬衫仅扣1–2粒+蕾丝短裤；床沿坐手机高举，下摆将落；禁止露点与性器官",
+    "intimate_selfie_backless": "私密自拍：露背交叉细带短睡裙；回眸扭身自拍肩带将落未落；禁止露点",
+    "intimate_selfie_sofa": "私密自拍：丝质短吊带沙发半躺上移仍遮；对镜头自拍一膝抬起显腿线；禁止露点与性行为姿势",
+    "intimate_selfie_kneel": "私密自拍：极短吊带+抱枕战略遮胸；床沿跪坐仰视镜头自拍；非性行为姿势；禁止露点",
+    "intimate_selfie_garter": "私密自拍：短吊带+吊带袜袜夹遮挡充分；坐姿一腿微抬理袜夹手机入镜；禁止露点与性器官",
+    "intimate_selfie_wet": "私密自拍：湿发+贴身不透明薄吊带；浴后镜前自拍曲线贴合不透点；禁止透视乳头与露点",
+    "intimate_selfie_ribbon": "私密自拍：缎带/薄纱战略遮挡短装；对镜头坐姿敏感部位不可辨；禁止露点与性器官",
+    "pr_intimate_selfie_slip": "半写实美型2.5D私密自拍：同 intimate_selfie_slip 构图；cinematic soft light；禁止纪实毛孔路人脸、露点与性器官",
+    "pr_intimate_selfie_micro": "半写实美型2.5D私密自拍：同 intimate_selfie_micro 构图；禁止纪实摄影、露点与性器官",
+    "pr_intimate_selfie_strappy": "半写实美型2.5D私密自拍：同 intimate_selfie_strappy 构图；禁止纪实摄影、露点与性器官",
+    "pr_intimate_selfie_shirt": "半写实美型2.5D私密自拍：同 intimate_selfie_shirt 构图；禁止纪实摄影、露点与性器官",
+    "pr_intimate_selfie_backless": "半写实美型2.5D私密自拍：同 intimate_selfie_backless 构图；禁止纪实摄影、露点与性器官",
+    "pr_intimate_selfie_sofa": "半写实美型2.5D私密自拍：同 intimate_selfie_sofa 构图；禁止纪实摄影、露点与性器官",
+    "pr_intimate_selfie_kneel": "半写实美型2.5D私密自拍：同 intimate_selfie_kneel 构图；禁止纪实摄影、露点与性器官",
+    "pr_intimate_selfie_garter": "半写实美型2.5D私密自拍：同 intimate_selfie_garter 构图；禁止纪实摄影、露点与性器官",
+    "pr_intimate_selfie_wet": "半写实美型2.5D私密自拍：同 intimate_selfie_wet 构图；禁止纪实摄影、露点与性器官",
+    "pr_intimate_selfie_ribbon": "半写实美型2.5D私密自拍：同 intimate_selfie_ribbon 构图；禁止纪实摄影、露点与性器官",
 }
 
 # §2.5 洗浴泡沫（romance T0–T2；进 resolve 晨间/晚间候选）
@@ -213,10 +258,9 @@ FLAVOR = {
     "xiaoyou": "插画师发色与淡颜料点可保留；可抱速写本作遮挡道具",
     "wanyu": "咖啡店员卸妆柔软向；发带/暖杏配色",
     "ruolin": "知性成熟；眼镜可摘置旁",
-    "jingliu": "品牌黑/酒红；金饰卸大半",
-    "aili": "蜜金波浪；可有干花/花瓣道具级遮挡",
-    "linxi": "红丝带点缀；傲娇害羞",
-    "yeyu": "设计师面料感；剪裁利落蕾丝",
+    "jingliu": "品牌黑/酒红；金饰可留小件；私密自拍差分：丝巾、品牌感手机壳作遮挡/道具",
+    "aili": "蜜金波浪；私密自拍差分：小花束或干花作遮挡道具",
+    "linxi": "红丝带点缀；傲娇害羞；私密自拍差分：红丝带、加班抱枕作遮挡道具",
     "taotao": "偶像卸妆后私服；禁舞台装整套照搬",
     "shizuku": "紫发软萌反差；禁图书馆员制服情趣化",
     "qiansha": "宅感褪下后的家居极限；禁工位装",
@@ -303,7 +347,7 @@ def apply_intimate_expansion(manifest: dict) -> dict:
             continue
         oh = pack.setdefault("outfit_hints", {})
         flavor = FLAVOR[cid]
-        if cast == "neutral" and cid in NEUTRAL_IDS:
+        if cid in NEUTRAL_IDS and cast in {"neutral", "linked"}:
             for k, v in STOCK_BASE.items():
                 oh.setdefault(k, f"{v}；角色差分：{flavor}")
             for k, v in MAX_BASE.items():
@@ -320,6 +364,8 @@ def apply_intimate_expansion(manifest: dict) -> dict:
             for k, v in Q_BASE.items():
                 oh[k] = f"{v}；角色差分：{flavor}；{NEUTRAL_DISPLAY_SUFFIX}"
             for k, v in AD_BASE.items():
+                oh[k] = f"{v}；角色差分：{flavor}；{NEUTRAL_DISPLAY_SUFFIX}"
+            for k, v in SELFIE_BASE.items():
                 oh[k] = f"{v}；角色差分：{flavor}；{NEUTRAL_DISPLAY_SUFFIX}"
             continue
         if cast != "romance":
@@ -343,6 +389,8 @@ def apply_intimate_expansion(manifest: dict) -> dict:
         for k, v in Q_BASE.items():
             oh[k] = f"{v}；角色差分：{flavor}"
         for k, v in AD_BASE.items():
+            oh[k] = f"{v}；角色差分：{flavor}"
+        for k, v in SELFIE_BASE.items():
             oh[k] = f"{v}；角色差分：{flavor}"
     return manifest
 

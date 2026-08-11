@@ -22,62 +22,118 @@ beats:
   summary: 打烊后的厨房灯很暖；她没有急着谈婚礼，只问你愿不愿意先共享一顿普通晚饭。等你回应。
   sprite_hint:
   - night_close
-  - ribbon_cut
-  - season_winter
-  - home_eating
-  - home_sleeping
-  soft_options:
-  - 问她今晚想听什么
-  - 帮忙卷丝带
-  - 坦白你的心意
-  narration: 泥土与花茎汁里，打烊后的厨房灯很暖；她没有急着谈婚礼，只问你愿不愿意先共享一顿普通晚饭。
-  pc_thought: 旧婚书的影子还在。我是新选择，不是替补。
-  brief: 打烊后的厨房灯很暖；她没有急着谈婚礼，只问你愿不愿意先共享一顿普通晚饭。等你回应。
-- id: b2
-  summary: 干花与新芽旁她说第二次选择必须更诚实—— 过了，厨房灯才有资格像新的婚书。等你回应。
-  sprite_hint:
   - bouquet_wrap
   - date
-  - season_winter
-  - home_eating
-  - home_sleeping
-  soft_options:
-  - 答应重新开始
-  - 确认不是将就
-  - 谈节奏与公开
-  narration: 泥土与花茎汁里，干花与新芽旁她说第二次选择必须更诚实—— 过了，厨房灯才有资格像新的婚书。
-  pc_thought: 修剪茎的声音很稳。我想学照顾她，不只是看花。
-  brief: 干花与新芽旁她说第二次选择必须更诚实—— 过了，厨房灯才有资格像新的婚书。等你回应。
-- id: b3
-  summary: 告白像插花：位置、角度、留白都要商量——她问你，愿不愿意把名字写进新的花卡。等你回应。
-  sprite_hint:
-  - date
-  - greenhouse_mist
-  - season_winter
-  - home_eating
-  - home_sleeping
-  soft_options:
-  - 回应告白
-  - 交换一个承诺
-  - 问她怕什么
-  narration: 泥土与花茎汁里，告白像插花：位置、角度、留白都要商量——她问你，愿不愿意把名字写进新的花卡。
-  pc_thought: 外送袋破了也好。弄脏的是完美人设，不是我们——想起花。
-  brief: 告白像插花：位置、角度、留白都要商量——她问你，愿不愿意把名字写进新的花卡。等你回应。
-- id: b4
-  summary: 她把店钥放进同一串：不是仓促的再婚仪式，是两个人决定一起照看会呼吸的日常。等你回应。
-  sprite_hint:
-  - card_write
   - bridal
   - season_winter
   - home_eating
   - home_sleeping
+  - intimate_lounge
+  soft_options:
+  - 问她今晚想听什么
+  - 帮忙卷丝带
+  - 坦白你的心意
+  narration: 泥土与花茎汁里，打烊后的厨房灯很暖；她没有急着谈婚礼，只问你愿不愿意先共享一顿普通晚饭。花茎切口还渗着水。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 旧婚书的影子还在。我是新选择，不是替补。我想靠近，又怕说错一句。
+  brief: 打烊后的厨房灯很暖；她没有急着谈婚礼，只问你愿不愿意先共享一顿普通晚饭。等你回应。
+  pages:
+  - text: 泥土与花茎汁里，打烊后的厨房灯很暖；她没有急着谈婚礼，只问你愿不愿意先共享一顿普通晚饭。花茎切口还渗着水。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: night_close
+      emotion: neutral
+  - text: 旧婚书的影子还在。我是新选择，不是替补。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: night_close
+      emotion: shy
+- id: b2
+  summary: 干花与新芽旁她说第二次选择必须更诚实—— 过了，厨房灯才有资格像新的婚书。等你回应。
+  sprite_hint:
+  - night_close
+  - bouquet_wrap
+  - date
+  - bridal
+  - season_winter
+  - home_eating
+  - home_sleeping
+  - intimate_lounge
+  soft_options:
+  - 答应重新开始
+  - 确认不是将就
+  - 谈节奏与公开
+  narration: 泥土与花茎汁里，干花与新芽旁她说第二次选择必须更诚实——过了，厨房灯才有资格像新的婚书。花茎切口还渗着水。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 修剪茎的声音很稳。我想学照顾她，不只是看花。我想靠近，又怕说错一句。
+  brief: 干花与新芽旁她说第二次选择必须更诚实—— 过了，厨房灯才有资格像新的婚书。等你回应。
+  pages:
+  - text: 泥土与花茎汁里，干花与新芽旁她说第二次选择必须更诚实——过了，厨房灯才有资格像新的婚书。花茎切口还渗着水。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: night_close
+      emotion: neutral
+  - text: 修剪茎的声音很稳。我想学照顾她，不只是看花。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: night_close
+      emotion: shy
+- id: b3
+  summary: 告白像插花：位置、角度、留白都要商量——她问你，愿不愿意把名字写进新的花卡。等你回应。
+  sprite_hint:
+  - night_close
+  - bouquet_wrap
+  - date
+  - bridal
+  - season_winter
+  - home_eating
+  - home_sleeping
+  - intimate_lounge
+  soft_options:
+  - 回应告白
+  - 交换一个承诺
+  - 问她怕什么
+  narration: 泥土与花茎汁里，告白像插花：位置、角度、留白都要商量——她问你，愿不愿意把名字写进新的花卡。花茎切口还渗着水。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 外送袋破了也好。弄脏的是完美人设，不是我们——想起花。我想靠近，又怕说错一句。
+  brief: 告白像插花：位置、角度、留白都要商量——她问你，愿不愿意把名字写进新的花卡。等你回应。
+  pages:
+  - text: 泥土与花茎汁里，告白像插花：位置、角度、留白都要商量——她问你，愿不愿意把名字写进新的花卡。花茎切口还渗着水。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: night_close
+      emotion: neutral
+  - text: 外送袋破了也好。弄脏的是完美人设，不是我们——想起花。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: night_close
+      emotion: shy
+- id: b4
+  summary: 她把店钥放进同一串：不是仓促的再婚仪式，是两个人决定一起照看会呼吸的日常。等你回应。
+  sprite_hint:
+  - night_close
+  - bouquet_wrap
+  - date
+  - bridal
+  - season_winter
+  - home_eating
+  - home_sleeping
+  - intimate_lounge
   soft_options:
   - 写下第一句
   - 吻她手背
   - 约明天一起看日出进货
-  narration: 泥土与花茎汁里，她把店钥放进同一串：不是仓促的再婚仪式，是两个人决定一起照看会呼吸的日常。
-  pc_thought: 再选择不是复合回档——我别踩进旧剧本。
+  narration: 泥土与花茎汁里，她把店钥放进同一串：不是仓促的再婚仪式，是两个人决定一起照看会呼吸的日常。花茎切口还渗着水。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 再选择不是复合回档——我别踩进旧剧本。我想靠近，又怕说错一句。
   brief: 她把店钥放进同一串：不是仓促的再婚仪式，是两个人决定一起照看会呼吸的日常。等你回应。
+  pages:
+  - text: 泥土与花茎汁里，她把店钥放进同一串：不是仓促的再婚仪式，是两个人决定一起照看会呼吸的日常。花茎切口还渗着水。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: night_close
+      emotion: neutral
+  - text: 再选择不是复合回档——我别踩进旧剧本。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: night_close
+      emotion: shy
 rewards:
   flags_set:
   - al_choose_again

@@ -22,7 +22,9 @@ beats:
   summary: 晚高峰车厢里她抓吊环；肩碰肩时她小声说「公司好远」，像把疲惫借你分担半寸。等你回应。
   sprite_hint:
   - commute_rail
+  - lobby_umbrella
   - overtime_desk
+  - rain
   - season_winter
   - home_eating
   - home_sleeping
@@ -30,13 +32,26 @@ beats:
   - 让她靠座位
   - 轻声叫站稳
   - 分享耳机歌单
-  narration: 打印纸与轨道风里，晚高峰车厢里她抓吊环；肩碰肩时她小声说「公司好远」，像把疲惫借你分担半寸。
-  pc_thought: 对桌探头那一下，像实习期的心跳漏拍。
+  narration: 打印纸与轨道风里，晚高峰车厢里她抓吊环；肩碰肩时她小声说「公司好远」，像把疲惫借你分担半寸。表格最后一行数字还没填完。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 对桌探头那一下，像实习期的心跳漏拍。我想靠近，又怕说错一句。
   brief: 晚高峰车厢里她抓吊环；肩碰肩时她小声说「公司好远」，像把疲惫借你分担半寸。等你回应。
+  pages:
+  - text: 打印纸与轨道风里，晚高峰车厢里她抓吊环；肩碰肩时她小声说「公司好远」，像把疲惫借你分担半寸。表格最后一行数字还没填完。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: commute_rail
+      emotion: neutral
+  - text: 对桌探头那一下，像实习期的心跳漏拍。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: commute_rail
+      emotion: shy
 - id: b2
   summary: 换乘站风很大，她把围巾分你一半：不是暧昧，是实习生存手册里新增的互助条款。等你回应。
   sprite_hint:
+  - commute_rail
   - lobby_umbrella
+  - overtime_desk
   - rain
   - season_winter
   - home_eating
@@ -45,14 +60,27 @@ beats:
   - 共撑一把
   - 叫车送她
   - 笑她嘴硬
-  narration: 打印纸与轨道风里，换乘站风很大，她把围巾分你一半：不是暧昧，是实习生存手册里新增的互助条款。
-  pc_thought: 末班车扶手很凉。逞强的她，其实也怕走丢——想起围巾。
+  narration: 打印纸与轨道风里，换乘站风很大，她把围巾分你一半：不是暧昧，是实习生存手册里新增的互助条款。表格最后一行数字还没填完。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 末班车扶手很凉。逞强的她，其实也怕走丢——想起围巾。我想靠近，又怕说错一句。
   brief: 换乘站风很大，她把围巾分你一半：不是暧昧，是实习生存手册里新增的互助条款。等你回应。
+  pages:
+  - text: 打印纸与轨道风里，换乘站风很大，她把围巾分你一半：不是暧昧，是实习生存手册里新增的互助条款。表格最后一行数字还没填完。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: commute_rail
+      emotion: neutral
+  - text: 末班车扶手很凉。逞强的她，其实也怕走丢——想起围巾。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: commute_rail
+      emotion: shy
 - id: b3
   summary: 她问起你当年第一份工：想听的不是成功学，是有人承认「我也慌过」。等你回应。
   sprite_hint:
+  - commute_rail
   - lobby_umbrella
-  - casual
+  - overtime_desk
+  - rain
   - season_winter
   - home_eating
   - home_sleeping
@@ -60,14 +88,27 @@ beats:
   - 说求助不是弱
   - 讲你也有逞强的时候
   - 约下次一起下班
-  narration: 打印纸与轨道风里，她问起你当年第一份工：想听的不是成功学，是有人承认「我也慌过」。
-  pc_thought: 打印室只剩我们。我想把「同事」说成更私的词。
+  narration: 打印纸与轨道风里，她问起你当年第一份工：想听的不是成功学，是有人承认「我也慌过」。表格最后一行数字还没填完。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 打印室只剩我们。我想把「同事」说成更私的词。我想靠近，又怕说错一句。
   brief: 她问起你当年第一份工：想听的不是成功学，是有人承认「我也慌过」。等你回应。
+  pages:
+  - text: 打印纸与轨道风里，她问起你当年第一份工：想听的不是成功学，是有人承认「我也慌过」。表格最后一行数字还没填完。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: commute_rail
+      emotion: neutral
+  - text: 打印室只剩我们。我想把「同事」说成更私的词。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: commute_rail
+      emotion: shy
 - id: b4
   summary: 到站前她说：如果可以，想和你走同一段回家路——哪怕只是同方向的沉默。等你回应。
   sprite_hint:
   - commute_rail
-  - date
+  - lobby_umbrella
+  - overtime_desk
+  - rain
   - season_winter
   - home_eating
   - home_sleeping
@@ -75,9 +116,20 @@ beats:
   - 保密承诺
   - 碰拳收工
   - 说明天文件我先看
-  narration: 打印纸与轨道风里，到站前她说：如果可以，想和你走同一段回家路——哪怕只是同方向的沉默。
-  pc_thought: 工位之间只要一步——我迈不迈得出去？
+  narration: 打印纸与轨道风里，到站前她说：如果可以，想和你走同一段回家路——哪怕只是同方向的沉默。表格最后一行数字还没填完。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 工位之间只要一步——我迈不迈得出去？我想靠近，又怕说错一句。
   brief: 到站前她说：如果可以，想和你走同一段回家路——哪怕只是同方向的沉默。等你回应。
+  pages:
+  - text: 打印纸与轨道风里，到站前她说：如果可以，想和你走同一段回家路——哪怕只是同方向的沉默。表格最后一行数字还没填完。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: commute_rail
+      emotion: neutral
+  - text: 工位之间只要一步——我迈不迈得出去？我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: commute_rail
+      emotion: shy
 rewards:
   flags_set:
   - lx_commute_talk

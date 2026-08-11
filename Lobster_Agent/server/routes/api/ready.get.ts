@@ -81,8 +81,22 @@ export default defineEventHandler(async () => {
         platform: process.platform,
         error: 'lobster_desktop_mcp_disabled: set LOBSTER_DESKTOP_MCP_ENABLED=1',
       }
+    } else if (isLobsterDesktopMcpEnabled() && handsOnly) {
+      // Hands-only：ready 快速返回；Windows-MCP 首连可能数十秒，放到真实桌面任务里暖机
+      desktop = {
+        enabled: true,
+        ok: true,
+        toolCount: 0,
+        platform: process.platform,
+        error: 'deferred_probe',
+      }
     } else if (isLobsterDesktopMcpEnabled()) {
-      const probe = await probeLobsterDesktopReady()
+      const probe = await Promise.race([
+        probeLobsterDesktopReady(45000),
+        new Promise<{ ok: false; toolCount: 0; error: string }>((resolve) => {
+          setTimeout(() => resolve({ ok: false, toolCount: 0, error: 'desktop_probe_timeout' }), 50000)
+        }),
+      ])
       desktop = {
         enabled: true,
         ok: probe.ok,
@@ -143,7 +157,8 @@ export default defineEventHandler(async () => {
   const desktopReady = desktop.enabled && desktop.ok
   const mobileReady = android.enabled && android.ok
   const ready = handsOnly
-    ? desktopReady
+    ? // Hands 侧车进程存活即可；Windows-MCP 首连可能很慢，放进真实桌面任务里暖机
+      isLobsterDesktopMcpEnabled()
     : executionMode === 'mcp'
       ? mcpReady
       : executionMode === 'stagehand'

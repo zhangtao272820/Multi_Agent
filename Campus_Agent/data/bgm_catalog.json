@@ -1,6 +1,6 @@
 {
-  "version": 1,
-  "notes": "Campus BGM（CC0 · OpenGameArt，自 Companion 子集）。缺文件静默跳过。",
+  "version": 2,
+  "notes": "Campus BGM（CC0 · OpenGameArt）。v2：补 festival/forest/store，拉长标题 playlist，分化地点 cue。缺文件静默跳过。",
   "formats": ["ogg", "mp3", "wav"],
   "crossfade_ms": 800,
   "tracks": [
@@ -16,6 +16,9 @@
     { "id": "loc_home", "label": "宿舍", "mood": "intimate", "loop": true, "volume": 0.86 },
     { "id": "loc_cafe", "label": "食堂", "mood": "cozy", "loop": true, "volume": 0.88 },
     { "id": "loc_park", "label": "操场/屋顶", "mood": "open", "loop": true, "volume": 0.86 },
+    { "id": "loc_store", "label": "小卖部", "mood": "neon", "loop": true, "volume": 0.84 },
+    { "id": "loc_festival", "label": "社团/活动", "mood": "festive", "loop": true, "volume": 0.9 },
+    { "id": "loc_forest", "label": "周末漫步", "mood": "oriental", "loop": true, "volume": 0.88 },
     { "id": "talk_soft", "label": "对话压低", "mood": "soft", "loop": true, "volume": 0.58 },
     { "id": "talk_warm", "label": "对话温暖", "mood": "warm", "loop": true, "volume": 0.62 },
     { "id": "talk_tense", "label": "对话紧绷", "mood": "tense", "loop": true, "volume": 0.6 },
@@ -28,25 +31,36 @@
     { "id": "ending_bad", "label": "坏结局", "mood": "hollow", "loop": true, "volume": 0.84 }
   ],
   "playlists": {
-    "title": ["title_theme", "opening_prologue", "hub_evening", "loc_campus"]
+    "title": [
+      "title_theme",
+      "opening_prologue",
+      "hub_evening",
+      "loc_campus",
+      "loc_forest",
+      "loc_festival",
+      "talk_warm",
+      "date_soft"
+    ]
   },
   "cues": {
     "title": "title_theme",
     "map": "loc_campus",
     "talk": "talk_soft",
     "date": "date_soft",
-    "ending": "ending_soft"
+    "ending": "ending_soft",
+    "sprites_gallery": "loc_campus",
+    "settings": "title_theme"
   },
   "location_cues": {
     "classroom": "loc_campus",
     "hallway": "loc_campus",
-    "club_room": "loc_campus",
+    "club_room": "loc_festival",
     "library": "loc_library",
     "cafeteria": "loc_cafe",
-    "shop": "loc_cafe",
+    "shop": "loc_store",
     "playground": "loc_park",
     "rooftop": "loc_park",
-    "dorm_gate": "loc_campus",
+    "dorm_gate": "loc_forest",
     "dorm_m1": "loc_home",
     "dorm_m2": "loc_home",
     "dorm_f1": "loc_home",
@@ -66,7 +80,7 @@
     "lights_out": "hub_night",
     "weekend_morning": "hub_morning",
     "weekend_lunch": "hub_day",
-    "weekend_afternoon": "hub_day",
+    "weekend_afternoon": "loc_forest",
     "weekend_dinner": "hub_evening",
     "weekend_evening": "hub_evening"
   },

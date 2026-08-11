@@ -35,6 +35,10 @@ export type ManagerWorkbenchSidebarContext = {
   connected: Ref<boolean>
   clearingExperience: Ref<boolean>
   onClearExperience: () => void | Promise<void>
+  clearingMemory: Ref<boolean>
+  onClearMemory: () => void | Promise<void>
+  clearingEvolution: Ref<boolean>
+  onClearEvolution: () => void | Promise<void>
   evolutionLoading: Ref<boolean>
   loadEvolutionDashboard: () => void | Promise<void>
   evolutionSummary: Ref<Record<string, string | undefined> | null>

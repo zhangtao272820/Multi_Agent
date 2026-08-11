@@ -13,58 +13,119 @@ trigger:
   - deliberate_display
   flags_present:
   - bond_ally_done
-prompt_snippet: |
-  【专属故事 · 顶班的死党 · 第3幕 · 顶班间隙】
+prompt_snippet: '【专属故事 · 顶班的死党 · 第3幕 · 顶班间隙】
+
+  '
 advance: on_player_turn
 beats:
 - id: b1
-  summary: "打烊后她解围裙故意很慢，领口松一截：「晚雨的班我顶了——你的视线，也别只留给她。」笑里带刺也带羞。等你回应。"
+  summary: 打烊后她解围裙故意很慢，领口松一截：「晚雨的班我顶了——你的视线，也别只留给她。」笑里带刺也带羞。等你回应。
   sprite_hint:
   - cafe_bestie
+  - school_memory
   - work
+  - casual
+  - season_winter
+  - home_eating
   soft_options:
   - 帮她系回去
   - 承认看见了
   - 打趣岔开
-  narration: "打烊后她解围裙故意很慢，领口松一截：「晚雨的班我顶了——你的视线，也别只留给她。」笑里带刺也带羞。"
-  pc_thought: 死党位很硬。我护晚雨，还是把自己也交出去？——想起围裙。
-  brief: "打烊后她解围裙故意很慢，领口松一截：「晚雨的班我顶了——你的视线，也别只留给她。」笑里带刺也带羞。等你回应。"
+  narration: 打烊后她解围裙故意很慢，领口松一截：「晚雨的班我顶了——你的视线，也别只留给她。」笑里带刺也带羞。围裙带松松挂着。她没再多说，只是看着你。
+  pc_thought: 死党位很硬。我护晚雨，还是把自己也交出去？——想起围裙
+  brief: 打烊后她解围裙故意很慢，领口松一截：「晚雨的班我顶了——你的视线，也别只留给她。」笑里带刺也带羞。等你回应。
+  pages:
+  - text: 打烊后她解围裙故意很慢，领口松一截：「晚雨的班我顶了——你的视线，也别只留给她。」笑里带刺也带羞。围裙带松松挂着。她没再多说，只是看着你。
+    voice: narration
+    sprite:
+      outfit: cafe_bestie
+      emotion: neutral
+  - text: 死党位很硬。我护晚雨，还是把自己也交出去？——想起围裙
+    voice: pc
+    sprite:
+      outfit: cafe_bestie
+      emotion: shy
 - id: b2
   summary: 她说死党要护晚雨，但自己也心动——不能恋爱抢线，只能故意展示，把情愫藏在排班备注里。等你回应。
   sprite_hint:
-  - school_memory
   - cafe_bestie
+  - school_memory
+  - work
+  - casual
+  - season_winter
+  - home_eating
   soft_options:
   - 约定不点破
   - 说会护两边
   - 问她要不要退出
-  narration: 围裙布料与蒸汽里，她说死党要护晚雨，但自己也心动——不能恋爱抢线，只能故意展示，把情愫藏在排班备注里。
-  pc_thought: 顶班信任不是恋爱通行证——我别搞混。
+  narration: 围裙布料与蒸汽里，她说死党要护晚雨，但自己也心动——不能恋爱抢线，只能故意展示，把情愫藏在排班备注里。围裙带松松挂着。她没再多说，只是看着你。
+  pc_thought: 顶班信任不是恋爱通行证——我别搞混。我想靠近，又怕说错一句。
   brief: 她说死党要护晚雨，但自己也心动——不能恋爱抢线，只能故意展示，把情愫藏在排班备注里。等你回应。
+  pages:
+  - text: 围裙布料与蒸汽里，她说死党要护晚雨，但自己也心动——不能恋爱抢线，只能故意展示，把情愫藏在排班备注里。围裙带松松挂着。她没再多说，只是看着你。
+    voice: narration
+    sprite:
+      outfit: cafe_bestie
+      emotion: neutral
+  - text: 顶班信任不是恋爱通行证——我别搞混。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: cafe_bestie
+      emotion: shy
 - id: b3
-  summary: "她把「影子席」写进备注：花园若开，她可以和晚雨并排——拆你台或帮腔，取决于你有没有真心。等你回应。"
+  summary: 她把「影子席」写进备注：花园若开，她可以和晚雨并排——拆你台或帮腔，取决于你有没有真心。等你回应。
   sprite_hint:
   - cafe_bestie
+  - school_memory
+  - work
   - casual
+  - season_winter
+  - home_eating
   soft_options:
   - 接受影子席
   - 先做死党
   - 承诺不伤晚雨
-  narration: "围裙布料与蒸汽里，她把「影子席」写进备注：花园若开，她可以和晚雨并排——拆你台或帮腔，取决于你有没有真心。"
-  pc_thought: 展示真心时围裙还挂着。蒸汽里看不清界限——想起花。
-  brief: "她把「影子席」写进备注：花园若开，她可以和晚雨并排——拆你台或帮腔，取决于你有没有真心。等你回应。"
+  narration: 围裙布料与蒸汽里，她把「影子席」写进备注：花园若开，她可以和晚雨并排——拆你台或帮腔，取决于你有没有真心。围裙带松松挂着。
+  pc_thought: 展示真心时围裙还挂着。蒸汽里看不清界限——想起花
+  brief: 她把「影子席」写进备注：花园若开，她可以和晚雨并排——拆你台或帮腔，取决于你有没有真心。等你回应。
+  pages:
+  - text: 围裙布料与蒸汽里，她把「影子席」写进备注：花园若开，她可以和晚雨并排——拆你台或帮腔，取决于你有没有真心。围裙带松松挂着。
+    voice: narration
+    sprite:
+      outfit: cafe_bestie
+      emotion: neutral
+  - text: 展示真心时围裙还挂着。蒸汽里看不清界限——想起花
+    voice: pc
+    sprite:
+      outfit: cafe_bestie
+      emotion: shy
 - id: b4
-  summary: "锁门时她甩钥匙：「下次顶班，记得看我一眼。就一眼。」。等你回应。"
+  summary: 锁门时她甩钥匙：「下次顶班，记得看我一眼。就一眼。」。等你回应。
   sprite_hint:
-  - casual
+  - cafe_bestie
+  - school_memory
   - work
+  - casual
+  - season_winter
+  - home_eating
   soft_options:
   - 答应
   - 送她回家
   - 说「谢了，死党」
-  narration: "围裙布料与蒸汽里，锁门时她甩钥匙：「下次顶班，记得看我一眼。就一眼。」。"
-  pc_thought: "开放门：并肩站柜台，还是退回死党席？——想起钥匙。"
-  brief: "锁门时她甩钥匙：「下次顶班，记得看我一眼。就一眼。」。等你回应。"
+  narration: 围裙布料与蒸汽里，锁门时她甩钥匙：「下次顶班，记得看我一眼。就一眼。」。围裙带松松挂着。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 开放门：并肩站柜台，还是退回死党席？——想起钥匙
+  brief: 锁门时她甩钥匙：「下次顶班，记得看我一眼。就一眼。」。等你回应。
+  pages:
+  - text: 围裙布料与蒸汽里，锁门时她甩钥匙：「下次顶班，记得看我一眼。就一眼。」。围裙带松松挂着。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: cafe_bestie
+      emotion: neutral
+  - text: 开放门：并肩站柜台，还是退回死党席？——想起钥匙
+    voice: pc
+    sprite:
+      outfit: cafe_bestie
+      emotion: shy
 rewards:
   flags_set:
   - deliberate_display

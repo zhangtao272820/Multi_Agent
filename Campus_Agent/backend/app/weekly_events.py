@@ -108,4 +108,11 @@ def pick_weekly_event(save: CampusSave, rng: random.Random | None = None) -> dic
         "source": "weekly",
         "week_index": wi,
     }
+    hint = cand.get("sprite_hint")
+    if isinstance(hint, dict) and hint.get("action"):
+        out["sprite_hint"] = {
+            "outfit": str(hint.get("outfit") or "summer"),
+            "action": str(hint["action"]),
+            "emotion": str(hint.get("emotion") or "neutral"),
+        }
     return out

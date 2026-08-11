@@ -40,9 +40,12 @@ def main() -> int:
         hub = call(
             "POST",
             "/api/campus/new",
-            {"name": "测试生", "grade_tier": "mid", "mbti": "INFP"},
+            {"name": "测试生", "grade_tier": "mid", "stats": {"study": 3, "social": 3, "stamina": 3, "luck": 3}},
         )
         assert hub["student_count"] == 35, hub["student_count"]
+        pc = next(p for p in hub["present"] if p.get("is_pc"))
+        assert "mbti" not in pc or not pc.get("mbti")
+        assert hub["protagonist"].get("stats")
         assert hub["calendar"]["period_id"] == "morning_study"
         classroom = call("POST", "/api/campus/travel", {"location_id": "classroom"})
         morning_names = {p["name"] for p in classroom["present"]}
@@ -73,7 +76,7 @@ def main() -> int:
 
     from app import campus_engine  # type: ignore
 
-    hub = campus_engine.create_new(name="测试生", grade_tier="mid", mbti="INFP")
+    hub = campus_engine.create_new(name="测试生", grade_tier="mid", stats={"study": 3, "social": 3, "stamina": 3, "luck": 3})
     assert hub["student_count"] == 35
     classroom = campus_engine.travel("classroom")
     morning = {p["name"] for p in classroom["present"]}

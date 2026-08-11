@@ -706,6 +706,8 @@ export function useManagerChatPage() {
   const editDraft = ref('')
   let copyAckTimer: ReturnType<typeof setTimeout> | null = null
   const clearingExperience = ref(false)
+  const clearingMemory = ref(false)
+  const clearingEvolution = ref(false)
   const evolutionLoading = ref(false)
   const evolutionRaw = ref<Record<string, unknown> | null>(null)
   const worldModelSnapshot = ref<Record<string, unknown> | null>(null)
@@ -5461,6 +5463,45 @@ export function useManagerChatPage() {
       }
     })()
   }
+
+  async function postManagerMemoryClear(scope: 'summaries' | 'evolution' | 'all', title: string, message: string) {
+    const ok = await showConfirm(message, title)
+    if (!ok) return
+    const busy = scope === 'evolution' ? clearingEvolution : clearingMemory
+    busy.value = true
+    try {
+      await $fetch('/api/manager/memory-clear', {
+        method: 'POST',
+        body: {
+          scope,
+          sessionId: sessionId.value || undefined,
+          userId: userId.value || undefined,
+          includeSubAgents: false
+        }
+      })
+      await showAlert(`${title}完成（仅 Manager 本平面，未清专家）`, '已清除')
+    } catch (e: any) {
+      await showAlert(String(e?.data?.statusMessage || e?.message || e || '清除失败'), '失败')
+    } finally {
+      busy.value = false
+    }
+  }
+
+  function onClearMemory() {
+    void postManagerMemoryClear(
+      'summaries',
+      '清除会话摘要',
+      '将清除本租户 Manager 会话摘要记忆。不影响 DB/RAG/Admin 独立记忆。继续？'
+    )
+  }
+
+  function onClearEvolution() {
+    void postManagerMemoryClear(
+      'evolution',
+      '重置自我进化',
+      '将清除 Manager Prompt shadow/active、planner rules 等进化产物。不影响专家本地进化。继续？'
+    )
+  }
   
   
   async function waitForManagerReady(maxMs = 45000): Promise<boolean> {
@@ -5607,6 +5648,10 @@ export function useManagerChatPage() {
     connected,
     clearingExperience,
     onClearExperience,
+    clearingMemory,
+    onClearMemory,
+    clearingEvolution,
+    onClearEvolution,
     evolutionLoading,
     loadEvolutionDashboard,
     evolutionSummary,

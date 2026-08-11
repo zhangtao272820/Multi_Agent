@@ -34,6 +34,13 @@ import { shouldApplyFrozenPuCap } from '../core/routing/proRoutePolicy'
 import { isLlmFirstRouteEnabled } from './unifiedRouting'
 import { rematerializeWeatherCrawlerMisbind } from './weatherAdminBoundary'
 import { rematerializeMapCrawlerMisbind } from './mapAdminBoundary'
+import { stripUnboundCrawlerArtifacts } from './stripUnboundCrawler'
+import {
+  ensureCommittedPlanesInAllowed,
+  shouldClarifyForAmbiguousCommitment,
+  shouldSkipAdminApiCrawlerRematerialize,
+  sourceCommitmentFromRaw
+} from './sourceCommitment'
 import { inferPipelineHintsStructural } from '../llm/pipelineHintsLlm'
 import {
   adminExplicitlyRequested,
@@ -52,8 +59,72 @@ import {
 } from '../core/probe/probeRoutingAnchor'
 import type { ProbeDbSlice } from '../core/probe/probeInterpretation'
 import { collapseSingleSourceSameAgentOrchestrator } from '../llm/taskOrchestrator/parseCore'
+import {
+  coerceFollowupTextToAnchor,
+  shouldGroundFollowupQuery
+} from '#agent-shared/followupQueryGrounding'
+import { sessionIntentAnchorFromMeta } from '../core/memory/multiTurnIntent'
 
 const WEB_CAP_AGENTS = new Set(['crawler', 'music', 'video'])
+
+/** output_followup / 短 continuation：强制 coalescedTask、clauses、queryFocus 锚定上轮任务 */
+export function groundOrchestratorFollowupBundle(
+  bundle: TaskOrchestratorBundle,
+  turnScope: TurnRoutingScope,
+  stateMeta?: unknown
+): TaskOrchestratorBundle {
+  const anchor = sessionIntentAnchorFromMeta(stateMeta)?.coalescedTask || ''
+  if (
+    !shouldGroundFollowupQuery({
+      turnKind: turnScope.turnKind,
+      lastUser: turnScope.lastOnly,
+      anchorTask: anchor
+    })
+  ) {
+    return bundle
+  }
+  const groundedTask = coerceFollowupTextToAnchor({
+    text: String(bundle.coalescedTask || bundle.routedQuery || turnScope.lastOnly || ''),
+    anchorTask: anchor,
+    turnKind: turnScope.turnKind,
+    lastUser: turnScope.lastOnly
+  })
+  const clauses = (bundle.clauses || []).map((c) => ({
+    ...c,
+    text: coerceFollowupTextToAnchor({
+      text: String(c.text || ''),
+      anchorTask: anchor,
+      turnKind: turnScope.turnKind,
+      lastUser: turnScope.lastOnly
+    })
+  }))
+  const planBlueprint = bundle.planBlueprint
+    ? {
+        ...bundle.planBlueprint,
+        steps: (bundle.planBlueprint.steps || []).map((s) => ({
+          ...s,
+          queryFocus: coerceFollowupTextToAnchor({
+            text: String(s.queryFocus || ''),
+            anchorTask: anchor,
+            turnKind: turnScope.turnKind,
+            lastUser: turnScope.lastOnly
+          })
+        }))
+      }
+    : bundle.planBlueprint
+  return {
+    ...bundle,
+    coalescedTask: groundedTask,
+    routedQuery: groundedTask,
+    clauses,
+    planBlueprint: planBlueprint ?? null,
+    raw: {
+      ...bundle.raw,
+      coalescedTask: groundedTask,
+      routedQuery: groundedTask
+    }
+  }
+}
 
 /** 单源同 agent 过度拆分：在 invariants 入口再折叠一次（覆盖 PU seed / 未走 normalize 的路径） */
 function collapseBundleSingleSource(bundle: TaskOrchestratorBundle, lastUser: string): TaskOrchestratorBundle {
@@ -157,24 +228,139 @@ function resolveNeedsWebSearchFlag(input: {
   return input.bundleNeedsWeb === true || capHasWeb
 }
 
-/** 复合任务：cap 含 crawler 但无 crawler 子句/draft 时剔除（禁止知识库/天气误扩公网） */
-function stripUnboundCrawlerFromCap(
-  allowed: ExecutableAgent[],
-  clauses: TaskClause[],
-  draft?: Array<{ agent?: string }> | null
-): ExecutableAgent[] {
-  if (clauses.length < 2 && !(draft && draft.length >= 2)) return allowed
-  const bound =
-    clauses.some((c) => (c.agents ?? []).includes('crawler' as TaskClause['agents'][number])) ||
-    (draft ?? []).some((d) => String(d.agent || '') === 'crawler')
-  if (bound) return allowed
-  return allowed.filter((a) => String(a) !== 'crawler') as ExecutableAgent[]
-}
-
 export type OrchestratorDecision = TaskOrchestratorBundle & {
   intent: string
   allowedAgents: ExecutableAgent[]
   metaPatch: Record<string, unknown>
+}
+
+const DATA_PLANE_AGENTS = new Set(['db', 'rag', 'crawler'])
+
+/**
+ * 单源文档面：禁止编排前因「缺月份/来源」误澄清；先检索，无命中 graceful miss。
+ * 结构信号（planShortcut / taskIntent / sole rag），不读用户原话。
+ */
+export function shouldClearClarifyForSingleSourceRag(input: {
+  planShortcut?: string | null
+  taskIntent?: string | null
+  intent?: string | null
+  allowedAgents?: string[] | null
+}): boolean {
+  if (String(input.planShortcut || '').trim() === 'rag_only') return true
+  if (String(input.taskIntent || '').trim() === 'document_retrieval') return true
+  if (String(input.intent || '').trim() === 'rag') return true
+  const planes = (input.allowedAgents ?? [])
+    .map((a) => String(a || '').trim())
+    .filter((a) => DATA_PLANE_AGENTS.has(a))
+  return planes.length === 1 && planes[0] === 'rag'
+}
+
+function applySingleSourceRagClarifyInvariant(
+  decision: OrchestratorDecision,
+  bundle: TaskOrchestratorBundle
+): OrchestratorDecision {
+  const slice = sourceCommitmentFromRaw(bundle.raw as Record<string, unknown>)
+  // 模糊 / plane 澄清（含缺源）不得被单源 rag 抑制清掉
+  if (
+    shouldClarifyForAmbiguousCommitment(slice) ||
+    decision.clarifyKind === 'plane' ||
+    decision.metaPatch?.clarifyForNoCoverage === true ||
+    decision.metaPatch?.clarifyForAmbiguousCommitment === true
+  ) {
+    return decision
+  }
+  const taskIntent = String((bundle.raw as { taskIntent?: string } | undefined)?.taskIntent || '').trim()
+  if (
+    !shouldClearClarifyForSingleSourceRag({
+      planShortcut: decision.intentClassify?.planShortcut,
+      taskIntent,
+      intent: decision.intent,
+      allowedAgents: decision.allowedAgents?.map(String)
+    })
+  ) {
+    return decision
+  }
+  return {
+    ...decision,
+    needsClarify: false,
+    clarifyQuestions: [],
+    clarifyKind: 'none',
+    raw: {
+      ...decision.raw,
+      needsClarify: false,
+      clarifyKind: 'none',
+      clarifyQuestions: []
+    },
+    metaPatch: {
+      ...decision.metaPatch,
+      needsClarify: false,
+      clarifyQuestions: [],
+      clarifyKind: 'none',
+      clarifySuppressedBySingleSourceRag: true
+    }
+  }
+}
+
+/** 意图清晰度：ambiguous→clarify；clear→锁 committedPlanes；公网 skip 标记写入 meta */
+function applySourceCommitmentInvariant(
+  decision: OrchestratorDecision,
+  bundle: TaskOrchestratorBundle
+): OrchestratorDecision {
+  const slice = sourceCommitmentFromRaw(bundle.raw as Record<string, unknown>)
+  let next = decision
+  let allowed = ensureCommittedPlanesInAllowed(
+    decision.allowedAgents.map(String),
+    slice
+  ) as ExecutableAgent[]
+  if (allowed.join('|') !== decision.allowedAgents.map(String).join('|')) {
+    allowed = sortAgentsByPipelineOrder(allowed) as ExecutableAgent[]
+    next = { ...next, allowedAgents: allowed }
+  }
+
+  const metaExtra: Record<string, unknown> = {
+    sourceCommitment: slice.sourceCommitment,
+    committedPlanes: slice.committedPlanes,
+    webFetchKind: slice.webFetchKind,
+    adminCapabilityHints: slice.adminCapabilityHints,
+    skipWeatherMapRematerialize: shouldSkipAdminApiCrawlerRematerialize(slice)
+  }
+
+  if (shouldClarifyForAmbiguousCommitment(slice)) {
+    const qs =
+      next.clarifyQuestions?.length > 0
+        ? next.clarifyQuestions
+        : ['请问您要查业务库记录、内部文档，还是联网公开网页？']
+    next = {
+      ...next,
+      needsClarify: true,
+      clarifyKind: 'plane',
+      clarifyQuestions: qs,
+      raw: {
+        ...next.raw,
+        needsClarify: true,
+        clarifyKind: 'plane',
+        clarifyQuestions: qs,
+        sourceCommitment: 'ambiguous'
+      },
+      metaPatch: {
+        ...next.metaPatch,
+        ...metaExtra,
+        needsClarify: true,
+        clarifyKind: 'plane',
+        clarifyQuestions: qs,
+        clarifyForAmbiguousCommitment: true
+      }
+    }
+    return next
+  }
+
+  return {
+    ...next,
+    metaPatch: {
+      ...next.metaPatch,
+      ...metaExtra
+    }
+  }
 }
 
 function filterBlueprintToCap(blueprint: PlanBlueprint | null, cap: Set<string>): PlanBlueprint | null {
@@ -223,13 +409,15 @@ function applyFrozenPuOrchestratorDecision(input: {
   classify = syncDbAnchorFromOrchestratorEvidence(classify, clauses, allowed)
 
   // 冻结 PU 路径也须天气/地图契约（否则 bypass LLM 编排时 crawler 误绑无法纠正）
+  const commitmentRawPu = input.bundle.raw as unknown as Record<string, unknown>
   const weatherFixPu = rematerializeWeatherCrawlerMisbind({
     allowedAgents: allowed,
     clauses,
     classify,
     planBlueprint: input.bundle.planBlueprint ?? null,
     stepDispatchDraft: draft,
-    needsWebSearch: input.bundle.needsWebSearch === true
+    needsWebSearch: input.bundle.needsWebSearch === true,
+    sourceCommitmentRaw: commitmentRawPu
   })
   const mapFixPu = rematerializeMapCrawlerMisbind({
     allowedAgents: weatherFixPu.allowedAgents,
@@ -239,7 +427,8 @@ function applyFrozenPuOrchestratorDecision(input: {
     stepDispatchDraft: weatherFixPu.stepDispatchDraft?.length
       ? weatherFixPu.stepDispatchDraft
       : draft,
-    needsWebSearch: weatherFixPu.needsWebSearch === true
+    needsWebSearch: weatherFixPu.needsWebSearch === true,
+    sourceCommitmentRaw: commitmentRawPu
   })
   allowed = mapFixPu.allowedAgents
   clauses = mapFixPu.clauses
@@ -389,13 +578,15 @@ function applyLlmFirstOrchestratorDecision(input: {
     : stepDispatchDraftFromMeta(routingMeta)
 
   // 天气/地图能力契约：crawler 误绑 → admin（须在 stripUnboundCrawler 之前）
+  const commitmentRaw = collapsed.raw as unknown as Record<string, unknown>
   const weatherFix = rematerializeWeatherCrawlerMisbind({
     allowedAgents: allowed,
     clauses,
     classify,
     planBlueprint,
     stepDispatchDraft: alignedDraft,
-    needsWebSearch: input.bundle.needsWebSearch === true
+    needsWebSearch: input.bundle.needsWebSearch === true,
+    sourceCommitmentRaw: commitmentRaw
   })
   const mapFix = rematerializeMapCrawlerMisbind({
     allowedAgents: weatherFix.allowedAgents,
@@ -403,7 +594,8 @@ function applyLlmFirstOrchestratorDecision(input: {
     classify: weatherFix.classify,
     planBlueprint: weatherFix.planBlueprint,
     stepDispatchDraft: weatherFix.stepDispatchDraft,
-    needsWebSearch: weatherFix.needsWebSearch === true
+    needsWebSearch: weatherFix.needsWebSearch === true,
+    sourceCommitmentRaw: commitmentRaw
   })
   allowed = mapFix.allowedAgents
   clauses = mapFix.clauses
@@ -411,14 +603,24 @@ function applyLlmFirstOrchestratorDecision(input: {
   planBlueprint = mapFix.planBlueprint
   if (mapFix.stepDispatchDraft) alignedDraft = mapFix.stepDispatchDraft
 
-  allowed = stripUnboundCrawlerFromCap(allowed, clauses, alignedDraft)
-  classify = {
-    ...classify,
-    dataSources: (classify.dataSources ?? []).filter(
-      (d) => d !== 'crawler' || allowed.map(String).includes('crawler')
-    ) as typeof classify.dataSources,
-    needsWeb: allowed.map(String).includes('crawler') ? classify.needsWeb : false,
-    needsAdmin: allowed.map(String).includes('admin') ? true : classify.needsAdmin
+  {
+    const stripped = stripUnboundCrawlerArtifacts({
+      allowedAgents: allowed,
+      clauses,
+      classify,
+      planBlueprint,
+      stepDispatchDraft: alignedDraft,
+      needsWebSearch: mapFix.needsWebSearch === true,
+      sourceCommitmentRaw: commitmentRaw
+    })
+    allowed = stripped.allowedAgents
+    classify = stripped.classify
+    planBlueprint = stripped.planBlueprint
+    if (stripped.stepDispatchDraft) alignedDraft = [...stripped.stepDispatchDraft]
+    classify = {
+      ...classify,
+      needsAdmin: allowed.map(String).includes('admin') ? true : classify.needsAdmin
+    }
   }
   const userTask = String(
     collapsed.coalescedTask || input.turnScope.lastOnly || collapsed.routedQuery || ''
@@ -497,60 +699,78 @@ export function applyOrchestratorInvariants(input: {
   routerCapBaseline?: ExecutableAgent[]
   capPolicy?: OrchestratorCapPolicy
 }): OrchestratorDecision {
+  const groundedBundle = groundOrchestratorFollowupBundle(
+    collapseBundleSingleSource(input.bundle, input.turnScope.lastOnly),
+    input.turnScope,
+    input.state?.meta
+  )
   const collapsedInput = {
     ...input,
-    bundle: collapseBundleSingleSource(input.bundle, input.turnScope.lastOnly)
+    bundle: groundedBundle
   }
   const routingMeta = collapsedInput.state?.meta
+  let decision: OrchestratorDecision
   if (isLlmFirstRouteEnabled()) {
-    return applyLlmFirstOrchestratorDecision(collapsedInput)
+    decision = applyLlmFirstOrchestratorDecision(collapsedInput)
+  } else if (shouldApplyFrozenPuCap(routingMeta, collapsedInput.capPolicy)) {
+    decision = applyFrozenPuOrchestratorDecision(collapsedInput)
+  } else {
+    decision = applyClassicOrchestratorDecision(collapsedInput)
   }
-  if (shouldApplyFrozenPuCap(routingMeta, collapsedInput.capPolicy)) {
-    return applyFrozenPuOrchestratorDecision(collapsedInput)
-  }
-  let clauses = collapsedInput.bundle.clauses
-  let classify = mergeDataSourcesWithClauses(collapsedInput.bundle.intentClassify, clauses)
+  decision = applySourceCommitmentInvariant(decision, collapsedInput.bundle)
+  return applySingleSourceRagClarifyInvariant(decision, collapsedInput.bundle)
+}
+
+function applyClassicOrchestratorDecision(input: {
+  bundle: TaskOrchestratorBundle
+  turnScope: TurnRoutingScope
+  state?: { meta?: unknown; probe?: { db?: ProbeDbSlice; rag?: { hits?: number } } }
+  routerCapBaseline?: ExecutableAgent[]
+  capPolicy?: OrchestratorCapPolicy
+}): OrchestratorDecision {
+  let clauses = input.bundle.clauses
+  let classify = mergeDataSourcesWithClauses(input.bundle.intentClassify, clauses)
   classify = inferDbAnchorFromProbe({
     classify,
-    probe: collapsedInput.state?.probe ?? null,
+    probe: input.state?.probe ?? null,
     clauses
   })
   const repairedDs = (classify.dataSources ?? []) as Array<'rag' | 'db' | 'crawler'>
   if (repairedDs.length >= 2) {
-    clauses = repairOrchestratorClauses(clauses, repairedDs, collapsedInput.turnScope.lastOnly)
+    clauses = repairOrchestratorClauses(clauses, repairedDs, input.turnScope.lastOnly)
     classify = mergeDataSourcesWithClauses(classify, clauses)
   }
   classify = reconcileIntentClassifyDataPlane(classify, clauses)
-  const constraints = collapsedInput.bundle.constraints
+  const constraints = input.bundle.constraints
   const explicitAgents = collectExplicitOrchestratorAgents({
     classify,
     clauses,
-    suggestedAgents: collapsedInput.bundle.raw.suggestedAgents
+    suggestedAgents: input.bundle.raw.suggestedAgents
   })
   classify = reconcileClassifyAgainstExplicitAgents(classify, explicitAgents)
   if (
     !adminExplicitlyRequested({
       classify,
       clauses,
-      suggestedAgents: collapsedInput.bundle.raw.suggestedAgents
+      suggestedAgents: input.bundle.raw.suggestedAgents
     })
   ) {
     classify = { ...classify, needsAdmin: false, suggestedAgents: classify.suggestedAgents.filter((a) => a !== 'admin') }
   }
-  const baseline = collapsedInput.routerCapBaseline ?? collapsedInput.bundle.allowedAgents
+  const baseline = input.routerCapBaseline ?? input.bundle.allowedAgents
 
   let allowed = alignAllowedAgentsWithUnderstanding({
     routerAllowed: [...baseline],
     intentClassify: classify,
     clauses,
     constraints,
-    userText: collapsedInput.turnScope.lastOnly
+    userText: input.turnScope.lastOnly
   })
 
   allowed = alignAllowedAgentsWithDataPlane(allowed, classify, baseline)
 
   allowed = finalizeLlmAllowedAgents(
-    finalizeLlmRouteIntent(collapsedInput.bundle.intent, allowed, null),
+    finalizeLlmRouteIntent(input.bundle.intent, allowed, null),
     allowed,
     null
   )
@@ -560,24 +780,26 @@ export function applyOrchestratorInvariants(input: {
     allowed,
     classify,
     clauses,
-    suggestedAgents: collapsedInput.bundle.raw.suggestedAgents
+    suggestedAgents: input.bundle.raw.suggestedAgents
   })
   allowed = aligned.allowed
   classify = aligned.classify
-  allowed = filterAgentsRespectingWriteGate(allowed, collapsedInput.state ?? {}) as ExecutableAgent[]
+  allowed = filterAgentsRespectingWriteGate(allowed, input.state ?? {}) as ExecutableAgent[]
   allowed = sortAgentsByPipelineOrder(allowed) as ExecutableAgent[]
   let classicDraft =
-    collapsedInput.bundle.stepDispatchDraft?.length
-      ? collapsedInput.bundle.stepDispatchDraft
-      : stepDispatchDraftFromMeta(collapsedInput.state?.meta)
+    input.bundle.stepDispatchDraft?.length
+      ? input.bundle.stepDispatchDraft
+      : stepDispatchDraftFromMeta(input.state?.meta)
 
+  const commitmentRawClassic = input.bundle.raw as unknown as Record<string, unknown>
   const weatherFixClassic = rematerializeWeatherCrawlerMisbind({
     allowedAgents: allowed,
     clauses,
     classify,
-    planBlueprint: collapsedInput.bundle.planBlueprint ?? null,
+    planBlueprint: input.bundle.planBlueprint ?? null,
     stepDispatchDraft: classicDraft,
-    needsWebSearch: collapsedInput.bundle.needsWebSearch === true
+    needsWebSearch: input.bundle.needsWebSearch === true,
+    sourceCommitmentRaw: commitmentRawClassic
   })
   const mapFixClassic = rematerializeMapCrawlerMisbind({
     allowedAgents: weatherFixClassic.allowedAgents,
@@ -585,21 +807,33 @@ export function applyOrchestratorInvariants(input: {
     classify: weatherFixClassic.classify,
     planBlueprint: weatherFixClassic.planBlueprint,
     stepDispatchDraft: weatherFixClassic.stepDispatchDraft,
-    needsWebSearch: weatherFixClassic.needsWebSearch === true
+    needsWebSearch: weatherFixClassic.needsWebSearch === true,
+    sourceCommitmentRaw: commitmentRawClassic
   })
   allowed = mapFixClassic.allowedAgents
   clauses = mapFixClassic.clauses
   classify = mapFixClassic.classify
   if (mapFixClassic.stepDispatchDraft) classicDraft = mapFixClassic.stepDispatchDraft
 
-  allowed = stripUnboundCrawlerFromCap(allowed, clauses, classicDraft)
-  classify = {
-    ...classify,
-    dataSources: (classify.dataSources ?? []).filter(
-      (d) => d !== 'crawler' || allowed.map(String).includes('crawler')
-    ) as typeof classify.dataSources,
-    needsWeb: allowed.map(String).includes('crawler') ? classify.needsWeb : false,
-    needsAdmin: allowed.map(String).includes('admin') ? true : classify.needsAdmin
+  let classicBlueprint = mapFixClassic.planBlueprint ?? input.bundle.planBlueprint ?? null
+  {
+    const stripped = stripUnboundCrawlerArtifacts({
+      allowedAgents: allowed,
+      clauses,
+      classify,
+      planBlueprint: classicBlueprint,
+      stepDispatchDraft: classicDraft,
+      needsWebSearch: mapFixClassic.needsWebSearch === true,
+      sourceCommitmentRaw: commitmentRawClassic
+    })
+    allowed = stripped.allowedAgents
+    classify = stripped.classify
+    classicBlueprint = stripped.planBlueprint
+    if (stripped.stepDispatchDraft) classicDraft = [...stripped.stepDispatchDraft]
+    classify = {
+      ...classify,
+      needsAdmin: allowed.map(String).includes('admin') ? true : classify.needsAdmin
+    }
   }
 
   const pipelineRequired = requiresAgentPipelineExecution(classify, allowed)
@@ -608,10 +842,7 @@ export function applyOrchestratorInvariants(input: {
   allowed = sortAgentsByPipelineOrder(finalizeLlmAllowedAgents(intent, allowed, null)) as ExecutableAgent[]
 
   const capSet = new Set(allowed.map(String))
-  let planBlueprint = filterBlueprintToCap(
-    mapFixClassic.planBlueprint ?? input.bundle.planBlueprint,
-    capSet
-  )
+  let planBlueprint = filterBlueprintToCap(classicBlueprint, capSet)
   const mustCover = allowed.filter((a) =>
     ['rag', 'db', 'crawler', 'clean', 'code', 'visualize', 'report', 'admin'].includes(String(a))
   )

@@ -35,6 +35,18 @@
 
 许可：CC0 1.0。可选署名见各作者页。
 
+## 本地覆盖（不可再发行）
+
+以下槽位已用本机试听曲覆盖；**不可随公开发布包再发行**。发行前请从 `_backup_cc0/` 还原 CC0，或换成已授权曲目。
+
+| 游戏槽位 | 本地源文件 | 用途 |
+|----------|------------|------|
+| `title_theme` | `芒种.mp3` | 标题 / 画廊首印象 |
+| `date_soft` | `相许.mp3` | 日间约会（`sceneRun.mode=date` 且非夜） |
+| `date_night` | `stay with me.mp3` | 夜约会（`sceneRun.mode=date` 且 `period=night`） |
+
+CC0 原文件备份：`data/bgm/_backup_cc0/{title_theme,date_soft,date_night}.mp3`。
+
 ## 关于「中国 GAL 免费音乐」
 
 商用华语 / 日式 GAL 原声带几乎都不能免费打进游戏包。可用替代：
@@ -43,4 +55,4 @@
 2. **itch.io** 如 [Xiaoyi · Free Traditional Chinese Music Pack](https://xiaoyi3606.itch.io/free-traditional-chinese-music-pack-i)（可商用进游戏；禁止单独转售音频文件；建议署名「Music by 小逸Eiyue」）——需手动下载后放入 `data/bgm/`。
 3. **爱给网** 筛「CC0 / 可商用」国风曲（逐条核对许可证后再替换槽位）。
 
-勿使用网易云热榜 / 影视原声等未授权曲目。
+勿使用网易云热榜 / 影视原声等未授权曲目（上表「本地覆盖」仅限个人本机试听）。

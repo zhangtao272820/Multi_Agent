@@ -183,8 +183,28 @@ export type ScreenId =
   | "gallery"
   | "sprites"
   | "play"
+  | "date"
   | "roster"
   | "settings";
+
+/** Gal VN 翻页（故事拍前 / 约会 / 可复用结局） */
+export type VnPage = {
+  text: string;
+  voice?: "narration" | "pc" | "heroine" | string;
+  sprite?: { character_id?: string; outfit?: string; emotion?: string };
+  bg?: string;
+};
+
+export type DateScriptPublic = {
+  date_id: string;
+  label: string;
+  character_id: string;
+  character_name?: string;
+  pages: VnPage[];
+  choices?: { label: string; goto_page?: number | null; flags_set?: string[] }[];
+  location_id?: string;
+  scene_id?: string;
+};
 
 export type WorldLocation = {
   id: string;
@@ -646,6 +666,8 @@ export type StoryProgressPublic = {
   narration?: string;
   /** 男主思考（≤80；不进女主 prompt） */
   pc_thought?: string;
+  /** 拍前 VN 翻页（优先；无则前端可由 narration/pc_thought 合成） */
+  pages?: VnPage[];
   soft_options?: string[];
   act_summary?: string;
   completed?: boolean;
@@ -1042,6 +1064,21 @@ export type WsIncoming =
       };
     }
   | { type: "game_ending"; payload: EndingInfo }
+  | {
+      type: "date_script";
+      payload: {
+        save_id?: string;
+        world_save_id?: string;
+        character_id: string;
+        mode?: string;
+        date?: { id: string; label: string };
+        script: DateScriptPublic;
+        scene?: GalSceneInfo | null;
+        hub?: HubState;
+        world?: WorldPublic;
+        relationship_state?: RelationshipState;
+      };
+    }
   | { type: "reply_start"; payload: { session_id?: string } }
   | { type: "reply_delta"; payload: { delta: string; text: string } }
   | {

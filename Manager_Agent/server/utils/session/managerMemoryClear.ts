@@ -166,14 +166,16 @@ async function postAgentReset(baseUrl: string, scope: string, tenantId?: string)
   }
 }
 
-/** 编排模式下顺带清 DB/RAG 学习与进化（不影响 RAG 文档向量库） */
+/** 编排模式下顺带清 DB/RAG/Admin 学习与进化（不影响 RAG 文档向量库） */
 export async function clearSubAgentLearning(scope: 'learning' | 'all' = 'all', tenantId?: string) {
   const dbUrl = String(process.env.DB_AGENT_HTTP_URL || 'http://localhost:13101')
   const ragUrl = String(process.env.RAG_AGENT_HTTP_URL || 'http://localhost:13102')
+  const adminUrl = String(process.env.ADMIN_AGENT_HTTP_URL || process.env.AI_ADMIN_HTTP_URL || 'http://localhost:13105')
   const resetScope = scope === 'all' ? 'all' : 'learning'
-  const [db, rag] = await Promise.all([
+  const [db, rag, admin] = await Promise.all([
     postAgentReset(dbUrl, resetScope, tenantId),
-    postAgentReset(ragUrl, resetScope, tenantId)
+    postAgentReset(ragUrl, resetScope, tenantId),
+    postAgentReset(adminUrl, resetScope, tenantId)
   ])
-  return { db, rag }
+  return { db, rag, admin }
 }

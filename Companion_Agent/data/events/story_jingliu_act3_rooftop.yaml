@@ -22,7 +22,9 @@ beats:
   summary: 天台夜风掀起她的外套；城市灯火在脚下，她却说这里才像能喘气的办公室。等你回应。
   sprite_hint:
   - rooftop_night
-  - casual
+  - phone_brief
+  - moodboard_pin
+  - date
   - season_winter
   - home_eating
   - home_sleeping
@@ -30,14 +32,27 @@ beats:
   - 把外套给她
   - 并排不说话
   - 问今天哪里最累
-  narration: 天台夜风掀起她的外套；城市灯火在脚下，她却说这里才像能喘气的办公室。
-  pc_thought: 玻璃门里她是上司。门一关，我还站不站得住？——想起天台。
+  narration: 天台夜风掀起她的外套；城市灯火在脚下，她却说这里才像能喘气的办公室。工牌边缘硌了一下手指。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。空气有点静，连呼吸都听得见。
+  pc_thought: 玻璃门里她是上司。门一关，我还站不站得住？——想起天台。我想靠近，又怕说错一句。
   brief: 天台夜风掀起她的外套；城市灯火在脚下，她却说这里才像能喘气的办公室。等你回应。
+  pages:
+  - text: 天台夜风掀起她的外套；城市灯火在脚下，她却说这里才像能喘气的办公室。工牌边缘硌了一下手指。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。空气有点静，连呼吸都听得见。
+    voice: narration
+    sprite:
+      outfit: rooftop_night
+      emotion: neutral
+  - text: 玻璃门里她是上司。门一关，我还站不站得住？——想起天台。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: rooftop_night
+      emotion: shy
 - id: b2
   summary: 她递出一枚未公开的胸针样：不是品牌的，是她私人收藏——像把秘密钥匙给你。等你回应。
   sprite_hint:
   - rooftop_night
   - phone_brief
+  - moodboard_pin
+  - date
   - season_winter
   - home_eating
   - home_sleeping
@@ -45,12 +60,25 @@ beats:
   - 否认功利
   - 承认会怕但想试
   - 问她要什么证明
-  narration: 玻璃反光与夜风里，她递出一枚未公开的胸针样：不是品牌的，是她私人收藏——像把秘密钥匙给你。
-  pc_thought: 面具摘了半寸。我想看全，又怕被职场反噬——想起钥匙。
+  narration: 玻璃反光与夜风里，她递出一枚未公开的胸针样：不是品牌的，是她私人收藏——像把秘密钥匙给你。工牌边缘硌了一下手指。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 面具摘了半寸。我想看全，又怕被职场反噬——想起钥匙。我想靠近，又怕说错一句。
   brief: 她递出一枚未公开的胸针样：不是品牌的，是她私人收藏——像把秘密钥匙给你。等你回应。
+  pages:
+  - text: 玻璃反光与夜风里，她递出一枚未公开的胸针样：不是品牌的，是她私人收藏——像把秘密钥匙给你。工牌边缘硌了一下手指。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: rooftop_night
+      emotion: neutral
+  - text: 面具摘了半寸。我想看全，又怕被职场反噬——想起钥匙。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: rooftop_night
+      emotion: shy
 - id: b3
   summary: 谈到家庭与继承，她声音发紧：怕恋爱变成谈判桌上的筹码，更怕你被卷进流言。等你回应。
   sprite_hint:
+  - rooftop_night
+  - phone_brief
   - moodboard_pin
   - date
   - season_winter
@@ -60,13 +88,26 @@ beats:
   - 承诺认真专一
   - 坦诚若做不到就离开
   - 请求时间想清楚
-  narration: 玻璃反光与夜风里，谈到家庭与继承，她声音发紧：怕恋爱变成谈判桌上的筹码，更怕你被卷进流言。
-  pc_thought: 天台夜风冷。她递来的钥匙比合同烫。
+  narration: 玻璃反光与夜风里，谈到家庭与继承，她声音发紧：怕恋爱变成谈判桌上的筹码，更怕你被卷进流言。工牌边缘硌了一下手指。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 天台夜风冷。她递来的钥匙比合同烫。我想靠近，又怕说错一句。
   brief: 谈到家庭与继承，她声音发紧：怕恋爱变成谈判桌上的筹码，更怕你被卷进流言。等你回应。
+  pages:
+  - text: 玻璃反光与夜风里，谈到家庭与继承，她声音发紧：怕恋爱变成谈判桌上的筹码，更怕你被卷进流言。工牌边缘硌了一下手指。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: rooftop_night
+      emotion: neutral
+  - text: 天台夜风冷。她递来的钥匙比合同烫。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: rooftop_night
+      emotion: shy
 - id: b4
   summary: 她问你愿不愿意看见「沈静流」而非总监——堂妹静宁的观察日记，其实就夹在这句问题后面。等你回应。
   sprite_hint:
   - rooftop_night
+  - phone_brief
+  - moodboard_pin
   - date
   - season_winter
   - home_eating
@@ -75,9 +116,20 @@ beats:
   - 回握
   - 约下次还上天台
   - 说会守秘密
-  narration: 玻璃反光与夜风里，她问你愿不愿意看见「沈静流」而非总监——堂妹静宁的观察日记，其实就夹在这句问题后面。
-  pc_thought: 对等工位——专一承诺的影子已经来了。
+  narration: 玻璃反光与夜风里，她问你愿不愿意看见「沈静流」而非总监——堂妹静宁的观察日记，其实就夹在这句问题后面。工牌边缘硌了一下手指。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 对等工位——专一承诺的影子已经来了。我想靠近，又怕说错一句。
   brief: 她问你愿不愿意看见「沈静流」而非总监——堂妹静宁的观察日记，其实就夹在这句问题后面。等你回应。
+  pages:
+  - text: 玻璃反光与夜风里，她问你愿不愿意看见「沈静流」而非总监——堂妹静宁的观察日记，其实就夹在这句问题后面。工牌边缘硌了一下手指。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: rooftop_night
+      emotion: neutral
+  - text: 对等工位——专一承诺的影子已经来了。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: rooftop_night
+      emotion: shy
 rewards:
   flags_set:
   - jl_rooftop_talk

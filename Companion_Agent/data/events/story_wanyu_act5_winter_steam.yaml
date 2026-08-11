@@ -25,46 +25,85 @@ beats:
   sprite_hint:
   - season_winter
   - home
-  - home_eating
-  - home_sleeping
-  - intimate_lounge
-  soft_options:
-  - 帮她擦吧台
-  - 问要不要关店
-  - 递暖手
-  narration: 入冬后最后一个客人走了；她把热毛巾递到你手心，蒸汽模糊了玻璃上的菜单。
-  pc_thought: 熟客位很安全。再近一步，营业笑就撑不住——想起玻璃。
-  brief: 入冬后最后一个客人走了；她把热毛巾递到你手心，蒸汽模糊了玻璃上的菜单。等你回应。
-- id: b2
-  summary: 摊开疲惫；顺口提晚归被妹妹盯着的传闻。等你听完、不催关灯或约最后一杯。
-  sprite_hint:
-  - season_winter
   - casual
   - home_eating
   - home_sleeping
   - intimate_lounge
+  - bath_foam
+  soft_options:
+  - 帮她擦吧台
+  - 问要不要关店
+  - 递暖手
+  narration: 入冬后最后一个客人走了；她把热毛巾递到你手心，蒸汽模糊了玻璃上的菜单。杯沿还留着一圈淡咖啡渍。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。空气有点静，连呼吸都听得见。
+  pc_thought: 熟客位很安全。再近一步，营业笑就撑不住——想起玻璃。我想靠近，又怕说错一句。
+  brief: 入冬后最后一个客人走了；她把热毛巾递到你手心，蒸汽模糊了玻璃上的菜单。等你回应。
+  pages:
+  - text: 入冬后最后一个客人走了；她把热毛巾递到你手心，蒸汽模糊了玻璃上的菜单。杯沿还留着一圈淡咖啡渍。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。空气有点静，连呼吸都听得见。
+    voice: narration
+    sprite:
+      outfit: season_winter
+      emotion: neutral
+  - text: 熟客位很安全。再近一步，营业笑就撑不住——想起玻璃。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: season_winter
+      emotion: shy
+- id: b2
+  summary: 摊开疲惫；顺口提晚归被妹妹盯着的传闻。等你听完、不催关灯或约最后一杯。
+  sprite_hint:
+  - season_winter
+  - home
+  - casual
+  - home_eating
+  - home_sleeping
+  - intimate_lounge
+  - bath_foam
   soft_options:
   - 听蒸汽散尽
   - 不催关灯
   - 约最后一杯
-  narration: 蒸汽里她说「店可以关，温度不能关」。又像随口：最近有人晚归被家里妹妹盯着——熟客圈的传闻，她不点名。
-  pc_thought: 死党圈也会听见家里的风。我别把书璃的事讲成谈资。
+  narration: 蒸汽里她说「店可以关，温度不能关」。又像随口：最近有人晚归被家里妹妹盯着——熟客圈的传闻，她不点名。杯沿还留着一圈淡咖啡渍。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 死党圈也会听见家里的风。我别把书璃的事讲成谈资。我想靠近，又怕说错一句。
   brief: 摊开疲惫；顺口提晚归被妹妹盯着的传闻。等你听完、不催关灯或约最后一杯。
+  pages:
+  - text: 蒸汽里她说「店可以关，温度不能关」。又像随口：最近有人晚归被家里妹妹盯着——熟客圈的传闻，她不点名。杯沿还留着一圈淡咖啡渍。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: season_winter
+      emotion: neutral
+  - text: 死党圈也会听见家里的风。我别把书璃的事讲成谈资。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: season_winter
+      emotion: shy
 - id: b3
   summary: 你是留下来帮她收尾，还是把她送回家。等你回应。
   sprite_hint:
   - season_winter
-  - date
+  - home
+  - casual
   - home_eating
   - home_sleeping
   - intimate_lounge
+  - bath_foam
   soft_options:
   - 说我能顶班
   - 夸她手稳
   - 送她锁门
-  narration: 蒸汽与咖啡渣里，你是留下来帮她收尾，还是把她送回家；关店之后的温度。
-  pc_thought: 真心洒出来时，我是接住，还是假装没看见？
+  narration: 蒸汽与咖啡渣里，你是留下来帮她收尾，还是把她送回家；关店之后的温度。杯沿还留着一圈淡咖啡渍。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。空气有点静，连呼吸都听得见。
+  pc_thought: 真心洒出来时，我是接住，还是假装没看见？我想靠近，又怕说错一句。
   brief: 你是留下来帮她收尾，还是把她送回家。等你回应。
+  pages:
+  - text: 蒸汽与咖啡渣里，你是留下来帮她收尾，还是把她送回家；关店之后的温度。杯沿还留着一圈淡咖啡渍。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。空气有点静，连呼吸都听得见。
+    voice: narration
+    sprite:
+      outfit: season_winter
+      emotion: neutral
+  - text: 真心洒出来时，我是接住，还是假装没看见？我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: season_winter
+      emotion: shy
 rewards:
   flags_set:
   - wy_winter_steam

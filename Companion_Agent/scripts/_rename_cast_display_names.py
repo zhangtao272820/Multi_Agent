@@ -25,7 +25,6 @@ RENAMES: dict[str, tuple[str, str]] = {
     "qiansha": ("千纱", "顾千纱"),
     "moran": ("墨染", "墨染川"),
     "shizuku": ("雫", "白初雪"),
-    "yeyu": ("夜羽", "云夜羽"),
     "miara": ("米拉", "莫岚纱"),
     "xingnai": ("星奈", "程星宁"),
     "fengyin": ("枫音", "沈枫音"),

@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+import os
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
@@ -27,7 +31,58 @@ class CurateBody(BaseModel):
 
 
 class ResetBody(BaseModel):
-    scope: str = "shadow"  # shadow | evolved | all
+    scope: str = "shadow"  # shadow | evolved | memory | experience | evolution | learning | all
+    session_id: str | None = None
+    tenant_id: str | None = None
+
+
+def _clear_tool_experience(tenant_id: str | None = None) -> dict:
+    tid = (tenant_id or os.getenv("AGENT_TENANT_ID") or os.getenv("TENANT_ID") or "default").strip() or "default"
+    try:
+        import psycopg
+
+        url = (
+            os.getenv("AGENT_DATABASE_URL")
+            or os.getenv("CLAWHIVE_DATABASE_URL")
+            or os.getenv("DATABASE_URL")
+            or ""
+        ).strip()
+        if not url:
+            return {"ok": False, "reason": "no_pg"}
+        with psycopg.connect(url.replace("postgresql+psycopg2:", "postgresql:")) as conn:
+            try:
+                cur = conn.execute("DELETE FROM adm_tool_experience WHERE tenant_id = %s", (tid,))
+            except Exception:
+                cur = conn.execute("DELETE FROM adm_tool_experience")
+            conn.commit()
+            return {"ok": True, "deleted": getattr(cur, "rowcount", None), "tenant_id": tid}
+    except Exception as e:
+        return {"ok": False, "reason": str(e)}
+
+
+def run_learning_reset(body: ResetBody) -> dict:
+    scope = str(body.scope or "shadow").strip().lower()
+    out: dict = {"ok": True, "scope": scope}
+    if scope in ("shadow", "all", "evolution", "learning"):
+        clear_prompt_patches()
+        out["prompt_shadow"] = True
+    if scope in ("evolved", "all", "evolution", "learning"):
+        clear_evolved_hints()
+        out["evolved"] = True
+    if scope in ("experience", "all", "learning"):
+        out["experience"] = _clear_tool_experience(body.tenant_id)
+        try:
+            from app.core.tool_experience_store import hydrate_admin_tool_experience_cache
+
+            hydrate_admin_tool_experience_cache()
+        except Exception:
+            pass
+    if scope in ("memory", "all"):
+        from app.core.session_dialogue import delete_session_dialogue
+
+        sid = str(body.session_id or "").strip() or "default"
+        out["memory"] = delete_session_dialogue(sid)
+    return out
 
 
 @router.get("/api/learning")
@@ -62,9 +117,4 @@ async def learning_curate(body: CurateBody, _: None = Depends(verify_internal_to
 
 @router.post("/api/learning/reset")
 async def learning_reset(body: ResetBody, _: None = Depends(verify_internal_token)):
-    scope = str(body.scope or "shadow").strip().lower()
-    if scope in ("shadow", "all"):
-        clear_prompt_patches()
-    if scope in ("evolved", "all"):
-        clear_evolved_hints()
-    return {"ok": True, "scope": scope}
+    return run_learning_reset(body)

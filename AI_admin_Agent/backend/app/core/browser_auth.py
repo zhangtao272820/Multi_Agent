@@ -136,6 +136,12 @@ def clawhive_public_auth_url() -> str:
     ).strip().rstrip("/")
 
 
+def _urlopen_direct(req: urllib.request.Request, timeout_sec: float = 15.0):
+    """Bypass HTTP(S)_PROXY for container→ClawHive (proxy would Connection-refuse docker hostnames)."""
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    return opener.open(req, timeout=timeout_sec)
+
+
 def _proxy_clawhive_login(username: str, password: str) -> tuple[int, dict[str, Any]]:
     url = f"{clawhive_backend_base()}/api/auth/login"
     body = json.dumps({"username": str(username or "").strip(), "password": str(password or "")}).encode("utf-8")
@@ -146,7 +152,7 @@ def _proxy_clawhive_login(username: str, password: str) -> tuple[int, dict[str, 
         headers={"Content-Type": "application/json", "Accept": "application/json"},
     )
     try:
-        with urllib.request.urlopen(req, timeout=15.0) as resp:
+        with _urlopen_direct(req, 15.0) as resp:
             raw = resp.read().decode("utf-8", errors="replace")
             try:
                 data = json.loads(raw) if raw else {}

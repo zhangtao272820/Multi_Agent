@@ -15,8 +15,9 @@ trigger:
   - qc_winter_mirror
   waypoint_min: q_winter_onset
   season: winter
-prompt_snippet: |
-  【专属故事 · 夏晴彩 · 冬季加幕 · 冬练舞室】
+prompt_snippet: '【专属故事 · 夏晴彩 · 冬季加幕 · 冬练舞室】
+
+  '
 advance: on_player_turn
 beats:
 - id: b1
@@ -24,37 +25,74 @@ beats:
   sprite_hint:
   - season_winter
   - home
+  - casual
   soft_options:
   - 递热水
   - 问妆花了吗
   - 先照镜
-  narration: 入冬练舞室镜面起雾；她把外套扔给你，汗还没干就问你还看不看。
-  pc_thought: 镜子里她很满。固定观众很好当，恋人更难。
+  narration: 入冬练舞室镜面起雾；她把外套扔给你，汗还没干就问你还看不看。镜面上有一圈水雾。她没再多说，只是看着你。
+  pc_thought: 镜子里她很满。固定观众很好当，恋人更难
   brief: 入冬练舞室镜面起雾；她把外套扔给你，汗还没干就问你还看不看。等你回应。
+  pages:
+  - text: 入冬练舞室镜面起雾；她把外套扔给你，汗还没干就问你还看不看。镜面上有一圈水雾。她没再多说，只是看着你。
+    voice: narration
+    sprite:
+      outfit: season_winter
+      emotion: neutral
+  - text: 镜子里她很满。固定观众很好当，恋人更难
+    voice: pc
+    sprite:
+      outfit: season_winter
+      emotion: shy
 - id: b2
-  summary: "直球放慢了一拍：冬天适合确认——你是观众，还是她要对着说的那个人。等你回应。"
+  summary: 直球放慢了一拍：冬天适合确认——你是观众，还是她要对着说的那个人。等你回应。
   sprite_hint:
   - season_winter
+  - home
   - casual
   soft_options:
   - 听她说舞台
   - 不催开场
   - 约后台坐
-  narration: "练舞镜与汗味里，直球放慢了一拍：冬天适合确认——你是观众，还是她要对着说的那个人。"
-  pc_thought: 夏日祭灯光一亮，空舞台的恐惧也亮了。
-  brief: "直球放慢了一拍：冬天适合确认——你是观众，还是她要对着说的那个人。等你回应。"
+  narration: 练舞镜与汗味里，直球放慢了一拍：冬天适合确认——你是观众，还是她要对着说的那个人。镜面上有一圈水雾。
+  pc_thought: 夏日祭灯光一亮，空舞台的恐惧也亮了。我想靠近，又怕说错一句。
+  brief: 直球放慢了一拍：冬天适合确认——你是观众，还是她要对着说的那个人。等你回应。
+  pages:
+  - text: 练舞镜与汗味里，直球放慢了一拍：冬天适合确认——你是观众，还是她要对着说的那个人。镜面上有一圈水雾。
+    voice: narration
+    sprite:
+      outfit: season_winter
+      emotion: neutral
+  - text: 夏日祭灯光一亮，空舞台的恐惧也亮了。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: season_winter
+      emotion: shy
 - id: b3
   summary: 你是留下看完整段，还是提前离场；舞台会被点亮或永久空着。等你回应。
   sprite_hint:
   - season_winter
+  - home
+  - casual
   - date
   soft_options:
   - 说我不抢镜头
   - 夸她眼神稳
   - 送她进场
-  narration: 练舞镜与汗味里，你是留下看完整段，还是提前离场；舞台会被点亮或永久空着。
-  pc_thought: 冬练功室只剩回音。我想留下，不只是鼓掌。
+  narration: 练舞镜与汗味里，你是留下看完整段，还是提前离场；舞台会被点亮或永久空着。镜面上有一圈水雾。她没再多说，只是看着你。
+  pc_thought: 冬练功室只剩回音。我想留下，不只是鼓掌
   brief: 你是留下看完整段，还是提前离场；舞台会被点亮或永久空着。等你回应。
+  pages:
+  - text: 练舞镜与汗味里，你是留下看完整段，还是提前离场；舞台会被点亮或永久空着。镜面上有一圈水雾。她没再多说，只是看着你。
+    voice: narration
+    sprite:
+      outfit: season_winter
+      emotion: neutral
+  - text: 冬练功室只剩回音。我想留下，不只是鼓掌
+    voice: pc
+    sprite:
+      outfit: season_winter
+      emotion: shy
 rewards:
   flags_set:
   - qc_winter_mirror

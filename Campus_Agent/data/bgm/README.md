@@ -8,4 +8,6 @@
 
 来源：[OpenGameArt.org](https://opengameart.org/)（TAD lofi、Geomancer、Cynic Project、Ted Kerr、migfus20、Alex McCulloch 等）。详见 [`ATTRIBUTION.md`](./ATTRIBUTION.md)。
 
+v2 共 25 槽：含 `loc_store` / `loc_festival` / `loc_forest`；标题 `playlists.title` 约 8 首轮换。
+
 建议：循环友好的 60–120s 片段；响度大致统一（-14 LUFS 左右）。

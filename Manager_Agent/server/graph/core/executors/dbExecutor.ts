@@ -1,14 +1,13 @@
-import { pickRichestDbQuestion, resolveLeanDbUserQuestionAsync, dbAnchorCtx } from '../../../utils/db/managerDbQuestionLlm'
-import { resolveSubAgentScopeByLlm } from '../../../utils/route/managerSubAgentScopeLlm'
 import type { LlmInvokeFn } from '../../llm/taskConstraintsLlm'
 import type { ManagerGraphState } from '../../state/state'
 import {
   resolveDbStepQuestionSync,
   hasOrchestratedDbScope,
   dbQueryFocusFromMeta,
-  sanitizeSubAgentBusinessQuestion
+  sanitizeSubAgentBusinessQuestion,
+  isSingleSourceDbTask
 } from '../db/dbStepQuestion'
-import { resolveManagerAgentSessionId } from '../runtime/sessionBridge'
+import { resolveSubAgentStepSessionId } from '../routing/subAgentPassthrough'
 import { extractStructuredPayload } from '../shared'
 import { CTX_SEP } from './sharedHelpers'
 import type { AgentExecutorDeps, AgentExecutorOpts, AgentStepOutcome } from './types'
@@ -29,41 +28,40 @@ export async function executeDbStep(
   const execState = input.state
   const queryParts = String(input.effQuery ?? '').split(CTX_SEP)
   const stepCore = resolveDbStepQuestionSync(String(queryParts[0] || '').trim(), lastU, execState.meta)
+  const singleSource = isSingleSourceDbTask(execState.meta)
   const lockDbScope = hasOrchestratedDbScope(execState.meta)
   let dbQuestion: string
-  if (lockDbScope) {
-    const scopeRes = await resolveSubAgentScopeByLlm({
-      agent: 'db',
-      meta: execState.meta,
-      stepQuery: stepCore,
-      userTask: lastU,
-      llmInvoke: input.llmInvoke,
-      state: execState
-    })
+  if (singleSource && lastU.length >= 4) {
+    // 协议：单源 ≡ 独立端 /api/ask，禁止 refine / queryFocus / scope LLM
+    dbQuestion = lastU
+  } else if (lockDbScope) {
+    // 真 multi：一次切分后的 clause/queryFocus，禁止二次 LLM 改写
     dbQuestion =
-      scopeRes.text ||
       dbQueryFocusFromMeta(execState.meta, stepCore) ||
       stepCore ||
       resolveDbStepQuestionSync(String(input.effQuery ?? '').trim(), lastU, execState.meta)
   } else {
-    const refinedCore = await resolveLeanDbUserQuestionAsync({
-      stepOrRouted: stepCore || String(queryParts[0] || '').trim(),
-      lastUserMessage: lastU,
-      llmInvoke: input.llmInvoke,
-      llm: input.llm,
-      state: execState,
-      probe: execState.probe
-    })
-    dbQuestion = pickRichestDbQuestion(refinedCore, lastU, dbAnchorCtx(execState), { meta: execState.meta })
+    dbQuestion = stepCore || lastU
   }
-  const finalDbMessage = sanitizeSubAgentBusinessQuestion(
-    queryParts.length > 1
-      ? `${dbQuestion}${CTX_SEP}${queryParts.slice(1).join(CTX_SEP)}`
-      : dbQuestion
-  )
+  const finalDbMessage = singleSource
+    ? dbQuestion
+    : sanitizeSubAgentBusinessQuestion(
+        queryParts.length > 1
+          ? `${dbQuestion}${CTX_SEP}${queryParts.slice(1).join(CTX_SEP)}`
+          : dbQuestion
+      )
+  if (lastU && finalDbMessage && lastU !== finalDbMessage) {
+    input.sendThinking(
+      `DB 出站问句与用户末轮不同（len ${lastU.length}→${finalDbMessage.length}）；multi 子句切分属预期`
+    )
+  }
   try {
-    const dbSessionId = resolveManagerAgentSessionId(opts)
-    // 透传：仅 NL 问句，等同独立端 /api/ask（不传 managerTask / 编排头）
+    const dbSessionId = resolveSubAgentStepSessionId({
+      runId: opts.runId,
+      agent: 'db',
+      stepId: String((execState.meta as { currentStepId?: string } | null)?.currentStepId || '').trim() || undefined
+    })
+    // 透传：仅 NL 问句，等同独立端 /api/ask（不传 managerTask / 编排头）；步进 session 隔离历史
     const dbRes = await deps.callDbAgent({
       dbAgentWsUrl: opts.dbAgentWsUrl,
       dbAgentHttpUrl: opts.dbAgentHttpUrl,

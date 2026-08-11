@@ -73,15 +73,31 @@ def main() -> int:
     for eid, row in present_endings.items():
         sp = (row or {}).get("sprite") or {}
         cid = str(sp.get("character_id") or "")
-        resolved = resolve_ending_presentation(eid, ending_type="good", character_id=cid)
+        # 共享结局无写死 character_id：运行时由会话注入；此处用 T0 样板验盘
+        probe_cid = cid or ("xiaoyou" if eid == "ending_married_daily" else "")
+        if not probe_cid:
+            continue
+        resolved = resolve_ending_presentation(eid, ending_type="good", character_id=probe_cid)
         rsp = resolved.get("sprite") or {}
         outfit = str(rsp.get("outfit") or "")
         emotion = str(rsp.get("emotion") or "neutral")
         name = f"{outfit}_{emotion}.png" if outfit else f"{emotion}.png"
-        if resolve_sprite_file(str(rsp.get("character_id") or cid), name):
+        if resolve_sprite_file(str(rsp.get("character_id") or probe_cid), name):
             resolved_ok += 1
         else:
-            errors.append(f"presentation ending 无图: {eid} -> {cid}/{name}")
+            errors.append(f"presentation ending 无图: {eid} -> {probe_cid}/{name}")
+        if eid == "ending_married_daily":
+            if outfit != "maternity":
+                errors.append(f"ending_married_daily 应对 T0 解析 maternity，实际 {outfit}")
+            # 无孕装角须走居家链
+            soft = resolve_ending_presentation(
+                eid, ending_type="good", character_id="taotao"
+            )
+            soft_o = str((soft.get("sprite") or {}).get("outfit") or "")
+            if soft_o.startswith(("end_", "max_")):
+                errors.append(f"ending_married_daily T1 不应回退 end/max，实际 {soft_o}")
+            if soft_o not in {"home", "casual", "date", "work", "bridal", ""}:
+                errors.append(f"ending_married_daily T1 回退异常: {soft_o}")
 
     if errors:
         print("FAIL smoke-content-catalog")

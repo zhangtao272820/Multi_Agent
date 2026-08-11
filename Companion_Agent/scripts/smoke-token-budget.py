@@ -42,6 +42,21 @@ def main() -> None:
     assert JUDGE_MAX_TOKENS <= 256
     assert JUDGE_USER_CHARS <= 160
 
+    from app.romance_voice import voice_prompt_block
+    from app.town_npcs import build_npc_facts_block, load_town_npcs
+    from app.prompt_budget import TOWN_NPC_BUDGET
+
+    assert "yeyu" not in str(load_town_npcs())
+    voice = voice_prompt_block("xiaoyou")
+    assert "【声纹】" in voice and len(voice) < 220, voice
+    npc = build_npc_facts_block(
+        character_id="wanyu",
+        location_id="cafe",
+        flags={},
+        budget=TOWN_NPC_BUDGET,
+    )
+    assert "【镇上熟人" in npc and len(npc) <= TOWN_NPC_BUDGET + 5, (len(npc), npc)
+
     # L1 trim
     msgs = [{"role": "user" if i % 2 == 0 else "assistant", "content": f"m{i}"} for i in range(20)]
     trimmed = trim_messages_for_context(msgs, keep_pairs=KEEP_PAIRS_WORLD)
@@ -51,13 +66,17 @@ def main() -> None:
     blocks = [
         PromptBlock("agenda", "【议程】" + ("啊" * 80)),
         PromptBlock("calendar", "【日历】" + ("日" * 80)),
+        PromptBlock("town_npcs", "【镇上熟人｜只读】陈婶：排班。" + ("镇" * 40)),
+        PromptBlock("voice_card", "【声纹】慢热。" + ("声" * 20)),
         PromptBlock("rumors", "【传闻】" + ("瓜" * 900)),
         PromptBlock("edges", "【关系】" + ("边" * 900)),
         PromptBlock("outfit", "【穿着】雨伞一句"),
     ]
     out = trim_blocks(blocks, budget=WORLD_EXTRA_BUDGET)
     assert "议程" in out and "日历" in out
-    assert len(out) <= WORLD_EXTRA_BUDGET + 50  # protected may slightly over; check drop happened
+    assert "镇上熟人" in out  # protected
+    assert "声纹" in out  # protected
+    assert len(out) <= WORLD_EXTRA_BUDGET + 80  # protected may slightly over; check drop happened
     assert "瓜" * 50 not in out or len(out) < len("".join(b.text for b in blocks))
 
     # Real world prompt rebuild should stay bounded on extras

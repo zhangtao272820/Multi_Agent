@@ -126,8 +126,8 @@ def main() -> None:
     assert any("沈予安" in str(x) for x in brief), brief
     assert any(
         "沈予安" in str(x)
-        for x in ((slide.get("lines") or []) + [slide.get("caption") or ""])
         for slide in slides
+        for x in ((slide.get("lines") or []) + [slide.get("caption") or ""])
     ), "opening should name 沈予安"
 
     # secret/good ending pages
@@ -169,6 +169,37 @@ def main() -> None:
         pages = ent.get("pages") or []
         if cid in t0 | t1 | t2:
             assert sum(len(p) for p in pages) >= 100, (eid, sum(len(p) for p in pages))
+
+    # W4b：妻子日常结局点名 maternity；T0 命中孕装，无图角走居家链不抢 end_*
+    from app.presentation import resolve_ending_presentation
+
+    married = ends.get("ending_married_daily") or {}
+    assert (married.get("sprite") or {}).get("outfit") == "maternity"
+    assert sum(len(p) for p in (married.get("pages") or [])) >= 100
+    for cid in t0:
+        resolved = resolve_ending_presentation(
+            "ending_married_daily", ending_type="good", character_id=cid
+        )
+        assert resolved["sprite"]["outfit"] == "maternity", (cid, resolved["sprite"])
+    for cid in ("taotao", "xingnai", "shuli"):
+        resolved = resolve_ending_presentation(
+            "ending_married_daily", ending_type="good", character_id=cid
+        )
+        outfit = resolved["sprite"]["outfit"]
+        assert outfit in {"home", "casual", "date", "work", "bridal", ""}, (cid, outfit)
+        assert not str(outfit).startswith(("end_", "max_")), (cid, outfit)
+
+    # T0 婚后孕期短拍：须有 maternity sprite_hint
+    for cid in sorted(t0):
+        eid = f"story_{cid}_married_expecting"
+        assert eid in events, eid
+        ev = events[eid]
+        assert (ev.trigger.stage_min or "") == "married", eid
+        assert ev.beats, eid
+        hints = []
+        for b in ev.beats:
+            hints.extend(b.sprite_hint or [])
+        assert "maternity" in hints, (eid, hints)
 
     # public progress exposes beat_summary for Gal HUD；有 narration 时一并下发
     prog = public_story_progress(events["story_xiaoyou_act1_threshold"], beat_index=0)
@@ -271,6 +302,20 @@ def main() -> None:
     assert prog_shuli and prog_shuli.get("narration")
     assert (shuli_b0.narration or "")[:20] in str(prog_shuli["narration"])
     assert prog_shuli.get("pc_thought")
+    # Gal VN：拍前 pages（手写或由 narration/pc_thought 合成）
+    pages_shuli = prog_shuli.get("pages") or []
+    assert len(pages_shuli) >= 2, pages_shuli
+    assert all(str(p.get("text") or "").strip() for p in pages_shuli)
+    assert any(p.get("voice") == "pc" for p in pages_shuli)
+    # 约会剧本页：每条 date 至少 3 页，不再依赖 LLM 聊天场
+    from app.world_engine import public_date_script
+
+    load_date_catalog.cache_clear()
+    date_cat = load_date_catalog()
+    for d in date_cat.dates:
+        assert len(d.pages or []) >= 3, (d.id, len(d.pages or []))
+        script = public_date_script(d, character_id="wanyu", character_name="晚雨")
+        assert len(script.get("pages") or []) >= 3, d.id
 
     thin = [
         e.id

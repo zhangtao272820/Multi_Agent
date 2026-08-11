@@ -11,9 +11,23 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from . import config
-from .prompt_budget import CHARACTER_MAX_TOKENS, JUDGE_MAX_TOKENS, assemble_character_context, clip
+from .prompt_budget import (
+    CHARACTER_MAX_TOKENS,
+    ENDING_VERDICT_MAX_TOKENS,
+    JUDGE_MAX_TOKENS,
+    MINDS_MAX_TOKENS,
+    assemble_character_context,
+    clip,
+)
 
 logger = logging.getLogger(__name__)
+
+
+class EndingVerdict(BaseModel):
+    verdict: str = "soft"  # true|good|soft|bad
+    with_you_ok: bool = False
+    epilogue_line: str = ""
+    judgment: str = ""
 
 
 class JudgeResult(BaseModel):
@@ -229,7 +243,7 @@ def run_npc_minds(*, user_prompt: str) -> NpcMindsResult | None:
         model=config.aux_model(),
         system=system,
         user=user_prompt,
-        max_tokens=720,
+        max_tokens=MINDS_MAX_TOKENS,
         temperature=0.55,
     )
     if not raw:
@@ -254,13 +268,16 @@ def run_date_decision(
     brief = clip(str(student.get("persona_brief") or student.get("model_prompt_zh") or ""), 200)
     mood = (mind or {}).get("mood") or "neutral"
     thought = (mind or {}).get("thought") or ""
+    mbti = str(student.get("mbti") or "").strip()
+    mbti_line = f"MBTI={mbti}（必须体现该类型决策与语气）\n" if mbti and mbti.lower() != "player" else ""
     system = (
         "你判定同学是否答应周末约会。只输出 JSON："
         '{"accepted":bool,"reason":"短理由","line":"口头回应一句","emotion":"neutral|happy|shy|sad|angry"}'
-        "依据人格、亲和、心情、天气；不要替玩家说话。"
+        "依据人格、MBTI、亲和、心情、天气；不要替玩家说话。"
     )
     user = (
         f"角色：{student.get('name')} {brief}\n"
+        f"{mbti_line}"
         f"romance_stance={student.get('romance_stance')} speech={student.get('speech_style')}\n"
         f"affinity={edge.get('affinity')} stage={edge.get('stage')} track={edge.get('track')}\n"
         f"mood={mood} thought={thought}\n"
@@ -281,5 +298,37 @@ def run_date_decision(
         return None
     try:
         return DateDecision.model_validate(data)
+    except Exception:
+        return None
+
+
+def run_ending_verdict(*, summary: str) -> EndingVerdict | None:
+    """Short D-0 LLM: whether this counts as a good ending with the player."""
+    system = (
+        "你是高考百日校园模拟的终章裁决器。只输出 JSON："
+        '{"verdict":"true|good|soft|bad","with_you_ok":bool,'
+        '"epilogue_line":"≤80字中文，评价是否与玩家算好结局","judgment":"短判断"}'
+        "true=成绩与感情双高；good=整体向好；soft=有遗憾但温柔；bad=疏离或双低。"
+        "只依据给定摘要，不要编造摘要外的人名与分数。"
+    )
+    user = f"百日摘要：\n{clip(summary, 900)}\n请输出 JSON。"
+    raw = _chat_completion(
+        model=config.aux_model(),
+        system=system,
+        user=user,
+        max_tokens=ENDING_VERDICT_MAX_TOKENS,
+        temperature=0.25,
+    )
+    if not raw:
+        return None
+    data = _extract_json(raw)
+    if not data:
+        return None
+    try:
+        v = EndingVerdict.model_validate(data)
+        if v.verdict not in {"true", "good", "soft", "bad"}:
+            v.verdict = "soft"
+        v.epilogue_line = clip(v.epilogue_line or "", 80)
+        return v
     except Exception:
         return None

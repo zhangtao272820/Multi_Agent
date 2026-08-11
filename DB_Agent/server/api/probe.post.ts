@@ -3,6 +3,15 @@ import { introspectSchemaWithComments } from "../../utils/schema";
 import { ensureRateLimit } from "../../utils/rate";
 import { resolveAgentRuntimeConfig } from "../../utils/runtime";
 
+function parseTableLines(text: string, limit: number): string[] {
+  return text
+    .split("\n")
+    .filter((l) => /^\s*-\s+/.test(l))
+    .map((l) => l.replace(/^\s*-\s+/, "").split(/\s+/)[0]?.trim() || "")
+    .filter(Boolean)
+    .slice(0, limit);
+}
+
 export default defineEventHandler(async (event) => {
   ensureRateLimit(event, { max: 120, refillPerSec: 60 });
   const body = await readBody<{ question?: string; dbId?: string }>(event);
@@ -14,14 +23,14 @@ export default defineEventHandler(async (event) => {
   const config = resolveAgentRuntimeConfig(runtimeConfig, body?.dbId);
   const ds = await getDataSource(config);
   const dbName = String((ds.options as any)?.database ?? "");
-  const searchResult = await introspectSchemaWithComments(ds, `search:${question}`);
+  const [searchResult, listResult] = await Promise.all([
+    introspectSchemaWithComments(ds, `search:${question}`),
+    introspectSchemaWithComments(ds, "list"),
+  ]);
   const text = typeof searchResult === "string" ? searchResult : "";
-  const tables = text
-    .split("\n")
-    .filter((l) => /^\s*-\s+/.test(l))
-    .map((l) => l.replace(/^\s*-\s+/, "").split(/\s+/)[0]?.trim() || "")
-    .filter(Boolean)
-    .slice(0, 6);
+  const listText = typeof listResult === "string" ? listResult : "";
+  const tables = parseTableLines(text, 6);
+  const tableInventory = parseTableLines(listText, 12);
   const schemaMatched = tables.length > 0;
   let pingOk = false;
   let pingError: string | undefined;
@@ -41,6 +50,7 @@ export default defineEventHandler(async (event) => {
     executable,
     matched: executable,
     tables,
+    tableInventory,
     evidence: text
       .split("\n")
       .filter((l) => /^\s*-\s+/.test(l))

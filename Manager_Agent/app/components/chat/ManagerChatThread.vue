@@ -471,16 +471,18 @@ watch(streamingSynthText, async () => {
             v-if="isTurnLive(t) && (streamingSynthText || isSynthPhaseActive())"
             :ref="bindStreamingReplyEl"
             class="spring-log-item reply-panel chat-agent-row reply-panel-streaming"
+            :class="t.userFacing?.replyTier ? `reply-tier-${t.userFacing.replyTier}` : ''"
           >
             <div class="spring-log-bubble reply-panel-inner cosmic-bubble-reply">
               <header class="reply-panel-header">
                 <div class="reply-panel-avatar" aria-hidden="true">
-                  <span class="reply-panel-avatar-mark">总</span>
+                  <span class="reply-panel-avatar-mark">{{ thoughtViewMode === 'user' ? '答' : '总' }}</span>
                 </div>
                 <div class="reply-panel-header-body">
                   <div class="reply-panel-header-top">
-                    <span class="reply-panel-title">总管</span>
-                    <span class="reply-panel-kind reply-stream-badge">流式输出</span>
+                    <span class="reply-panel-title">{{ thoughtViewMode === 'user' ? '回答' : '总管' }}</span>
+                    <span v-if="thoughtViewMode === 'developer'" class="reply-panel-kind reply-stream-badge">流式输出</span>
+                    <span v-else class="reply-panel-kind reply-stream-badge">正在生成</span>
                     <span class="reply-stream-dot" aria-hidden="true"></span>
                   </div>
                 </div>
@@ -492,7 +494,7 @@ watch(streamingSynthText, async () => {
                   @click="onReplyMarkdownClick"
                   v-html="renderAssistantMarkdown(streamingSynthDisplayText)"
                 ></div>
-                <p v-else class="reply-stream-placeholder">正在整合多源结果，即将开始流式输出…</p>
+                <p v-else class="reply-stream-placeholder">正在整理结论…</p>
               </div>
             </div>
           </div>
@@ -501,17 +503,23 @@ watch(streamingSynthText, async () => {
             v-for="(r, idx) in t.results"
             :key="`r-${idx}`"
             class="spring-log-item reply-panel chat-agent-row"
-            :class="resultItemClasses(r)"
+            :class="[
+              resultItemClasses(r),
+              t.userFacing?.replyTier ? `reply-tier-${t.userFacing.replyTier}` : ''
+            ]"
           >
             <div class="spring-log-bubble reply-panel-inner cosmic-bubble cosmic-bubble-reply">
               <header class="reply-panel-header">
                 <div class="reply-panel-avatar" aria-hidden="true">
-                  <span class="reply-panel-avatar-mark">总</span>
+                  <span class="reply-panel-avatar-mark">{{ thoughtViewMode === 'user' ? '答' : '总' }}</span>
                 </div>
                 <div class="reply-panel-header-body">
                   <div class="reply-panel-header-top">
-                    <span class="reply-panel-title">总管</span>
-                    <span class="reply-panel-kind">{{ resultKindLabel(r) }}</span>
+                    <span class="reply-panel-title">{{ thoughtViewMode === 'user' ? '回答' : '总管' }}</span>
+                    <span
+                      v-if="thoughtViewMode === 'developer' || t.userFacing?.replyTier === 'lite'"
+                      class="reply-panel-kind"
+                    >{{ resultKindLabel(r) }}</span>
                     <span class="meta-time">{{ r.ts }}</span>
                   </div>
                 </div>
@@ -599,7 +607,11 @@ watch(streamingSynthText, async () => {
 
               <AmapReplyCards v-if="adminUiCardsFromTurn(t).length" :cards="adminUiCardsFromTurn(t) as any" />
 
-              <!-- 正文：无「主要回复」壳，像连贯文章直接落在气泡内 -->
+              <!-- 正文：headline 置顶 + DeepSeek 式文章体 -->
+              <p
+                v-if="thoughtViewMode === 'user' && t.userFacing?.headline"
+                class="reply-headline"
+              >{{ t.userFacing.headline }}</p>
               <section v-if="replyMarkdownBody(r.text, t)" class="reply-primary-section reply-article" aria-label="回复正文">
                 <div
                   class="reply-summary md-body reply-chat"

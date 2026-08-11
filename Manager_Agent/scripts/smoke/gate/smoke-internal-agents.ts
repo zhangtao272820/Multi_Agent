@@ -59,9 +59,9 @@ if (heatMatch) assert(isRenderableChartOption(JSON.parse(heatMatch[1]!)), 'heatm
 const factsPlan = buildChartPlanFromFactsStructural({
   answer: '销售对比',
   facts: [
-    { key: 'east', value: 100 },
-    { key: 'west', value: 80 },
-    { key: 'north', value: 60 }
+    { key: 'east', value: 100, label: '华东' },
+    { key: 'west', value: 80, label: '华西' },
+    { key: 'north', value: 60, label: '华北' }
   ],
   data: {},
   raw: ''
@@ -69,6 +69,7 @@ const factsPlan = buildChartPlanFromFactsStructural({
 assert(factsPlan && factsPlan.panels.length >= 1, 'facts structural plan')
 const factsViz = assembleVisualizeFromChartPlan(factsPlan!)
 assert(factsViz.includes('ECHARTS_OPTION'), 'facts visualize')
+assert(!factsViz.includes('| east |') && factsViz.includes('华东'), 'user-facing labels not raw keys')
 
 // --- report（ReportPlan 组装 + evidence 校验）---
 const codePayload = {

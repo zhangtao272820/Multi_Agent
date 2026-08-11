@@ -313,6 +313,17 @@ class Session:
                     ),
                 )
             )
+            from .prompt_budget import TOWN_NPC_BUDGET
+            from .town_npcs import build_npc_facts_block
+
+            npc_block = build_npc_facts_block(
+                character_id=cid,
+                location_id=world.location_id or "",
+                flags=dict(getattr(self.relationship_state, "flags", None) or {}),
+                budget=TOWN_NPC_BUDGET,
+            )
+            if npc_block:
+                blocks.append(PromptBlock("town_npcs", npc_block))
             blocks.append(
                 PromptBlock(
                     "calendar",

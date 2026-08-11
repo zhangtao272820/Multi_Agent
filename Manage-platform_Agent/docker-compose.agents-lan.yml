@@ -421,7 +421,7 @@ services:
       HOST: 0.0.0.0
       HTTP_PROXY: ${HTTP_PROXY:-}
       HTTPS_PROXY: ${HTTPS_PROXY:-}
-      NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,extractor_agent,manager_agent,db_agent,rag_agent,code_assistent_agent,ai_admin_agent,video_agent,ai_agent,searxng,crw,playwright_mcp}
+      NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,clawhive_backend,clawhive_postgres,clawhive_redis,extractor_agent,manager_agent,db_agent,rag_agent,code_assistent_agent,ai_admin_agent,video_agent,ai_agent,searxng,crw,playwright_mcp}
       CLAWHIVE_BACKEND_URL: http://clawhive_backend:8000
       JWT_SECRET: ${CLAWHIVE_JWT_SECRET:-change-this-secret}
       AGENT_BROWSER_AUTH: ${AGENT_BROWSER_AUTH:-1}
@@ -494,7 +494,7 @@ services:
       HOST: 0.0.0.0
       HTTP_PROXY: ${HTTP_PROXY:-}
       HTTPS_PROXY: ${HTTPS_PROXY:-}
-      NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,extractor_agent,manager_agent,db_agent,rag_agent,code_assistent_agent,ai_admin_agent,video_agent,ai_agent,searxng,crw,playwright_mcp}
+      NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,clawhive_backend,clawhive_postgres,clawhive_redis,extractor_agent,manager_agent,db_agent,rag_agent,code_assistent_agent,ai_admin_agent,video_agent,ai_agent,searxng,crw,playwright_mcp}
       CLAWHIVE_BACKEND_URL: http://clawhive_backend:8000
       JWT_SECRET: ${CLAWHIVE_JWT_SECRET:-change-this-secret}
       AGENT_BROWSER_AUTH: ${AGENT_BROWSER_AUTH:-1}
@@ -575,6 +575,9 @@ services:
       AGENT_BROWSER_AUTH: ${AGENT_BROWSER_AUTH:-1}
       CLAWHIVE_PUBLIC_URL: ${CLAWHIVE_PUBLIC_URL:-http://127.0.0.1:18000}
       NUXT_PUBLIC_CLAWHIVE_AUTH_URL: ${CLAWHIVE_PUBLIC_URL:-http://127.0.0.1:18000}
+      # 与 .env.agents-lan 对齐：内网服务名必须 bypass 宿主机 HTTP_PROXY，否则登录代理 502
+      NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,clawhive_backend,clawhive_postgres,clawhive_redis,extractor_agent,manager_agent,db_agent,rag_agent,code_assistent_agent,ai_admin_agent,video_agent,ai_agent,searxng,crw,playwright_mcp,lobster_agent,admin_mcp_gateway,mineru_api,multimodal_agent,music_agent,companion_agent,tavern_agent}
+      no_proxy: ${NO_PROXY:-localhost,127.0.0.1,clawhive_backend,clawhive_postgres,clawhive_redis,extractor_agent,manager_agent,db_agent,rag_agent,code_assistent_agent,ai_admin_agent,video_agent,ai_agent,searxng,crw,playwright_mcp,lobster_agent,admin_mcp_gateway,mineru_api,multimodal_agent,music_agent,companion_agent,tavern_agent}
       # CLAWHIVE_INTERNAL_TOKEN：由 env_file 注入。勿写 ${CLAWHIVE_INTERNAL_TOKEN:-}——
       # 当 --env-file .env.agents-lan 无法插值（首行被压成单行/注释）时会注入空串并覆盖 .env 中的有效令牌。
       AGENT_LLM_REQUEST_TIMEOUT_MS: ${AGENT_LLM_REQUEST_TIMEOUT_MS:-120000}
@@ -771,6 +774,9 @@ services:
       MUSIC_AGENT_HTTP_URL: http://music_agent:13110
       VIDEO_AGENT_HTTP_URL: http://video_agent:13111
       LOBSTER_AGENT_WS_URL: ws://lobster_agent:13108/_ws
+      # 宿主 Hands 侧车（可选；桌面任务分流，默认连宿主机 :13109）
+      LOBSTER_HANDS_WS_URL: ${LOBSTER_HANDS_WS_URL:-}
+      LOBSTER_HANDS_HTTP_URL: ${LOBSTER_HANDS_HTTP_URL:-}
       LOBSTER_ADMIN_TOKEN: ${LOBSTER_ADMIN_TOKEN:-${CLAWHIVE_INTERNAL_TOKEN:-}}
       AGENT_TIMEOUT_MS: ${AGENT_TIMEOUT_MS:-240000}
       MANAGER_DOCKER_TIMEOUT_MS: ${MANAGER_DOCKER_TIMEOUT_MS:-240000}

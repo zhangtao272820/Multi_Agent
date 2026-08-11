@@ -13,58 +13,119 @@ trigger:
   - bond_ally_done
   flags_present:
   - shift_cover_done
-prompt_snippet: |
-  【专属故事 · 顶班的死党 · 第2幕 · 松口】
+prompt_snippet: '【专属故事 · 顶班的死党 · 第2幕 · 松口】
+
+  '
 advance: on_player_turn
 beats:
 - id: b1
-  summary: "雨夜她叫你留下来收桌：死党许可要当面验货——你对晚雨的心，经不经得起加班灯。等你回应。"
+  summary: 雨夜她叫你留下来收桌：死党许可要当面验货——你对晚雨的心，经不经得起加班灯。等你回应。
   sprite_hint:
   - cafe_bestie
-  - work
+  - school_memory
+  - home
+  - casual
+  - season_winter
+  - home_eating
   soft_options:
   - 举例你会怎么留
   - 承认以前不够
   - 听完整条件
-  narration: "围裙布料与蒸汽里，雨夜她叫你留下来收桌：死党许可要当面验货——你对晚雨的心，经不经得起加班灯。"
-  pc_thought: 死党位很硬。我护晚雨，还是把自己也交出去？
-  brief: "雨夜她叫你留下来收桌：死党许可要当面验货——你对晚雨的心，经不经得起加班灯。等你回应。"
+  narration: 围裙布料与蒸汽里，雨夜她叫你留下来收桌：死党许可要当面验货——你对晚雨的心，经不经得起加班灯。围裙带松松挂着。她没再多说，只是看着你。
+  pc_thought: 死党位很硬。我护晚雨，还是把自己也交出去？我想靠近，又怕说错一句。
+  brief: 雨夜她叫你留下来收桌：死党许可要当面验货——你对晚雨的心，经不经得起加班灯。等你回应。
+  pages:
+  - text: 围裙布料与蒸汽里，雨夜她叫你留下来收桌：死党许可要当面验货——你对晚雨的心，经不经得起加班灯。围裙带松松挂着。她没再多说，只是看着你。
+    voice: narration
+    sprite:
+      outfit: cafe_bestie
+      emotion: neutral
+  - text: 死党位很硬。我护晚雨，还是把自己也交出去？我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: cafe_bestie
+      emotion: shy
 - id: b2
-  summary: "她警告：伤害晚雨，她第一个拆台；真心待她，她第一个帮腔。语气比浓缩更苦。等你回应。"
+  summary: 她警告：伤害晚雨，她第一个拆台；真心待她，她第一个帮腔。语气比浓缩更苦。等你回应。
   sprite_hint:
-  - school_memory
   - cafe_bestie
+  - school_memory
+  - home
+  - casual
+  - season_winter
+  - home_eating
   soft_options:
   - 碰拳
   - 确认非恋爱同盟
   - 问闲话从哪来
-  narration: "围裙布料与蒸汽里，她警告：伤害晚雨，她第一个拆台；真心待她，她第一个帮腔。语气比浓缩更苦。"
-  pc_thought: 顶班信任不是恋爱通行证——我别搞混。
-  brief: "她警告：伤害晚雨，她第一个拆台；真心待她，她第一个帮腔。语气比浓缩更苦。等你回应。"
+  narration: 围裙布料与蒸汽里，她警告：伤害晚雨，她第一个拆台；真心待她，她第一个帮腔。语气比浓缩更苦。围裙带松松挂着。她没再多说，只是看着你。
+  pc_thought: 顶班信任不是恋爱通行证——我别搞混。我想靠近，又怕说错一句。
+  brief: 她警告：伤害晚雨，她第一个拆台；真心待她，她第一个帮腔。语气比浓缩更苦。等你回应。
+  pages:
+  - text: 围裙布料与蒸汽里，她警告：伤害晚雨，她第一个拆台；真心待她，她第一个帮腔。语气比浓缩更苦。围裙带松松挂着。她没再多说，只是看着你。
+    voice: narration
+    sprite:
+      outfit: cafe_bestie
+      emotion: neutral
+  - text: 顶班信任不是恋爱通行证——我别搞混。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: cafe_bestie
+      emotion: shy
 - id: b3
-  summary: "排班表旁写下死党同盟：真结局门此前已开——晚雨才能把「为你留的那杯」说出口。等你回应。"
+  summary: 排班表旁写下死党同盟：真结局门此前已开——晚雨才能把「为你留的那杯」说出口。等你回应。
   sprite_hint:
-  - work
+  - cafe_bestie
+  - school_memory
+  - home
   - casual
+  - season_winter
+  - home_eating
   soft_options:
   - 收下提醒
   - 约下次再顶班支援
   - 谢谢她的眼睛
-  narration: "围裙布料与蒸汽里，排班表旁写下死党同盟：真结局门此前已开——晚雨才能把「为你留的那杯」说出口。"
-  pc_thought: 展示真心时围裙还挂着。蒸汽里看不清界限——想起门。
-  brief: "排班表旁写下死党同盟：真结局门此前已开——晚雨才能把「为你留的那杯」说出口。等你回应。"
+  narration: 围裙布料与蒸汽里，排班表旁写下死党同盟：真结局门此前已开——晚雨才能把「为你留的那杯」说出口。围裙带松松挂着。她没再多说，只是看着你。
+  pc_thought: 展示真心时围裙还挂着。蒸汽里看不清界限——想起门
+  brief: 排班表旁写下死党同盟：真结局门此前已开——晚雨才能把「为你留的那杯」说出口。等你回应。
+  pages:
+  - text: 围裙布料与蒸汽里，排班表旁写下死党同盟：真结局门此前已开——晚雨才能把「为你留的那杯」说出口。围裙带松松挂着。她没再多说，只是看着你。
+    voice: narration
+    sprite:
+      outfit: cafe_bestie
+      emotion: neutral
+  - text: 展示真心时围裙还挂着。蒸汽里看不清界限——想起门
+    voice: pc
+    sprite:
+      outfit: cafe_bestie
+      emotion: shy
 - id: b4
-  summary: "她拍拍你肩：店里的座位可以留，心不能骗。死党同盟，写得比糖度更死板。等你回应。"
+  summary: 她拍拍你肩：店里的座位可以留，心不能骗。死党同盟，写得比糖度更死板。等你回应。
   sprite_hint:
-  - casual
+  - cafe_bestie
+  - school_memory
   - home
+  - casual
+  - season_winter
+  - home_eating
   soft_options:
   - 答应第一时间到
   - 把联系方式留给紧急用
   - 郑重点头
-  narration: "围裙布料与蒸汽里，她拍拍你肩：店里的座位可以留，心不能骗。死党同盟，写得比糖度更死板。"
-  pc_thought: "开放门：并肩站柜台，还是退回死党席？"
-  brief: "她拍拍你肩：店里的座位可以留，心不能骗。死党同盟，写得比糖度更死板。等你回应。"
+  narration: 围裙布料与蒸汽里，她拍拍你肩：店里的座位可以留，心不能骗。死党同盟，写得比糖度更死板。围裙带松松挂着。她没再多说，只是看着你。
+  pc_thought: 开放门：并肩站柜台，还是退回死党席？我想靠近，又怕说错一句。
+  brief: 她拍拍你肩：店里的座位可以留，心不能骗。死党同盟，写得比糖度更死板。等你回应。
+  pages:
+  - text: 围裙布料与蒸汽里，她拍拍你肩：店里的座位可以留，心不能骗。死党同盟，写得比糖度更死板。围裙带松松挂着。她没再多说，只是看着你。
+    voice: narration
+    sprite:
+      outfit: cafe_bestie
+      emotion: neutral
+  - text: 开放门：并肩站柜台，还是退回死党席？我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: cafe_bestie
+      emotion: shy
 rewards:
   flags_set:
   - bond_ally_done

@@ -5,61 +5,85 @@
       "id": "home",
       "label": "自宅",
       "scene_id": "home_night",
-      "travel_cost": 0
+      "travel_cost": 0,
+      "npc_ids": [
+        "npc_neighbor_couple"
+      ]
     },
     {
       "id": "campus",
       "label": "校园",
       "scene_id": "campus",
-      "travel_cost": 1
+      "travel_cost": 1,
+      "npc_ids": [
+        "npc_dorm_aunt",
+        "npc_dance_coach"
+      ]
     },
     {
       "id": "library",
       "label": "图书馆",
       "scene_id": "library",
-      "travel_cost": 1
+      "travel_cost": 1,
+      "npc_ids": [
+        "npc_bookstore_regular"
+      ]
     },
     {
       "id": "cafe",
       "label": "咖啡店",
       "scene_id": "cafe_evening",
-      "travel_cost": 1
+      "travel_cost": 1,
+      "npc_ids": [
+        "npc_cafe_owner"
+      ]
     },
     {
       "id": "office",
       "label": "公司/职场",
       "scene_id": "office",
-      "travel_cost": 1
+      "travel_cost": 1,
+      "npc_ids": [
+        "npc_office_lead"
+      ]
     },
     {
       "id": "store",
       "label": "便利店",
       "scene_id": "convenience_night",
-      "travel_cost": 1
+      "travel_cost": 1,
+      "npc_ids": []
     },
     {
       "id": "park",
       "label": "星空山坡",
       "scene_id": "starry_hill",
-      "travel_cost": 1
+      "travel_cost": 1,
+      "npc_ids": []
     },
     {
       "id": "forest",
       "label": "林间",
       "scene_id": "forest_clearing",
-      "travel_cost": 1
+      "travel_cost": 1,
+      "npc_ids": []
     },
     {
       "id": "street",
       "label": "街道",
       "scene_id": "rainy_street",
-      "travel_cost": 1
+      "travel_cost": 1,
+      "npc_ids": [
+        "npc_flower_supplier",
+        "npc_idol_manager"
+      ]
     },
     {
       "id": "room",
       "label": "她的房间",
       "scene_id": "room_afternoon",
-      "travel_cost": 1
+      "travel_cost": 1,
+      "npc_ids": []
     }
   ],
   "characters": {
@@ -2096,11 +2120,123 @@
       "secret": true,
       "flag": "edge_yuxi_wanyu_guard",
       "kind": "gate"
+    },
+    {
+      "a": "npc_cafe_owner",
+      "b": "wanyu",
+      "relation": "店里老板娘，管排班与打烊",
+      "secret": false,
+      "kind": "town"
+    },
+    {
+      "a": "npc_cafe_owner",
+      "b": "luna",
+      "relation": "夜班排班常被点名的兼职",
+      "secret": false,
+      "kind": "town"
+    },
+    {
+      "a": "npc_cafe_owner",
+      "b": "yuxi",
+      "relation": "顶班时被老板娘点头默认的死党",
+      "secret": false,
+      "kind": "town"
+    },
+    {
+      "a": "npc_bookstore_regular",
+      "b": "shiori",
+      "relation": "每周来换书的常客",
+      "secret": false,
+      "kind": "town"
+    },
+    {
+      "a": "npc_bookstore_regular",
+      "b": "shizuku",
+      "relation": "在图书馆也碰见的安静读者",
+      "secret": false,
+      "kind": "town"
+    },
+    {
+      "a": "npc_office_lead",
+      "b": "linxi",
+      "relation": "催进度的组里前辈",
+      "secret": false,
+      "kind": "town"
+    },
+    {
+      "a": "npc_office_lead",
+      "b": "jingliu",
+      "relation": "跨组协作时点头的顾问向前辈",
+      "secret": false,
+      "kind": "town"
+    },
+    {
+      "a": "npc_office_lead",
+      "b": "qiansha",
+      "relation": "代码评审时遇见的职场前辈",
+      "secret": false,
+      "kind": "town"
+    },
+    {
+      "a": "npc_dorm_aunt",
+      "b": "shuli",
+      "relation": "晚归要登记的宿管",
+      "secret": false,
+      "kind": "town"
+    },
+    {
+      "a": "npc_dorm_aunt",
+      "b": "fengyin",
+      "relation": "偶尔代签到的同住义妹",
+      "secret": false,
+      "kind": "town"
+    },
+    {
+      "a": "npc_flower_supplier",
+      "b": "aili",
+      "relation": "压账单也留好枝的花市供应",
+      "secret": false,
+      "kind": "town"
+    },
+    {
+      "a": "npc_flower_supplier",
+      "b": "aichen",
+      "relation": "帮姐姐核进货单的闺蜜",
+      "secret": false,
+      "kind": "town"
+    },
+    {
+      "a": "npc_dance_coach",
+      "b": "qingcai",
+      "relation": "镜房里不许偷懒的教练",
+      "secret": false,
+      "kind": "town"
+    },
+    {
+      "a": "npc_idol_manager",
+      "b": "taotao",
+      "relation": "盯通告与作息的经纪人",
+      "secret": false,
+      "kind": "town"
+    },
+    {
+      "a": "npc_neighbor_couple",
+      "b": "xiaoyou",
+      "relation": "对门会帮忙应门铃的邻居",
+      "secret": false,
+      "kind": "town"
+    },
+    {
+      "a": "npc_neighbor_couple",
+      "b": "youwei",
+      "relation": "画室灯通宵时会唠叨的邻居",
+      "secret": false,
+      "kind": "town"
     }
   ],
   "pc": {
     "label": "沈予安",
-    "summary": "沈予安：落脚小镇的上班族。亲妹妹沈书璃同城念书，义妹沈枫音同住；工作日去公司，周末在咖啡店、书店与校园之间晃。恋爱可发生在女主线与关系向难攻略线；关系向须经锚点认识并过闸门。地点路人立绘为无名背景装饰，无对话角色。",
+    "summary": "沈予安：为工作落脚小镇的职员。父母早年离异重组；亲妹妹沈书璃同城念书，义妹沈枫音同住。工作日去公司，周末在咖啡店、书店与校园之间晃。恋爱可以发生在女主线，也可以发生在难攻略的关系向——关系向得先认识锚点、过了门。镇上的店主、前辈、宿管会出入生活，但都不是恋爱对象。",
     "home_with": [
       "shuli",
       "fengyin"
@@ -2114,6 +2250,6 @@
       "lingke": "顾若铃助教·边界卫士",
       "aichen": "夏艾黎闺蜜·复联守门"
     },
-    "npc_note": "无有名 NPC；路人立绘仅作地点背景装饰（_background），与场景底图同类。"
+    "npc_note": "有名镇民见 town_npcs.json：共享土壤，不可攻略、无结局；路人立绘仍可作 _background 装饰。"
   }
 }

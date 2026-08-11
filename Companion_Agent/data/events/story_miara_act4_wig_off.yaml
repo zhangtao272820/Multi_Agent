@@ -3,41 +3,118 @@ label: 假发摘下
 priority: 7
 once: true
 chance: 1.0
-scene_id: ""
+scene_id: ''
 trigger:
-  character_ids: [miara]
+  character_ids:
+  - miara
   stage_min: friend
   affinity_min: 75
-  flags_present: [mi_oath_real]
-  flags_absent: [mr_wig_off]
-prompt_snippet: |
-  【专属故事 · 谷子与星约 · 第4幕 · 假发摘下】
+  flags_present:
+  - mi_oath_real
+  flags_absent:
+  - mr_wig_off
+prompt_snippet: '【专属故事 · 谷子与星约 · 第4幕 · 假发摘下】
+
+  '
 advance: on_player_turn
 beats:
-  - id: b1
-    narration: "后场灯一暗，她把假发摘下，胶印留在额角。偶像壳裂开——素颜比舞台更安静。"
-    pc_thought: "假发一摘，偶像壳裂了。素颜契约更重。"
-    brief: "摘假发露胶印；素颜落地。等他理网、递湿巾或假装只看窗外。"
-    summary: "摘假发露胶印；素颜落地。等他理网、递湿巾或假装只看窗外。"
-    sprite_hint: [wig_adjust, casual, home]
-    soft_options: ["帮她理假发网", "递湿巾擦胶", "假装只看窗外"]
-  - id: b2
-    narration: "她问你要的是素颜这面，还是舞台那面也算她。针线盒开着，像没缝完的誓言。"
-    pc_thought: "戏言生效的那一秒，比舞台灯更烫。"
-    brief: "追问要素颜还是舞台也算。等他选素颜、认舞台或先让她靠一会儿。"
-    summary: "追问要素颜还是舞台也算。等他选素颜、认舞台或先让她靠一会儿。"
-    sprite_hint: [sewing_cos, merch_counter, home, casual]
-    soft_options: ["说要素颜这面", "说舞台也算她", "先让她靠一会儿"]
-  - id: b3
-    narration: "摊布半收。留下缝补，先缓一缓，或只当谷友离开——星约在这一拍要认真生效或作废。"
-    pc_thought: "春日合同纸很薄。认真签字还是当同人玩笑？"
-    brief: "星约生效或作废。等他留下缝补、先缓或只当谷友离开。"
-    summary: "星约生效或作废。等他留下缝补、先缓或只当谷友离开。"
-    sprite_hint: [season_winter, date, casual, home]
-    soft_options: ["留下缝补收摊", "先缓一缓", "只当谷友离开"]
+- id: b1
+  narration: 后场灯一暗，她把假发摘下，胶印留在额角。偶像壳裂开——素颜比舞台更安静。摊位帘布蹭过手背。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 假发一摘，偶像壳裂了。素颜契约更重。我想靠近，又怕说错一句。
+  brief: 摘假发露胶印；素颜落地。等他理网、递湿巾或假装只看窗外。
+  summary: 摘假发露胶印；素颜落地。等他理网、递湿巾或假装只看窗外。
+  sprite_hint:
+  - merch_counter
+  - wig_adjust
+  - sewing_cos
+  - home
+  - season_winter
+  - casual
+  - home_eating
+  - home_sleeping
+  - intimate_lounge
+  soft_options:
+  - 帮她理假发网
+  - 递湿巾擦胶
+  - 假装只看窗外
+  pages:
+  - text: 后场灯一暗，她把假发摘下，胶印留在额角。偶像壳裂开——素颜比舞台更安静。摊位帘布蹭过手背。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: merch_counter
+      emotion: neutral
+  - text: 假发一摘，偶像壳裂了。素颜契约更重。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: merch_counter
+      emotion: shy
+- id: b2
+  narration: 她问你要的是素颜这面，还是舞台那面也算她。针线盒开着，像没缝完的誓言。摊位帘布蹭过手背。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 戏言生效的那一秒，比舞台灯更烫。我想靠近，又怕说错一句。
+  brief: 追问要素颜还是舞台也算。等他选素颜、认舞台或先让她靠一会儿。
+  summary: 追问要素颜还是舞台也算。等他选素颜、认舞台或先让她靠一会儿。
+  sprite_hint:
+  - merch_counter
+  - wig_adjust
+  - sewing_cos
+  - home
+  - season_winter
+  - casual
+  - home_eating
+  - home_sleeping
+  - intimate_lounge
+  soft_options:
+  - 说要素颜这面
+  - 说舞台也算她
+  - 先让她靠一会儿
+  pages:
+  - text: 她问你要的是素颜这面，还是舞台那面也算她。针线盒开着，像没缝完的誓言。摊位帘布蹭过手背。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: merch_counter
+      emotion: neutral
+  - text: 戏言生效的那一秒，比舞台灯更烫。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: merch_counter
+      emotion: shy
+- id: b3
+  narration: 摊布半收。留下缝补，先缓一缓，或只当谷友离开——星约在这一拍要认真生效或作废。摊位帘布蹭过手背。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 春日合同纸很薄。认真签字还是当同人玩笑？我想靠近，又怕说错一句。
+  brief: 星约生效或作废。等他留下缝补、先缓或只当谷友离开。
+  summary: 星约生效或作废。等他留下缝补、先缓或只当谷友离开。
+  sprite_hint:
+  - merch_counter
+  - wig_adjust
+  - sewing_cos
+  - home
+  - season_winter
+  - casual
+  - home_eating
+  - home_sleeping
+  - intimate_lounge
+  soft_options:
+  - 留下缝补收摊
+  - 先缓一缓
+  - 只当谷友离开
+  pages:
+  - text: 摊布半收。留下缝补，先缓一缓，或只当谷友离开——星约在这一拍要认真生效或作废。摊位帘布蹭过手背。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: merch_counter
+      emotion: neutral
+  - text: 春日合同纸很薄。认真签字还是当同人玩笑？我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: merch_counter
+      emotion: shy
 rewards:
-  flags_set: [mr_wig_off]
+  flags_set:
+  - mr_wig_off
 choice_effects:
-  - { trust_delta: 3, affinity_delta: 4 }
-  - { trust_delta: 2, affinity_delta: 2 }
-  - { trust_delta: -2, affinity_delta: -2 }
+- trust_delta: 3
+  affinity_delta: 4
+- trust_delta: 2
+  affinity_delta: 2
+- trust_delta: -2
+  affinity_delta: -2

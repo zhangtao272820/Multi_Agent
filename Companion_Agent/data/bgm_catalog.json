@@ -1,10 +1,10 @@
 {
   "version": 3,
-  "notes": "BGM 槽位 SSOT（CC0 · OpenGameArt）。标题/序章用 playlists 轮换。曲量偏高，对话 talk_* 略低。v3：扩 hub/talk/date 变奏。",
+  "notes": "BGM 槽位 SSOT。标题/序章用 playlists 轮换。曲量偏高，对话 talk_* 略低。v3：扩 hub/talk/date 变奏。本地覆盖：title_theme=芒种、date_soft=相许、date_night=stay with me（不可再发行，见 bgm/ATTRIBUTION.md）；其余仍为 CC0。",
   "formats": ["ogg", "mp3", "wav"],
   "crossfade_ms": 800,
   "tracks": [
-    { "id": "title_theme", "label": "标题 · 邂逅", "mood": "nostalgic", "loop": true, "volume": 0.92 },
+    { "id": "title_theme", "label": "标题 · 芒种", "mood": "summer", "loop": true, "volume": 0.9 },
     { "id": "opening_prologue", "label": "序章 · 启程", "mood": "hopeful", "loop": true, "volume": 0.9 },
     { "id": "hub_day", "label": "Hub · 昼", "mood": "daily", "loop": true, "volume": 0.88 },
     { "id": "hub_morning", "label": "Hub · 晨", "mood": "fresh", "loop": true, "volume": 0.88 },
@@ -23,8 +23,8 @@
     { "id": "talk_soft", "label": "对话压低", "mood": "soft", "loop": true, "volume": 0.58 },
     { "id": "talk_warm", "label": "对话温暖", "mood": "warm", "loop": true, "volume": 0.62 },
     { "id": "talk_tense", "label": "对话紧绷", "mood": "tense", "loop": true, "volume": 0.6 },
-    { "id": "date_soft", "label": "约会 · 柔", "mood": "romance", "loop": true, "volume": 0.84 },
-    { "id": "date_night", "label": "约会 · 夜", "mood": "night", "loop": true, "volume": 0.82 },
+    { "id": "date_soft", "label": "约会 · 相许", "mood": "romance", "loop": true, "volume": 0.84 },
+    { "id": "date_night", "label": "约会 · stay with me", "mood": "intimate", "loop": true, "volume": 0.82 },
     { "id": "rain_night", "label": "雨夜", "mood": "melancholy", "loop": true, "volume": 0.84 },
     { "id": "ending_true", "label": "真结局", "mood": "sublime", "loop": true, "volume": 0.92 },
     { "id": "ending_good", "label": "好结局", "mood": "warm", "loop": true, "volume": 0.9 },

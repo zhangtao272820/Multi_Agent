@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { isDesktopShell, setDesktopFullscreen } from "../desktopApi";
 import type { GameSettings } from "../settings";
+import IntroGuideBrowser from "./IntroGuideBrowser";
 
 type Props = {
   settings: GameSettings;
@@ -12,10 +13,15 @@ type Props = {
 export default function SettingsScreen({ settings, onChange, onBack, onLogout }: Props) {
   const patch = (partial: Partial<GameSettings>) => onChange({ ...settings, ...partial });
   const [desktop, setDesktop] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
 
   useEffect(() => {
     setDesktop(isDesktopShell());
   }, []);
+
+  if (showGuide) {
+    return <IntroGuideBrowser onBack={() => setShowGuide(false)} />;
+  }
 
   const applyDisplay = async (mode: GameSettings["displayMode"]) => {
     patch({ displayMode: mode });
@@ -161,6 +167,16 @@ export default function SettingsScreen({ settings, onChange, onBack, onLogout }:
               真人化
             </button>
           </div>
+        </div>
+
+        <div className="gal-settings-row">
+          <span>
+            <strong>攻略</strong>
+            <em>角色戏份档案与立绘设定卡（静态宣传板）</em>
+          </span>
+          <button type="button" className="gal-settings-seg-btn" onClick={() => setShowGuide(true)}>
+            查看
+          </button>
         </div>
       </section>
 

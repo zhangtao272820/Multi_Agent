@@ -13,58 +13,119 @@ trigger:
   - deliberate_display
   flags_present:
   - bond_ally_done
-prompt_snippet: |
-  【专属故事 · 助教的红笔 · 第3幕 · 红笔之外】
+prompt_snippet: '【专属故事 · 助教的红笔 · 第3幕 · 红笔之外】
+
+  '
 advance: on_player_turn
 beats:
 - id: b1
-  summary: "答疑结束后办公室门半掩，她解下一颗衬衫扣又停住——工牌还在，眼神却不像批改：「规则外的事，我不会写进纪要。」。等你回应。"
+  summary: 答疑结束后办公室门半掩，她解下一颗衬衫扣又停住——工牌还在，眼神却不像批改：「规则外的事，我不会写进纪要。」。等你回应。
   sprite_hint:
   - ta_office
+  - lecture_assist
   - work
+  - casual
+  - season_winter
+  - home_eating
   soft_options:
   - 提醒扣子
   - 问她想说什么
   - 保持距离坐下
-  narration: "答疑结束后办公室门半掩，她解下一颗衬衫扣又停住——工牌还在，眼神却不像批改：「规则外的事，我不会写进纪要。」。"
-  pc_thought: 红笔在我手里。边界是护她，也是护我自己——想起门。
-  brief: "答疑结束后办公室门半掩，她解下一颗衬衫扣又停住——工牌还在，眼神却不像批改：「规则外的事，我不会写进纪要。」。等你回应。"
+  narration: 答疑结束后办公室门半掩，她解下一颗衬衫扣又停住——工牌还在，眼神却不像批改：「规则外的事，我不会写进纪要。」。名单页折了一道痕。
+  pc_thought: 红笔在我手里。边界是护她，也是护我自己——想起门
+  brief: 答疑结束后办公室门半掩，她解下一颗衬衫扣又停住——工牌还在，眼神却不像批改：「规则外的事，我不会写进纪要。」。等你回应。
+  pages:
+  - text: 答疑结束后办公室门半掩，她解下一颗衬衫扣又停住——工牌还在，眼神却不像批改：「规则外的事，我不会写进纪要。」。名单页折了一道痕。
+    voice: narration
+    sprite:
+      outfit: ta_office
+      emotion: neutral
+  - text: 红笔在我手里。边界是护她，也是护我自己——想起门
+    voice: pc
+    sprite:
+      outfit: ta_office
+      emotion: shy
 - id: b2
   summary: 她承认对你有越界心动，伦理与助教身份不允许恋爱——只能故意展示一次，然后把情愫压回红笔帽里。等你回应。
   sprite_hint:
-  - lecture_assist
   - ta_office
+  - lecture_assist
+  - work
+  - casual
+  - season_winter
+  - home_eating
   soft_options:
   - 约定不点破
   - 说尊重边界
   - 承认也被触动
-  narration: 她承认对你有越界心动，伦理与助教身份不允许恋爱——只能故意展示一次，然后把情愫压回红笔帽里。
-  pc_thought: 通行证不是免罪金牌。师生线一松，闲话就来——想起笔。
+  narration: 她承认对你有越界心动，伦理与助教身份不允许恋爱——只能故意展示一次，然后把情愫压回红笔帽里。名单页折了一道痕。她没再多说，只是看着你。
+  pc_thought: 通行证不是免罪金牌。师生线一松，闲话就来——想起笔
   brief: 她承认对你有越界心动，伦理与助教身份不允许恋爱——只能故意展示一次，然后把情愫压回红笔帽里。等你回应。
+  pages:
+  - text: 她承认对你有越界心动，伦理与助教身份不允许恋爱——只能故意展示一次，然后把情愫压回红笔帽里。名单页折了一道痕。她没再多说，只是看着你。
+    voice: narration
+    sprite:
+      outfit: ta_office
+      emotion: neutral
+  - text: 通行证不是免罪金牌。师生线一松，闲话就来——想起笔
+    voice: pc
+    sprite:
+      outfit: ta_office
+      emotion: shy
 - id: b3
-  summary: "她盖章「影子席」：世界若开花园，她可在导师视线外占一个不被登记的位置——仍守课堂伦理公开面。等你回应。"
+  summary: 她盖章「影子席」：世界若开花园，她可在导师视线外占一个不被登记的位置——仍守课堂伦理公开面。等你回应。
   sprite_hint:
   - ta_office
+  - lecture_assist
+  - work
   - casual
+  - season_winter
+  - home_eating
   soft_options:
   - 接受默契
   - 先做同盟
   - 问她会不会后悔
-  narration: "红笔与文件夹里，她盖章「影子席」：世界若开花园，她可在导师视线外占一个不被登记的位置——仍守课堂伦理公开面。"
-  pc_thought: 展示对等时我站门口——助教还是见证者？——想起花。
-  brief: "她盖章「影子席」：世界若开花园，她可在导师视线外占一个不被登记的位置——仍守课堂伦理公开面。等你回应。"
+  narration: 红笔与文件夹里，她盖章「影子席」：世界若开花园，她可在导师视线外占一个不被登记的位置——仍守课堂伦理公开面。名单页折了一道痕。
+  pc_thought: 展示对等时我站门口——助教还是见证者？——想起花
+  brief: 她盖章「影子席」：世界若开花园，她可在导师视线外占一个不被登记的位置——仍守课堂伦理公开面。等你回应。
+  pages:
+  - text: 红笔与文件夹里，她盖章「影子席」：世界若开花园，她可在导师视线外占一个不被登记的位置——仍守课堂伦理公开面。名单页折了一道痕。
+    voice: narration
+    sprite:
+      outfit: ta_office
+      emotion: neutral
+  - text: 展示对等时我站门口——助教还是见证者？——想起花
+    voice: pc
+    sprite:
+      outfit: ta_office
+      emotion: shy
 - id: b4
-  summary: "她重新扣好扣子：「走廊上，我还是助教。门关上……你自己看。」。等你回应。"
+  summary: 她重新扣好扣子：「走廊上，我还是助教。门关上……你自己看。」。等你回应。
   sprite_hint:
-  - casual
+  - ta_office
+  - lecture_assist
   - work
+  - casual
+  - season_winter
+  - home_eating
   soft_options:
   - 点头离开
   - 道谢边界
   - 说「明白了」
-  narration: "红笔与文件夹里，她重新扣好扣子：「走廊上，我还是助教。门关上……你自己看。」。"
-  pc_thought: "开放门：允许牵手，还是退回礼貌称呼？"
-  brief: "她重新扣好扣子：「走廊上，我还是助教。门关上……你自己看。」。等你回应。"
+  narration: 红笔与文件夹里，她重新扣好扣子：「走廊上，我还是助教。门关上……你自己看。」。名单页折了一道痕。她没再多说，只是看着你。
+  pc_thought: 开放门：允许牵手，还是退回礼貌称呼？我想靠近，又怕说错一句。
+  brief: 她重新扣好扣子：「走廊上，我还是助教。门关上……你自己看。」。等你回应。
+  pages:
+  - text: 红笔与文件夹里，她重新扣好扣子：「走廊上，我还是助教。门关上……你自己看。」。名单页折了一道痕。她没再多说，只是看着你。
+    voice: narration
+    sprite:
+      outfit: ta_office
+      emotion: neutral
+  - text: 开放门：允许牵手，还是退回礼貌称呼？我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: ta_office
+      emotion: shy
 rewards:
   flags_set:
   - deliberate_display

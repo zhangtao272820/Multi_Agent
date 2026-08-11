@@ -12,13 +12,18 @@ import {
 } from '../../../utils/route/managerTurnScopePayload'
 import { buildOutputFollowupNarrowHistory } from '../output/outputFollowupHistory'
 
-/** 子 Agent 与总管共用 sessionId，保证同一会话内多轮追问不断上下文 */
+/**
+ * Admin 等需跨步共享会话时使用。
+ * DB/RAG 执行请用 `resolveSubAgentStepSessionId`，避免 Manager session 污染子 Agent 服务端历史。
+ */
 export function resolveManagerAgentSessionId(opts: Pick<AgentExecutorOpts, 'sessionId' | 'ragConversationId' | 'runId'>): string {
   const sid = String(opts.sessionId || opts.ragConversationId || '').trim()
   if (sid) return sid
   const runId = String(opts.runId || '').trim()
   return runId ? `mgr-${runId}` : 'manager-default'
 }
+
+export { resolveSubAgentStepSessionId } from '../routing/subAgentPassthrough'
 
 const DB_HISTORY_MAX_TURNS = 8
 

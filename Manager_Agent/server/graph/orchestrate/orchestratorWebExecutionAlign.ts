@@ -18,6 +18,7 @@ import {
   resolveCompositeRouteGuardByLlm,
   webExecutionModeFromCompositeGuard
 } from '../../utils/route/managerCompositeRouteGuardLlm'
+import { shouldSkipWebAlignLlm } from './stripUnboundCrawler'
 
 function blueprintNeedsWebRebuild(
   planBlueprint: PlanBlueprint | null | undefined,
@@ -106,6 +107,17 @@ export async function alignOrchestratorWebExecutionMode(input: {
   state: unknown
   toolHealth?: { agents?: Array<{ agent: string; status: string }> } | null
 }): Promise<OrchestratorDecision> {
+  if (
+    shouldSkipWebAlignLlm({
+      allowedAgents: input.decision.allowedAgents,
+      needsWeb: input.decision.intentClassify?.needsWeb,
+      needsWebSearch: input.decision.needsWebSearch,
+      sourceCommitmentRaw: input.decision.raw as unknown as Record<string, unknown>
+    })
+  ) {
+    return input.decision
+  }
+
   const webSup = await supplementAllowedFromWebStructuralAsync(
     input.decision.allowedAgents as ExecutableAgent[],
     input.userTask,

@@ -822,5 +822,31 @@ const ragFacing = buildUserFacingPayload({
 })
 assert(ragFacing.summary.includes('1:3'), 'userFacing keeps caregiver ratio 1:3')
 
+const headlineReport = buildUserFacingPayload({
+  synth:
+    '王建国多项指标偏高，需关注空腹血糖与血压。\n\n### 关键发现\n- **空腹血糖** 5.8 mmol/L\n\n### 建议\n1. 复查血糖。',
+  intent: 'multi',
+  results: { db: 'x', rag: 'y' },
+  planSteps: [{ agent: 'db' }, { agent: 'rag' }],
+  meta: {}
+})
+assert(headlineReport.replyTier === 'report' || headlineReport.replyTier === 'standard', 'multi-ish gets non-lite tier')
+assert(Boolean(headlineReport.headline), 'report/standard emits headline')
+assert(
+  String(headlineReport.headline).includes('王建国') || String(headlineReport.headline).includes('偏高'),
+  'headline from first sentence'
+)
+assert(String(headlineReport.headline).length <= 80, 'headline clipped to 80')
+
+const headlineLite = buildUserFacingPayload({
+  synth: '已创建提醒：**周五例会**，时间 14:00。',
+  intent: 'admin',
+  results: { admin: 'ok' },
+  planSteps: [{ agent: 'admin' }],
+  meta: {}
+})
+assert(headlineLite.replyTier === 'lite', 'admin-only is lite')
+assert(!headlineLite.headline, 'lite skips headline')
+
 console.log('smoke-user-facing-payload: ok')
 

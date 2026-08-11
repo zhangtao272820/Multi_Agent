@@ -13,6 +13,25 @@ from langchain_core.messages import HumanMessage
 from app.graph.state import agent_graph
 from app.core.session_dialogue import append_turn, get_last_user_message, truncate_session_from_user_index, ensure_session_dialogue_budget, ensure_session_dialogue_budget, replace_last_assistant_turn
 from app.core.agent_result import build_admin_agent_result
+from app.core.prompt_evolution import list_prompt_patches
+from app.core.tool_experience_store import get_admin_tool_experience_recall
+
+
+def _snapshot_admin_evolution_applied(question: str = "") -> dict:
+    patches = [
+        {"id": str(p.get("id") or ""), "stage": str(p.get("stage") or ""), "hits": int(p.get("hits") or 0)}
+        for p in (list_prompt_patches() or [])
+        if not p.get("promoted_at") and not p.get("promotedAt")
+    ][:4]
+    hits = 0
+    try:
+        hits = len(get_admin_tool_experience_recall(str(question or ""), 2) or [])
+    except Exception:
+        hits = 0
+    return {
+        "promptPatches": patches,
+        "experienceHits": hits,
+    }
 from app.core.learning_curator import maybe_run_lightweight_curator
 from app.core.langgraph_checkpointer import build_graph_invoke_config
 from app.core.admin_stream_thoughts import set_admin_thought_callback
@@ -770,6 +789,30 @@ async def delete_session(body: SessionDeleteRequest):
     return {"ok": True, "session_id": sid, "dialogue": dialogue, "feedback_deleted": feedback_deleted}
 
 
+class LocalLearningResetRequest(BaseModel):
+    scope: str = "memory"  # memory | evolution | experience | all
+    session_id: str | None = None
+    tenant_id: str | None = None
+
+
+@app.post("/api/learning/reset-local")
+async def learning_reset_local(body: LocalLearningResetRequest):
+    """浏览器端清除本 Agent 记忆/进化（走 JWT 门禁，不要求 internal token）。"""
+    from app.api.learning import ResetBody, run_learning_reset
+
+    scope = str(body.scope or "memory").strip().lower()
+    mapped = {
+        "memory": "memory",
+        "evolution": "evolution",
+        "experience": "experience",
+        "all": "all",
+        "learning": "learning",
+    }.get(scope, "memory")
+    return run_learning_reset(
+        ResetBody(scope=mapped, session_id=body.session_id, tenant_id=body.tenant_id)
+    )
+
+
 @app.get("/api/sessions")
 async def list_sessions(user_id: str = ""):
     """按用户列出会话（PG adm_sessions 权威）。"""
@@ -1334,6 +1377,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     "needs_human_confirm": bool(final_result.get("pending_actions")),
                     "turn_scope_mode": (final_result.get("turn_scope") or {}).get("mode"),
                     "context_history_turns": 0 if (final_result.get("turn_scope") or {}).get("suppress_history") else settings.ADMIN_DIALOGUE_MAX_TURNS,
+                    "evolutionApplied": _snapshot_admin_evolution_applied(user_message),
                     **_mail_draft_structured(final_result),
                 },
             )
@@ -1429,7 +1473,11 @@ async def chat_endpoint(request: ChatRequest, _: None = Depends(verify_internal_
             response_text,
             trace_id=trace_id,
             latency_ms=latency_ms,
-            structured={"tokens_used": tokens_used, **_mail_draft_structured(result)},
+            structured={
+                "tokens_used": tokens_used,
+                "evolutionApplied": _snapshot_admin_evolution_applied(request.message),
+                **_mail_draft_structured(result),
+            },
         )
         append_agent_trace_log(
             agent="admin",

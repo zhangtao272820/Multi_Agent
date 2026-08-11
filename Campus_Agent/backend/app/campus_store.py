@@ -203,15 +203,30 @@ class CampusStore:
             )
         return out
 
-    def load_save(self, save_id: str) -> CampusSave:
+    def peek_save(self, save_id: str) -> CampusSave:
+        """Load a save without replacing the active session."""
         with self._connect() as conn:
             row = conn.execute(
                 "SELECT payload FROM campus_saves WHERE save_id=?", (save_id,)
             ).fetchone()
         if not row:
             raise LookupError("save_not_found")
-        data = json.loads(row["payload"])
-        save = CampusSave.from_dict(data)
+        return CampusSave.from_dict(json.loads(row["payload"]))
+
+    def latest_save(self) -> CampusSave | None:
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT payload FROM campus_saves ORDER BY updated_at DESC LIMIT 1"
+            ).fetchone()
+        if not row:
+            return None
+        try:
+            return CampusSave.from_dict(json.loads(row["payload"]))
+        except (json.JSONDecodeError, TypeError, ValueError, KeyError):
+            return None
+
+    def load_save(self, save_id: str) -> CampusSave:
+        save = self.peek_save(save_id)
         self._active = save
         return save
 

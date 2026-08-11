@@ -23,6 +23,7 @@ _ACTION_TEMPLATES = {
     "confess_try": "{a}鼓起勇气向{b}试探心意……",
     "confess_ok": "{a}和{b}确认了心意，成了班里的一对。",
     "confess_fail": "{a}被{b}婉拒了，走廊里气氛尴尬。",
+    "break_up": "{a}和{b}分手了，班级见闻里多了一条前任。",
     "rival": "{a}和{b}在{loc}较劲，互不退让。",
     "comfort": "{a}在安慰情绪低落的{b}。",
     "jealous": "{a}看见{b}和别人走得近，脸色不太好看。",
@@ -299,9 +300,31 @@ def _apply_pair(
         "pursuit",
     }
 
-    # Already dating → hangout beat
+    # Already dating → hangout beat, rare breakup
     if stage == "dating" or (bond == "romance" and aff >= 88):
+        if stage == "dating" and rng.random() < 0.07:
+            rel.break_up(edge, day_index=save.day_index)
+            return {
+                "type": "break_up",
+                "a": a,
+                "b": b,
+                "a_name": _name(save, a),
+                "b_name": _name(save, b),
+                "location_id": loc,
+                "blurb": clip(
+                    _ACTION_TEMPLATES["break_up"].format(a=_name(save, a), b=_name(save, b)),
+                    80,
+                ),
+                "affinity": edge.get("affinity"),
+                "bond_kind": rel.bond_kind_of(edge),
+                "stage": edge.get("stage"),
+                "track": edge.get("track"),
+                "was_dating": True,
+                "dramatic": True,
+            }
         rel.apply_affinity_delta(edge, 0.4 + rng.random() * 0.8)
+        if edge.get("stage") == "dating":
+            edge["was_dating"] = True
         return {
             "type": "date_hang",
             "a": a,
@@ -322,10 +345,35 @@ def _apply_pair(
             "dramatic": True,
         }
 
-    # Jealousy if one is dating someone else
+    # Jealousy if one is dating someone else — may crack the existing couple
     partner_a, partner_b = dating_partner_of(save, a), dating_partner_of(save, b)
     if partner_a and partner_a != b and aff >= 45 and rng.random() < 0.35:
+        couple = rel.find_edge(save.edges, a, partner_a)
+        if couple and couple.get("stage") == "dating" and rng.random() < 0.4:
+            rel.break_up(couple, day_index=save.day_index)
+            return {
+                "type": "break_up",
+                "a": a,
+                "b": partner_a,
+                "a_name": _name(save, a),
+                "b_name": _name(save, partner_a),
+                "location_id": loc,
+                "blurb": clip(
+                    _ACTION_TEMPLATES["break_up"].format(
+                        a=_name(save, a), b=_name(save, partner_a)
+                    )
+                    + f"（因与{_name(save, b)}走得近）",
+                    90,
+                ),
+                "affinity": couple.get("affinity"),
+                "bond_kind": rel.bond_kind_of(couple),
+                "stage": couple.get("stage"),
+                "track": couple.get("track"),
+                "was_dating": True,
+                "dramatic": True,
+            }
         rel.apply_affinity_delta(edge, -2.0)
+        rel.set_bond_kind(edge, "rivalry")
         return {
             "type": "jealous",
             "a": a,
@@ -383,16 +431,15 @@ def _apply_pair(
 
     rel.apply_affinity_delta(edge, delta)
     if action == "confess_ok":
-        edge["stage"] = "dating"
+        rel.mark_dating(edge)
         edge["affinity"] = max(float(edge.get("affinity") or 0), 90.0)
-        rel.set_bond_kind(edge, "romance")
     elif action == "confess_fail":
         rel.set_bond_kind(edge, kind)
     else:
         if float(edge.get("affinity") or 0) >= 75 and kind == "romance":
             rel.set_bond_kind(edge, "romance")
             if float(edge.get("affinity") or 0) >= 88:
-                edge["stage"] = "dating"
+                rel.mark_dating(edge)
         elif float(edge.get("affinity") or 0) >= 35:
             rel.set_bond_kind(edge, kind if kind != "none" else "friendship")
         else:
@@ -440,7 +487,10 @@ def run_social_tick(save: CampusSave) -> list[dict[str, Any]]:
 
 
 def class_gossip_public(save: CampusSave, *, limit: int = 16) -> list[dict[str, Any]]:
-    """Non-PC edges worth showing on the board (friend+ / romance / rivalry)."""
+    """Non-PC edges worth showing on the board (friend+ / romance / rivalry / ex)."""
+    from . import seating as seating_mod
+
+    students_by_id = {s["id"]: s for s in save.students}
     name_by_id = {s["id"]: s["name"] for s in save.students}
     out: list[dict[str, Any]] = []
     for e in save.edges:
@@ -448,20 +498,21 @@ def class_gossip_public(save: CampusSave, *, limit: int = 16) -> list[dict[str, 
             continue
         aff = float(e.get("affinity") or 0)
         bond = rel.bond_kind_of(e)
-        if aff < 35 and bond == "friendship":
+        was_ex = bool(e.get("was_dating")) and e.get("stage") != "dating"
+        if aff < 35 and bond == "friendship" and not was_ex:
             continue
-        if aff < 20 and bond not in {"romance", "rivalry"}:
+        if aff < 20 and bond not in {"romance", "rivalry"} and not was_ex:
             continue
         a, b = str(e.get("a")), str(e.get("b"))
+        seat_rel = seating_mod.relation_between(save.seating, a, b)
+        relation = rel.enrich_edge_relation(
+            e, students_by_id=students_by_id, seat_relation=seat_rel if seat_rel != "none" else None
+        )
         track = e.get("track") or rel.track_for(_gender(save, a), _gender(save, b))
-        label = f"{name_by_id.get(a, a)} × {name_by_id.get(b, b)}"
-        if track == "ff":
-            label += " ·女女"
-        elif track == "mm":
-            label += " ·男男"
+        label = f"{name_by_id.get(a, a)} × {name_by_id.get(b, b)} · {relation.get('display')}"
         out.append(
             {
-                **rel.public_edge(e),
+                **rel.public_edge(e, relation=relation),
                 "a_name": name_by_id.get(a, a),
                 "b_name": name_by_id.get(b, b),
                 "label": label,
@@ -474,8 +525,10 @@ def class_gossip_public(save: CampusSave, *, limit: int = 16) -> list[dict[str, 
                 0
                 if x.get("bond_kind") == "romance" or x.get("stage") == "dating"
                 else 1
-                if x.get("bond_kind") == "rivalry"
+                if x.get("primary_label") == "前任"
                 else 2
+                if x.get("bond_kind") == "rivalry"
+                else 3
             ),
             -float(x.get("affinity") or 0),
         )
@@ -484,11 +537,16 @@ def class_gossip_public(save: CampusSave, *, limit: int = 16) -> list[dict[str, 
 
 
 def build_social_epilogue(save: CampusSave) -> dict[str, Any]:
-    """Summary of class couples / rivalries / missed bonds for gaokao ending."""
+    """Summary of class couples / rivals / exes / missed bonds for gaokao ending."""
     couples: list[dict[str, Any]] = []
     rivals: list[dict[str, Any]] = []
+    exes: list[dict[str, Any]] = []
     for g in class_gossip_public(save, limit=40):
-        if g.get("bond_kind") == "romance" or g.get("stage") == "dating":
+        if g.get("primary_label") == "前任" or (
+            g.get("was_dating") and g.get("stage") != "dating"
+        ):
+            exes.append({"label": g["label"], "affinity": g.get("affinity")})
+        elif g.get("bond_kind") == "romance" or g.get("stage") == "dating":
             couples.append(
                 {
                     "label": g["label"],
@@ -519,6 +577,8 @@ def build_social_epilogue(save: CampusSave) -> dict[str, Any]:
         bits.append(f"班级成对 {len(couples)} 组：" + "；".join(c["label"] for c in couples[:5]))
     else:
         bits.append("班级里还没有公开的成对恋情。")
+    if exes:
+        bits.append("前任：" + "；".join(x["label"] for x in exes[:3]))
     if rivals:
         bits.append("暗流：" + "；".join(r["label"] for r in rivals[:3]))
     if near_miss:
@@ -527,7 +587,9 @@ def build_social_epilogue(save: CampusSave) -> dict[str, Any]:
     return {
         "couples": couples[:10],
         "rivals": rivals[:6],
+        "exes": exes[:6],
         "near_miss": near_miss[:3],
         "blurb": clip(" ".join(bits), 320),
         "couple_count": len(couples),
+        "ex_count": len(exes),
     }

@@ -5,14 +5,18 @@ import { buildRagRefocusMessage, isRagRelevanceJudgeEnabled, refineRagAnswerIfIr
 import type { ManagerGraphState } from '../../state/state'
 import { resolveLeanRagQuery } from '../probe/retrieverPlan'
 import { isManagerRagRetrieveFirstEnabled, shouldSkipRagRelevanceRefine, shouldTreatRagAsMiss } from '../rag/ragRetrievePolicy'
+import { isSingleSourceRagTask, isTrueMultiTask, resolveSubAgentStepSessionId } from '../routing/subAgentPassthrough'
 import { classifyAndDetectHard } from '../runtime/expertFailure'
 import { buildRagHistoryFromState } from '../runtime/sessionBridge'
+import { collectSubAgentScopeCandidates, pickSubAgentScopeSync } from '../../../utils/route/managerSubAgentScopeLlm'
 import { extractStructuredPayload } from '../shared'
 import { parseRagClarifyPayload } from '../text'
 import { resolveRagRetrievalBundle, tryRagProbeSnippetFastPath, finishRagFastPath, tryRagRetrieveAlignedPath } from './ragRetrieval'
 import { countRagEvidenceUnits, mergeRagClarifyQuestions, isChatRevisionMeta } from './sharedHelpers'
 import type { AgentExecutorDeps, AgentExecutorOpts, AgentStepOutcome } from './types'
 import { callRagMcpRetrieve } from '../../../utils/mcp/managerMcpHost'
+import { groundFollowupQuery, shouldGroundFollowupQuery } from '#agent-shared/followupQueryGrounding'
+import { sessionIntentAnchorFromMeta } from '../memory/multiTurnIntent'
 
 function isRagHardFailureBlob(x: unknown): x is { hardFailure: true; error_code?: string; agentResult?: AgentResult } {
   return Boolean(x && typeof x === 'object' && (x as { hardFailure?: boolean }).hardFailure === true)
@@ -108,19 +112,67 @@ export async function executeRagStep(
     }
   }
 
-  const bundle = await resolveRagRetrievalBundle(deps, {
-    userTask: input.question,
-    baseQuery: input.baseQuery,
-    probeRag,
-    turnScopeMode: String((input.state.meta as { turnScopeMode?: string } | null)?.turnScopeMode || '').trim() || null,
-    turnKind: String((input.state.meta as { turnKind?: string } | null)?.turnKind || '').trim() || null
-  })
-  const leanRagQuery = bundle.leanQuery || input.baseQuery
-  const ragMessage = bundle.message || leanRagQuery
-  const ragUi = { leanRagQuery, sendThinking: input.sendThinking, sendDelta: input.sendDelta }
-  if (bundle.meta?.mode === 'heuristic_v1') {
-    input.onStrategyHint?.(bundle.meta)
+  const lastUser = String(input.question || '').trim()
+  const singleRag = isSingleSourceRagTask(input.state.meta)
+  const turnScopeMode =
+    String((input.state.meta as { turnScopeMode?: string } | null)?.turnScopeMode || '').trim() || null
+  const turnKind = String((input.state.meta as { turnKind?: string } | null)?.turnKind || '').trim() || null
+  const sessionAnchorTask = sessionIntentAnchorFromMeta(input.state.meta)?.coalescedTask || ''
+
+  let leanRagQuery: string
+  let ragMessage: string
+  if (singleRag && lastUser.length >= 4) {
+    // 协议：单源 ≡ 独立端 /api/chat，禁止 lean/queryFocus 改写
+    // 例外：output_followup / 短 continuation 必须锚定上轮任务，禁止「再详细一点」裸检索
+    if (shouldGroundFollowupQuery({ turnKind, lastUser, anchorTask: sessionAnchorTask })) {
+      leanRagQuery = groundFollowupQuery({
+        lastUser,
+        turnKind,
+        anchorTask: sessionAnchorTask,
+        candidate: String(input.baseQuery || '').trim() || lastUser
+      })
+      ragMessage = leanRagQuery
+    } else {
+      leanRagQuery = lastUser
+      ragMessage = lastUser
+    }
+  } else if (isTrueMultiTask(input.state.meta)) {
+    const scoped =
+      pickSubAgentScopeSync(collectSubAgentScopeCandidates('rag', input.state.meta, input.baseQuery)) ||
+      resolveLeanRagQuery(String(input.baseQuery || ''), lastUser)
+    leanRagQuery =
+      shouldGroundFollowupQuery({ turnKind, lastUser, anchorTask: sessionAnchorTask })
+        ? groundFollowupQuery({
+            lastUser,
+            turnKind,
+            anchorTask: sessionAnchorTask,
+            candidate: scoped || lastUser
+          })
+        : scoped || lastUser
+    ragMessage = leanRagQuery
+  } else {
+    const bundle = await resolveRagRetrievalBundle(deps, {
+      userTask: input.question,
+      baseQuery: input.baseQuery,
+      probeRag,
+      turnScopeMode,
+      turnKind
+    })
+    leanRagQuery = bundle.leanQuery || input.baseQuery
+    if (shouldGroundFollowupQuery({ turnKind, lastUser, anchorTask: sessionAnchorTask })) {
+      leanRagQuery = groundFollowupQuery({
+        lastUser,
+        turnKind,
+        anchorTask: sessionAnchorTask,
+        candidate: leanRagQuery
+      })
+    }
+    ragMessage = leanRagQuery
+    if (bundle.meta?.mode === 'heuristic_v1') {
+      input.onStrategyHint?.(bundle.meta)
+    }
   }
+  const ragUi = { leanRagQuery, sendThinking: input.sendThinking, sendDelta: input.sendDelta }
 
   const probeHitCount = Number(probeRag?.hits ?? 0) || 0
   // 仅显式 MANAGER_RAG_RETRIEVE_FIRST=1 时用事实块当终答；默认与独立端同走 /api/chat
@@ -228,13 +280,21 @@ export async function executeRagStep(
     }
   }
 
+  // 编排默认 current_only：空 history；步进 conversationId 隔离，禁止复用 Manager session
   const ragHistory =
-    buildRagHistoryFromState(
-      input.state.messages as Array<{ role?: string; content?: string }>,
-      input.question,
-      String((input.state.meta as { turnScopeMode?: string } | null)?.turnScopeMode || '').trim() || null,
-      String((input.state.meta as { turnKind?: string } | null)?.turnKind || '').trim() || null
-    ) || opts.ragHistory
+    singleRag || turnScopeMode === 'current_only' || !turnScopeMode
+      ? []
+      : buildRagHistoryFromState(
+          input.state.messages as Array<{ role?: string; content?: string }>,
+          input.question,
+          turnScopeMode,
+          turnKind
+        ) || []
+  const ragConversationId = resolveSubAgentStepSessionId({
+    runId: opts.runId,
+    agent: 'rag',
+    stepId: String((input.state.meta as { currentStepId?: string } | null)?.currentStepId || '').trim() || undefined
+  })
   const callRag = (message: string, timeoutMs: number, extra?: { skipCache?: boolean }) =>
     deps.callRagAgent({
       ragAgentHttpUrl: opts.ragAgentHttpUrl,
@@ -242,7 +302,7 @@ export async function executeRagStep(
       message,
       retrievalQuery: leanRagQuery,
       history: ragHistory,
-      conversationId: opts.ragConversationId,
+      conversationId: ragConversationId,
       userId: opts.userId,
       traceId: opts.runId,
       skipCache: extra?.skipCache ?? revisionSkipCache,
@@ -262,7 +322,12 @@ export async function executeRagStep(
     })
 
   try {
-    const chatMessage = leanRagQuery || ragMessage
+    const chatMessage = singleRag && lastUser.length >= 4 ? lastUser : leanRagQuery || ragMessage
+    if (lastUser && chatMessage && lastUser !== chatMessage) {
+      input.sendThinking(
+        `RAG 出站问句与用户末轮不同（len ${lastUser.length}→${chatMessage.length}）；multi 子句切分属预期`
+      )
+    }
     const chatTimeout = probeHitCount > 0 ? Math.min(input.timeoutMs, 28_000) : input.timeoutMs
     const ragCall = await callRag(chatMessage, chatTimeout)
     let ragOut = unwrapAgentCall(ragCall as string | AgentCallResult).answer.trim()

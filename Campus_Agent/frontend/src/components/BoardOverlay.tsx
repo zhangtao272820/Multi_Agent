@@ -346,9 +346,9 @@ export function BoardOverlay({ board, open, onClose, onInspect, onTalkFromSeat }
                       <strong>{e.other_name || e.other_id}</strong>
                       <p>
                         <span className={`stage-pill ${STAGE_TONE[e.stage] || ""}`}>
-                          {STAGE_LABEL[e.stage] || e.stage}
+                          {e.relation_display || e.primary_label || STAGE_LABEL[e.stage] || e.stage}
                         </span>{" "}
-                        · 亲和 {Math.round(Number(e.affinity) || 0)} · {e.bond_kind || e.track}
+                        · 亲和 {Math.round(Number(e.affinity) || 0)}
                       </p>
                       <div className="bond-bar" aria-hidden>
                         <i style={{ width: `${Math.min(100, Number(e.affinity) || 0)}%` }} />
@@ -377,7 +377,7 @@ export function BoardOverlay({ board, open, onClose, onInspect, onTalkFromSeat }
                   <div>
                     <strong>{g.label || `${g.a_name} × ${g.b_name}`}</strong>
                     <p>
-                      {g.bond_kind || "friendship"} · {STAGE_LABEL[g.stage] || g.stage} · 亲和{" "}
+                      {g.relation_display || g.primary_label || STAGE_LABEL[g.stage] || g.stage} · 亲和{" "}
                       {Math.round(Number(g.affinity) || 0)}
                     </p>
                     <div className="bond-bar" aria-hidden>

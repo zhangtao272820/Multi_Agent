@@ -12,6 +12,10 @@ import httpx
 from app.config import get_settings
 
 
+class LlmHttpError(RuntimeError):
+    """Upstream LLM HTTP / empty-content failure (must not be swallowed as empty answer)."""
+
+
 def _strip_fences(text: str) -> str:
     t = (text or "").strip()
     if t.startswith("```"):
@@ -58,7 +62,7 @@ async def chat_text(
 ) -> str | None:
     settings = get_settings()
     if not settings.openai_api_key:
-        return None
+        raise LlmHttpError("Missing OPENAI_API_KEY")
     url = f"{settings.openai_base_url}/chat/completions"
     tokens = max_tokens if max_tokens is not None else settings.llm_json_max_tokens
     body = _chat_body(system=system, user=user, max_tokens=tokens, temperature=temperature)
@@ -66,15 +70,16 @@ async def chat_text(
         "Authorization": f"Bearer {settings.openai_api_key}",
         "Content-Type": "application/json",
     }
-    try:
-        async with httpx.AsyncClient(timeout=settings.llm_timeout_sec) as client:
-            res = await client.post(url, headers=headers, json=body)
-            if res.status_code >= 400:
-                return None
-            data = res.json()
-        return str(data["choices"][0]["message"]["content"] or "").strip()
-    except Exception:
-        return None
+    async with httpx.AsyncClient(timeout=settings.llm_timeout_sec) as client:
+        res = await client.post(url, headers=headers, json=body)
+        if res.status_code >= 400:
+            raise LlmHttpError(f"LLM HTTP {res.status_code}: {res.text[:400]}")
+        data = res.json()
+    content = ((data.get("choices") or [{}])[0].get("message") or {}).get("content")
+    text = str(content or "").strip()
+    if not text:
+        raise LlmHttpError("LLM returned empty content")
+    return text
 
 
 async def chat_json(
@@ -116,7 +121,7 @@ async def chat_stream_text(
     """Stream completion; return full text. Calls on_delta for each chunk."""
     settings = get_settings()
     if not settings.openai_api_key:
-        return None
+        raise LlmHttpError("Missing OPENAI_API_KEY")
     url = f"{settings.openai_base_url}/chat/completions"
     tokens = max_tokens if max_tokens is not None else settings.llm_json_max_tokens
     body = _chat_body(
@@ -131,33 +136,34 @@ async def chat_stream_text(
         "Content-Type": "application/json",
     }
     buf: list[str] = []
-    try:
-        async with httpx.AsyncClient(timeout=settings.llm_timeout_sec) as client:
-            async with client.stream("POST", url, headers=headers, json=body) as res:
-                if res.status_code >= 400:
-                    return None
-                async for line in res.aiter_lines():
-                    if not line or not line.startswith("data:"):
-                        continue
-                    payload = line[5:].strip()
-                    if payload == "[DONE]":
-                        break
-                    try:
-                        data = json.loads(payload)
-                    except json.JSONDecodeError:
-                        continue
-                    delta = (((data.get("choices") or [{}])[0]).get("delta") or {}).get("content")
-                    if not delta:
-                        continue
-                    piece = str(delta)
-                    buf.append(piece)
-                    if on_delta:
-                        r = on_delta(piece)
-                        if hasattr(r, "__await__"):
-                            await r  # type: ignore[misc]
-    except Exception:
-        return "".join(buf) if buf else None
-    return "".join(buf).strip() or None
+    async with httpx.AsyncClient(timeout=settings.llm_timeout_sec) as client:
+        async with client.stream("POST", url, headers=headers, json=body) as res:
+            if res.status_code >= 400:
+                detail = (await res.aread())[:400].decode("utf-8", "replace")
+                raise LlmHttpError(f"LLM HTTP {res.status_code}: {detail}")
+            async for line in res.aiter_lines():
+                if not line or not line.startswith("data:"):
+                    continue
+                payload = line[5:].strip()
+                if payload == "[DONE]":
+                    break
+                try:
+                    data = json.loads(payload)
+                except json.JSONDecodeError:
+                    continue
+                delta = (((data.get("choices") or [{}])[0]).get("delta") or {}).get("content")
+                if not delta:
+                    continue
+                piece = str(delta)
+                buf.append(piece)
+                if on_delta:
+                    r = on_delta(piece)
+                    if hasattr(r, "__await__"):
+                        await r  # type: ignore[misc]
+    text = "".join(buf).strip()
+    if not text:
+        raise LlmHttpError("LLM stream returned empty content")
+    return text
 
 
 async def chat_messages(
@@ -170,7 +176,7 @@ async def chat_messages(
     """Multi-turn chat with optional tools; returns assistant message dict."""
     settings = get_settings()
     if not settings.openai_api_key:
-        return None
+        raise LlmHttpError("Missing OPENAI_API_KEY")
     url = f"{settings.openai_base_url}/chat/completions"
     tokens = max_tokens if max_tokens is not None else settings.llm_json_max_tokens
     body: dict[str, Any] = {
@@ -189,12 +195,9 @@ async def chat_messages(
         "Authorization": f"Bearer {settings.openai_api_key}",
         "Content-Type": "application/json",
     }
-    try:
-        async with httpx.AsyncClient(timeout=settings.llm_timeout_sec) as client:
-            res = await client.post(url, headers=headers, json=body)
-            if res.status_code >= 400:
-                return None
-            data = res.json()
-        return (data.get("choices") or [{}])[0].get("message")
-    except Exception:
-        return None
+    async with httpx.AsyncClient(timeout=settings.llm_timeout_sec) as client:
+        res = await client.post(url, headers=headers, json=body)
+        if res.status_code >= 400:
+            raise LlmHttpError(f"LLM HTTP {res.status_code}: {res.text[:400]}")
+        data = res.json()
+    return (data.get("choices") or [{}])[0].get("message")

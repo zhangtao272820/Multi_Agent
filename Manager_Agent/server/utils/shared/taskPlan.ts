@@ -45,6 +45,8 @@ export const StepSchema = z.object({
   inputs: z.array(z.string().min(1)).optional(),
   /** P0-3：同组步骤可并行（调度 hint） */
   parallelGroup: z.string().min(1).optional(),
+  /** 任务级形态（可选观察字段，不改路由权威） */
+  taskForm: z.string().max(40).optional(),
   /** P2-A：可选直调 MCP 工具（server/tool/arguments） */
   mcpTool: z
     .object({

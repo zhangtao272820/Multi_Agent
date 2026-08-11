@@ -182,15 +182,15 @@
 }
 
 .turn-agent-pipeline-icon {
-  color: #38bdf8;
+  color: #2f7fd1;
   font-size: 12px;
-  opacity: 0.9;
+  opacity: 0.95;
 }
 
 .turn-agent-pipeline-title {
   font-size: 13px;
   font-weight: 700;
-  color: #7dd3fc;
+  color: #0a4a86;
   letter-spacing: 0.04em;
 }
 
@@ -198,7 +198,7 @@
   margin-left: auto;
   font-size: 11px;
   font-weight: 700;
-  color: #94a3b8;
+  color: #2a4560;
   font-variant-numeric: tabular-nums;
 }
 
@@ -207,9 +207,9 @@
   font-weight: 700;
   padding: 2px 8px;
   border-radius: 999px;
-  color: #7dd3fc;
-  background: rgba(14, 165, 233, 0.15);
-  border: 1px solid rgba(56, 189, 248, 0.3);
+  color: #0a4a86;
+  background: rgba(47, 127, 209, 0.14);
+  border: 1px solid rgba(47, 127, 209, 0.4);
   animation: wb-flow-pulse 1.4s ease-in-out infinite;
 }
 
@@ -235,9 +235,9 @@
   border-radius: 999px;
   font-size: 11px;
   font-weight: 700;
-  border: 1px solid rgba(56, 189, 248, 0.28);
-  background: rgba(14, 165, 233, 0.1);
-  color: #bae6fd;
+  border: 1px solid rgba(47, 127, 209, 0.4);
+  background: rgba(232, 242, 252, 0.95);
+  color: #0a4a86;
 }
 
 .turn-agent-route-node.agent-tone-db .turn-agent-route-label { border-color: rgba(59, 130, 246, 0.45); background: rgba(59, 130, 246, 0.12); color: #1e4a8c; }
@@ -302,22 +302,22 @@
 }
 
 .turn-agent-step.is-success .turn-agent-step-idx {
-  color: #6ee7b7;
-  background: rgba(52, 211, 153, 0.15);
-  border-color: rgba(52, 211, 153, 0.4);
+  color: #0f5c45;
+  background: rgba(16, 185, 129, 0.16);
+  border-color: rgba(15, 92, 69, 0.4);
 }
 
 .turn-agent-step.is-running .turn-agent-step-idx {
-  color: #7dd3fc;
-  background: rgba(14, 165, 233, 0.2);
-  border-color: rgba(56, 189, 248, 0.45);
+  color: #0a4a86;
+  background: rgba(47, 127, 209, 0.16);
+  border-color: rgba(47, 127, 209, 0.45);
   animation: wb-step-glow 2s ease-in-out infinite;
 }
 
 .turn-agent-step.is-failed .turn-agent-step-idx {
-  color: #fca5a5;
-  background: rgba(248, 113, 113, 0.15);
-  border-color: rgba(248, 113, 113, 0.4);
+  color: #9a2a42;
+  background: rgba(196, 61, 90, 0.12);
+  border-color: rgba(196, 61, 90, 0.4);
 }
 
 .turn-agent-step-body {
@@ -336,7 +336,7 @@
 .turn-agent-step-label {
   font-size: 13px;
   font-weight: 700;
-  color: #e2e8f0;
+  color: #0a1a28;
 }
 
 .turn-agent-step-status {
@@ -345,36 +345,36 @@
   font-weight: 700;
   padding: 2px 7px;
   border-radius: 999px;
-  color: #64748b;
-  background: rgba(51, 65, 85, 0.45);
+  color: #2a4560;
+  background: rgba(232, 242, 252, 0.95);
 }
 
-.turn-agent-step.is-success .turn-agent-step-status { color: #6ee7b7; background: rgba(52, 211, 153, 0.12); }
-.turn-agent-step.is-running .turn-agent-step-status { color: #7dd3fc; background: rgba(14, 165, 233, 0.12); }
-.turn-agent-step.is-failed .turn-agent-step-status { color: #fca5a5; background: rgba(248, 113, 113, 0.12); }
+.turn-agent-step.is-success .turn-agent-step-status { color: #0f5c45; background: rgba(16, 185, 129, 0.14); }
+.turn-agent-step.is-running .turn-agent-step-status { color: #0a4a86; background: rgba(47, 127, 209, 0.12); }
+.turn-agent-step.is-failed .turn-agent-step-status { color: #9a2a42; background: rgba(196, 61, 90, 0.12); }
 
 .turn-agent-step-query,
 .turn-agent-step-summary {
   margin: 4px 0 0;
   font-size: 12px;
   line-height: 1.55;
-  color: #94a3b8;
+  color: #1e3a52;
   word-break: break-word;
 }
 
 .turn-agent-step-summary {
-  color: #cbd5e1;
+  color: #0a1a28;
 }
 
 .turn-agent-clauses {
   padding: 0 14px 12px;
-  border-top: 1px solid rgba(148, 163, 184, 0.08);
+  border-top: 1px solid rgba(122, 168, 212, 0.28);
 }
 
 .turn-agent-clauses-title {
   font-size: 11px;
   font-weight: 700;
-  color: #64748b;
+  color: #2a4560;
   letter-spacing: 0.04em;
   padding: 10px 0 6px;
 }
@@ -391,29 +391,29 @@
 .turn-agent-clause-list li {
   padding: 8px 10px;
   border-radius: 8px;
-  background: rgba(2, 6, 23, 0.4);
-  border: 1px solid rgba(148, 163, 184, 0.1);
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid rgba(122, 168, 212, 0.4);
 }
 
 .turn-agent-clause-text {
   font-size: 12px;
   line-height: 1.5;
-  color: #cbd5e1;
+  color: #0a1a28;
 }
 
 .turn-agent-pipeline-dev {
   margin: 0 12px 12px;
   padding: 8px 10px;
   border-radius: 10px;
-  border: 1px solid rgba(251, 146, 60, 0.22);
-  background: rgba(2, 6, 23, 0.45);
+  border: 1px solid rgba(122, 168, 212, 0.4);
+  background: rgba(255, 255, 255, 0.9);
 }
 
 .turn-agent-pipeline-dev > summary {
   cursor: pointer;
   font-size: 11px;
   font-weight: 700;
-  color: #fdba74;
+  color: #0a4a86;
   list-style: none;
 }
 
@@ -427,12 +427,12 @@
   gap: 6px;
   margin-top: 8px;
   font-size: 11px;
-  color: #94a3b8;
+  color: #1e3a52;
 }
 
 .turn-agent-dev-k {
   font-weight: 700;
-  color: #64748b;
+  color: #0a4a86;
 }
 
 .turn-agent-dev-code {
@@ -806,18 +806,18 @@
   background: rgba(245, 250, 255, 0.45);
 }
 
-/* Agent 轨迹 chip 彩色编码 */
-.spring-root.mode-professional .process-agent-trail .agent-chip-sm:nth-child(1) { border-color: rgba(56, 189, 248, 0.4) !important; color: #7dd3fc !important; }
-.spring-root.mode-professional .process-agent-trail .agent-chip-sm:nth-child(2) { border-color: rgba(167, 139, 250, 0.4) !important; color: #c4b5fd !important; }
-.spring-root.mode-professional .process-agent-trail .agent-chip-sm:nth-child(3) { border-color: rgba(251, 146, 60, 0.4) !important; color: #fdba74 !important; }
-.spring-root.mode-professional .process-agent-trail .agent-chip-sm:nth-child(4) { border-color: rgba(52, 211, 153, 0.4) !important; color: #6ee7b7 !important; }
+/* Agent 轨迹 chip · 霜白底深色字（勿用深色主题浅青） */
+.spring-root.mode-professional .process-agent-trail .agent-chip-sm:nth-child(1) { border-color: rgba(47, 127, 209, 0.45) !important; color: #0a4a86 !important; background: rgba(232, 242, 252, 0.95) !important; }
+.spring-root.mode-professional .process-agent-trail .agent-chip-sm:nth-child(2) { border-color: rgba(100, 120, 180, 0.45) !important; color: #3a3a78 !important; background: rgba(240, 242, 252, 0.95) !important; }
+.spring-root.mode-professional .process-agent-trail .agent-chip-sm:nth-child(3) { border-color: rgba(184, 106, 26, 0.45) !important; color: #8a4e10 !important; background: rgba(255, 246, 232, 0.95) !important; }
+.spring-root.mode-professional .process-agent-trail .agent-chip-sm:nth-child(4) { border-color: rgba(31, 122, 92, 0.45) !important; color: #0f5c45 !important; background: rgba(232, 248, 240, 0.95) !important; }
 
-/* 编排诊断块 · 流程可视化 */
+/* 编排诊断块 · 霜白流程可视化 */
 .spring-root.mode-professional .process-orchestration-block {
   position: relative;
   padding-left: 16px;
   margin-bottom: 16px;
-  border-left: 2px solid rgba(56, 189, 248, 0.35);
+  border-left: 2px solid rgba(47, 127, 209, 0.4);
 }
 
 .spring-root.mode-professional .process-orchestration-block::before {
@@ -828,8 +828,8 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #38bdf8;
-  box-shadow: 0 0 10px rgba(56, 189, 248, 0.6);
+  background: #2f7fd1;
+  box-shadow: 0 0 0 3px rgba(47, 127, 209, 0.18);
 }
 
 .spring-root.mode-professional .process-orchestration-card {
@@ -837,35 +837,37 @@
   padding: 12px 14px !important;
   border-radius: 12px !important;
   transition: border-color 0.2s, box-shadow 0.2s;
+  color: #0a1a28 !important;
 }
 
 .spring-root.mode-professional .process-orchestration-card:hover {
-  box-shadow: 0 4px 20px rgba(14, 165, 233, 0.12);
+  box-shadow: 0 4px 20px rgba(40, 70, 110, 0.1);
 }
 
 .spring-root.mode-professional .process-orchestration-route {
-  border-color: rgba(56, 189, 248, 0.35) !important;
-  background: linear-gradient(165deg, rgba(8, 47, 73, 0.45), rgba(15, 23, 42, 0.55)) !important;
+  border-color: rgba(47, 127, 209, 0.42) !important;
+  background: linear-gradient(165deg, rgba(255, 255, 255, 0.96), rgba(232, 242, 252, 0.92)) !important;
 }
 
 .spring-root.mode-professional .process-orchestration-route-detail {
-  border-color: rgba(56, 189, 248, 0.28) !important;
-  background: linear-gradient(165deg, rgba(12, 40, 70, 0.4), rgba(15, 23, 42, 0.5)) !important;
+  border-color: rgba(47, 127, 209, 0.35) !important;
+  background: linear-gradient(165deg, rgba(255, 255, 255, 0.94), rgba(236, 244, 252, 0.9)) !important;
 }
 
 .spring-root.mode-professional .process-orchestration-plan {
-  border-color: rgba(167, 139, 250, 0.32) !important;
-  background: linear-gradient(165deg, rgba(30, 27, 75, 0.4), rgba(15, 23, 42, 0.5)) !important;
+  border-color: rgba(90, 120, 180, 0.4) !important;
+  background: linear-gradient(165deg, rgba(255, 255, 255, 0.96), rgba(238, 240, 250, 0.92)) !important;
 }
 
 .spring-root.mode-professional .process-orch-title {
-  color: #7dd3fc !important;
+  color: #0a4a86 !important;
   font-size: 11px !important;
+  font-weight: 750 !important;
 }
 
 .spring-root.mode-professional .process-orch-title::before {
   content: '▸ ';
-  color: #38bdf8;
+  color: #2f7fd1;
 }
 
 /* 执行计划步骤 · 流程连线 */
@@ -879,14 +881,15 @@
   grid-template-columns: 28px auto 1fr !important;
   padding: 10px 12px !important;
   border-radius: 10px !important;
-  border-color: rgba(56, 189, 248, 0.15) !important;
-  background: rgba(2, 8, 24, 0.45) !important;
+  border-color: rgba(122, 168, 212, 0.4) !important;
+  background: rgba(255, 255, 255, 0.92) !important;
+  color: #0a1a28 !important;
   transition: background 0.15s, border-color 0.15s;
 }
 
 .spring-root.mode-professional .process-orch-step:hover {
-  background: rgba(14, 165, 233, 0.08) !important;
-  border-color: rgba(56, 189, 248, 0.28) !important;
+  background: rgba(232, 242, 252, 0.98) !important;
+  border-color: rgba(47, 127, 209, 0.45) !important;
 }
 
 .spring-root.mode-professional .process-orch-step + .process-orch-step::before {
@@ -896,7 +899,7 @@
   top: -8px;
   width: 2px;
   height: 8px;
-  background: linear-gradient(180deg, rgba(56, 189, 248, 0.5), rgba(56, 189, 248, 0.15));
+  background: linear-gradient(180deg, rgba(47, 127, 209, 0.55), rgba(47, 127, 209, 0.18));
 }
 
 .spring-root.mode-professional .process-orch-step-idx {
@@ -906,30 +909,34 @@
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  background: linear-gradient(135deg, rgba(14, 165, 233, 0.35), rgba(37, 99, 235, 0.25));
-  border: 1px solid rgba(56, 189, 248, 0.4);
-  color: #7dd3fc !important;
+  background: linear-gradient(135deg, rgba(47, 127, 209, 0.22), rgba(47, 127, 209, 0.12));
+  border: 1px solid rgba(47, 127, 209, 0.45);
+  color: #0a4a86 !important;
   font-size: 11px !important;
+  font-weight: 750 !important;
   line-height: 1 !important;
 }
 
 /* 步骤执行结果卡 · 专业 */
 .spring-root.mode-professional .cursor-step-results-head {
-  color: #38bdf8 !important;
+  color: #0a4a86 !important;
   font-size: 11px !important;
+  font-weight: 750 !important;
   padding: 0 2px 6px !important;
-  border-bottom: 1px solid rgba(56, 189, 248, 0.15);
+  border-bottom: 1px solid rgba(122, 168, 212, 0.35);
   margin-bottom: 4px;
 }
 
 .spring-root.mode-professional .cursor-step-results-head::before {
   content: '⬡ ';
-  opacity: 0.7;
+  opacity: 0.85;
 }
 
 .spring-root.mode-professional .cursor-tool-card.step-result-card {
   border-radius: 10px !important;
-  background: rgba(2, 8, 24, 0.55) !important;
+  background: rgba(255, 255, 255, 0.94) !important;
+  color: #0a1a28 !important;
+  border: 1px solid rgba(122, 168, 212, 0.42) !important;
 }
 
 .spring-root.mode-professional .cursor-tool-card.step-result-success {
@@ -953,7 +960,7 @@
   border-left-color: rgba(56, 189, 248, 0.25) !important;
 }
 
-/* 计划预览卡 · 专业强化 */
+/* 计划预览卡 · 专业强化（霜白可读） */
 .spring-root.mode-professional .conv-plan-preview.is-professional-plan {
   border-radius: 16px !important;
   border-width: 1px !important;
@@ -961,46 +968,50 @@
 }
 
 .spring-root.mode-professional .conv-plan-preview.is-professional-plan .conv-plan-preview-head strong {
-  color: #7dd3fc;
+  color: #0a4a86;
   font-size: 15px;
+  font-weight: 750;
 }
 
 .spring-root.mode-professional .conv-plan-preview.is-professional-plan .conv-plan-preview-head strong::before {
   content: '◈ ';
-  color: #38bdf8;
+  color: #2f7fd1;
 }
 
 .spring-root.mode-professional .conv-plan-preview-item {
   grid-template-columns: 150px 1fr !important;
-  border-color: rgba(56, 189, 248, 0.15) !important;
-  background: rgba(2, 8, 24, 0.45) !important;
+  border-color: rgba(122, 168, 212, 0.4) !important;
+  background: rgba(255, 255, 255, 0.94) !important;
+  color: #0a1a28 !important;
   transition: border-color 0.15s;
 }
 
 .spring-root.mode-professional .conv-plan-preview-item:hover {
-  border-color: rgba(56, 189, 248, 0.3) !important;
+  border-color: rgba(47, 127, 209, 0.5) !important;
 }
 
 /* 执行计划轨道 */
 .spring-root.mode-professional .spring-plan-todo {
-  border-color: rgba(56, 189, 248, 0.28) !important;
-  background: linear-gradient(165deg, rgba(8, 47, 73, 0.45), rgba(15, 23, 42, 0.55)) !important;
+  border-color: rgba(122, 168, 212, 0.45) !important;
+  background: linear-gradient(165deg, rgba(255, 255, 255, 0.95), rgba(232, 242, 252, 0.9)) !important;
   border-radius: 14px !important;
   padding: 12px 16px !important;
+  color: #0a1a28 !important;
 }
 
 .spring-root.mode-professional .spring-plan-todo-title {
-  color: #7dd3fc !important;
+  color: #0a4a86 !important;
+  font-weight: 800 !important;
 }
 
 .spring-root.mode-professional .spring-plan-todo-title::before {
   content: '▸ ';
-  color: #38bdf8;
+  color: #2f7fd1;
 }
 
 .spring-root.mode-professional .spring-plan-todo-item.is-running {
-  border-color: rgba(56, 189, 248, 0.45) !important;
-  background: rgba(14, 165, 233, 0.1) !important;
+  border-color: rgba(47, 127, 209, 0.5) !important;
+  background: rgba(232, 242, 252, 0.98) !important;
   animation: wb-step-glow 2s ease-in-out infinite;
 }
 
@@ -1011,17 +1022,19 @@
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: rgba(51, 65, 85, 0.5);
+  background: rgba(214, 232, 248, 0.9);
+  color: #0a4a86 !important;
   font-size: 10px !important;
 }
 
 .spring-root.mode-professional .spring-plan-todo-item.is-running .spring-plan-todo-check {
-  background: rgba(14, 165, 233, 0.35);
-  color: #7dd3fc !important;
+  background: rgba(47, 127, 209, 0.2);
+  color: #0a4a86 !important;
 }
 
 .spring-root.mode-professional .spring-plan-todo-item.is-success .spring-plan-todo-check {
-  background: rgba(52, 211, 153, 0.25);
+  background: rgba(16, 185, 129, 0.22);
+  color: #0f5c45 !important;
 }
 
 /* 阶段进度 · 专业连线 */
@@ -1136,11 +1149,11 @@
 }
 
 .spring-root .wb-chat-column .spring-examples-summary {
-  color: #c4b5fd !important;
+  color: #3a3a78 !important;
 }
 
 .spring-root .wb-professional-column .spring-examples-summary {
-  color: #7dd3fc !important;
+  color: #0a4a86 !important;
 }
 
 /* 历史侧栏 · 模式色 */
@@ -1416,16 +1429,17 @@
   display: none;
 }
 
-/* 用户视图 · 思考面板外观 */
+/* 用户视图 · 思考面板外观（霜白） */
 .spring-root.thought-view-user .cursor-thought-panel.thought-panel-user {
-  border-color: rgba(148, 163, 184, 0.14) !important;
-  background: rgba(15, 20, 32, 0.55) !important;
-  box-shadow: none !important;
+  border-color: rgba(122, 168, 212, 0.42) !important;
+  background: rgba(255, 255, 255, 0.92) !important;
+  box-shadow: 0 4px 16px rgba(40, 70, 110, 0.08) !important;
+  color: #0a1a28 !important;
 }
 
 .spring-root.thought-view-user .cursor-thought-panel.thought-panel-user > .process-panel-summary {
-  color: #94a3b8 !important;
-  font-weight: 500 !important;
+  color: #1e3a52 !important;
+  font-weight: 650 !important;
 }
 
 .spring-root.thought-view-user .cursor-thought-panel.thought-panel-user > .process-panel-summary::before {
@@ -1433,9 +1447,9 @@
 }
 
 .spring-root.thought-view-user .process-panel-badge-live {
-  color: #7dd3fc !important;
-  background: rgba(14, 165, 233, 0.15) !important;
-  border-color: rgba(56, 189, 248, 0.3) !important;
+  color: #0a4a86 !important;
+  background: rgba(47, 127, 209, 0.14) !important;
+  border-color: rgba(47, 127, 209, 0.4) !important;
 }
 
 .spring-root.thought-view-developer .cursor-thought-panel.thought-panel-developer {

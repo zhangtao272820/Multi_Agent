@@ -61,6 +61,8 @@ from app.core.session_dialogue import (
     save_clarification_from_understanding,
     try_continue_task,
     _missing_fields_for_schedule,
+    remember_last_intent,
+    load_last_intent,
 )
 from app.core.time_nlu import resolve_datetime_with_llm, should_resolve_datetime_from_understanding
 from app.core.prompt_evolution import learn_from_tool_failure
@@ -1081,6 +1083,22 @@ def create_agent_graph():
                     hint = intent_from_manager_tool_plan(manager_task.get("tool_plan"))
                 if hint and hint != "其他":
                     understanding["intent"] = hint
+            # output_followup：锁上轮 intent，禁止短句重分类到新工具面
+            if (
+                not manager_orchestrated
+                and isinstance(understanding, dict)
+                and (
+                    turn_scope.narrow_output_followup
+                    or turn_scope.turn_kind == "output_followup"
+                    or turn_scope.mode == "continuation"
+                )
+            ):
+                prior_intent = load_last_intent(session_id)
+                if prior_intent and prior_intent != "其他":
+                    cur = str(understanding.get("intent") or "").strip()
+                    if not cur or cur == "其他" or cur != prior_intent:
+                        understanding["intent"] = prior_intent
+                        state["thoughts"].append(f"短承接：锁定上轮意图 {prior_intent}")
             understanding["turn_scope"] = turn_scope_to_dict(turn_scope)
             anchor_msg = nlu_message if manager_orchestrated and action_text else user_message
             anchor = (
@@ -1251,6 +1269,8 @@ def create_agent_graph():
                     understanding["intent"] = hint
         state["current_task"] = intent_label or "其他"
         state["understanding"] = understanding if isinstance(understanding, dict) else {}
+        if not manager_orchestrated and state["current_task"] not in ("其他", "二次确认", ""):
+            remember_last_intent(session_id, state["current_task"])
         rag_meta = (
             understanding.get("intent_rag_recall")
             if isinstance(understanding, dict)

@@ -5,23 +5,19 @@ import type { HubState, SaveListItem } from "../types";
 interface TitleProps {
   onStart: () => void;
   onSaves: () => void;
+  onGallery: () => void;
+  onSettings: () => void;
   backendOk: boolean | null;
   desktop?: boolean;
-  bgmEnabled?: boolean;
-  bgmVolume?: number;
-  onToggleBgm?: () => void;
-  onBgmVolume?: (v: number) => void;
 }
 
 export function TitleScreen({
   onStart,
   onSaves,
+  onGallery,
+  onSettings,
   backendOk,
   desktop,
-  bgmEnabled,
-  bgmVolume,
-  onToggleBgm,
-  onBgmVolume,
 }: TitleProps) {
   return (
     <section className="screen title-screen">
@@ -44,29 +40,14 @@ export function TitleScreen({
             继续存档
           </button>
         </div>
-        {onToggleBgm && (
-          <div className="title-bgm">
-            <button
-              type="button"
-              className={`btn ghost bgm-toggle${bgmEnabled ? " is-on" : ""}`}
-              onClick={onToggleBgm}
-            >
-              {bgmEnabled ? "音乐开" : "音乐关"}
-            </button>
-            {onBgmVolume && bgmEnabled && (
-              <input
-                className="bgm-volume"
-                type="range"
-                min={0}
-                max={1}
-                step={0.05}
-                value={bgmVolume ?? 0.85}
-                onChange={(e) => onBgmVolume(Number(e.target.value))}
-                aria-label="BGM 音量"
-              />
-            )}
-          </div>
-        )}
+        <div className="title-cta title-cta-secondary">
+          <button type="button" className="btn ghost" onClick={onGallery}>
+            立绘大全
+          </button>
+          <button type="button" className="btn ghost" onClick={onSettings}>
+            系统设置
+          </button>
+        </div>
         <p className="title-status">
           {backendOk === null && "连接中…"}
           {backendOk === true && (desktop ? "本地服务已就绪" : "后端已就绪")}
@@ -80,24 +61,36 @@ export function TitleScreen({
 
 interface CreateProps {
   gradeTiers: { id: string; label: string }[];
-  mbtiTypes: string[];
   busy: boolean;
   error: string | null;
-  onSubmit: (payload: { name: string; grade_tier: string; mbti: string }) => void;
+  onSubmit: (payload: {
+    name: string;
+    grade_tier: string;
+    stats: { study: number; social: number; stamina: number; luck: number };
+  }) => void;
   onBack: () => void;
 }
 
-export function CreatePcScreen({
-  gradeTiers,
-  mbtiTypes,
-  busy,
-  error,
-  onSubmit,
-  onBack,
-}: CreateProps) {
+const STAT_LABELS: { id: "study" | "social" | "stamina" | "luck"; label: string }[] = [
+  { id: "study", label: "学习" },
+  { id: "social", label: "社交" },
+  { id: "stamina", label: "体能" },
+  { id: "luck", label: "运气" },
+];
+const STAT_POOL = 12;
+
+export function CreatePcScreen({ gradeTiers, busy, error, onSubmit, onBack }: CreateProps) {
   const [name, setName] = useState("");
   const [grade, setGrade] = useState(gradeTiers[2]?.id ?? "mid");
-  const [mbti, setMbti] = useState(mbtiTypes.includes("INFP") ? "INFP" : mbtiTypes[0] ?? "INFP");
+  const [stats, setStats] = useState({ study: 3, social: 3, stamina: 3, luck: 3 });
+  const poolUsed = stats.study + stats.social + stats.stamina + stats.luck;
+
+  function setStat(id: keyof typeof stats, value: number) {
+    const next = { ...stats, [id]: Math.max(1, Math.min(5, value)) };
+    const total = next.study + next.social + next.stamina + next.luck;
+    if (total > STAT_POOL) return;
+    setStats(next);
+  }
 
   return (
     <section className="screen create-screen">
@@ -112,7 +105,8 @@ export function CreatePcScreen({
         className="create-form"
         onSubmit={(e) => {
           e.preventDefault();
-          onSubmit({ name: name.trim(), grade_tier: grade, mbti });
+          if (poolUsed !== STAT_POOL) return;
+          onSubmit({ name: name.trim(), grade_tier: grade, stats });
         }}
       >
         <label>
@@ -129,18 +123,29 @@ export function CreatePcScreen({
             ))}
           </select>
         </label>
-        <label>
-          <span>性格（MBTI）</span>
-          <select value={mbti} onChange={(e) => setMbti(e.target.value)}>
-            {mbtiTypes.map((m) => (
-              <option key={m} value={m}>
-                {m}
-              </option>
-            ))}
-          </select>
-        </label>
+        <p className="create-hint">男主性格即玩家本人，不设 MBTI。同学有各自 MBTI。</p>
+        <fieldset className="create-stats">
+          <legend>
+            本人数值（合计 {poolUsed}/{STAT_POOL}）
+          </legend>
+          {STAT_LABELS.map((s) => (
+            <label key={s.id} className="stat-row">
+              <span>
+                {s.label} · {stats[s.id]}
+              </span>
+              <input
+                type="range"
+                min={1}
+                max={5}
+                value={stats[s.id]}
+                onChange={(e) => setStat(s.id, Number(e.target.value))}
+              />
+            </label>
+          ))}
+          {poolUsed !== STAT_POOL && <p className="form-error">请将四点合计调到 {STAT_POOL}</p>}
+        </fieldset>
         {error && <p className="form-error">{error}</p>}
-        <button type="submit" className="btn primary" disabled={busy}>
+        <button type="submit" className="btn primary" disabled={busy || poolUsed !== STAT_POOL}>
           {busy ? "建档中…" : "进入校园"}
         </button>
       </form>

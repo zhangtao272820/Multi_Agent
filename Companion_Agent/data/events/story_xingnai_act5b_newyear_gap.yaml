@@ -14,8 +14,9 @@ trigger:
   flags_absent:
   - xn_newyear_gap
   waypoint_min: q_winter_newyear
-prompt_snippet: |
-  【专属故事 · 程星宁 · 节日加幕 · 元旦·合影缺口】
+prompt_snippet: '【专属故事 · 程星宁 · 节日加幕 · 元旦·合影缺口】
+
+  '
 advance: on_player_turn
 beats:
 - id: b1
@@ -27,33 +28,68 @@ beats:
   - 夸她
   - 点头
   - 沉默
-  narration: 相册纸边与青梅味里，元旦她穿节日装站在旧照相馆前，相机里还留着一张未拍完的合影。
-  pc_thought: 合影缺口像未说完的夏天。我补不补？
+  narration: 相册纸边与青梅味里，元旦她穿节日装站在旧照相馆前，相机里还留着一张未拍完的合影。便当绳结打得很仔细。
+  pc_thought: 合影缺口像未说完的夏天。我补不补？我想靠近，又怕说错一句。
   brief: 元旦她穿节日装站在旧照相馆前，相机里还留着一张未拍完的合影。等你回应。
+  pages:
+  - text: 相册纸边与青梅味里，元旦她穿节日装站在旧照相馆前，相机里还留着一张未拍完的合影。便当绳结打得很仔细。
+    voice: narration
+    sprite:
+      outfit: festival_spring
+      emotion: neutral
+  - text: 合影缺口像未说完的夏天。我补不补？我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: festival_spring
+      emotion: shy
 - id: b2
-  summary: "她把自拍杆递给你：「缺口只留给你——填或不填。」。等你回应。"
+  summary: 她把自拍杆递给你：「缺口只留给你——填或不填。」。等你回应。
   sprite_hint:
   - festival_spring
+  - season_winter
   - date
   soft_options:
   - 接住
   - 问清楚
   - 退一步
-  narration: "相册纸边与青梅味里，她把自拍杆递给你：「缺口只留给你——填或不填。」。"
-  pc_thought: 青梅如故很安全。再近一步就怕弄丢从前。
-  brief: "她把自拍杆递给你：「缺口只留给你——填或不填。」。等你回应。"
+  narration: 相册纸边与青梅味里，她把自拍杆递给你：「缺口只留给你——填或不填。」。便当绳结打得很仔细。她没再多说，只是看着你。
+  pc_thought: 青梅如故很安全。再近一步就怕弄丢从前
+  brief: 她把自拍杆递给你：「缺口只留给你——填或不填。」。等你回应。
+  pages:
+  - text: 相册纸边与青梅味里，她把自拍杆递给你：「缺口只留给你——填或不填。」。便当绳结打得很仔细。她没再多说，只是看着你。
+    voice: narration
+    sprite:
+      outfit: festival_spring
+      emotion: neutral
+  - text: 青梅如故很安全。再近一步就怕弄丢从前
+    voice: pc
+    sprite:
+      outfit: festival_spring
+      emotion: shy
 - id: b3
   summary: 年夜将尽；入镜或躲开，会决定相册是完整，还是永久空白。等你回应。
   sprite_hint:
   - festival_spring
+  - season_winter
   - home
   soft_options:
   - 承诺
   - 诚实犹豫
   - 拒绝
-  narration: 年夜将尽；入镜或躲开，会决定相册是完整，还是永久空白。
-  pc_thought: 冬相册冷。空白页等的是人，不是滤镜。
+  narration: 年夜将尽；入镜或躲开，会决定相册是完整，还是永久空白。便当绳结打得很仔细。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 冬相册冷。空白页等的是人，不是滤镜。我想靠近，又怕说错一句。
   brief: 年夜将尽；入镜或躲开，会决定相册是完整，还是永久空白。等你回应。
+  pages:
+  - text: 年夜将尽；入镜或躲开，会决定相册是完整，还是永久空白。便当绳结打得很仔细。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: festival_spring
+      emotion: neutral
+  - text: 冬相册冷。空白页等的是人，不是滤镜。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: festival_spring
+      emotion: shy
 rewards:
   flags_set:
   - xn_newyear_gap

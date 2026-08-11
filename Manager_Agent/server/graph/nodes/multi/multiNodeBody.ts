@@ -55,6 +55,11 @@ import { resolveSubAgentScopeByLlm, isGenericQueryFocus } from '../../../utils/r
 import { parseCleanPayload } from '#agent-shared/cleanPayload'
 import { crawlerSourceHitsForEvent } from '../../../utils/crawler/crawlerItemsParse'
 import { buildSpecialistHandoffFromStep } from '../../../utils/agents/specialistHandoff'
+import {
+  buildSoftHandoffFromStep,
+  formatDependencySoftHandoffs,
+  mergeSoftHandoffsIntoMeta
+} from '../../core/routing/softHandoff'
 import { buildStepStatus, estimateMultiEtaMs } from '../../core/runtime/stepStatus'
 import { emitPlanStepsEvent } from '../../core/plan/planStepsEvent'
 import { emitStepResultEvent } from '../../core/output/stepResultEvent'
@@ -379,12 +384,17 @@ export async function runMultiNodeBody(state: any, deps: any) {
                 : []
             }
           })
+        const softHandoffBlock = formatDependencySoftHandoffs(depSummaries)
         return {
           mode: 'structured_context_v2',
           stepAgent: step.agent,
           userTask: question,
           stepQuery: String(step.query || ''),
+          ...(String((step as { taskForm?: string }).taskForm || '').trim()
+            ? { taskForm: String((step as { taskForm?: string }).taskForm).trim() }
+            : {}),
           dependencySummaries: depSummaries.slice(0, 5),
+          softHandoff: softHandoffBlock || undefined,
           /** 父上下文摘要：禁止塞专才全文，仅 digest */
           contextDigest: trimForContext(ctx, 1000),
           globalFacts: globalFactsForInternalPayload(
@@ -2004,7 +2014,16 @@ export async function runMultiNodeBody(state: any, deps: any) {
 
       const lastStepRecords = keepLastObservations(
         Object.entries(byId).map(([id, rec]) => {
-          const ar = (rec as { meta?: { agentResult?: { needs_clarify?: boolean } } })?.meta?.agentResult
+          const ar = (
+            rec as {
+              meta?: {
+                agentResult?: {
+                  needs_clarify?: boolean
+                  structured?: { evolutionApplied?: unknown }
+                }
+              }
+            }
+          )?.meta?.agentResult
           const err = String((rec as any)?.error || '')
           const needsClarifyStep =
             err === 'needs_clarify' || ar?.needs_clarify === true || /needs_clarify/i.test(err)
@@ -2029,7 +2048,10 @@ export async function runMultiNodeBody(state: any, deps: any) {
             output: rawOut ? clipObsSummary(rawOut) : undefined,
             summary: summaryText || undefined,
             handoff,
-            needsClarify: needsClarifyStep || undefined
+            needsClarify: needsClarifyStep || undefined,
+            ...(ar?.structured?.evolutionApplied
+              ? { evolutionApplied: ar.structured.evolutionApplied }
+              : {})
           }
         })
       )
@@ -2068,6 +2090,22 @@ export async function runMultiNodeBody(state: any, deps: any) {
         ...(adminWriteTerminal ? { adminWriteTerminal: true } : {})
       }
 
+      const softHandoffs = mergeSoftHandoffsIntoMeta(
+        state.meta as Record<string, unknown>,
+        Object.values(byId).map((rec) =>
+          buildSoftHandoffFromStep({
+            agent: String(rec.agent || ''),
+            stepId: String(rec.id || ''),
+            ok: rec.status === 'ok',
+            output: rec.output,
+            error: rec.error,
+            agentResult: (rec.meta as { agentResult?: import('../../../utils/agents/types').AgentResult } | undefined)
+              ?.agentResult,
+            taskForm: String((rec as { taskForm?: string }).taskForm || '').trim() || undefined
+          })
+        )
+      )
+
       return {
         results: out,
         evidence: evidences.filter(Boolean),
@@ -2077,10 +2115,12 @@ export async function runMultiNodeBody(state: any, deps: any) {
               clarifyQuestions: finalClarifyQuestions,
               uncertainty: 'high',
               voteSummary,
+              softHandoffs,
               ...replanAudit
             })
           : mergeMeta(state, {
               ...(voteSummary ? { voteSummary } : {}),
+              softHandoffs,
               ...replanAudit
             }),
         taskPlan: combinedNeedsClarify

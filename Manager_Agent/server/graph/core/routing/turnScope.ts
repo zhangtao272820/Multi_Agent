@@ -106,12 +106,13 @@ function scopeFromMode(
     }
   }
   if (mode === 'continuation') {
+    // 剪枝：仅保留极短先验（锚点/软交接由编排 Human 另挂），禁止整段历史灌入
     return {
       mode: 'continuation',
       turnKind: kind === 'slot_answer' ? 'slot_answer' : 'continuation',
       clarifyKind: ck,
       lastOnly,
-      routingContext: routingConversationContext(messages, { maxPriorRounds: 2, maxTotalChars: 1200 }),
+      routingContext: routingConversationContext(messages, { maxPriorRounds: 1, maxTotalChars: 480 }),
       suppressSessionAnchor: false,
       suppressMultiTurnMerge: false,
       directChitchatSynth: false,
@@ -313,7 +314,8 @@ export function formatTurnScopeRouterHint(scope: TurnRoutingScope): string {
   if (scope.turnKind === 'output_followup') {
     return [
       kindLine,
-      '【轮次范围】输出追问：用户对上一轮结果消歧/解释，禁止扩写 db/admin/多源 pipeline；cap 仅限上轮数据面（通常 rag 或 synth）。'
+      '【轮次范围】输出追问：用户对上一轮结果消歧/解释，禁止扩写 db/admin/多源 pipeline；cap 仅限上轮数据面（通常 rag 或 synth）。',
+      '【主题锚定】coalescedTask / clauses.text / queryFocus 必须基于 session_anchor.task（上轮任务），禁止另起新检索主题或新专名；短句「再详细一点」不得单独作为检索问句。'
     ].join('\n')
   }
   if (scope.turnKind === 'slot_answer') {
@@ -326,7 +328,11 @@ export function formatTurnScopeRouterHint(scope: TurnRoutingScope): string {
     return [kindLine, '【轮次范围】检测到话题切换：仅以【当前用户输入】路由，勿继承上一轮 rag/db/multi 任务。'].join('\n')
   }
   if (scope.mode === 'continuation') {
-    return [kindLine, '【轮次范围】多轮承接：可结合有限前序上下文，但 data-plane 仍以用户原表述为准。'].join('\n')
+    return [
+      kindLine,
+      '【轮次范围】多轮承接：可结合有限前序上下文，但 data-plane 仍以用户原表述为准。',
+      '【主题锚定】短承接时 coalescedTask/queryFocus 须锚定 session_anchor.task，禁止发明与上轮无关的新主题。'
+    ].join('\n')
   }
   return [kindLine, '【轮次范围】独立新任务：仅依据当前用户输入路由，勿混入历史轮次的图表/查库/报告诉求。'].join('\n')
 }

@@ -14,55 +14,95 @@ trigger:
   flags_absent:
   - tt_newyear_encore
   waypoint_min: q_winter_newyear
-prompt_snippet: |
-  【专属故事 · 唐桃夭 · 节日加幕 · 元旦·灯牌】
+prompt_snippet: '【专属故事 · 唐桃夭 · 节日加幕 · 元旦·灯牌】
+
+  '
 advance: on_player_turn
 beats:
 - id: b1
-  summary: "元旦特别演出前，她穿节日装却把灯牌塞进你手里：「今晚只认这一支。」。等你回应。"
+  summary: 元旦特别演出前，她穿节日装却把灯牌塞进你手里：「今晚只认这一支。」。等你回应。
   sprite_hint:
   - festival_spring
   - season_winter
   - home_eating
   - home_sleeping
-  - intimate_lounge
+  - date
+  - casual
+  - home
   soft_options:
   - 夸她
   - 点头
   - 沉默
-  narration: "声乐棚回音与汗味里，元旦特别演出前，她穿节日装却把灯牌塞进你手里：「今晚只认这一支。」。"
-  pc_thought: 破音也比完美假笑真。我想当观众，不是灯牌支架。
-  brief: "元旦特别演出前，她穿节日装却把灯牌塞进你手里：「今晚只认这一支。」。等你回应。"
+  narration: 声乐棚回音与汗味里，元旦特别演出前，她穿节日装却把灯牌塞进你手里：「今晚只认这一支。」。耳返线还绕在她指节上。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 破音也比完美假笑真。我想当观众，不是灯牌支架。我想靠近，又怕说错一句。
+  brief: 元旦特别演出前，她穿节日装却把灯牌塞进你手里：「今晚只认这一支。」。等你回应。
+  pages:
+  - text: 声乐棚回音与汗味里，元旦特别演出前，她穿节日装却把灯牌塞进你手里：「今晚只认这一支。」。耳返线还绕在她指节上。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: festival_spring
+      emotion: neutral
+  - text: 破音也比完美假笑真。我想当观众，不是灯牌支架。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: festival_spring
+      emotion: shy
 - id: b2
-  summary: "后台镜前她卸下一半妆：「安可之后，我想看见你——不是粉丝。」。等你回应。"
+  summary: 后台镜前她卸下一半妆：「安可之后，我想看见你——不是粉丝。」。等你回应。
   sprite_hint:
   - festival_spring
-  - date
   - season_winter
   - home_eating
   - home_sleeping
+  - date
+  - casual
+  - home
   soft_options:
   - 接住
   - 问清楚
   - 退一步
-  narration: "声乐棚回音与汗味里，后台镜前她卸下一半妆：「安可之后，我想看见你——不是粉丝。」。"
-  pc_thought: 应急观众很好当——素颜观众才难。
-  brief: "后台镜前她卸下一半妆：「安可之后，我想看见你——不是粉丝。」。等你回应。"
+  narration: 声乐棚回音与汗味里，后台镜前她卸下一半妆：「安可之后，我想看见你——不是粉丝。」。耳返线还绕在她指节上。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 应急观众很好当——素颜观众才难。我想靠近，又怕说错一句。
+  brief: 后台镜前她卸下一半妆：「安可之后，我想看见你——不是粉丝。」。等你回应。
+  pages:
+  - text: 声乐棚回音与汗味里，后台镜前她卸下一半妆：「安可之后，我想看见你——不是粉丝。」。耳返线还绕在她指节上。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: festival_spring
+      emotion: neutral
+  - text: 应急观众很好当——素颜观众才难。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: festival_spring
+      emotion: shy
 - id: b3
   summary: 倒计时开始；你站不站前排，会决定灯是为你亮，还是为别人亮。等你回应。
   sprite_hint:
   - festival_spring
-  - home
   - season_winter
   - home_eating
   - home_sleeping
+  - date
+  - casual
+  - home
   soft_options:
   - 承诺
   - 诚实犹豫
   - 拒绝
-  narration: 声乐棚回音与汗味里，倒计时开始；你站不站前排，会决定灯是为你亮，还是为别人亮。
-  pc_thought: 万人喜欢很吵。我想听她私下喘一口气的声音。
+  narration: 声乐棚回音与汗味里，倒计时开始；你站不站前排，会决定灯是为你亮，还是为别人亮。耳返线还绕在她指节上。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 万人喜欢很吵。我想听她私下喘一口气的声音。我想靠近，又怕说错一句。
   brief: 倒计时开始；你站不站前排，会决定灯是为你亮，还是为别人亮。等你回应。
+  pages:
+  - text: 声乐棚回音与汗味里，倒计时开始；你站不站前排，会决定灯是为你亮，还是为别人亮。耳返线还绕在她指节上。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: festival_spring
+      emotion: neutral
+  - text: 万人喜欢很吵。我想听她私下喘一口气的声音。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: festival_spring
+      emotion: shy
 rewards:
   flags_set:
   - tt_newyear_encore

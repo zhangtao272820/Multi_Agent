@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import type {
   AvatarState,
   CharacterProfile,
@@ -10,6 +10,7 @@ import type {
   RelationshipState,
   SceneRunPublic,
   StoryProgressPublic,
+  VnPage,
 } from "../types";
 import type { SpriteStyle } from "../spriteUrl";
 import { affinityImpression, stageImpression } from "../impression";
@@ -18,6 +19,40 @@ import DialogueBox from "./DialogueBox";
 import EnsembleStage from "./EnsembleStage";
 import GalInputBar from "./GalInputBar";
 import SpriteAvatar from "./SpriteAvatar";
+import VnPageRunner from "./VnPageRunner";
+
+function storyPagesFromProgress(
+  sp: StoryProgressPublic | null | undefined,
+  characterId: string,
+): VnPage[] {
+  if (!sp || sp.completed) return [];
+  const raw = Array.isArray(sp.pages) ? sp.pages : [];
+  const fromApi = raw
+    .map((p) => ({
+      text: String(p?.text || "").trim(),
+      voice: (p?.voice || "narration") as VnPage["voice"],
+      sprite: p?.sprite
+        ? {
+            character_id: p.sprite.character_id || characterId,
+            outfit: p.sprite.outfit,
+            emotion: p.sprite.emotion,
+          }
+        : { character_id: characterId },
+      bg: p?.bg,
+    }))
+    .filter((p) => p.text);
+  if (fromApi.length) return fromApi;
+  const pages: VnPage[] = [];
+  const narration = (sp.narration || sp.beat_summary || "").trim();
+  const thought = (sp.pc_thought || "").trim();
+  if (narration) {
+    pages.push({ text: narration, voice: "narration", sprite: { character_id: characterId } });
+  }
+  if (thought) {
+    pages.push({ text: thought, voice: "pc", sprite: { character_id: characterId } });
+  }
+  return pages;
+}
 
 type Props = {
   profile: CharacterProfile;
@@ -133,26 +168,24 @@ export default function GalScene({
     : { background: fallbackCss };
   const turnsLeft = sceneRun && !sceneRun.ended ? sceneRun.turns_left : null;
   const sceneHint = sceneRun?.pool_hint || "";
-  const storyNarration =
-    storyProgress && !storyProgress.completed
-      ? (storyProgress.narration || storyProgress.beat_summary || "").trim()
+  const storyVnPages = useMemo(
+    () => storyPagesFromProgress(storyProgress, profile.character_id || ""),
+    [storyProgress, profile.character_id],
+  );
+  const storyBeatKey =
+    storyProgress && !storyProgress.completed && storyVnPages.length
+      ? `${storyProgress.event_id}:${storyProgress.beat_index}:${storyProgress.beat_id || ""}`
       : "";
-  const storyThought =
-    storyProgress && !storyProgress.completed ? (storyProgress.pc_thought || "").trim() : "";
-  const storyCardOpen = Boolean(storyNarration || storyThought);
-  const storyBeatLine =
-    !storyCardOpen &&
-    storyProgress &&
-    !storyProgress.completed &&
-    (storyProgress.beat_summary || "").trim()
-      ? `本拍 · ${(storyProgress.beat_summary || "").trim()}`
-      : "";
-  const inputLocked = pending || Boolean(sceneRun?.ended);
+  const [vnDoneKey, setVnDoneKey] = useState("");
+  const showStoryVn = Boolean(storyBeatKey && storyBeatKey !== vnDoneKey);
+  const inputLocked = pending || Boolean(sceneRun?.ended) || showStoryVn;
   const guestReaction = (ensemble?.guest_reaction || "").trim();
   const storySoftChoices = Boolean(
     storyProgress && !storyProgress.completed && storyProgress.beat_total > 0 && hasChoices && choiceKind === "soft",
   );
-  const storyHudTitle = storyNarration || storyProgress?.act_summary || "专属故事节拍";
+  const storyHudTitle =
+    storyProgress?.narration || storyProgress?.act_summary || "专属故事节拍";
+  const sceneBg = (scene?.image || "").replace(/^.*\/api\/bgs\//, "").replace(/\?.*$/, "").replace(/\.png$/i, "");
 
   return (
     <div
@@ -224,43 +257,21 @@ export default function GalScene({
       </header>
 
       {hud}
-      {(questHud || storyBreath || sceneHint || storyBeatLine || storyCardOpen) && (
+      {(questHud || storyBreath || sceneHint) && !showStoryVn ? (
         <div className="gal-quest-layer">
           {questHud}
-          {storyCardOpen ? (
-            <aside
-              className="gal-story-card"
-              role="status"
-              aria-label="故事叙事"
-              title={storyProgress?.act_summary || undefined}
-            >
-              <span className="gal-story-card-label">叙事</span>
-              {storyNarration ? <p className="gal-story-card-narration">{storyNarration}</p> : null}
-              {storyThought ? (
-                <p className="gal-story-card-thought">
-                  <span className="gal-story-card-thought-mark">我</span>
-                  {storyThought}
-                </p>
-              ) : null}
-            </aside>
-          ) : null}
-          {storyBeatLine ? (
-            <p className="gal-story-beat" role="status" title={storyProgress?.act_summary || undefined}>
-              {storyBeatLine}
-            </p>
-          ) : null}
           {sceneHint ? (
             <p className="gal-scene-hint" role="status">
               {sceneHint}
             </p>
           ) : null}
-          {storyBreath && !storyBeatLine && !storyCardOpen ? (
+          {storyBreath ? (
             <p className="gal-story-breath" role="status">
               {storyBreath}
             </p>
           ) : null}
         </div>
-      )}
+      ) : null}
 
       <div className="gal-character-layer">
         {ensembleOn ? (
@@ -350,6 +361,17 @@ export default function GalScene({
         </div>
       ) : null}
       {endingOverlay}
+      {showStoryVn ? (
+        <VnPageRunner
+          pages={storyVnPages}
+          characterId={profile.character_id || ""}
+          characterName={profile.name || ""}
+          defaultBg={sceneBg}
+          ariaLabel="故事旁白"
+          skipLabel="进入对话"
+          onDone={() => setVnDoneKey(storyBeatKey)}
+        />
+      ) : null}
     </div>
   );
 }

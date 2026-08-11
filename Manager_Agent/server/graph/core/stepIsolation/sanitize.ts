@@ -472,6 +472,17 @@ export type SanitizePlanOpts = {
   state?: any
   userTask?: string
   lowCostMode?: boolean
+  /** 与编排 meta 同源的清晰度切片；缺省从 state.meta 读取 */
+  sourceCommitmentRaw?: Record<string, unknown> | null
+}
+
+function commitmentRawForPlanSanitize(opts?: SanitizePlanOpts): Record<string, unknown> | null {
+  if (opts?.sourceCommitmentRaw && typeof opts.sourceCommitmentRaw === 'object') {
+    return opts.sourceCommitmentRaw
+  }
+  const meta = opts?.state?.meta
+  if (meta && typeof meta === 'object') return meta as Record<string, unknown>
+  return null
 }
 
 /** 对需 LLM 裁剪的步骤批量回填 query（结构化规则为兜底） */
@@ -536,9 +547,10 @@ export async function llmRefineStepQueries(
 
 /** 结构化净化 + 可选 LLM 回填（Planner 统一出口） */
 export async function sanitizePlanSteps(plan: Step[], opts?: SanitizePlanOpts): Promise<Step[]> {
-  // 计划出口硬闸：crawler 步若仍是天气/地图语义 → admin（堵住 web-align/Planner 回填）
-  const weatherFixed = rematerializeWeatherCrawlerPlanSteps(plan)
-  const mapFixed = rematerializeMapCrawlerPlanSteps(weatherFixed)
+  // 计划出口硬闸与编排侧共用 sourceCommitment：清晰公网锁时不得改绑 admin
+  const commitmentRaw = commitmentRawForPlanSanitize(opts)
+  const weatherFixed = rematerializeWeatherCrawlerPlanSteps(plan, commitmentRaw)
+  const mapFixed = rematerializeMapCrawlerPlanSteps(weatherFixed, commitmentRaw)
   const structured = mapFixed.map((step) => sanitizeStepQueryForAgent(step, step.agent))
   if (!opts?.llmInvoke || !opts.state) return structured
   return llmRefineStepQueries(structured, opts)

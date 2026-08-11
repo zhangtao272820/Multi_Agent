@@ -28,8 +28,14 @@ assert(!coldSys.includes(ORCH_PACK_MARKERS.multi_three), 'cold omits multi_three
 assert(!coldSys.includes(ORCH_PACK_MARKERS.admin_combo), 'cold omits admin_combo')
 assert(!coldSys.includes(ORCH_PACK_MARKERS.report_brief), 'cold omits report_brief')
 assert(coldSys.includes('<untrusted_*>'), 'base mentions untrusted tags')
-assert(coldSys.includes('gui vs crawler') || coldSys.includes('【gui vs crawler】'), 'base has gui vs crawler rule')
+assert(coldSys.includes('gui vs crawler') || coldSys.includes('【gui vs crawler】') || coldSys.includes('GUI vs Crawler'), 'base has gui vs crawler rule')
+assert(coldSys.includes('库存') || coldSys.includes('catalog'), 'boundary teaches catalog inventory')
+assert(coldSys.includes('sourceCommitment') || coldSys.includes('意图清晰度'), 'base teaches sourceCommitment')
 assertSystemPromptWithinBudget(coldSys, 'orch:cold')
+
+const withMedia = assembleOrchestratorSystemPrompt({ hasAttachment: true, probeRagHits: true })
+assert(withMedia.includes(ORCH_PACK_MARKERS.multimodal_db), 'attachment mounts multimodal pack')
+assert(withMedia.includes(ORCH_PACK_MARKERS.rag_only), 'attachment+rag mounts rag_only')
 
 const dbOnly: OrchestratorPromptAssembleInput = { probeDbRelevant: true, probeRagHits: false }
 const dbSys = assembleOrchestratorSystemPrompt(dbOnly)
@@ -49,7 +55,10 @@ assert(bothSys.includes(ORCH_PACK_MARKERS.rag_only), 'db+rag has rag_only marker
 assert(bothSys.includes(ORCH_PACK_MARKERS.db_only), 'db+rag has db_only marker')
 assert(!bothSys.includes(ORCH_PACK_MARKERS.multi_three), 'db+rag omits multi_three by default')
 assert(bothSys.includes('taskIntent') || bothSys.includes('document_retrieval'), 'base teaches taskIntent')
-assert(bothSys.includes('高龄津贴') || bothSys.includes('津贴补贴'), 'rag_only pack covers B2 subsidy example')
+assert(
+  bothSys.includes('文档') || bothSys.includes('document_retrieval') || bothSys.includes('rag_catalog'),
+  'rag_only pack covers abstract document_retrieval morphology (catalog-grounded, not golden wording)'
+)
 
 const bothMulti: OrchestratorPromptAssembleInput = {
   probeDbRelevant: true,

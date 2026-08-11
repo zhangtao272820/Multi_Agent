@@ -27,43 +27,82 @@ beats:
   - home_eating
   - home_sleeping
   - intimate_lounge
+  - bath_foam
+  - date
   soft_options:
   - 夸她
   - 点头
   - 沉默
-  narration: 粉笔灰与纸页里，春节她仍穿着端庄节日装，却摘下了名牌；红灯笼下，师生距离忽然无处安放。
-  pc_thought: 粉笔灰落在袖口。我想叫她名字，又怕越界。
+  narration: 粉笔灰与纸页里，春节她仍穿着端庄节日装，却摘下了名牌；红灯笼下，师生距离忽然无处安放。红笔帽扣得严严实实。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 粉笔灰落在袖口。我想叫她名字，又怕越界。我想靠近，又怕说错一句。
   brief: 春节她仍穿着端庄节日装，却摘下了名牌；红灯笼下，师生距离忽然无处安放。等你回应。
+  pages:
+  - text: 粉笔灰与纸页里，春节她仍穿着端庄节日装，却摘下了名牌；红灯笼下，师生距离忽然无处安放。红笔帽扣得严严实实。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: festival_spring
+      emotion: neutral
+  - text: 粉笔灰落在袖口。我想叫她名字，又怕越界。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: festival_spring
+      emotion: shy
 - id: b2
   summary: 她说：「过年也不许越线——除非你先学会用名字叫我。」。等你回应。
   sprite_hint:
   - festival_spring
-  - date
   - season_winter
   - home_eating
   - home_sleeping
+  - intimate_lounge
+  - bath_foam
+  - date
   soft_options:
   - 接住
   - 问清楚
   - 退一步
-  narration: 粉笔灰与纸页里，她说：「过年也不许越线——除非你先学会用名字叫我。」。
-  pc_thought: 边界课是给两个人的——我也在被考试。
+  narration: 粉笔灰与纸页里，她说：「过年也不许越线——除非你先学会用名字叫我。」。红笔帽扣得严严实实。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。空气有点静，连呼吸都听得见。
+  pc_thought: 边界课是给两个人的——我也在被考试。我想靠近，又怕说错一句。
   brief: 她说：「过年也不许越线——除非你先学会用名字叫我。」。等你回应。
+  pages:
+  - text: 粉笔灰与纸页里，她说：「过年也不许越线——除非你先学会用名字叫我。」。红笔帽扣得严严实实。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。空气有点静，连呼吸都听得见。
+    voice: narration
+    sprite:
+      outfit: festival_spring
+      emotion: neutral
+  - text: 边界课是给两个人的——我也在被考试。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: festival_spring
+      emotion: shy
 - id: b3
   summary: 你的称呼与距离，会决定真结局的门，还是把关系推回冷战。等你回应。
   sprite_hint:
   - festival_spring
-  - home
   - season_winter
   - home_eating
   - home_sleeping
+  - intimate_lounge
+  - bath_foam
+  - date
   soft_options:
   - 承诺
   - 诚实犹豫
   - 拒绝
-  narration: 粉笔灰与纸页里，你的称呼与距离，会决定真结局的门，还是把关系推回冷战。
-  pc_thought: 摘掉工牌的那一秒，师生戏就松了。我敢不敢对等？
+  narration: 粉笔灰与纸页里，你的称呼与距离，会决定真结局的门，还是把关系推回冷战。红笔帽扣得严严实实。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。空气有点静，连呼吸都听得见。
+  pc_thought: 摘掉工牌的那一秒，师生戏就松了。我敢不敢对等？我想靠近，又怕说错一句。
   brief: 你的称呼与距离，会决定真结局的门，还是把关系推回冷战。等你回应。
+  pages:
+  - text: 粉笔灰与纸页里，你的称呼与距离，会决定真结局的门，还是把关系推回冷战。红笔帽扣得严严实实。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。空气有点静，连呼吸都听得见。
+    voice: narration
+    sprite:
+      outfit: festival_spring
+      emotion: neutral
+  - text: 摘掉工牌的那一秒，师生戏就松了。我敢不敢对等？我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: festival_spring
+      emotion: shy
 rewards:
   flags_set:
   - rl_spring_boundary

@@ -162,6 +162,10 @@ def main() -> int:
         fail("App.tsx should cue BGM from stable period/location keys")
     else:
         print("OK App BGM stable cue keys")
+    if 'sceneRun?.mode === "date"' not in app_src or "date_soft" not in app_src or "date_night" not in app_src:
+        fail("App.tsx should cue date_soft/date_night when sceneRun.mode is date")
+    else:
+        print("OK App date BGM cues")
 
     # map + face chips: hub should not stage full-body sprites
     hub_src = (ROOT / "frontend" / "src" / "components" / "TownHubScreen.tsx").read_text(

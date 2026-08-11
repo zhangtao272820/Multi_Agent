@@ -169,6 +169,17 @@ export async function resolveCompositeRouteGuardByLlm(input: {
   state?: unknown
 }): Promise<CompositeRouteGuard | null> {
   const ic = input.intentClassify
+  const agents = (input.allowedAgents ?? []).map(String)
+  // 无公网信号：禁止再打复合守卫 LLM（避免 rag∥db→report 被误扩 crawler）
+  const hasWebSignal =
+    ic?.needsWeb === true ||
+    agents.includes('crawler') ||
+    agents.includes('gui') ||
+    (ic?.dataSources ?? []).includes('crawler')
+  if (!hasWebSignal) {
+    return null
+  }
+
   const structural = inferCompositeRouteStructural({
     intentClassify: ic,
     allowedAgents: input.allowedAgents
@@ -229,7 +240,7 @@ export async function resolveCompositeRouteGuardByLlm(input: {
             .join('\n\n')
         ]
       ],
-      { tier: 'light' }
+      { tier: 'light', thinkingLabel: '复合路由：是否库内+公网对照' }
     )
     const parsed = CompositeRouteSchema.safeParse(safeJsonParse(String(r.text ?? '').trim()))
     if (!parsed.success || Number(parsed.data.confidence) < 0.5) return structural

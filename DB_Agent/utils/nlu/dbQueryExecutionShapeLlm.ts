@@ -63,7 +63,7 @@ function planMetricsLookLikeCount(plan?: QueryPlan | null): boolean {
 
 /**
  * 专名 + 次数/条数（无分组维度）→ COUNT scalar，不是明细列表。
- * 只读 Plan 槽位；用于纠正「林婉清做过几次…」被误标 detail_rows。
+ * 只读 Plan 槽位；用于纠正「[人名]做过几次…」被误标 detail_rows。
  */
 export function planLooksLikeNamedEntityCount(plan?: QueryPlan | null): boolean {
   if (!plan) return false;
@@ -142,8 +142,8 @@ async function inferExecutionShapeByLlm(
           "你是数据库查询执行形态分类器。根据用户自然语言问题与 QueryPlan，判断应如何执行 SQL。",
           "只输出 JSON，无 Markdown；勿用关键词表或正则硬匹配。",
           "shape 含义：",
-          "- scalar_lookup：有明确筛选条件，查询某个对象的一个或少数指标值/关联属性名（如「农娜的试卷总分是多少」→ 取 total_score；「绑定题库的名称是什么」「绑定的题库列表是什么」「里面的题库是什么」→ 取 DISTINCT 题库名称集合，不是列表明细）",
-          "- distribution：明确要求按维度分组统计/占比/结构（如「按性别分布」「各类别数量」），且不是查某个具体对象的明细列表",
+          "- scalar_lookup：有明确筛选条件，查询某个对象的一个或少数指标值/关联属性名（如「[对象]的[数值属性]是多少」→ 取单值；「绑定的[关联实体]名称/列表是什么」「里面的[关联实体]是什么」→ 取 DISTINCT 名称集合，不是列表明细）",
+          "- distribution：明确要求按维度分组统计/占比/结构（如「按[维度]分布」「各类别数量」），且不是查某个具体对象的明细列表",
           "- trend：时间序列/按月/趋势变化",
           "- detail_rows：查某人/某对象的业务记录明细列表（含多步任务里仅「查库」那一步；后面的分析/报告不改变本形态）",
           "- comparison：两组或多组对比",
@@ -151,11 +151,11 @@ async function inferExecutionShapeByLlm(
           "判定要点：",
           "- 若问「[专名]做过几次/多少次/有几条/检测次数」→ scalar_lookup（COUNT），不要 detail_rows；次数是主答，不是拉全字段明细。",
           "- 若问「做过几次/多少次/多少条/有几条/人口数量/多少人」且已锁定地区/筛选条件（可无具体人名）→ scalar_lookup（COUNT），不要 detail_rows。",
-          "- 地区+老年/人员统计（如某区老人人数）无具体人名、无分组维度 → scalar_lookup，不要 detail_rows。",
+          "- 地区+[人群]统计（如某区人数）无具体人名、无分组维度 → scalar_lookup，不要 detail_rows。",
           "- 若问题指向具体人员/对象要「记录/明细/报告内容/项目/档案」且目标是多列业务行，即使 plan.intent 暂为 aggregation，也应选 detail_rows，不要选 distribution。",
-          "- 若问「X是什么/Y叫什么/名称是什么/是多少/绑定的…列表是什么/里面的题库是什么」且前半有明确对象筛选，选 scalar_lookup（DISTINCT 关联属性集合），不要选 detail_rows。",
-          "- 若问「课程/对象明细分别是什么」「子表明细有哪些」且要多列业务行 → detail_rows，不要 scalar_lookup 列聚合。",
-          "- 若已锁定具体对象（filter_slots 有值），问其关联子记录/明细项「分别是什么/有哪些」且目标是子表多列业务明细，选 detail_rows；若目标是关联实体的名称集合（经 JSON 数组/外键展开如绑定题库名称），仍选 scalar_lookup。",
+          "- 若问「X是什么/Y叫什么/名称是什么/是多少/绑定的…列表是什么/里面的[关联实体]是什么」且前半有明确对象筛选，选 scalar_lookup（DISTINCT 关联属性集合），不要选 detail_rows。",
+          "- 若问「[对象]明细分别是什么」「子表明细有哪些」且要多列业务行 → detail_rows，不要 scalar_lookup 列聚合。",
+          "- 若已锁定具体对象（filter_slots 有值），问其关联子记录/明细项「分别是什么/有哪些」且目标是子表多列业务明细，选 detail_rows；若目标是关联实体的名称集合（经 JSON 数组/外键展开），仍选 scalar_lookup。",
           "- 全局分布/各类别数量才是 distribution；锁定单个对象后枚举其关联明细不是 distribution。",
           "- 句末「并分析/生成报告/汇总」属于下游任务，SQL 仍按查库部分判断。",
           'schema: {"shape":"...","confidence":0-1,"reason":"简短中文"}',

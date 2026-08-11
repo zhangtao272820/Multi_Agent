@@ -3,41 +3,115 @@ label: 玻璃与观察日记
 priority: 8
 once: true
 chance: 1.0
-scene_id: ""
+scene_id: ''
 trigger:
-  character_ids: [jingliu]
+  character_ids:
+  - jingliu
   stage_min: crush
   affinity_min: 84
-  flags_present: [jl_equal_choice]
-  flags_absent: [jl_cousin_glass]
-prompt_snippet: |
-  【专属故事 · 权力差的另一侧 · 第6幕 · 玻璃与观察日记】
+  flags_present:
+  - jl_equal_choice
+  flags_absent:
+  - jl_cousin_glass
+prompt_snippet: '【专属故事 · 权力差的另一侧 · 第6幕 · 玻璃与观察日记】
+
+  '
 advance: on_player_turn
 beats:
-  - id: b1
-    narration: "静宁把观察日记拍在桌上。堂姐所有「护短」她都记着，也包括对你的破例。"
-    pc_thought: "堂妹的观察笔记像刀。我是麻烦，还是值得亮出来的人？"
-    brief: "静宁甩出观察日记；破例被记。等他挡前、点头或拉她离场。"
-    summary: "静宁甩出观察日记；破例被记。等他挡前、点头或拉她离场。"
-    sprite_hint: [event_glass, work, casual, home]
-    soft_options: ["挡在她前", "对表姐点头", "拉她离场"]
-  - id: b2
-    narration: "静流粤语漏音，面具裂开。家族局要把恋爱当风险项划掉——她的指尖在桌沿发白。"
-    pc_thought: "说她不是展品。沉默护着，也像承认我们见不得光。"
-    brief: "面具裂开；家族要划掉恋爱风险。等他辩、请表姐喝水或沉默护着。"
-    summary: "面具裂开；家族要划掉恋爱风险。等他辩、请表姐喝水或沉默护着。"
-    sprite_hint: [boardroom_stand, lookbook_flip, home, casual]
-    soft_options: ["说她不是展品", "请表姐喝水", "沉默护着她"]
-  - id: b3
-    narration: "玻璃门映着两个人影。她等你选：只要品牌顾问，她戴回玻璃；要真相，就一起扛闲话。"
-    pc_thought: "公开站队会烫。约私下谈，又像把她推进更深的秘密。"
-    brief: "二选一：顾问面具或共同扛闲话。危机落槌。"
-    summary: "二选一：顾问面具或共同扛闲话。危机落槌。"
-    sprite_hint: [intimate_lounge, season_winter, date, casual, home]
-    soft_options: ["公开站队", "约私下谈", "先送她回家"]
+- id: b1
+  narration: 静宁把观察日记拍在桌上。堂姐所有「护短」她都记着，也包括对你的破例。工牌边缘硌了一下手指。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。空气有点静，连呼吸都听得见。
+  pc_thought: 堂妹的观察笔记像刀。我是麻烦，还是值得亮出来的人？我想靠近，又怕说错一句。
+  brief: 静宁甩出观察日记；破例被记。等他挡前、点头或拉她离场。
+  summary: 静宁甩出观察日记；破例被记。等他挡前、点头或拉她离场。
+  sprite_hint:
+  - boardroom_stand
+  - lookbook_flip
+  - event_glass
+  - intimate_lounge
+  - season_winter
+  - casual
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 挡在她前
+  - 对表姐点头
+  - 拉她离场
+  pages:
+  - text: 静宁把观察日记拍在桌上。堂姐所有「护短」她都记着，也包括对你的破例。工牌边缘硌了一下手指。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。空气有点静，连呼吸都听得见。
+    voice: narration
+    sprite:
+      outfit: boardroom_stand
+      emotion: neutral
+  - text: 堂妹的观察笔记像刀。我是麻烦，还是值得亮出来的人？我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: boardroom_stand
+      emotion: shy
+- id: b2
+  narration: 静流粤语漏音，面具裂开。家族局要把恋爱当风险项划掉——她的指尖在桌沿发白。工牌边缘硌了一下手指。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。空气有点静，连呼吸都听得见。
+  pc_thought: 说她不是展品。沉默护着，也像承认我们见不得光。我想靠近，又怕说错一句。
+  brief: 面具裂开；家族要划掉恋爱风险。等他辩、请表姐喝水或沉默护着。
+  summary: 面具裂开；家族要划掉恋爱风险。等他辩、请表姐喝水或沉默护着。
+  sprite_hint:
+  - boardroom_stand
+  - lookbook_flip
+  - event_glass
+  - intimate_lounge
+  - season_winter
+  - casual
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 说她不是展品
+  - 请表姐喝水
+  - 沉默护着她
+  pages:
+  - text: 静流粤语漏音，面具裂开。家族局要把恋爱当风险项划掉——她的指尖在桌沿发白。工牌边缘硌了一下手指。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。空气有点静，连呼吸都听得见。
+    voice: narration
+    sprite:
+      outfit: boardroom_stand
+      emotion: neutral
+  - text: 说她不是展品。沉默护着，也像承认我们见不得光。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: boardroom_stand
+      emotion: shy
+- id: b3
+  narration: 玻璃门映着两个人影。她等你选：只要品牌顾问，她戴回玻璃；要真相，就一起扛闲话。工牌边缘硌了一下手指。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 公开站队会烫。约私下谈，又像把她推进更深的秘密。我想靠近，又怕说错一句。
+  brief: 二选一：顾问面具或共同扛闲话。危机落槌。
+  summary: 二选一：顾问面具或共同扛闲话。危机落槌。
+  sprite_hint:
+  - boardroom_stand
+  - lookbook_flip
+  - event_glass
+  - intimate_lounge
+  - season_winter
+  - casual
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 公开站队
+  - 约私下谈
+  - 先送她回家
+  pages:
+  - text: 玻璃门映着两个人影。她等你选：只要品牌顾问，她戴回玻璃；要真相，就一起扛闲话。工牌边缘硌了一下手指。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: boardroom_stand
+      emotion: neutral
+  - text: 公开站队会烫。约私下谈，又像把她推进更深的秘密。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: boardroom_stand
+      emotion: shy
 rewards:
-  flags_set: [jl_cousin_glass]
+  flags_set:
+  - jl_cousin_glass
 choice_effects:
-  - { trust_delta: 3, affinity_delta: 4 }
-  - { trust_delta: 2, affinity_delta: 2 }
-  - { trust_delta: -2, affinity_delta: -2 }
+- trust_delta: 3
+  affinity_delta: 4
+- trust_delta: 2
+  affinity_delta: 2
+- trust_delta: -2
+  affinity_delta: -2

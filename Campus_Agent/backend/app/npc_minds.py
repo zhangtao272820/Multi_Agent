@@ -163,6 +163,8 @@ def sample_mind_candidates(save: CampusSave, *, limit: int = MAX_MIND_SAMPLE) ->
             if sid in {w.get("a"), w.get("b")} and w.get("dramatic"):
                 score += 16
                 break
+        if s.get("class_role") in {"monitor", "league_sec", "study", "discipline"}:
+            score += 6  # 班干部略提高被采样 / 组织意图权重
         # slight id hash for stable tie-break without rng noise every call
         score += (sum(ord(c) for c in sid) % 7) * 0.1
         scored.append((score, s))
@@ -180,10 +182,11 @@ def _brief_for_prompt(s: dict[str, Any], save: CampusSave) -> str:
     if focus_id:
         focus_name = next((x.get("name") for x in save.students if x["id"] == focus_id), focus_id)
     parts = [
-        f"id={s['id']} name={s.get('name')} mbti={s.get('mbti')}",
+        f"id={s['id']} name={s.get('name')} MBTI={s.get('mbti')}（必须体现该类型决策与语气）",
         f"speech={s.get('speech_style') or ''}",
         f"likes={likes}",
         f"romance={s.get('romance_stance') or ''}",
+        f"class_role={rel.class_role_label(s.get('class_role')) or '无'}",
         f"affinity_pc={float((edge or {}).get('affinity') or 0)} stage={(edge or {}).get('stage') or 'stranger'}",
         f"npc_focus={focus_name or '无'}({peer_aff:.0f})",
         f"loc={save.locations_now.get(s['id'], '?')}",

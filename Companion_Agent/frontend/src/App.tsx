@@ -15,9 +15,17 @@ import QuestBoard from "./components/QuestBoard";
 import SettingsScreen from "./components/SettingsScreen";
 import GameMenu from "./components/GameMenu";
 import WorldSavePicker from "./components/WorldSavePicker";
+import {
+  fetchIntroCard,
+  ingameUrls,
+  IntroCardFlipViewer,
+  loadIngameIntroSeen,
+  markIngameIntroSeen,
+} from "./components/IntroGuideBrowser";
 import { clearAuthUser, loadAuthUser, saveAuthUser, type AuthUser } from "./auth";
 import OpeningIntro from "./components/OpeningIntro";
 import StageTransition from "./components/StageTransition";
+import VnPageRunner from "./components/VnPageRunner";
 import { useBgm } from "./hooks/useBgm";
 import { isDesktopShell, setDesktopFullscreen } from "./desktopApi";
 import { applySettingsToDom, loadSettings, saveSettings, type GameSettings } from "./settings";
@@ -70,8 +78,11 @@ import {
   type QuestState,
   type RelationshipState,
   type SceneRunPublic,
+  type DateScriptPublic,
   type ScreenId,
+  type StoryHint,
   type StoryProgressPublic,
+  type VnPage,
   type WorldPublic,
   type WorldSaveSummary,
   type WorldSocialResult,
@@ -124,6 +135,13 @@ export default function App() {
   const [stageNotice, setStageNotice] = useState("");
   const [sceneRun, setSceneRun] = useState<SceneRunPublic | null>(null);
   const [storyProgress, setStoryProgress] = useState<StoryProgressPublic | null>(null);
+  const [dateScript, setDateScript] = useState<DateScriptPublic | null>(null);
+  const [hintVn, setHintVn] = useState<{
+    character_id: string;
+    character_name: string;
+    act_title?: string;
+    pages: VnPage[];
+  } | null>(null);
   const [transitionSig, setTransitionSig] = useState(0);
   const [transitionCaption, setTransitionCaption] = useState("");
   const [sceneEndedBanner, setSceneEndedBanner] = useState<{
@@ -146,6 +164,11 @@ export default function App() {
   const [showQuestBoard, setShowQuestBoard] = useState(false);
   const [codexFocusId, setCodexFocusId] = useState<string | null>(null);
   const [codexReturn, setCodexReturn] = useState<ScreenId>("hub");
+  const [ingameIntro, setIngameIntro] = useState<{
+    characterId: string;
+    name: string;
+    slides: { key: string; label: string; url: string }[];
+  } | null>(null);
   const [settings, setSettings] = useState<GameSettings>(() => loadSettings());
   const [showOpening, setShowOpening] = useState(false);
   const [openingSlides, setOpeningSlides] = useState<
@@ -260,6 +283,11 @@ export default function App() {
       return;
     }
     if (screen === "play") {
+      if (sceneRun?.mode === "date") {
+        const cue = bgmPeriod === "night" ? "date_night" : "date_soft";
+        void playBgm(cue);
+        return;
+      }
       const cue = bgmCatalog.location_cues?.[bgmLocationId] || "talk_soft";
       void playBgm(cue);
     }
@@ -269,6 +297,7 @@ export default function App() {
     endingBgm,
     bgmPeriod,
     bgmLocationId,
+    sceneRun?.mode,
     playBgm,
     playBgmPlaylist,
     bgmCatalog,
@@ -369,6 +398,8 @@ export default function App() {
     setChoices([]);
     setChoiceKind("soft");
     setActiveEnding(null);
+    setDateScript(null);
+    setHintVn(null);
     setScreen("title");
     void refreshWorldList();
   }, [refreshWorldList]);
@@ -483,6 +514,28 @@ export default function App() {
           setStageNotice(msg.payload.note || "关系定在了朋友这边");
           setScreen("hub");
           break;
+        case "date_script": {
+          setPending(false);
+          setSessionId(null);
+          setActiveEnding(null);
+          setSceneEndedBanner(null);
+          setChoices([]);
+          setMessages([]);
+          setDialogueTurns([]);
+          setStoryProgress(null);
+          setSceneRun(null);
+          if (msg.payload.world_save_id) setWorldSaveId(msg.payload.world_save_id);
+          if (msg.payload.hub) setHub(msg.payload.hub);
+          if (msg.payload.world) setWorld(msg.payload.world);
+          if (msg.payload.scene) setScene(msg.payload.scene);
+          if (msg.payload.relationship_state) setRelationshipState(msg.payload.relationship_state);
+          const script = msg.payload.script;
+          setDateScript(script);
+          setTransitionCaption(`约会 · ${script.label || msg.payload.date?.label || ""}`);
+          setTransitionSig((n) => n + 1);
+          setScreen("date");
+          break;
+        }
         case "session_created":
           setSessionId(msg.payload.session_id);
           if (msg.payload.world_save_id) setWorldSaveId(msg.payload.world_save_id);
@@ -965,6 +1018,68 @@ export default function App() {
     [worldSaveId],
   );
 
+  const openStoryHint = useCallback(async (hint: StoryHint) => {
+    const fallbackPages: VnPage[] = [
+      {
+        text: hint.text || `${hint.name}那边好像还有一幕没落定。`,
+        voice: "narration",
+        sprite: { character_id: hint.character_id, outfit: "casual", emotion: "shy" },
+      },
+      {
+        text: "去见一面也好。装不知道，回头会后悔。",
+        voice: "pc",
+        sprite: { character_id: hint.character_id, outfit: "casual", emotion: "neutral" },
+      },
+    ];
+    setPending(true);
+    try {
+      const qs = new URLSearchParams();
+      if (hint.text) qs.set("hint_text", hint.text);
+      if (hint.name) qs.set("character_name", hint.name);
+      if (hint.act_title) qs.set("act_title", hint.act_title);
+      const r = await fetch(
+        `/api/story-hint-pages/${encodeURIComponent(hint.character_id)}?${qs.toString()}`,
+      );
+      if (!r.ok) throw new Error("hint pages failed");
+      const data = (await r.json()) as {
+        character_id?: string;
+        character_name?: string;
+        act_title?: string;
+        pages?: VnPage[];
+      };
+      const pages = (data.pages || []).filter((p) => String(p?.text || "").trim());
+      setHintVn({
+        character_id: data.character_id || hint.character_id,
+        character_name: data.character_name || hint.name,
+        act_title: data.act_title || hint.act_title,
+        pages: pages.length ? pages : fallbackPages,
+      });
+    } catch {
+      setHintVn({
+        character_id: hint.character_id,
+        character_name: hint.name,
+        act_title: hint.act_title,
+        pages: fallbackPages,
+      });
+    } finally {
+      setPending(false);
+    }
+  }, []);
+
+  const goMeetFromHint = useCallback(() => {
+    if (!hintVn || !hub) {
+      setHintVn(null);
+      return;
+    }
+    const cid = hintVn.character_id;
+    const withHer = hub.locations.find((l) =>
+      (l.present || []).some((p) => p.character_id === cid),
+    );
+    const locId = withHer?.id || hub.location_id;
+    setHintVn(null);
+    goLocation(locId);
+  }, [hintVn, hub, goLocation]);
+
   const buyGift = useCallback(
     (characterId: string, giftId: string) => {
       const uid = authRef.current?.user_id;
@@ -1118,6 +1233,31 @@ export default function App() {
     [addMessage, pending, sessionId],
   );
 
+  const maybeShowIngameIntro = useCallback(
+    async (characterId: string | null | undefined, worldData: WorldPublic | null | undefined) => {
+      const cid = (characterId || "").trim();
+      if (!cid || !worldSaveId) return;
+      const bond = worldData?.bonds?.[cid];
+      if (!bond) return;
+      const met =
+        typeof bond.met === "boolean"
+          ? bond.met
+          : (bond.turns || 0) > 0 || (bond.message_count || 0) > 0;
+      if (!met) return;
+      if (loadIngameIntroSeen(worldSaveId).has(cid)) return;
+      const card = await fetchIntroCard(cid);
+      const slides = ingameUrls(card?.images);
+      if (!slides.length) return;
+      markIngameIntroSeen(worldSaveId, cid);
+      setIngameIntro({
+        characterId: cid,
+        name: bond.name || card?.name_zh || cid,
+        slides,
+      });
+    },
+    [worldSaveId],
+  );
+
   const leavePlay = useCallback(() => {
     const ws = requireWs();
     if (ws && sessionId && sceneRun && !sceneRun.ended) {
@@ -1125,6 +1265,7 @@ export default function App() {
       wsLeaveScene(ws, { sessionId, reason: "farewell" });
       return;
     }
+    const cid = profileRef.current.character_id || "";
     setSessionId(null);
     setMessages([]);
     setDialogueTurns([]);
@@ -1141,11 +1282,13 @@ export default function App() {
         if (!data) return;
         setWorld(data.world);
         setHub(data.hub);
+        void maybeShowIngameIntro(cid, data.world);
       });
     }
-  }, [sceneRun, sessionId, worldSaveId]);
+  }, [sceneRun, sessionId, worldSaveId, maybeShowIngameIntro]);
 
   const returnToHubAfterScene = useCallback(() => {
+    const cid = profileRef.current.character_id || "";
     setSceneEndedBanner(null);
     setSessionId(null);
     setSceneRun(null);
@@ -1163,9 +1306,10 @@ export default function App() {
         if (!data) return;
         setWorld(data.world);
         setHub(data.hub);
+        void maybeShowIngameIntro(cid, data.world);
       });
     }
-  }, [worldSaveId]);
+  }, [worldSaveId, maybeShowIngameIntro]);
 
   const farewellScene = useCallback(() => {
     const ws = requireWs();
@@ -1363,6 +1507,33 @@ export default function App() {
 
   if (screen === "hub" && hub) {
     const periodClass = `gal-period--${hub.calendar?.period || "afternoon"}`;
+    if (hintVn) {
+      return (
+        <div className={`gal-app-shell gal-play-shell ${periodClass}`}>
+          <StageTransition signal={transitionSig} caption={transitionCaption} />
+          <VnPageRunner
+            fullscreen
+            pages={hintVn.pages}
+            characterId={hintVn.character_id}
+            characterName={hintVn.character_name}
+            ariaLabel={hintVn.act_title || `故事线索 · ${hintVn.character_name}`}
+            skipLabel="回到小镇"
+            holdOnLast
+            onDone={() => setHintVn(null)}
+            footer={
+              <>
+                <button type="button" className="btn-primary" onClick={goMeetFromHint}>
+                  去见她
+                </button>
+                <button type="button" className="btn-ghost" onClick={() => setHintVn(null)}>
+                  回到小镇
+                </button>
+              </>
+            }
+          />
+        </div>
+      );
+    }
     return (
       <div className={`gal-app-shell ${periodClass}`}>
         <StageTransition signal={transitionSig} caption={transitionCaption} />
@@ -1380,6 +1551,7 @@ export default function App() {
           onJumpNextSeason={jumpNextSeason}
           onSettleFriendEnding={settleFriendEnding}
           onReplyPing={replyPing}
+          onStoryHint={(h) => void openStoryHint(h)}
           onBuyGift={buyGift}
           onWork={doWork}
           onEat={eatMeal}
@@ -1391,6 +1563,16 @@ export default function App() {
           }}
           onMenu={() => setMenuOpen(true)}
         />
+        {ingameIntro ? (
+          <div className="gal-intro-overlay">
+            <IntroCardFlipViewer
+              title={ingameIntro.name}
+              subtitle="登场设定卡"
+              slides={ingameIntro.slides}
+              onClose={() => setIngameIntro(null)}
+            />
+          </div>
+        ) : null}
         <GameMenu
           open={menuOpen}
           hasWorld={!!worldSaveId}
@@ -1437,6 +1619,33 @@ export default function App() {
           onBack={() => setScreen("hub")}
           onFocusChange={(_id, name) => {
             setStageNotice(`你的目光转向了${name}。`);
+          }}
+        />
+      </div>
+    );
+  }
+
+  if (screen === "date" && dateScript) {
+    const bg =
+      dateScript.pages?.[0]?.bg ||
+      dateScript.scene_id ||
+      dateScript.location_id ||
+      "";
+    return (
+      <div className="gal-app-shell gal-play-shell">
+        <StageTransition signal={transitionSig} caption={transitionCaption} />
+        <VnPageRunner
+          fullscreen
+          pages={dateScript.pages || []}
+          characterId={dateScript.character_id}
+          characterName={dateScript.character_name || ""}
+          defaultBg={String(bg).replace(/\.png$/i, "")}
+          ariaLabel={`约会 · ${dateScript.label}`}
+          skipLabel="结束约会"
+          onDone={() => {
+            setDateScript(null);
+            setStageNotice(`约会结束 · ${dateScript.label}`);
+            setScreen("hub");
           }}
         />
       </div>

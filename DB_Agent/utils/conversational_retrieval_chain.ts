@@ -147,7 +147,7 @@ export function createConversationalRetrievalChain({
   const graph = createDbGraph({ earlyDeps: graphEarlyDeps, graphDeps, compileRefs });
 
   return RunnableSequence.from([
-    createPrepareGraphInput(),
+    createPrepareGraphInput({ model }),
     graph,
     createPostGraphStep({ model, largerModel, embeddingConfig }),
   ]).withConfig({ runName: "ConversationalRetrievalChain" });

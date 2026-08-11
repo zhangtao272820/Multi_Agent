@@ -1,0 +1,3987 @@
+{
+  "version": 4,
+  "notes": "介绍卡文案 SSOT v4。A/B=设置·攻略（戏份档案+立绘设定短文）；C–F=局内（故事底色/予安所见/身材档案/今日生活）。只借参考图结构，禁止照搬参考文案。权威源：cast_star_tiers / model_roles / character_lores / romance_voice_cards / body_catalog / social_graph / cast_intro。男主：沈予安。",
+  "schema": {
+    "story_weight": "1..5；与 cast_star_tiers 同步",
+    "tier_stars": "实心★ 串（最多五星）；卡面旁标「戏份」",
+    "system_blocks": "取代技能：与男主/出场/相处/足迹/声线等",
+    "story_bg": "B 用短背景故事（设定摘要）",
+    "with_pc": "B 用短「与男主」",
+    "lore_novel": "C 用小说风·世界观+家庭底色",
+    "pc_gaze": "D 用小说风·沈予安第一人称注视",
+    "body_rows": "E 用身材 KV（body_catalog）",
+    "body_blurb": "E 用身材气质短句",
+    "life_now": "F 用当下生活状况",
+    "view_labels": "B 全身角度：须含正面+背面",
+    "body_crops": "B 身体特写：脸部/上半身胸部/下半身腿部/背面臀部（不要表情集）",
+    "stats": "性格倾向（traits），非战斗",
+    "images_guide": "card_a|card_b → 设置攻略",
+    "images_ingame": "card_c|d|e|f → 局内看板/登场"
+  },
+  "cards": {
+    "xiaoyou": {
+      "tier": "T0",
+      "story_weight": 5,
+      "tier_stars": "★★★★★",
+      "tier_label": "戏份·核心女主",
+      "name_zh": "苏晚悠",
+      "name_en": "Su Wanyou",
+      "title_banner": "天窗下的线稿",
+      "tagline": "插画师 · 邻居",
+      "faction_tag": "小镇 · 画室",
+      "theme_color": "#f9a8d4",
+      "intro": "邻家插画师苏晚悠，靠接单过日子。赶稿时话少、嘴硬；你若肯看懂未干的那几笔，她才慢慢松。学妹常来蹭座位——能帮她，也能把她逼急。",
+      "story_bg": "苏晚悠靠接插画单子过日子，工作室有天窗，父母不在这座镇。她画得很凶的时候话少，把人画进线稿里，却不一定敢把人留在画外。学妹温悠微常来蹭座位改图。通宵赶稿时，对门都能闻得到松节油。",
+      "with_pc": "对沈予安：同小区点过头的邻居，会点头，还不算熟。你要是只催进度，她硬；你要是肯看她未干的那几笔，她才慢慢松。路线「画框里的邻人」——可走到恋人/可结婚。",
+      "lore_novel": "苏晚悠在这座小镇画画接单过日子。父母不在这儿，她一个人租了带天窗的工作室。赶稿的时候话很少，学妹温悠微常来蹭座位改图。她其实挺会看人的，就是不太敢把人留在身边。晚饭随便吃点，衣服上沾点颜料也不在意。说白了，她把日子过得很安静，也有点孤单。",
+      "pc_gaze": "我第一次见她，是在小区门口。她抱着画筒侧身让我，我们点了下头，之后也就那样。后来才知道对门那位插画师就是她。催她交稿她会绷着脸；你要是真看她画的东西，她才会松一点。有时候我想多说两句，又怕自己只是个烦人的邻居，干脆装作路过。",
+      "body_rows": [
+        {
+          "label": "身高",
+          "value": "160 cm"
+        },
+        {
+          "label": "体重",
+          "value": "48 kg"
+        },
+        {
+          "label": "胸围",
+          "value": "88 cm"
+        },
+        {
+          "label": "腰围",
+          "value": "58 cm"
+        },
+        {
+          "label": "臀围",
+          "value": "86 cm"
+        },
+        {
+          "label": "体型",
+          "value": "纤细 · slender"
+        },
+        {
+          "label": "头身比",
+          "value": "6.8"
+        }
+      ],
+      "body_blurb": "个子不高不矮，偏瘦。穿吊带时肩线和腰线很清楚，站着时肩膀会有点往里收。",
+      "life_now": "她现在还住同小区。白天多半在家或画室接单，下午有时去咖啡店画画。学妹一来，地方就显得挤。夜里赶稿会熬很晚。沈予安就住附近，偶尔碰面点头，还没熟到能随便串门。她喜欢安静的下午；要是被晾着或临时放鸽子，她就不太想见人了。",
+      "c_pose_hint": "设定板：中央女主全身；表情四格；特写只做人——发饰/刘海、耳侧、脸、肩颈、手指沾颜料；禁灯具门把手瓶子静物主视觉",
+      "d_pose_hint": "予安视角名片：女主全身/半身主视觉；表情与发丝特写；禁门廊灯门把手；文案大白话",
+      "e_outfit_hint": "薄吊带或丝绸吊带居家装；正面全身+侧/背；显肩线腰线腿线；有衣禁露点",
+      "f_scene_hint": "生活拼贴仍以女主本人为主：不同表情/发型小乱/袖口颜料在手上；禁静物灯具条",
+      "genre": "画室里的慢热",
+      "quote_vertical": "今天也想听你说说心里话。",
+      "quote_horizontal": "别只催进度。先看看，这几笔干了没有。",
+      "calligraphy": "线稿",
+      "signature": "苏晚悠",
+      "footer_tagline": "画框里的邻人 · 戏份★★★★★",
+      "b_pose_hint": "半身正面；全身画架旁侧身；身体特写四格",
+      "profile_rows": [
+        {
+          "label": "身高",
+          "value": "160 cm"
+        },
+        {
+          "label": "年龄",
+          "value": "22"
+        },
+        {
+          "label": "职业",
+          "value": "插画师"
+        },
+        {
+          "label": "对男主",
+          "value": "邻居"
+        },
+        {
+          "label": "MBTI",
+          "value": "ISFJ · 守卫者"
+        },
+        {
+          "label": "路线",
+          "value": "画框里的邻人（5★）"
+        },
+        {
+          "label": "出场",
+          "value": "第 1 周"
+        },
+        {
+          "label": "语气",
+          "value": "日常·慢半拍"
+        },
+        {
+          "label": "关系目标",
+          "value": "恋人/可结婚"
+        }
+      ],
+      "profile_bullets": [
+        {
+          "label": "职业",
+          "value": "插画师"
+        },
+        {
+          "label": "对男主",
+          "value": "邻居 · 同小区点头之交"
+        },
+        {
+          "label": "戏份",
+          "value": "★★★★★ 核心女主"
+        },
+        {
+          "label": "出场",
+          "value": "第 1 周"
+        },
+        {
+          "label": "声线",
+          "value": "慢半拍，常提颜料与线稿"
+        }
+      ],
+      "stats": [
+        {
+          "key": "温柔",
+          "grade": "A+",
+          "bar": 90
+        },
+        {
+          "key": "开朗",
+          "grade": "A",
+          "bar": 60
+        },
+        {
+          "key": "粘人",
+          "grade": "A",
+          "bar": 55
+        },
+        {
+          "key": "成熟",
+          "grade": "B+",
+          "bar": 45
+        },
+        {
+          "key": "害羞",
+          "grade": "B+",
+          "bar": 40
+        },
+        {
+          "key": "傲娇",
+          "grade": "C",
+          "bar": 15
+        }
+      ],
+      "system_blocks": [
+        {
+          "title": "与男主",
+          "grade": null,
+          "desc": "邻居；同小区见过几次，会点头还不算熟。目标：恋人/可结婚。"
+        },
+        {
+          "title": "出场",
+          "grade": null,
+          "desc": "第 1 周进入地图锚点；romance · 戏份★★★★★ 核心女主。"
+        },
+        {
+          "title": "相处",
+          "grade": null,
+          "desc": "宜：提具体画面、给她停顿、别催交稿。忌：鸡汤安慰、催进度式关心、突然黏上来。"
+        },
+        {
+          "title": "足迹",
+          "grade": null,
+          "desc": "常在：家/画室；下午或晚也可能在咖啡店。喜欢画画、安静的下午；讨厌被忽视、突然爽约。"
+        }
+      ],
+      "view_labels": [
+        {
+          "label": "正面全身",
+          "hint": "画架旁正面站姿"
+        },
+        {
+          "label": "背面全身",
+          "hint": "同装背面全身，可见背线与发尾"
+        }
+      ],
+      "body_crops": [
+        {
+          "label": "脸部",
+          "hint": "脸与发特写，锁基图五官"
+        },
+        {
+          "label": "上半身胸部",
+          "hint": "锁骨到胸线衣着裁切，遮挡充分"
+        },
+        {
+          "label": "下半身腿部",
+          "hint": "腰以下腿线与短裤/裙摆"
+        },
+        {
+          "label": "背面臀部",
+          "hint": "背面臀线与衣着褶皱，不露点"
+        }
+      ],
+      "expr_labels": null,
+      "angle_labels": null,
+      "sources": {
+        "model_roles": "profile + traits + route + opening_line",
+        "character_lores": "codex → intro / story_bg / lore_novel 加厚",
+        "romance_voice_cards": "genre + do/dont → 相处",
+        "social_graph": "role_hint + schedule + likes → life_now / pc_gaze",
+        "cast_intro": "intro_week 1",
+        "body_catalog": "body_rows 160/48/88/58/86",
+        "pc": "沈予安"
+      }
+    },
+    "wanyu": {
+      "tier": "T0",
+      "story_weight": 5,
+      "tier_stars": "★★★★★",
+      "tier_label": "戏份·核心女主",
+      "name_zh": "温晚雨",
+      "name_en": "Wen Wanyu",
+      "title_banner": "关店后的温度",
+      "tagline": "咖啡店员 · 咖啡店熟人",
+      "faction_tag": "小镇 · 咖啡店",
+      "theme_color": "#f9a8d4",
+      "intro": "咖啡店员温晚雨。店里笑得很稳，像制服的一部分；灯一关，累才露出来。死党何雨汐护短，顶班时谁靠近都得过一遍眼。你从熟客坐到能帮她收钥匙，得先接住她不愿示弱的那些时刻。",
+      "story_bg": "温晚雨在店里笑得很稳，像制服的一部分。灯一关，累才露出来。死党何雨汐爱护短，顶班时谁靠近她都得过一遍眼。老板娘陈婶排班排得死。你从熟客坐到能帮她收钥匙，得先接住她那些不愿示弱的时刻——冬夜蒸汽、中秋多做的一杯，都算温度。真翻脸那天，看她还肯不肯给你留灯。",
+      "with_pc": "对沈予安：同一家咖啡店的熟人，彼此记得对方喝什么。你要是只在营业里客套，她笑着送客；你肯记她喝什么、帮收尾、别逼她示弱，她才慢慢把钥匙交得出去。路线「关店之后的温度」——可走到恋人/可结婚。",
+      "genre": "打烊后的温柔",
+      "quote_vertical": "外面在下雨……要不要在店里坐一会儿？",
+      "quote_horizontal": "别只在柜台前客套。灯关了，才算认识。",
+      "calligraphy": "温度",
+      "signature": "温晚雨",
+      "footer_tagline": "关店之后的温度 · 戏份★★★★★",
+      "b_pose_hint": "半身正面；咖啡店制服全身；背面全身；身体特写四格",
+      "profile_rows": [
+        {
+          "label": "身高",
+          "value": "162 cm"
+        },
+        {
+          "label": "年龄",
+          "value": "21"
+        },
+        {
+          "label": "职业",
+          "value": "咖啡店员"
+        },
+        {
+          "label": "对男主",
+          "value": "咖啡店熟人"
+        },
+        {
+          "label": "MBTI",
+          "value": "ISFJ · 守卫者"
+        },
+        {
+          "label": "路线",
+          "value": "关店之后的温度（5★）"
+        },
+        {
+          "label": "出场",
+          "value": "第 1 周"
+        },
+        {
+          "label": "语气",
+          "value": "日常·稳"
+        },
+        {
+          "label": "关系目标",
+          "value": "恋人/可结婚"
+        }
+      ],
+      "profile_bullets": [
+        {
+          "label": "职业",
+          "value": "咖啡店员"
+        },
+        {
+          "label": "对男主",
+          "value": "咖啡店熟人 · 记得对方喝什么"
+        },
+        {
+          "label": "戏份",
+          "value": "★★★★★ 核心女主"
+        },
+        {
+          "label": "出场",
+          "value": "第 1 周"
+        },
+        {
+          "label": "声线",
+          "value": "店里稳，打烊后才漏疲惫"
+        }
+      ],
+      "stats": [
+        {
+          "key": "温柔",
+          "grade": "A+",
+          "bar": 90
+        },
+        {
+          "key": "开朗",
+          "grade": "A",
+          "bar": 60
+        },
+        {
+          "key": "粘人",
+          "grade": "A",
+          "bar": 55
+        },
+        {
+          "key": "成熟",
+          "grade": "B+",
+          "bar": 45
+        },
+        {
+          "key": "害羞",
+          "grade": "B+",
+          "bar": 40
+        },
+        {
+          "key": "傲娇",
+          "grade": "C",
+          "bar": 15
+        }
+      ],
+      "system_blocks": [
+        {
+          "title": "与男主",
+          "grade": null,
+          "desc": "咖啡店熟人；同店打照面，彼此记得喝什么。目标：恋人/可结婚。"
+        },
+        {
+          "title": "出场",
+          "grade": null,
+          "desc": "第 1 周进入地图锚点；romance · 戏份★★★★★ 核心女主。"
+        },
+        {
+          "title": "相处",
+          "grade": null,
+          "desc": "宜：记她喝什么、帮收尾、别逼示弱。忌：营业腔套近乎、把关心说成鸡汤、当众拆穿她累。"
+        },
+        {
+          "title": "足迹",
+          "grade": null,
+          "desc": "常在：咖啡店；晚间也可能上街。喜欢咖啡、安静（雨天）、被记得小事；讨厌在店里丢人。"
+        }
+      ],
+      "view_labels": [
+        {
+          "label": "正面全身",
+          "hint": "米色风衣+软裙，柜台前站姿"
+        },
+        {
+          "label": "背面全身",
+          "hint": "同装背面全身，可见灰棕齐肩发与裙摆"
+        }
+      ],
+      "body_crops": [
+        {
+          "label": "脸部",
+          "hint": "浅紫瞳与灰棕齐肩发，锁基图五官"
+        },
+        {
+          "label": "上半身胸部",
+          "hint": "风衣领口到胸线裁切，遮挡充分"
+        },
+        {
+          "label": "下半身腿部",
+          "hint": "软裙裙摆与腿线"
+        },
+        {
+          "label": "背面臀部",
+          "hint": "背面臀线与风衣褶皱，不露点"
+        }
+      ],
+      "expr_labels": null,
+      "angle_labels": null,
+      "sources": {
+        "model_roles": "profile + traits + route + opening_line",
+        "character_lores": "codex → intro / story_bg / lore_novel 加厚",
+        "romance_voice_cards": "genre + do/dont → 相处",
+        "social_graph": "role_hint + schedule + likes → life_now / pc_gaze",
+        "cast_intro": "intro_week 1",
+        "body_catalog": "body_rows from body_catalog",
+        "pc": "沈予安"
+      },
+      "lore_novel": "温晚雨在这座小镇的咖啡店上班。店里笑得很稳，像制服的一部分；灯一关，累才露出来。死党何雨汐爱护短，顶班时谁靠近都得过一遍眼。老板娘陈婶排班排得死。她一个人住店附近的小公寓，下班常带一身咖啡味回家。雨天客人少，她反而更愿意多擦一会儿台面。",
+      "pc_gaze": "我是从熟客位开始认识她的。她记得我喝什么，却不轻易多聊两句。打烊时她会把笑收一点，肩也垮一点。我想帮她收椅子，又怕自己越界。何雨汐看我的眼神挺狠。你要是只在柜台前客套，她笑着送客；你肯记她累、别逼她示弱，她才慢慢把钥匙交得出去。",
+      "body_rows": [
+        {
+          "label": "身高",
+          "value": "162 cm"
+        },
+        {
+          "label": "体重",
+          "value": "48 kg"
+        },
+        {
+          "label": "胸围",
+          "value": "84 cm"
+        },
+        {
+          "label": "腰围",
+          "value": "59 cm"
+        },
+        {
+          "label": "臀围",
+          "value": "86 cm"
+        },
+        {
+          "label": "体型",
+          "value": "匀称 · balanced"
+        },
+        {
+          "label": "头身比",
+          "value": "7.0"
+        }
+      ],
+      "body_blurb": "身形匀称，肩线自然。穿吊带或贴身店服时腰线和腿线都清楚，站柜台时手总忙着收拾。",
+      "life_now": "她现在还在那家咖啡店排班。白天多半在店里，晚班打烊后才回附近公寓。雨汐常来顶班或蹭收尾。沈予安还是熟客，偶尔帮忙搬椅子，还没熟到能随便留到关灯后。她喜欢安静雨天和被记得的小事；最怕在店里丢人。",
+      "c_pose_hint": "咖啡店锚点：女主半身/全身主视觉；蒸汽/雨窗氛围；特写脸/手与杯/袖口；文案大白话",
+      "d_pose_hint": "予安视角：柜台后或打烊门口的她；侧脸/袖口/蒸汽特写；第一人称口语",
+      "e_outfit_hint": "薄吊带或丝绸吊带居家装；正面全身+侧/背；显肩线腰线腿线；有衣禁露点",
+      "f_scene_hint": "今日生活：店内收尾或公寓咖啡角；女主本人为主；桌面杯垫/雨伞/围裙特写可辅"
+    },
+    "ruolin": {
+      "tier": "T0",
+      "story_weight": 5,
+      "tier_stars": "★★★★★",
+      "tier_label": "戏份·核心女主",
+      "name_zh": "顾若铃",
+      "name_en": "Gu Ruolin",
+      "title_banner": "讲台下的一年",
+      "tagline": "大学讲师 · 选修课讲师",
+      "faction_tag": "校园 · 讲台",
+      "theme_color": "#a78bfa",
+      "intro": "大学讲师顾若铃。讲义和边界一样齐；年轻时栽过暧昧跟头，所以对「老师」二字过敏。助教陈铃可拿红笔挡人——真要走近，先过她，也过若铃自己那关。讲台下想对等，不是玩反差，是你能不能守住她定的规矩。",
+      "story_bg": "顾若铃的讲义和她的边界一样齐。年轻时栽过一次暧昧的跟头，所以对「老师」两个字过敏。助教陈铃可拿红笔挡人——真要走近，先过她，也过顾若铃自己那关。讲台下想对等，不是玩反差，是你能不能守住她定的规矩。闲话传得快，图书馆里安静的人也听得到。",
+      "with_pc": "对沈予安：选修/讲座认识的老师，客气，偶尔试探边界。你要是当学生撒娇或逼她表态，她先冷；你守分寸、把话说完整、别越线，她才肯卸一点导师腔。路线「讲台下的一年」——可走到恋人/可结婚。",
+      "genre": "讲台下的分寸",
+      "quote_vertical": "今天的课刚结束……要不要一起走走，慢慢说？",
+      "quote_horizontal": "别用学生腔越线。把话说完整，边界才松。",
+      "calligraphy": "分寸",
+      "signature": "顾若铃",
+      "footer_tagline": "讲台下的一年 · 戏份★★★★★",
+      "b_pose_hint": "半身正面；学院西装全身；背面全身；身体特写四格",
+      "profile_rows": [
+        {
+          "label": "身高",
+          "value": "167 cm"
+        },
+        {
+          "label": "年龄",
+          "value": "28"
+        },
+        {
+          "label": "职业",
+          "value": "大学讲师"
+        },
+        {
+          "label": "对男主",
+          "value": "选修课讲师"
+        },
+        {
+          "label": "MBTI",
+          "value": "INFJ · 提倡者"
+        },
+        {
+          "label": "路线",
+          "value": "讲台下的一年（5★）"
+        },
+        {
+          "label": "出场",
+          "value": "第 2 周"
+        },
+        {
+          "label": "语气",
+          "value": "正式·留白"
+        },
+        {
+          "label": "关系目标",
+          "value": "恋人/可结婚"
+        }
+      ],
+      "profile_bullets": [
+        {
+          "label": "职业",
+          "value": "大学讲师"
+        },
+        {
+          "label": "对男主",
+          "value": "选修课讲师 · 讲台下试探边界"
+        },
+        {
+          "label": "戏份",
+          "value": "★★★★★ 核心女主"
+        },
+        {
+          "label": "出场",
+          "value": "第 2 周"
+        },
+        {
+          "label": "声线",
+          "value": "客气留白；越线先冷，对等才软"
+        }
+      ],
+      "stats": [
+        {
+          "key": "温柔",
+          "grade": "A",
+          "bar": 75
+        },
+        {
+          "key": "开朗",
+          "grade": "B",
+          "bar": 35
+        },
+        {
+          "key": "粘人",
+          "grade": "B",
+          "bar": 30
+        },
+        {
+          "key": "成熟",
+          "grade": "A+",
+          "bar": 90
+        },
+        {
+          "key": "害羞",
+          "grade": "C",
+          "bar": 15
+        },
+        {
+          "key": "傲娇",
+          "grade": "C",
+          "bar": 20
+        }
+      ],
+      "system_blocks": [
+        {
+          "title": "与男主",
+          "grade": null,
+          "desc": "选修课讲师；讲座认识，客气偶试边界。目标：恋人/可结婚。"
+        },
+        {
+          "title": "出场",
+          "grade": null,
+          "desc": "第 2 周进入地图锚点；romance · 戏份★★★★★ 核心女主。"
+        },
+        {
+          "title": "相处",
+          "grade": null,
+          "desc": "宜：守分寸、把话说完整、不逼表态。忌：学生式越线、老师幻想调情、逼她当众表态。"
+        },
+        {
+          "title": "足迹",
+          "grade": null,
+          "desc": "常在：校园/图书馆/办公室；晚间也可能上街或咖啡店。喜欢安静阅读与茶；讨厌被拍进闲话。"
+        }
+      ],
+      "view_labels": [
+        {
+          "label": "正面全身",
+          "hint": "学院西装+丝质衬衫，持讲义站姿"
+        },
+        {
+          "label": "背面全身",
+          "hint": "同装背面全身，可见盘发与西装剪裁"
+        }
+      ],
+      "body_crops": [
+        {
+          "label": "脸部",
+          "hint": "深栗盘发与暖榛瞳，锁基图五官"
+        },
+        {
+          "label": "上半身胸部",
+          "hint": "西装领到胸线裁切，遮挡充分"
+        },
+        {
+          "label": "下半身腿部",
+          "hint": "裙摆与腿线、丝袜"
+        },
+        {
+          "label": "背面臀部",
+          "hint": "背面臀线与裙褶，不露点"
+        }
+      ],
+      "expr_labels": null,
+      "angle_labels": null,
+      "sources": {
+        "model_roles": "profile + traits + route + opening_line",
+        "character_lores": "codex → intro / story_bg / lore_novel 加厚",
+        "romance_voice_cards": "genre + do/dont → 相处",
+        "social_graph": "role_hint + schedule + likes → life_now / pc_gaze",
+        "cast_intro": "intro_week 2",
+        "body_catalog": "body_rows from body_catalog",
+        "pc": "沈予安"
+      },
+      "lore_novel": "顾若铃在这座镇的大学教选修课。讲义和边界一样齐。年轻时栽过一次暧昧的跟头，所以对「老师」两个字过敏。助教陈铃可拿红笔挡人——真要走近，先过她，也过顾若铃自己那关。她住教师公寓，书架码得整齐，粉笔灰偶尔沾在袖口。闲话传得快，图书馆里安静的人也听得到。",
+      "pc_gaze": "我第一次认真看她，是在选修课讲台下。她把规矩说得很清楚，眼神却不凶。我想多问一句，又怕被当成越界的学生。铃可拿红笔挡人挡得很熟练。你要是只想玩反差，她先冷；你肯对等、守住她定的规矩，她才肯软一点。走廊里有人起哄时，她会先看你站哪边。",
+      "body_rows": [
+        {
+          "label": "身高",
+          "value": "167 cm"
+        },
+        {
+          "label": "体重",
+          "value": "52 kg"
+        },
+        {
+          "label": "胸围",
+          "value": "87 cm"
+        },
+        {
+          "label": "腰围",
+          "value": "61 cm"
+        },
+        {
+          "label": "臀围",
+          "value": "89 cm"
+        },
+        {
+          "label": "体型",
+          "value": "匀称 · balanced"
+        },
+        {
+          "label": "头身比",
+          "value": "7.1"
+        }
+      ],
+      "body_blurb": "偏高匀称，讲师站姿挺拔。穿吊带或丝质居家装时肩线和腿线很长，盘发放下时气场会软一截。",
+      "life_now": "她现在仍在大学上选修与答疑。白天多半在讲台或办公室，晚间回教师公寓改讲义。铃可常跟在答疑时段。沈予安是班上对等靠近的那条线，还没熟到能随便进她办公室外的生活。她喜欢安静图书馆和边界清楚的人；最怕闲话把师生身份搅浑。",
+      "c_pose_hint": "讲台/粉笔锚点：女主半身或场景主视觉；讲义/粉笔特写；文案大白话",
+      "d_pose_hint": "予安视角：讲台下或走廊侧脸；袖口粉笔灰/红笔/眼镜链特写；第一人称口语",
+      "e_outfit_hint": "薄吊带或丝绸吊带居家装；正面全身+侧/背；显肩线腰线腿线；有衣禁露点",
+      "f_scene_hint": "今日生活：办公室答疑或教师公寓书桌；女主本人为主；讲义/茶杯/书架特写可辅"
+    },
+    "jingliu": {
+      "tier": "T0",
+      "story_weight": 5,
+      "tier_stars": "★★★★★",
+      "tier_label": "戏份·核心女主",
+      "name_zh": "江静流",
+      "name_en": "Jiang Jingliu",
+      "title_banner": "权力差的另一侧",
+      "tagline": "品牌顾问 · 上司",
+      "faction_tag": "职场 · 品牌",
+      "theme_color": "#a78bfa",
+      "intro": "品牌顾问江静流。职场冷面、护短，粤语口头禅偶尔漏音。堂妹江静宁跟在活动边上记观察。家族局和你之间会裂开一条缝——要看真相，就得一起扛闲话，别只想捡护短之后的软。",
+      "story_bg": "江静流走路带风，粤语口头禅偶尔漏出来。堂妹江静宁跟在活动边上记观察，有时比她自己还诚实。品牌顾问那张脸在家族局和你之间会裂开一条缝——你要看真相，就得一起扛闲话，别只想捡她护短之后的软。天台上她才肯摘一点硬壳；走廊里赵组假装看手机，其实什么都看见了。",
+      "with_pc": "对沈予安：公司里常见的前辈型上司。公事硬，私下话少；信得过的人才听得到软的那一面。你要是在同事前示弱或只想捡软，她硬；你肯扛事、把公私分清、天台再谈，她才肯卸一点。路线「权力差的另一侧」——可走到恋人/可结婚。",
+      "genre": "职场外的软肋",
+      "quote_vertical": "哎呀，你嚟啦。今日点啊，慢慢同我讲。",
+      "quote_horizontal": "别只想捡护短之后的软。天台上，才谈真相。",
+      "calligraphy": "硬壳",
+      "signature": "江静流",
+      "footer_tagline": "权力差的另一侧 · 戏份★★★★★",
+      "b_pose_hint": "半身正面；黑金旗袍全身；背面全身；身体特写四格",
+      "profile_rows": [
+        {
+          "label": "身高",
+          "value": "170 cm"
+        },
+        {
+          "label": "年龄",
+          "value": "27"
+        },
+        {
+          "label": "职业",
+          "value": "品牌顾问"
+        },
+        {
+          "label": "对男主",
+          "value": "上司"
+        },
+        {
+          "label": "MBTI",
+          "value": "ESTJ · 总经理"
+        },
+        {
+          "label": "路线",
+          "value": "权力差的另一侧（5★）"
+        },
+        {
+          "label": "出场",
+          "value": "第 3 周"
+        },
+        {
+          "label": "语气",
+          "value": "正式·偶漏粤语"
+        },
+        {
+          "label": "关系目标",
+          "value": "恋人/可结婚"
+        }
+      ],
+      "profile_bullets": [
+        {
+          "label": "职业",
+          "value": "品牌顾问"
+        },
+        {
+          "label": "对男主",
+          "value": "上司 · 公事硬私下话少"
+        },
+        {
+          "label": "戏份",
+          "value": "★★★★★ 核心女主"
+        },
+        {
+          "label": "出场",
+          "value": "第 3 周"
+        },
+        {
+          "label": "声线",
+          "value": "职场硬壳；天台才肯软一点"
+        }
+      ],
+      "stats": [
+        {
+          "key": "温柔",
+          "grade": "A",
+          "bar": 75
+        },
+        {
+          "key": "开朗",
+          "grade": "B",
+          "bar": 35
+        },
+        {
+          "key": "粘人",
+          "grade": "B",
+          "bar": 30
+        },
+        {
+          "key": "成熟",
+          "grade": "A+",
+          "bar": 90
+        },
+        {
+          "key": "害羞",
+          "grade": "C",
+          "bar": 15
+        },
+        {
+          "key": "傲娇",
+          "grade": "C",
+          "bar": 20
+        }
+      ],
+      "system_blocks": [
+        {
+          "title": "与男主",
+          "grade": null,
+          "desc": "上司；职场前辈型，公事硬私下话少。目标：恋人/可结婚。"
+        },
+        {
+          "title": "出场",
+          "grade": null,
+          "desc": "第 3 周进入地图锚点；romance · 戏份★★★★★ 核心女主。"
+        },
+        {
+          "title": "相处",
+          "grade": null,
+          "desc": "宜：公私分清、扛事、天台再谈。忌：同事前示弱、只想捡软、把护短当理所当然。"
+        },
+        {
+          "title": "足迹",
+          "grade": null,
+          "desc": "常在：办公室；晚间也可能上街/咖啡店。喜欢成事与夜风；讨厌八卦与当众丢人。"
+        }
+      ],
+      "view_labels": [
+        {
+          "label": "正面全身",
+          "hint": "黑金港风旗袍正面站姿"
+        },
+        {
+          "label": "背面全身",
+          "hint": "同装背面全身，可见长发与旗袍后背线"
+        }
+      ],
+      "body_crops": [
+        {
+          "label": "脸部",
+          "hint": "深棕大波浪与暖棕瞳，锁基图五官"
+        },
+        {
+          "label": "上半身胸部",
+          "hint": "旗袍领到胸线裁切，遮挡充分"
+        },
+        {
+          "label": "下半身腿部",
+          "hint": "开衩腿线与高跟鞋"
+        },
+        {
+          "label": "背面臀部",
+          "hint": "背面臀线与旗袍褶皱，不露点"
+        }
+      ],
+      "expr_labels": null,
+      "angle_labels": null,
+      "sources": {
+        "model_roles": "profile + traits + route + opening_line",
+        "character_lores": "codex → intro / story_bg",
+        "romance_voice_cards": "genre + do/dont → 相处",
+        "social_graph": "role_hint + schedule + likes",
+        "cast_intro": "intro_week 3",
+        "body_catalog": "170 cm",
+        "pc": "沈予安"
+      }
+    },
+    "aili": {
+      "tier": "T0",
+      "story_weight": 5,
+      "tier_stars": "★★★★★",
+      "tier_label": "戏份·核心女主",
+      "name_zh": "夏艾黎",
+      "name_en": "Xia Aili",
+      "title_banner": "枯枝上的新花束",
+      "tagline": "花艺师 · 前居",
+      "faction_tag": "小镇 · 花店",
+      "theme_color": "#a78bfa",
+      "intro": "花艺师夏艾黎。离婚后靠花店过活；闺蜜程艾辰负责盘问每一个靠近的人。夸花她听腻了；你肯一起收拾枯枝、对账单，她才记你一笔。她怕再选一次又变成笑话——闲话来时你能不能站住。",
+      "story_bg": "夏艾黎离婚后靠花店过活。闺蜜程艾辰负责盘问每一个靠近的人。温室暖和，也闷。夸花她听腻了；你肯一起收拾枯枝、对账单，她才记你一笔。她怕再选一次又变成笑话——闲话来时你能不能站住，她的停顿你能不能等。花市老金账算得紧，熟客才留得到好枝。",
+      "with_pc": "对沈予安：离过婚的前居，平静地开着花店；你们还住同一片镇，偶尔碰面。你要是只夸花或追问旧婚，她收；你肯务实帮忙、给她停顿，她才肯再选一次。路线「枯枝上的新花束」——可走到恋人/可结婚。",
+      "genre": "花店的余温",
+      "quote_vertical": "这些花……是今天新到的。要看看吗？",
+      "quote_horizontal": "别只夸好看。先一起把枯枝收干净。",
+      "calligraphy": "新枝",
+      "signature": "夏艾黎",
+      "footer_tagline": "枯枝上的新花束 · 戏份★★★★★",
+      "b_pose_hint": "半身正面；花艺裙装全身持花；背面全身；身体特写四格",
+      "profile_rows": [
+        {
+          "label": "身高",
+          "value": "165 cm"
+        },
+        {
+          "label": "年龄",
+          "value": "24"
+        },
+        {
+          "label": "职业",
+          "value": "花艺师"
+        },
+        {
+          "label": "对男主",
+          "value": "前居"
+        },
+        {
+          "label": "MBTI",
+          "value": "INFJ · 提倡者"
+        },
+        {
+          "label": "路线",
+          "value": "枯枝上的新花束（5★）"
+        },
+        {
+          "label": "出场",
+          "value": "第 5 周"
+        },
+        {
+          "label": "语气",
+          "value": "正式·慢"
+        },
+        {
+          "label": "关系目标",
+          "value": "恋人/可结婚"
+        }
+      ],
+      "profile_bullets": [
+        {
+          "label": "职业",
+          "value": "花艺师"
+        },
+        {
+          "label": "对男主",
+          "value": "前居 · 同镇偶遇"
+        },
+        {
+          "label": "戏份",
+          "value": "★★★★★ 核心女主"
+        },
+        {
+          "label": "出场",
+          "value": "第 5 周"
+        },
+        {
+          "label": "声线",
+          "value": "夸花听腻；务实才算数"
+        }
+      ],
+      "stats": [
+        {
+          "key": "温柔",
+          "grade": "A",
+          "bar": 75
+        },
+        {
+          "key": "开朗",
+          "grade": "B",
+          "bar": 35
+        },
+        {
+          "key": "粘人",
+          "grade": "B",
+          "bar": 30
+        },
+        {
+          "key": "成熟",
+          "grade": "A+",
+          "bar": 90
+        },
+        {
+          "key": "害羞",
+          "grade": "C",
+          "bar": 15
+        },
+        {
+          "key": "傲娇",
+          "grade": "C",
+          "bar": 20
+        }
+      ],
+      "system_blocks": [
+        {
+          "title": "与男主",
+          "grade": null,
+          "desc": "前居；离过婚，同镇偶遇。目标：恋人/可结婚。"
+        },
+        {
+          "title": "出场",
+          "grade": null,
+          "desc": "第 5 周进入地图锚点；romance · 戏份★★★★★ 核心女主。"
+        },
+        {
+          "title": "相处",
+          "grade": null,
+          "desc": "宜：务实帮忙、给她停顿、别追问旧婚。忌：廉价安慰、逼她再选一次、绕过闺蜜审问。"
+        },
+        {
+          "title": "足迹",
+          "grade": null,
+          "desc": "常在：家/花店语境的咖啡店锚点；喜欢整理花材与阳台。讨厌被当失败品谈资。"
+        }
+      ],
+      "view_labels": [
+        {
+          "label": "正面全身",
+          "hint": "白蕾丝上衣+奶油花裙，持花束站姿"
+        },
+        {
+          "label": "背面全身",
+          "hint": "同装背面全身，可见金发波浪与裙摆刺绣"
+        }
+      ],
+      "body_crops": [
+        {
+          "label": "脸部",
+          "hint": "金发与绿瞳，锁基图五官"
+        },
+        {
+          "label": "上半身胸部",
+          "hint": "蕾丝领到胸线裁切，遮挡充分"
+        },
+        {
+          "label": "下半身腿部",
+          "hint": "花裙裙摆与腿线"
+        },
+        {
+          "label": "背面臀部",
+          "hint": "背面臀线与裙褶，不露点"
+        }
+      ],
+      "expr_labels": null,
+      "angle_labels": null,
+      "sources": {
+        "model_roles": "profile + traits + route + opening_line",
+        "character_lores": "codex → intro / story_bg",
+        "romance_voice_cards": "genre + do/dont → 相处",
+        "social_graph": "role_hint + schedule + likes",
+        "cast_intro": "intro_week 5",
+        "body_catalog": "165 cm",
+        "pc": "沈予安"
+      }
+    },
+    "linxi": {
+      "tier": "T0",
+      "story_weight": 5,
+      "tier_stars": "★★★★★",
+      "tier_label": "戏份·核心女主",
+      "name_zh": "陆凛汐",
+      "name_en": "Lu Linxi",
+      "title_banner": "工位之外的一步",
+      "tagline": "实习生 · 实习同事",
+      "faction_tag": "职场 · 实习",
+      "theme_color": "#fb7185",
+      "intro": "实习生陆凛汐。红丝带是妈妈留下的习惯；打印室是她喘口气的地方。通宵改稿时，「临时工」三个字最刺人。她不要人拯救，要人一起担。通勤的冷、工位的塌，都会把你推到选择前：站在她上面说话，还是把工牌翻过来站旁边。",
+      "story_bg": "陆凛汐拿实习工资在这座镇站住，红丝带是妈妈留下的习惯。打印室是她喘口气的地方。通宵改稿时，「临时工」三个字最刺人。她不要人拯救，要人一起担。通勤的冷、工位的塌，都会把你推到选择前：你是站在她上面说话，还是把工牌翻过来站旁边。组里赵组催事不催情，却记得谁赶末班车。",
+      "with_pc": "对沈予安：工位旁的实习同事，远看清冷，私下偶尔硬。你要是前辈施舍或空口安慰，她刺；你谈工作边界、一起止损、记得末班车那些小事，她才接得住倔强。路线「工位之外的一步」——可走到恋人/可结婚。",
+      "genre": "工位上的倔强",
+      "quote_vertical": "……忙完这一段。你的事先放着。",
+      "quote_horizontal": "别用前辈腔施舍。把工牌翻过来，站旁边。",
+      "calligraphy": "并肩",
+      "signature": "陆凛汐",
+      "footer_tagline": "工位之外的一步 · 戏份★★★★★",
+      "b_pose_hint": "半身正面；白衬衫黑裙全身；背面全身；身体特写四格",
+      "profile_rows": [
+        {
+          "label": "身高",
+          "value": "161 cm"
+        },
+        {
+          "label": "年龄",
+          "value": "22"
+        },
+        {
+          "label": "职业",
+          "value": "实习生"
+        },
+        {
+          "label": "对男主",
+          "value": "实习同事"
+        },
+        {
+          "label": "MBTI",
+          "value": "ISTJ · 物流师"
+        },
+        {
+          "label": "路线",
+          "value": "工位之外的一步（5★）"
+        },
+        {
+          "label": "出场",
+          "value": "第 1 周"
+        },
+        {
+          "label": "语气",
+          "value": "日常·硬"
+        },
+        {
+          "label": "关系目标",
+          "value": "恋人/可结婚"
+        }
+      ],
+      "profile_bullets": [
+        {
+          "label": "职业",
+          "value": "实习生"
+        },
+        {
+          "label": "对男主",
+          "value": "实习同事 · 工位旁清冷"
+        },
+        {
+          "label": "戏份",
+          "value": "★★★★★ 核心女主"
+        },
+        {
+          "label": "出场",
+          "value": "第 1 周"
+        },
+        {
+          "label": "声线",
+          "value": "公事硬；私下话少，刺人但不乱跑"
+        }
+      ],
+      "stats": [
+        {
+          "key": "温柔",
+          "grade": "B+",
+          "bar": 45
+        },
+        {
+          "key": "开朗",
+          "grade": "A",
+          "bar": 55
+        },
+        {
+          "key": "粘人",
+          "grade": "B+",
+          "bar": 40
+        },
+        {
+          "key": "成熟",
+          "grade": "C",
+          "bar": 20
+        },
+        {
+          "key": "害羞",
+          "grade": "B+",
+          "bar": 50
+        },
+        {
+          "key": "傲娇",
+          "grade": "A+",
+          "bar": 85
+        }
+      ],
+      "system_blocks": [
+        {
+          "title": "与男主",
+          "grade": null,
+          "desc": "实习同事；工位旁清冷，私下偶尔硬。目标：恋人/可结婚。"
+        },
+        {
+          "title": "出场",
+          "grade": null,
+          "desc": "第 1 周进入地图锚点；romance · 戏份★★★★★ 核心女主。"
+        },
+        {
+          "title": "相处",
+          "grade": null,
+          "desc": "宜：谈工作边界、一起止损、记末班车小事。忌：前辈施舍腔、空口安慰、当众揭她临时工。"
+        },
+        {
+          "title": "足迹",
+          "grade": null,
+          "desc": "常在：办公室/图书馆/校园；晚间也可能上街或咖啡店。喜欢准时与说清楚的事；讨厌含糊汇报。"
+        }
+      ],
+      "view_labels": [
+        {
+          "label": "正面全身",
+          "hint": "白衬衫黑裙+红丝带工牌，持文件夹站姿"
+        },
+        {
+          "label": "背面全身",
+          "hint": "同装背面全身，可见红丝带与直黑长发"
+        }
+      ],
+      "body_crops": [
+        {
+          "label": "脸部",
+          "hint": "黑发红瞳与红丝带，锁基图五官"
+        },
+        {
+          "label": "上半身胸部",
+          "hint": "衬衫领到胸线裁切，遮挡充分"
+        },
+        {
+          "label": "下半身腿部",
+          "hint": "铅笔裙与丝袜腿线"
+        },
+        {
+          "label": "背面臀部",
+          "hint": "背面臀线与裙褶，不露点"
+        }
+      ],
+      "expr_labels": null,
+      "angle_labels": null,
+      "sources": {
+        "model_roles": "profile + traits + route + opening_line",
+        "character_lores": "codex → intro / story_bg",
+        "romance_voice_cards": "genre + do/dont → 相处",
+        "social_graph": "role_hint + schedule + likes",
+        "cast_intro": "intro_week 1",
+        "body_catalog": "161 cm",
+        "pc": "沈予安"
+      }
+    },
+    "shuli": {
+      "tier": "L0",
+      "story_weight": 5,
+      "tier_stars": "★★★★★",
+      "tier_label": "戏份·核心女主",
+      "name_zh": "沈书璃",
+      "name_en": "Shen Shuli",
+      "title_banner": "日程本里的名字",
+      "tagline": "大学生 · 亲妹妹",
+      "faction_tag": "家庭 · 同住",
+      "theme_color": "#64748b",
+      "intro": "亲妹妹沈书璃，同城念书。日程本夹着说不出口的事，当面只叫哥哥。父母走后，依赖长成暗涌——用晚饭、吃醋和故意展示把你拴住。伦理与嫉妒过了关，才可能偷偷恋爱；不宣称婚孕主包，只扛后果。",
+      "story_bg": "沈书璃是亲妹妹，也是最难绕开的那个人。父母走后，依赖长成说不出口的东西：当面叫哥哥，私下用晚饭、日程和吃醋把你拴住。故意展示、撕日程本、把伦理摊开、还要瞒过隔壁枫音——每一步都可能露馅。真要在一起，是一起扛后果，不是甜宠闯关。周阿姨认得她晚归的字迹；你袖口若带着画室味道，她比谁都先闻见。",
+      "with_pc": "对沈予安：亲妹妹，同住；公开称呼不变，只叫哥哥。你要是当众告白腔或自称女朋友，她炸；你肯提醒作息、护短时接住她嘴硬、把伦理摊开再走，才可能偷偷恋爱。路线「妹妹的日程本」——目标恋人（难攻略·关系向资源带 L0，无 bridal/maternity 主包）。",
+      "genre": "家里的暗涌",
+      "quote_vertical": "哥，你又把晚饭忘了吧。",
+      "quote_horizontal": "当面只叫哥哥。心里那点事，不说破。",
+      "calligraphy": "日程",
+      "signature": "沈书璃",
+      "footer_tagline": "妹妹的日程本 · 戏份★★★★★",
+      "b_pose_hint": "半身正面；米色高领+深蓝长裙全身捧书；背面全身；身体特写四格",
+      "profile_rows": [
+        {
+          "label": "身高",
+          "value": "158 cm"
+        },
+        {
+          "label": "年龄",
+          "value": "19"
+        },
+        {
+          "label": "职业",
+          "value": "大学生"
+        },
+        {
+          "label": "对男主",
+          "value": "亲妹妹"
+        },
+        {
+          "label": "MBTI",
+          "value": "ISTJ · 物流师"
+        },
+        {
+          "label": "路线",
+          "value": "妹妹的日程本（5★）"
+        },
+        {
+          "label": "出场",
+          "value": "第 1 周"
+        },
+        {
+          "label": "语气",
+          "value": "日常·短"
+        },
+        {
+          "label": "关系目标",
+          "value": "恋人"
+        }
+      ],
+      "profile_bullets": [
+        {
+          "label": "职业",
+          "value": "大学生"
+        },
+        {
+          "label": "对男主",
+          "value": "亲妹妹 · 同住 · 当面叫哥哥"
+        },
+        {
+          "label": "戏份",
+          "value": "★★★★★ 核心女主"
+        },
+        {
+          "label": "出场",
+          "value": "第 1 周"
+        },
+        {
+          "label": "声线",
+          "value": "话短爱盯作息；吃醋说别太晚"
+        }
+      ],
+      "stats": [
+        {
+          "key": "温柔",
+          "grade": "A",
+          "bar": 55
+        },
+        {
+          "key": "开朗",
+          "grade": "B",
+          "bar": 35
+        },
+        {
+          "key": "粘人",
+          "grade": "B+",
+          "bar": 45
+        },
+        {
+          "key": "成熟",
+          "grade": "B",
+          "bar": 30
+        },
+        {
+          "key": "害羞",
+          "grade": "A",
+          "bar": 70
+        },
+        {
+          "key": "傲娇",
+          "grade": "A",
+          "bar": 75
+        }
+      ],
+      "system_blocks": [
+        {
+          "title": "与男主",
+          "grade": null,
+          "desc": "亲妹妹；同住，当面只叫哥哥。目标：恋人（难攻略）。无 bridal/maternity 主包。"
+        },
+        {
+          "title": "出场",
+          "grade": null,
+          "desc": "第 1 周即在家；linked · 戏份★★★★★ 核心女主（资源带 L0）。"
+        },
+        {
+          "title": "相处",
+          "grade": null,
+          "desc": "宜：提醒吃饭睡觉、护短时接嘴硬、称呼只用哥哥。忌：自称女朋友、当众告白腔、故意撩哥哥。"
+        },
+        {
+          "title": "足迹",
+          "grade": null,
+          "desc": "常在：家/房间；日间校园与图书馆。日程本与晚饭是她的锚点。"
+        }
+      ],
+      "view_labels": [
+        {
+          "label": "正面全身",
+          "hint": "米色高领毛衣+深蓝长裙，圆框眼镜捧书站姿"
+        },
+        {
+          "label": "背面全身",
+          "hint": "同装背面全身，可见齐肩深色短发与裙摆"
+        }
+      ],
+      "body_crops": [
+        {
+          "label": "脸部",
+          "hint": "圆框眼镜与齐肩发，锁基图五官"
+        },
+        {
+          "label": "上半身胸部",
+          "hint": "高领到胸线裁切，遮挡充分"
+        },
+        {
+          "label": "下半身腿部",
+          "hint": "长裙裙摆与腿线"
+        },
+        {
+          "label": "背面臀部",
+          "hint": "背面臀线与裙褶，不露点"
+        }
+      ],
+      "expr_labels": null,
+      "angle_labels": null,
+      "sources": {
+        "model_roles": "profile + traits + route + opening_line",
+        "character_lores": "codex → intro / story_bg",
+        "romance_voice_cards": "genre + do/dont → 相处",
+        "social_graph": "role_hint + schedule",
+        "cast_intro": "intro_week 1",
+        "body_catalog": "158 cm",
+        "pc": "沈予安"
+      }
+    },
+    "taotao": {
+      "tier": "T1",
+      "story_weight": 4,
+      "tier_stars": "★★★★",
+      "tier_label": "戏份·主力女主",
+      "name_zh": "唐桃夭",
+      "name_en": "Tang Taoyao",
+      "title_banner": "练习室的素颜",
+      "tagline": "偶像练习生 · 社团朋友",
+      "faction_tag": "校园 · 舞台",
+      "theme_color": "#fbbf24",
+      "intro": "偶像练习生唐桃夭。镜头前元气足，镜头后膝盖上贴着冰袋。你要是只追舞台，她笑着送客；你记得她喘不上气的那几秒，她会把耳机分你一只。素颜被记住，比应援色要紧。",
+      "story_bg": "唐桃夭镜头前元气足，镜头后膝盖上贴着冰袋。经纪人小梁的日程比她自己还清楚。加训一压，别人容易把她当成商品或易碎品——你要是只追舞台，她笑着送客；你记得她喘不上气的那几秒，她会把耳机分你一只。素颜被记住，比应援色要紧。",
+      "with_pc": "对沈予安：舞台活动认识的社团搭子。台上要笑，台下喘。你要是粉丝腔或只聊通告，她亮着送客；你分清台上台下、问膝盖和作息，她才肯卸妆后的那一面。路线「练习室的素颜」——可走到恋人/可结婚。",
+      "genre": "台前台后",
+      "quote_vertical": "嘿嘿！偷偷练完这一遍，也要听你说心里话！",
+      "quote_horizontal": "别只追应援色。先记得，我喘不上气的那几秒。",
+      "calligraphy": "素颜",
+      "signature": "唐桃夭",
+      "footer_tagline": "练习室的素颜 · 戏份★★★★",
+      "b_pose_hint": "半身正面；桃色练习生舞台装全身；背面全身；身体特写四格",
+      "profile_rows": [
+        {
+          "label": "身高",
+          "value": "157 cm"
+        },
+        {
+          "label": "年龄",
+          "value": "19"
+        },
+        {
+          "label": "职业",
+          "value": "偶像练习生"
+        },
+        {
+          "label": "对男主",
+          "value": "社团朋友"
+        },
+        {
+          "label": "MBTI",
+          "value": "ENFP · 竞选者"
+        },
+        {
+          "label": "路线",
+          "value": "练习室的素颜（4★）"
+        },
+        {
+          "label": "出场",
+          "value": "第 2 周"
+        },
+        {
+          "label": "语气",
+          "value": "日常·亮"
+        },
+        {
+          "label": "关系目标",
+          "value": "恋人/可结婚"
+        }
+      ],
+      "profile_bullets": [
+        {
+          "label": "职业",
+          "value": "偶像练习生"
+        },
+        {
+          "label": "对男主",
+          "value": "社团朋友 · 舞台活动搭子"
+        },
+        {
+          "label": "戏份",
+          "value": "★★★★ 主力女主"
+        },
+        {
+          "label": "出场",
+          "value": "第 2 周"
+        },
+        {
+          "label": "声线",
+          "value": "台上亮；私下喘与冰袋更真"
+        }
+      ],
+      "stats": [
+        {
+          "key": "温柔",
+          "grade": "A",
+          "bar": 55
+        },
+        {
+          "key": "开朗",
+          "grade": "A+",
+          "bar": 95
+        },
+        {
+          "key": "粘人",
+          "grade": "A",
+          "bar": 65
+        },
+        {
+          "key": "成熟",
+          "grade": "B",
+          "bar": 25
+        },
+        {
+          "key": "害羞",
+          "grade": "C",
+          "bar": 20
+        },
+        {
+          "key": "傲娇",
+          "grade": "C",
+          "bar": 10
+        }
+      ],
+      "system_blocks": [
+        {
+          "title": "与男主",
+          "grade": null,
+          "desc": "社团朋友；舞台活动认识。目标：恋人/可结婚。"
+        },
+        {
+          "title": "出场",
+          "grade": null,
+          "desc": "第 2 周进入地图锚点；romance · 戏份★★★★ 主力女主。"
+        },
+        {
+          "title": "相处",
+          "grade": null,
+          "desc": "宜：分清台上台下、问膝盖和作息、别用粉丝腔。忌：只聊通告、逼她公开、把她当气氛组。"
+        },
+        {
+          "title": "足迹",
+          "grade": null,
+          "desc": "常在：校园；晚间街道/咖啡店。练习室与通告缝是她喘口气的地方。"
+        }
+      ],
+      "view_labels": [
+        {
+          "label": "正面全身",
+          "hint": "粉樱双丸子/双马尾，桃色点缀练习生舞台装站姿"
+        },
+        {
+          "label": "背面全身",
+          "hint": "同装背面全身，可见双马尾与舞台装后背线"
+        }
+      ],
+      "body_crops": [
+        {
+          "label": "脸部",
+          "hint": "亮粉瞳与粉樱发，锁基图五官"
+        },
+        {
+          "label": "上半身胸部",
+          "hint": "舞台装领到胸线裁切，遮挡充分"
+        },
+        {
+          "label": "下半身腿部",
+          "hint": "短裙与腿线、练习鞋"
+        },
+        {
+          "label": "背面臀部",
+          "hint": "背面臀线与裙褶，不露点"
+        }
+      ],
+      "expr_labels": null,
+      "angle_labels": null,
+      "sources": {
+        "model_roles": "profile + traits + route + opening_line",
+        "character_lores": "codex → intro / story_bg",
+        "romance_voice_cards": "genre + do/dont → 相处",
+        "social_graph": "role_hint + schedule",
+        "cast_intro": "intro_week 2",
+        "body_catalog": "157 cm",
+        "pc": "沈予安"
+      }
+    },
+    "shizuku": {
+      "tier": "T1",
+      "story_weight": 4,
+      "tier_stars": "★★★★",
+      "tier_label": "戏份·主力女主",
+      "name_zh": "白初雪",
+      "name_en": "Bai Chuxue",
+      "title_banner": "书脊后的声线",
+      "tagline": "图书馆助理 · 网友",
+      "faction_tag": "校园 · 图书馆",
+      "theme_color": "#f9a8d4",
+      "intro": "图书馆助理白初雪。线上聊了很久，线下才见过一两面。搬书很轻，怕大声，却记得你借过哪些。闭馆后的层架逼她出声——慢，可退不回去。借书记录里，她其实大胆得很。",
+      "story_bg": "白初雪把沉默当成礼貌。逾期条上的小星像只有她懂的暗号。闭馆后的层架逼她出声——慢，可退不回去。图书馆不是躲人的地方，是她学着被听见的地方。常客老周换书时总能碰上她；借书记录里，她其实大胆得很。",
+      "with_pc": "对沈予安：线上聊了很久的网友，线下才见过一两面。你要是当众起哄或逼她拍板，她缩；你轻声、留给她时间、从书聊起，她才肯把半截句子说完。路线「书脊后的声线」——可走到恋人/可结婚。",
+      "genre": "图书馆的小声",
+      "quote_vertical": "……你来了。这本诗集，想和你一起看。",
+      "quote_horizontal": "别逼我立刻回答。先从这一页，慢慢看。",
+      "calligraphy": "小声",
+      "signature": "白初雪",
+      "footer_tagline": "书脊后的声线 · 戏份★★★★",
+      "b_pose_hint": "半身正面；浅紫针织开衫+白吊带短裙全身捧书；背面全身；身体特写四格",
+      "profile_rows": [
+        {
+          "label": "身高",
+          "value": "155 cm"
+        },
+        {
+          "label": "年龄",
+          "value": "20"
+        },
+        {
+          "label": "职业",
+          "value": "图书馆助理"
+        },
+        {
+          "label": "对男主",
+          "value": "网友"
+        },
+        {
+          "label": "MBTI",
+          "value": "INFJ · 提倡者"
+        },
+        {
+          "label": "路线",
+          "value": "书脊后的声线（4★）"
+        },
+        {
+          "label": "出场",
+          "value": "第 4 周"
+        },
+        {
+          "label": "语气",
+          "value": "日常·轻声"
+        },
+        {
+          "label": "关系目标",
+          "value": "恋人/可结婚"
+        }
+      ],
+      "profile_bullets": [
+        {
+          "label": "职业",
+          "value": "图书馆助理"
+        },
+        {
+          "label": "对男主",
+          "value": "网友 · 线下才见一两面"
+        },
+        {
+          "label": "戏份",
+          "value": "★★★★ 主力女主"
+        },
+        {
+          "label": "出场",
+          "value": "第 4 周"
+        },
+        {
+          "label": "声线",
+          "value": "音量小；句子常留半截"
+        }
+      ],
+      "stats": [
+        {
+          "key": "温柔",
+          "grade": "A+",
+          "bar": 90
+        },
+        {
+          "key": "开朗",
+          "grade": "A",
+          "bar": 60
+        },
+        {
+          "key": "粘人",
+          "grade": "A",
+          "bar": 55
+        },
+        {
+          "key": "成熟",
+          "grade": "B+",
+          "bar": 45
+        },
+        {
+          "key": "害羞",
+          "grade": "B+",
+          "bar": 40
+        },
+        {
+          "key": "傲娇",
+          "grade": "C",
+          "bar": 15
+        }
+      ],
+      "system_blocks": [
+        {
+          "title": "与男主",
+          "grade": null,
+          "desc": "网友；线上很久，线下才见。目标：恋人/可结婚。"
+        },
+        {
+          "title": "出场",
+          "grade": null,
+          "desc": "第 4 周进入地图锚点；romance · 戏份★★★★ 主力女主。"
+        },
+        {
+          "title": "相处",
+          "grade": null,
+          "desc": "宜：轻声说话、留给她时间、从书聊起。忌：当众起哄、打断沉默、逼她拍板。"
+        },
+        {
+          "title": "足迹",
+          "grade": null,
+          "desc": "常在：图书馆；下午也可能在咖啡店。闭馆层架是她学着出声的地方。"
+        }
+      ],
+      "view_labels": [
+        {
+          "label": "正面全身",
+          "hint": "浅紫齐肩短波波，超大针织开衫配白吊带短裙，捧诗集站姿"
+        },
+        {
+          "label": "背面全身",
+          "hint": "同装背面全身，可见短波波与开衫后背"
+        }
+      ],
+      "body_crops": [
+        {
+          "label": "脸部",
+          "hint": "紫瞳与浅紫短发，锁基图五官，不戴眼镜"
+        },
+        {
+          "label": "上半身胸部",
+          "hint": "开衫/吊带到胸线裁切，遮挡充分"
+        },
+        {
+          "label": "下半身腿部",
+          "hint": "短裙裙摆与腿线"
+        },
+        {
+          "label": "背面臀部",
+          "hint": "背面臀线与裙褶，不露点"
+        }
+      ],
+      "expr_labels": null,
+      "angle_labels": null,
+      "sources": {
+        "model_roles": "profile + traits + route + opening_line",
+        "character_lores": "codex → intro / story_bg",
+        "romance_voice_cards": "genre + do/dont → 相处",
+        "social_graph": "role_hint + schedule",
+        "cast_intro": "intro_week 4",
+        "body_catalog": "155 cm",
+        "pc": "沈予安"
+      }
+    },
+    "qiansha": {
+      "tier": "T1",
+      "story_weight": 4,
+      "tier_stars": "★★★★",
+      "tier_label": "戏份·主力女主",
+      "name_zh": "顾千纱",
+      "name_en": "Gu Qiansha",
+      "title_banner": "未合并的分支",
+      "tagline": "前端工程师 · 前女友",
+      "faction_tag": "职场 · 代码",
+      "theme_color": "#94a3b8",
+      "intro": "前女友顾千纱，做前端。讨厌烂摊子与含糊；分手后圈子小，总会再撞上。旧事像没合上的 PR——她宁可说清楚，也不想拖泥带水。尴尬还在，线也没完全断。",
+      "story_bg": "顾千纱讨厌烂摊子，前同事圈里跟花店那头有过交集。出事的夜里她会冷着脸回滚，感情也一样：说清楚，或关掉，不爱旁路提交。赵组见过她评审时的脾气。你们分过手，圈子小，总会再撞上——尴尬还在，线也没完全断。",
+      "with_pc": "对沈予安：前女友；分过手，圈小会再撞上。你要是装乖或暧昧拖延，她关；你直接说事、少绕弯、尊重边界，才可能重新打开未合并的分支。路线「未合并的分支」——可走到恋人/可结婚。",
+      "genre": "前任重逢",
+      "quote_vertical": "哦，是你。这次的 bug，谁开的？",
+      "quote_horizontal": "别装乖。旧事说清楚，或关掉——不旁路提交。",
+      "calligraphy": "回滚",
+      "signature": "顾千纱",
+      "footer_tagline": "未合并的分支 · 戏份★★★★",
+      "b_pose_hint": "半身正面；冷感休闲工装全身持笔记本；背面全身；身体特写四格",
+      "profile_rows": [
+        {
+          "label": "身高",
+          "value": "164 cm"
+        },
+        {
+          "label": "年龄",
+          "value": "23"
+        },
+        {
+          "label": "职业",
+          "value": "前端工程师"
+        },
+        {
+          "label": "对男主",
+          "value": "前女友"
+        },
+        {
+          "label": "MBTI",
+          "value": "INTJ · 建筑师"
+        },
+        {
+          "label": "路线",
+          "value": "未合并的分支（4★）"
+        },
+        {
+          "label": "出场",
+          "value": "第 3 周"
+        },
+        {
+          "label": "语气",
+          "value": "日常·硬"
+        },
+        {
+          "label": "关系目标",
+          "value": "恋人/可结婚"
+        }
+      ],
+      "profile_bullets": [
+        {
+          "label": "职业",
+          "value": "前端工程师"
+        },
+        {
+          "label": "对男主",
+          "value": "前女友 · 分手未完全断线"
+        },
+        {
+          "label": "戏份",
+          "value": "★★★★ 主力女主"
+        },
+        {
+          "label": "出场",
+          "value": "第 3 周"
+        },
+        {
+          "label": "声线",
+          "value": "嘴硬；讨厌含糊与旁路"
+        }
+      ],
+      "stats": [
+        {
+          "key": "温柔",
+          "grade": "C",
+          "bar": 12
+        },
+        {
+          "key": "开朗",
+          "grade": "C",
+          "bar": 20
+        },
+        {
+          "key": "粘人",
+          "grade": "B",
+          "bar": 30
+        },
+        {
+          "key": "成熟",
+          "grade": "A",
+          "bar": 75
+        },
+        {
+          "key": "害羞",
+          "grade": "C",
+          "bar": 8
+        },
+        {
+          "key": "傲娇",
+          "grade": "A",
+          "bar": 80
+        }
+      ],
+      "system_blocks": [
+        {
+          "title": "与男主",
+          "grade": null,
+          "desc": "前女友；分过手，圈小会再撞。目标：恋人/可结婚。"
+        },
+        {
+          "title": "出场",
+          "grade": null,
+          "desc": "第 3 周进入地图锚点；romance · 戏份★★★★ 主力女主。"
+        },
+        {
+          "title": "相处",
+          "grade": null,
+          "desc": "宜：直接说事、少绕弯、尊重边界。忌：装乖、翻旧账道德绑架、暧昧拖延。"
+        },
+        {
+          "title": "足迹",
+          "grade": null,
+          "desc": "常在：办公室；晚间街道/咖啡店。评审与回滚是她的节奏。"
+        }
+      ],
+      "view_labels": [
+        {
+          "label": "正面全身",
+          "hint": "冷感休闲工装+笔记本，利落站姿"
+        },
+        {
+          "label": "背面全身",
+          "hint": "同装背面全身，可见长发与工装剪裁"
+        }
+      ],
+      "body_crops": [
+        {
+          "label": "脸部",
+          "hint": "冷感五官与发色，锁基图"
+        },
+        {
+          "label": "上半身胸部",
+          "hint": "领口到胸线裁切，遮挡充分"
+        },
+        {
+          "label": "下半身腿部",
+          "hint": "长裤/裙与腿线"
+        },
+        {
+          "label": "背面臀部",
+          "hint": "背面臀线与衣褶，不露点"
+        }
+      ],
+      "expr_labels": null,
+      "angle_labels": null,
+      "sources": {
+        "model_roles": "profile + traits + route + opening_line",
+        "character_lores": "codex → intro / story_bg",
+        "romance_voice_cards": "genre + do/dont → 相处",
+        "social_graph": "role_hint + schedule",
+        "cast_intro": "intro_week 3",
+        "body_catalog": "164 cm",
+        "pc": "沈予安"
+      }
+    },
+    "shiori": {
+      "tier": "T1",
+      "story_weight": 4,
+      "tier_stars": "★★★★",
+      "tier_label": "戏份·主力女主",
+      "name_zh": "白诗织",
+      "name_en": "Bai Shizhi",
+      "title_banner": "空白页上的短句",
+      "tagline": "书店店员 · 短文系网友",
+      "faction_tag": "小镇 · 书店",
+      "theme_color": "#22d3ee",
+      "intro": "独立书店店员白诗织。把喜欢写进推荐语里；窗边那本不卖的，才是她真正想递的。只买畅销的人，她礼貌到底。冷门书架拉开时，她才肯把短句念出来。",
+      "story_bg": "白诗织把喜欢写进推荐语里。窗边那本不卖的，才是她真正想递的。只买畅销的人，她礼貌到底。冷门书架拉开时，她才肯把短句念出来。老周每周来换书，假装不听，其实听得很清。",
+      "with_pc": "对沈予安：短文系网友，先递书后说心。你要是吵着逼问或敷衍她荐的书，她收；你认真看她荐的书、跟窗边的节奏、轻声就好，她才肯把空白页留给你。路线「空白页上的短句」——可走到恋人/可结婚。",
+      "genre": "荐书的人",
+      "quote_vertical": "这本……也放在窗边。页还没写完，别太急。",
+      "quote_horizontal": "别只买畅销。窗边那本不卖的，才是我想递的。",
+      "calligraphy": "短句",
+      "signature": "白诗织",
+      "footer_tagline": "空白页上的短句 · 戏份★★★★",
+      "b_pose_hint": "半身正面；书店店员装全身持书；背面全身；身体特写四格",
+      "profile_rows": [
+        {
+          "label": "身高",
+          "value": "166 cm"
+        },
+        {
+          "label": "年龄",
+          "value": "25"
+        },
+        {
+          "label": "职业",
+          "value": "独立书店店员"
+        },
+        {
+          "label": "对男主",
+          "value": "短文系网友"
+        },
+        {
+          "label": "MBTI",
+          "value": "INFJ · 提倡者"
+        },
+        {
+          "label": "路线",
+          "value": "空白页上的短句（4★）"
+        },
+        {
+          "label": "出场",
+          "value": "第 2 周"
+        },
+        {
+          "label": "语气",
+          "value": "日常·轻"
+        },
+        {
+          "label": "关系目标",
+          "value": "恋人/可结婚"
+        }
+      ],
+      "profile_bullets": [
+        {
+          "label": "职业",
+          "value": "独立书店店员"
+        },
+        {
+          "label": "对男主",
+          "value": "短文系网友 · 先递书后说心"
+        },
+        {
+          "label": "戏份",
+          "value": "★★★★ 主力女主"
+        },
+        {
+          "label": "出场",
+          "value": "第 2 周"
+        },
+        {
+          "label": "声线",
+          "value": "话不多；记得你看到哪一页"
+        }
+      ],
+      "stats": [
+        {
+          "key": "温柔",
+          "grade": "A",
+          "bar": 70
+        },
+        {
+          "key": "开朗",
+          "grade": "A",
+          "bar": 65
+        },
+        {
+          "key": "粘人",
+          "grade": "B+",
+          "bar": 45
+        },
+        {
+          "key": "成熟",
+          "grade": "A",
+          "bar": 55
+        },
+        {
+          "key": "害羞",
+          "grade": "B",
+          "bar": 25
+        },
+        {
+          "key": "傲娇",
+          "grade": "C",
+          "bar": 15
+        }
+      ],
+      "system_blocks": [
+        {
+          "title": "与男主",
+          "grade": null,
+          "desc": "短文系网友；先递书后说心。目标：恋人/可结婚。"
+        },
+        {
+          "title": "出场",
+          "grade": null,
+          "desc": "第 2 周进入地图锚点；romance · 戏份★★★★ 主力女主。"
+        },
+        {
+          "title": "相处",
+          "grade": null,
+          "desc": "宜：认真看她荐的书、跟窗边节奏、轻声。忌：吵着逼问、敷衍荐书、把沉默当没事。"
+        },
+        {
+          "title": "足迹",
+          "grade": null,
+          "desc": "常在：书店；下午图书馆；晚间公园/街道。窗边不卖的那本是她的暗号。"
+        }
+      ],
+      "view_labels": [
+        {
+          "label": "正面全身",
+          "hint": "书店店员装，窗边持书优雅站姿"
+        },
+        {
+          "label": "背面全身",
+          "hint": "同装背面全身，可见长发与店员围裙/裙摆"
+        }
+      ],
+      "body_crops": [
+        {
+          "label": "脸部",
+          "hint": "锁基图五官与发色"
+        },
+        {
+          "label": "上半身胸部",
+          "hint": "领口到胸线裁切，遮挡充分"
+        },
+        {
+          "label": "下半身腿部",
+          "hint": "裙摆与腿线"
+        },
+        {
+          "label": "背面臀部",
+          "hint": "背面臀线与衣褶，不露点"
+        }
+      ],
+      "expr_labels": null,
+      "angle_labels": null,
+      "sources": {
+        "model_roles": "profile + traits + route + opening_line",
+        "character_lores": "codex → intro / story_bg",
+        "romance_voice_cards": "genre + do/dont → 相处",
+        "social_graph": "role_hint + schedule",
+        "cast_intro": "intro_week 2",
+        "body_catalog": "166 cm",
+        "pc": "沈予安"
+      }
+    },
+    "miara": {
+      "tier": "T1",
+      "story_weight": 4,
+      "tier_stars": "★★★★",
+      "tier_label": "戏份·主力女主",
+      "name_zh": "莫岚纱",
+      "name_en": "Mo Lansha",
+      "title_banner": "假发下的私约",
+      "tagline": "谷子店员 · 漫展偶遇熟人",
+      "faction_tag": "小镇 · 谷子店",
+      "theme_color": "#22d3ee",
+      "intro": "二次元谷子店员莫岚纱。戴上精灵耳就敢得很；卸妆后的胶水味里，藏着怕被当成戏服的人。她要你既尊重台上的人设，也接得住会哭、会累的那个。假发摘下来，才是谈判开始。",
+      "story_bg": "莫岚纱戴上精灵耳就敢得很。卸妆后的胶水味里，藏着怕被当成戏服的人。她要你既尊重台上的人设，也接得住会哭、会累的那个。谷子店和漫展是她最熟的地方；假发摘下来，才是谈判开始。",
+      "with_pc": "对沈予安：漫展/谷子店偶遇熟人。cos 时敢，卸妆后怕你只爱戏服。你要是只聊人设或当众揭假发，她收；你分清角色和本人、夸她手上的活、卸妆后不起哄，她才肯把私约说出口。路线「假发下的私约」——可走到恋人/可结婚。",
+      "genre": "卸妆以后",
+      "quote_vertical": "嘿，谷子到了。上次漫展那套……还在回味吗？",
+      "quote_horizontal": "别只爱戏服。假发摘下来，才是谈判开始。",
+      "calligraphy": "卸妆",
+      "signature": "莫岚纱",
+      "footer_tagline": "假发下的私约 · 戏份★★★★",
+      "b_pose_hint": "半身正面；谷子店员/轻 cos 装全身；背面全身；身体特写四格",
+      "profile_rows": [
+        {
+          "label": "身高",
+          "value": "164 cm"
+        },
+        {
+          "label": "年龄",
+          "value": "23"
+        },
+        {
+          "label": "职业",
+          "value": "二次元谷子店员"
+        },
+        {
+          "label": "对男主",
+          "value": "漫展偶遇熟人"
+        },
+        {
+          "label": "MBTI",
+          "value": "ENFP · 竞选者"
+        },
+        {
+          "label": "路线",
+          "value": "假发下的私约（4★）"
+        },
+        {
+          "label": "出场",
+          "value": "第 5 周"
+        },
+        {
+          "label": "语气",
+          "value": "日常·敢"
+        },
+        {
+          "label": "关系目标",
+          "value": "恋人/可结婚"
+        }
+      ],
+      "profile_bullets": [
+        {
+          "label": "职业",
+          "value": "二次元谷子店员"
+        },
+        {
+          "label": "对男主",
+          "value": "漫展偶遇熟人 · cos 后怕只爱戏服"
+        },
+        {
+          "label": "戏份",
+          "value": "★★★★ 主力女主"
+        },
+        {
+          "label": "出场",
+          "value": "第 5 周"
+        },
+        {
+          "label": "声线",
+          "value": "cos 敢；卸妆后怕被当工具人"
+        }
+      ],
+      "stats": [
+        {
+          "key": "温柔",
+          "grade": "A",
+          "bar": 70
+        },
+        {
+          "key": "开朗",
+          "grade": "A",
+          "bar": 65
+        },
+        {
+          "key": "粘人",
+          "grade": "B+",
+          "bar": 45
+        },
+        {
+          "key": "成熟",
+          "grade": "A",
+          "bar": 55
+        },
+        {
+          "key": "害羞",
+          "grade": "B",
+          "bar": 25
+        },
+        {
+          "key": "傲娇",
+          "grade": "C",
+          "bar": 15
+        }
+      ],
+      "system_blocks": [
+        {
+          "title": "与男主",
+          "grade": null,
+          "desc": "漫展偶遇熟人；愿你看见卸妆后的人。目标：恋人/可结婚。"
+        },
+        {
+          "title": "出场",
+          "grade": null,
+          "desc": "第 5 周进入地图锚点；romance · 戏份★★★★ 主力女主。"
+        },
+        {
+          "title": "相处",
+          "grade": null,
+          "desc": "宜：分清角色和本人、夸手上的活、卸妆后不起哄。忌：只聊人设、当二次元工具人、当众揭假发。"
+        },
+        {
+          "title": "足迹",
+          "grade": null,
+          "desc": "常在：谷子店；晚间街道。漫展与卸妆台是她的两条线。"
+        }
+      ],
+      "view_labels": [
+        {
+          "label": "正面全身",
+          "hint": "谷子店员装或轻 cos（可带精灵耳），自然站姿"
+        },
+        {
+          "label": "背面全身",
+          "hint": "同装背面全身，可见假发/发尾与裙摆"
+        }
+      ],
+      "body_crops": [
+        {
+          "label": "脸部",
+          "hint": "锁基图五官；可示意卸妆前后对比之一帧"
+        },
+        {
+          "label": "上半身胸部",
+          "hint": "领口到胸线裁切，遮挡充分"
+        },
+        {
+          "label": "下半身腿部",
+          "hint": "裙摆与腿线"
+        },
+        {
+          "label": "背面臀部",
+          "hint": "背面臀线与衣褶，不露点"
+        }
+      ],
+      "expr_labels": null,
+      "angle_labels": null,
+      "sources": {
+        "model_roles": "profile + traits + route + opening_line",
+        "character_lores": "codex → intro / story_bg",
+        "romance_voice_cards": "genre + do/dont → 相处",
+        "social_graph": "role_hint + schedule",
+        "cast_intro": "intro_week 5",
+        "body_catalog": "164 cm",
+        "pc": "沈予安"
+      }
+    },
+    "jingning": {
+      "tier": "N",
+      "story_weight": 3,
+      "tier_stars": "★★★",
+      "tier_label": "戏份·关系向",
+      "name_zh": "江静宁",
+      "name_en": "Jiang Jingning",
+      "title_banner": "堂姐的观察日记",
+      "tagline": "时尚系大学生 · 江静流堂妹",
+      "faction_tag": "家族 · 活动边",
+      "theme_color": "#c4b5fd",
+      "intro": "江静流的堂妹江静宁。跟活动、记观察，私下比台上软，不敢抢堂姐的光。她用看代替问；日记里比当面诚实。你靠不靠谱，她写得一清二楚——想卸下旁观，得先过堂姐那一关。",
+      "story_bg": "江静宁是江静流堂妹，跟活动、记观察。私下比台上软，不敢抢堂姐的光。她用看代替问；日记里比当面诚实。家族或活动场合经静流出现；观察日记放过你、堂姐默许，她才卸下旁观。你靠不靠谱，她写得一清二楚。",
+      "with_pc": "对沈予安：旁观堂姐职场与恋爱的堂妹；吐槽、守门，心动须过双门。你要是拿她套话伤静流、当透明人或逼她表态，她收；你轻声问、尊重旁观、别推她上台，她才肯把日记里的诚实给你看。路线「堂姐的观察日记」——关系向·难攻略，目标恋人。",
+      "genre": "旁观的堂妹",
+      "quote_vertical": "堂姐今天又加班？你……对她好一点。",
+      "quote_horizontal": "别逼我上台。日记里，我比当面诚实。",
+      "calligraphy": "旁观",
+      "signature": "江静宁",
+      "footer_tagline": "堂姐的观察日记 · 戏份★★★",
+      "b_pose_hint": "半身正面；学院风外套全身；背面全身；身体特写四格",
+      "profile_rows": [
+        {
+          "label": "身高",
+          "value": "166 cm"
+        },
+        {
+          "label": "年龄",
+          "value": "20"
+        },
+        {
+          "label": "职业",
+          "value": "时尚系大学生"
+        },
+        {
+          "label": "对男主",
+          "value": "江静流堂妹"
+        },
+        {
+          "label": "MBTI",
+          "value": "ENFJ · 主人公"
+        },
+        {
+          "label": "路线",
+          "value": "堂姐的观察日记（3★）"
+        },
+        {
+          "label": "出场",
+          "value": "第 3 周"
+        },
+        {
+          "label": "语气",
+          "value": "日常·轻声"
+        },
+        {
+          "label": "关系目标",
+          "value": "恋人"
+        }
+      ],
+      "profile_bullets": [
+        {
+          "label": "职业",
+          "value": "时尚系大学生"
+        },
+        {
+          "label": "对男主",
+          "value": "江静流堂妹 · 旁观守门"
+        },
+        {
+          "label": "戏份",
+          "value": "★★★ 关系向"
+        },
+        {
+          "label": "出场",
+          "value": "第 3 周"
+        },
+        {
+          "label": "声线",
+          "value": "跟拍记事；私下才软，不抢光"
+        }
+      ],
+      "stats": [
+        {
+          "key": "温柔",
+          "grade": "A",
+          "bar": 55
+        },
+        {
+          "key": "开朗",
+          "grade": "B+",
+          "bar": 45
+        },
+        {
+          "key": "粘人",
+          "grade": "B",
+          "bar": 25
+        },
+        {
+          "key": "成熟",
+          "grade": "B+",
+          "bar": 50
+        },
+        {
+          "key": "害羞",
+          "grade": "B",
+          "bar": 35
+        },
+        {
+          "key": "傲娇",
+          "grade": "B",
+          "bar": 35
+        }
+      ],
+      "system_blocks": [
+        {
+          "title": "与男主",
+          "grade": null,
+          "desc": "江静流堂妹；旁观守门，心动须过双门。目标：恋人。"
+        },
+        {
+          "title": "出场",
+          "grade": null,
+          "desc": "第 3 周；linked · 戏份★★★ 关系向；锚点江静流。"
+        },
+        {
+          "title": "相处",
+          "grade": null,
+          "desc": "宜：轻声问、尊重旁观、别推她上台。忌：拿她套话伤静流、当透明人、逼她表态。"
+        },
+        {
+          "title": "足迹",
+          "grade": null,
+          "desc": "常在：校园/街；晚间咖啡店。喜欢跟拍活动、干净搭配；讨厌把堂姐当工具人、放鸽子。"
+        }
+      ],
+      "view_labels": [
+        {
+          "label": "正面全身",
+          "hint": "学院风外套+小金花耳饰，活动边站姿"
+        },
+        {
+          "label": "背面全身",
+          "hint": "同装背面全身，可见深棕长发与外套剪裁"
+        }
+      ],
+      "body_crops": [
+        {
+          "label": "脸部",
+          "hint": "深棕长发与小金花耳饰，锁基图五官"
+        },
+        {
+          "label": "上半身胸部",
+          "hint": "学院外套领到胸线裁切，遮挡充分"
+        },
+        {
+          "label": "下半身腿部",
+          "hint": "裙/裤腿线与鞋"
+        },
+        {
+          "label": "背面臀部",
+          "hint": "背面臀线与外套褶皱，不露点"
+        }
+      ],
+      "expr_labels": null,
+      "angle_labels": null,
+      "sources": {
+        "model_roles": "profile + traits + route + opening_line",
+        "character_lores": "codex → intro / story_bg",
+        "romance_voice_cards": "genre + do/dont → 相处",
+        "social_graph": "role_hint + schedule + likes",
+        "cast_intro": "intro_week 3",
+        "body_catalog": "166 cm",
+        "pc": "沈予安"
+      }
+    },
+    "youwei": {
+      "tier": "N",
+      "story_weight": 3,
+      "tier_stars": "★★★",
+      "tier_label": "戏份·关系向",
+      "name_zh": "温悠微",
+      "name_en": "Wen Youwei",
+      "title_banner": "画室里的第三支笔",
+      "tagline": "插画系学生 · 苏晚悠工作室学妹",
+      "faction_tag": "小镇 · 画室",
+      "theme_color": "#f9a8d4",
+      "intro": "苏晚悠工作室学妹温悠微。改图改到熟，卫衣沾颜料点。把你当固定模特也行，真动心会先看学姐脸色。她能帮晚悠，也能在座位上跟你较劲——想要第三支笔，先问清座位与分寸。",
+      "story_bg": "温悠微是苏晚悠工作室的学妹，改图改到熟。把你当固定模特也行，真动心会先看学姐脸色。她能帮晚悠，也能在座位上跟你较劲。对门通宵的灯，她比谁都熟。多半在画室经苏晚悠认识；要她把笔交给你，得先有创作上的同盟，也得学姐不拦。",
+      "with_pc": "对沈予安：插画学妹，把你当模特邻居；心动先过学姐那一关。你要是逼她站队、绕过学姐或空谈灵感，她收；你聊座位和稿子、问清分寸、看她改图，她才肯把笔往你这边推一点。路线「画室里的第三支笔」——关系向·难攻略，目标恋人。",
+      "genre": "画室学妹",
+      "quote_vertical": "学姐说你适合当模特——我可以画两笔吗？",
+      "quote_horizontal": "别绕过学姐。座位和稿子，先说清楚。",
+      "calligraphy": "改图",
+      "signature": "温悠微",
+      "footer_tagline": "画室里的第三支笔 · 戏份★★★",
+      "b_pose_hint": "半身正面；卫衣画板全身；背面全身；身体特写四格",
+      "profile_rows": [
+        {
+          "label": "身高",
+          "value": "157 cm"
+        },
+        {
+          "label": "年龄",
+          "value": "19"
+        },
+        {
+          "label": "职业",
+          "value": "插画系学生"
+        },
+        {
+          "label": "对男主",
+          "value": "苏晚悠工作室学妹"
+        },
+        {
+          "label": "MBTI",
+          "value": "ISFP · 探险家"
+        },
+        {
+          "label": "路线",
+          "value": "画室里的第三支笔（3★）"
+        },
+        {
+          "label": "出场",
+          "value": "第 4 周"
+        },
+        {
+          "label": "语气",
+          "value": "日常·话多"
+        },
+        {
+          "label": "关系目标",
+          "value": "恋人"
+        }
+      ],
+      "profile_bullets": [
+        {
+          "label": "职业",
+          "value": "插画系学生"
+        },
+        {
+          "label": "对男主",
+          "value": "画室学妹 · 模特邻居"
+        },
+        {
+          "label": "戏份",
+          "value": "★★★ 关系向"
+        },
+        {
+          "label": "出场",
+          "value": "第 4 周"
+        },
+        {
+          "label": "声线",
+          "value": "一兴奋就话多；改图时专注"
+        }
+      ],
+      "stats": [
+        {
+          "key": "温柔",
+          "grade": "A",
+          "bar": 70
+        },
+        {
+          "key": "开朗",
+          "grade": "A",
+          "bar": 65
+        },
+        {
+          "key": "粘人",
+          "grade": "B+",
+          "bar": 40
+        },
+        {
+          "key": "成熟",
+          "grade": "B",
+          "bar": 25
+        },
+        {
+          "key": "害羞",
+          "grade": "B+",
+          "bar": 45
+        },
+        {
+          "key": "傲娇",
+          "grade": "C",
+          "bar": 15
+        }
+      ],
+      "system_blocks": [
+        {
+          "title": "与男主",
+          "grade": null,
+          "desc": "苏晚悠工作室学妹；模特邻居，心动先过学姐。目标：恋人。"
+        },
+        {
+          "title": "出场",
+          "grade": null,
+          "desc": "第 4 周；linked · 戏份★★★ 关系向；锚点苏晚悠。"
+        },
+        {
+          "title": "相处",
+          "grade": null,
+          "desc": "宜：聊座位和稿子、问清分寸、看她改图。忌：逼她站队、绕过学姐、空谈灵感。"
+        },
+        {
+          "title": "足迹",
+          "grade": null,
+          "desc": "常在：家/街/画室语境；喜欢改图反馈、安静光线。讨厌弄乱画材、敷衍点评。"
+        }
+      ],
+      "view_labels": [
+        {
+          "label": "正面全身",
+          "hint": "浅色短发卫衣夹画板，画室座位旁站姿"
+        },
+        {
+          "label": "背面全身",
+          "hint": "同装背面全身，可见短发与画板背带"
+        }
+      ],
+      "body_crops": [
+        {
+          "label": "脸部",
+          "hint": "浅色短发与亮眼神，锁基图五官"
+        },
+        {
+          "label": "上半身胸部",
+          "hint": "卫衣领到胸线裁切，遮挡充分"
+        },
+        {
+          "label": "下半身腿部",
+          "hint": "裤装/裙腿线"
+        },
+        {
+          "label": "背面臀部",
+          "hint": "背面臀线与卫衣褶皱，不露点"
+        }
+      ],
+      "expr_labels": null,
+      "angle_labels": null,
+      "sources": {
+        "model_roles": "profile + traits + route + opening_line",
+        "character_lores": "codex → intro / story_bg",
+        "romance_voice_cards": "genre + do/dont → 相处",
+        "social_graph": "role_hint + schedule + likes",
+        "cast_intro": "intro_week 4",
+        "body_catalog": "157 cm",
+        "pc": "沈予安"
+      }
+    },
+    "yuxi": {
+      "tier": "N",
+      "story_weight": 3,
+      "tier_stars": "★★★",
+      "tier_label": "戏份·关系向",
+      "name_zh": "何雨汐",
+      "name_en": "He Yuxi",
+      "title_banner": "顶班的死党",
+      "tagline": "高中生兼职 · 温晚雨死党",
+      "faction_tag": "小镇 · 咖啡店",
+      "theme_color": "#7dd3fc",
+      "intro": "温晚雨高中死党何雨汐。店里顶班、挡难客，马尾利落。谁靠近晚雨，她默认警惕。护短护到偏执，关心多半动手不动口——想并排坐下，先一起顶过班，也别油。",
+      "story_bg": "何雨汐是温晚雨高中死党，店里顶班、挡难客。谁靠近晚雨，她默认警惕。护短护到偏执，关心多半动手不动口。陈婶默许她顶班，不等于默许你走太近。常在咖啡店经晚雨碰上；一起顶过班、晚雨不拦，她才肯并排坐下。",
+      "with_pc": "对沈予安：店里顶班的死党，护温晚雨休息；本人开放后可并排。你要是抢晚雨的位置、油嘴滑舌或当她空气，她硬；你承认她护人、用行动证明、别油，她才肯把警惕收一点。路线「顶班的死党」——关系向·难攻略，目标恋人。",
+      "genre": "死党护短",
+      "quote_vertical": "温晚雨还在擦杯子呢。你帮我盯着她早点打烊。",
+      "quote_horizontal": "别抢她的位置。顶过班，才谈并排。",
+      "calligraphy": "护短",
+      "signature": "何雨汐",
+      "footer_tagline": "顶班的死党 · 戏份★★★",
+      "b_pose_hint": "半身正面；店员围裙全身；背面全身；身体特写四格",
+      "profile_rows": [
+        {
+          "label": "身高",
+          "value": "162 cm"
+        },
+        {
+          "label": "年龄",
+          "value": "18"
+        },
+        {
+          "label": "职业",
+          "value": "高中生·咖啡店兼职"
+        },
+        {
+          "label": "对男主",
+          "value": "温晚雨死党"
+        },
+        {
+          "label": "MBTI",
+          "value": "ESFJ · 执政官"
+        },
+        {
+          "label": "路线",
+          "value": "顶班的死党（3★）"
+        },
+        {
+          "label": "出场",
+          "value": "第 2 周"
+        },
+        {
+          "label": "语气",
+          "value": "日常·干脆"
+        },
+        {
+          "label": "关系目标",
+          "value": "恋人"
+        }
+      ],
+      "profile_bullets": [
+        {
+          "label": "职业",
+          "value": "高中生·咖啡店兼职"
+        },
+        {
+          "label": "对男主",
+          "value": "温晚雨死党 · 店里护短"
+        },
+        {
+          "label": "戏份",
+          "value": "★★★ 关系向"
+        },
+        {
+          "label": "出场",
+          "value": "第 2 周"
+        },
+        {
+          "label": "声线",
+          "value": "话干脆；关心多半是行动"
+        }
+      ],
+      "stats": [
+        {
+          "key": "温柔",
+          "grade": "A",
+          "bar": 55
+        },
+        {
+          "key": "开朗",
+          "grade": "A",
+          "bar": 70
+        },
+        {
+          "key": "粘人",
+          "grade": "B",
+          "bar": 30
+        },
+        {
+          "key": "成熟",
+          "grade": "B",
+          "bar": 35
+        },
+        {
+          "key": "害羞",
+          "grade": "C",
+          "bar": 20
+        },
+        {
+          "key": "傲娇",
+          "grade": "B",
+          "bar": 30
+        }
+      ],
+      "system_blocks": [
+        {
+          "title": "与男主",
+          "grade": null,
+          "desc": "温晚雨死党；店里护短，开放后可并排。目标：恋人。"
+        },
+        {
+          "title": "出场",
+          "grade": null,
+          "desc": "第 2 周；linked · 戏份★★★ 关系向；锚点温晚雨。"
+        },
+        {
+          "title": "相处",
+          "grade": null,
+          "desc": "宜：承认她护人、用行动证明、别油。忌：抢晚雨位置、油嘴滑舌、当她空气。"
+        },
+        {
+          "title": "足迹",
+          "grade": null,
+          "desc": "常在：咖啡店/校园；喜欢准时打烊、队友靠谱、夜宵。讨厌难缠熟客、压榨晚雨。"
+        }
+      ],
+      "view_labels": [
+        {
+          "label": "正面全身",
+          "hint": "利落马尾+店员围裙，柜台旁站姿"
+        },
+        {
+          "label": "背面全身",
+          "hint": "同装背面全身，可见马尾与围裙系带"
+        }
+      ],
+      "body_crops": [
+        {
+          "label": "脸部",
+          "hint": "利落马尾与干脆笑，锁基图五官"
+        },
+        {
+          "label": "上半身胸部",
+          "hint": "围裙领到胸线裁切，遮挡充分"
+        },
+        {
+          "label": "下半身腿部",
+          "hint": "裤装腿线与鞋"
+        },
+        {
+          "label": "背面臀部",
+          "hint": "背面臀线与围裙褶皱，不露点"
+        }
+      ],
+      "expr_labels": null,
+      "angle_labels": null,
+      "sources": {
+        "model_roles": "profile + traits + route + opening_line",
+        "character_lores": "codex → intro / story_bg",
+        "romance_voice_cards": "genre + do/dont → 相处",
+        "social_graph": "role_hint + schedule + likes",
+        "cast_intro": "intro_week 2",
+        "body_catalog": "162 cm",
+        "pc": "沈予安"
+      }
+    },
+    "lingke": {
+      "tier": "N",
+      "story_weight": 3,
+      "tier_stars": "★★★",
+      "tier_label": "戏份·关系向",
+      "name_zh": "陈铃可",
+      "name_en": "Chen Lingke",
+      "title_banner": "助教的红笔",
+      "tagline": "大学助教 · 顾若铃助教",
+      "faction_tag": "校园 · 办公室",
+      "theme_color": "#94a3b8",
+      "intro": "顾若铃助教陈铃可。红笔先挡越线，对等了才肯收。办公室门半掩时的闲话，她比谁都清楚。想走近若铃，先过她这关——规则守住，导师放行，才谈对等靠近。",
+      "story_bg": "陈铃可是顾若铃助教，红笔先挡越线。对等了才肯收。办公室门半掩时的闲话，她比谁都清楚。想走近若铃，先过她这关。办公室与课后经若铃认识；边界守住、导师放行，才谈对等靠近。",
+      "with_pc": "对沈予安：护导师边界，对越线零容忍；破门后才肯对等。你要是绕开门禁献殷勤、拿师生身份开玩笑或情绪勒索，她硬；你守规则、对等说话、接受纠正，她才收起那支红笔。路线「助教的红笔」——关系向·难攻略，目标恋人。",
+      "genre": "助教的红笔",
+      "quote_vertical": "顾若铃老师的答疑排到九点了。你不是来越界的吧？",
+      "quote_horizontal": "别绕门禁献殷勤。对等说话，红笔才收。",
+      "calligraphy": "红笔",
+      "signature": "陈铃可",
+      "footer_tagline": "助教的红笔 · 戏份★★★",
+      "b_pose_hint": "半身正面；衬衫西裤工牌全身；背面全身；身体特写四格",
+      "profile_rows": [
+        {
+          "label": "身高",
+          "value": "167 cm"
+        },
+        {
+          "label": "年龄",
+          "value": "24"
+        },
+        {
+          "label": "职业",
+          "value": "大学助教"
+        },
+        {
+          "label": "对男主",
+          "value": "顾若铃助教"
+        },
+        {
+          "label": "MBTI",
+          "value": "ESTJ · 总经理"
+        },
+        {
+          "label": "路线",
+          "value": "助教的红笔（3★）"
+        },
+        {
+          "label": "出场",
+          "value": "第 6 周"
+        },
+        {
+          "label": "语气",
+          "value": "正式·短句"
+        },
+        {
+          "label": "关系目标",
+          "value": "恋人"
+        }
+      ],
+      "profile_bullets": [
+        {
+          "label": "职业",
+          "value": "大学助教"
+        },
+        {
+          "label": "对男主",
+          "value": "顾若铃助教 · 边界守门"
+        },
+        {
+          "label": "戏份",
+          "value": "★★★ 关系向"
+        },
+        {
+          "label": "出场",
+          "value": "第 6 周"
+        },
+        {
+          "label": "声线",
+          "value": "短句如批注；对等了才松"
+        }
+      ],
+      "stats": [
+        {
+          "key": "温柔",
+          "grade": "B+",
+          "bar": 40
+        },
+        {
+          "key": "开朗",
+          "grade": "B",
+          "bar": 30
+        },
+        {
+          "key": "粘人",
+          "grade": "C",
+          "bar": 10
+        },
+        {
+          "key": "成熟",
+          "grade": "A",
+          "bar": 75
+        },
+        {
+          "key": "害羞",
+          "grade": "C",
+          "bar": 20
+        },
+        {
+          "key": "傲娇",
+          "grade": "B+",
+          "bar": 40
+        }
+      ],
+      "system_blocks": [
+        {
+          "title": "与男主",
+          "grade": null,
+          "desc": "顾若铃助教；护边界，破门后才对等。目标：恋人。"
+        },
+        {
+          "title": "出场",
+          "grade": null,
+          "desc": "第 6 周；linked · 戏份★★★ 关系向；锚点顾若铃。"
+        },
+        {
+          "title": "相处",
+          "grade": null,
+          "desc": "宜：守规则、对等说话、接受纠正。忌：绕门禁献殷勤、师生玩笑、情绪勒索。"
+        },
+        {
+          "title": "足迹",
+          "grade": null,
+          "desc": "常在：校园/图书馆；喜欢准时交稿、边界清晰。讨厌越界搭讪、拖进度。"
+        }
+      ],
+      "view_labels": [
+        {
+          "label": "正面全身",
+          "hint": "低马尾衬衫西裤+工牌，持红笔站姿"
+        },
+        {
+          "label": "背面全身",
+          "hint": "同装背面全身，可见低马尾与西裤剪裁"
+        }
+      ],
+      "body_crops": [
+        {
+          "label": "脸部",
+          "hint": "低马尾与锐利目光，锁基图五官"
+        },
+        {
+          "label": "上半身胸部",
+          "hint": "衬衫领到胸线裁切，遮挡充分"
+        },
+        {
+          "label": "下半身腿部",
+          "hint": "西裤腿线与鞋"
+        },
+        {
+          "label": "背面臀部",
+          "hint": "背面臀线与西裤褶皱，不露点"
+        }
+      ],
+      "expr_labels": null,
+      "angle_labels": null,
+      "sources": {
+        "model_roles": "profile + traits + route + opening_line",
+        "character_lores": "codex → intro / story_bg",
+        "romance_voice_cards": "genre + do/dont → 相处",
+        "social_graph": "role_hint + schedule + likes",
+        "cast_intro": "intro_week 6",
+        "body_catalog": "167 cm",
+        "pc": "沈予安"
+      }
+    },
+    "aichen": {
+      "tier": "N",
+      "story_weight": 3,
+      "tier_stars": "★★★",
+      "tier_label": "戏份·关系向",
+      "name_zh": "程艾辰",
+      "name_en": "Cheng Aichen",
+      "title_banner": "闺蜜的审核",
+      "tagline": "花艺策划 · 夏艾黎闺蜜",
+      "faction_tag": "花艺圈 · 复联",
+      "theme_color": "#86efac",
+      "intro": "夏艾黎闺蜜程艾辰。复联后负责盘问靠近的人；心软前先冷脸，爱问账单和动机。想绕过她找艾黎，门关得很快——答得实在、别急着讨好，过审后话才软。",
+      "story_bg": "程艾辰是夏艾黎闺蜜，复联后负责盘问靠近的人。心软前先冷脸，爱问账单和动机。想绕过她找艾黎，门关得很快。进货单她也帮着核。花艺圈复联局经艾黎介绍；闺蜜点头、姐姐也点头，她才肯把心交出去。",
+      "with_pc": "对沈予安：离婚托底闺蜜，礼貌审视；过审后才卸下防线。你要是绕过她找艾黎、随口承诺或贬她姐姐的过去，她冷；你答得实在、别急着讨好、尊重她把关，她才肯把话放软。路线「闺蜜的审核」——关系向·难攻略，目标恋人。",
+      "genre": "闺蜜把关",
+      "quote_vertical": "夏艾黎重新开始不容易。你若靠近她，先过我这关。",
+      "quote_horizontal": "别绕过我找她。先把动机和账单说清楚。",
+      "calligraphy": "审核",
+      "signature": "程艾辰",
+      "footer_tagline": "闺蜜的审核 · 戏份★★★",
+      "b_pose_hint": "半身正面；大地色大衣+襟花全身；背面全身；身体特写四格",
+      "profile_rows": [
+        {
+          "label": "身高",
+          "value": "164 cm"
+        },
+        {
+          "label": "年龄",
+          "value": "26"
+        },
+        {
+          "label": "职业",
+          "value": "花艺圈策划"
+        },
+        {
+          "label": "对男主",
+          "value": "夏艾黎闺蜜"
+        },
+        {
+          "label": "MBTI",
+          "value": "INFJ · 提倡者"
+        },
+        {
+          "label": "路线",
+          "value": "闺蜜的审核（3★）"
+        },
+        {
+          "label": "出场",
+          "value": "第 6 周"
+        },
+        {
+          "label": "语气",
+          "value": "正式·审视"
+        },
+        {
+          "label": "关系目标",
+          "value": "恋人"
+        }
+      ],
+      "profile_bullets": [
+        {
+          "label": "职业",
+          "value": "花艺圈策划"
+        },
+        {
+          "label": "对男主",
+          "value": "夏艾黎闺蜜 · 礼貌审视"
+        },
+        {
+          "label": "戏份",
+          "value": "★★★ 关系向"
+        },
+        {
+          "label": "出场",
+          "value": "第 6 周"
+        },
+        {
+          "label": "声线",
+          "value": "先冷脸问清楚；过关才软"
+        }
+      ],
+      "stats": [
+        {
+          "key": "温柔",
+          "grade": "A",
+          "bar": 75
+        },
+        {
+          "key": "开朗",
+          "grade": "B+",
+          "bar": 40
+        },
+        {
+          "key": "粘人",
+          "grade": "C",
+          "bar": 20
+        },
+        {
+          "key": "成熟",
+          "grade": "A",
+          "bar": 80
+        },
+        {
+          "key": "害羞",
+          "grade": "B",
+          "bar": 25
+        },
+        {
+          "key": "傲娇",
+          "grade": "C",
+          "bar": 20
+        }
+      ],
+      "system_blocks": [
+        {
+          "title": "与男主",
+          "grade": null,
+          "desc": "夏艾黎闺蜜；礼貌审视，过审后卸防。目标：恋人。"
+        },
+        {
+          "title": "出场",
+          "grade": null,
+          "desc": "第 6 周；linked · 戏份★★★ 关系向；锚点夏艾黎。"
+        },
+        {
+          "title": "相处",
+          "grade": null,
+          "desc": "宜：答得实在、别急讨好、尊重把关。忌：绕过她找艾黎、随口承诺、贬姐姐过去。"
+        },
+        {
+          "title": "足迹",
+          "grade": null,
+          "desc": "常在：街/咖啡店；喜欢稳妥承诺、花材整齐。讨厌消费伤口、轻浮靠近。"
+        }
+      ],
+      "view_labels": [
+        {
+          "label": "正面全身",
+          "hint": "温柔短发大地色大衣+襟花，站姿"
+        },
+        {
+          "label": "背面全身",
+          "hint": "同装背面全身，可见短发与大衣剪裁"
+        }
+      ],
+      "body_crops": [
+        {
+          "label": "脸部",
+          "hint": "温柔短发与审视目光，锁基图五官"
+        },
+        {
+          "label": "上半身胸部",
+          "hint": "大衣领到胸线裁切，遮挡充分"
+        },
+        {
+          "label": "下半身腿部",
+          "hint": "裙/裤腿线与鞋"
+        },
+        {
+          "label": "背面臀部",
+          "hint": "背面臀线与大衣褶皱，不露点"
+        }
+      ],
+      "expr_labels": null,
+      "angle_labels": null,
+      "sources": {
+        "model_roles": "profile + traits + route + opening_line",
+        "character_lores": "codex → intro / story_bg",
+        "romance_voice_cards": "genre + do/dont → 相处",
+        "social_graph": "role_hint + schedule + likes",
+        "cast_intro": "intro_week 6",
+        "body_catalog": "164 cm",
+        "pc": "沈予安"
+      }
+    },
+    "xingnai": {
+      "tier": "T2",
+      "story_weight": 2,
+      "tier_stars": "★★",
+      "tier_label": "戏份·轻副本",
+      "name_zh": "程星宁",
+      "name_en": "Cheng Xingning",
+      "title_banner": "天台旧便当",
+      "tagline": "高中生 · 青梅竹马",
+      "faction_tag": "校园 · 天台",
+      "theme_color": "#fb7185",
+      "intro": "青梅程星宁。天台便当和旧相册还在，熟到反而说不出口。升学搬家后，熟变成生，她用玩笑填；喜欢其实很早，开口却像背叛那份安全。",
+      "story_bg": "程星宁跟你有青梅的旧账：天台便当、相册缺口。升学搬家之后，熟变成生，她用玩笑填。喜欢其实很早，开口却像背叛那份「青梅」的安全。线不长——从太熟，到裂开，再到你愿不愿意重新选一次。",
+      "with_pc": "对沈予安：从小一起长大的青梅竹马，可以慢慢走近，不急着定关系。你若突然客套或把她当妹妹打发，她硬；你若提共同记得的小事、邀约说具体，她才接得住别扭。路线「旧相册的缺口」——可走到恋人/可结婚。",
+      "genre": "青梅的别扭",
+      "quote_vertical": "才、才不是等你呢……你来了啊。",
+      "quote_horizontal": "别突然客套。把旧相册翻到缺口那一页。",
+      "calligraphy": "缺口",
+      "signature": "程星宁",
+      "footer_tagline": "旧相册的缺口 · 戏份★★",
+      "b_pose_hint": "半身正面；全身水手服侧身；背面全身；身体特写四格",
+      "profile_rows": [
+        {
+          "label": "身高",
+          "value": "158 cm"
+        },
+        {
+          "label": "年龄",
+          "value": "19"
+        },
+        {
+          "label": "职业",
+          "value": "高中生"
+        },
+        {
+          "label": "对男主",
+          "value": "青梅竹马"
+        },
+        {
+          "label": "MBTI",
+          "value": "ISTJ · 物流师"
+        },
+        {
+          "label": "路线",
+          "value": "旧相册的缺口（2★）"
+        },
+        {
+          "label": "出场",
+          "value": "第 5 周"
+        },
+        {
+          "label": "语气",
+          "value": "日常·别扭"
+        },
+        {
+          "label": "关系目标",
+          "value": "恋人/可结婚"
+        }
+      ],
+      "profile_bullets": [
+        {
+          "label": "职业",
+          "value": "高中生"
+        },
+        {
+          "label": "对男主",
+          "value": "青梅竹马 · 慢慢走近"
+        },
+        {
+          "label": "戏份",
+          "value": "★★ 轻副本"
+        },
+        {
+          "label": "出场",
+          "value": "第 5 周"
+        },
+        {
+          "label": "声线",
+          "value": "太熟了反而说不利索"
+        }
+      ],
+      "stats": [
+        {
+          "key": "傲娇",
+          "grade": "A",
+          "bar": 85
+        },
+        {
+          "key": "开朗",
+          "grade": "B+",
+          "bar": 55
+        },
+        {
+          "key": "害羞",
+          "grade": "B+",
+          "bar": 50
+        },
+        {
+          "key": "温柔",
+          "grade": "B",
+          "bar": 45
+        },
+        {
+          "key": "粘人",
+          "grade": "B",
+          "bar": 40
+        },
+        {
+          "key": "成熟",
+          "grade": "C",
+          "bar": 20
+        }
+      ],
+      "system_blocks": [
+        {
+          "title": "与男主",
+          "grade": null,
+          "desc": "青梅竹马；从小一起长大，可慢慢走近。目标：恋人/可结婚。"
+        },
+        {
+          "title": "出场",
+          "grade": null,
+          "desc": "第 5 周进入地图锚点；romance · 戏份★★ 轻副本。"
+        },
+        {
+          "title": "相处",
+          "grade": null,
+          "desc": "宜：提共同记得的小事、邀约说具体、接住别扭。忌：突然客套、长篇煽情、把她当妹妹打发。"
+        },
+        {
+          "title": "足迹",
+          "grade": null,
+          "desc": "常在：校园/家；下午图书馆；晚街边或咖啡店。喜欢你记得小时候的事、一起走路回家；讨厌被当小孩子哄、你对别人太好。"
+        }
+      ],
+      "view_labels": [
+        {
+          "label": "正面全身",
+          "hint": "水手服正面站姿，略别扭"
+        },
+        {
+          "label": "背面全身",
+          "hint": "同装背面全身，可见背线与短碎发"
+        }
+      ],
+      "body_crops": [
+        {
+          "label": "脸部",
+          "hint": "深蓝短碎发与琥珀金瞳，锁基图五官"
+        },
+        {
+          "label": "上半身胸部",
+          "hint": "水手服领口到胸线，遮挡充分"
+        },
+        {
+          "label": "下半身腿部",
+          "hint": "百褶迷你裙与腿线"
+        },
+        {
+          "label": "背面臀部",
+          "hint": "背面臀线与裙褶，不露点"
+        }
+      ],
+      "expr_labels": null,
+      "angle_labels": null,
+      "sources": {
+        "model_roles": "profile + traits + route",
+        "character_lores": "codex",
+        "romance_voice_cards": "genre + do/dont",
+        "social_graph": "role_hint + schedule",
+        "cast_intro": "intro_week 5",
+        "body_catalog": "158 cm",
+        "pc": "沈予安"
+      }
+    },
+    "fengyin": {
+      "tier": "T2",
+      "story_weight": 2,
+      "tier_stars": "★★",
+      "tier_label": "戏份·轻副本",
+      "name_zh": "沈枫音",
+      "name_en": "Shen Fengyin",
+      "title_banner": "屋檐下的敲门",
+      "tagline": "大学生 · 妹妹",
+      "faction_tag": "同住 · 校园",
+      "theme_color": "#fb7185",
+      "intro": "义妹沈枫音，同住。抢遥控器、晨跑喊你懒。血缘淡，日子浓；她拿「家人」挡恋爱。真要走那条路，就得承认不是妹妹剧本。",
+      "story_bg": "沈枫音是你义妹，同住，抢遥控器，晨跑喊你懒。血缘淡，日子浓。她拿「家人」挡恋爱；真要走那条路，就得承认：不是妹妹剧本，是两个成年人的选择。隔墙书璃的夜灯常亮着；宿管周阿姨门禁严，楼道灯坏了她也会念叨。",
+      "with_pc": "对沈予安：住在一起的义妹，日常很亲；感情线慢热，须尊重界线。你若拿妹妹梗撩拨或硬改称呼，她顶；你若敲门、留余地、一起过日子，她才接住嘴硬。路线「同居屋檐下」——可走到恋人/可结婚。",
+      "genre": "同住的界线",
+      "quote_vertical": "哼，今天又被我甩开了吧？……手给我，别摔着。",
+      "quote_horizontal": "先敲门。屋檐不是通行证。",
+      "calligraphy": "屋檐",
+      "signature": "沈枫音",
+      "footer_tagline": "同居屋檐下 · 戏份★★",
+      "b_pose_hint": "半身正面；全身运动外套侧身；背面全身；身体特写四格",
+      "profile_rows": [
+        {
+          "label": "身高",
+          "value": "163 cm"
+        },
+        {
+          "label": "年龄",
+          "value": "20"
+        },
+        {
+          "label": "职业",
+          "value": "大学生"
+        },
+        {
+          "label": "对男主",
+          "value": "义妹"
+        },
+        {
+          "label": "MBTI",
+          "value": "ESTP · 企业家"
+        },
+        {
+          "label": "路线",
+          "value": "同居屋檐下（2★）"
+        },
+        {
+          "label": "出场",
+          "value": "第 1 周"
+        },
+        {
+          "label": "语气",
+          "value": "日常·嘴硬"
+        },
+        {
+          "label": "关系目标",
+          "value": "恋人/可结婚"
+        }
+      ],
+      "profile_bullets": [
+        {
+          "label": "职业",
+          "value": "大学生"
+        },
+        {
+          "label": "对男主",
+          "value": "义妹 · 同住慢热"
+        },
+        {
+          "label": "戏份",
+          "value": "★★ 轻副本"
+        },
+        {
+          "label": "出场",
+          "value": "第 1 周"
+        },
+        {
+          "label": "声线",
+          "value": "抢遥控器、嘴硬其实在意"
+        }
+      ],
+      "stats": [
+        {
+          "key": "傲娇",
+          "grade": "A",
+          "bar": 85
+        },
+        {
+          "key": "开朗",
+          "grade": "B+",
+          "bar": 55
+        },
+        {
+          "key": "害羞",
+          "grade": "B+",
+          "bar": 50
+        },
+        {
+          "key": "温柔",
+          "grade": "B",
+          "bar": 45
+        },
+        {
+          "key": "粘人",
+          "grade": "B",
+          "bar": 40
+        },
+        {
+          "key": "成熟",
+          "grade": "C",
+          "bar": 20
+        }
+      ],
+      "system_blocks": [
+        {
+          "title": "与男主",
+          "grade": null,
+          "desc": "义妹；住一起日常很亲，感情线慢热。目标：恋人/可结婚。"
+        },
+        {
+          "title": "出场",
+          "grade": null,
+          "desc": "第 1 周进入地图锚点；romance · 戏份★★ 轻副本。"
+        },
+        {
+          "title": "相处",
+          "grade": null,
+          "desc": "宜：敲门留余地、接住嘴硬、一起过日子。忌：妹妹梗撩拨、硬改称呼、假装同住没压力。"
+        },
+        {
+          "title": "足迹",
+          "grade": null,
+          "desc": "常在：家/房间；日校园图书馆；夜回家。喜欢被夸功课、一起做饭；讨厌拿她和恋爱对象比较、忽视她。"
+        }
+      ],
+      "view_labels": [
+        {
+          "label": "正面全身",
+          "hint": "运动外套正面，重心稳"
+        },
+        {
+          "label": "背面全身",
+          "hint": "同装背面全身，红棕高侧马尾可见"
+        }
+      ],
+      "body_crops": [
+        {
+          "label": "脸部",
+          "hint": "红棕马尾与翠绿眼，锁基图五官"
+        },
+        {
+          "label": "上半身胸部",
+          "hint": "运动外套领口到胸线，遮挡充分"
+        },
+        {
+          "label": "下半身腿部",
+          "hint": "运动短裤/裤装腿线"
+        },
+        {
+          "label": "背面臀部",
+          "hint": "背面臀线与衣褶，不露点"
+        }
+      ],
+      "expr_labels": null,
+      "angle_labels": null,
+      "sources": {
+        "model_roles": "profile + traits + route",
+        "character_lores": "codex",
+        "romance_voice_cards": "genre + do/dont",
+        "social_graph": "role_hint + schedule",
+        "cast_intro": "intro_week 1",
+        "body_catalog": "163 cm",
+        "pc": "沈予安"
+      }
+    },
+    "qingcai": {
+      "tier": "T2",
+      "story_weight": 2,
+      "tier_stars": "★★",
+      "tier_label": "戏份·轻副本",
+      "name_zh": "夏晴彩",
+      "name_en": "Xia Qingcai",
+      "title_banner": "镜房里的汗",
+      "tagline": "舞蹈社团成员 · 同学",
+      "faction_tag": "校园 · 练功房",
+      "theme_color": "#fbbf24",
+      "intro": "舞蹈社夏晴彩。镜房里汗多，怕别人只当她开朗。你光喝彩她笑；你肯看复盘里的失误，她会认真起来。",
+      "story_bg": "夏晴彩泡在镜房里，汗和节拍器比说话多。她怕别人只当她开朗吉祥物。谢幕后卸妆最快的人，往往最累。你光喝彩，她笑；你肯看复盘里的失误，她会认真起来。韩教练不吃「元气」这套借口——掌声不是成绩。",
+      "with_pc": "对沈予安：同校同社团熟人，气氛轻松还没告白过。你若只当气氛组或打断认真，她笑着躲；你若夸具体动作、看她复盘、少喊元气，她会突然静下来。路线「练舞室的夏」——可走到恋人/可结婚。",
+      "genre": "镜房里的认真",
+      "quote_vertical": "嘿嘿，抓到你了！今天也要超开心聊天！",
+      "quote_horizontal": "别只喊元气。看看复盘里那一步。",
+      "calligraphy": "节拍",
+      "signature": "夏晴彩",
+      "footer_tagline": "练舞室的夏 · 戏份★★",
+      "b_pose_hint": "半身正面；全身练舞服侧身；背面全身；身体特写四格",
+      "profile_rows": [
+        {
+          "label": "身高",
+          "value": "159 cm"
+        },
+        {
+          "label": "年龄",
+          "value": "21"
+        },
+        {
+          "label": "职业",
+          "value": "舞蹈社团成员"
+        },
+        {
+          "label": "对男主",
+          "value": "同学"
+        },
+        {
+          "label": "MBTI",
+          "value": "ENFP · 竞选者"
+        },
+        {
+          "label": "路线",
+          "value": "练舞室的夏（2★）"
+        },
+        {
+          "label": "出场",
+          "value": "第 5 周"
+        },
+        {
+          "label": "语气",
+          "value": "日常·元气"
+        },
+        {
+          "label": "关系目标",
+          "value": "恋人/可结婚"
+        }
+      ],
+      "profile_bullets": [
+        {
+          "label": "职业",
+          "value": "舞蹈社团成员"
+        },
+        {
+          "label": "对男主",
+          "value": "同学 · 同社团熟人"
+        },
+        {
+          "label": "戏份",
+          "value": "★★ 轻副本"
+        },
+        {
+          "label": "出场",
+          "value": "第 5 周"
+        },
+        {
+          "label": "声线",
+          "value": "爱笑爱岔题，真在意时突然认真"
+        }
+      ],
+      "stats": [
+        {
+          "key": "开朗",
+          "grade": "A+",
+          "bar": 95
+        },
+        {
+          "key": "粘人",
+          "grade": "A",
+          "bar": 65
+        },
+        {
+          "key": "温柔",
+          "grade": "B+",
+          "bar": 55
+        },
+        {
+          "key": "成熟",
+          "grade": "C+",
+          "bar": 25
+        },
+        {
+          "key": "害羞",
+          "grade": "C",
+          "bar": 20
+        },
+        {
+          "key": "傲娇",
+          "grade": "D",
+          "bar": 10
+        }
+      ],
+      "system_blocks": [
+        {
+          "title": "与男主",
+          "grade": null,
+          "desc": "同学；同校同社团熟人，气氛轻松未告白。目标：恋人/可结婚。"
+        },
+        {
+          "title": "出场",
+          "grade": null,
+          "desc": "第 5 周进入地图锚点；romance · 戏份★★ 轻副本。"
+        },
+        {
+          "title": "相处",
+          "grade": null,
+          "desc": "宜：夸具体动作、看她复盘、少喊元气。忌：只当气氛组、打断认真、忽略她的累。"
+        },
+        {
+          "title": "足迹",
+          "grade": null,
+          "desc": "常在：校园/咖啡店；练功房与天台。喜欢跳舞、阳光天台、即兴约会；讨厌被泼冷水、长期失联。"
+        }
+      ],
+      "view_labels": [
+        {
+          "label": "正面全身",
+          "hint": "橙蝶发夹双马尾，练舞装正面"
+        },
+        {
+          "label": "背面全身",
+          "hint": "同装背面全身，双马尾与背线"
+        }
+      ],
+      "body_crops": [
+        {
+          "label": "脸部",
+          "hint": "亮橙长发与琥珀瞳，锁基图五官"
+        },
+        {
+          "label": "上半身胸部",
+          "hint": "水手领上衣到胸线，遮挡充分"
+        },
+        {
+          "label": "下半身腿部",
+          "hint": "橙格短裙与腿线"
+        },
+        {
+          "label": "背面臀部",
+          "hint": "背面臀线与裙褶，不露点"
+        }
+      ],
+      "expr_labels": null,
+      "angle_labels": null,
+      "sources": {
+        "model_roles": "profile + traits + route",
+        "character_lores": "codex",
+        "romance_voice_cards": "genre + do/dont",
+        "social_graph": "role_hint + schedule",
+        "cast_intro": "intro_week 5",
+        "body_catalog": "159 cm",
+        "pc": "沈予安"
+      }
+    },
+    "xiaoyang": {
+      "tier": "T2",
+      "story_weight": 2,
+      "tier_stars": "★★",
+      "tier_label": "戏份·轻副本",
+      "name_zh": "叶晓阳",
+      "name_en": "Ye Xiaoyang",
+      "title_banner": "海报上的名字",
+      "tagline": "高中生 · 同班同学",
+      "faction_tag": "校园 · 社团摊",
+      "theme_color": "#fbbf24",
+      "intro": "高中同学叶晓阳。海报、实验课两头跑，关心直，怕越界。要把互助说成喜欢，得有一次事故或节日把话逼出来。",
+      "story_bg": "叶晓阳社团海报和实验课两头跑，说话直。怕越界，也怕错过。关心常包装成同学互助。要把互助说成喜欢，得有一次事故或节日把话逼出来。校园门禁灯一闪一闪，像在提醒别闹过界。",
+      "with_pc": "对沈予安：同班很熟，爱约人玩，目前也只是同学。你若趁热闹越界或板着脸说教，她收；你若一起闹、越界先问一句、现场感强一点，她才接得住直球。路线「社团海报上的名字」——可走到恋人/可结婚。",
+      "genre": "同学的直球",
+      "quote_vertical": "耶！下课铃和你一起来了！",
+      "quote_horizontal": "一起闹可以。越界先问一句。",
+      "calligraphy": "海报",
+      "signature": "叶晓阳",
+      "footer_tagline": "社团海报上的名字 · 戏份★★",
+      "b_pose_hint": "半身正面；全身校服侧身；背面全身；身体特写四格",
+      "profile_rows": [
+        {
+          "label": "身高",
+          "value": "156 cm"
+        },
+        {
+          "label": "年龄",
+          "value": "18"
+        },
+        {
+          "label": "职业",
+          "value": "高中生"
+        },
+        {
+          "label": "对男主",
+          "value": "同班同学"
+        },
+        {
+          "label": "MBTI",
+          "value": "ESFP · 表演者"
+        },
+        {
+          "label": "路线",
+          "value": "社团海报上的名字（2★）"
+        },
+        {
+          "label": "出场",
+          "value": "第 5 周"
+        },
+        {
+          "label": "语气",
+          "value": "日常·起哄"
+        },
+        {
+          "label": "关系目标",
+          "value": "恋人/可结婚"
+        }
+      ],
+      "profile_bullets": [
+        {
+          "label": "职业",
+          "value": "高中生"
+        },
+        {
+          "label": "对男主",
+          "value": "同班同学 · 爱约人玩"
+        },
+        {
+          "label": "戏份",
+          "value": "★★ 轻副本"
+        },
+        {
+          "label": "出场",
+          "value": "第 5 周"
+        },
+        {
+          "label": "声线",
+          "value": "关心直，觉得越界会马上收"
+        }
+      ],
+      "stats": [
+        {
+          "key": "开朗",
+          "grade": "A+",
+          "bar": 95
+        },
+        {
+          "key": "粘人",
+          "grade": "A",
+          "bar": 65
+        },
+        {
+          "key": "温柔",
+          "grade": "B+",
+          "bar": 55
+        },
+        {
+          "key": "成熟",
+          "grade": "C+",
+          "bar": 25
+        },
+        {
+          "key": "害羞",
+          "grade": "C",
+          "bar": 20
+        },
+        {
+          "key": "傲娇",
+          "grade": "D",
+          "bar": 10
+        }
+      ],
+      "system_blocks": [
+        {
+          "title": "与男主",
+          "grade": null,
+          "desc": "同班同学；很熟爱约人玩，目前只是同学。目标：恋人/可结婚。"
+        },
+        {
+          "title": "出场",
+          "grade": null,
+          "desc": "第 5 周进入地图锚点；romance · 戏份★★ 轻副本。"
+        },
+        {
+          "title": "相处",
+          "grade": null,
+          "desc": "宜：一起闹、越界先问一句、现场感强一点。忌：趁热闹越界、把起哄当拒绝、板着脸说教。"
+        },
+        {
+          "title": "足迹",
+          "grade": null,
+          "desc": "常在：校园；社团摊与实验室。喜欢社团活动、零食、临时组队；讨厌闷葫芦。"
+        }
+      ],
+      "view_labels": [
+        {
+          "label": "正面全身",
+          "hint": "校服裙摆轻快正面"
+        },
+        {
+          "label": "背面全身",
+          "hint": "同装背面全身，短发与背线"
+        }
+      ],
+      "body_crops": [
+        {
+          "label": "脸部",
+          "hint": "短发活泼与星星眼，锁基图五官"
+        },
+        {
+          "label": "上半身胸部",
+          "hint": "校服领口到胸线，遮挡充分"
+        },
+        {
+          "label": "下半身腿部",
+          "hint": "裙摆与腿线"
+        },
+        {
+          "label": "背面臀部",
+          "hint": "背面臀线与裙褶，不露点"
+        }
+      ],
+      "expr_labels": null,
+      "angle_labels": null,
+      "sources": {
+        "model_roles": "profile + traits + route",
+        "character_lores": "codex",
+        "romance_voice_cards": "genre + do/dont",
+        "social_graph": "role_hint + schedule",
+        "cast_intro": "intro_week 5",
+        "body_catalog": "156 cm",
+        "pc": "沈予安"
+      }
+    },
+    "luna": {
+      "tier": "T2",
+      "story_weight": 2,
+      "tier_stars": "★★",
+      "tier_label": "戏份·轻副本",
+      "name_zh": "月露宁",
+      "name_en": "Yue Luning",
+      "title_banner": "夜班的牌阵",
+      "tagline": "咖啡店员 · 爱 cos",
+      "faction_tag": "咖啡店 · 夜班",
+      "theme_color": "#22d3ee",
+      "intro": "月露宁兼着咖啡和塔罗。夜班客人爱把秘密倒给她，她用牌面挡住自己的。真心动了反而结巴——同店晚雨、顶班也能撞见雨汐。",
+      "story_bg": "月露宁兼着咖啡和塔罗。夜班客人爱把秘密倒给她，她用牌面挡住自己的。真心动了反而结巴。跟晚雨同店，陈婶常把她排在夜里；顶班时也能撞见何雨汐。她不是死党那条线，是夜色里另一杯还没凉的咖啡。",
+      "with_pc": "对沈予安：咖啡店熟人，常在同一家店打照面，对你从客气到在意；业余爱 cos。你若嘲她矫情或逼直球告白，她躲进牌阵；你若顺着隐喻聊、接受结巴、别白天硬拔营业，她才慢慢松。路线「星夜魔女的班次」——可走到恋人/可结婚。",
+      "genre": "夜班的牌阵",
+      "quote_vertical": "呀，熟客！今天想喝什么——还是又来偷看我新做的 cos 配件？",
+      "quote_horizontal": "别拆挡箭牌。顺着牌面聊就好。",
+      "calligraphy": "星夜",
+      "signature": "月露宁",
+      "footer_tagline": "星夜魔女的班次 · 戏份★★",
+      "b_pose_hint": "半身正面；全身店员围裙侧身；背面全身；身体特写四格",
+      "profile_rows": [
+        {
+          "label": "身高",
+          "value": "158 cm"
+        },
+        {
+          "label": "年龄",
+          "value": "20"
+        },
+        {
+          "label": "职业",
+          "value": "咖啡店员"
+        },
+        {
+          "label": "对男主",
+          "value": "咖啡店熟人"
+        },
+        {
+          "label": "MBTI",
+          "value": "ENFP · 竞选者"
+        },
+        {
+          "label": "路线",
+          "value": "星夜魔女的班次（2★）"
+        },
+        {
+          "label": "出场",
+          "value": "第 5 周"
+        },
+        {
+          "label": "语气",
+          "value": "日常·絮语"
+        },
+        {
+          "label": "关系目标",
+          "value": "恋人/可结婚"
+        }
+      ],
+      "profile_bullets": [
+        {
+          "label": "职业",
+          "value": "咖啡店员"
+        },
+        {
+          "label": "对男主",
+          "value": "咖啡店熟人 · 从客气到在意"
+        },
+        {
+          "label": "戏份",
+          "value": "★★ 轻副本"
+        },
+        {
+          "label": "出场",
+          "value": "第 5 周"
+        },
+        {
+          "label": "声线",
+          "value": "爱用牌挡话，真喜欢反而结巴"
+        }
+      ],
+      "stats": [
+        {
+          "key": "温柔",
+          "grade": "A",
+          "bar": 70
+        },
+        {
+          "key": "开朗",
+          "grade": "A",
+          "bar": 65
+        },
+        {
+          "key": "成熟",
+          "grade": "B+",
+          "bar": 55
+        },
+        {
+          "key": "粘人",
+          "grade": "B",
+          "bar": 45
+        },
+        {
+          "key": "害羞",
+          "grade": "C+",
+          "bar": 25
+        },
+        {
+          "key": "傲娇",
+          "grade": "C",
+          "bar": 15
+        }
+      ],
+      "system_blocks": [
+        {
+          "title": "与男主",
+          "grade": null,
+          "desc": "咖啡店熟人；同店打照面，从客气到在意。目标：恋人/可结婚。"
+        },
+        {
+          "title": "出场",
+          "grade": null,
+          "desc": "第 5 周进入地图锚点；romance · 戏份★★ 轻副本。"
+        },
+        {
+          "title": "相处",
+          "grade": null,
+          "desc": "宜：顺着隐喻聊、接受结巴、别白天硬拔营业。忌：嘲她矫情、逼直球告白、拆她的挡箭牌。"
+        },
+        {
+          "title": "足迹",
+          "grade": null,
+          "desc": "常在：咖啡店/房间；夜班为主。喜欢漫展、做衣服、星夜魔女 cos、被认真对待；讨厌被当真魔法师嘲弄、在店里被当客服使唤。"
+        }
+      ],
+      "view_labels": [
+        {
+          "label": "正面全身",
+          "hint": "店员围裙正面，月牙徽章"
+        },
+        {
+          "label": "背面全身",
+          "hint": "同装背面全身，午夜蓝长发可见"
+        }
+      ],
+      "body_crops": [
+        {
+          "label": "脸部",
+          "hint": "午夜蓝长发与紫瞳，锁基图五官"
+        },
+        {
+          "label": "上半身胸部",
+          "hint": "围裙/店员装到胸线，遮挡充分"
+        },
+        {
+          "label": "下半身腿部",
+          "hint": "短裙/裤装腿线"
+        },
+        {
+          "label": "背面臀部",
+          "hint": "背面臀线与衣褶，不露点"
+        }
+      ],
+      "expr_labels": null,
+      "angle_labels": null,
+      "sources": {
+        "model_roles": "profile + traits + route",
+        "character_lores": "codex",
+        "romance_voice_cards": "genre + do/dont",
+        "social_graph": "role_hint + schedule",
+        "cast_intro": "intro_week 5",
+        "body_catalog": "158 cm",
+        "pc": "沈予安"
+      }
+    }
+  }
+}

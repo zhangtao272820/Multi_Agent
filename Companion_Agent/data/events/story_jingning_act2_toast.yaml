@@ -13,58 +13,119 @@ trigger:
   - bond_ally_done
   flags_present:
   - cousin_watch_done
-prompt_snippet: |
-  【专属故事 · 堂姐的观察日记 · 第2幕 · 吐槽干杯】
+prompt_snippet: '【专属故事 · 堂姐的观察日记 · 第2幕 · 吐槽干杯】
+
+  '
 advance: on_player_turn
 beats:
 - id: b1
-  summary: "家族聚会她把你介绍成「朋友」：语气平，眼里全是考核——堂姐的面子，由她先护着。等你回应。"
+  summary: 家族聚会她把你介绍成「朋友」：语气平，眼里全是考核——堂姐的面子，由她先护着。等你回应。
   sprite_hint:
   - family_gather
+  - cousin_tea
+  - home
   - casual
+  - season_winter
+  - home_eating
   soft_options:
   - 得体应对长辈
   - 不多提恋爱
   - 看静流脸色
-  narration: "观察笔记与玻璃反光里，家族聚会她把你介绍成「朋友」：语气平，眼里全是考核——堂姐的面子，由她先护着。"
-  pc_thought: 观察日记是刀。我记破例，也在记自己心动——想起堂姐。
-  brief: "家族聚会她把你介绍成「朋友」：语气平，眼里全是考核——堂姐的面子，由她先护着。等你回应。"
+  narration: 观察笔记与玻璃反光里，家族聚会她把你介绍成「朋友」：语气平，眼里全是考核——堂姐的面子，由她先护着。小本子别在她包侧。她没再多说，只是看着你。
+  pc_thought: 观察日记是刀。我记破例，也在记自己心动——想起堂姐
+  brief: 家族聚会她把你介绍成「朋友」：语气平，眼里全是考核——堂姐的面子，由她先护着。等你回应。
+  pages:
+  - text: 观察笔记与玻璃反光里，家族聚会她把你介绍成「朋友」：语气平，眼里全是考核——堂姐的面子，由她先护着。小本子别在她包侧。她没再多说，只是看着你。
+    voice: narration
+    sprite:
+      outfit: family_gather
+      emotion: neutral
+  - text: 观察日记是刀。我记破例，也在记自己心动——想起堂姐
+    voice: pc
+    sprite:
+      outfit: family_gather
+      emotion: shy
 - id: b2
-  summary: "举杯时她低声：伤堂姐，这杯就是警告；护堂姐，可同盟。 此前已落——今晚谈的是站队。等你回应。"
+  summary: 举杯时她低声：伤堂姐，这杯就是警告；护堂姐，可同盟。 此前已落——今晚谈的是站队。等你回应。
   sprite_hint:
-  - cousin_tea
   - family_gather
+  - cousin_tea
+  - home
+  - casual
+  - season_winter
+  - home_eating
   soft_options:
   - 承诺不伤人
   - 请求同盟条件
   - 承认压力但留下
-  narration: "观察笔记与玻璃反光里，举杯时她低声：伤堂姐，这杯就是警告；护堂姐，可同盟。 此前已落——今晚谈的是站队。"
-  pc_thought: 敬酒场上堂姐的笑很冷。我挡不挡？
-  brief: "举杯时她低声：伤堂姐，这杯就是警告；护堂姐，可同盟。 此前已落——今晚谈的是站队。等你回应。"
+  narration: 观察笔记与玻璃反光里，举杯时她低声：伤堂姐，这杯就是警告；护堂姐，可同盟。此前已落——今晚谈的是站队。小本子别在她包侧。
+  pc_thought: 敬酒场上堂姐的笑很冷。我挡不挡？我想靠近，又怕说错一句。
+  brief: 举杯时她低声：伤堂姐，这杯就是警告；护堂姐，可同盟。 此前已落——今晚谈的是站队。等你回应。
+  pages:
+  - text: 观察笔记与玻璃反光里，举杯时她低声：伤堂姐，这杯就是警告；护堂姐，可同盟。此前已落——今晚谈的是站队。小本子别在她包侧。
+    voice: narration
+    sprite:
+      outfit: family_gather
+      emotion: neutral
+  - text: 敬酒场上堂姐的笑很冷。我挡不挡？我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: family_gather
+      emotion: shy
 - id: b3
-  summary: "她在日记勾「同盟」：不是批准恋爱，是批准你继续被看见——真结局还差你自己走到天台。等你回应。"
+  summary: 她在日记勾「同盟」：不是批准恋爱，是批准你继续被看见——真结局还差你自己走到天台。等你回应。
   sprite_hint:
+  - family_gather
   - cousin_tea
   - home
+  - casual
+  - season_winter
+  - home_eating
   soft_options:
   - 道谢守门
   - 问还能怎么证明
   - 保证透明沟通
-  narration: "观察笔记与玻璃反光里，她在日记勾「同盟」：不是批准恋爱，是批准你继续被看见——真结局还差你自己走到天台。"
-  pc_thought: 展示不是叛逆秀。我想有自己的声音——想起日记。
-  brief: "她在日记勾「同盟」：不是批准恋爱，是批准你继续被看见——真结局还差你自己走到天台。等你回应。"
+  narration: 观察笔记与玻璃反光里，她在日记勾「同盟」：不是批准恋爱，是批准你继续被看见——真结局还差你自己走到天台。小本子别在她包侧。
+  pc_thought: 展示不是叛逆秀。我想有自己的声音——想起日记
+  brief: 她在日记勾「同盟」：不是批准恋爱，是批准你继续被看见——真结局还差你自己走到天台。等你回应。
+  pages:
+  - text: 观察笔记与玻璃反光里，她在日记勾「同盟」：不是批准恋爱，是批准你继续被看见——真结局还差你自己走到天台。小本子别在她包侧。
+    voice: narration
+    sprite:
+      outfit: family_gather
+      emotion: neutral
+  - text: 展示不是叛逆秀。我想有自己的声音——想起日记
+    voice: pc
+    sprite:
+      outfit: family_gather
+      emotion: shy
 - id: b4
-  summary: "散场她拍拍你肩：堂姐的事，你要配得上被旁观。守门此前已开，伤害她等于同时失信于宁。等你回应。"
+  summary: 散场她拍拍你肩：堂姐的事，你要配得上被旁观。守门此前已开，伤害她等于同时失信于宁。等你回应。
   sprite_hint:
+  - family_gather
+  - cousin_tea
+  - home
   - casual
-  - work
+  - season_winter
+  - home_eating
   soft_options:
   - 点头收下
   - 说会配得上
   - 改口叫她一声宁姐
-  narration: "观察笔记与玻璃反光里，散场她拍拍你肩：堂姐的事，你要配得上被旁观。守门此前已开，伤害她等于同时失信于宁。"
-  pc_thought: "开放门：退出家族剧本，还是继续当影子记录员？"
-  brief: "散场她拍拍你肩：堂姐的事，你要配得上被旁观。守门此前已开，伤害她等于同时失信于宁。等你回应。"
+  narration: 观察笔记与玻璃反光里，散场她拍拍你肩：堂姐的事，你要配得上被旁观。守门此前已开，伤害她等于同时失信于宁。小本子别在她包侧。
+  pc_thought: 开放门：退出家族剧本，还是继续当影子记录员？
+  brief: 散场她拍拍你肩：堂姐的事，你要配得上被旁观。守门此前已开，伤害她等于同时失信于宁。等你回应。
+  pages:
+  - text: 观察笔记与玻璃反光里，散场她拍拍你肩：堂姐的事，你要配得上被旁观。守门此前已开，伤害她等于同时失信于宁。小本子别在她包侧。
+    voice: narration
+    sprite:
+      outfit: family_gather
+      emotion: neutral
+  - text: 开放门：退出家族剧本，还是继续当影子记录员？
+    voice: pc
+    sprite:
+      outfit: family_gather
+      emotion: shy
 rewards:
   flags_set:
   - bond_ally_done

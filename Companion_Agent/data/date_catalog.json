@@ -49,7 +49,45 @@
         "flags_set": [
           "dated_once"
         ]
-      }
+      },
+      "pages": [
+        {
+          "text": "校园路上人不多。风从操场吹过来，她把袖口往下拉了拉。",
+          "voice": "narration",
+          "sprite": {
+            "outfit": "casual",
+            "emotion": "happy"
+          },
+          "bg": "campus"
+        },
+        {
+          "text": "这种没什么目的的散步，手不知道该往哪放。",
+          "voice": "pc",
+          "sprite": {
+            "outfit": "casual",
+            "emotion": "shy"
+          },
+          "bg": "campus"
+        },
+        {
+          "text": "她侧头看你：要是闷着走完，回头你会后悔。",
+          "voice": "narration",
+          "sprite": {
+            "outfit": "casual",
+            "emotion": "happy"
+          },
+          "bg": "campus"
+        },
+        {
+          "text": "……那你先说点什么呗。",
+          "voice": "heroine",
+          "sprite": {
+            "outfit": "casual",
+            "emotion": "shy"
+          },
+          "bg": "campus"
+        }
+      ]
     },
     {
       "id": "date_cafe",
@@ -78,7 +116,45 @@
         "flags_set": [
           "cafe_date_done"
         ]
-      }
+      },
+      "pages": [
+        {
+          "text": "店里不吵。她把杯子转了半圈，才抬头看你。",
+          "voice": "narration",
+          "sprite": {
+            "outfit": "date",
+            "emotion": "happy"
+          },
+          "bg": "cafe_evening"
+        },
+        {
+          "text": "今天要是只聊天气，回去路上我会后悔。",
+          "voice": "pc",
+          "sprite": {
+            "outfit": "date",
+            "emotion": "shy"
+          },
+          "bg": "cafe_evening"
+        },
+        {
+          "text": "窗外天色慢慢暗了。她把菜单往你这边推。",
+          "voice": "narration",
+          "sprite": {
+            "outfit": "date",
+            "emotion": "happy"
+          },
+          "bg": "cafe_evening"
+        },
+        {
+          "text": "你点吧。我想听你说话多一点。",
+          "voice": "heroine",
+          "sprite": {
+            "outfit": "date",
+            "emotion": "shy"
+          },
+          "bg": "cafe_evening"
+        }
+      ]
     },
     {
       "id": "date_lunch_quick",
@@ -105,7 +181,45 @@
         "flags_set": [
           "lunch_date_done"
         ]
-      }
+      },
+      "pages": [
+        {
+          "text": "午休很短。她占好靠窗位，面前摆着两杯水。",
+          "voice": "narration",
+          "sprite": {
+            "outfit": "casual",
+            "emotion": "happy"
+          },
+          "bg": "cafe"
+        },
+        {
+          "text": "别拖。想见的那句，先说清楚。",
+          "voice": "pc",
+          "sprite": {
+            "outfit": "casual",
+            "emotion": "neutral"
+          },
+          "bg": "cafe"
+        },
+        {
+          "text": "她看了眼手机：还有二十分钟。够吗？",
+          "voice": "narration",
+          "sprite": {
+            "outfit": "casual",
+            "emotion": "shy"
+          },
+          "bg": "cafe"
+        },
+        {
+          "text": "够。快点吃，也快点说正事。",
+          "voice": "heroine",
+          "sprite": {
+            "outfit": "casual",
+            "emotion": "happy"
+          },
+          "bg": "cafe"
+        }
+      ]
     },
     {
       "id": "date_stargaze",
@@ -138,7 +252,45 @@
         "flags_set": [
           "stargaze_date"
         ]
-      }
+      },
+      "pages": [
+        {
+          "text": "山上风比城里大。她指了块平石头，让你坐下。",
+          "voice": "narration",
+          "sprite": {
+            "outfit": "date",
+            "emotion": "happy"
+          },
+          "bg": "starry_hill"
+        },
+        {
+          "text": "星星看不清也没关系。她肯把夜分给你，就够了。",
+          "voice": "pc",
+          "sprite": {
+            "outfit": "date",
+            "emotion": "love"
+          },
+          "bg": "starry_hill"
+        },
+        {
+          "text": "她把外套袖口拉好，声音放得很轻。",
+          "voice": "narration",
+          "sprite": {
+            "outfit": "date",
+            "emotion": "shy"
+          },
+          "bg": "starry_hill"
+        },
+        {
+          "text": "别说话也行。你在就行。",
+          "voice": "heroine",
+          "sprite": {
+            "outfit": "date",
+            "emotion": "love"
+          },
+          "bg": "starry_hill"
+        }
+      ]
     },
     {
       "id": "date_home_dinner",
@@ -169,7 +321,45 @@
         "flags_set": [
           "home_dinner"
         ]
-      }
+      },
+      "pages": [
+        {
+          "text": "家里灯暖。碗筷摆成两人份，像早就算好你会来。",
+          "voice": "narration",
+          "sprite": {
+            "outfit": "home",
+            "emotion": "happy"
+          },
+          "bg": "home_night"
+        },
+        {
+          "text": "这顿饭不像约会，又比约会更让人心虚。",
+          "voice": "pc",
+          "sprite": {
+            "outfit": "home",
+            "emotion": "shy"
+          },
+          "bg": "home_night"
+        },
+        {
+          "text": "蒸汽模糊了眼镜边。她把汤往你这边推。",
+          "voice": "narration",
+          "sprite": {
+            "outfit": "home",
+            "emotion": "happy"
+          },
+          "bg": "home_night"
+        },
+        {
+          "text": "先吃。吃完……再说别的。",
+          "voice": "heroine",
+          "sprite": {
+            "outfit": "home",
+            "emotion": "shy"
+          },
+          "bg": "home_night"
+        }
+      ]
     },
     {
       "id": "date_night_store",
@@ -199,7 +389,45 @@
         "flags_set": [
           "night_snack_date"
         ]
-      }
+      },
+      "pages": [
+        {
+          "text": "便利店灯太亮。她拿着关东煮，懒洋洋靠着货架。",
+          "voice": "narration",
+          "sprite": {
+            "outfit": "casual",
+            "emotion": "happy"
+          },
+          "bg": "convenience_night"
+        },
+        {
+          "text": "夜色把人都削短了。这种短约会，反而好开口。",
+          "voice": "pc",
+          "sprite": {
+            "outfit": "casual",
+            "emotion": "neutral"
+          },
+          "bg": "convenience_night"
+        },
+        {
+          "text": "她把热饮塞给你一只：别愣着，外面冷。",
+          "voice": "narration",
+          "sprite": {
+            "outfit": "casual",
+            "emotion": "shy"
+          },
+          "bg": "convenience_night"
+        },
+        {
+          "text": "请你喝的。谢一声就行，别整弯弯绕。",
+          "voice": "heroine",
+          "sprite": {
+            "outfit": "casual",
+            "emotion": "happy"
+          },
+          "bg": "convenience_night"
+        }
+      ]
     },
     {
       "id": "date_office_overtime",
@@ -231,7 +459,45 @@
         "flags_set": [
           "overtime_date"
         ]
-      }
+      },
+      "pages": [
+        {
+          "text": "加班后走廊空荡荡。她解松领口，终于像个人。",
+          "voice": "narration",
+          "sprite": {
+            "outfit": "work",
+            "emotion": "sad"
+          },
+          "bg": "office"
+        },
+        {
+          "text": "这时候约夜宵，不是浪漫，是互相捞一把。",
+          "voice": "pc",
+          "sprite": {
+            "outfit": "work",
+            "emotion": "neutral"
+          },
+          "bg": "office"
+        },
+        {
+          "text": "电梯口风有点凉。她把包换到另一只手。",
+          "voice": "narration",
+          "sprite": {
+            "outfit": "work",
+            "emotion": "shy"
+          },
+          "bg": "office"
+        },
+        {
+          "text": "走吧。今天别谈工作，谈了我会更累。",
+          "voice": "heroine",
+          "sprite": {
+            "outfit": "work",
+            "emotion": "happy"
+          },
+          "bg": "office"
+        }
+      ]
     },
     {
       "id": "date_forest",
@@ -263,7 +529,45 @@
         "flags_set": [
           "forest_date"
         ]
-      }
+      },
+      "pages": [
+        {
+          "text": "林子里脚步声被落叶吃掉。她走在前面半步，又停住等你。",
+          "voice": "narration",
+          "sprite": {
+            "outfit": "casual",
+            "emotion": "happy"
+          },
+          "bg": "forest_clearing"
+        },
+        {
+          "text": "这里安静得像能藏秘密。我也怕藏太深。",
+          "voice": "pc",
+          "sprite": {
+            "outfit": "casual",
+            "emotion": "shy"
+          },
+          "bg": "forest_clearing"
+        },
+        {
+          "text": "光从树缝漏下来。她指了指前方空地。",
+          "voice": "narration",
+          "sprite": {
+            "outfit": "casual",
+            "emotion": "happy"
+          },
+          "bg": "forest_clearing"
+        },
+        {
+          "text": "再往里走一点。我想跟你说句……只有这里能说的。",
+          "voice": "heroine",
+          "sprite": {
+            "outfit": "casual",
+            "emotion": "shy"
+          },
+          "bg": "forest_clearing"
+        }
+      ]
     }
   ]
 }

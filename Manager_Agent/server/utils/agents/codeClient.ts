@@ -108,17 +108,38 @@ async function callCodeComputeHttp(params: {
         `codeCompute 403：DashScope 模型免费额度已用尽。请在百炼控制台关闭「仅使用免费额度」或开通付费；当前模型见 code_assistent_Agent/.env 的 OPENAI_MODEL。原始信息：${detail.slice(0, 240)}`
       )
     }
+    if (res.status === 401) {
+      throw new Error(
+        `codeCompute http 401: ${detail || 'login_required'}（检查 code_assistent_agent 的 CLAWHIVE_INTERNAL_TOKEN 是否与 Manager 一致，且 .env.agents-lan 未被压成单行注释）`
+      )
+    }
     throw new Error(`codeCompute http ${res.status}: ${detail}`)
   }
   const data = (await res.json().catch(() => null)) as Record<string, unknown> | null
   const answer = typeof data?.answer === 'string' ? data.answer : ''
-  if (!answer.trim()) throw new Error('codeCompute returned empty answer')
   const meta = (data?.meta && typeof data.meta === 'object' ? data.meta : undefined) as CodeAgentMeta | undefined
   const trace_id = typeof data?.trace_id === 'string' ? data.trace_id : params.traceId
   const agentResult =
     data?.agentResult && typeof data.agentResult === 'object'
       ? (data.agentResult as CodeAgentResult['agentResult'])
       : wrapCodeResult(answer, meta, trace_id)
+  const metaErr =
+    meta && typeof (meta as { error?: unknown }).error === 'string'
+      ? String((meta as { error?: string }).error).trim()
+      : ''
+  const arAnswer =
+    agentResult && typeof (agentResult as { answer?: unknown }).answer === 'string'
+      ? String((agentResult as { answer?: string }).answer).trim()
+      : ''
+  const failed = data?.ok === false || !answer.trim()
+  if (failed) {
+    const detail =
+      metaErr ||
+      arAnswer ||
+      (typeof data?.error_code === 'string' ? data.error_code : '') ||
+      'empty answer'
+    throw new Error(`codeCompute failed: ${detail.slice(0, 320)}`)
+  }
   codeComputeCache.set(cacheKey, { answer, meta, agentResult })
   return { answer, meta, trace_id, agentResult }
 }

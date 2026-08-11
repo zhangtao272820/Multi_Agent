@@ -26,6 +26,10 @@ export type GalleryChar = {
   thumb?: string;
   pick: string;
   note?: string;
+  story_weight?: number;
+  tier_stars?: string;
+  tier_label?: string;
+  resource_tier?: string;
 };
 
 type GalleryPayload = {
@@ -77,6 +81,26 @@ const OUTFIT_LABELS: Record<string, string> = {
   intimate_lounge: "私密",
   intimate_lingerie: "私密·内衣",
   intimate_implied: "私密·暗示",
+  intimate_selfie_slip: "私密·自拍",
+  intimate_selfie_micro: "私密·自拍",
+  intimate_selfie_strappy: "私密·自拍",
+  intimate_selfie_shirt: "私密·自拍",
+  intimate_selfie_backless: "私密·自拍",
+  intimate_selfie_sofa: "私密·自拍",
+  intimate_selfie_kneel: "私密·自拍",
+  intimate_selfie_garter: "私密·自拍",
+  intimate_selfie_wet: "私密·自拍",
+  intimate_selfie_ribbon: "私密·自拍",
+  pr_intimate_selfie_slip: "私密·自拍·半写实",
+  pr_intimate_selfie_micro: "私密·自拍·半写实",
+  pr_intimate_selfie_strappy: "私密·自拍·半写实",
+  pr_intimate_selfie_shirt: "私密·自拍·半写实",
+  pr_intimate_selfie_backless: "私密·自拍·半写实",
+  pr_intimate_selfie_sofa: "私密·自拍·半写实",
+  pr_intimate_selfie_kneel: "私密·自拍·半写实",
+  pr_intimate_selfie_garter: "私密·自拍·半写实",
+  pr_intimate_selfie_wet: "私密·自拍·半写实",
+  pr_intimate_selfie_ribbon: "私密·自拍·半写实",
   bridal: "婚纱",
   maternity: "怀孕",
   silk_slip: "擦边·吊带睡裙",
@@ -217,6 +241,22 @@ type ViewerState = {
   panY: number;
 };
 
+type ShowcaseSlot = { slot: string; label: string; url: string };
+type ShowcaseChar = {
+  character_id: string;
+  theme?: string;
+  tier?: string;
+  present: ShowcaseSlot[];
+  present_count: number;
+  slot_total: number;
+  missing_count: number;
+};
+type ShowcasePayload = {
+  slots: string[];
+  slot_meta?: Record<string, string>;
+  characters: ShowcaseChar[];
+};
+
 export default function SpriteGalleryScreen({
   onBack,
   mode = "browse",
@@ -229,6 +269,15 @@ export default function SpriteGalleryScreen({
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const [filter, setFilter] = useState<"all" | "romance" | "neutral" | "linked">("all");
+  const [panel, setPanel] = useState<"outfits" | "compose">("outfits");
+  const [showcase, setShowcase] = useState<ShowcasePayload | null>(null);
+  const [composeView, setComposeView] = useState<{
+    cid: string;
+    name: string;
+    slot: ShowcaseSlot;
+    list: ShowcaseSlot[];
+    idx: number;
+  } | null>(null);
   const [viewer, setViewer] = useState<ViewerState | null>(null);
   const [chromeHidden, setChromeHidden] = useState(false);
   const stageRef = useRef<HTMLDivElement | null>(null);
@@ -262,6 +311,30 @@ export default function SpriteGalleryScreen({
     void load();
   }, [load]);
 
+  const loadShowcase = useCallback(async () => {
+    setBusy(true);
+    setMsg("");
+    try {
+      const r = await fetch("/api/sprites/showcase");
+      if (!r.ok) throw new Error("构图库加载失败");
+      setShowcase((await r.json()) as ShowcasePayload);
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "构图库加载失败");
+    } finally {
+      setBusy(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (panel === "compose" && !showcase) void loadShowcase();
+  }, [panel, showcase, loadShowcase]);
+
+  const nameById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const c of data?.characters || []) m.set(c.character_id, c.name);
+    return m;
+  }, [data]);
+
   const mainTarget = data?.main_target ?? 18;
   const mainCount = useMemo(
     () => Object.values(picks).filter((k) => k === "romance").length,
@@ -269,7 +342,12 @@ export default function SpriteGalleryScreen({
   );
 
   const rows = useMemo(() => {
-    const list = data?.characters || [];
+    const list = [...(data?.characters || [])];
+    list.sort(
+      (a, b) =>
+        (b.story_weight || 0) - (a.story_weight || 0) ||
+        a.character_id.localeCompare(b.character_id),
+    );
     if (filter === "all") return list;
     return list.filter((c) => (picks[c.character_id] || c.pick) === filter);
   }, [data, filter, picks]);
@@ -494,14 +572,39 @@ export default function SpriteGalleryScreen({
       </header>
 
       <p className="gal-gallery-blurb">
-        {pickMode
-          ? "调配主候选 / 关系向 / NPC。先保存草稿，确认后再应用选角（不改立绘文件）。"
-          : saveId
-            ? "按当前存档解锁服装与相识角色；未相识为剪影。滚轮缩放、拖拽平移；H 隐藏面板。"
-            : "浏览立绘；载入存档后可按进度解锁服装。滚轮缩放、拖拽平移；H 隐藏面板。"}
+        {panel === "compose"
+          ? "W9 高级构图鉴赏。有图可点开全屏；未出图的槽位灰显。本页不作出图。"
+          : pickMode
+            ? "调配主候选 / 关系向 / NPC。先保存草稿，确认后再应用选角（不改立绘文件）。"
+            : saveId
+              ? "按当前存档解锁服装与相识角色；未相识为剪影。滚轮缩放、拖拽平移；H 隐藏面板。"
+              : "浏览立绘；载入存档后可按进度解锁服装。滚轮缩放、拖拽平移；H 隐藏面板。"}
       </p>
 
+      {!pickMode ? (
+        <div className="gal-cast-filter" role="tablist" aria-label="图鉴页签" style={{ marginBottom: "0.75rem" }}>
+          <button
+            type="button"
+            className={`gal-cast-filter-btn${panel === "outfits" ? " gal-cast-filter-btn--active" : ""}`}
+            onClick={() => {
+              setPanel("outfits");
+              setComposeView(null);
+            }}
+          >
+            换装
+          </button>
+          <button
+            type="button"
+            className={`gal-cast-filter-btn${panel === "compose" ? " gal-cast-filter-btn--active" : ""}`}
+            onClick={() => setPanel("compose")}
+          >
+            构图
+          </button>
+        </div>
+      ) : null}
+
       <div className="gal-sprite-toolbar">
+        {panel === "outfits" ? (
         <div className="gal-cast-filter" role="group" aria-label="角色池">
           {(
             [
@@ -521,6 +624,12 @@ export default function SpriteGalleryScreen({
             </button>
           ))}
         </div>
+        ) : (
+          <span className="muted">
+            {(showcase?.characters || []).filter((c) => c.present_count > 0).length}/
+            {(showcase?.characters || []).length} 人有构图
+          </span>
+        )}
         {pickMode && (
           <div className="gal-sprite-actions">
             <button type="button" className="gal-action-btn" disabled={busy} onClick={() => void saveDraft()}>
@@ -539,8 +648,55 @@ export default function SpriteGalleryScreen({
       </div>
 
       {msg && <p className="gal-hub-tutorial">{msg}</p>}
-      {busy && !data && <p className="muted">加载中…</p>}
+      {busy && !data && panel === "outfits" && <p className="muted">加载中…</p>}
+      {busy && panel === "compose" && !showcase && <p className="muted">加载构图…</p>}
 
+      {panel === "compose" ? (
+        <div className="gal-sprite-grid">
+          {(showcase?.characters || []).map((c) => {
+            const name = nameById.get(c.character_id) || c.character_id;
+            const thumb = c.present[0]?.url || "";
+            const empty = c.present_count <= 0;
+            return (
+              <article
+                key={c.character_id}
+                className={`gal-sprite-card${empty ? " gal-sprite-card--locked" : ""}`}
+              >
+                <button
+                  type="button"
+                  className="gal-sprite-card-portrait"
+                  disabled={empty}
+                  onClick={() => {
+                    if (!c.present.length) return;
+                    setComposeView({
+                      cid: c.character_id,
+                      name,
+                      slot: c.present[0],
+                      list: c.present,
+                      idx: 0,
+                    });
+                  }}
+                >
+                  {empty ? (
+                    <span className="gal-sprite-card-silhouette" aria-hidden />
+                  ) : (
+                    <img src={thumb} alt={name} loading="lazy" decoding="async" />
+                  )}
+                  <span className="gal-sprite-card-zoom-hint">
+                    {empty ? "暂无构图" : `${c.present_count}/${c.slot_total} · 鉴赏`}
+                  </span>
+                </button>
+                <div className="gal-sprite-card-meta">
+                  <strong>{name}</strong>
+                  <span className="muted">{c.theme || "构图"} · {c.present_count}/{c.slot_total}</span>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      ) : null}
+
+      {panel === "outfits" ? (
       <div className="gal-sprite-grid">
         {rows.map((c) => {
           const kind = picks[c.character_id] || c.pick;
@@ -579,6 +735,12 @@ export default function SpriteGalleryScreen({
               </button>
               <div className="gal-sprite-card-meta">
                 <strong>{c.name}</strong>
+                {c.tier_stars ? (
+                  <span className="gal-sprite-stars" title={c.tier_label || "戏份"}>
+                    <span className="gal-sprite-stars-label">戏份</span>
+                    {c.tier_stars}
+                  </span>
+                ) : null}
                 <span className="muted">
                   {kindLabel(kind)} · {locked ? "？？？" : c.role_to_pc || "—"}
                 </span>
@@ -616,6 +778,65 @@ export default function SpriteGalleryScreen({
           );
         })}
       </div>
+      ) : null}
+
+      {composeView ? (
+        <div
+          className="gal-sprite-lightbox"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`${composeView.name} 构图鉴赏`}
+          onClick={() => setComposeView(null)}
+        >
+          <div className="gal-sprite-lightbox-panel" onClick={(e) => e.stopPropagation()}>
+            <header className="gal-sprite-lightbox-head">
+              <div>
+                <strong>{composeView.name}</strong>
+                <span className="muted">
+                  {composeView.slot.label} · {composeView.idx + 1}/{composeView.list.length}
+                </span>
+              </div>
+              <div className="gal-sprite-zoom-controls">
+                <button
+                  type="button"
+                  disabled={composeView.idx <= 0}
+                  onClick={() =>
+                    setComposeView((prev) => {
+                      if (!prev || prev.idx <= 0) return prev;
+                      const idx = prev.idx - 1;
+                      return { ...prev, idx, slot: prev.list[idx] };
+                    })
+                  }
+                >
+                  上一张
+                </button>
+                <button
+                  type="button"
+                  disabled={composeView.idx >= composeView.list.length - 1}
+                  onClick={() =>
+                    setComposeView((prev) => {
+                      if (!prev || prev.idx >= prev.list.length - 1) return prev;
+                      const idx = prev.idx + 1;
+                      return { ...prev, idx, slot: prev.list[idx] };
+                    })
+                  }
+                >
+                  下一张
+                </button>
+                <button type="button" onClick={() => setComposeView(null)}>
+                  关闭
+                </button>
+              </div>
+            </header>
+            <div className="gal-sprite-lightbox-stage">
+              <img src={composeView.slot.url} alt={composeView.slot.label} />
+            </div>
+            <p className="gal-gallery-blurb" style={{ padding: "0 1rem 1rem" }}>
+              {composeView.slot.label}。构图鉴赏，点击空白或关闭返回。
+            </p>
+          </div>
+        </div>
+      ) : null}
 
       {viewer && viewing && (
         <div
@@ -629,6 +850,12 @@ export default function SpriteGalleryScreen({
               <header className="gal-sprite-lightbox-head">
                 <div>
                   <strong>{viewing.name}</strong>
+                  {viewing.tier_stars ? (
+                    <span className="gal-sprite-stars gal-sprite-stars--inline" title={viewing.tier_label || "戏份"}>
+                      <span className="gal-sprite-stars-label">戏份</span>
+                      {viewing.tier_stars}
+                    </span>
+                  ) : null}
                   <span className="muted">
                     {kindLabel(picks[viewing.character_id] || viewing.pick)} ·{" "}
                     {viewing.role_to_pc || viewing.base_label || viewing.base_id}

@@ -1,6 +1,7 @@
 import type { AgentStepOutcome } from '../executors'
 import { errorCodeFromStepOutcome } from '../runtime/expertFailure'
 import { buildStepStatus } from '../runtime/stepStatus'
+import { extractEvolutionApplied } from '#agent-shared/evolutionApplied'
 
 const AGENT_LABELS: Record<string, string> = {
   db: '数据库查询',
@@ -30,6 +31,12 @@ export type StepResultPayload = {
   empty?: boolean
   ragCitations?: Array<{ source: string; excerpt?: string }>
   runId?: string
+  /** 本轮专家自进化应用观测（透传 agentResult.structured） */
+  evolutionApplied?: {
+    promptPatches?: Array<{ id?: string; stage?: string; hits?: number }> | number
+    experienceHits?: number
+    banditArm?: string
+  }
 }
 
 
@@ -73,6 +80,8 @@ export function buildStepResultPayload(input: {
         meta: outcome.meta,
         policy: String((outcome.meta as { policy?: string } | undefined)?.policy || '') || undefined
       })
+  const agentResult = (outcome.meta as { agentResult?: { structured?: unknown } } | undefined)?.agentResult
+  const evolutionApplied = extractEvolutionApplied(agentResult?.structured) || undefined
   return {
     stepId,
     agent,
@@ -84,7 +93,8 @@ export function buildStepResultPayload(input: {
     errorCode: errorCode || undefined,
     empty: empty || undefined,
     ragCitations: agent === 'rag' ? extractRagCitations(outcome) : undefined,
-    runId
+    runId,
+    ...(evolutionApplied ? { evolutionApplied } : {})
   }
 }
 

@@ -59,14 +59,6 @@ META: dict[str, dict] = {
             "你们是最好的工作搭子。电梯下行时她会笑一声，然后各自刷卡回家——同盟停在工位，一步未再迈出。",
         ],
     },
-    "ending_yeyu_counter_soft": {
-        "bg": "store.png",
-        "cid": "yeyu",
-        "pages": [
-            "关东煮蒸汽模糊了工牌。她继续损你买错口味，针线留在别处的工作室——锋利的话，只留给夜班损友。",
-            "夜班结束她挥手：「滚回去睡觉。」友情钉在柜台这一侧。她缝衣给人看，心却不给你量尺寸。",
-        ],
-    },
     "ending_taotao_encore_soft": {
         "bg": "festival.png",
         "cid": "taotao",

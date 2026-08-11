@@ -50,6 +50,10 @@ _KIND_TONE = {
     "neighbor": "邻里日常的松弛感",
     "friend": "朋友间的熟络",
     "acquaintance": "点头之交的分寸",
+    "town": "镇上熟人路过时的闲话分寸",
+    "gate": "守门人旁观时的警惕",
+    "best_friend": "死党式护短",
+    "family": "家人间的熟络与界线",
 }
 
 
@@ -58,6 +62,7 @@ class LocationDef(BaseModel):
     label: str
     scene_id: str = ""
     travel_cost: int = 1
+    npc_ids: list[str] = Field(default_factory=list)
 
 
 class SocialGraph(BaseModel):
@@ -152,13 +157,22 @@ def edge_prompt_bits(
     limit: int = 4,
 ) -> list[str]:
     """组装带姓名与气氛提示的圈子关系短句。"""
+    names = dict(name_lookup or {})
+    try:
+        from .town_npcs import npc_by_id
+
+        for nid, row in npc_by_id().items():
+            names.setdefault(nid, str(row.get("name") or nid))
+    except Exception:
+        pass
     bits: list[str] = []
-    for e in visible_edges(character_id, insight=insight, name_lookup=name_lookup)[:limit]:
-        name = e.get("other_name") or e.get("other_id") or "?"
+    for e in visible_edges(character_id, insight=insight, name_lookup=names)[:limit]:
+        oid = e.get("other_id") or ""
+        name = e.get("other_name") or names.get(oid) or oid or "?"
         rel = e.get("relation") or ""
         tone = e.get("tone") or ""
         piece = f"{name}（{rel}"
-        if tone and e.get("kind") in {"rival", "ex_circle", "colleague", "mentor"}:
+        if tone and e.get("kind") in {"rival", "ex_circle", "colleague", "mentor", "town"}:
             piece += f"；{tone}"
         piece += "）"
         bits.append(piece)

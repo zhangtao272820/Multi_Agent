@@ -1,5 +1,5 @@
-# Lobster Hands sidecar launcher (Windows desktop hand)
-# Sets HANDS_ONLY + desktop MCP and starts Nuxt on PORT (default 13109).
+// Lobster Hands sidecar launcher (Windows desktop hand)
+// Sets HANDS_ONLY + desktop MCP and starts Nuxt on PORT (default 13109).
 
 import { spawn } from 'node:child_process'
 import fs from 'node:fs'
@@ -33,7 +33,8 @@ if (fs.existsSync(localEnv)) {
 }
 
 const builtServer = path.join(root, '.output', 'server', 'index.mjs')
-const useBuilt = fs.existsSync(builtServer)
+const preferDev = String(process.env.LOBSTER_HANDS_PREFER_DEV || '').trim() === '1'
+const useBuilt = !preferDev && fs.existsSync(builtServer)
 
 console.log(`[LobsterHands] root=${root}`)
 console.log(`[LobsterHands] mode=hands-only port=${port} built=${useBuilt}`)

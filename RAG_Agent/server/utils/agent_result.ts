@@ -57,6 +57,11 @@ export function buildRagAgentResult(params: {
   usage?: { tokens?: number; usd?: number; actual?: boolean };
   /** H4 / I2：检索失败可解释枚举 */
   retrievalFailureMode?: string;
+  evolutionApplied?: {
+    promptPatches?: Array<{ id?: string; stage?: string; hits?: number }> | number;
+    experienceHits?: number;
+    banditArm?: string;
+  };
 }): AgentResult {
   const sources: AgentSource[] = [];
   const citations: Array<Record<string, string>> = [];
@@ -107,6 +112,17 @@ export function buildRagAgentResult(params: {
       ...(params.detail ? { detail: params.detail } : {}),
       ...(error_code ? { error_code } : {}),
       ...(failureMode ? { retrieval_failure_mode: failureMode } : {}),
+      ...(params.evolutionApplied
+        ? {
+            evolutionApplied: {
+              promptPatches: params.evolutionApplied.promptPatches ?? 0,
+              experienceHits: Math.max(0, Math.floor(Number(params.evolutionApplied.experienceHits) || 0)),
+              ...(params.evolutionApplied.banditArm
+                ? { banditArm: String(params.evolutionApplied.banditArm).slice(0, 64) }
+                : {}),
+            },
+          }
+        : {}),
     },
     needs_clarify: needsClarify,
     error_code,

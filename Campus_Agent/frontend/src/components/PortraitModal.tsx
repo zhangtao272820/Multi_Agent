@@ -58,8 +58,14 @@ export function PortraitModal({ target, busy, onClose, onTalk }: Props) {
           <header>
             <h3>{s.name}</h3>
             <p>
-              {s.mbti} · 魅力 {s.charm ?? "—"}
-              {s.look_tag ? ` · ${s.look_tag}` : ""}
+              {[
+                !s.is_pc && s.mbti,
+                s.class_role_label,
+                `魅力 ${s.charm ?? "—"}`,
+                s.look_tag,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
             </p>
           </header>
           {relText && <p className="portrait-seat">座位：{relText}</p>}

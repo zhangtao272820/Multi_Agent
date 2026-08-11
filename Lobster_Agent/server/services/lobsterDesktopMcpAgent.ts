@@ -139,14 +139,20 @@ function buildSystemPrompt(tools: McpToolDef[], task: string, taskSpec?: Lobster
   ].join('\n')
 }
 
-export async function probeLobsterDesktopReady() {
+export async function probeLobsterDesktopReady(timeoutMs = 8000) {
   if (!isLobsterDesktopMcpEnabled()) {
     return { ok: false, toolCount: 0, error: 'disabled' as const }
   }
   const servers = resolveLobsterDesktopMcpServers()
   if (!servers) return { ok: false, toolCount: 0, error: 'not_configured' as const }
+  const budget = Math.max(1500, Number(timeoutMs) || 8000)
   try {
-    const tools = await listMcpTools(servers)
+    const tools = await Promise.race([
+      listMcpTools(servers),
+      new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error(`desktop_mcp_probe_timeout_${budget}ms`)), budget)
+      }),
+    ])
     await closeMcpConnections().catch(() => undefined)
     return {
       ok: tools.length > 0,

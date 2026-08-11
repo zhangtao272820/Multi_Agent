@@ -22,6 +22,7 @@ export function parseCollaborationPosture(raw: unknown): CollaborationPosture | 
 /**
  * 解析本轮姿态。缺省 agent。
  * 权威顺序：meta.collaborationPosture → clientContext.collaborationPosture
+ * （不含编排 LLM suggestedPosture，避免覆盖用户显式选择）
  */
 export function resolveCollaborationPosture(meta?: unknown): CollaborationPosture {
   if (!meta || typeof meta !== 'object') return 'agent'
@@ -35,6 +36,31 @@ export function resolveCollaborationPosture(meta?: unknown): CollaborationPostur
   const fromCtx = parseCollaborationPosture(ctx?.collaborationPosture)
   if (fromCtx) return fromCtx
   return 'agent'
+}
+
+/** 用户是否显式选定姿态（工作台 / clientContext） */
+export function hasExplicitCollaborationPosture(meta?: unknown): boolean {
+  if (!meta || typeof meta !== 'object') return false
+  const m = meta as Record<string, unknown>
+  if (parseCollaborationPosture(m.collaborationPosture)) return true
+  const ctx =
+    m.clientContext && typeof m.clientContext === 'object' && !Array.isArray(m.clientContext)
+      ? (m.clientContext as Record<string, unknown>)
+      : null
+  return Boolean(parseCollaborationPosture(ctx?.collaborationPosture))
+}
+
+/**
+ * 有效姿态：用户显式 > 编排 suggestedPosture（仅当用户未选）> agent。
+ * 用于门禁 / 只读过滤；不回写用户 collaborationPosture 字段。
+ */
+export function resolveEffectiveCollaborationPosture(meta?: unknown): CollaborationPosture {
+  if (hasExplicitCollaborationPosture(meta)) return resolveCollaborationPosture(meta)
+  if (!meta || typeof meta !== 'object') return 'agent'
+  const m = meta as Record<string, unknown>
+  const suggested =
+    parseCollaborationPosture(m.suggestedPosture) || parseCollaborationPosture(m.suggested_posture)
+  return suggested || 'agent'
 }
 
 export function postureForcesReadOnly(posture: CollaborationPosture): boolean {

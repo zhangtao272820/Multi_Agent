@@ -1,19 +1,21 @@
 """专属故事幕：结构化节拍、当前拍注入、幕摘要（控 Token）。
 
 契约见 doc/故事与立绘拓展计划-剧本感与Token.md §4
-与 doc/故事旁白与女主演绎升级计划.md §3。
+与 doc/故事旁白与女主演绎升级计划.md §3
+与 doc/galgame美德演绎升级计划.md §2。
 """
 
 from __future__ import annotations
 
 from typing import Any
 
-from .event_engine import GameEvent, StoryBeat
+from .event_engine import GameEvent, StoryBeat, StoryBeatPage
 
 STORY_SUMMARY_MAX = 120
 BEAT_SUMMARY_MAX = 80
 BEAT_NARRATION_MAX = 120
 BEAT_THOUGHT_MAX = 80
+BEAT_PAGE_TEXT_MAX = 120
 
 
 def is_story_event(event: GameEvent | None) -> bool:
@@ -95,6 +97,66 @@ def beat_narration_text(beat: StoryBeat | None) -> str:
     if not beat:
         return ""
     return (beat.narration or beat.summary or "").strip()
+
+
+def _page_sprite_dict(beat: StoryBeat | None, raw: dict[str, Any] | None = None) -> dict[str, str]:
+    out: dict[str, str] = {}
+    src = raw if isinstance(raw, dict) else {}
+    outfit = str(src.get("outfit") or "").strip()
+    emotion = str(src.get("emotion") or "").strip()
+    if not outfit and beat and beat.sprite_hint:
+        outfit = str(beat.sprite_hint[0] or "").strip()
+    if outfit:
+        out["outfit"] = outfit
+    if emotion:
+        out["emotion"] = emotion
+    return out
+
+
+def beat_vn_pages(beat: StoryBeat | None) -> list[dict[str, Any]]:
+    """拍前 VN 页：优先手写 pages；否则由 narration + pc_thought 合成。"""
+    if not beat:
+        return []
+    pages: list[dict[str, Any]] = []
+    for raw in beat.pages or []:
+        if isinstance(raw, StoryBeatPage):
+            text = (raw.text or "").strip()
+            voice = (raw.voice or "narration").strip().lower() or "narration"
+            sprite = _page_sprite_dict(beat, raw.sprite)
+            bg = (raw.bg or "").strip()
+        elif isinstance(raw, dict):
+            text = str(raw.get("text") or "").strip()
+            voice = str(raw.get("voice") or "narration").strip().lower() or "narration"
+            sprite = _page_sprite_dict(beat, raw.get("sprite") if isinstance(raw.get("sprite"), dict) else None)
+            bg = str(raw.get("bg") or "").strip()
+        else:
+            continue
+        if not text:
+            continue
+        if voice not in {"narration", "pc", "heroine"}:
+            voice = "narration"
+        item: dict[str, Any] = {"text": _clip(text, BEAT_PAGE_TEXT_MAX), "voice": voice}
+        if sprite:
+            item["sprite"] = sprite
+        if bg:
+            item["bg"] = bg
+        pages.append(item)
+    if pages:
+        return pages
+    narration = beat_narration_text(beat)
+    thought = (beat.pc_thought or "").strip()
+    hint_sprite = _page_sprite_dict(beat)
+    if narration:
+        item = {"text": _clip(narration, BEAT_PAGE_TEXT_MAX), "voice": "narration"}
+        if hint_sprite:
+            item["sprite"] = hint_sprite
+        pages.append(item)
+    if thought:
+        item = {"text": _clip(thought, BEAT_THOUGHT_MAX), "voice": "pc"}
+        if hint_sprite:
+            item["sprite"] = hint_sprite
+        pages.append(item)
+    return pages
 
 
 def beat_fact_piece(beat: StoryBeat | None, *, limit: int = 40) -> str:
@@ -190,6 +252,7 @@ def public_story_progress(
     brief = beat_brief_text(beat) if beat else ""
     narration = beat_narration_text(beat) if beat else ""
     thought = (beat.pc_thought or "").strip() if beat else ""
+    pages = beat_vn_pages(beat) if beat and beat_index < len(beats) else []
     return {
         "event_id": event.id,
         "beat_index": beat_index,
@@ -199,6 +262,7 @@ def public_story_progress(
         "beat_brief": _clip(brief, BEAT_SUMMARY_MAX),
         "narration": _clip(narration, BEAT_NARRATION_MAX),
         "pc_thought": _clip(thought, BEAT_THOUGHT_MAX),
+        "pages": pages,
         "soft_options": soft_options_for_beat(event, beat_index),
         "act_summary": _clip(act_summary, STORY_SUMMARY_MAX),
         "completed": beat_index >= len(beats),

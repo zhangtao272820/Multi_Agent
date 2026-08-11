@@ -2,6 +2,7 @@
  * 能力契约：地图/出行属 Admin（高德 get_travel_route 等），禁止 crawler 误绑。
  * 只校验/重绑编排产出（clauses / draft / blueprint），不做用户原话意图路由。
  * 对齐 weatherAdminBoundary：模板噪声剥离 + 真网页政策保留 crawler。
+ * 用户清晰要公网/爬取（sourceCommitment/webFetchKind）时不得重绑。
  */
 import { ADMIN_CAPABILITY_GROUPS } from '#agent-shared/adminCapabilities'
 import type { TaskClause } from '../core/routing/clauses'
@@ -10,6 +11,10 @@ import type { PlanBlueprint } from '../llm/planBlueprintLlm'
 import type { IntentClassifyResult } from '../llm/intentClassifyLlm'
 import type { ExecutableAgent } from '../core/routing/routeFinalize'
 import { stripCrawlerTemplateNoise } from './weatherAdminBoundary'
+import {
+  shouldSkipAdminApiCrawlerRematerialize,
+  sourceCommitmentFromRaw
+} from './sourceCommitment'
 
 /** Admin 地图/出行能力域标记（SSOT：adminCapabilities 混合任务组 routeTerms） */
 export function adminMapCapabilityTerms(): readonly string[] {
@@ -76,6 +81,7 @@ export type MapCrawlerRematerializeInput = {
   planBlueprint: PlanBlueprint | null
   stepDispatchDraft?: StepDispatchDraft[] | null
   needsWebSearch?: boolean
+  sourceCommitmentRaw?: Record<string, unknown> | null
 }
 
 export type MapCrawlerRematerializeResult = MapCrawlerRematerializeInput & {
@@ -85,10 +91,16 @@ export type MapCrawlerRematerializeResult = MapCrawlerRematerializeInput & {
 /**
  * 将误绑为 crawler 的地图/出行子句/draft/蓝图重绑为 admin；
  * 若已无真网页 crawler 绑定，则从 cap/dataSources 去掉 crawler 并关闭 needsWeb。
+ * 用户清晰要公网/爬取时跳过。
  */
 export function rematerializeMapCrawlerMisbind(
   input: MapCrawlerRematerializeInput
 ): MapCrawlerRematerializeResult {
+  const slice = sourceCommitmentFromRaw(input.sourceCommitmentRaw)
+  if (shouldSkipAdminApiCrawlerRematerialize(slice)) {
+    return { ...input, changed: false }
+  }
+
   let changed = false
 
   const clauses: TaskClause[] = input.clauses.map((c) => {
@@ -240,11 +252,15 @@ export function lintMapBoundToCrawler(input: {
 
 /**
  * 计划步级硬闸：任意 crawler 步 query 落在地图能力域 → 改为 admin。
+ * 与编排侧同一谓词：清晰公网锁时 no-op，禁止与 sourceCommitment 抢权。
  */
 export function rematerializeMapCrawlerPlanSteps<
   T extends { id?: string; agent: string; query: string; dependsOn?: string[]; optional?: boolean }
->(plan: T[]): T[] {
+>(plan: T[], sourceCommitmentRaw?: Record<string, unknown> | null): T[] {
   if (!Array.isArray(plan) || !plan.length) return plan
+  if (shouldSkipAdminApiCrawlerRematerialize(sourceCommitmentFromRaw(sourceCommitmentRaw))) {
+    return plan
+  }
   let changed = false
   const next: T[] = []
   for (const step of plan) {

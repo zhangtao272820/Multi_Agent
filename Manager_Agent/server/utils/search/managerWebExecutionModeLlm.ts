@@ -90,14 +90,15 @@ function shouldInvokeWebMode(input: {
 }): boolean {
   const q = String(input.userText ?? '').trim()
   if (q.length < 4) return false
-  if (input.guiRoutable) return true
+  // 禁止仅因 gui=ready 就打网页模式 LLM（库内/知识库单步会空转耗 token）
   const agents = new Set(input.allowedAgents ?? [])
   const intent = String(input.routeIntent ?? '').trim()
   if (agents.has('gui') || agents.has('crawler')) return true
   if (intent === 'gui' || intent === 'crawler') return true
   if (input.llmNeedsWebSearch === true) return true
-  if (intent === 'multi' && (agents.has('gui') || agents.has('crawler'))) return true
   if (q.includes('http://') || q.includes('https://')) return true
+  // GUI 已部署且尚无明确非网页 cap 时，才为「打开/点击」类任务补判
+  if (input.guiRoutable && agents.size === 0) return true
   return false
 }
 
@@ -133,7 +134,10 @@ export async function resolveWebExecutionModeByLlm(input: {
       const r = await input.llmInvoke('route', input.state, [
         ['system', modeSystemPrompt()],
         ['human', human]
-      ], { tier: routingDecisionLlmTier(input.state) })
+      ], {
+        tier: routingDecisionLlmTier(input.state),
+        thinkingLabel: '网页执行：判定 GUI / 抓取 / SERP / 非网页'
+      })
       const parsed = WebExecutionModeSchema.safeParse(safeJsonParse(String(r.text ?? '').trim()))
       if (parsed.success && Number(parsed.data.confidence ?? 0) >= 0.5) return parsed.data
     }

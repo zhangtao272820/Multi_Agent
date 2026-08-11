@@ -23,11 +23,16 @@ export default defineEventHandler(async (event) => {
     const kRaw = Number(body?.k ?? 3);
     const k = Number.isFinite(kRaw) && kRaw > 0 ? Math.max(1, Math.min(12, Math.floor(kRaw))) : 3;
     const docs = await getUploadedDocuments();
+    const docInventory = docs
+      .map((d) => String(d?.name || "").trim())
+      .filter(Boolean)
+      .slice(0, 12);
 
     if (!query) {
       return {
         ok: true,
         hasDocs: docs.length > 0,
+        docInventory,
         hits: 0,
         evidence: [],
         sources: [],
@@ -60,6 +65,7 @@ export default defineEventHandler(async (event) => {
     return {
       ok: true,
       hasDocs: docs.length > 0,
+      docInventory,
       hits: paired.length,
       evidence: paired,
       sources,

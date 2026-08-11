@@ -3,41 +3,118 @@ label: 加训后的冰袋
 priority: 7
 once: true
 chance: 1.0
-scene_id: ""
+scene_id: ''
 trigger:
-  character_ids: [taotao]
+  character_ids:
+  - taotao
   stage_min: friend
   affinity_min: 75
-  flags_present: [tt_plain_face]
-  flags_absent: [tt_encore_pressure]
-prompt_snippet: |
-  【专属故事 · 灯牌与素颜 · 第4幕 · 加训后的冰袋】
+  flags_present:
+  - tt_plain_face
+  flags_absent:
+  - tt_encore_pressure
+prompt_snippet: '【专属故事 · 灯牌与素颜 · 第4幕 · 加训后的冰袋】
+
+  '
 advance: on_player_turn
 beats:
-  - id: b1
-    narration: "加训结束她往膝盖贴冰袋，镜头笑还挂着。经纪人在门外催场，灯牌反光刺进眼睛。"
-    pc_thought: "冰袋比灯牌烫手。经纪人在门外，我挡不挡？"
-    brief: "贴冰袋仍挂镜头笑；经纪人催场。等他换冰袋、挡两分钟或先走。"
-    summary: "贴冰袋仍挂镜头笑；经纪人催场。等他换冰袋、挡两分钟或先走。"
-    sprite_hint: [choreo_mark, casual, work, home]
-    soft_options: ["帮她换冰袋", "挡经纪人两分钟", "说你先走她自己来"]
-  - id: b2
-    narration: "她问你记住的是舞台灯牌，还是她喘不上气、卸妆棉乱扔的间隙。声音发哑，却盯着你。"
-    pc_thought: "舞台灯灭后，她还愿不愿意被我看见？"
-    brief: "追问记住灯牌还是素颜喘气。等他说素颜、说舞台也真实，或沉默递水。"
-    summary: "追问记住灯牌还是素颜喘气。等他说素颜、说舞台也真实，或沉默递水。"
-    sprite_hint: [vocal_booth, handshake_look, home, casual]
-    soft_options: ["说记住素颜喘气", "说舞台也真实", "沉默把水递过去"]
-  - id: b3
-    narration: "耳返被塞回你手里——像第二次安可。戴上听完，还是退场当粉丝，她不催，只等。"
-    pc_thought: "安可压力像第二次公演。我接的是人，还是人设？"
-    brief: "耳返像第二次安可。等他戴上听完、先缓，或退场当粉丝。"
-    summary: "耳返像第二次安可。等他戴上听完、先缓，或退场当粉丝。"
-    sprite_hint: [season_winter, date, casual, home]
-    soft_options: ["戴上听完再说", "先缓一缓", "退场当粉丝"]
+- id: b1
+  narration: 加训结束她往膝盖贴冰袋，镜头笑还挂着。经纪人在门外催场，灯牌反光刺进眼睛。小梁在催下一场，她膝盖上的冰袋还没揭。耳返线还绕在她指节上。她没再多说，只是看着你。
+  pc_thought: 冰袋比灯牌烫手。经纪人在门外，我挡不挡？我想靠近，又怕说错一句。
+  brief: 贴冰袋仍挂镜头笑；经纪人催场。等他换冰袋、挡两分钟或先走。
+  summary: 贴冰袋仍挂镜头笑；经纪人催场。等他换冰袋、挡两分钟或先走。
+  sprite_hint:
+  - vocal_booth
+  - choreo_mark
+  - handshake_look
+  - home
+  - season_winter
+  - casual
+  - home_eating
+  - home_sleeping
+  - intimate_lounge
+  soft_options:
+  - 帮她换冰袋
+  - 挡经纪人两分钟
+  - 说你先走她自己来
+  pages:
+  - text: 加训结束她往膝盖贴冰袋，镜头笑还挂着。经纪人在门外催场，灯牌反光刺进眼睛。小梁在催下一场，她膝盖上的冰袋还没揭。耳返线还绕在她指节上。她没再多说，只是看着你。
+    voice: narration
+    sprite:
+      outfit: vocal_booth
+      emotion: neutral
+  - text: 冰袋比灯牌烫手。经纪人在门外，我挡不挡？我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: vocal_booth
+      emotion: shy
+- id: b2
+  narration: 她问你记住的是舞台灯牌，还是她喘不上气、卸妆棉乱扔的间隙。声音发哑，却盯着你。耳返线还绕在她指节上。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 舞台灯灭后，她还愿不愿意被我看见？我想靠近，又怕说错一句。
+  brief: 追问记住灯牌还是素颜喘气。等他说素颜、说舞台也真实，或沉默递水。
+  summary: 追问记住灯牌还是素颜喘气。等他说素颜、说舞台也真实，或沉默递水。
+  sprite_hint:
+  - vocal_booth
+  - choreo_mark
+  - handshake_look
+  - home
+  - season_winter
+  - casual
+  - home_eating
+  - home_sleeping
+  - intimate_lounge
+  soft_options:
+  - 说记住素颜喘气
+  - 说舞台也真实
+  - 沉默把水递过去
+  pages:
+  - text: 她问你记住的是舞台灯牌，还是她喘不上气、卸妆棉乱扔的间隙。声音发哑，却盯着你。耳返线还绕在她指节上。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: vocal_booth
+      emotion: neutral
+  - text: 舞台灯灭后，她还愿不愿意被我看见？我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: vocal_booth
+      emotion: shy
+- id: b3
+  narration: 耳返被塞回你手里——像第二次安可。戴上听完，还是退场当粉丝，她不催，只等。耳返线还绕在她指节上。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 安可压力像第二次公演。我接的是人，还是人设？我想靠近，又怕说错一句。
+  brief: 耳返像第二次安可。等他戴上听完、先缓，或退场当粉丝。
+  summary: 耳返像第二次安可。等他戴上听完、先缓，或退场当粉丝。
+  sprite_hint:
+  - vocal_booth
+  - choreo_mark
+  - handshake_look
+  - home
+  - season_winter
+  - casual
+  - home_eating
+  - home_sleeping
+  - intimate_lounge
+  soft_options:
+  - 戴上听完再说
+  - 先缓一缓
+  - 退场当粉丝
+  pages:
+  - text: 耳返被塞回你手里——像第二次安可。戴上听完，还是退场当粉丝，她不催，只等。耳返线还绕在她指节上。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: vocal_booth
+      emotion: neutral
+  - text: 安可压力像第二次公演。我接的是人，还是人设？我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: vocal_booth
+      emotion: shy
 rewards:
-  flags_set: [tt_encore_pressure]
+  flags_set:
+  - tt_encore_pressure
 choice_effects:
-  - { trust_delta: 3, affinity_delta: 4 }
-  - { trust_delta: 2, affinity_delta: 2 }
-  - { trust_delta: -2, affinity_delta: -2 }
+- trust_delta: 3
+  affinity_delta: 4
+- trust_delta: 2
+  affinity_delta: 2
+- trust_delta: -2
+  affinity_delta: -2

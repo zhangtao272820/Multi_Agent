@@ -3,41 +3,115 @@ label: 红笔与讲台下
 priority: 8
 once: true
 chance: 1.0
-scene_id: ""
+scene_id: ''
 trigger:
-  character_ids: [ruolin]
+  character_ids:
+  - ruolin
   stage_min: crush
   affinity_min: 84
-  flags_present: [rl_name_without_title]
-  flags_absent: [rl_red_pen_crisis]
-prompt_snippet: |
-  【专属故事 · 讲台下的一年 · 第6幕 · 红笔与讲台下】
+  flags_present:
+  - rl_name_without_title
+  flags_absent:
+  - rl_red_pen_crisis
+prompt_snippet: '【专属故事 · 讲台下的一年 · 第6幕 · 红笔与讲台下】
+
+  '
 advance: on_player_turn
 beats:
-  - id: b1
-    narration: "铃可堵在办公室门口，红笔还没放下：谁都不许把「老师」消费成恋人剧本。"
-    pc_thought: "红笔在门口——闲话比心动更快。我护不护这道线？"
-    brief: "铃可堵门护边界；红笔未放。等他站身侧、让学生走或先收笔。"
-    summary: "铃可堵门护边界；红笔未放。等他站身侧、让学生走或先收笔。"
-    sprite_hint: [office_hours, work, casual, home]
-    soft_options: ["站到她身侧", "让学生先走", "先收红笔"]
-  - id: b2
-    narration: "若铃摘下眼镜。她怕重演年轻时的暧昧灾难，也怕你只想要讲台下的反差。"
-    pc_thought: "边界我说守得住吗？公开身份像把她推上闲话的刀口。"
-    brief: "摘镜坦白怕重演灾难与反差消费。等他守边界、问怕什么或提公开。"
-    summary: "摘镜坦白怕重演灾难与反差消费。等他守边界、问怕什么或提公开。"
-    sprite_hint: [lecture_pointer, work, home, casual]
-    soft_options: ["说边界我守", "问她怕什么", "提议公开身份"]
-  - id: b3
-    narration: "助教门禁的影子还在玻璃上。对等之名要经得起这关——过关才准牵手，否则退回师生礼貌。"
-    pc_thought: "接过红笔像接过责任。退回礼貌，又像辜负她摘镜的勇气。"
-    brief: "对等须过助教门禁。等他接红笔、说别怕闲话，或请她先吃饭。"
-    summary: "对等须过助教门禁。等他接红笔、说别怕闲话，或请她先吃饭。"
-    sprite_hint: [intimate_lounge, season_winter, date, casual, home]
-    soft_options: ["接过红笔", "说别怕闲话", "请她先吃饭"]
+- id: b1
+  narration: 铃可堵在办公室门口，红笔还没放下：谁都不许把「老师」消费成恋人剧本。红笔帽扣得严严实实。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。空气有点静，连呼吸都听得见。
+  pc_thought: 红笔在门口——闲话比心动更快。我护不护这道线？我想靠近，又怕说错一句。
+  brief: 铃可堵门护边界；红笔未放。等他站身侧、让学生走或先收笔。
+  summary: 铃可堵门护边界；红笔未放。等他站身侧、让学生走或先收笔。
+  sprite_hint:
+  - lecture_pointer
+  - office_hours
+  - work
+  - intimate_lounge
+  - season_winter
+  - casual
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 站到她身侧
+  - 让学生先走
+  - 先收红笔
+  pages:
+  - text: 铃可堵在办公室门口，红笔还没放下：谁都不许把「老师」消费成恋人剧本。红笔帽扣得严严实实。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。空气有点静，连呼吸都听得见。
+    voice: narration
+    sprite:
+      outfit: lecture_pointer
+      emotion: neutral
+  - text: 红笔在门口——闲话比心动更快。我护不护这道线？我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: lecture_pointer
+      emotion: shy
+- id: b2
+  narration: 若铃摘下眼镜。她怕重演年轻时的暧昧灾难，也怕你只想要讲台下的反差。红笔帽扣得严严实实。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。空气有点静，连呼吸都听得见。
+  pc_thought: 边界我说守得住吗？公开身份像把她推上闲话的刀口。我想靠近，又怕说错一句。
+  brief: 摘镜坦白怕重演灾难与反差消费。等他守边界、问怕什么或提公开。
+  summary: 摘镜坦白怕重演灾难与反差消费。等他守边界、问怕什么或提公开。
+  sprite_hint:
+  - lecture_pointer
+  - office_hours
+  - work
+  - intimate_lounge
+  - season_winter
+  - casual
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 说边界我守
+  - 问她怕什么
+  - 提议公开身份
+  pages:
+  - text: 若铃摘下眼镜。她怕重演年轻时的暧昧灾难，也怕你只想要讲台下的反差。红笔帽扣得严严实实。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。空气有点静，连呼吸都听得见。
+    voice: narration
+    sprite:
+      outfit: lecture_pointer
+      emotion: neutral
+  - text: 边界我说守得住吗？公开身份像把她推上闲话的刀口。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: lecture_pointer
+      emotion: shy
+- id: b3
+  narration: 助教门禁的影子还在玻璃上。对等之名要经得起这关——过关才准牵手，否则退回师生礼貌。红笔帽扣得严严实实。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 接过红笔像接过责任。退回礼貌，又像辜负她摘镜的勇气。我想靠近，又怕说错一句。
+  brief: 对等须过助教门禁。等他接红笔、说别怕闲话，或请她先吃饭。
+  summary: 对等须过助教门禁。等他接红笔、说别怕闲话，或请她先吃饭。
+  sprite_hint:
+  - lecture_pointer
+  - office_hours
+  - work
+  - intimate_lounge
+  - season_winter
+  - casual
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 接过红笔
+  - 说别怕闲话
+  - 请她先吃饭
+  pages:
+  - text: 助教门禁的影子还在玻璃上。对等之名要经得起这关——过关才准牵手，否则退回师生礼貌。红笔帽扣得严严实实。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: lecture_pointer
+      emotion: neutral
+  - text: 接过红笔像接过责任。退回礼貌，又像辜负她摘镜的勇气。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: lecture_pointer
+      emotion: shy
 rewards:
-  flags_set: [rl_red_pen_crisis]
+  flags_set:
+  - rl_red_pen_crisis
 choice_effects:
-  - { trust_delta: 3, affinity_delta: 4 }
-  - { trust_delta: 2, affinity_delta: 2 }
-  - { trust_delta: -2, affinity_delta: -2 }
+- trust_delta: 3
+  affinity_delta: 4
+- trust_delta: 2
+  affinity_delta: 2
+- trust_delta: -2
+  affinity_delta: -2

@@ -114,53 +114,44 @@ export function formatAttachmentHintForOrchestrator(
   ].join('\n')
 }
 
-/** Admin 结构化能力 vs Crawler 公网抓取（注入编排/审查 LLM，非正则路由） */
+/** Admin 结构化能力 vs Crawler：Admin/GUI/联网通道能力面固定，可点名工具；db/rag 勿绑业务域 */
 export function formatAdminCrawlerDisambiguationPrompt(): string {
   return [
-    '【Admin 结构化能力 vs Crawler 公网抓取】',
+    '【Admin vs Crawler】（通道固定，与业务库/知识库领域无关）',
     adminTaskLlmToolCatalog(),
-    '- **天气预报/气温/湿度/穿衣/今日天气** → **admin**（get_weather 真实 API），**禁止** crawler/gui/needsWeb；',
-    '- **地图路线/多久到/从A到B/周边POI/地铁公交耗时** → **admin**（高德 get_travel_route 等），**禁止** crawler/needsWeb；',
-    '- **简报/晨报/周报/今日安排** → **admin**（daily_briefing / weekly_report），**禁止** crawler/gui；',
-    '- **会前准备/会议材料/纪要提取待办** → **admin**（prepare_meeting / extract_meeting_actions），**禁止** crawler/gui；',
-    '- **工作区文件读写/列目录** → **admin**（list_files / read_file_content / write_file 等），**禁止** crawler/gui；',
-    '- 「查一下/帮我查 + 地铁/公交/从A到B/多久」仍是 **admin 高德**，≠ 联网抓网页；禁止再挂一条 crawler 镜像步骤；',
-    '- **crawler** 仅当用户要公网**网页正文**（最新政策通知、民政部公告、官网新闻、列表页字段）；',
-    '- 「查天气」≠「联网检索」；复合任务中天气子句须 clauses+planBlueprint 独立 admin 一步；',
-    '- 用户说「网上查天气」仍走 admin（结构化预报），除非明确要求爬取某天气网站页面正文；',
-    '- 联网搜索/链接精读/问数 **禁止** 经 admin；浏览器登录填表仍走 **gui**。'
+    '- **admin**（结构化 API/工具，未点公网时优先）：天气预报 get_weather；地铁/公交/从A到B/多久 get_travel_route；日程/会议/提醒；邮件；简报/晨报；会前准备；工作区文件；',
+    '- 「查一下 + 天气/出行/日程」仍是 **admin**，≠ 联网抓网页；禁止再挂镜像 crawler 步；',
+    '- **crawler**：清晰要公网网页正文/最新公开页/联网搜/爬取（webFetchKind≠none）→ crawler+needsWeb；主题即使是天气/政策，用户要公网则跟 crawler，**禁止**改绑 admin；',
+    '- 联网搜索/链接精读/问数 **禁止**经 admin；浏览器登录填表 → **gui**。'
   ].join('\n')
 }
 
-/** GUI 浏览器交互 vs Crawler 静态抓取（注入编排/审查 LLM，非正则路由） */
+/** GUI vs Crawler：交互通道固定 */
 export function formatGuiCrawlerDisambiguationPrompt(): string {
   return [
-    '【GUI 浏览器交互 vs Crawler 静态抓取】',
-    '- **gui**：须在真实浏览器里操作页面——打开站点、站内搜索、点选/打开第 N 条或第一个链接、登录、填表、页内提取标题/正文；allowedAgents=[gui]，needsWeb=false，**禁止** crawler/needsWeb/web_search；',
-    '- 例：「打开某站并点击第一个教程链接提取标题」「去百度搜索并打开第一条」→ **gui**；',
-    '- **crawler**：无浏览器点击/登录/填表，仅静态抓取公网正文/政策公告/列表字段；needsWeb=true，**禁止** gui；',
-    '- 用户已给出 URL **不等于** crawl_direct：若任务仍要求站内点击/跳转/点选，必须 **gui**，禁止因有 URL 改道 crawler。'
+    '【GUI vs Crawler】（通道固定）',
+    '- **gui**：打开站点、站内搜索、点选/打开第 N 条、登录、填表、页内提取；needsWeb=false；禁 crawler；',
+    '- 例：「去某站搜索并打开第一条」「打开页面点链接提取标题」→ gui；',
+    '- **crawler**：无点击/登录/填表，只静态抓公网正文/列表字段；needsWeb=true；',
+    '- 有 URL 仍要点选/跳转 → gui，禁因有 URL 改 crawler。'
   ].join('\n')
 }
 
 /** 注入编排/Planner LLM：Agent 职责边界（来自能力注册表，非正则判意图） */
 export function formatAgentBoundaryPrompt(): string {
   const caps = CAPABILITY_REGISTRY.map(
-    (c) => `- **${c.id}**（${c.label}）：${c.purpose}；适用：${c.preferredFor.join('、')}`
+    (c) => `- **${c.id}**（${c.label}）：${c.purpose}`
   ).join('\n')
   return [
-    '【Agent 职责边界】你是 Semantic Router：根据用户末轮语义选择 Agent 集合与执行蓝图；每个 Agent 只做一件事：',
+    '【Agent 边界】按末轮语义选 Agent 与蓝图；每 Agent 一事：',
     caps,
-    '- **db**：结构化业务库/SQL/记录/统计；**rag**：内部文档/制度/知识库；二者不可混用',
-    '- **crawler**：公网网页正文/政策公告；**rag**：私有文档；用户要「网上查最新政策/通知原文」才加 crawler',
+    '- **db/rag**（领域随 catalog 变）：结构化库 vs 私域文档；对照库存；命中≠默认查库；勿绑具体业务词',
+    '- **admin/gui/crawler**（通道固定，可点名能力）：见下方 Admin/GUI 边界',
     formatAdminCrawlerDisambiguationPrompt(),
     formatGuiCrawlerDisambiguationPrompt(),
-    '- **multimodal**：理解用户上传的图片/附件（核心子 Agent）；有附件且还需其他 Agent 时 multimodal 须为前序，下游 dependsOn 它',
-    '- **music/video**：基于附件或描述生成媒体（extended）',
-    '- **gui**：浏览器页面交互与页内提取（打开/搜索/点选/登录填表/截图；extended）',
-    '- **clean/code/visualize/report**：多源对比、出图、写报告时的加工链；单源查数可不要',
-    '- planBlueprint 每步 queryFocus 须写「该 Agent 要做什么」，禁止复制整段用户原话；勿把识图写进 rag/db queryFocus',
-    '- Probe/经验/读题 hint 仅供参考；与用户末轮冲突时必须以末轮为准'
+    '- multimodal=附件理解（可并列，附件时为前序）；music/video=媒体生成',
+    '- clean/code/visualize/report=加工链；单源查数可不要',
+    '- queryFocus 写该步职责，禁复制整段原话；识图勿写入 rag/db 焦点'
   ].join('\n')
 }
 

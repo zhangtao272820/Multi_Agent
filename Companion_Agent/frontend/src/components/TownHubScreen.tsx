@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import FaceChip from "./FaceChip";
 import TownMapPicker from "./TownMapPicker";
 import VirtuesChrome, { type VirtuesPanel } from "./VirtuesChrome";
-import type { HubState } from "../types";
+import type { HubState, StoryHint } from "../types";
 
 type Props = {
   hub: HubState;
@@ -16,6 +16,7 @@ type Props = {
   onJumpNextSeason?: () => void;
   onSettleFriendEnding?: (characterId: string) => void;
   onReplyPing?: (characterId: string) => void;
+  onStoryHint?: (hint: StoryHint) => void;
   onCodex: () => void;
   onMenu: () => void;
   onBuyGift?: (characterId: string, giftId: string) => void;
@@ -117,6 +118,7 @@ export default function TownHubScreen({
   onJumpNextSeason,
   onSettleFriendEnding,
   onReplyPing,
+  onStoryHint,
   onCodex,
   onMenu,
   onBuyGift,
@@ -208,6 +210,14 @@ export default function TownHubScreen({
     if (challenge.kind === "work" || challenge.kind === "meal") {
       setForcePanel("bag");
       return;
+    }
+    if (challenge.kind === "story" && onStoryHint) {
+      const h =
+        storyHints.find((x) => x.character_id === challenge.target_id) || storyHints[0];
+      if (h) {
+        onStoryHint(h);
+        return;
+      }
     }
     if (!challenge.target_id) return;
     const tid = challenge.target_id;
@@ -329,11 +339,19 @@ export default function TownHubScreen({
           className="gal-hub-challenge"
           disabled={busy || !connected}
           onClick={onChallengeClick}
-          title={challenge.target_id || challenge.kind === "ping" ? "去完成" : undefined}
+          title={
+            challenge.kind === "story"
+              ? "看短篇线索"
+              : challenge.target_id || challenge.kind === "ping"
+                ? "去完成"
+                : undefined
+          }
         >
           <span className="gal-hub-challenge-kind">{suggestKindLabel(challenge.kind)}</span>
           <span className="gal-hub-challenge-text">{challenge.text}</span>
-          {challenge.target_id || challenge.kind === "ping" || challenge.kind === "work" ? (
+          {challenge.kind === "story" ? (
+            <span className="gal-hub-challenge-go">短篇 →</span>
+          ) : challenge.target_id || challenge.kind === "ping" || challenge.kind === "work" ? (
             <span className="gal-hub-challenge-go">去看看 →</span>
           ) : null}
         </button>
@@ -514,8 +532,23 @@ export default function TownHubScreen({
             <ul className="gal-hub-suggest gal-hub-story-hints">
               {storyHints.map((h) => (
                 <li key={`story-${h.character_id}`}>
-                  <span className="gal-hub-suggest-kind">故事</span>
-                  <span>{h.text}</span>
+                  {onStoryHint ? (
+                    <button
+                      type="button"
+                      className="gal-hub-story-hint-btn"
+                      disabled={busy || !connected}
+                      onClick={() => onStoryHint(h)}
+                    >
+                      <span className="gal-hub-suggest-kind">故事</span>
+                      <span>{h.text}</span>
+                      <span className="gal-hub-challenge-go">短篇 →</span>
+                    </button>
+                  ) : (
+                    <>
+                      <span className="gal-hub-suggest-kind">故事</span>
+                      <span>{h.text}</span>
+                    </>
+                  )}
                 </li>
               ))}
             </ul>

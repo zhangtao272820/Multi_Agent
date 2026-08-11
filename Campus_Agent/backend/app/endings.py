@@ -173,7 +173,12 @@ def resolve_ending(
 ) -> dict[str, Any]:
     band = grade_band(pc_rank)
     if romance:
-        bucket = romance_bucket(str(romance.get("stage") or ""), float(romance.get("affinity") or 0))
+        # 前任不按 dating 桶，走 close/friend
+        if romance.get("was_dating") and str(romance.get("stage") or "") != "dating":
+            stage_for_bucket = "close" if float(romance.get("affinity") or 0) >= 55 else "friend"
+        else:
+            stage_for_bucket = str(romance.get("stage") or "")
+        bucket = romance_bucket(stage_for_bucket, float(romance.get("affinity") or 0))
         name = str(romance.get("name") or "那个人")
     else:
         bucket = ROM_NONE
@@ -187,4 +192,45 @@ def resolve_ending(
         "blurb": blurb,
         "grade_band": band,
         "romance_bucket": bucket,
+    }
+
+
+def fallback_verdict_from_matrix(ending_id: str, *, romance: dict[str, Any] | None) -> dict[str, Any]:
+    """Deterministic verdict when ending LLM unavailable."""
+    eid = ending_id or ""
+    dating = bool(romance) and str(romance.get("stage") or "") == "dating"
+    was_ex = bool(romance) and bool(romance.get("was_dating")) and not dating
+    if eid.startswith("gold_") and dating:
+        verdict, with_you = "true", True
+        line = "金榜旁还有并肩的人——这算难得的好结局。"
+    elif eid.startswith("gold_"):
+        verdict, with_you = "good", bool(romance) and not was_ex
+        line = "成绩落在高处；感情线或许还留白，但夏天记住了你。"
+    elif eid.startswith("steady_") and dating:
+        verdict, with_you = "good", True
+        line = "分数稳住了，也握住了手——算是好好过完了这百日。"
+    elif eid.startswith("steady_"):
+        verdict, with_you = "good" if romance else "soft", bool(romance) and not was_ex
+        line = "稳中有进的收束；有人记得你，就不算独行。"
+    elif eid.startswith("ordinary_") and dating:
+        verdict, with_you = "soft", True
+        line = "名次普通，但有人说够了——软一点的好结局。"
+    elif eid.startswith("road_") and dating:
+        verdict, with_you = "soft", True
+        line = "分数之外，感情托了一把底。"
+    elif was_ex:
+        verdict, with_you = "soft", False
+        line = "有过并肩，也有过告别——余温还在，但算不上圆满。"
+    elif eid.startswith("road_"):
+        verdict, with_you = "bad", False
+        line = "仍在路上；分数与感情都还差一口气。"
+    else:
+        verdict, with_you = "soft", bool(romance)
+        line = "百日收官。故事可以重开，也可以就此记住。"
+    return {
+        "verdict": verdict,
+        "with_you_ok": with_you,
+        "epilogue_line": line,
+        "judgment": "matrix_fallback",
+        "source": "matrix",
     }

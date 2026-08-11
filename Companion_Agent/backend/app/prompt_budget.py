@@ -29,6 +29,8 @@ JUDGE_NOTE_CHARS = 28
 BLOCK_PRIORITY = {
     "agenda": 10,
     "world_facts": 15,
+    "town_npcs": 16,
+    "voice_card": 14,
     "story_beat": 12,
     "calendar": 20,
     "pc_status": 30,
@@ -57,6 +59,9 @@ BLOCK_PRIORITY = {
     "free_play": 120,
 }
 
+# 镇上熟人事实块硬上限（字符）
+TOWN_NPC_BUDGET = 120
+
 
 @dataclass
 class PromptBlock:
@@ -73,6 +78,8 @@ def trim_blocks(blocks: list[PromptBlock], *, budget: int = WORLD_EXTRA_BUDGET) 
     protected = {
         "agenda",
         "world_facts",
+        "town_npcs",
+        "voice_card",
         "story_beat",
         "calendar",
         "pc_status",

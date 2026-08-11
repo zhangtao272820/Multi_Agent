@@ -228,6 +228,20 @@ const CASES: CaseSpec[] = [
   },
   // C — Admin
   {
+    id: 'C1',
+    userTask: '帮我订明天下午 3 点的项目评审会',
+    draft: [{ agent: 'admin', scopedUserLanguage: '订明天下午3点项目评审会' }],
+    meta: { taskShape: 'action_only', wantsAdminHint: true },
+    expectCap: ['admin']
+  },
+  {
+    id: 'C2',
+    userTask: '今天天津天气怎么样',
+    draft: [{ agent: 'admin', scopedUserLanguage: '查今天天津天气' }],
+    meta: { taskShape: 'action_only', wantsAdminHint: true },
+    expectCap: ['admin']
+  },
+  {
     id: 'C3',
     userTask: '坐地铁从天津西站到天津站大概多久',
     draft: [{ agent: 'admin', scopedUserLanguage: '坐地铁从天津西站到天津站大概多久' }],
@@ -442,6 +456,48 @@ const e4FenceParsed = parseOrchestratorTextForTest(
 assert(e4FenceParsed?.allowedAgents.includes('admin'), 'fence JSON keeps admin')
 console.log('real-domain route ok: orchestrator markdown fence parse')
 
+// A5 类：LLM 显式 null（timeRange/planBlueprint/rationale 等）不得拖垮 schema
+const a5User = '帮我查一下龙奶奶的基本信息和联系方式'
+const a5NullParsed = parseOrchestratorPayloadForTest(
+  {
+    turnScopeMode: 'current_only',
+    coalescedTask: null,
+    timeRange: null,
+    planBlueprint: null,
+    rationale: null,
+    upgradeReason: null,
+    taskForm: null,
+    sourceCommitment: 'clear',
+    committedPlanes: ['db'],
+    webFetchKind: null,
+    adminCapabilityHints: null,
+    clarifyQuestions: [null, '补一句'],
+    timeHints: [null, ''],
+    subjectHints: null,
+    fieldHints: null,
+    clauses: [
+      { id: 'c1', text: '龙奶奶的基本信息和联系方式', agents: ['db'], layer: null, taskForm: null }
+    ],
+    dataSources: ['db'],
+    primaryIntent: 'db',
+    intent: 'db',
+    suggestedAgents: ['db'],
+    allowedAgents: ['db'],
+    isDbAnchored: true,
+    isMulti: false,
+    planShortcut: 'db_only',
+    routedQuery: null,
+    needsClarify: false,
+    confidence: null
+  },
+  a5User
+)
+assert(a5NullParsed, 'A5 null-fields payload must parse')
+assert(a5NullParsed!.allowedAgents.includes('db'), 'A5 keeps db')
+assert(String(a5NullParsed!.routedQuery).includes('龙奶奶'), 'A5 routedQuery falls back to user')
+assert(a5NullParsed!.needsClarify !== true, 'A5 clear db should not clarify')
+console.log('real-domain route ok: A5 null-field schema scrub')
+
 // LLM 常见字段：isDbAnchored 漏填但 clauses 含 db/admin 须保留
 const e4ParseFix = parseOrchestratorPayloadForTest(
   {
@@ -565,6 +621,97 @@ assert(
   'legacy probe_fallback path (LLM-First 下不使用)'
 )
 console.log('real-domain route ok: probe_fallback legacy-only')
+
+// E2 截图回归：cap/蓝图幽灵 crawler（无公网子句）必须硬剥，不得进执行计划
+{
+  const e2User = '知识库查高龄津贴标准，数据库查河西区 70–79 岁性别分布，写对比报告'
+  const e2Turn = resolveTurnRoutingScope({ messages: [], lastUser: e2User })
+  const e2GhostBundle = parseOrchestratorPayloadForTest(
+    {
+      intent: 'multi',
+      allowedAgents: ['rag', 'db', 'crawler', 'clean', 'code', 'report'],
+      suggestedAgents: ['rag', 'db', 'crawler', 'clean', 'code', 'report'],
+      isDbAnchored: true,
+      needsWeb: true,
+      dataSources: ['rag', 'db', 'crawler'],
+      clauses: [
+        { id: 'c1', text: '知识库查高龄津贴标准', agents: ['rag'] },
+        { id: 'c2', text: '数据库查河西区 70–79 岁性别分布', agents: ['db'] },
+        { id: 'c3', text: '写对比报告', agents: ['report'] }
+      ],
+      planBlueprint: {
+        confidence: 0.7,
+        steps: [
+          { agent: 'rag', focus: '高龄津贴标准' },
+          { agent: 'db', focus: '河西区 70–79 岁性别分布' },
+          { agent: 'crawler', focus: e2User },
+          { agent: 'clean', focus: '清洗' },
+          { agent: 'code', focus: '计算' },
+          { agent: 'report', focus: '对比报告' }
+        ]
+      },
+      sourceCommitment: 'clear',
+      committedPlanes: ['rag', 'db', 'report'],
+      webFetchKind: 'none',
+      routedQuery: e2User,
+      confidence: 0.85
+    },
+    e2User
+  )
+  assert(e2GhostBundle, 'E2 ghost bundle parse')
+  const e2Decision = applyOrchestratorInvariants({
+    bundle: e2GhostBundle!,
+    turnScope: e2Turn,
+    state: { meta: {}, probe: { db: { matched: true }, rag: { hits: 2 } } },
+    routerCapBaseline: e2GhostBundle!.allowedAgents
+  })
+  assert(!e2Decision.allowedAgents.includes('crawler' as any), `E2 must strip crawler cap: ${e2Decision.allowedAgents.join('→')}`)
+  assert(
+    !(e2Decision.planBlueprint?.steps ?? []).some((s) => String(s.agent) === 'crawler'),
+    'E2 blueprint must not keep unbound crawler step'
+  )
+  assert(e2Decision.intentClassify.needsWeb !== true, 'E2 needsWeb cleared')
+  let e2WebLlmCalls = 0
+  const e2Pipe = await resolveOrchestratorPipeline({
+    messages: [],
+    lastUser: e2User,
+    routingContext: e2User,
+    turnScope: e2Turn,
+    probe: { db: { matched: true }, rag: { hits: 2 } },
+    llmInvoke: async () => {
+      e2WebLlmCalls += 1
+      return {
+        text: JSON.stringify({
+          intent: 'multi',
+          allowedAgents: ['rag', 'db', 'crawler', 'report'],
+          suggestedAgents: ['rag', 'db', 'crawler', 'report'],
+          isDbAnchored: true,
+          needsWeb: true,
+          dataSources: ['rag', 'db', 'crawler'],
+          clauses: e2GhostBundle!.clauses,
+          planBlueprint: e2GhostBundle!.planBlueprint,
+          sourceCommitment: 'clear',
+          committedPlanes: ['rag', 'db', 'report'],
+          webFetchKind: 'none',
+          confidence: 0.85
+        })
+      }
+    },
+    state: {
+      meta: {},
+      probe: { db: { matched: true }, rag: { hits: 2 } },
+      toolHealth: { agents: [{ agent: 'gui', status: 'ready' }, { agent: 'crawler', status: 'ready' }] }
+    },
+    seedBundle: e2GhostBundle
+  })
+  // 有 seed 且非 fast bypass 时仍走 unified；关键：finalize 不得因 gui=ready 再打网页 LLM 把 crawler 加回
+  assert(!e2Pipe.decision.allowedAgents.includes('crawler' as any), `E2 pipeline strip crawler: ${e2Pipe.decision.allowedAgents.join('→')}`)
+  assert(
+    !(e2Pipe.decision.planBlueprint?.steps ?? []).some((s) => String(s.agent) === 'crawler'),
+    'E2 pipeline blueprint no crawler'
+  )
+  console.log(`real-domain route ok: E2 strip unbound crawler (finalize_extra_llm≈${e2WebLlmCalls})`)
+}
 
 const goldenPath = path.join(__dirname, '../../..', 'eval', 'golden-real-domain-route.json')
 assert(fs.existsSync(goldenPath), 'golden-real-domain-route.json exists')

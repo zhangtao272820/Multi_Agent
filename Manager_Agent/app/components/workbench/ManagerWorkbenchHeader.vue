@@ -174,23 +174,27 @@ const emit = defineEmits<{
 .spring-brand-row {
   display: flex;
   align-items: center;
+  justify-content: flex-start;
   gap: 10px;
   min-width: 0;
+  margin: 0;
 }
 
 .spring-brand-text {
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   gap: 2px;
   min-width: 0;
+  text-align: left;
 }
 
 .spring-brand-sub {
   margin: 0;
   font-size: 11px;
-  font-weight: 550;
+  font-weight: 600;
   letter-spacing: 0.02em;
-  color: #5a738c;
+  color: #1e3a52;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

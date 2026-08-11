@@ -1,4 +1,12 @@
-import type { BoardState, CampusMeta, ChatResult, HubState, SaveListItem, TalkPrep } from "./types";
+import type {
+  BoardState,
+  CampusMeta,
+  ChatResult,
+  GalleryPayload,
+  HubState,
+  SaveListItem,
+  TalkPrep,
+} from "./types";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
@@ -26,7 +34,11 @@ export function fetchMeta() {
   return request<CampusMeta>("/api/campus/meta");
 }
 
-export function createGame(body: { name: string; grade_tier: string; mbti: string }) {
+export function createGame(body: {
+  name: string;
+  grade_tier: string;
+  stats?: { study: number; social: number; stamina: number; luck: number };
+}) {
   return request<HubState>("/api/campus/new", {
     method: "POST",
     body: JSON.stringify(body),
@@ -136,4 +148,9 @@ export function loadSave(save_id: string) {
     method: "POST",
     body: JSON.stringify({ save_id }),
   });
+}
+
+export function fetchGallery(save_id?: string) {
+  const q = save_id ? `?save_id=${encodeURIComponent(save_id)}` : "";
+  return request<GalleryPayload>(`/api/campus/gallery${q}`);
 }

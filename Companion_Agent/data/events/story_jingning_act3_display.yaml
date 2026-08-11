@@ -13,58 +13,119 @@ trigger:
   - deliberate_display
   flags_present:
   - bond_ally_done
-prompt_snippet: |
-  【专属故事 · 堂姐的观察日记 · 第3幕 · 观察之外】
+prompt_snippet: '【专属故事 · 堂姐的观察日记 · 第3幕 · 观察之外】
+
+  '
 advance: on_player_turn
 beats:
 - id: b1
-  summary: "茶席散后她没走：领口比平日松一指，说「家族眼睛多」——却把日记翻到空白页给你看她自己的名字。等你回应。"
+  summary: 茶席散后她没走：领口比平日松一指，说「家族眼睛多」——却把日记翻到空白页给你看她自己的名字。等你回应。
   sprite_hint:
   - cousin_tea
+  - family_gather
+  - home
   - casual
+  - season_winter
+  - home_eating
   soft_options:
   - 合上日记
   - 问她想写什么
   - 提醒伦理
-  narration: "观察笔记与玻璃反光里，茶席散后她没走：领口比平日松一指，说「家族眼睛多」——却把日记翻到空白页给你看她自己的名字。"
-  pc_thought: 观察日记是刀。我记破例，也在记自己心动。
-  brief: "茶席散后她没走：领口比平日松一指，说「家族眼睛多」——却把日记翻到空白页给你看她自己的名字。等你回应。"
+  narration: 观察笔记与玻璃反光里，茶席散后她没走：领口比平日松一指，说「家族眼睛多」——却把日记翻到空白页给你看她自己的名字。小本子别在她包侧。
+  pc_thought: 观察日记是刀。我记破例，也在记自己心动。我想靠近，又怕说错一句。
+  brief: 茶席散后她没走：领口比平日松一指，说「家族眼睛多」——却把日记翻到空白页给你看她自己的名字。等你回应。
+  pages:
+  - text: 观察笔记与玻璃反光里，茶席散后她没走：领口比平日松一指，说「家族眼睛多」——却把日记翻到空白页给你看她自己的名字。小本子别在她包侧。
+    voice: narration
+    sprite:
+      outfit: cousin_tea
+      emotion: neutral
+  - text: 观察日记是刀。我记破例，也在记自己心动。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: cousin_tea
+      emotion: shy
 - id: b2
-  summary: "她承认：守门堂姐之外，也嫉妒你对别人好——不能恋爱，只能把情愫藏在观察记录里，偶尔故意展示给唯一观众。等你回应。"
+  summary: 她承认：守门堂姐之外，也嫉妒你对别人好——不能恋爱，只能把情愫藏在观察记录里，偶尔故意展示给唯一观众。等你回应。
   sprite_hint:
-  - family_gather
   - cousin_tea
+  - family_gather
+  - home
+  - casual
+  - season_winter
+  - home_eating
   soft_options:
   - 承认看见了
   - 约定不点破
   - 说会尊重边界
-  narration: "她承认：守门堂姐之外，也嫉妒你对别人好——不能恋爱，只能把情愫藏在观察记录里，偶尔故意展示给唯一观众。"
-  pc_thought: 敬酒场上堂姐的笑很冷。我挡不挡？——想起门。
-  brief: "她承认：守门堂姐之外，也嫉妒你对别人好——不能恋爱，只能把情愫藏在观察记录里，偶尔故意展示给唯一观众。等你回应。"
+  narration: 她承认：守门堂姐之外，也嫉妒你对别人好——不能恋爱，只能把情愫藏在观察记录里，偶尔故意展示给唯一观众。小本子别在她包侧。
+  pc_thought: 敬酒场上堂姐的笑很冷。我挡不挡？——想起门。我想靠近，又怕说错一句。
+  brief: 她承认：守门堂姐之外，也嫉妒你对别人好——不能恋爱，只能把情愫藏在观察记录里，偶尔故意展示给唯一观众。等你回应。
+  pages:
+  - text: 她承认：守门堂姐之外，也嫉妒你对别人好——不能恋爱，只能把情愫藏在观察记录里，偶尔故意展示给唯一观众。小本子别在她包侧。
+    voice: narration
+    sprite:
+      outfit: cousin_tea
+      emotion: neutral
+  - text: 敬酒场上堂姐的笑很冷。我挡不挡？——想起门。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: cousin_tea
+      emotion: shy
 - id: b3
-  summary: "她碰杯：「后宫花园若开，我可以当影子席——帮腔或拆台仍在，但多一份额外的默契。」。等你回应。"
+  summary: 她碰杯：「后宫花园若开，我可以当影子席——帮腔或拆台仍在，但多一份额外的默契。」。等你回应。
   sprite_hint:
   - cousin_tea
+  - family_gather
   - home
+  - casual
+  - season_winter
+  - home_eating
   soft_options:
   - 接受影子席
   - 先做同盟
   - 问她怕不怕传闲话
-  narration: "观察笔记与玻璃反光里，她碰杯：「后宫花园若开，我可以当影子席——帮腔或拆台仍在，但多一份额外的默契。」。"
-  pc_thought: 展示不是叛逆秀。我想有自己的声音——想起花。
-  brief: "她碰杯：「后宫花园若开，我可以当影子席——帮腔或拆台仍在，但多一份额外的默契。」。等你回应。"
+  narration: 观察笔记与玻璃反光里，她碰杯：「后宫花园若开，我可以当影子席——帮腔或拆台仍在，但多一份额外的默契。」。小本子别在她包侧。
+  pc_thought: 展示不是叛逆秀。我想有自己的声音——想起花。我想靠近，又怕说错一句。
+  brief: 她碰杯：「后宫花园若开，我可以当影子席——帮腔或拆台仍在，但多一份额外的默契。」。等你回应。
+  pages:
+  - text: 观察笔记与玻璃反光里，她碰杯：「后宫花园若开，我可以当影子席——帮腔或拆台仍在，但多一份额外的默契。」。小本子别在她包侧。
+    voice: narration
+    sprite:
+      outfit: cousin_tea
+      emotion: neutral
+  - text: 展示不是叛逆秀。我想有自己的声音——想起花。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: cousin_tea
+      emotion: shy
 - id: b4
-  summary: "离席时她整理耳饰：「别让我在族里难看。私下……你可以多看一眼。」语气轻，像盖章。等你回应。"
+  summary: 离席时她整理耳饰：「别让我在族里难看。私下……你可以多看一眼。」语气轻，像盖章。等你回应。
   sprite_hint:
-  - casual
+  - cousin_tea
   - family_gather
+  - home
+  - casual
+  - season_winter
+  - home_eating
   soft_options:
   - 郑重点头
   - 送她上车
   - 说「谢谢堂姐」
-  narration: "观察笔记与玻璃反光里，离席时她整理耳饰：「别让我在族里难看。私下……你可以多看一眼。」语气轻，像盖章。"
-  pc_thought: "开放门：退出家族剧本，还是继续当影子记录员？"
-  brief: "离席时她整理耳饰：「别让我在族里难看。私下……你可以多看一眼。」语气轻，像盖章。等你回应。"
+  narration: 观察笔记与玻璃反光里，离席时她整理耳饰：「别让我在族里难看。私下……你可以多看一眼。」语气轻，像盖章。小本子别在她包侧。
+  pc_thought: 开放门：退出家族剧本，还是继续当影子记录员？
+  brief: 离席时她整理耳饰：「别让我在族里难看。私下……你可以多看一眼。」语气轻，像盖章。等你回应。
+  pages:
+  - text: 观察笔记与玻璃反光里，离席时她整理耳饰：「别让我在族里难看。私下……你可以多看一眼。」语气轻，像盖章。小本子别在她包侧。
+    voice: narration
+    sprite:
+      outfit: cousin_tea
+      emotion: neutral
+  - text: 开放门：退出家族剧本，还是继续当影子记录员？
+    voice: pc
+    sprite:
+      outfit: cousin_tea
+      emotion: shy
 rewards:
   flags_set:
   - deliberate_display

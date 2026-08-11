@@ -21,8 +21,10 @@ beats:
 - id: b1
   summary: 打烊铃响，她翻转「休息」牌，眼神终于卸下营业笑，像把一整班的力气轻轻放下。等你回应。
   sprite_hint:
+  - closing_wipe
   - open_sign
-  - work
+  - break_bench
+  - pastry_platter
   - season_winter
   - home_eating
   - home_sleeping
@@ -30,14 +32,27 @@ beats:
   - 问要不要帮忙
   - 先安静等
   - 夸她今天辛苦
-  narration: 蒸汽与咖啡渣里，打烊铃响，她翻转「休息」牌，眼神终于卸下营业笑，像把一整班的力气轻轻放下。
-  pc_thought: 熟客位很安全。再近一步，营业笑就撑不住。
+  narration: 蒸汽与咖啡渣里，打烊铃响，她翻转「休息」牌，眼神终于卸下营业笑，像把一整班的力气轻轻放下。杯沿还留着一圈淡咖啡渍。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 熟客位很安全。再近一步，营业笑就撑不住。我想靠近，又怕说错一句。
   brief: 打烊铃响，她翻转「休息」牌，眼神终于卸下营业笑，像把一整班的力气轻轻放下。等你回应。
+  pages:
+  - text: 蒸汽与咖啡渣里，打烊铃响，她翻转「休息」牌，眼神终于卸下营业笑，像把一整班的力气轻轻放下。杯沿还留着一圈淡咖啡渍。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: closing_wipe
+      emotion: neutral
+  - text: 熟客位很安全。再近一步，营业笑就撑不住。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: closing_wipe
+      emotion: shy
 - id: b2
   summary: 同一张桌子两端擦拭；抹布相碰时她小声说「难得有人留下」，尾音里有点不敢相信。等你回应。
   sprite_hint:
   - closing_wipe
-  - barista_steam
+  - open_sign
+  - break_bench
+  - pastry_platter
   - season_winter
   - home_eating
   - home_sleeping
@@ -45,14 +60,27 @@ beats:
   - 说想多懂一点她
   - 专注把桌擦完
   - 问能不能每周都帮
-  narration: 蒸汽与咖啡渣里，同一张桌子两端擦拭；抹布相碰时她小声说「难得有人留下」，尾音里有点不敢相信。
-  pc_thought: 我想听她卸妆后的声音，不只是菜单上的温度。
+  narration: 蒸汽与咖啡渣里，同一张桌子两端擦拭；抹布相碰时她小声说「难得有人留下」，尾音里有点不敢相信。打烊铃响前，老板娘丢过来一句：「雨汐别一个人收。」。杯沿还留着一圈淡咖啡渍。
+  pc_thought: 我想听她卸妆后的声音，不只是菜单上的温度。我想靠近，又怕说错一句。
   brief: 同一张桌子两端擦拭；抹布相碰时她小声说「难得有人留下」，尾音里有点不敢相信。等你回应。
+  pages:
+  - text: 蒸汽与咖啡渣里，同一张桌子两端擦拭；抹布相碰时她小声说「难得有人留下」，尾音里有点不敢相信。打烊铃响前，老板娘丢过来一句：「雨汐别一个人收。」。杯沿还留着一圈淡咖啡渍。
+    voice: narration
+    sprite:
+      outfit: closing_wipe
+      emotion: neutral
+  - text: 我想听她卸妆后的声音，不只是菜单上的温度。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: closing_wipe
+      emotion: shy
 - id: b3
   summary: 后门台阶上她靠墙喘气，像终于把服务者的壳放下一寸，让你看见真实的疲与软。等你回应。
   sprite_hint:
-  - break_bench
   - closing_wipe
+  - open_sign
+  - break_bench
+  - pastry_platter
   - season_winter
   - home_eating
   - home_sleeping
@@ -60,14 +88,27 @@ beats:
   - 递水
   - 听她抱怨排班
   - 并肩不说话
-  narration: 蒸汽与咖啡渣里，后门台阶上她靠墙喘气，像终于把服务者的壳放下一寸，让你看见真实的疲与软。
-  pc_thought: 真心洒出来时，我是接住，还是假装没看见？
+  narration: 蒸汽与咖啡渣里，后门台阶上她靠墙喘气，像终于把服务者的壳放下一寸，让你看见真实的疲与软。杯沿还留着一圈淡咖啡渍。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 真心洒出来时，我是接住，还是假装没看见？我想靠近，又怕说错一句。
   brief: 后门台阶上她靠墙喘气，像终于把服务者的壳放下一寸，让你看见真实的疲与软。等你回应。
+  pages:
+  - text: 蒸汽与咖啡渣里，后门台阶上她靠墙喘气，像终于把服务者的壳放下一寸，让你看见真实的疲与软。杯沿还留着一圈淡咖啡渍。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: closing_wipe
+      emotion: neutral
+  - text: 真心洒出来时，我是接住，还是假装没看见？我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: closing_wipe
+      emotion: shy
 - id: b4
   summary: 她把最后一块糕点掰给你：打烊后的甜，只分给留下的人——比菜单更私密的招待。等你回应。
   sprite_hint:
+  - closing_wipe
+  - open_sign
+  - break_bench
   - pastry_platter
-  - casual
   - season_winter
   - home_eating
   - home_sleeping
@@ -75,9 +116,20 @@ beats:
   - 接过道谢
   - 问明天还开吗
   - 说想护送她回去
-  narration: 蒸汽与咖啡渣里，她把最后一块糕点掰给你：打烊后的甜，只分给留下的人——比菜单更私密的招待。
-  pc_thought: 留杯像约会。我怕自己把照料当成理所当然。
+  narration: 蒸汽与咖啡渣里，她把最后一块糕点掰给你：打烊后的甜，只分给留下的人——比菜单更私密的招待。杯沿还留着一圈淡咖啡渍。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 留杯像约会。我怕自己把照料当成理所当然。我想靠近，又怕说错一句。
   brief: 她把最后一块糕点掰给你：打烊后的甜，只分给留下的人——比菜单更私密的招待。等你回应。
+  pages:
+  - text: 蒸汽与咖啡渣里，她把最后一块糕点掰给你：打烊后的甜，只分给留下的人——比菜单更私密的招待。杯沿还留着一圈淡咖啡渍。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: closing_wipe
+      emotion: neutral
+  - text: 留杯像约会。我怕自己把照料当成理所当然。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: closing_wipe
+      emotion: shy
 rewards:
   flags_set:
   - wy_closing_shared

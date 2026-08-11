@@ -17,6 +17,11 @@ import {
 } from '../core/proPuStack'
 import type { TaskClause } from '../core/routing/clauses'
 import { formatAdminCrawlerDisambiguationPrompt, isLlmFirstRouteEnabled } from '../orchestrate/unifiedRouting'
+import {
+  formatSourceCommitmentPromptRule,
+  shouldSkipAdminApiCrawlerRematerialize,
+  sourceCommitmentFromRaw
+} from '../orchestrate/sourceCommitment'
 
 const EXEC = [
   'db',
@@ -62,12 +67,55 @@ export function isUserIntentAlignLlmEnabled(env: NodeJS.ProcessEnv = process.env
   return resolveManagerEnvBool('MANAGER_USER_INTENT_ALIGN_LLM', env)
 }
 
+/** 公网锁：Align 不得把 clear+crawler / webFetchKind≠none 改绑为 admin（结构终局，非 prompt 软约束） */
+export function enforceWebCommitmentOnAlign(
+  bundle: TaskOrchestratorBundle,
+  aligned: z.infer<typeof AlignSchema>
+): z.infer<typeof AlignSchema> {
+  const slice = sourceCommitmentFromRaw(bundle.raw as Record<string, unknown>)
+  if (!shouldSkipAdminApiCrawlerRematerialize(slice)) return aligned
+  const agents = new Set(aligned.allowedAgents.map(String))
+  agents.add('crawler')
+  // 公网锁生效时禁止用 admin 顶替 crawler（可另有独立 admin 子句）
+  const dataSources = new Set(
+    [...(aligned.dataSources ?? []).map(String), 'crawler'].filter((d) => d === 'rag' || d === 'db' || d === 'crawler')
+  )
+  const alignedHasCrawler = aligned.clauses.some((c) => (c.agents ?? []).map(String).includes('crawler'))
+  const bundleCrawlerClauses = bundle.clauses.filter((c) =>
+    (c.agents ?? []).map(String).includes('crawler')
+  )
+  const nextClauses = alignedHasCrawler
+    ? aligned.clauses
+    : bundleCrawlerClauses.length
+      ? bundle.clauses.map((c, i) => ({
+          id: String(c.id || `c${i + 1}`),
+          text: c.text,
+          agents: c.agents
+        }))
+      : [
+          ...aligned.clauses,
+          {
+            id: 'c_web',
+            text: String(bundle.coalescedTask || bundle.routedQuery || '公网检索').slice(0, 480),
+            agents: ['crawler' as const]
+          }
+        ]
+  return {
+    ...aligned,
+    allowedAgents: [...agents] as z.infer<typeof AlignSchema>['allowedAgents'],
+    dataSources: [...dataSources] as z.infer<typeof AlignSchema>['dataSources'],
+    needsWeb: true,
+    clauses: nextClauses as z.infer<typeof AlignSchema>['clauses']
+  }
+}
+
 function mergeAlignedIntoBundle(
   bundle: TaskOrchestratorBundle,
-  aligned: z.infer<typeof AlignSchema>,
+  alignedIn: z.infer<typeof AlignSchema>,
   lastUser: string,
   priorMeta?: unknown
 ): { bundle: TaskOrchestratorBundle; stepDispatchDraft: StepDispatchDraft[] } {
+  const aligned = enforceWebCommitmentOnAlign(bundle, alignedIn)
   const priorDraft = [
     ...(bundle.stepDispatchDraft ?? []),
     ...stepDispatchDraftFromMeta(priorMeta)
@@ -82,8 +130,14 @@ function mergeAlignedIntoBundle(
     priorDraft
   })
 
+  const commitSlice = sourceCommitmentFromRaw(bundle.raw as Record<string, unknown>)
   const raw: TaskOrchestratorRaw = {
     ...bundle.raw,
+    // 透传清晰度切片：Align 不得擦掉编排契约
+    sourceCommitment: commitSlice.sourceCommitment,
+    committedPlanes: commitSlice.committedPlanes,
+    webFetchKind: commitSlice.webFetchKind,
+    adminCapabilityHints: commitSlice.adminCapabilityHints,
     allowedAgents: aligned.allowedAgents,
     suggestedAgents: aligned.allowedAgents.filter((a) => !['clean', 'code', 'visualize', 'report'].includes(a)),
     clauses: aligned.clauses,
@@ -155,6 +209,8 @@ export async function alignOrchestratorBundleToUserIntent(input: {
     return { bundle: input.bundle, aligned: false }
   }
 
+  const commitSlice = sourceCommitmentFromRaw(input.bundle.raw as Record<string, unknown>)
+  const webLocked = shouldSkipAdminApiCrawlerRematerialize(commitSlice)
   const proposed = {
     allowedAgents: input.bundle.allowedAgents,
     clauses: input.bundle.clauses.map((c) => ({
@@ -164,7 +220,11 @@ export async function alignOrchestratorBundleToUserIntent(input: {
     })),
     dataSources: input.bundle.intentClassify.dataSources ?? [],
     isDbAnchored: input.bundle.intentClassify.isDbAnchored,
-    needsAdmin: input.bundle.intentClassify.needsAdmin
+    needsAdmin: input.bundle.intentClassify.needsAdmin,
+    needsWeb: input.bundle.intentClassify.needsWeb,
+    sourceCommitment: commitSlice.sourceCommitment,
+    committedPlanes: commitSlice.committedPlanes,
+    webFetchKind: commitSlice.webFetchKind
   }
 
   try {
@@ -177,12 +237,12 @@ export async function alignOrchestratorBundleToUserIntent(input: {
           [
             '你是「用户末轮对齐审查器」。只读【用户末轮】原文，审查编排 cap/clauses 是否 grounded。',
             '【唯一权威】用户末轮；相似主题 ≠ 同一任务；历史/Probe/PU/经验不得扩写末轮未 grounding 的 db/admin/人名。',
+            formatSourceCommitmentPromptRule(),
             formatAdminCrawlerDisambiguationPrompt(),
-            '若编排把天气预报/气温子句标为 crawler 或 needsWeb=true，须改为 admin 子句、needsAdmin=true，并从 dataSources 移除 crawler（除非另有明确网页政策/公告子句）。',
-            '若编排把地铁/公交/从A到B/多久到等出行子句标为 crawler 或再挂 crawler 镜像，须改为单一 admin（高德），needsWeb=false；「查一下」不等于公网抓取。',
-            '用户已标明「知识库查…」「数据库查…」的内容禁止再为同义片段加 crawler；crawler 仅当用户明确要网上/网页/官网/公告正文。',
-            '「查天气」不得 needsWeb=true；复合任务中天气须独立 admin 子句与 queryFocus。',
-            '【数据面按任务形态】structured_query（某人基本信息/联系方式/记录/统计/条数/分布等）→ 须含 db 且 isDbAnchored=true，不要求口令「数据库」；document_retrieval（规范/标准/配比/津贴/补贴/护理要求/手册/政策原文）→ rag_only，禁止仅因 Probe 命中养老表改 db；勿因末轮未出现「数据库」二字而删掉合法 db。',
+            '【服从编排清晰度切片】若【待审查编排】webFetchKind≠none 或 sourceCommitment=clear 且 committedPlanes 含 crawler：禁止把 crawler 改绑 admin，禁止 needsWeb=false；主题即使是天气/出行/政策，清晰公网意图跟 crawler。',
+            '仅当清晰度未锁公网时：未点公网的天气预报/气温 → admin（get_weather），不得 needsWeb；未点公网的地铁/公交/从A到B → 单一 admin（高德）。',
+            '用户已标明知识库/数据库形态的内容禁止再为同义片段加 crawler；crawler 仅当末轮明确要网上/网页/官网/公告正文，或清晰度切片已锁公网。',
+            '【数据面按任务形态】structured_query（库表行/聚合能答：档案/记录/统计/条数/分布等）→ 须含 db 且 isDbAnchored=true，不要求口令「数据库」；document_retrieval（文档/手册/报告原文能答）→ rag_only；须对照弱参考中的库存：库表盖不住且文档库存能盖 → rag_only，禁止仅因 Probe 命中业务表改 db；听起来像「个人情况/怎么样」≠默认 db；勿因末轮未出现「数据库」二字而删掉库表库存能覆盖的合法 db。',
             '仅当 db/人名等仅来自历史/PU 渗入、与末轮任务形态无关时，才从 allowedAgents/clauses 删除。',
             '末轮任务形态所需数据面缺失时可补入；禁止凭 probe 或上下文自主加无关 agent。',
             '非闲聊任务禁止输出空 allowedAgents；至少保留一个与末轮任务形态匹配的可执行 agent。',
@@ -197,13 +257,16 @@ export async function alignOrchestratorBundleToUserIntent(input: {
             input.weakHints ? `【弱参考·不得扩 cap】\n${input.weakHints.slice(0, 800)}` : '',
             `【用户末轮·唯一权威】\n${last.slice(0, 1200)}`,
             `【待审查编排】\n${JSON.stringify(proposed).slice(0, 2400)}`,
+            webLocked
+              ? '【公网锁·生效】须保留 crawler + needsWeb=true，禁止改 admin。'
+              : '',
             'schema: {"allowedAgents":["rag"],"clauses":[{"id":"c1","text":"...","agents":["rag"]}],"dataSources":["rag"],"isDbAnchored":false,"needsAdmin":false,"needsWeb":false,"rationale":"..."}；db 单源时用 allowedAgents=[db]/dataSources=[db]/isDbAnchored=true'
           ]
             .filter(Boolean)
             .join('\n\n')
         ]
       ],
-      { tier: routingDecisionLlmTier(input.state), quiet: true }
+      { tier: routingDecisionLlmTier(input.state), quiet: true, thinkingLabel: '末轮对齐：审查 cap 是否 grounded' }
     )
 
     const parsed = AlignSchema.safeParse(safeJsonParse(String(r.text ?? '').trim()))

@@ -649,88 +649,6 @@ ROUTES: dict[str, dict] = {
         ],
     },
     # —— T1 ——
-    "yeyu": {
-        "tier": "T1",
-        "name": "云夜羽",
-        "route_title": "针线与夜班灯",
-        "theme": "毒舌外壳下的手作温度",
-        "logline": "独立设计师白天裁布，夜里便利店遇见你；锋利的话缝着柔软的里布。",
-        "acts": [
-            {
-                "id": "act1_counter",
-                "title": "夜班柜台",
-                "beat": "便利店拌嘴，第一次看见她手指上的针眼",
-                "sprites": ["casual", "work", "rain"],
-                "flags": ["yy_night_counter", "late_night_store_done"],
-            },
-            {
-                "id": "act2_atelier",
-                "title": "人台与别针",
-                "beat": "被带进工作室；mannequin_pin / fabric_drape",
-                "sprites": ["mannequin_pin", "fabric_drape", "look_sketch"],
-                "flags": ["yy_atelier_in"],
-            },
-            {
-                "id": "act3_hem",
-                "title": "熨边的沉默",
-                "beat": "她为你改一件衣服；话少，心多",
-                "sprites": ["iron_hem", "tape_measure", "pattern_cut"],
-                "flags": ["yy_hem_for_you", "sharp_care_done"],
-            },
-        ],
-        "branches": {
-            "true": "听懂毒舌，进入她的工作室与生活",
-            "muse": "你成为缪斯但关系不清",
-            "soft": "停在便利店损友",
-        },
-        "endings": [
-            _ending(
-                "ending_yeyu_hem_true",
-                typ="secret",
-                title="真结局 · 为你留的折边",
-                subtitle="Hemmed for You",
-                description="她把成衣挂到你身上，别针还没拔：「别动。我量的不是尺寸——是你会不会逃。」你没逃。",
-                cg_hint="人台旁 · 软尺",
-                character_id="yeyu",
-                conditions={
-                    "stage_min": "dating",
-                    "affinity_min": 88,
-                    "trust_min": 80,
-                    "flags_all": ["confessed", "yy_atelier_in", "yy_hem_for_you"],
-                },
-            ),
-            _ending(
-                "ending_yeyu_sharp_heart",
-                typ="good",
-                title="毒舌真心",
-                subtitle="Sharp Heart",
-                description="她用最锋利的话护着最软的心。便利店暖灯下，你终于听懂。",
-                cg_hint="便利店 · 暖灯",
-                character_id="yeyu",
-                conditions={
-                    "stage_min": "dating",
-                    "trust_min": 78,
-                    "flags_all": ["confessed"],
-                    "flags_any": ["sharp_care_done", "late_night_store_done", "yy_night_counter"],
-                },
-            ),
-            _ending(
-                "ending_yeyu_counter_soft",
-                typ="normal",
-                title="软结局 · 夜班损友",
-                subtitle="Night Counter",
-                description="她继续损你，你继续买关东煮。针线在别处，友情在柜台。",
-                cg_hint="关东煮蒸汽 · 工牌",
-                character_id="yeyu",
-                conditions={
-                    "affinity_min": 60,
-                    "stage_max": "close_friend",
-                    "flags_any": ["yy_night_counter", "late_night_store_done"],
-                    "flags_absent": ["confessed"],
-                },
-            ),
-        ],
-    },
     "taotao": {
         "tier": "T1",
         "name": "唐桃夭",
@@ -1913,10 +1831,19 @@ def normalize_story_routes(payload: dict) -> dict:
     payload["shared_romance_endings"] = list(SHARED)
     payload["shared_neutral_endings"] = list(SHARED_NEUTRAL)
     payload["npc_policy"] = {
-        "ids": [],
+        "ids": [
+            "npc_cafe_owner",
+            "npc_bookstore_regular",
+            "npc_office_lead",
+            "npc_dorm_aunt",
+            "npc_flower_supplier",
+            "npc_dance_coach",
+            "npc_idol_manager",
+            "npc_neighbor_couple",
+        ],
         "allowed_endings": [],
         "story_branches": False,
-        "note": "无有名 NPC；路人立绘仅地点背景装饰，不参与结局与分支",
+        "note": "有名镇民=背景土壤，不可攻略；不参与结局与分支。旁白/world_facts 可点名。",
     }
     # 确保 character_id 字段齐全
     for cid, row in chars.items():

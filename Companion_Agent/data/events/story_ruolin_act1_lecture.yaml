@@ -3,40 +3,110 @@ label: 粉笔灰
 priority: 5
 once: true
 chance: 1.0
-scene_id: ""
+scene_id: ''
 trigger:
-  character_ids: [ruolin]
+  character_ids:
+  - ruolin
   stage_min: friend
   affinity_min: 55
-  flags_absent: [rl_office_hours]
-prompt_snippet: |
-  【专属故事 · 讲台下的一年 · 第1幕 · 粉笔灰】
+  flags_absent:
+  - rl_office_hours
+prompt_snippet: '【专属故事 · 讲台下的一年 · 第1幕 · 粉笔灰】
+
+  '
 advance: on_player_turn
 beats:
-  - id: b1
-    narration: "讲台上粉笔灰落在袖口。她点名提问，目光在你身上多停半秒，像不小心泄露一点偏爱。"
-    pc_thought: "粉笔灰落在袖口。我想叫她名字，又怕越界。"
-    brief: "点名目光多停半秒；偏爱泄露。等他认真答、课后留问或先记笔记。"
-    summary: "点名目光多停半秒；偏爱泄露。等他认真答、课后留问或先记笔记。"
-    sprite_hint: [lecture_pointer, school, season_winter, home_eating, home_sleeping]
-    soft_options: ["认真回答", "课后留问题", "先记笔记"]
-  - id: b2
-    narration: "office hours 门半掩。她把文件夹推开，谈的是课，气场却很近——近到必须更守规矩。"
-    pc_thought: "边界课是给两个人的——我也在被考试。"
-    brief: "答疑门半掩；课近得危险。等他只谈学业、问累，或坦言紧张。"
-    summary: "答疑门半掩；课近得危险。等他只谈学业、问累，或坦言紧张。"
-    sprite_hint: [office_hours, faculty_folder, season_winter, home_eating, home_sleeping]
-    soft_options: ["只谈学业", "问她累不累", "坦言紧张"]
-  - id: b3
-    narration: "走廊尽头她说「有问题随时来」——像开了一扇必须自重的门，邀请与警戒写在同一句里。"
-    pc_thought: "这扇门开着。我是学生，还是想走进去的人？"
-    brief: "走廊允诺随时来；邀请与警戒同句。等他道谢、约答疑或说守规则。"
-    summary: "走廊允诺随时来；邀请与警戒同句。等他道谢、约答疑或说守规则。"
-    sprite_hint: [corridor_advise, chalk_sleeve, season_winter, home_eating, home_sleeping]
-    soft_options: ["道谢离开", "约固定答疑", "说会守规则"]
+- id: b1
+  narration: 讲台上粉笔灰落在袖口。她点名提问，目光在你身上多停半秒，像不小心泄露一点偏爱。门边贴着铃可的答疑名单，红笔勾得很清楚。红笔帽扣得严严实实。她没再多说，只是看着你。
+  pc_thought: 粉笔灰落在袖口。我想叫她名字，又怕越界。我想靠近，又怕说错一句。
+  brief: 点名目光多停半秒；偏爱泄露。等他认真答、课后留问或先记笔记。
+  summary: 点名目光多停半秒；偏爱泄露。等他认真答、课后留问或先记笔记。
+  sprite_hint:
+  - lecture_pointer
+  - office_hours
+  - school
+  - chalk_sleeve
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 认真回答
+  - 课后留问题
+  - 先记笔记
+  pages:
+  - text: 讲台上粉笔灰落在袖口。她点名提问，目光在你身上多停半秒，像不小心泄露一点偏爱。门边贴着铃可的答疑名单，红笔勾得很清楚。红笔帽扣得严严实实。她没再多说，只是看着你。
+    voice: narration
+    sprite:
+      outfit: lecture_pointer
+      emotion: neutral
+  - text: 粉笔灰落在袖口。我想叫她名字，又怕越界。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: lecture_pointer
+      emotion: shy
+- id: b2
+  narration: officehours门半掩。她把文件夹推开，谈的是课，气场却很近——近到必须更守规矩。红笔帽扣得严严实实。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 边界课是给两个人的——我也在被考试。我想靠近，又怕说错一句。
+  brief: 答疑门半掩；课近得危险。等他只谈学业、问累，或坦言紧张。
+  summary: 答疑门半掩；课近得危险。等他只谈学业、问累，或坦言紧张。
+  sprite_hint:
+  - lecture_pointer
+  - office_hours
+  - school
+  - chalk_sleeve
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 只谈学业
+  - 问她累不累
+  - 坦言紧张
+  pages:
+  - text: officehours门半掩。她把文件夹推开，谈的是课，气场却很近——近到必须更守规矩。红笔帽扣得严严实实。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: lecture_pointer
+      emotion: neutral
+  - text: 边界课是给两个人的——我也在被考试。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: lecture_pointer
+      emotion: shy
+- id: b3
+  narration: 走廊尽头她说「有问题随时来」——像开了一扇必须自重的门，邀请与警戒写在同一句里。红笔帽扣得严严实实。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 这扇门开着。我是学生，还是想走进去的人？我想靠近，又怕说错一句。
+  brief: 走廊允诺随时来；邀请与警戒同句。等他道谢、约答疑或说守规则。
+  summary: 走廊允诺随时来；邀请与警戒同句。等他道谢、约答疑或说守规则。
+  sprite_hint:
+  - lecture_pointer
+  - office_hours
+  - school
+  - chalk_sleeve
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 道谢离开
+  - 约固定答疑
+  - 说会守规则
+  pages:
+  - text: 走廊尽头她说「有问题随时来」——像开了一扇必须自重的门，邀请与警戒写在同一句里。红笔帽扣得严严实实。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: lecture_pointer
+      emotion: neutral
+  - text: 这扇门开着。我是学生，还是想走进去的人？我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: lecture_pointer
+      emotion: shy
 rewards:
-  flags_set: [rl_office_hours]
+  flags_set:
+  - rl_office_hours
 choice_effects:
-  - { trust_delta: 3, affinity_delta: 3 }
-  - { trust_delta: 2, affinity_delta: 2 }
-  - { trust_delta: -2, affinity_delta: -1 }
+- trust_delta: 3
+  affinity_delta: 3
+- trust_delta: 2
+  affinity_delta: 2
+- trust_delta: -2
+  affinity_delta: -1

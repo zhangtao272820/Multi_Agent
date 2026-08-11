@@ -19,14 +19,16 @@ import {
 } from "./api";
 import { BoardOverlay } from "./components/BoardOverlay";
 import { CampusMapScreen, LocationScreen } from "./components/CampusScreens";
+import { ClassGalleryScreen } from "./components/ClassGalleryScreen";
 import { CoachOverlay, isCoachDone } from "./components/CoachOverlay";
 import { EndingScreen } from "./components/EndingScreen";
 import { PeriodRecapOverlay } from "./components/PeriodRecapOverlay";
 import { PortraitModal, type PortraitTarget } from "./components/PortraitModal";
+import { SettingsScreen } from "./components/SettingsScreen";
 import { TalkScreen, type InteractVerb } from "./components/TalkScreen";
 import { CreatePcScreen, SavePickerScreen, TitleScreen } from "./components/TitleAndCreate";
 import { useBgm } from "./hooks/useBgm";
-import { loadSettings, saveSettings, type CampusSettings } from "./settings";
+import { applySettingsToDom, loadSettings, saveSettings, type CampusSettings } from "./settings";
 import type {
   BoardState,
   CampusMeta,
@@ -74,9 +76,14 @@ export default function App() {
     setSettings((prev) => {
       const next = { ...prev, ...partial };
       saveSettings(next);
+      applySettingsToDom(next);
       return next;
     });
   }
+
+  useEffect(() => {
+    applySettingsToDom(settings);
+  }, [settings]);
 
   useEffect(() => {
     let cancelled = false;
@@ -117,19 +124,24 @@ export default function App() {
 
   useEffect(() => {
     if (!bgmCatalog) return;
-    if (screen === "title" || screen === "create" || screen === "saves") {
+    if (screen === "title" || screen === "create" || screen === "saves" || screen === "settings") {
+      if (screen === "settings") {
+        void playBgm(bgmCatalog.cues?.settings || bgmCatalog.cues?.title || "title_theme");
+        return;
+      }
       const list = bgmCatalog.playlists?.title;
       if (list?.length) void playBgmPlaylist(list);
       else void playBgm(bgmCatalog.cues?.title || "title_theme");
       return;
     }
+    if (screen === "gallery") {
+      void playBgm(bgmCatalog.cues?.sprites_gallery || "loc_campus");
+      return;
+    }
     if (screen === "ending" && ending) {
-      const id = String(ending.ending_id || ending.kind || "");
+      const verdict = String(ending.verdict || "");
       const cue =
-        (id && bgmCatalog.ending_type_cues?.[id]) ||
-        (id.includes("true") && bgmCatalog.ending_type_cues?.true) ||
-        (id.includes("good") && bgmCatalog.ending_type_cues?.good) ||
-        (id.includes("bad") && bgmCatalog.ending_type_cues?.bad) ||
+        (verdict && bgmCatalog.ending_type_cues?.[verdict]) ||
         bgmCatalog.cues?.ending ||
         "ending_soft";
       void playBgm(String(cue));
@@ -170,6 +182,7 @@ export default function App() {
     hub?.calendar.period_id,
     hub?.calendar.weather_id,
     talk?.scene,
+    ending?.verdict,
     ending?.ending_id,
     ending?.kind,
     bgmCatalog,
@@ -177,7 +190,11 @@ export default function App() {
     playBgmPlaylist,
   ]);
 
-  async function handleCreate(payload: { name: string; grade_tier: string; mbti: string }) {
+  async function handleCreate(payload: {
+    name: string;
+    grade_tier: string;
+    stats: { study: number; social: number; stamina: number; luck: number };
+  }) {
     setBusy(true);
     setError(null);
     try {
@@ -498,17 +515,27 @@ export default function App() {
         <TitleScreen
           backendOk={backendOk}
           desktop={desktopMode}
-          bgmEnabled={settings.bgmEnabled}
-          bgmVolume={settings.bgmVolume}
-          onToggleBgm={() => patchSettings({ bgmEnabled: !settings.bgmEnabled })}
-          onBgmVolume={(v) => patchSettings({ bgmVolume: v })}
           onStart={() => {
             setError(null);
             setScreen("create");
           }}
           onSaves={() => setScreen("saves")}
+          onGallery={() => setScreen("gallery")}
+          onSettings={() => setScreen("settings")}
         />
       )}
+      {screen === "settings" && (
+        <SettingsScreen
+          settings={settings}
+          onChange={(next) => {
+            saveSettings(next);
+            applySettingsToDom(next);
+            setSettings(next);
+          }}
+          onBack={() => setScreen("title")}
+        />
+      )}
+      {screen === "gallery" && <ClassGalleryScreen onBack={() => setScreen("title")} />}
       {screen === "saves" && (
         <SavePickerScreen
           onBack={() => setScreen("title")}
@@ -543,7 +570,6 @@ export default function App() {
       {screen === "create" && meta && (
         <CreatePcScreen
           gradeTiers={meta.personality.grade_tiers}
-          mbtiTypes={meta.personality.mbti_types}
           busy={busy}
           error={error}
           onBack={() => setScreen("title")}

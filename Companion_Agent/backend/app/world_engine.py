@@ -24,6 +24,21 @@ _PERIOD_LABELS = {
 }
 
 
+class DatePage(BaseModel):
+    """约会 VN 剧本页（手写；不进 LLM）。"""
+
+    text: str = ""
+    voice: str = "narration"  # narration | pc | heroine
+    sprite: dict[str, str] = Field(default_factory=dict)
+    bg: str = ""
+
+
+class DateChoice(BaseModel):
+    label: str = ""
+    goto_page: int | None = None
+    flags_set: list[str] = Field(default_factory=list)
+
+
 class DateDef(BaseModel):
     id: str
     label: str
@@ -34,6 +49,9 @@ class DateDef(BaseModel):
     character_ids: list[str] = Field(default_factory=list)
     scene_id: str = ""
     prompt_snippet: str = ""
+    """手写剧本页；有则约会走 VN，不再开 LLM 聊天场。"""
+    pages: list[DatePage] = Field(default_factory=list)
+    choices: list[DateChoice] = Field(default_factory=list)
     rewards: dict[str, Any] = Field(default_factory=dict)
     tags: list[str] = Field(default_factory=list)
     avoid_tags: list[str] = Field(default_factory=list)
@@ -642,6 +660,80 @@ def get_date_def(date_id: str) -> DateDef | None:
         if d.id == date_id:
             return d
     return None
+
+
+def public_date_script(
+    date_def: DateDef,
+    *,
+    character_id: str,
+    character_name: str = "",
+    default_bg: str = "",
+) -> dict[str, Any]:
+    """约会 VN 剧本（无 LLM）。缺 pages 时用 label/prompt 合成短占位页。"""
+    bg_default = (default_bg or date_def.scene_id or date_def.location_id or "").strip()
+    pages: list[dict[str, Any]] = []
+    for raw in date_def.pages or []:
+        text = (raw.text or "").strip()
+        if not text:
+            continue
+        voice = (raw.voice or "narration").strip().lower() or "narration"
+        if voice not in {"narration", "pc", "heroine"}:
+            voice = "narration"
+        sprite = dict(raw.sprite or {})
+        if character_id and "character_id" not in sprite:
+            sprite = {**sprite, "character_id": character_id}
+        item: dict[str, Any] = {"text": text, "voice": voice}
+        if sprite:
+            item["sprite"] = sprite
+        bg = (raw.bg or bg_default).strip()
+        if bg:
+            item["bg"] = bg
+        pages.append(item)
+    if not pages:
+        label = (date_def.label or "约会").strip()
+        name = (character_name or "她").strip() or "她"
+        pages = [
+            {
+                "text": f"你约了{name}来「{label}」。路上风不硬，心里却有点紧。",
+                "voice": "narration",
+                "sprite": {"character_id": character_id, "outfit": "date", "emotion": "happy"},
+                "bg": bg_default or "cafe",
+            },
+            {
+                "text": "先别想结果。把这一小段时间过好就行。",
+                "voice": "pc",
+                "sprite": {"character_id": character_id, "outfit": "date", "emotion": "shy"},
+                "bg": bg_default or "cafe",
+            },
+            {
+                "text": f"{name}看了你一眼，像在等你开口。",
+                "voice": "narration",
+                "sprite": {"character_id": character_id, "outfit": "date", "emotion": "happy"},
+                "bg": bg_default or "cafe",
+            },
+        ]
+    choices: list[dict[str, Any]] = []
+    for c in date_def.choices or []:
+        label = (c.label or "").strip()
+        if not label:
+            continue
+        choices.append(
+            {
+                "label": label,
+                "goto_page": c.goto_page,
+                "flags_set": list(c.flags_set or []),
+            }
+        )
+    return {
+        "date_id": date_def.id,
+        "label": date_def.label,
+        "character_id": character_id,
+        "character_name": character_name,
+        "pages": pages,
+        "choices": choices,
+        "location_id": date_def.location_id,
+        "scene_id": date_def.scene_id or date_def.location_id,
+    }
 
 
 def apply_date_rewards(bond: BondShelf, date_def: DateDef) -> BondShelf:

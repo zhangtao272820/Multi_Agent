@@ -26,6 +26,12 @@ import { formatAgentBoundaryPrompt, formatEvolutionHintPreamble, unifiedRoutingE
 import { parseFirstBalancedJsonObject } from '../../core/shared/llmJson'
 import type { TurnRoutingScope } from '../../core/routing/turnScope'
 import type { BaseMessage } from '@langchain/core/messages'
+import { coerceTaskForm, coerceTimeRangeHint, TaskFormFieldSchema } from '../../core/routing/taskForms'
+import {
+  ADMIN_CAPABILITY_HINTS,
+  SOURCE_COMMITMENT_KINDS,
+  WEB_FETCH_KINDS
+} from '../../orchestrate/sourceCommitment'
 
 const ROUTE_INTENTS = [
   'db',
@@ -62,19 +68,33 @@ const ClauseSchema = z.object({
   id: z.string().max(16).optional(),
   text: z.string().min(4).max(480),
   layer: z.enum(['data', 'process', 'output', 'action']).optional(),
-  agents: z.array(z.enum(EXEC_AGENTS)).max(4).optional()
+  agents: z.array(z.enum(EXEC_AGENTS)).max(4).optional(),
+  /** 任务级形态：仅约束职责形状，禁止据此改 allowedAgents；勿填 taskIntent 值（如 hybrid） */
+  taskForm: TaskFormFieldSchema
 })
 
 export function assignClauseIds(clauses: z.infer<typeof ClauseSchema>[]): TaskClause[] {
-  return clauses.map((c, i) => ({
-    id: String(c.id || `c${i + 1}`).trim(),
-    text: String(c.text).trim(),
-    layer: c.layer,
-    agents: c.agents ?? []
-  }))
+  return clauses.map((c, i) => {
+    const taskForm = coerceTaskForm(c.taskForm)
+    return {
+      id: String(c.id || `c${i + 1}`).trim(),
+      text: String(c.text).trim(),
+      layer: c.layer,
+      agents: c.agents ?? [],
+      ...(taskForm ? { taskForm } : {})
+    }
+  })
 }
 
 const CodeModeSchema = z.enum(['auto', 'compute', 'inspect', 'edit', 'script'])
+
+const TimeRangeSchema = z
+  .object({
+    start: z.string().max(40).optional(),
+    end: z.string().max(40).optional(),
+    label: z.string().max(80).optional()
+  })
+  .optional()
 
 const BlueprintStepSchema = z.object({
   agent: z.enum(EXEC_AGENTS),
@@ -82,7 +102,8 @@ const BlueprintStepSchema = z.object({
   clauseIds: z.array(z.string()).max(4).optional(),
   dependsOnAgents: z.array(z.enum(EXEC_AGENTS)).max(6).optional(),
   parallelGroup: z.string().max(24).optional(),
-  codeMode: CodeModeSchema.optional()
+  codeMode: CodeModeSchema.optional(),
+  taskForm: TaskFormFieldSchema
 })
 
 export const TaskOrchestratorSchema = z.object({
@@ -91,8 +112,12 @@ export const TaskOrchestratorSchema = z.object({
   coalescedTask: z.string().max(900).optional(),
   clauses: z.array(ClauseSchema).min(1).max(8),
   timeHints: z.array(z.string()).max(8).default([]),
+  /** ISO 区间优先；与 timeHints 并存，子 Agent 落地 */
+  timeRange: TimeRangeSchema,
   subjectHints: z.array(z.string()).max(4).default([]),
   fieldHints: z.array(z.string()).max(6).default([]),
+  /** 顶层任务形态（可选；子句/步级优先）；≠ taskIntent */
+  taskForm: TaskFormFieldSchema,
   wantsVisualize: z.boolean().default(false),
   wantsReport: z.boolean().default(false),
   dataSources: z.array(z.enum(['rag', 'db', 'crawler'])).max(3).default([]),
@@ -100,6 +125,17 @@ export const TaskOrchestratorSchema = z.object({
   taskIntent: z
     .enum(['structured_query', 'document_retrieval', 'hybrid', 'action', 'chitchat', 'unknown'])
     .default('unknown'),
+  /**
+   * 意图清晰度（语义推断，非字面「查数据库」）：
+   * clear=锁定 committedPlanes；ambiguous=须 clarify；none=可按 taskIntent+catalog 推断。
+   */
+  sourceCommitment: z.enum(SOURCE_COMMITMENT_KINDS).default('none'),
+  /** clear 时必填：语义锁定的能力面（可隐晦） */
+  committedPlanes: z.array(z.enum(EXEC_AGENTS)).max(8).default([]),
+  /** 公网抓取形态；≠none 表示清晰要网页/联网（含「联网搜天气」） */
+  webFetchKind: z.enum(WEB_FETCH_KINDS).default('none'),
+  /** Admin 结构化能力提示（能力卡语义，非用户原话 regex） */
+  adminCapabilityHints: z.array(z.enum(ADMIN_CAPABILITY_HINTS)).max(4).default([]),
   primaryIntent: z.enum(ROUTE_INTENTS).default('multi'),
   isMulti: z.boolean().default(true),
   suggestedAgents: z.array(z.enum(EXEC_AGENTS)).max(8).default([]),
@@ -138,6 +174,20 @@ export const TaskOrchestratorSchema = z.object({
 })
 
 export type TaskOrchestratorRaw = z.infer<typeof TaskOrchestratorSchema>
+
+/** 从 raw 提取可观察槽位（写入 meta；不改 cap） */
+export function extractOrchestratorSlotHints(raw: TaskOrchestratorRaw | Record<string, unknown> | null | undefined): {
+  taskForm?: string
+  timeRange?: { start?: string; end?: string; label?: string }
+} {
+  if (!raw || typeof raw !== 'object') return {}
+  const taskForm = coerceTaskForm((raw as { taskForm?: unknown }).taskForm)
+  const timeRange = coerceTimeRangeHint((raw as { timeRange?: unknown }).timeRange)
+  return {
+    ...(taskForm ? { taskForm } : {}),
+    ...(timeRange ? { timeRange } : {})
+  }
+}
 
 export type TaskOrchestratorBundle = {
   raw: TaskOrchestratorRaw

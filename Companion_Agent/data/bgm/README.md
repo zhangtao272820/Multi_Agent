@@ -4,8 +4,9 @@
 
 支持 `.ogg` / `.mp3` / `.wav`。缺失时游戏静默跳过，不报错。前端按 `crossfade_ms` 交叉淡入淡出。
 
-## 已收录（CC0 · 人类作曲 · 非 AI · 一槽一曲）
+## 已收录
 
-来源：[OpenGameArt.org](https://opengameart.org/)（TAD lofi、Geomancer、Cynic Project、Ted Kerr、migfus20、Alex McCulloch 等）。详见 [`ATTRIBUTION.md`](./ATTRIBUTION.md)。
+- **CC0（OpenGameArt）**：Hub / 地点 / 对话 / 结局等槽位；详见 [`ATTRIBUTION.md`](./ATTRIBUTION.md)。
+- **本地覆盖（不可再发行）**：`title_theme`←芒种、`date_soft`←相许、`date_night`←stay with me；CC0 备份在 `_backup_cc0/`。
 
 建议：循环友好的 60–120s 片段；响度大致统一（-14 LUFS 左右）。

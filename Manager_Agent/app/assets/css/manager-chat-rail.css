@@ -612,8 +612,8 @@
   margin-left: auto !important;
   flex: 0 0 auto;
   font-size: 11px !important;
-  color: var(--chat-text-muted, #94a3b8) !important;
-  opacity: 0.88;
+  color: var(--chat-text-muted, #2a4560) !important;
+  opacity: 1;
   white-space: nowrap;
 }
 
@@ -621,8 +621,8 @@
   order: 4;
   flex: 1 1 100%;
   font-size: 11px;
-  font-weight: 600;
-  color: rgba(167, 139, 250, 0.9);
+  font-weight: 650;
+  color: #0a1a28;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 

@@ -22,6 +22,10 @@ const {
   connected,
   clearingExperience,
   onClearExperience,
+  clearingMemory,
+  onClearMemory,
+  clearingEvolution,
+  onClearEvolution,
   evolutionLoading,
   loadEvolutionDashboard,
   evolutionSummary,
@@ -208,6 +212,12 @@ watch(localLearningChartEl, (el) => {
             <section class="spring-side-section spring-side-actions">
               <button type="button" class="spring-btn alt spring-btn-sm" :disabled="!connected || clearingExperience" @click="onClearExperience">
                 {{ clearingExperience ? '清除中…' : '清除经验' }}
+              </button>
+              <button type="button" class="spring-btn alt spring-btn-sm" :disabled="clearingMemory" @click="onClearMemory">
+                {{ clearingMemory ? '清除中…' : '清除会话摘要' }}
+              </button>
+              <button type="button" class="spring-btn alt spring-btn-sm" :disabled="clearingEvolution" @click="onClearEvolution">
+                {{ clearingEvolution ? '清除中…' : '重置自我进化' }}
               </button>
               <button type="button" class="spring-btn alt spring-btn-sm" :disabled="evolutionLoading" @click="loadEvolutionDashboard">
                 {{ evolutionLoading ? '…' : '刷新进化看板' }}

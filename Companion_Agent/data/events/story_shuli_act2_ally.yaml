@@ -3,48 +3,131 @@ label: 站在同一边
 priority: 6
 once: true
 chance: 1.0
-scene_id: ""
+scene_id: ''
 trigger:
-  character_ids: [shuli]
+  character_ids:
+  - shuli
   stage_min: close_friend
   affinity_min: 70
-  flags_absent: [bond_ally_done]
-  flags_present: [sibling_talk_done]
-prompt_snippet: |
-  【专属故事 · 日程本里的禁忌 · 第2幕 · 站在同一边】
+  flags_absent:
+  - bond_ally_done
+  flags_present:
+  - sibling_talk_done
+prompt_snippet: '【专属故事 · 日程本里的禁忌 · 第2幕 · 站在同一边】
+
+  '
 advance: on_player_turn
 beats:
-  - id: b1
-    narration: "她把家务与你的「外面安排」并排钉在日程上：撞车时她不愿再背锅。笔尖顿了顿，像在吃谁的醋，却只写「家务优先」。"
-    pc_thought: "同盟从分责开始——她帮我，却不准我把她写成军师告白。"
-    brief: "摊开日程谈撞车；不愿再背锅。吃醋却用家务话掩饰。"
-    summary: "摊开日程谈撞车；不愿再背锅。吃醋却用家务话掩饰。"
-    sprite_hint: [home_sibling, work]
-    soft_options: ["承认安排混乱", "一起改日程", "问她需要什么保证"]
-  - id: b2
-    narration: "门外有人来找你，她先一步应门，笑称「哥哥在忙」。关上门后声音压低：可以帮你挡，别把亲妹妹工具化。"
-    pc_thought: "挡外人时她像恋人，转头又把自己按回妹妹位。感激里发冷。"
-    brief: "她替你挡外人后立刻划线：可帮说话，禁止工具化妹妹。"
-    summary: "她替你挡外人后立刻划线：可帮说话，禁止工具化妹妹。"
-    sprite_hint: [kitchen_helper, home]
-    soft_options: ["承诺不工具化", "说明具体麻烦", "先听她的条件"]
-  - id: b3
-    narration: "本子中央落下「同盟」二字。她说：家人站队，不等于给你写恋爱剧本；真结局不靠她点头，靠她不拆台。"
-    pc_thought: "不拆台——像誓言，又像威胁。我该松口气，还是该怕她太懂？"
-    brief: "写下同盟：站队≠写恋爱剧本。看你会不会接受她的定义。"
-    summary: "写下同盟：站队≠写恋爱剧本。看你会不会接受她的定义。"
-    sprite_hint: [home_sibling, casual]
-    soft_options: ["接受同盟定义", "拥抱道谢（兄妹）", "约下周家庭会议"]
-  - id: b4
-    narration: "本子合上。她抬眼提枫音也在同屋檐下——别让两个妹妹一起跟着乱。走廊尽头门缝里，游戏音效忽然静了一拍。"
-    pc_thought: "枫音有没有听见？我享受被护着，又怕秘密从薄墙渗过去。"
-    brief: "提醒枫音同住；要你稳住这个家。语气像军师，眼神却在察你反应。"
-    summary: "提醒枫音同住；要你稳住这个家。语气像军师，眼神却在察你反应。"
-    sprite_hint: [casual, home]
-    soft_options: ["答应稳住", "分担家务清单", "说「靠你了，妹妹」"]
+- id: b1
+  narration: 她把家务和你「外面的安排」并排写在日程上：再撞车，她不愿一个人背锅。笔尖顿了顿，像在吃谁的醋，却只写「家务优先」。日程本角被她捏得有点翘。她没再多说，只是看着你。
+  pc_thought: 同盟先从分活开始。她肯帮我，但不许我把她写成恋爱军师。我想靠近，又怕说错一句。
+  brief: 她要分清家务与外面的安排；吃醋却只写家务优先。
+  summary: 她要分清家务与外面的安排；吃醋却只写家务优先。
+  sprite_hint:
+  - home_sibling
+  - work
+  - kitchen_helper
+  - casual
+  soft_options:
+  - 承认安排混乱
+  - 一起改日程
+  - 问她需要什么保证
+  pages:
+  - text: 她把家务和你「外面的安排」并排写在日程上：再撞车，她不愿一个人背锅。笔尖顿了顿，像在吃谁的醋，却只写「家务优先」。日程本角被她捏得有点翘。她没再多说，只是看着你。
+    voice: narration
+    sprite:
+      outfit: home_sibling
+      emotion: neutral
+  - text: 同盟先从分活开始。她肯帮我，但不许我把她写成恋爱军师。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: home_sibling
+      emotion: shy
+- id: b2
+  narration: 门外有人来找你，她先去开门，笑着说「哥哥在忙」。关上门后声音压低：可以帮你挡，别把亲妹妹当工具。日程本角被她捏得有点翘。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 挡外人时她像恋人，转头又把自己按回妹妹位。我感激，也发冷
+  brief: 她替你挡门，又强调别工具化妹妹。等你表态。
+  summary: 她替你挡门，又强调别工具化妹妹。等你表态。
+  sprite_hint:
+  - home_sibling
+  - work
+  - kitchen_helper
+  - casual
+  - home
+  soft_options:
+  - 承诺不工具化
+  - 说明具体麻烦
+  - 先听她的条件
+  pages:
+  - text: 门外有人来找你，她先去开门，笑着说「哥哥在忙」。关上门后声音压低：可以帮你挡，别把亲妹妹当工具。日程本角被她捏得有点翘。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: home_sibling
+      emotion: neutral
+  - text: 挡外人时她像恋人，转头又把自己按回妹妹位。我感激，也发冷
+    voice: pc
+    sprite:
+      outfit: home_sibling
+      emotion: shy
+- id: b3
+  narration: 本子中央落下「同盟」两个字。她说：家人站队，不等于给你写恋爱剧本；真结局不靠她点头，靠她不拆台。日程本角被她捏得有点翘。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 不拆台——像誓言，又像警告。我该松口气，还是该怕她太懂？
+  brief: 她写下同盟：可站队，不写恋爱剧本。等你是否接受。
+  summary: 她写下同盟：可站队，不写恋爱剧本。等你是否接受。
+  sprite_hint:
+  - home_sibling
+  - work
+  - kitchen_helper
+  - casual
+  soft_options:
+  - 接受同盟定义
+  - 拥抱道谢（兄妹）
+  - 约下周家庭会议
+  pages:
+  - text: 本子中央落下「同盟」两个字。她说：家人站队，不等于给你写恋爱剧本；真结局不靠她点头，靠她不拆台。日程本角被她捏得有点翘。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: home_sibling
+      emotion: neutral
+  - text: 不拆台——像誓言，又像警告。我该松口气，还是该怕她太懂？
+    voice: pc
+    sprite:
+      outfit: home_sibling
+      emotion: shy
+- id: b4
+  narration: 本子合上。她抬眼提起枫音也住同一屋檐下——别让两个妹妹一起跟着乱。走廊尽头门缝里，游戏声忽然静了一拍。日程本角被她捏得有点翘。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 枫音听见没有？家这层壳，比我想的薄。我想靠近，又怕说错一句。
+  brief: 她提醒枫音同住；走廊有动静。你要收声还是装作没事。
+  summary: 她提醒枫音同住；走廊有动静。你要收声还是装作没事。
+  sprite_hint:
+  - home_sibling
+  - work
+  - kitchen_helper
+  - casual
+  - home
+  soft_options:
+  - 答应稳住
+  - 分担家务清单
+  - 说「靠你了，妹妹」
+  pages:
+  - text: 本子合上。她抬眼提起枫音也住同一屋檐下——别让两个妹妹一起跟着乱。走廊尽头门缝里，游戏声忽然静了一拍。日程本角被她捏得有点翘。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: home_sibling
+      emotion: neutral
+  - text: 枫音听见没有？家这层壳，比我想的薄。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: home_sibling
+      emotion: shy
 rewards:
-  flags_set: [bond_ally_done, sibling_ally]
+  flags_set:
+  - bond_ally_done
+  - sibling_ally
 choice_effects:
-  - { trust_delta: 3, affinity_delta: 3 }
-  - { trust_delta: 2, affinity_delta: 2 }
-  - { trust_delta: -2, affinity_delta: -1 }
+- trust_delta: 3
+  affinity_delta: 3
+- trust_delta: 2
+  affinity_delta: 2
+- trust_delta: -2
+  affinity_delta: -1

@@ -25,46 +25,85 @@ beats:
   sprite_hint:
   - season_winter
   - home
-  - home_eating
-  - home_sleeping
-  - intimate_lounge
-  soft_options:
-  - 护着花盆
-  - 问温差
-  - 先关温室门
-  narration: 泥土与花茎汁里，入冬温室仍潮热；她剪掉枯枝，说旧婚书早已埋进土里——重建不是回档。
-  pc_thought: 旧婚书的影子还在。我是新选择，不是替补。
-  brief: 入冬温室仍潮热；她剪掉枯枝，说旧婚书早已埋进土里——重建不是回档。等你回应。
-- id: b2
-  summary: 她把暖手套塞给你：「别用同情的眼神。」花香与土腥气缠在一起。等你回应。
-  sprite_hint:
-  - season_winter
   - casual
   - home_eating
   - home_sleeping
   - intimate_lounge
+  - bath_foam
+  soft_options:
+  - 护着花盆
+  - 问温差
+  - 先关温室门
+  narration: 泥土与花茎汁里，入冬温室仍潮热；她剪掉枯枝，说旧婚书早已埋进土里——重建不是回档。花茎切口还渗着水。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 旧婚书的影子还在。我是新选择，不是替补。我想靠近，又怕说错一句。
+  brief: 入冬温室仍潮热；她剪掉枯枝，说旧婚书早已埋进土里——重建不是回档。等你回应。
+  pages:
+  - text: 泥土与花茎汁里，入冬温室仍潮热；她剪掉枯枝，说旧婚书早已埋进土里——重建不是回档。花茎切口还渗着水。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: season_winter
+      emotion: neutral
+  - text: 旧婚书的影子还在。我是新选择，不是替补。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: season_winter
+      emotion: shy
+- id: b2
+  summary: 她把暖手套塞给你：「别用同情的眼神。」花香与土腥气缠在一起。等你回应。
+  sprite_hint:
+  - season_winter
+  - home
+  - casual
+  - home_eating
+  - home_sleeping
+  - intimate_lounge
+  - bath_foam
   soft_options:
   - 递手套
   - 夸叶子
   - 约再来
-  narration: 泥土与花茎汁里，她把暖手套塞给你：「别用同情的眼神。」花香与土腥气缠在一起。
-  pc_thought: 修剪茎的声音很稳。我想学照顾她，不只是看花。
+  narration: 泥土与花茎汁里，她把暖手套塞给你：「别用同情的眼神。」花香与土腥气缠在一起。花茎切口还渗着水。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。空气有点静，连呼吸都听得见。
+  pc_thought: 修剪茎的声音很稳。我想学照顾她，不只是看花。我想靠近，又怕说错一句。
   brief: 她把暖手套塞给你：「别用同情的眼神。」花香与土腥气缠在一起。等你回应。
+  pages:
+  - text: 泥土与花茎汁里，她把暖手套塞给你：「别用同情的眼神。」花香与土腥气缠在一起。花茎切口还渗着水。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。空气有点静，连呼吸都听得见。
+    voice: narration
+    sprite:
+      outfit: season_winter
+      emotion: neutral
+  - text: 修剪茎的声音很稳。我想学照顾她，不只是看花。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: season_winter
+      emotion: shy
 - id: b3
   summary: 你是并肩修剪，还是退回邻里礼貌；会改写第二次开花的可能。等你回应。
   sprite_hint:
   - season_winter
-  - date
+  - home
+  - casual
   - home_eating
   - home_sleeping
   - intimate_lounge
+  - bath_foam
   soft_options:
   - 说别冻手
   - 帮她记湿度
   - 送她回家
-  narration: 泥土与花茎汁里，你是并肩修剪，还是退回邻里礼貌；会改写第二次开花的可能。
-  pc_thought: 外送袋破了也好。弄脏的是完美人设，不是我们——想起花。
+  narration: 泥土与花茎汁里，你是并肩修剪，还是退回邻里礼貌；会改写第二次开花的可能。花茎切口还渗着水。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。空气有点静，连呼吸都听得见。
+  pc_thought: 外送袋破了也好。弄脏的是完美人设，不是我们——想起花。我想靠近，又怕说错一句。
   brief: 你是并肩修剪，还是退回邻里礼貌；会改写第二次开花的可能。等你回应。
+  pages:
+  - text: 泥土与花茎汁里，你是并肩修剪，还是退回邻里礼貌；会改写第二次开花的可能。花茎切口还渗着水。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。空气有点静，连呼吸都听得见。
+    voice: narration
+    sprite:
+      outfit: season_winter
+      emotion: neutral
+  - text: 外送袋破了也好。弄脏的是完美人设，不是我们——想起花。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: season_winter
+      emotion: shy
 rewards:
   flags_set:
   - al_winter_greenhouse

@@ -26,6 +26,18 @@ export type PlanPreviewStepItem = {
   /** U5：本步人审 vs 自动确认预告 */
   confirmMode?: 'hitl' | 'auto_confirm' | 'none'
   confirmReason?: string
+  /** 任务级形态（观察用） */
+  taskForm?: string
+}
+
+/** 主对话可勾选 Todo（与 steps 同源，便于 UI 展示） */
+export type PlanPreviewTodoItem = {
+  id: string
+  title: string
+  agent: string
+  status: 'pending' | 'done' | 'skipped'
+  order: number
+  enabled: boolean
 }
 
 /** 分层 Approve：auto 跳过预览 · plan 步数达标才预览 · strict 强制预览 */
@@ -151,6 +163,7 @@ export function buildPlanPreviewPayload(
         confirmReason = confirmReason || 'gui_default_hitl'
       }
     }
+    const taskForm = String((s as { taskForm?: string }).taskForm || '').trim().slice(0, 40)
     return {
       id: String(s.id || `step_${i + 1}`),
       agent,
@@ -160,9 +173,18 @@ export function buildPlanPreviewPayload(
       enabled: true,
       optional: Boolean((s as { optional?: boolean }).optional),
       confirmMode,
-      confirmReason
+      confirmReason,
+      ...(taskForm ? { taskForm } : {})
     }
   })
+  const todos: PlanPreviewTodoItem[] = items.map((it) => ({
+    id: it.id,
+    title: `${it.agentLabel}：${it.query.slice(0, 120)}`,
+    agent: it.agent,
+    status: 'pending' as const,
+    order: it.order,
+    enabled: it.enabled
+  }))
   const routePlan = state ? buildRoutePlanCardFromState(state) : null
   const priorConstraints = String(state?.meta?.planConstraints || '').trim()
   const tier = resolvePlanApproveTier({
@@ -179,15 +201,19 @@ export function buildPlanPreviewPayload(
     planHasWriteSideEffects: writeSide,
     intent: state?.intent
   })
+  const suggestedPosture = String(state?.meta?.suggestedPosture || '').trim() || undefined
   return {
     previewId: previewId || '',
     runId: runId || '',
     steps: items,
+    /** 主对话 Todo 条：与 steps 同源，供勾选/确认 UI */
+    todos,
     total: items.length,
     constraints: priorConstraints.slice(0, 500),
     approveTier: tier,
     riskScore: Number.isFinite(risk) ? Math.round(risk * 100) / 100 : 0,
     riskPolicy: riskDecision,
+    ...(suggestedPosture ? { suggestedPosture } : {}),
     hint:
       tier === 'strict' || riskDecision.planGate === 'force_confirm'
         ? `高风险 / 含写操作：${gateCopy('plan')}。请仔细核对每一步。`

@@ -17,6 +17,7 @@ import { parseOrchestratorPayloadForTest } from '../../../server/graph/llm/taskO
 import { buildTurnScopePayload } from '../../../server/utils/route/managerTurnScopePayload'
 import { shouldSuppressPlanLinterClarify } from '../../../server/graph/core/plan/clarifySuppress'
 import { buildOutputFollowupNarrowHistory } from '../../../server/graph/core/output/outputFollowupHistory'
+import { shouldClearClarifyForSingleSourceRag } from '../../../server/graph/orchestrate/orchestratorInvariants'
 
 function assert(cond: unknown, msg: string): void {
   if (!cond) throw new Error(msg)
@@ -47,6 +48,9 @@ const scope = resolveTurnRoutingScope({
 })
 assert(scope.turnKind === 'output_followup', 'output_followup turnKind')
 assert(scope.mode === 'current_only', 'output_followup maps current_only')
+const followupHint = formatTurnScopeRouterHint(scope)
+assert(followupHint.includes('主题锚定'), 'output_followup hint requires topic anchor')
+assert(followupHint.includes('session_anchor'), 'output_followup hint references session_anchor')
 assert(scope.clarifyKind === 'output_disambiguation', 'output disambiguation clarifyKind')
 assert(formatTurnScopeRouterHint(scope).includes('输出追问'), 'hint mentions output followup')
 
@@ -119,6 +123,24 @@ assert(ragHist[0]?.content.includes('环境指标'), 'rag history is prior assis
 assert(
   shouldSuppressPlanLinterClarify({ turnKind: 'output_followup', clarifyKind: 'output_disambiguation', needsClarify: false }),
   'plan linter clarify suppressed for output_followup'
+)
+
+assert(
+  shouldClearClarifyForSingleSourceRag({
+    planShortcut: 'rag_only',
+    taskIntent: 'document_retrieval',
+    allowedAgents: ['rag'],
+    intent: 'rag'
+  }),
+  'single-source rag clears clarify'
+)
+assert(
+  !shouldClearClarifyForSingleSourceRag({
+    planShortcut: 'none',
+    allowedAgents: ['rag', 'db'],
+    intent: 'multi'
+  }),
+  'multi-plane does not clear clarify'
 )
 
 console.log('smoke-context-clarify: OK')

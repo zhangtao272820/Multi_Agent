@@ -19,7 +19,11 @@ type BindingStatus = {
   human_message?: string;
 };
 
-export function MailboxBindingPanel(props: { compact?: boolean }) {
+export function MailboxBindingPanel(props: {
+  compact?: boolean;
+  /** 绑定成功后回调（例如刷新收件箱） */
+  onBound?: () => void;
+}) {
   const user = getStoredUser();
   const userId = user?.userId || '';
   const [providers, setProviders] = useState<Provider[]>([]);
@@ -86,6 +90,7 @@ export function MailboxBindingPanel(props: { compact?: boolean }) {
         if (!testOnly) {
           setAuthCode('');
           await load();
+          props.onBound?.();
         }
       }
     } catch {
@@ -116,15 +121,23 @@ export function MailboxBindingPanel(props: { compact?: boolean }) {
   };
 
   return (
-    <div className={`app-content-shell rounded-2xl border border-white/12 bg-white/[0.03] p-4 ${props.compact ? '' : 'md:p-6'}`}>
+    <div
+      className={`rounded-2xl border border-amber-400/35 bg-black/55 p-4 shadow-lg backdrop-blur-md ${
+        props.compact ? '' : 'md:p-6'
+      }`}
+    >
       <div className="mb-3 flex items-start justify-between gap-3">
         <div>
-          <h3 className="text-base font-semibold text-white/90">连接邮箱</h3>
-          <p className="mt-1 text-sm text-white/50">
-            绑定 QQ / 163 / 126 / 腾讯企业邮（IMAP+SMTP 授权码）。发信仍需确认。
+          <h3 className="text-base font-semibold text-amber-100">连接邮箱</h3>
+          <p className="mt-1 text-sm text-white/65">
+            填写国内邮箱账号与授权码（不是登录密码），测通后即可读信/起草/确认发送。
           </p>
         </div>
-        <span className={`rounded-full px-2.5 py-1 text-xs ${status?.bound ? 'bg-emerald-500/20 text-emerald-200' : 'bg-white/10 text-white/55'}`}>
+        <span
+          className={`shrink-0 rounded-full px-2.5 py-1 text-xs ${
+            status?.bound ? 'bg-emerald-500/25 text-emerald-100' : 'bg-amber-500/25 text-amber-100'
+          }`}
+        >
           {status?.bound ? `已绑定 ${status.email_address || ''}` : '未绑定'}
         </span>
       </div>

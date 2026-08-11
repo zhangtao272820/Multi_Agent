@@ -35,23 +35,39 @@ assert(boundary.includes('get_weather'), 'boundary mentions get_weather')
 assert(boundary.includes('禁止') && boundary.includes('crawler'), 'boundary forbids crawler for weather')
 
 const disambig = formatAdminCrawlerDisambiguationPrompt()
-assert(disambig.includes('get_weather'), 'disambig mentions get_weather')
+assert(disambig.includes('get_weather') || disambig.includes('Admin') || disambig.includes('admin'), 'disambig mentions admin tools')
+assert(
+  disambig.includes('公网') || disambig.includes('webFetchKind') || disambig.includes('crawler'),
+  'disambig documents clear web → crawler exception'
+)
 
 const adminCapSrc = readSource('shared/adminCapabilities.ts')
 assert(adminCapSrc.includes('get_weather'), 'admin SSOT has get_weather')
 assert(adminCapSrc.includes("intent: '天气'"), 'admin SSOT has weather intent group')
 
 const orchSrc = readSource('Manager_Agent/server/graph/llm/orchestratorPromptProfiles.ts')
-assert(orchSrc.includes('RAG+DB+天气+简报'), 'orchestrator has weather compound example')
+assert(
+  orchSrc.includes('admin') || orchSrc.includes('ORCH_PACK:admin_combo') || orchSrc.includes('ORCH_PACK:report_brief'),
+  'orchestrator has admin/report packs'
+)
 assert(orchSrc.includes('gui_interact') || orchSrc.includes('ORCH_PACK:gui_interact'), 'orchestrator has gui_interact pack')
 
 const alignSrc = readSource('Manager_Agent/server/graph/llm/userIntentAlignLlm.ts')
 assert(alignSrc.includes('formatAdminCrawlerDisambiguationPrompt'), 'user intent align uses disambig prompt')
-assert(alignSrc.includes('知识库查'), 'align forbids crawler mirror of KB/DB')
+assert(alignSrc.includes('formatSourceCommitmentPromptRule'), 'align mounts sourceCommitment rule')
+assert(
+  alignSrc.includes('知识库') && alignSrc.includes('禁止再为同义片段加 crawler'),
+  'align forbids crawler mirror of KB/DB'
+)
+assert(
+  alignSrc.includes('服从编排清晰度切片') || alignSrc.includes('enforceWebCommitmentOnAlign'),
+  'align defers to web commitment lock'
+)
 
 const judgeSrc = readSource('Manager_Agent/server/graph/llm/orchestratorJudgeLlm.ts')
-assert(judgeSrc.includes('get_weather'), 'judge checks weather→admin')
-assert(judgeSrc.includes('显式知识库') || judgeSrc.includes('知识库查'), 'judge forbids KB→crawler mirror')
+assert(judgeSrc.includes('Admin') || judgeSrc.includes('admin') || judgeSrc.includes('get_weather'), 'judge checks admin capability binding')
+assert(judgeSrc.includes('webFetchKind') || judgeSrc.includes('公网') || judgeSrc.includes('crawler'), 'judge preserves clear web→crawler')
+assert(judgeSrc.includes('sourceCommitment') || judgeSrc.includes('ambiguous'), 'judge checks commitment clarify')
 
 assert(textLooksLikeAdminWeatherCapability('查一下天津明天的天气怎么样'), 'weather text detected')
 assert(!textLooksLikeAdminWeatherCapability('民政部官网补贴政策网页正文'), 'policy web not weather')

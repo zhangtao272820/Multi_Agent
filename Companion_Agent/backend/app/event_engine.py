@@ -41,10 +41,20 @@ class ChoiceEffect(BaseModel):
     flags: dict[str, bool] = Field(default_factory=dict)
 
 
+class StoryBeatPage(BaseModel):
+    """拍前 VN 翻页（玩家叙事层；0 Token 给女主）。"""
+
+    text: str = ""
+    voice: str = "narration"  # narration | pc | heroine
+    sprite: dict[str, str] = Field(default_factory=dict)
+    bg: str = ""
+
+
 class StoryBeat(BaseModel):
     """专属故事幕单拍。
 
-    - narration / pc_thought：玩家 UI 叙事层（0 Token 给女主）
+    - pages：拍前 VN 翻页（优先）
+    - narration / pc_thought：玩家 UI 叙事层；无 pages 时合成 1–2 页
     - brief：进女主 prompt（≤80）；空则回退 summary
     - summary：兼容旧幕；新稿与 brief 对齐
     """
@@ -54,6 +64,7 @@ class StoryBeat(BaseModel):
     narration: str = ""
     pc_thought: str = ""
     brief: str = ""
+    pages: list[StoryBeatPage] = Field(default_factory=list)
     sprite_hint: list[str] = Field(default_factory=list)
     soft_options: list[str] = Field(default_factory=list)
 

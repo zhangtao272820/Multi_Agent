@@ -3,41 +3,110 @@ label: 闸门另一侧
 priority: 8
 once: true
 chance: 1.0
-scene_id: ""
+scene_id: ''
 trigger:
-  character_ids: [aichen]
+  character_ids:
+  - aichen
   stage_min: close_friend
   affinity_min: 80
-  flags_absent: [aichen_clear]
-  flags_present: [friend_gate_done, bond_ally_done]
-prompt_snippet: |
-  【专属故事 · 闺蜜的审核 · 第4幕 · 闸门另一侧】
+  flags_absent:
+  - aichen_clear
+  flags_present:
+  - friend_gate_done
+  - bond_ally_done
+prompt_snippet: '【专属故事 · 闺蜜的审核 · 第4幕 · 闸门另一侧】
+
+  '
 advance: on_player_turn
 beats:
-  - id: b1
-    narration: "复联局散后她单独留下：审核表打勾的是你接近艾黎的资格——现在问的是，你有没有把她本人写进答案里。"
-    pc_thought: "开放门：cleared，还是把门摔上？——想起她本人。"
-    brief: "问你有没有把她本人写进答案。等你说有、两边珍惜或怕她牺牲自己。"
-    summary: "问你有没有把她本人写进答案。等你说有、两边珍惜或怕她牺牲自己。"
-    sprite_hint: [casual, home]
-    soft_options: ["有", "两边都想珍惜", "怕她牺牲自己"]
-  - id: b2
-    narration: "她怕姐姐再碎一次，也怕自己被选中是背叛；闺蜜门与姐姐点头之后，才允许心软泄漏。"
-    pc_thought: "接住心软。给她退出权——别把审核官逼成人质。"
-    brief: "怕背叛姐姐才泄漏心软。等你接住、跟艾黎坦白或给退出权。"
-    summary: "怕背叛姐姐才泄漏心软。等你接住、跟艾黎坦白或给退出权。"
-    sprite_hint: [casual, season_winter, home_eating, work, date]
-    soft_options: ["接住心软", "去跟艾黎坦白", "给她退出权"]
-  - id: b3
-    narration: "审核章盖在自己名字旁。闺蜜把自己交出去——冷脸也曾保护人，此刻眼圈却红了。"
-    pc_thought: "拥抱。约定不瞒艾黎——谢谢她的冷脸也曾保护人。"
-    brief: "自盖审核章；把自己交出。等你拥抱、约定不瞒或谢她的冷脸。"
-    summary: "自盖审核章；把自己交出。等你拥抱、约定不瞒或谢她的冷脸。"
-    sprite_hint: [casual, home]
-    soft_options: ["拥抱", "约定不瞒艾黎", "说谢谢她的冷脸也曾保护人"]
+- id: b1
+  narration: 复联局散后她单独留下：审核表打勾的是你接近艾黎的资格——现在问的是，你有没有把她本人写进答案里。包装纸角还翘着。她没再多说，只是看着你。
+  pc_thought: 开放门：cleared，还是把门摔上？——想起她本人
+  brief: 问你有没有把她本人写进答案。等你说有、两边珍惜或怕她牺牲自己。
+  summary: 问你有没有把她本人写进答案。等你说有、两边珍惜或怕她牺牲自己。
+  sprite_hint:
+  - casual
+  - home
+  - work
+  - season_winter
+  - date
+  - home_eating
+  soft_options:
+  - 有
+  - 两边都想珍惜
+  - 怕她牺牲自己
+  pages:
+  - text: 复联局散后她单独留下：审核表打勾的是你接近艾黎的资格——现在问的是，你有没有把她本人写进答案里。包装纸角还翘着。她没再多说，只是看着你。
+    voice: narration
+    sprite:
+      outfit: casual
+      emotion: neutral
+  - text: 开放门：cleared，还是把门摔上？——想起她本人
+    voice: pc
+    sprite:
+      outfit: casual
+      emotion: shy
+- id: b2
+  narration: 她怕姐姐再碎一次，也怕自己被选中是背叛；闺蜜门与姐姐点头之后，才允许心软泄漏。包装纸角还翘着。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 接住心软。给她退出权——别把审核官逼成人质。我想靠近，又怕说错一句。
+  brief: 怕背叛姐姐才泄漏心软。等你接住、跟艾黎坦白或给退出权。
+  summary: 怕背叛姐姐才泄漏心软。等你接住、跟艾黎坦白或给退出权。
+  sprite_hint:
+  - casual
+  - home
+  - work
+  - season_winter
+  - date
+  - home_eating
+  soft_options:
+  - 接住心软
+  - 去跟艾黎坦白
+  - 给她退出权
+  pages:
+  - text: 她怕姐姐再碎一次，也怕自己被选中是背叛；闺蜜门与姐姐点头之后，才允许心软泄漏。包装纸角还翘着。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: casual
+      emotion: neutral
+  - text: 接住心软。给她退出权——别把审核官逼成人质。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: casual
+      emotion: shy
+- id: b3
+  narration: 审核章盖在自己名字旁。闺蜜把自己交出去——冷脸也曾保护人，此刻眼圈却红了。包装纸角还翘着。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 拥抱。约定不瞒艾黎——谢谢她的冷脸也曾保护人
+  brief: 自盖审核章；把自己交出。等你拥抱、约定不瞒或谢她的冷脸。
+  summary: 自盖审核章；把自己交出。等你拥抱、约定不瞒或谢她的冷脸。
+  sprite_hint:
+  - casual
+  - home
+  - work
+  - season_winter
+  - date
+  - home_eating
+  soft_options:
+  - 拥抱
+  - 约定不瞒艾黎
+  - 说谢谢她的冷脸也曾保护人
+  pages:
+  - text: 审核章盖在自己名字旁。闺蜜把自己交出去——冷脸也曾保护人，此刻眼圈却红了。包装纸角还翘着。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: casual
+      emotion: neutral
+  - text: 拥抱。约定不瞒艾黎——谢谢她的冷脸也曾保护人
+    voice: pc
+    sprite:
+      outfit: casual
+      emotion: shy
 rewards:
-  flags_set: [aichen_clear]
+  flags_set:
+  - aichen_clear
 choice_effects:
-  - { trust_delta: 3, affinity_delta: 4 }
-  - { trust_delta: 2, affinity_delta: 2 }
-  - { trust_delta: 1, affinity_delta: 1 }
+- trust_delta: 3
+  affinity_delta: 4
+- trust_delta: 2
+  affinity_delta: 2
+- trust_delta: 1
+  affinity_delta: 1

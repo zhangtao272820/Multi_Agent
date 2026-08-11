@@ -175,22 +175,6 @@ T0_TWIST = {
 }
 
 T1_TWIST = {
-    "yeyu": {
-        "id": "act4_client_cut",
-        "title": "剪坏的袖笼",
-        "beat": "客户毁约→人台倒塌→她用面料硬度测你→夜灯改版型坦白",
-        "flag": "yy_client_cut",
-        "event": "story_yeyu_act4_client_cut",
-        "sprites": ["mannequin_pin", "fabric_drape", "look_sketch", "home", "season_winter", "casual"],
-        "beats": [
-            ("客户邮件像剪刀：订单砍掉，人台歪倒，她不说话只修袖笼。", ["mannequin_pin", "work", "casual"]),
-            ("她说感情太软会起皱，太硬会伤人；问你今晚是来安慰还是来量尺寸。", ["fabric_drape", "look_sketch", "home"]),
-            ("夜灯下她把软尺递你：留下改一整晚，或明天当普通客户离开。", ["season_winter", "home", "date"]),
-        ],
-        "need_flags": ["yy_hem_done"],
-        "aff": 75,
-        "stage": "friend",
-    },
     "taotao": {
         "id": "act4_encore_pressure",
         "title": "加训后的冰袋",
@@ -283,7 +267,6 @@ LORE_T0 = {
 }
 
 LORE_T1 = {
-    "yeyu": "沈夜羽用人台硬度衡量关系。客户毁约像剪坏的袖笼；夜灯改版型时她最诚实。喜欢你时先改袖长，告白像强制推送——测不通就拒。剪坏的袖笼一幕逼你当安慰者还是量体的并肩者。",
     "taotao": "桃桃镜头前元气、镜头后冰敷。经纪人日程比她清晰。加训压力会撕开商品与易碎品两种误解；你若只追舞台，她笑着送客，若记得喘息间隙，她会把耳机分你。",
     "shizuku": "白霜雫用沉默当礼貌，逾期条小星是密语。闭馆后的层架逼她出声——善本一样慢，却不可退。图书馆不是躲避处，是她学会被听见的地方。",
     "qiansha": "林千纱讨厌脏 diff，前同事圈与艾莉有过交集。生产事故夜她会冷脸回滚，也把感情当 PR：merge 或关闭。没有旁路提交。",
@@ -608,7 +591,6 @@ def main():
         have = outfit_set(cid)
         title = row.get("route_title") or cid
         row["logline"] = {
-            "yeyu": "独立设计师用人台测硬度；毁约之夜剪坏袖笼，问你是安慰还是量体并肩。",
             "taotao": "练习生冰敷膝盖；加训压力撕开商品与易碎，耳机只分给记得喘息的人。",
             "shizuku": "图书馆沉默里的小星；闭馆层架逼她出声，善本一样慢却不可退。",
             "qiansha": "前端讨厌脏 diff；事故夜把感情当 PR，merge 或关闭没有旁路。",

@@ -23,7 +23,15 @@ import type { ReportPlan } from '#agent-shared/reportPlan'
 const EnrichSchema = z.object({
   should_normalize: z.boolean(),
   answer: z.string().optional(),
-  facts: z.array(z.object({ key: z.string(), value: z.union([z.string(), z.number(), z.boolean()]) })).optional(),
+  facts: z
+    .array(
+      z.object({
+        key: z.string(),
+        value: z.union([z.string(), z.number(), z.boolean()]),
+        label: z.string().optional()
+      })
+    )
+    .optional(),
   data: z.record(z.unknown()).optional(),
   confidence: z.number().min(0).max(1).optional()
 })
@@ -185,7 +193,7 @@ export async function enrichCodeOutputByLlm(model: ChatOpenAI | null, codeRaw: s
           '- 已自洽则 should_normalize=false',
           '- 若任务含 flow 型金额三元组（收入/支出/结余或同类 primary/secondary/delta）：写入 data.numeric_triplet 或兼容 data.monthly_finance；delta 须等于 primary−secondary',
           CODE_AUTHORITY_RULE,
-          'schema: {"should_normalize":boolean,"answer":string|omit,"facts":[{"key":string,"value":string|number|boolean}]|omit,"data":object|omit,"confidence":number}'
+          'schema: {"should_normalize":boolean,"answer":string|omit,"facts":[{"key":string,"value":string|number|boolean,"label":string}]|omit,"data":object|omit,"confidence":number}'
         ].join('\n')
       ],
       ['human', txt.slice(0, 6000)]

@@ -61,10 +61,15 @@ assert(multiSys.includes(SYNTH_PACK_MARKERS.multi_source), 'multi has multi_sour
 assert(!multiSys.includes(SYNTH_PACK_MARKERS.admin_ack), 'multi omits admin_ack')
 assert(!multiSys.includes('禁止报告体大章节名'), 'multi omits admin short-report ban')
 assert(multiSys.includes('禁止编造写操作'), 'multi still forbids fabricating admin writes')
+assert(multiSys.includes('禁止口头已发送'), 'multi forbids claiming mail sent without evidence')
 assert(multiSys.includes('关键发现'), 'multi requires 关键发现 structure')
 assert(multiSys.includes('输出合同'), 'multi has user-facing output contract')
 assert(multiSys.includes('像 DeepSeek'), 'multi emphasizes DeepSeek tone')
 assert(multiSys.includes('本轮回复档位：report'), 'multi marks report tier')
+assert(multiSys.includes('消重'), 'multi has dedupe contract')
+assert(multiSys.includes('分题'), 'multi has multi-topic contract')
+assert(multiSys.includes('图表含义 ≤2 句') || multiSys.includes('图表含义'), 'multi caps chart narration')
+assert(multiSys.includes('独立 ###') || multiSys.includes('分 ###'), 'multi requires topic sections')
 assert(!multiSys.includes('800～1200'), 'multi omits hard word-count budget')
 assert(!multiSys.includes('700～1000'), 'multi omits old hard word-count')
 
@@ -86,6 +91,8 @@ assert(!chartSys.includes(SYNTH_PACK_MARKERS.admin_ack), 'chart omits admin_ack'
 assert(!chartSys.includes('禁止报告体大章节名'), 'chart omits admin short-report ban')
 assert(chartSys.includes('关键发现'), 'chart requires 关键发现 structure')
 assert(chartSys.includes('输出合同'), 'chart has user-facing output contract')
+assert(chartSys.includes('消重'), 'chart has dedupe contract')
+assert(chartSys.includes('择一为主') || chartSys.includes('三重复述'), 'chart avoids triple repeat')
 assert(!chartSys.includes('800～1200'), 'chart omits hard word-count budget')
 
 const chatWeb: SynthPromptAssembleInput = {
@@ -106,6 +113,7 @@ assert(chatWebSys.includes('简单事实题'), 'chat_web allows short answers')
 assert(chatWebSys.includes('本轮回复档位：standard'), 'chat_web marks standard tier')
 assert(chatWebSys.includes('像 DeepSeek'), 'standard tier uses DeepSeek structure')
 assert(chatWebSys.includes('输出合同'), 'chat_web has output contract')
+assert(chatWebSys.includes('勿要点与表重复') || chatWebSys.includes('消重'), 'chat_web avoids list+table dup')
 assert(!chatWebSys.includes('结构（必须，report 档）'), 'standard omits report-forced structure')
 
 const stdDb: SynthPromptAssembleInput = {
@@ -123,6 +131,7 @@ const stdDbSys = assembleSynthSystemPrompt(stdDb)
 assert(stdDbSys.includes(SYNTH_PACK_MARKERS.db_interpret), 'std db has db_interpret')
 assert(stdDbSys.includes('像 DeepSeek'), 'std db uses DeepSeek structure')
 assert(stdDbSys.includes('输出合同'), 'std db has output contract')
+assert(stdDbSys.includes('无强制大表'), 'standard omits forced large table')
 assert(!stdDbSys.includes('结构（必须，report 档）'), 'std db omits report structure')
 
 const liteAdmin: SynthPromptAssembleInput = {
@@ -133,6 +142,8 @@ const liteSys = assembleSynthSystemPrompt(liteAdmin)
 assert(liteSys.includes('本轮回复档位：lite'), 'lite marks tier')
 assert(!liteSys.includes('结构（必须，report 档）'), 'lite omits report structure block')
 assert(liteSys.includes('禁止报告体大章节名'), 'lite keeps admin short-report ban')
+assert(liteSys.includes('1～3 句') || liteSys.includes('至多 8 句'), 'lite stays short')
+assert(!liteSys.includes('### 关键发现'), 'lite omits report 关键发现 forced block')
 
 const criticAdmin = assembleCriticSystemPrompt(
   criticPromptInputFromRun({

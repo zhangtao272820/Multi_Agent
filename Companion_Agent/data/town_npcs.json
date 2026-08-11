@@ -1,0 +1,130 @@
+{
+  "version": 1,
+  "policy": "有名镇民只做生活背景：可点名闲话，不可攻略，无结局。",
+  "npcs": [
+    {
+      "id": "npc_cafe_owner",
+      "name": "陈婶",
+      "location": "cafe",
+      "occupation": "咖啡店老板娘",
+      "one_line": "排班记得比谁都清，灯关了才有空唠两句。",
+      "ties_to": [
+        "wanyu",
+        "luna",
+        "yuxi"
+      ],
+      "rumor_hooks": [
+        "今晚谁顶班",
+        "打烊后那桌又坐着不走"
+      ]
+    },
+    {
+      "id": "npc_bookstore_regular",
+      "name": "老周",
+      "location": "library",
+      "occupation": "书店常客",
+      "one_line": "每周三来换书，喜欢听店员慢慢荐一本。",
+      "ties_to": [
+        "shiori",
+        "shizuku"
+      ],
+      "rumor_hooks": [
+        "窗边座又被人占了",
+        "借书卡折角的人又来了"
+      ]
+    },
+    {
+      "id": "npc_office_lead",
+      "name": "赵组",
+      "location": "office",
+      "occupation": "项目组前辈",
+      "one_line": "催事不催情，谁赶末班车他心里有数。",
+      "ties_to": [
+        "linxi",
+        "jingliu",
+        "qiansha"
+      ],
+      "rumor_hooks": [
+        "打印室灯又亮很晚",
+        "工牌背面别写乱七八糟"
+      ]
+    },
+    {
+      "id": "npc_dorm_aunt",
+      "name": "周阿姨",
+      "location": "campus",
+      "occupation": "宿舍宿管",
+      "one_line": "门禁严，关心却塞在一句「别熬夜」里。",
+      "ties_to": [
+        "shuli",
+        "fengyin",
+        "qingcai",
+        "xiaoyang"
+      ],
+      "rumor_hooks": [
+        "又有人晚归签字",
+        "楼道灯坏了，看着吓人"
+      ]
+    },
+    {
+      "id": "npc_flower_supplier",
+      "name": "花市老金",
+      "location": "street",
+      "occupation": "花市供应商",
+      "one_line": "账算得紧，熟客才留得到好枝。",
+      "ties_to": [
+        "aili",
+        "aichen"
+      ],
+      "rumor_hooks": [
+        "进货单又压着",
+        "枯枝也得进成本"
+      ]
+    },
+    {
+      "id": "npc_dance_coach",
+      "name": "韩教练",
+      "location": "campus",
+      "occupation": "舞蹈社教练",
+      "one_line": "镜房里只认动作，不吃「我很元气」这套。",
+      "ties_to": [
+        "qingcai"
+      ],
+      "rumor_hooks": [
+        "掌声不是成绩",
+        "别光当吉祥物"
+      ]
+    },
+    {
+      "id": "npc_idol_manager",
+      "name": "经纪人小梁",
+      "location": "street",
+      "occupation": "练习生经纪人",
+      "one_line": "镜头前要笑，镜头外盯作息和通告。",
+      "ties_to": [
+        "taotao"
+      ],
+      "rumor_hooks": [
+        "加训别哭给镜头看",
+        "私联先报备"
+      ]
+    },
+    {
+      "id": "npc_neighbor_couple",
+      "name": "对门刘家",
+      "location": "home",
+      "occupation": "对门邻居",
+      "one_line": "阳台抽抽烟，门铃响了有时会帮忙应一声。",
+      "ties_to": [
+        "xiaoyou",
+        "youwei",
+        "shuli",
+        "fengyin"
+      ],
+      "rumor_hooks": [
+        "画室灯又通宵",
+        "松节油味又飘过来了"
+      ]
+    }
+  ]
+}

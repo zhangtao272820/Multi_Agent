@@ -3,40 +3,110 @@ label: 门槛与门铃
 priority: 5
 once: true
 chance: 1.0
-scene_id: ""
+scene_id: ''
 trigger:
-  character_ids: [xiaoyou]
+  character_ids:
+  - xiaoyou
   stage_min: friend
   affinity_min: 55
-  flags_absent: [xy_atelier_invited]
-prompt_snippet: |
-  【专属故事 · 画框里的邻人 · 第1幕 · 门槛与门铃】
+  flags_absent:
+  - xy_atelier_invited
+prompt_snippet: '【专属故事 · 画框里的邻人 · 第1幕 · 门槛与门铃】
+
+  '
 advance: on_player_turn
 beats:
-  - id: b1
-    narration: "傍晚阳台风里有松节油。门铃比往常轻了一下，像怕你不应。她手上未干的颜料，在门缝光线里发暗。"
-    pc_thought: "应门的话，邻居的壳就薄了。不应，又怕今晚只剩自己和未干的线稿。"
-    brief: "门铃轻响；手上未干颜料；试探他会不会应门。紧张、想逃、又想被看见——等他隔门问、再按铃或先走。"
-    summary: "门铃轻响；手上未干颜料；试探他会不会应门。紧张、想逃、又想被看见——等他隔门问、再按铃或先走。"
-    sprite_hint: [balcony_sunset, casual, season_winter, home_eating, home_sleeping]
-    soft_options: ["隔门问一句", "按铃再等", "先回自己家"]
-  - id: b2
-    narration: "她借稀释剂，话到嘴边又咽下。礼貌邻居的距离忽然变薄，空气里全是松节油与犹豫。"
-    pc_thought: "门口交接最安全。进门一步，就再也装不成路人。"
-    brief: "借稀释剂又犹豫；距离变薄。等他递过来、进门，或改天再说。"
-    summary: "借稀释剂又犹豫；距离变薄。等他递过来、进门，或改天再说。"
-    sprite_hint: [home, atelier_paint, season_winter, home_eating, home_sleeping]
-    soft_options: ["递过去并进门", "门口交接", "改天再说"]
-  - id: b3
-    narration: "画室暖黄灯下，未干的画靠墙。她背对你的肩线很静——门槛被轻轻推开，却还留着可退的缝。"
-    pc_thought: "夸画容易；留下来才难。我是客人，还是下一笔的模特？"
-    brief: "进画室：未干画、暖灯、背影。门槛开了仍可退。等他夸、静看或懂时退出。"
-    summary: "进画室：未干画、暖灯、背影。门槛开了仍可退。等他夸、静看或懂时退出。"
-    sprite_hint: [atelier_paint, home, season_winter, home_eating, home_sleeping]
-    soft_options: ["夸画", "安静看", "懂时退出"]
+- id: b1
+  narration: 傍晚阳台风里有松节油。门铃比往常轻了一下，像怕你不开门。她手上未干的颜料，在门缝光线里发暗。对门刘家阳台那边有人咳了一下，烟味混进松节油里。门缝里还能闻见一点松节油。
+  pc_thought: 应门的话，邻居的壳就薄了。不应，又怕今晚只剩自己和未干的线稿
+  brief: 门铃轻响；手上未干颜料；试探他会不会应门。紧张、想逃、又想被看见——等他隔门问、再按铃或先走。
+  summary: 门铃轻响；手上未干颜料；试探他会不会应门。紧张、想逃、又想被看见——等他隔门问、再按铃或先走。
+  sprite_hint:
+  - casual
+  - home
+  - atelier_paint
+  - balcony_sunset
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 隔门问一句
+  - 按铃再等
+  - 先回自己家
+  pages:
+  - text: 傍晚阳台风里有松节油。门铃比往常轻了一下，像怕你不开门。她手上未干的颜料，在门缝光线里发暗。对门刘家阳台那边有人咳了一下，烟味混进松节油里。门缝里还能闻见一点松节油。
+    voice: narration
+    sprite:
+      outfit: casual
+      emotion: neutral
+  - text: 应门的话，邻居的壳就薄了。不应，又怕今晚只剩自己和未干的线稿
+    voice: pc
+    sprite:
+      outfit: casual
+      emotion: shy
+- id: b2
+  narration: 她借稀释剂，话到嘴边又咽下。礼貌邻居的距离忽然变薄，空气里全是松节油与犹豫。门缝里还能闻见一点松节油。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 门口交接最安全。进门一步，就再也装不成路人。我想靠近，又怕说错一句。
+  brief: 借稀释剂又犹豫；距离变薄。等他递过来、进门，或改天再说。
+  summary: 借稀释剂又犹豫；距离变薄。等他递过来、进门，或改天再说。
+  sprite_hint:
+  - casual
+  - home
+  - atelier_paint
+  - balcony_sunset
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 递过去并进门
+  - 门口交接
+  - 改天再说
+  pages:
+  - text: 她借稀释剂，话到嘴边又咽下。礼貌邻居的距离忽然变薄，空气里全是松节油与犹豫。门缝里还能闻见一点松节油。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: casual
+      emotion: neutral
+  - text: 门口交接最安全。进门一步，就再也装不成路人。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: casual
+      emotion: shy
+- id: b3
+  narration: 画室暖黄灯下，未干的画靠墙。她背对你的肩线很静——门槛被轻轻推开，却还留着可退的缝。门缝里还能闻见一点松节油。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 夸画容易；留下来才难。我是客人，还是下一笔的模特？我想靠近，又怕说错一句。
+  brief: 进画室：未干画、暖灯、背影。门槛开了仍可退。等他夸、静看或懂时退出。
+  summary: 进画室：未干画、暖灯、背影。门槛开了仍可退。等他夸、静看或懂时退出。
+  sprite_hint:
+  - casual
+  - home
+  - atelier_paint
+  - balcony_sunset
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 夸画
+  - 安静看
+  - 懂时退出
+  pages:
+  - text: 画室暖黄灯下，未干的画靠墙。她背对你的肩线很静——门槛被轻轻推开，却还留着可退的缝。门缝里还能闻见一点松节油。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: casual
+      emotion: neutral
+  - text: 夸画容易；留下来才难。我是客人，还是下一笔的模特？我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: casual
+      emotion: shy
 rewards:
-  flags_set: [xy_atelier_invited]
+  flags_set:
+  - xy_atelier_invited
 choice_effects:
-  - { trust_delta: 3, affinity_delta: 3 }
-  - { trust_delta: 2, affinity_delta: 2 }
-  - { trust_delta: -2, affinity_delta: -1 }
+- trust_delta: 3
+  affinity_delta: 3
+- trust_delta: 2
+  affinity_delta: 2
+- trust_delta: -2
+  affinity_delta: -1

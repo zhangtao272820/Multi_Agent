@@ -99,8 +99,9 @@ export async function recordMemory(
   if (event.agent === 'db' && event.type === 'experience') {
     const p = event.payload
     await agentPgQuery(
-      `INSERT INTO db_query_experience (ts, question_norm, path, data_domain, tables, hint, tenant_id)
-       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+      `INSERT INTO db_query_experience
+        (ts, question_norm, path, data_domain, tables, hint, tenant_id, source, source_plane)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
       [
         String(p.ts || new Date().toISOString()),
         String(p.question_norm || ''),
@@ -108,7 +109,9 @@ export async function recordMemory(
         p.data_domain ?? null,
         p.tables ? JSON.stringify(p.tables) : null,
         String(p.hint || ''),
-        tenantId
+        tenantId,
+        p.source ? String(p.source) : null,
+        String(p.source_plane || p.sourcePlane || 'standalone')
       ],
       env
     )

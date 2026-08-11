@@ -52,13 +52,6 @@
       "tier": "opening"
     },
     {
-      "character_id": "yeyu",
-      "voice": "Jada",
-      "text": "又来了?行,今天打算让我吐槽你哪一点。",
-      "file": "data/tts_pregen/yeyu_7.mp3",
-      "tier": "opening"
-    },
-    {
       "character_id": "aili",
       "voice": "longyue_v3",
       "text": "这束花的花语是「我在」。你呢,今天好吗?",

@@ -51,11 +51,14 @@ const READ_ONLY_ADMIN_TOOLS = new Set([
   'list_events',
   'list_tasks',
   'list_emails',
+  'search_emails',
+  'mark_email_read',
   'list_contacts',
   'search_contact',
   'get_contact_email',
   'list_reminders',
-  'draft_email_reply'
+  'draft_email_reply',
+  'list_email_attachments'
 ])
 
 function orchestratedToolPlanFromMeta(meta: unknown): Array<{ name: string; args: Record<string, unknown> }> | undefined {

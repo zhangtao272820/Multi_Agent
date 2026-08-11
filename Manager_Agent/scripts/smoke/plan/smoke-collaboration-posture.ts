@@ -5,11 +5,13 @@ import {
   assertPostureAllows,
   filterAgentsForPosture,
   hasDebugObservations,
+  hasExplicitCollaborationPosture,
   postureAllowsDebugRerun,
   postureBlocksWriteSideEffects,
   postureForcesReadOnly,
   postureRequiresPlanPreview,
-  resolveCollaborationPosture
+  resolveCollaborationPosture,
+  resolveEffectiveCollaborationPosture
 } from '../../../server/utils/platform/collaborationPosture'
 import { shouldRequirePlanPreview } from '../../../server/graph/core/plan/planPreview'
 import {
@@ -34,6 +36,13 @@ assert(
     clientContext: { collaborationPosture: 'ask' }
   }) === 'debug',
   'meta wins over clientContext'
+)
+
+assert(!hasExplicitCollaborationPosture({ suggestedPosture: 'ask' }), 'suggested not explicit')
+assert(resolveEffectiveCollaborationPosture({ suggestedPosture: 'ask' }) === 'ask', 'effective from suggested')
+assert(
+  resolveEffectiveCollaborationPosture({ collaborationPosture: 'agent', suggestedPosture: 'ask' }) === 'agent',
+  'explicit beats suggested'
 )
 
 assert(postureForcesReadOnly('ask') && postureForcesReadOnly('debug'), 'ask/debug force read_only')

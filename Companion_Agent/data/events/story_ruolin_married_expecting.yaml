@@ -1,0 +1,102 @@
+id: story_ruolin_married_expecting
+label: 红笔之外的请假条
+priority: 7
+once: true
+chance: 1.0
+scene_id: home_afternoon
+trigger:
+  character_ids:
+  - ruolin
+  stage_min: married
+  affinity_min: 80
+  flags_absent:
+  - rl_expecting_home
+prompt_snippet: '【专属故事 · 婚后 · 红笔之外的请假条】
+
+  孕期居家；立绘优先 maternity。
+
+  '
+advance: on_player_turn
+beats:
+- id: b1
+  summary: 讲义推到一边，她把红笔盖上，说今天要批的不是学生作业，是你们共同的身体日程。等你回应。
+  sprite_hint:
+  - maternity
+  - home
+  - casual
+  soft_options:
+  - 接过讲义
+  - 问她晕不晕
+  - 帮她倒温水
+  narration: 粉笔灰散尽，讲义推到一边，她把红笔盖上，说今天要批的不是学生作业，是你们共同的身体日程。红笔帽扣得严严实实。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 讲师的边界之外，是愿意被照顾的妻子。我想靠近，又怕说错一句。
+  brief: 她说今天要批的是身体日程。等你回应。
+  pages:
+  - text: 粉笔灰散尽，讲义推到一边，她把红笔盖上，说今天要批的不是学生作业，是你们共同的身体日程。红笔帽扣得严严实实。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: maternity
+      emotion: neutral
+  - text: 讲师的边界之外，是愿意被照顾的妻子。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: maternity
+      emotion: shy
+- id: b2
+  summary: 她小声说请假条可以写得很正式，但想听你用口语说「我在」。等你回应。
+  sprite_hint:
+  - maternity
+  - home
+  - casual
+  soft_options:
+  - 说我在
+  - 吻她手背
+  - 一起改作息表
+  narration: 她小声说请假条可以写得很正式，但想听你用口语说「我在」。红笔帽扣得严严实实。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。空气有点静，连呼吸都听得见。
+  pc_thought: 红笔停住的地方，生活才开始得分。我想靠近，又怕说错一句。
+  brief: 她想听你说我在。等你回应。
+  pages:
+  - text: 她小声说请假条可以写得很正式，但想听你用口语说「我在」。红笔帽扣得严严实实。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。空气有点静，连呼吸都听得见。
+    voice: narration
+    sprite:
+      outfit: maternity
+      emotion: neutral
+  - text: 红笔停住的地方，生活才开始得分。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: maternity
+      emotion: shy
+- id: b3
+  summary: 她把你的手按在腹前，说这不是结局CG，是明天还要继续的日常。等你回应。
+  sprite_hint:
+  - maternity
+  - home
+  - casual
+  soft_options:
+  - 认真点头
+  - 轻声答应
+  - 亲吻她的发顶
+  narration: 她把你的手按在腹前，说这不是结局CG，是明天还要继续的日常。红笔帽扣得严严实实。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。空气有点静，连呼吸都听得见。
+  pc_thought: 孕装立绘之外，是愿意一起把日子过下去的承诺。我想靠近，又怕说错一句。
+  brief: 她说这是明天还要继续的日常。等你回应。
+  pages:
+  - text: 她把你的手按在腹前，说这不是结局CG，是明天还要继续的日常。红笔帽扣得严严实实。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。空气有点静，连呼吸都听得见。
+    voice: narration
+    sprite:
+      outfit: maternity
+      emotion: neutral
+  - text: 孕装立绘之外，是愿意一起把日子过下去的承诺。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: maternity
+      emotion: shy
+rewards:
+  flags_set:
+  - rl_expecting_home
+choice_effects:
+- trust_delta: 3
+  affinity_delta: 3
+- trust_delta: 2
+  affinity_delta: 2
+- trust_delta: 1
+  affinity_delta: 1

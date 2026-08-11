@@ -180,7 +180,7 @@ def main() -> None:
     else:
         assert o_impl in have_xy and o_impl != "", o_impl
 
-    # lingerie 档：85 ≤ aff < 88（aff≥88 优先 max_*，见 §2.3）
+    # lingerie 档：85 ≤ aff < 88（aff≥88 优先 max_*；§2.9 自拍插在 max 后、lingerie 前）
     o_ling = resolve_outfit(
         day_index=1,
         period="evening",
@@ -190,7 +190,14 @@ def main() -> None:
         affinity=85,
         stage_id="dating",
     )
-    if "intimate_lingerie" in have_xy:
+    have_selfie = any(
+        o.startswith("intimate_selfie_") or o.startswith("pr_intimate_selfie_") for o in have_xy
+    )
+    if have_selfie:
+        assert o_ling.startswith("intimate_selfie_") or o_ling.startswith(
+            "pr_intimate_selfie_"
+        ), o_ling
+    elif "intimate_lingerie" in have_xy:
         assert o_ling == "intimate_lingerie", o_ling
     else:
         assert o_ling in {"intimate_lounge", "home", "casual"} or o_ling in have_xy, o_ling
@@ -354,6 +361,40 @@ def main() -> None:
         assert o_max == "max_micro_slip", o_max
     else:
         assert o_max in have_xy, o_max
+
+    # §2.9：aff≥85 晚间居家可命中自拍；aff≥88 仍优先 max_*（上断言）
+    o_selfie = resolve_outfit(
+        day_index=1,
+        period="evening",
+        location_id="home",
+        character_id=rich,
+        occupation="插画师",
+        affinity=86,
+        stage_id="dating",
+    )
+    if have_selfie:
+        assert o_selfie.startswith("intimate_selfie_") or o_selfie.startswith(
+            "pr_intimate_selfie_"
+        ), o_selfie
+
+    # 标题轮播：有自拍图时 slides 须含 intimate_selfie_* / pr_intimate_selfie_*
+    from pathlib import Path
+    import json as _json
+
+    pres = _json.loads(
+        (Path(__file__).resolve().parents[1] / "data" / "presentation_catalog.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    car_slides = (pres.get("title_carousel") or {}).get("slides") or []
+    car_selfies = [
+        s
+        for s in car_slides
+        if str(s.get("outfit") or "").startswith("intimate_selfie_")
+        or str(s.get("outfit") or "").startswith("pr_intimate_selfie_")
+    ]
+    if have_selfie:
+        assert car_selfies, "title_carousel should include selfie slides when assets exist"
 
     # §2.4 / §2.7 / §2.8：即使磁盘已有，日常 resolve 也不得返回
     from app.sprite_outfit import _ENDING_CG_OUTFITS, _GALLERY_ONLY_OUTFITS, normalize_story_outfit_hints

@@ -5,11 +5,17 @@
  */
 
 /** 与 Lobster_Agent/workflows 磁盘宏对齐的内置清单 */
-export const BUILTIN_GUI_WORKFLOW_IDS = ['httpbin-form-fill'] as const
+export const BUILTIN_GUI_WORKFLOW_IDS = [
+  'httpbin-form-fill',
+  'httpbin-form-submit',
+  'runoob-click-extract',
+] as const
 
 /** 内置宏允许的 task_kind（未列出的 env 扩展宏：无 kind 约束） */
 export const GUI_WORKFLOW_COMPATIBLE_KINDS: Record<string, readonly string[]> = {
   'httpbin-form-fill': ['form_fill'],
+  'httpbin-form-submit': ['form_fill'],
+  'runoob-click-extract': ['navigate', 'extract', 'multi_step'],
 }
 
 export function listKnownGuiWorkflowIds(env: NodeJS.ProcessEnv = process.env): string[] {

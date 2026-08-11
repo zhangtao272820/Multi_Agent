@@ -27,7 +27,8 @@ export type InteractVerb =
   | "note"
   | "date_stroll"
   | "date_chat"
-  | "date_walk_home";
+  | "date_walk_home"
+  | "break_up";
 
 interface Props {
   prep: TalkPrep;
@@ -73,7 +74,13 @@ export function TalkScreen({
   const [qSprite, setQSprite] = useState(
     prep.target.q_sprite?.path ?? prep.q_sprite?.path ?? prep.target.sprite?.path ?? null,
   );
-  const [edge, setEdge] = useState<{ affinity: number; stage: string; track: string }>(prep.edge);
+  const [edge, setEdge] = useState<{
+    affinity: number;
+    stage: string;
+    track: string;
+    relation_display?: string;
+    primary_label?: string;
+  }>(prep.edge);
   const [soft, setSoft] = useState<string[]>(prep.soft_options || []);
   const [lastLine, setLastLine] = useState(prep.opening_line || "");
   const [thought, setThought] = useState(prep.target.mind?.thought || "");
@@ -209,11 +216,18 @@ export function TalkScreen({
             speaking={pending || lineSpeaking}
           />
         </div>
+        <div className="q-mood-strip" aria-label="Q版表情">
+          <FaceChip
+            src={qSprite}
+            name={prep.target.name}
+            className={`q-mood-chip${pending || lineSpeaking ? " is-speaking" : ""}`}
+          />
+        </div>
       </div>
 
       <div className="talk-panel talk-gal-panel">
         <div className="talk-bond-row" aria-label="关系">
-          <span>{STAGE_LABEL[edge.stage] || edge.stage}</span>
+          <span>{edge.relation_display || STAGE_LABEL[edge.stage] || edge.stage}</span>
           <div className="talk-bond-bar" aria-hidden>
             <i style={{ width: `${affinityPct}%` }} />
           </div>
@@ -243,6 +257,16 @@ export function TalkScreen({
               </button>
             );
           })}
+          {!isDate && edge.stage === "dating" && (
+            <button
+              type="button"
+              className="btn small ghost"
+              disabled={busy || pending}
+              onClick={() => void send("我们……还是分开比较好。", "break_up")}
+            >
+              分手
+            </button>
+          )}
           {!isDate && canAskOut && onAskOut && (
             <button type="button" className="btn small" disabled={busy || pending} onClick={onAskOut}>
               约会

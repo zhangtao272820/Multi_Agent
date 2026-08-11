@@ -2,7 +2,7 @@
  * 多 Agent 流水线：下游图表/报告/汇总以 Code 步骤为权威数据源，冲突时 Code 覆盖。
  */
 
-export type StructuredFactLike = { key?: string; value?: unknown; source?: string }
+export type StructuredFactLike = { key?: string; value?: unknown; label?: string; source?: string }
 
 export type ExtractPayloadFn = (raw: string) => {
   facts?: StructuredFactLike[]
@@ -13,7 +13,7 @@ export type ExtractPayloadFn = (raw: string) => {
 export type CodeFirstBundle = {
   hasCode: boolean
   codeAnswer: string
-  mergedFacts: Array<{ key: string; value: unknown; source: string }>
+  mergedFacts: Array<{ key: string; value: unknown; label?: string; source: string }>
   factsMarkdown: string
   authorityBanner: string
   downstreamContext: string
@@ -78,26 +78,36 @@ function factsFromAgent(
   const parsed = extractPayload(txt)
   const fromFacts = Array.isArray(parsed.facts) ? parsed.facts : []
   const fromData = flattenDataObject(parsed.data)
-  return [...fromFacts, ...fromData].map((f) => ({
-    key: String(f.key ?? '').trim(),
-    value: f.value,
-    source: agent
-  }))
+  return [...fromFacts, ...fromData].map((f) => {
+    const label = String(f.label ?? '').trim()
+    return {
+      key: String(f.key ?? '').trim(),
+      value: f.value,
+      ...(label ? { label } : {}),
+      source: agent
+    }
+  })
 }
 
 /** 合并多源 facts：同名键 Code 最后写入，覆盖 RAG/DB/爬虫 */
 export function mergeFactsWithCodePriority(
   results: Record<string, unknown>,
   extractPayload?: ExtractPayloadFn,
-): Array<{ key: string; value: unknown; source: string }> {
-  const map = new Map<string, { key: string; value: unknown; source: string }>()
+): Array<{ key: string; value: unknown; label?: string; source: string }> {
+  const map = new Map<string, { key: string; value: unknown; label?: string; source: string }>()
 
   const ingest = (agent: string, facts: StructuredFactLike[]) => {
     for (const f of facts) {
       const key = String(f.key ?? '').trim()
       if (!key) continue
       const nk = normKey(key)
-      map.set(nk, { key, value: f.value, source: String(f.source || agent) })
+      const label = String(f.label ?? '').trim()
+      map.set(nk, {
+        key,
+        value: f.value,
+        ...(label ? { label } : {}),
+        source: String(f.source || agent)
+      })
     }
   }
 

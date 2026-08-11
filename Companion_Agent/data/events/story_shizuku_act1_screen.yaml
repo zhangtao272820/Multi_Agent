@@ -3,40 +3,110 @@ label: 屏后初见
 priority: 5
 once: true
 chance: 1.0
-scene_id: ""
+scene_id: ''
 trigger:
-  character_ids: [shizuku]
+  character_ids:
+  - shizuku
   stage_min: friend
   affinity_min: 50
-  flags_absent: [sz_first_irl]
-prompt_snippet: |
-  【专属故事 · 书脊后的声线 · 第1幕 · 屏后初见】
+  flags_absent:
+  - sz_first_irl
+prompt_snippet: '【专属故事 · 书脊后的声线 · 第1幕 · 屏后初见】
+
+  '
 advance: on_player_turn
 beats:
-  - id: b1
-    narration: "图书馆屏风后她抱着书，耳机线缠在指间。线上久识的头像忽然有了肩线——她还没抬头。"
-    pc_thought: "书脊后的她很安全。出声一步，线上久识就露馅。"
-    brief: "屏后抱书未抬头；线上人落地。等他轻声叫网名、递书当借口或给反应时间。"
-    summary: "屏后抱书未抬头；线上人落地。等他轻声叫网名、递书当借口或给反应时间。"
-    sprite_hint: [quiet_reading, casual, season_winter, home_eating, home_sleeping]
-    soft_options: ["轻声叫网名", "先递书当借口", "给她反应时间"]
-  - id: b2
-    narration: "梯子微晃。她低声说「别逼我出声」——声线比消息更抖，纸页尘在光柱里浮着。"
-    pc_thought: "闭馆灯一关，声线无处躲。我想听，又怕吓跑她。"
-    brief: "怕被逼出声；梯子不稳。等他扶稳、改短信聊或说不必勉强。"
-    summary: "怕被逼出声；梯子不稳。等他扶稳、改短信聊或说不必勉强。"
-    sprite_hint: [library_ladder, quiet_reading, season_winter, home_eating, home_sleeping]
-    soft_options: ["扶稳梯子", "改用短信聊", "低声说不必勉强"]
-  - id: b3
-    narration: "便签上只写「今天可以不吵吗」。她把笔帽按得很紧，像把声音也按回去。"
-    pc_thought: "码书比告白容易。我别把温柔当成客服话术。"
-    brief: "便签求今天不吵。等他回写不吵、约闭馆前再聊或并排安静看书。"
-    summary: "便签求今天不吵。等他回写不吵、约闭馆前再聊或并排安静看书。"
-    sprite_hint: [study_carrel, casual, season_winter, home_eating, home_sleeping]
-    soft_options: ["回写「不吵」", "约闭馆前再聊", "并排安静看书"]
+- id: b1
+  narration: 图书馆屏风后她抱着书，耳机线缠在指间。线上久识的头像忽然有了肩线——她还没抬头。借书证边角磨得发白。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 书脊后的她很安全。出声一步，线上久识就露馅。我想靠近，又怕说错一句。
+  brief: 屏后抱书未抬头；线上人落地。等他轻声叫网名、递书当借口或给反应时间。
+  summary: 屏后抱书未抬头；线上人落地。等他轻声叫网名、递书当借口或给反应时间。
+  sprite_hint:
+  - quiet_reading
+  - library_ladder
+  - study_carrel
+  - casual
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 轻声叫网名
+  - 先递书当借口
+  - 给她反应时间
+  pages:
+  - text: 图书馆屏风后她抱着书，耳机线缠在指间。线上久识的头像忽然有了肩线——她还没抬头。借书证边角磨得发白。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: quiet_reading
+      emotion: neutral
+  - text: 书脊后的她很安全。出声一步，线上久识就露馅。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: quiet_reading
+      emotion: shy
+- id: b2
+  narration: 梯子微晃。她低声说「别逼我出声」——声线比消息更抖，纸页尘在光柱里浮着。老周还书，冲她轻轻点了下头，没多话。借书证边角磨得发白。她没再多说，只是看着你。
+  pc_thought: 闭馆灯一关，声线无处躲。我想听，又怕吓跑她。我想靠近，又怕说错一句。
+  brief: 怕被逼出声；梯子不稳。等他扶稳、改短信聊或说不必勉强。
+  summary: 怕被逼出声；梯子不稳。等他扶稳、改短信聊或说不必勉强。
+  sprite_hint:
+  - quiet_reading
+  - library_ladder
+  - study_carrel
+  - casual
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 扶稳梯子
+  - 改用短信聊
+  - 低声说不必勉强
+  pages:
+  - text: 梯子微晃。她低声说「别逼我出声」——声线比消息更抖，纸页尘在光柱里浮着。老周还书，冲她轻轻点了下头，没多话。借书证边角磨得发白。她没再多说，只是看着你。
+    voice: narration
+    sprite:
+      outfit: quiet_reading
+      emotion: neutral
+  - text: 闭馆灯一关，声线无处躲。我想听，又怕吓跑她。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: quiet_reading
+      emotion: shy
+- id: b3
+  narration: 便签上只写「今天可以不吵吗」。她把笔帽按得很紧，像把声音也按回去。借书证边角磨得发白。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 码书比告白容易。我别把温柔当成客服话术。我想靠近，又怕说错一句。
+  brief: 便签求今天不吵。等他回写不吵、约闭馆前再聊或并排安静看书。
+  summary: 便签求今天不吵。等他回写不吵、约闭馆前再聊或并排安静看书。
+  sprite_hint:
+  - quiet_reading
+  - library_ladder
+  - study_carrel
+  - casual
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 回写「不吵」
+  - 约闭馆前再聊
+  - 并排安静看书
+  pages:
+  - text: 便签上只写「今天可以不吵吗」。她把笔帽按得很紧，像把声音也按回去。借书证边角磨得发白。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: quiet_reading
+      emotion: neutral
+  - text: 码书比告白容易。我别把温柔当成客服话术。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: quiet_reading
+      emotion: shy
 rewards:
-  flags_set: [sz_first_irl]
+  flags_set:
+  - sz_first_irl
 choice_effects:
-  - { trust_delta: 3, affinity_delta: 3 }
-  - { trust_delta: 2, affinity_delta: 2 }
-  - { trust_delta: -2, affinity_delta: -1 }
+- trust_delta: 3
+  affinity_delta: 3
+- trust_delta: 2
+  affinity_delta: 2
+- trust_delta: -2
+  affinity_delta: -1

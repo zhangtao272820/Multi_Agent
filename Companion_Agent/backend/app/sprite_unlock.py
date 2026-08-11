@@ -46,6 +46,31 @@ _MAX_OUTFITS = frozenset(
         "max_ribbon_cover",
     }
 )
+# §2.9 私密吊带自拍：门槛与 lingerie 档同源（dating + aff≥85）；linked 故意展示同 max
+_SELFIE_OUTFITS = frozenset(
+    {
+        "intimate_selfie_slip",
+        "intimate_selfie_micro",
+        "intimate_selfie_strappy",
+        "intimate_selfie_shirt",
+        "intimate_selfie_backless",
+        "intimate_selfie_sofa",
+        "intimate_selfie_kneel",
+        "intimate_selfie_garter",
+        "intimate_selfie_wet",
+        "intimate_selfie_ribbon",
+        "pr_intimate_selfie_slip",
+        "pr_intimate_selfie_micro",
+        "pr_intimate_selfie_strappy",
+        "pr_intimate_selfie_shirt",
+        "pr_intimate_selfie_backless",
+        "pr_intimate_selfie_sofa",
+        "pr_intimate_selfie_kneel",
+        "pr_intimate_selfie_garter",
+        "pr_intimate_selfie_wet",
+        "pr_intimate_selfie_ribbon",
+    }
+)
 _BATH_OUTFITS = frozenset(
     {
         "bath_foam",
@@ -107,7 +132,14 @@ def outfit_tier(outfit_id: str) -> str:
         return "base"
     if base in _SEASON_OUTFITS or oid.startswith("season_"):
         return "season"
-    if base in _INTIMATE_CORE or base in _MAX_OUTFITS or base in _BATH_OUTFITS:
+    if (
+        base in _INTIMATE_CORE
+        or base in _MAX_OUTFITS
+        or base in _BATH_OUTFITS
+        or base in _SELFIE_OUTFITS
+        or base.startswith("intimate_selfie_")
+        or base.startswith("pr_intimate_selfie_")
+    ):
         return "intimate"
     if base in _ADVANCE_OUTFITS:
         return "advance"
@@ -173,7 +205,7 @@ def outfit_unlocked(
         if tier == "intimate":
             if root in _INTIMATE_CORE or root in _ADVANCE_OUTFITS:
                 return False
-            if root in _MAX_OUTFITS or root in _BATH_OUTFITS:
+            if root in _MAX_OUTFITS or root in _BATH_OUTFITS or root in _SELFIE_OUTFITS:
                 return aff >= INTIMATE_MAX_AFFINITY_MIN and rank >= stage_rank("close_friend")
             return False
         if tier == "advance":
@@ -192,6 +224,8 @@ def outfit_unlocked(
     if tier == "intimate":
         if root in _MAX_OUTFITS or root in _BATH_OUTFITS:
             return aff >= INTIMATE_MAX_AFFINITY_MIN and rank >= stage_rank("dating")
+        if root in _SELFIE_OUTFITS:
+            return aff >= INTIMATE_LINGERIE_AFFINITY_MIN and rank >= stage_rank("dating")
         if root == "intimate_implied":
             return aff >= INTIMATE_IMPLIED_AFFINITY_MIN and st == "married"
         if root in {"intimate_lingerie", "silk_slip", "lace_night", "towel_wrap", "backless_home", "bedside_hug", "window_night"}:

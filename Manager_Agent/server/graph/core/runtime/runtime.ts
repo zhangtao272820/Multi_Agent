@@ -144,10 +144,13 @@ export function createManagerRuntime(deps: CreateManagerRuntimeDeps) {
           data: `${prefix} 使用 ${effectiveModel}${tierTag}`,
           from: 'manager'
         })
+        const label = invokeOptions?.thinkingLabel?.trim()
         const narrative =
           stage === 'plan'
-            ? invokeOptions?.thinkingLabel?.trim() || '正在制定执行计划…'
-            : '正在理解你的问题并选择能力…'
+            ? label || '正在制定执行计划…'
+            : label
+              ? `${label}：对照库存与任务形态选择能力组合…`
+              : '正在理解你的问题并选择能力…'
         opts.sendEvent({
           event: 'thought_delta',
           data: { text: narrative, done: false },

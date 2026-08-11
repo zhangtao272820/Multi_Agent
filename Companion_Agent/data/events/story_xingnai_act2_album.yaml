@@ -13,58 +13,111 @@ trigger:
   - xn_album
   flags_present:
   - xn_bento
-prompt_snippet: |
-  【专属故事 · 青梅的缺口 · 第2幕 · 相册】
+prompt_snippet: '【专属故事 · 青梅的缺口 · 第2幕 · 相册】
+
+  '
 advance: on_player_turn
 beats:
 - id: b1
-  summary: "相册缺一角合影；她指着空白：那次你缺席，她等了一下午——气氛忽然认真起来。等你回应。"
+  summary: 相册缺一角合影；她指着空白：那次你缺席，她等了一下午——气氛忽然认真起来。等你回应。
   sprite_hint:
   - home
+  - date
+  - school
   - casual
   soft_options:
   - 道歉
   - 问能否补拍
   - 听她把那天说完
-  narration: "相册缺一角合影；她指着空白：那次你缺席，她等了一下午——气氛忽然认真起来。"
-  pc_thought: 合影缺口像未说完的夏天。我补不补？
-  brief: "相册缺一角合影；她指着空白：那次你缺席，她等了一下午——气氛忽然认真起来。等你回应。"
+  narration: 相册缺一角合影；她指着空白：那次你缺席，她等了一下午——。便当绳结打得很仔细。她没再多说，只是看着你。
+  pc_thought: 合影缺口像未说完的夏天。我补不补？我想靠近，又怕说错一句。
+  brief: 相册缺一角合影；她指着空白：那次你缺席，她等了一下午——气氛忽然认真起来。等你回应。
+  pages:
+  - text: 相册缺一角合影；她指着空白：那次你缺席，她等了一下午——。便当绳结打得很仔细。她没再多说，只是看着你。
+    voice: narration
+    sprite:
+      outfit: home
+      emotion: neutral
+  - text: 合影缺口像未说完的夏天。我补不补？我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: home
+      emotion: shy
 - id: b2
   summary: 她说喜欢你很久，却总被「青梅」两个字挡在告白外面——气氛忽然认真起来。等你回应。
   sprite_hint:
-  - school
+  - home
   - date
+  - school
+  - casual
   soft_options:
   - 撕掉青梅挡箭牌
   - 坦白也喜欢
   - 问她怕失去什么
-  narration: 相册纸边与青梅味里，她说喜欢你很久，却总被「青梅」两个字挡在告白外面——气氛忽然认真起来。
-  pc_thought: 青梅如故很安全。再近一步就怕弄丢从前。
+  narration: 相册纸边与青梅味里，她说喜欢你很久，却总被「青梅」两个字挡在告白外面——。便当绳结打得很仔细。她没再多说，只是看着你。
+  pc_thought: 青梅如故很安全。再近一步就怕弄丢从前
   brief: 她说喜欢你很久，却总被「青梅」两个字挡在告白外面——气氛忽然认真起来。等你回应。
+  pages:
+  - text: 相册纸边与青梅味里，她说喜欢你很久，却总被「青梅」两个字挡在告白外面——。便当绳结打得很仔细。她没再多说，只是看着你。
+    voice: narration
+    sprite:
+      outfit: home
+      emotion: neutral
+  - text: 青梅如故很安全。再近一步就怕弄丢从前
+    voice: pc
+    sprite:
+      outfit: home
+      emotion: shy
 - id: b3
-  summary: "风停。她举起手机：这次合影，要不要把缺口补上？——气氛忽然认真起来。等你回应。"
+  summary: 风停。她举起手机：这次合影，要不要把缺口补上？——气氛忽然认真起来。等你回应。
   sprite_hint:
+  - home
   - date
+  - school
   - casual
   soft_options:
   - 靠过去拍照
   - 牵手入镜
   - 说「从今天起不算缺席」
-  narration: "相册纸边与青梅味里，风停。她举起手机：这次合影，要不要把缺口补上？——气氛忽然认真起来。"
-  pc_thought: 冬相册冷。空白页等的是人，不是滤镜。
-  brief: "风停。她举起手机：这次合影，要不要把缺口补上？——气氛忽然认真起来。等你回应。"
+  narration: 相册纸边与青梅味里，风停。她举起手机：这次合影，要不要把缺口补上？——。便当绳结打得很仔细。她没再多说，只是看着你。
+  pc_thought: 冬相册冷。空白页等的是人，不是滤镜。我想靠近，又怕说错一句。
+  brief: 风停。她举起手机：这次合影，要不要把缺口补上？——气氛忽然认真起来。等你回应。
+  pages:
+  - text: 相册纸边与青梅味里，风停。她举起手机：这次合影，要不要把缺口补上？——。便当绳结打得很仔细。她没再多说，只是看着你。
+    voice: narration
+    sprite:
+      outfit: home
+      emotion: neutral
+  - text: 冬相册冷。空白页等的是人，不是滤镜。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: home
+      emotion: shy
 - id: b4
-  summary: "照片进相册；她笑：青梅可以留，恋人位置也请你坐下——气氛忽然认真起来。等你回应。"
+  summary: 照片进相册；她笑：青梅可以留，恋人位置也请你坐下——气氛忽然认真起来。等你回应。
   sprite_hint:
-  - date
   - home
+  - date
+  - school
+  - casual
   soft_options:
   - 答应坐下
   - 约下次再拍一张
   - 额头轻碰
-  narration: "照片进相册；她笑：青梅可以留，恋人位置也请你坐下——气氛忽然认真起来。"
-  pc_thought: 新年缺口还在。我想站进去，又怕抢了回忆。
-  brief: "照片进相册；她笑：青梅可以留，恋人位置也请你坐下——气氛忽然认真起来。等你回应。"
+  narration: 照片进相册；她笑：青梅可以留，恋人位置也请你坐下——。便当绳结打得很仔细。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 新年缺口还在。我想站进去，又怕抢了回忆
+  brief: 照片进相册；她笑：青梅可以留，恋人位置也请你坐下——气氛忽然认真起来。等你回应。
+  pages:
+  - text: 照片进相册；她笑：青梅可以留，恋人位置也请你坐下——。便当绳结打得很仔细。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: home
+      emotion: neutral
+  - text: 新年缺口还在。我想站进去，又怕抢了回忆
+    voice: pc
+    sprite:
+      outfit: home
+      emotion: shy
 rewards:
   flags_set:
   - xn_album

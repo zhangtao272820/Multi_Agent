@@ -1,6 +1,7 @@
 /**
  * 能力契约：天气预报属 Admin（get_weather），禁止 crawler 误绑。
  * 只校验/重绑编排产出（clauses / draft / blueprint），不做用户原话意图路由。
+ * 用户清晰要公网/爬取（sourceCommitment/webFetchKind）时不得重绑。
  */
 import { ADMIN_CAPABILITY_GROUPS } from '#agent-shared/adminCapabilities'
 import type { TaskClause } from '../core/routing/clauses'
@@ -8,6 +9,10 @@ import type { StepDispatchDraft } from '../core/proPuStack'
 import type { PlanBlueprint } from '../llm/planBlueprintLlm'
 import type { IntentClassifyResult } from '../llm/intentClassifyLlm'
 import type { ExecutableAgent } from '../core/routing/routeFinalize'
+import {
+  shouldSkipAdminApiCrawlerRematerialize,
+  sourceCommitmentFromRaw
+} from './sourceCommitment'
 
 /** Admin 天气能力域标记（SSOT：adminCapabilities 天气组 routeTerms） */
 export function adminWeatherCapabilityTerms(): readonly string[] {
@@ -93,6 +98,8 @@ export type WeatherCrawlerRematerializeInput = {
   planBlueprint: PlanBlueprint | null
   stepDispatchDraft?: StepDispatchDraft[] | null
   needsWebSearch?: boolean
+  /** 编排 raw：清晰公网意图时跳过重绑 */
+  sourceCommitmentRaw?: Record<string, unknown> | null
 }
 
 export type WeatherCrawlerRematerializeResult = WeatherCrawlerRematerializeInput & {
@@ -102,10 +109,16 @@ export type WeatherCrawlerRematerializeResult = WeatherCrawlerRematerializeInput
 /**
  * 将误绑为 crawler 的天气子句/draft/蓝图重绑为 admin；
  * 若已无真网页 crawler 绑定，则从 cap/dataSources 去掉 crawler 并关闭 needsWeb。
+ * 用户清晰要公网/爬取（sourceCommitment/webFetchKind）时跳过。
  */
 export function rematerializeWeatherCrawlerMisbind(
   input: WeatherCrawlerRematerializeInput
 ): WeatherCrawlerRematerializeResult {
+  const slice = sourceCommitmentFromRaw(input.sourceCommitmentRaw)
+  if (shouldSkipAdminApiCrawlerRematerialize(slice)) {
+    return { ...input, changed: false }
+  }
+
   let changed = false
 
   const clauses: TaskClause[] = input.clauses.map((c) => {
@@ -251,11 +264,15 @@ export function lintWeatherBoundToCrawler(input: {
 /**
  * 计划步级硬闸：任意 crawler 步 query 落在天气能力域 → 改为 admin。
  * 堵住 Planner / web-align 在编排之后重新塞入「采集网页查天气」。
+ * 与编排侧同一谓词：清晰公网锁（webFetchKind≠none / clear+crawler）时 no-op，禁止抢权。
  */
 export function rematerializeWeatherCrawlerPlanSteps<
   T extends { id?: string; agent: string; query: string; dependsOn?: string[]; optional?: boolean }
->(plan: T[]): T[] {
+>(plan: T[], sourceCommitmentRaw?: Record<string, unknown> | null): T[] {
   if (!Array.isArray(plan) || !plan.length) return plan
+  if (shouldSkipAdminApiCrawlerRematerialize(sourceCommitmentFromRaw(sourceCommitmentRaw))) {
+    return plan
+  }
   let changed = false
   const next: T[] = []
   for (const step of plan) {

@@ -24,6 +24,12 @@ def clawhive_public_auth_url() -> str:
     ).strip().rstrip("/")
 
 
+def _urlopen_direct(req: urllib.request.Request, timeout_sec: float):
+    """Container→ClawHive must not use HTTP(S)_PROXY (egress proxy breaks docker DNS names)."""
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    return opener.open(req, timeout=timeout_sec)
+
+
 def proxy_clawhive_login(username: str, password: str, timeout_sec: float = 15.0) -> tuple[int, dict[str, Any]]:
     """POST to ClawHive /api/auth/login. Returns (status, json_body)."""
     url = f"{clawhive_backend_base()}/api/auth/login"
@@ -35,7 +41,7 @@ def proxy_clawhive_login(username: str, password: str, timeout_sec: float = 15.0
         headers={"Content-Type": "application/json", "Accept": "application/json"},
     )
     try:
-        with urllib.request.urlopen(req, timeout=timeout_sec) as resp:
+        with _urlopen_direct(req, timeout_sec) as resp:
             raw = resp.read().decode("utf-8", errors="replace")
             try:
                 data = json.loads(raw) if raw else {}

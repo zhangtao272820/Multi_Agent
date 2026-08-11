@@ -37,6 +37,7 @@ import {
   ClauseSchema,
   assignClauseIds
 } from './schemas'
+import { coerceTimeRangeHint } from '../../core/routing/taskForms'
 
 function filterExecAgents(raw: unknown): string[] {
   if (!Array.isArray(raw)) return []
@@ -269,6 +270,35 @@ function defaultAgentsFromDataSources(sources: string[] | undefined | null): str
   return (Array.isArray(sources) ? sources : []).filter((d) => ['rag', 'db', 'crawler'].includes(String(d)))
 }
 
+/**
+ * LLM 常显式输出 null；Zod .optional()/.default() 不接受 null。
+ * 将 null 视作缺省（undefined）；数组去 null 元；对象递归清洗。
+ */
+export function scrubOrchestratorNulls(value: unknown): unknown {
+  if (value === null) return undefined
+  if (Array.isArray(value)) {
+    return value
+      .map((x) => scrubOrchestratorNulls(x))
+      .filter((x) => x !== undefined && x !== null)
+  }
+  if (value && typeof value === 'object') {
+    const out: Record<string, unknown> = {}
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      const next = scrubOrchestratorNulls(v)
+      if (next !== undefined) out[k] = next
+    }
+    return out
+  }
+  return value
+}
+
+function coerceOptionalString(v: unknown, max: number): string | undefined {
+  if (v == null) return undefined
+  const s = String(v).trim()
+  if (!s || s === 'null' || s === 'undefined') return undefined
+  return s.slice(0, max)
+}
+
 function collectOrchestratorAgentUnion(o: Record<string, unknown>): Set<string> {
   const out = new Set<string>()
   const optional = new Set(['admin', 'gui', 'multimodal', 'music', 'video'])
@@ -375,11 +405,15 @@ export function collapseSingleSourceSameAgentOrchestrator(
 
 export function normalizeOrchestratorPayload(raw: unknown, lastUser: string): unknown {
   if (!raw || typeof raw !== 'object') return raw
-  const o = { ...(raw as Record<string, unknown>) }
+  const scrubbed = scrubOrchestratorNulls(raw)
+  if (!scrubbed || typeof scrubbed !== 'object') return scrubbed
+  const o = { ...(scrubbed as Record<string, unknown>) }
   const last = String(lastUser || '').trim()
   o.turnScopeMode = coerceTurnScopeMode(o.turnScopeMode)
-  if (!String(o.routedQuery ?? '').trim() || String(o.routedQuery).length < 4) {
-    o.routedQuery = last.slice(0, 1200)
+  // 禁止把字面 "null" 当成 routedQuery
+  {
+    const rq = coerceOptionalString(o.routedQuery, 1200)
+    o.routedQuery = rq && rq.length >= 4 ? rq : last.slice(0, 1200)
   }
   if (!Array.isArray(o.clauses) || !(o.clauses as unknown[]).length) {
     const dsAgents = defaultAgentsFromDataSources(o.dataSources as string[])
@@ -387,18 +421,23 @@ export function normalizeOrchestratorPayload(raw: unknown, lastUser: string): un
     const picked = agents.length ? agents : dsAgents
     o.clauses = [{ id: 'c1', text: last.slice(0, 480), agents: boundedAgentSlice(picked, 4) }]
   } else {
-    o.clauses = (o.clauses as Record<string, unknown>[]).map((c, i) => {
-      let text = String(c.text || last).trim()
-      if (text.length < 4) text = last.slice(0, 480)
-      const clauseAgents = filterExecAgents(c.agents)
-      const dsAgents = defaultAgentsFromDataSources(o.dataSources as string[])
-      return {
-        id: String(c.id || `c${i + 1}`),
-        text: text.slice(0, 480),
-        layer: c.layer,
-        agents: boundedAgentSlice(clauseAgents.length ? clauseAgents : dsAgents, 4)
-      }
-    })
+    o.clauses = (o.clauses as Record<string, unknown>[])
+      .filter((c) => c && typeof c === 'object')
+      .map((c, i) => {
+        let text = coerceOptionalString(c.text, 480) || last.slice(0, 480)
+        if (text.length < 4) text = last.slice(0, 480)
+        const clauseAgents = filterExecAgents(c.agents)
+        const dsAgents = defaultAgentsFromDataSources(o.dataSources as string[])
+        const layer = coerceOptionalString(c.layer, 24)
+        const taskForm = c.taskForm
+        return {
+          id: String(c.id || `c${i + 1}`),
+          text,
+          ...(layer && ['data', 'process', 'output', 'action'].includes(layer) ? { layer } : {}),
+          agents: boundedAgentSlice(clauseAgents.length ? clauseAgents : dsAgents, 4),
+          ...(taskForm != null ? { taskForm } : {})
+        }
+      })
   }
   o.primaryIntent = coerceRouteIntent(o.primaryIntent, coerceRouteIntent(o.intent, 'multi'))
   o.intent = coerceRouteIntent(o.intent, o.primaryIntent as string)
@@ -445,6 +484,62 @@ export function normalizeOrchestratorPayload(raw: unknown, lastUser: string): un
   if (o.clarifyKind === 'slot' || o.clarifyKind === 'plane') {
     o.needsClarify = coerceBool(o.needsClarify, true)
   }
+  // 意图清晰度（缺省 none；ambiguous 强制 plane clarify）
+  {
+    const sc = String(o.sourceCommitment ?? 'none').trim().toLowerCase()
+    o.sourceCommitment = ['clear', 'ambiguous', 'none'].includes(sc) ? sc : 'none'
+    o.committedPlanes = Array.isArray(o.committedPlanes)
+      ? [
+          ...new Set(
+            (o.committedPlanes as unknown[])
+              .map((x) => String(x || '').trim())
+              .filter((a) =>
+                [
+                  'db',
+                  'rag',
+                  'code',
+                  'crawler',
+                  'gui',
+                  'admin',
+                  'clean',
+                  'visualize',
+                  'report',
+                  'multimodal',
+                  'music',
+                  'video'
+                ].includes(a)
+              )
+          )
+        ]
+      : []
+    const wf = String(o.webFetchKind ?? 'none').trim().toLowerCase()
+    o.webFetchKind = ['none', 'policy_page', 'general_page'].includes(wf) ? wf : 'none'
+    o.adminCapabilityHints = Array.isArray(o.adminCapabilityHints)
+      ? [
+          ...new Set(
+            (o.adminCapabilityHints as unknown[])
+              .map((x) => String(x || '').trim().toLowerCase())
+              .filter((x) =>
+                ['weather', 'calendar', 'map', 'briefing', 'mail', 'files', 'other'].includes(x)
+              )
+          )
+        ]
+      : []
+    if (o.sourceCommitment === 'ambiguous') {
+      o.needsClarify = true
+      if (o.clarifyKind === 'none' || o.clarifyKind === 'output_disambiguation') o.clarifyKind = 'plane'
+      if (!Array.isArray(o.clarifyQuestions) || !(o.clarifyQuestions as unknown[]).length) {
+        o.clarifyQuestions = ['请问您要查业务库记录、内部文档，还是联网公开网页？']
+      }
+    }
+    if (o.webFetchKind !== 'none') {
+      o.needsWeb = true
+      o.needsWebSearch = true
+      if (!(o.committedPlanes as string[]).includes('crawler') && o.sourceCommitment === 'clear') {
+        o.committedPlanes = [...new Set([...(o.committedPlanes as string[]), 'crawler'])]
+      }
+    }
+  }
   o.planShortcut = coercePlanShortcut(o.planShortcut, {
     dataSources: o.dataSources as string[],
     isMulti: o.isMulti as boolean,
@@ -460,8 +555,51 @@ export function normalizeOrchestratorPayload(raw: unknown, lastUser: string): un
     if (cm) o.codeMode = cm
     else delete o.codeMode
   }
+  // timeRange / planBlueprint：null 或缺合法结构 → 删除，避免 Zod Expected object, received null
+  {
+    const tr = coerceTimeRangeHint(o.timeRange)
+    if (tr) o.timeRange = tr
+    else delete o.timeRange
+  }
   if (o.planBlueprint !== undefined) {
-    o.planBlueprint = sanitizePlanBlueprint(o.planBlueprint)
+    const bp = sanitizePlanBlueprint(o.planBlueprint)
+    if (bp) o.planBlueprint = bp
+    else delete o.planBlueprint
+  }
+  o.rationale = coerceOptionalString(o.rationale, 520) ?? ''
+  o.coalescedTask = coerceOptionalString(o.coalescedTask, 900)
+  if (!o.coalescedTask) delete o.coalescedTask
+  if (Array.isArray(o.clarifyQuestions)) {
+    o.clarifyQuestions = (o.clarifyQuestions as unknown[])
+      .map((q) => coerceOptionalString(q, 200))
+      .filter(Boolean)
+      .slice(0, 4)
+  } else {
+    delete o.clarifyQuestions
+  }
+  if (Array.isArray(o.timeHints)) {
+    o.timeHints = (o.timeHints as unknown[])
+      .map((t) => coerceOptionalString(t, 80))
+      .filter(Boolean)
+      .slice(0, 8)
+  } else {
+    o.timeHints = []
+  }
+  if (Array.isArray(o.subjectHints)) {
+    o.subjectHints = (o.subjectHints as unknown[])
+      .map((t) => coerceOptionalString(t, 80))
+      .filter(Boolean)
+      .slice(0, 4)
+  } else {
+    o.subjectHints = []
+  }
+  if (Array.isArray(o.fieldHints)) {
+    o.fieldHints = (o.fieldHints as unknown[])
+      .map((t) => coerceOptionalString(t, 80))
+      .filter(Boolean)
+      .slice(0, 6)
+  } else {
+    o.fieldHints = []
   }
   const agentUnion = collectOrchestratorAgentUnion(o)
   if (agentUnion.has('db')) o.isDbAnchored = true
@@ -498,9 +636,7 @@ export function normalizeOrchestratorPayload(raw: unknown, lastUser: string): un
   o.needsPlanPreview = coerceBool(o.needsPlanPreview, false)
   const sp = String(o.suggestedPosture ?? 'agent').trim().toLowerCase()
   o.suggestedPosture = ['ask', 'plan', 'agent', 'debug'].includes(sp) ? sp : 'agent'
-  o.upgradeReason = String(o.upgradeReason ?? o.reason ?? '')
-    .trim()
-    .slice(0, 200)
+  o.upgradeReason = coerceOptionalString(o.upgradeReason ?? o.reason, 200) ?? ''
   if (typeof o.upgradeConfidence !== 'number') {
     const uc = Number(o.upgradeConfidence)
     o.upgradeConfidence = Number.isFinite(uc)
@@ -523,7 +659,11 @@ export function parseOrchestratorJson(text: string, lastUser: string): { raw: Ta
   const normalized = normalizeOrchestratorPayload(raw, lastUser)
   const parsed = TaskOrchestratorSchema.safeParse(normalized)
   if (!parsed.success) {
-    return { raw: null, error: parsed.error.issues.slice(0, 2).map((i) => i.message).join('; ') }
+    const detail = parsed.error.issues
+      .slice(0, 4)
+      .map((i) => `${i.path.length ? i.path.join('.') : '(root)'}: ${i.message}`)
+      .join('; ')
+    return { raw: null, error: detail || 'schema 校验失败' }
   }
   return { raw: parsed.data }
 }

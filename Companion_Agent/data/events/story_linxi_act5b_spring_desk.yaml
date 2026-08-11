@@ -27,43 +27,82 @@ beats:
   - home_eating
   - home_sleeping
   - intimate_lounge
+  - bath_foam
+  - date
   soft_options:
   - 夸她
   - 点头
   - 沉默
-  narration: 打印纸与轨道风里，春节加班室只亮一盏灯；她换上节日装却仍戴工牌，笑得有点紧。
-  pc_thought: 对桌探头那一下，像实习期的心跳漏拍。
+  narration: 打印纸与轨道风里，春节加班室只亮一盏灯；她换上节日装却仍戴工牌，笑得有点紧。表格最后一行数字还没填完。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 对桌探头那一下，像实习期的心跳漏拍。我想靠近，又怕说错一句。
   brief: 春节加班室只亮一盏灯；她换上节日装却仍戴工牌，笑得有点紧。等你回应。
+  pages:
+  - text: 打印纸与轨道风里，春节加班室只亮一盏灯；她换上节日装却仍戴工牌，笑得有点紧。表格最后一行数字还没填完。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: festival_spring
+      emotion: neutral
+  - text: 对桌探头那一下，像实习期的心跳漏拍。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: festival_spring
+      emotion: shy
 - id: b2
   summary: 她把转正名单复印件折成纸飞机：「别再装不熟。」。等你回应。
   sprite_hint:
   - festival_spring
-  - date
   - season_winter
   - home_eating
   - home_sleeping
+  - intimate_lounge
+  - bath_foam
+  - date
   soft_options:
   - 接住
   - 问清楚
   - 退一步
-  narration: 打印纸与轨道风里，她把转正名单复印件折成纸飞机：「别再装不熟。」。
-  pc_thought: 末班车扶手很凉。逞强的她，其实也怕走丢。
+  narration: 打印纸与轨道风里，她把转正名单复印件折成纸飞机：「别再装不熟。」。表格最后一行数字还没填完。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。空气有点静，连呼吸都听得见。
+  pc_thought: 末班车扶手很凉。逞强的她，其实也怕走丢。我想靠近，又怕说错一句。
   brief: 她把转正名单复印件折成纸飞机：「别再装不熟。」。等你回应。
+  pages:
+  - text: 打印纸与轨道风里，她把转正名单复印件折成纸飞机：「别再装不熟。」。表格最后一行数字还没填完。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。空气有点静，连呼吸都听得见。
+    voice: narration
+    sprite:
+      outfit: festival_spring
+      emotion: neutral
+  - text: 末班车扶手很凉。逞强的她，其实也怕走丢。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: festival_spring
+      emotion: shy
 - id: b3
   summary: 你接不接这步，决定工位之间是同盟，还是永远差一步。等你回应。
   sprite_hint:
   - festival_spring
-  - home
   - season_winter
   - home_eating
   - home_sleeping
+  - intimate_lounge
+  - bath_foam
+  - date
   soft_options:
   - 承诺
   - 诚实犹豫
   - 拒绝
-  narration: 你接不接这步，决定工位之间是同盟，还是永远差一步。
-  pc_thought: 打印室只剩我们。我想把「同事」说成更私的词——想起工位。
+  narration: 你接不接这步，决定工位之间是同盟，还是永远差一步。表格最后一行数字还没填完。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。空气有点静，连呼吸都听得见。
+  pc_thought: 打印室只剩我们。我想把「同事」说成更私的词——想起工位。我想靠近，又怕说错一句。
   brief: 你接不接这步，决定工位之间是同盟，还是永远差一步。等你回应。
+  pages:
+  - text: 你接不接这步，决定工位之间是同盟，还是永远差一步。表格最后一行数字还没填完。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。空气有点静，连呼吸都听得见。
+    voice: narration
+    sprite:
+      outfit: festival_spring
+      emotion: neutral
+  - text: 打印室只剩我们。我想把「同事」说成更私的词——想起工位。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: festival_spring
+      emotion: shy
 rewards:
   flags_set:
   - lx_spring_desk

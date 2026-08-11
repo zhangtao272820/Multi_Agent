@@ -5,7 +5,7 @@ import { routingConversationContext, lastUserText } from '../../core/text'
 import { resolveDbPrefetchQuestionFromState } from '../../core/db/dbStepQuestion'
 import { resolveLeanRagQuery } from '../../core/probe/retrieverPlan'
 import { resolveTurnRoutingScope } from '../../core/routing/turnScope'
-import { interpretProbeDbForRouting } from '../../core/probe/probeInterpretation'
+import { interpretProbeDbForRouting, isRagInfrastructureTableName } from '../../core/probe/probeInterpretation'
 import { sessionIntentAnchorFromMeta } from '../../core/memory/multiTurnIntent'
 import { buildReconNotesFromProbe } from '../../core/probe/reconNotes'
 
@@ -81,12 +81,23 @@ export function createProbeNode(deps: CreateProbeNodeDeps) {
       tables: Array.isArray(dbData?.tables) ? dbData.tables.map((s: any) => String(s ?? '').trim()).filter(Boolean) : []
     })
 
+    const docInventory = Array.isArray(ragData?.docInventory)
+      ? ragData.docInventory.map((s: any) => String(s ?? '').trim()).filter(Boolean).slice(0, 12)
+      : []
+    const tableInventoryRaw = Array.isArray(dbData?.tableInventory)
+      ? dbData.tableInventory.map((s: any) => String(s ?? '').trim()).filter(Boolean)
+      : []
+    const tableInventory = tableInventoryRaw
+      .filter((t: string) => !isRagInfrastructureTableName(t))
+      .slice(0, 12)
+
     const probe = {
       rag: {
-        hasDocs: Boolean(ragData?.hasDocs),
+        hasDocs: Boolean(ragData?.hasDocs) || docInventory.length > 0,
         hits: Number(ragData?.hits ?? 0) || 0,
         sources: Array.isArray(ragData?.sources) ? ragData.sources.map((s: any) => String(s)).filter(Boolean) : [],
-        snippets: Array.isArray(ragData?.snippets) ? ragData.snippets.map((s: any) => String(s)).filter(Boolean) : []
+        snippets: Array.isArray(ragData?.snippets) ? ragData.snippets.map((s: any) => String(s)).filter(Boolean) : [],
+        docInventory
       },
       db: {
         matched: dbInterp.routingRelevant ? executable : false,
@@ -98,6 +109,7 @@ export function createProbeNode(deps: CreateProbeNodeDeps) {
         businessTables: dbInterp.businessTables,
         infraTables: dbInterp.infraTables,
         tables: Array.isArray(dbData?.tables) ? dbData.tables.map((s: any) => String(s ?? '').trim()).filter(Boolean) : [],
+        tableInventory,
         evidence: typeof dbData?.evidence === 'string' ? String(dbData.evidence).trim() : undefined,
         error: dbConnBad
           ? `警告：检测到错误的数据库连接 (${dbData.db})，请检查端口冲突`

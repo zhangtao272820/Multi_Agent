@@ -1,6 +1,6 @@
 {
   "version": "2026-07-18",
-  "note": "玩法 romance×18 + linked×6（关系向难攻略，旧称 neutral）；无有名 NPC。正式立绘目录可暂留 sprites/neutral/{id}。",
+  "note": "玩法 romance + linked（关系向难攻略）；有名镇民见 town_npcs（不可攻略）。正式立绘目录可暂留 sprites/neutral/{id}。",
   "layout": {
     "romance": "data/sprites/romance/{id}/{emotion}.png",
     "neutral": "data/sprites/neutral/{id}/",

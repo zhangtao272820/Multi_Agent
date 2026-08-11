@@ -72,6 +72,7 @@ export function buildAdminConfirmResumeNode(deps: CreateExecutionNodesDeps) {
       {
         runId: opts.runId,
         sessionId: opts.sessionId,
+        userId: opts.userId,
         timeoutMs: opts.timeoutMs,
         signal: opts.signal,
         aiAdminAgentWsUrl: opts.aiAdminAgentWsUrl,

@@ -10,19 +10,31 @@ import { resolveRagPrefetchLeanQuery } from '../../core/probe/retrieverPlan'
 import { ragPrefetchTimeoutMs, dbPrefetchTimeoutMs } from '../../core/probe/probeConfig'
 import { effectiveUserTask, lastUserText } from '../../core/text'
 import { resolveDbPrefetchQuestionFromState } from '../../core/db/dbStepQuestion'
+import { groundFollowupQuery, shouldGroundFollowupQuery } from '#agent-shared/followupQueryGrounding'
+import { sessionIntentAnchorFromMeta } from '../../core/memory/multiTurnIntent'
 
 function resolveRagPrefetchQuestion(state: any, lastUser: string, question: string): string {
   const blueprint = (state.meta?.planBlueprint as { steps?: Array<{ agent?: string; queryFocus?: string }> } | undefined)
     ?.steps?.find((s) => String(s?.agent || '').trim() === 'rag')
   const planRagFocus = String(blueprint?.queryFocus || '').trim()
-  return (
+  const lean =
     resolveRagPrefetchLeanQuery({
       lastUser,
       planRagFocus,
       routedQuery: String(state.routedQuery || question || '').trim(),
       coalescedTask: String(state.meta?.coalescedTask || '').trim()
     }) || lastUser
-  )
+  const turnKind = String(state.meta?.turnKind || '').trim()
+  const anchor = sessionIntentAnchorFromMeta(state.meta)?.coalescedTask || ''
+  if (shouldGroundFollowupQuery({ turnKind, lastUser, anchorTask: anchor })) {
+    return groundFollowupQuery({
+      lastUser,
+      turnKind,
+      anchorTask: anchor,
+      candidate: lean
+    })
+  }
+  return lean
 }
 
 import type { CreatePrefetchNodeDeps } from './types'

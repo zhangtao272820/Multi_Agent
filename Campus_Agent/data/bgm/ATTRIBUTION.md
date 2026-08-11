@@ -1,8 +1,8 @@
 # BGM Attribution（CC0 · human-composed）
 
-本目录音乐均为 OpenGameArt 公开 **CC0 / Public Domain** 纯音乐，**非 AI 生成**、非商业华语 GAL 原声（后者通常不可免费再发行）。
+本目录音乐均为 OpenGameArt 公开 **CC0 / Public Domain** 纯音乐，**非 AI 生成**。
 
-一槽一曲；标题/序章另见 `bgm_catalog.json` → `playlists` 轮换。v3 扩 hub/talk/date 变奏槽。
+一槽一曲；标题另见 `bgm_catalog.json` → `playlists.title` 轮换。v2 补 `loc_store` / `loc_festival` / `loc_forest`。
 
 | 游戏槽位 | 原曲（候选） | 作者 / 页面 |
 |----------|-------------|-------------|
@@ -13,7 +13,6 @@
 | `hub_evening` | Soliloquy | https://opengameart.org/content/soliloquy |
 | `hub_night` | Soliloquy / Blue Rain | https://opengameart.org/content/soliloquy |
 | `loc_cafe` | Café / coffee | https://opengameart.org/content/café |
-| `loc_office` | Oriented | https://opengameart.org/content/oriented |
 | `loc_campus` | Town Theme RPG | https://opengameart.org/content/town-theme-rpg |
 | `loc_home` | Florist | TAD · https://opengameart.org/content/lofi-compilation |
 | `loc_rain` | Blue Rain | Alex McCulloch · https://opengameart.org/content/blue-rain |
@@ -34,13 +33,3 @@
 | `ending_bad` | Early Rain | yd · https://opengameart.org/content/early-rain |
 
 许可：CC0 1.0。可选署名见各作者页。
-
-## 关于「中国 GAL 免费音乐」
-
-商用华语 / 日式 GAL 原声带几乎都不能免费打进游戏包。可用替代：
-
-1. **OpenGameArt CC0**（本包）：含国风向曲目与视觉小说气质钢琴。
-2. **itch.io** 如 [Xiaoyi · Free Traditional Chinese Music Pack](https://xiaoyi3606.itch.io/free-traditional-chinese-music-pack-i)（可商用进游戏；禁止单独转售音频文件；建议署名「Music by 小逸Eiyue」）——需手动下载后放入 `data/bgm/`。
-3. **爱给网** 筛「CC0 / 可商用」国风曲（逐条核对许可证后再替换槽位）。
-
-勿使用网易云热榜 / 影视原声等未授权曲目。

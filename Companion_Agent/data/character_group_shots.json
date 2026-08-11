@@ -1,0 +1,5185 @@
+{
+  "version": 2,
+  "notes": "W10 每角 20：约会男主×10 + 主锚×5 + 次关系/三人×5。须男主定妆。禁止 solo 假群像。",
+  "pc_id": "shenyuan",
+  "pc_label": "沈予安",
+  "characters": {
+    "xiaoyou": {
+      "tier": "T0",
+      "theme": "天窗画室",
+      "peer_primary": "youwei",
+      "shots": [
+        {
+          "shot_id": "date_pc_cafe",
+          "kind": "date",
+          "members": [
+            "xiaoyou",
+            "shenyuan"
+          ],
+          "location": "cafe",
+          "outfit_hint": "date",
+          "beat": "天窗画室·咖啡馆日常约会"
+        },
+        {
+          "shot_id": "date_pc_rain",
+          "kind": "date",
+          "members": [
+            "xiaoyou",
+            "shenyuan"
+          ],
+          "location": "street",
+          "outfit_hint": "rain",
+          "beat": "天窗画室·雨街共伞"
+        },
+        {
+          "shot_id": "date_pc_park",
+          "kind": "date",
+          "members": [
+            "xiaoyou",
+            "shenyuan"
+          ],
+          "location": "park",
+          "outfit_hint": "casual",
+          "beat": "天窗画室·公园散步"
+        },
+        {
+          "shot_id": "date_pc_home",
+          "kind": "date",
+          "members": [
+            "xiaoyou",
+            "shenyuan"
+          ],
+          "location": "room",
+          "outfit_hint": "home",
+          "beat": "天窗画室·居家闲谈"
+        },
+        {
+          "shot_id": "date_pc_festival",
+          "kind": "date",
+          "members": [
+            "xiaoyou",
+            "shenyuan"
+          ],
+          "location": "festival",
+          "outfit_hint": "festival_spring",
+          "beat": "天窗画室·节日约会"
+        },
+        {
+          "shot_id": "date_pc_night",
+          "kind": "date",
+          "members": [
+            "xiaoyou",
+            "shenyuan"
+          ],
+          "location": "cafe",
+          "outfit_hint": "evening",
+          "beat": "天窗画室·夜里留灯"
+        },
+        {
+          "shot_id": "date_pc_commute",
+          "kind": "date",
+          "members": [
+            "xiaoyou",
+            "shenyuan"
+          ],
+          "location": "street",
+          "outfit_hint": "work",
+          "beat": "天窗画室·通勤偶遇"
+        },
+        {
+          "shot_id": "date_pc_work",
+          "kind": "date",
+          "members": [
+            "xiaoyou",
+            "shenyuan"
+          ],
+          "location": "office",
+          "outfit_hint": "work",
+          "beat": "天窗画室·职业场附近"
+        },
+        {
+          "shot_id": "date_pc_season",
+          "kind": "date",
+          "members": [
+            "xiaoyou",
+            "shenyuan"
+          ],
+          "location": "campus",
+          "outfit_hint": "season_winter",
+          "beat": "天窗画室·季节外出"
+        },
+        {
+          "shot_id": "date_pc_close",
+          "kind": "date",
+          "members": [
+            "xiaoyou",
+            "shenyuan"
+          ],
+          "location": "room",
+          "outfit_hint": "date",
+          "beat": "天窗画室·告白近距"
+        },
+        {
+          "shot_id": "with_youwei_studio",
+          "kind": "relation",
+          "members": [
+            "xiaoyou",
+            "youwei"
+          ],
+          "location": "room",
+          "outfit_hint": "casual",
+          "beat": "与youwei·工作/足迹旁"
+        },
+        {
+          "shot_id": "with_youwei_cafe",
+          "kind": "relation",
+          "members": [
+            "xiaoyou",
+            "youwei"
+          ],
+          "location": "room",
+          "outfit_hint": "date",
+          "beat": "与youwei·咖啡闲聊"
+        },
+        {
+          "shot_id": "with_youwei_street",
+          "kind": "relation",
+          "members": [
+            "xiaoyou",
+            "youwei"
+          ],
+          "location": "street",
+          "outfit_hint": "casual",
+          "beat": "与youwei·街上并肩"
+        },
+        {
+          "shot_id": "with_youwei_home",
+          "kind": "relation",
+          "members": [
+            "xiaoyou",
+            "youwei"
+          ],
+          "location": "room",
+          "outfit_hint": "home",
+          "beat": "与youwei·私域做客"
+        },
+        {
+          "shot_id": "with_youwei_night",
+          "kind": "relation",
+          "members": [
+            "xiaoyou",
+            "youwei"
+          ],
+          "location": "room",
+          "outfit_hint": "evening",
+          "beat": "与youwei·夜色短叙"
+        },
+        {
+          "shot_id": "sec_gate",
+          "kind": "secondary",
+          "members": [
+            "xiaoyou",
+            "youwei"
+          ],
+          "location": "campus",
+          "outfit_hint": "work",
+          "beat": "天窗画室·守门对视"
+        },
+        {
+          "shot_id": "sec_rival",
+          "kind": "secondary",
+          "members": [
+            "xiaoyou",
+            "youwei"
+          ],
+          "location": "cafe",
+          "outfit_hint": "casual",
+          "beat": "天窗画室·微妙同席"
+        },
+        {
+          "shot_id": "sec_trio_pc_silhouette",
+          "kind": "secondary",
+          "members": [
+            "xiaoyou",
+            "youwei",
+            "shenyuan"
+          ],
+          "location": "street",
+          "outfit_hint": "date",
+          "beat": "天窗画室·三人剪影"
+        },
+        {
+          "shot_id": "sec_ensemble",
+          "kind": "secondary",
+          "members": [
+            "xiaoyou",
+            "youwei",
+            "shenyuan"
+          ],
+          "location": "festival",
+          "outfit_hint": "festival_spring",
+          "beat": "天窗画室·小型群像"
+        },
+        {
+          "shot_id": "sec_flashback",
+          "kind": "secondary",
+          "members": [
+            "xiaoyou",
+            "youwei"
+          ],
+          "location": "library",
+          "outfit_hint": "season_winter",
+          "beat": "天窗画室·旧日闪回"
+        }
+      ],
+      "existing": [
+        "date_pc_cafe",
+        "date_pc_close",
+        "date_pc_commute",
+        "date_pc_festival",
+        "date_pc_home",
+        "date_pc_night",
+        "date_pc_park",
+        "date_pc_rain",
+        "date_pc_season",
+        "date_pc_work",
+        "sec_ensemble",
+        "sec_flashback",
+        "sec_gate",
+        "sec_rival",
+        "sec_trio_pc_silhouette",
+        "with_youwei_cafe",
+        "with_youwei_home",
+        "with_youwei_night",
+        "with_youwei_street",
+        "with_youwei_studio"
+      ],
+      "count": 20
+    },
+    "wanyu": {
+      "tier": "T0",
+      "theme": "咖啡蒸汽",
+      "peer_primary": "yuxi",
+      "shots": [
+        {
+          "shot_id": "date_pc_rain",
+          "kind": "date",
+          "members": [
+            "wanyu",
+            "shenyuan"
+          ],
+          "location": "street",
+          "outfit_hint": "rain",
+          "beat": "咖啡蒸汽·雨街共伞"
+        },
+        {
+          "shot_id": "date_pc_park",
+          "kind": "date",
+          "members": [
+            "wanyu",
+            "shenyuan"
+          ],
+          "location": "park",
+          "outfit_hint": "casual",
+          "beat": "咖啡蒸汽·公园散步"
+        },
+        {
+          "shot_id": "date_pc_home",
+          "kind": "date",
+          "members": [
+            "wanyu",
+            "shenyuan"
+          ],
+          "location": "cafe",
+          "outfit_hint": "home",
+          "beat": "咖啡蒸汽·居家闲谈"
+        },
+        {
+          "shot_id": "date_pc_festival",
+          "kind": "date",
+          "members": [
+            "wanyu",
+            "shenyuan"
+          ],
+          "location": "festival",
+          "outfit_hint": "festival_spring",
+          "beat": "咖啡蒸汽·节日约会"
+        },
+        {
+          "shot_id": "date_pc_night",
+          "kind": "date",
+          "members": [
+            "wanyu",
+            "shenyuan"
+          ],
+          "location": "cafe",
+          "outfit_hint": "evening",
+          "beat": "咖啡蒸汽·夜里留灯"
+        },
+        {
+          "shot_id": "date_pc_commute",
+          "kind": "date",
+          "members": [
+            "wanyu",
+            "shenyuan"
+          ],
+          "location": "street",
+          "outfit_hint": "work",
+          "beat": "咖啡蒸汽·通勤偶遇"
+        },
+        {
+          "shot_id": "date_pc_work",
+          "kind": "date",
+          "members": [
+            "wanyu",
+            "shenyuan"
+          ],
+          "location": "office",
+          "outfit_hint": "work",
+          "beat": "咖啡蒸汽·职业场附近"
+        },
+        {
+          "shot_id": "date_pc_season",
+          "kind": "date",
+          "members": [
+            "wanyu",
+            "shenyuan"
+          ],
+          "location": "campus",
+          "outfit_hint": "season_winter",
+          "beat": "咖啡蒸汽·季节外出"
+        },
+        {
+          "shot_id": "date_pc_close",
+          "kind": "date",
+          "members": [
+            "wanyu",
+            "shenyuan"
+          ],
+          "location": "cafe",
+          "outfit_hint": "date",
+          "beat": "咖啡蒸汽·告白近距"
+        },
+        {
+          "shot_id": "date_pc_rooftop",
+          "kind": "date",
+          "members": [
+            "wanyu",
+            "shenyuan"
+          ],
+          "location": "rooftop",
+          "outfit_hint": "casual",
+          "beat": "咖啡蒸汽·天台吹风"
+        },
+        {
+          "shot_id": "with_yuxi_studio",
+          "kind": "relation",
+          "members": [
+            "wanyu",
+            "yuxi"
+          ],
+          "location": "cafe",
+          "outfit_hint": "casual",
+          "beat": "与yuxi·工作/足迹旁"
+        },
+        {
+          "shot_id": "with_yuxi_cafe",
+          "kind": "relation",
+          "members": [
+            "wanyu",
+            "yuxi"
+          ],
+          "location": "cafe",
+          "outfit_hint": "date",
+          "beat": "与yuxi·咖啡闲聊"
+        },
+        {
+          "shot_id": "with_yuxi_street",
+          "kind": "relation",
+          "members": [
+            "wanyu",
+            "yuxi"
+          ],
+          "location": "street",
+          "outfit_hint": "casual",
+          "beat": "与yuxi·街上并肩"
+        },
+        {
+          "shot_id": "with_yuxi_home",
+          "kind": "relation",
+          "members": [
+            "wanyu",
+            "yuxi"
+          ],
+          "location": "cafe",
+          "outfit_hint": "home",
+          "beat": "与yuxi·私域做客"
+        },
+        {
+          "shot_id": "with_yuxi_night",
+          "kind": "relation",
+          "members": [
+            "wanyu",
+            "yuxi"
+          ],
+          "location": "cafe",
+          "outfit_hint": "evening",
+          "beat": "与yuxi·夜色短叙"
+        },
+        {
+          "shot_id": "sec_gate",
+          "kind": "secondary",
+          "members": [
+            "wanyu",
+            "yuxi"
+          ],
+          "location": "campus",
+          "outfit_hint": "work",
+          "beat": "咖啡蒸汽·守门对视"
+        },
+        {
+          "shot_id": "sec_rival",
+          "kind": "secondary",
+          "members": [
+            "wanyu",
+            "yuxi"
+          ],
+          "location": "cafe",
+          "outfit_hint": "casual",
+          "beat": "咖啡蒸汽·微妙同席"
+        },
+        {
+          "shot_id": "sec_trio_pc_silhouette",
+          "kind": "secondary",
+          "members": [
+            "wanyu",
+            "yuxi",
+            "shenyuan"
+          ],
+          "location": "street",
+          "outfit_hint": "date",
+          "beat": "咖啡蒸汽·三人剪影"
+        },
+        {
+          "shot_id": "sec_ensemble",
+          "kind": "secondary",
+          "members": [
+            "wanyu",
+            "yuxi",
+            "shenyuan"
+          ],
+          "location": "festival",
+          "outfit_hint": "festival_spring",
+          "beat": "咖啡蒸汽·小型群像"
+        },
+        {
+          "shot_id": "sec_flashback",
+          "kind": "secondary",
+          "members": [
+            "wanyu",
+            "yuxi"
+          ],
+          "location": "library",
+          "outfit_hint": "season_winter",
+          "beat": "咖啡蒸汽·旧日闪回"
+        }
+      ],
+      "existing": [
+        "date_pc_close",
+        "date_pc_commute",
+        "date_pc_festival",
+        "date_pc_home",
+        "date_pc_night",
+        "date_pc_park",
+        "date_pc_rain",
+        "date_pc_rooftop",
+        "date_pc_season",
+        "date_pc_work",
+        "sec_ensemble",
+        "sec_flashback",
+        "sec_gate",
+        "sec_rival",
+        "sec_trio_pc_silhouette",
+        "with_yuxi_cafe",
+        "with_yuxi_home",
+        "with_yuxi_night",
+        "with_yuxi_street",
+        "with_yuxi_studio"
+      ],
+      "count": 20
+    },
+    "ruolin": {
+      "tier": "T0",
+      "theme": "讲台粉笔",
+      "peer_primary": "lingke",
+      "shots": [
+        {
+          "shot_id": "date_pc_park",
+          "kind": "date",
+          "members": [
+            "ruolin",
+            "shenyuan"
+          ],
+          "location": "park",
+          "outfit_hint": "casual",
+          "beat": "讲台粉笔·公园散步"
+        },
+        {
+          "shot_id": "date_pc_home",
+          "kind": "date",
+          "members": [
+            "ruolin",
+            "shenyuan"
+          ],
+          "location": "campus",
+          "outfit_hint": "home",
+          "beat": "讲台粉笔·居家闲谈"
+        },
+        {
+          "shot_id": "date_pc_festival",
+          "kind": "date",
+          "members": [
+            "ruolin",
+            "shenyuan"
+          ],
+          "location": "festival",
+          "outfit_hint": "festival_spring",
+          "beat": "讲台粉笔·节日约会"
+        },
+        {
+          "shot_id": "date_pc_night",
+          "kind": "date",
+          "members": [
+            "ruolin",
+            "shenyuan"
+          ],
+          "location": "cafe",
+          "outfit_hint": "evening",
+          "beat": "讲台粉笔·夜里留灯"
+        },
+        {
+          "shot_id": "date_pc_commute",
+          "kind": "date",
+          "members": [
+            "ruolin",
+            "shenyuan"
+          ],
+          "location": "street",
+          "outfit_hint": "work",
+          "beat": "讲台粉笔·通勤偶遇"
+        },
+        {
+          "shot_id": "date_pc_work",
+          "kind": "date",
+          "members": [
+            "ruolin",
+            "shenyuan"
+          ],
+          "location": "office",
+          "outfit_hint": "work",
+          "beat": "讲台粉笔·职业场附近"
+        },
+        {
+          "shot_id": "date_pc_season",
+          "kind": "date",
+          "members": [
+            "ruolin",
+            "shenyuan"
+          ],
+          "location": "campus",
+          "outfit_hint": "season_winter",
+          "beat": "讲台粉笔·季节外出"
+        },
+        {
+          "shot_id": "date_pc_close",
+          "kind": "date",
+          "members": [
+            "ruolin",
+            "shenyuan"
+          ],
+          "location": "campus",
+          "outfit_hint": "date",
+          "beat": "讲台粉笔·告白近距"
+        },
+        {
+          "shot_id": "date_pc_rooftop",
+          "kind": "date",
+          "members": [
+            "ruolin",
+            "shenyuan"
+          ],
+          "location": "rooftop",
+          "outfit_hint": "casual",
+          "beat": "讲台粉笔·天台吹风"
+        },
+        {
+          "shot_id": "date_pc_library",
+          "kind": "date",
+          "members": [
+            "ruolin",
+            "shenyuan"
+          ],
+          "location": "library",
+          "outfit_hint": "casual",
+          "beat": "讲台粉笔·安静同桌"
+        },
+        {
+          "shot_id": "with_lingke_studio",
+          "kind": "relation",
+          "members": [
+            "ruolin",
+            "lingke"
+          ],
+          "location": "campus",
+          "outfit_hint": "casual",
+          "beat": "与lingke·工作/足迹旁"
+        },
+        {
+          "shot_id": "with_lingke_cafe",
+          "kind": "relation",
+          "members": [
+            "ruolin",
+            "lingke"
+          ],
+          "location": "campus",
+          "outfit_hint": "date",
+          "beat": "与lingke·咖啡闲聊"
+        },
+        {
+          "shot_id": "with_lingke_street",
+          "kind": "relation",
+          "members": [
+            "ruolin",
+            "lingke"
+          ],
+          "location": "street",
+          "outfit_hint": "casual",
+          "beat": "与lingke·街上并肩"
+        },
+        {
+          "shot_id": "with_lingke_home",
+          "kind": "relation",
+          "members": [
+            "ruolin",
+            "lingke"
+          ],
+          "location": "campus",
+          "outfit_hint": "home",
+          "beat": "与lingke·私域做客"
+        },
+        {
+          "shot_id": "with_lingke_night",
+          "kind": "relation",
+          "members": [
+            "ruolin",
+            "lingke"
+          ],
+          "location": "campus",
+          "outfit_hint": "evening",
+          "beat": "与lingke·夜色短叙"
+        },
+        {
+          "shot_id": "sec_gate",
+          "kind": "secondary",
+          "members": [
+            "ruolin",
+            "lingke"
+          ],
+          "location": "campus",
+          "outfit_hint": "work",
+          "beat": "讲台粉笔·守门对视"
+        },
+        {
+          "shot_id": "sec_rival",
+          "kind": "secondary",
+          "members": [
+            "ruolin",
+            "lingke"
+          ],
+          "location": "cafe",
+          "outfit_hint": "casual",
+          "beat": "讲台粉笔·微妙同席"
+        },
+        {
+          "shot_id": "sec_trio_pc_silhouette",
+          "kind": "secondary",
+          "members": [
+            "ruolin",
+            "lingke",
+            "shenyuan"
+          ],
+          "location": "street",
+          "outfit_hint": "date",
+          "beat": "讲台粉笔·三人剪影"
+        },
+        {
+          "shot_id": "sec_ensemble",
+          "kind": "secondary",
+          "members": [
+            "ruolin",
+            "lingke",
+            "shenyuan"
+          ],
+          "location": "festival",
+          "outfit_hint": "festival_spring",
+          "beat": "讲台粉笔·小型群像"
+        },
+        {
+          "shot_id": "sec_flashback",
+          "kind": "secondary",
+          "members": [
+            "ruolin",
+            "lingke"
+          ],
+          "location": "library",
+          "outfit_hint": "season_winter",
+          "beat": "讲台粉笔·旧日闪回"
+        }
+      ],
+      "existing": [
+        "date_pc_close",
+        "date_pc_commute",
+        "date_pc_festival",
+        "date_pc_home",
+        "date_pc_library",
+        "date_pc_night",
+        "date_pc_park",
+        "date_pc_rooftop",
+        "date_pc_season",
+        "date_pc_work",
+        "sec_ensemble",
+        "sec_flashback",
+        "sec_gate",
+        "sec_rival",
+        "sec_trio_pc_silhouette",
+        "with_lingke_cafe",
+        "with_lingke_home",
+        "with_lingke_night",
+        "with_lingke_street",
+        "with_lingke_studio"
+      ],
+      "count": 20
+    },
+    "jingliu": {
+      "tier": "T0",
+      "theme": "玻璃门廊",
+      "peer_primary": "jingning",
+      "shots": [
+        {
+          "shot_id": "date_pc_home",
+          "kind": "date",
+          "members": [
+            "jingliu",
+            "shenyuan"
+          ],
+          "location": "office",
+          "outfit_hint": "home",
+          "beat": "玻璃门廊·居家闲谈"
+        },
+        {
+          "shot_id": "date_pc_festival",
+          "kind": "date",
+          "members": [
+            "jingliu",
+            "shenyuan"
+          ],
+          "location": "festival",
+          "outfit_hint": "festival_spring",
+          "beat": "玻璃门廊·节日约会"
+        },
+        {
+          "shot_id": "date_pc_night",
+          "kind": "date",
+          "members": [
+            "jingliu",
+            "shenyuan"
+          ],
+          "location": "cafe",
+          "outfit_hint": "evening",
+          "beat": "玻璃门廊·夜里留灯"
+        },
+        {
+          "shot_id": "date_pc_commute",
+          "kind": "date",
+          "members": [
+            "jingliu",
+            "shenyuan"
+          ],
+          "location": "street",
+          "outfit_hint": "work",
+          "beat": "玻璃门廊·通勤偶遇"
+        },
+        {
+          "shot_id": "date_pc_work",
+          "kind": "date",
+          "members": [
+            "jingliu",
+            "shenyuan"
+          ],
+          "location": "office",
+          "outfit_hint": "work",
+          "beat": "玻璃门廊·职业场附近"
+        },
+        {
+          "shot_id": "date_pc_season",
+          "kind": "date",
+          "members": [
+            "jingliu",
+            "shenyuan"
+          ],
+          "location": "campus",
+          "outfit_hint": "season_winter",
+          "beat": "玻璃门廊·季节外出"
+        },
+        {
+          "shot_id": "date_pc_close",
+          "kind": "date",
+          "members": [
+            "jingliu",
+            "shenyuan"
+          ],
+          "location": "office",
+          "outfit_hint": "date",
+          "beat": "玻璃门廊·告白近距"
+        },
+        {
+          "shot_id": "date_pc_rooftop",
+          "kind": "date",
+          "members": [
+            "jingliu",
+            "shenyuan"
+          ],
+          "location": "rooftop",
+          "outfit_hint": "casual",
+          "beat": "玻璃门廊·天台吹风"
+        },
+        {
+          "shot_id": "date_pc_library",
+          "kind": "date",
+          "members": [
+            "jingliu",
+            "shenyuan"
+          ],
+          "location": "library",
+          "outfit_hint": "casual",
+          "beat": "玻璃门廊·安静同桌"
+        },
+        {
+          "shot_id": "date_pc_bookstore",
+          "kind": "date",
+          "members": [
+            "jingliu",
+            "shenyuan"
+          ],
+          "location": "bookstore",
+          "outfit_hint": "casual",
+          "beat": "玻璃门廊·书架偶遇"
+        },
+        {
+          "shot_id": "with_jingning_studio",
+          "kind": "relation",
+          "members": [
+            "jingliu",
+            "jingning"
+          ],
+          "location": "office",
+          "outfit_hint": "casual",
+          "beat": "与jingning·工作/足迹旁"
+        },
+        {
+          "shot_id": "with_jingning_cafe",
+          "kind": "relation",
+          "members": [
+            "jingliu",
+            "jingning"
+          ],
+          "location": "cafe",
+          "outfit_hint": "date",
+          "beat": "与jingning·咖啡闲聊"
+        },
+        {
+          "shot_id": "with_jingning_street",
+          "kind": "relation",
+          "members": [
+            "jingliu",
+            "jingning"
+          ],
+          "location": "street",
+          "outfit_hint": "casual",
+          "beat": "与jingning·街上并肩"
+        },
+        {
+          "shot_id": "with_jingning_home",
+          "kind": "relation",
+          "members": [
+            "jingliu",
+            "jingning"
+          ],
+          "location": "office",
+          "outfit_hint": "home",
+          "beat": "与jingning·私域做客"
+        },
+        {
+          "shot_id": "with_jingning_night",
+          "kind": "relation",
+          "members": [
+            "jingliu",
+            "jingning"
+          ],
+          "location": "office",
+          "outfit_hint": "evening",
+          "beat": "与jingning·夜色短叙"
+        },
+        {
+          "shot_id": "sec_gate",
+          "kind": "secondary",
+          "members": [
+            "jingliu",
+            "jingning"
+          ],
+          "location": "campus",
+          "outfit_hint": "work",
+          "beat": "玻璃门廊·守门对视"
+        },
+        {
+          "shot_id": "sec_rival",
+          "kind": "secondary",
+          "members": [
+            "jingliu",
+            "jingning"
+          ],
+          "location": "cafe",
+          "outfit_hint": "casual",
+          "beat": "玻璃门廊·微妙同席"
+        },
+        {
+          "shot_id": "sec_trio_pc_silhouette",
+          "kind": "secondary",
+          "members": [
+            "jingliu",
+            "jingning",
+            "shenyuan"
+          ],
+          "location": "street",
+          "outfit_hint": "date",
+          "beat": "玻璃门廊·三人剪影"
+        },
+        {
+          "shot_id": "sec_ensemble",
+          "kind": "secondary",
+          "members": [
+            "jingliu",
+            "jingning",
+            "shenyuan"
+          ],
+          "location": "festival",
+          "outfit_hint": "festival_spring",
+          "beat": "玻璃门廊·小型群像"
+        },
+        {
+          "shot_id": "sec_flashback",
+          "kind": "secondary",
+          "members": [
+            "jingliu",
+            "jingning"
+          ],
+          "location": "library",
+          "outfit_hint": "season_winter",
+          "beat": "玻璃门廊·旧日闪回"
+        }
+      ],
+      "existing": [
+        "date_pc_bookstore",
+        "date_pc_close",
+        "date_pc_commute",
+        "date_pc_festival",
+        "date_pc_home",
+        "date_pc_library",
+        "date_pc_night",
+        "date_pc_rooftop",
+        "date_pc_season",
+        "date_pc_work",
+        "sec_ensemble",
+        "sec_flashback",
+        "sec_gate",
+        "sec_rival",
+        "sec_trio_pc_silhouette",
+        "with_jingning_cafe",
+        "with_jingning_home",
+        "with_jingning_night",
+        "with_jingning_street",
+        "with_jingning_studio"
+      ],
+      "count": 20
+    },
+    "aili": {
+      "tier": "T0",
+      "theme": "温室花枝",
+      "peer_primary": "aichen",
+      "shots": [
+        {
+          "shot_id": "date_pc_festival",
+          "kind": "date",
+          "members": [
+            "aili",
+            "shenyuan"
+          ],
+          "location": "festival",
+          "outfit_hint": "festival_spring",
+          "beat": "温室花枝·节日约会"
+        },
+        {
+          "shot_id": "date_pc_night",
+          "kind": "date",
+          "members": [
+            "aili",
+            "shenyuan"
+          ],
+          "location": "cafe",
+          "outfit_hint": "evening",
+          "beat": "温室花枝·夜里留灯"
+        },
+        {
+          "shot_id": "date_pc_commute",
+          "kind": "date",
+          "members": [
+            "aili",
+            "shenyuan"
+          ],
+          "location": "street",
+          "outfit_hint": "work",
+          "beat": "温室花枝·通勤偶遇"
+        },
+        {
+          "shot_id": "date_pc_work",
+          "kind": "date",
+          "members": [
+            "aili",
+            "shenyuan"
+          ],
+          "location": "office",
+          "outfit_hint": "work",
+          "beat": "温室花枝·职业场附近"
+        },
+        {
+          "shot_id": "date_pc_season",
+          "kind": "date",
+          "members": [
+            "aili",
+            "shenyuan"
+          ],
+          "location": "campus",
+          "outfit_hint": "season_winter",
+          "beat": "温室花枝·季节外出"
+        },
+        {
+          "shot_id": "date_pc_close",
+          "kind": "date",
+          "members": [
+            "aili",
+            "shenyuan"
+          ],
+          "location": "store",
+          "outfit_hint": "date",
+          "beat": "温室花枝·告白近距"
+        },
+        {
+          "shot_id": "date_pc_rooftop",
+          "kind": "date",
+          "members": [
+            "aili",
+            "shenyuan"
+          ],
+          "location": "rooftop",
+          "outfit_hint": "casual",
+          "beat": "温室花枝·天台吹风"
+        },
+        {
+          "shot_id": "date_pc_library",
+          "kind": "date",
+          "members": [
+            "aili",
+            "shenyuan"
+          ],
+          "location": "library",
+          "outfit_hint": "casual",
+          "beat": "温室花枝·安静同桌"
+        },
+        {
+          "shot_id": "date_pc_bookstore",
+          "kind": "date",
+          "members": [
+            "aili",
+            "shenyuan"
+          ],
+          "location": "bookstore",
+          "outfit_hint": "casual",
+          "beat": "温室花枝·书架偶遇"
+        },
+        {
+          "shot_id": "date_pc_atelier",
+          "kind": "date",
+          "members": [
+            "aili",
+            "shenyuan"
+          ],
+          "location": "atelier",
+          "outfit_hint": "work",
+          "beat": "温室花枝·创作旁观"
+        },
+        {
+          "shot_id": "with_aichen_studio",
+          "kind": "relation",
+          "members": [
+            "aili",
+            "aichen"
+          ],
+          "location": "store",
+          "outfit_hint": "casual",
+          "beat": "与aichen·工作/足迹旁"
+        },
+        {
+          "shot_id": "with_aichen_cafe",
+          "kind": "relation",
+          "members": [
+            "aili",
+            "aichen"
+          ],
+          "location": "store",
+          "outfit_hint": "date",
+          "beat": "与aichen·咖啡闲聊"
+        },
+        {
+          "shot_id": "with_aichen_street",
+          "kind": "relation",
+          "members": [
+            "aili",
+            "aichen"
+          ],
+          "location": "street",
+          "outfit_hint": "casual",
+          "beat": "与aichen·街上并肩"
+        },
+        {
+          "shot_id": "with_aichen_home",
+          "kind": "relation",
+          "members": [
+            "aili",
+            "aichen"
+          ],
+          "location": "store",
+          "outfit_hint": "home",
+          "beat": "与aichen·私域做客"
+        },
+        {
+          "shot_id": "with_aichen_night",
+          "kind": "relation",
+          "members": [
+            "aili",
+            "aichen"
+          ],
+          "location": "store",
+          "outfit_hint": "evening",
+          "beat": "与aichen·夜色短叙"
+        },
+        {
+          "shot_id": "sec_gate",
+          "kind": "secondary",
+          "members": [
+            "aili",
+            "aichen"
+          ],
+          "location": "campus",
+          "outfit_hint": "work",
+          "beat": "温室花枝·守门对视"
+        },
+        {
+          "shot_id": "sec_rival",
+          "kind": "secondary",
+          "members": [
+            "aili",
+            "aichen"
+          ],
+          "location": "cafe",
+          "outfit_hint": "casual",
+          "beat": "温室花枝·微妙同席"
+        },
+        {
+          "shot_id": "sec_trio_pc_silhouette",
+          "kind": "secondary",
+          "members": [
+            "aili",
+            "aichen",
+            "shenyuan"
+          ],
+          "location": "street",
+          "outfit_hint": "date",
+          "beat": "温室花枝·三人剪影"
+        },
+        {
+          "shot_id": "sec_ensemble",
+          "kind": "secondary",
+          "members": [
+            "aili",
+            "aichen",
+            "shenyuan"
+          ],
+          "location": "festival",
+          "outfit_hint": "festival_spring",
+          "beat": "温室花枝·小型群像"
+        },
+        {
+          "shot_id": "sec_flashback",
+          "kind": "secondary",
+          "members": [
+            "aili",
+            "aichen"
+          ],
+          "location": "library",
+          "outfit_hint": "season_winter",
+          "beat": "温室花枝·旧日闪回"
+        }
+      ],
+      "existing": [
+        "date_pc_atelier",
+        "date_pc_bookstore",
+        "date_pc_close",
+        "date_pc_commute",
+        "date_pc_festival",
+        "date_pc_library",
+        "date_pc_night",
+        "date_pc_rooftop",
+        "date_pc_season",
+        "date_pc_work"
+      ],
+      "count": 10
+    },
+    "linxi": {
+      "tier": "T0",
+      "theme": "工位末班车",
+      "peer_primary": "jingliu",
+      "shots": [
+        {
+          "shot_id": "date_pc_cafe",
+          "kind": "date",
+          "members": [
+            "linxi",
+            "shenyuan"
+          ],
+          "location": "cafe",
+          "outfit_hint": "date",
+          "beat": "工位末班车·咖啡馆日常约会"
+        },
+        {
+          "shot_id": "date_pc_rain",
+          "kind": "date",
+          "members": [
+            "linxi",
+            "shenyuan"
+          ],
+          "location": "street",
+          "outfit_hint": "rain",
+          "beat": "工位末班车·雨街共伞"
+        },
+        {
+          "shot_id": "date_pc_park",
+          "kind": "date",
+          "members": [
+            "linxi",
+            "shenyuan"
+          ],
+          "location": "park",
+          "outfit_hint": "casual",
+          "beat": "工位末班车·公园散步"
+        },
+        {
+          "shot_id": "date_pc_home",
+          "kind": "date",
+          "members": [
+            "linxi",
+            "shenyuan"
+          ],
+          "location": "office",
+          "outfit_hint": "home",
+          "beat": "工位末班车·居家闲谈"
+        },
+        {
+          "shot_id": "date_pc_festival",
+          "kind": "date",
+          "members": [
+            "linxi",
+            "shenyuan"
+          ],
+          "location": "festival",
+          "outfit_hint": "festival_spring",
+          "beat": "工位末班车·节日约会"
+        },
+        {
+          "shot_id": "date_pc_night",
+          "kind": "date",
+          "members": [
+            "linxi",
+            "shenyuan"
+          ],
+          "location": "cafe",
+          "outfit_hint": "evening",
+          "beat": "工位末班车·夜里留灯"
+        },
+        {
+          "shot_id": "date_pc_commute",
+          "kind": "date",
+          "members": [
+            "linxi",
+            "shenyuan"
+          ],
+          "location": "street",
+          "outfit_hint": "work",
+          "beat": "工位末班车·通勤偶遇"
+        },
+        {
+          "shot_id": "date_pc_work",
+          "kind": "date",
+          "members": [
+            "linxi",
+            "shenyuan"
+          ],
+          "location": "office",
+          "outfit_hint": "work",
+          "beat": "工位末班车·职业场附近"
+        },
+        {
+          "shot_id": "date_pc_season",
+          "kind": "date",
+          "members": [
+            "linxi",
+            "shenyuan"
+          ],
+          "location": "campus",
+          "outfit_hint": "season_winter",
+          "beat": "工位末班车·季节外出"
+        },
+        {
+          "shot_id": "date_pc_close",
+          "kind": "date",
+          "members": [
+            "linxi",
+            "shenyuan"
+          ],
+          "location": "office",
+          "outfit_hint": "date",
+          "beat": "工位末班车·告白近距"
+        },
+        {
+          "shot_id": "with_jingliu_studio",
+          "kind": "relation",
+          "members": [
+            "linxi",
+            "jingliu"
+          ],
+          "location": "office",
+          "outfit_hint": "casual",
+          "beat": "与jingliu·工作/足迹旁"
+        },
+        {
+          "shot_id": "with_jingliu_cafe",
+          "kind": "relation",
+          "members": [
+            "linxi",
+            "jingliu"
+          ],
+          "location": "cafe",
+          "outfit_hint": "date",
+          "beat": "与jingliu·咖啡闲聊"
+        },
+        {
+          "shot_id": "with_jingliu_street",
+          "kind": "relation",
+          "members": [
+            "linxi",
+            "jingliu"
+          ],
+          "location": "street",
+          "outfit_hint": "casual",
+          "beat": "与jingliu·街上并肩"
+        },
+        {
+          "shot_id": "with_jingliu_home",
+          "kind": "relation",
+          "members": [
+            "linxi",
+            "jingliu"
+          ],
+          "location": "office",
+          "outfit_hint": "home",
+          "beat": "与jingliu·私域做客"
+        },
+        {
+          "shot_id": "with_jingliu_night",
+          "kind": "relation",
+          "members": [
+            "linxi",
+            "jingliu"
+          ],
+          "location": "office",
+          "outfit_hint": "evening",
+          "beat": "与jingliu·夜色短叙"
+        },
+        {
+          "shot_id": "sec_gate",
+          "kind": "secondary",
+          "members": [
+            "linxi",
+            "jingliu"
+          ],
+          "location": "campus",
+          "outfit_hint": "work",
+          "beat": "工位末班车·守门对视"
+        },
+        {
+          "shot_id": "sec_rival",
+          "kind": "secondary",
+          "members": [
+            "linxi",
+            "jingliu"
+          ],
+          "location": "cafe",
+          "outfit_hint": "casual",
+          "beat": "工位末班车·微妙同席"
+        },
+        {
+          "shot_id": "sec_trio_pc_silhouette",
+          "kind": "secondary",
+          "members": [
+            "linxi",
+            "jingliu",
+            "shenyuan"
+          ],
+          "location": "street",
+          "outfit_hint": "date",
+          "beat": "工位末班车·三人剪影"
+        },
+        {
+          "shot_id": "sec_ensemble",
+          "kind": "secondary",
+          "members": [
+            "linxi",
+            "jingliu",
+            "shenyuan"
+          ],
+          "location": "festival",
+          "outfit_hint": "festival_spring",
+          "beat": "工位末班车·小型群像"
+        },
+        {
+          "shot_id": "sec_flashback",
+          "kind": "secondary",
+          "members": [
+            "linxi",
+            "jingliu"
+          ],
+          "location": "library",
+          "outfit_hint": "season_winter",
+          "beat": "工位末班车·旧日闪回"
+        }
+      ],
+      "existing": [],
+      "count": 0
+    },
+    "taotao": {
+      "tier": "T1",
+      "theme": "舞台冰袋",
+      "peer_primary": "qingcai",
+      "shots": [
+        {
+          "shot_id": "date_pc_rain",
+          "kind": "date",
+          "members": [
+            "taotao",
+            "shenyuan"
+          ],
+          "location": "street",
+          "outfit_hint": "rain",
+          "beat": "舞台冰袋·雨街共伞"
+        },
+        {
+          "shot_id": "date_pc_park",
+          "kind": "date",
+          "members": [
+            "taotao",
+            "shenyuan"
+          ],
+          "location": "park",
+          "outfit_hint": "casual",
+          "beat": "舞台冰袋·公园散步"
+        },
+        {
+          "shot_id": "date_pc_home",
+          "kind": "date",
+          "members": [
+            "taotao",
+            "shenyuan"
+          ],
+          "location": "atelier",
+          "outfit_hint": "home",
+          "beat": "舞台冰袋·居家闲谈"
+        },
+        {
+          "shot_id": "date_pc_festival",
+          "kind": "date",
+          "members": [
+            "taotao",
+            "shenyuan"
+          ],
+          "location": "festival",
+          "outfit_hint": "festival_spring",
+          "beat": "舞台冰袋·节日约会"
+        },
+        {
+          "shot_id": "date_pc_night",
+          "kind": "date",
+          "members": [
+            "taotao",
+            "shenyuan"
+          ],
+          "location": "cafe",
+          "outfit_hint": "evening",
+          "beat": "舞台冰袋·夜里留灯"
+        },
+        {
+          "shot_id": "date_pc_commute",
+          "kind": "date",
+          "members": [
+            "taotao",
+            "shenyuan"
+          ],
+          "location": "street",
+          "outfit_hint": "work",
+          "beat": "舞台冰袋·通勤偶遇"
+        },
+        {
+          "shot_id": "date_pc_work",
+          "kind": "date",
+          "members": [
+            "taotao",
+            "shenyuan"
+          ],
+          "location": "office",
+          "outfit_hint": "work",
+          "beat": "舞台冰袋·职业场附近"
+        },
+        {
+          "shot_id": "date_pc_season",
+          "kind": "date",
+          "members": [
+            "taotao",
+            "shenyuan"
+          ],
+          "location": "campus",
+          "outfit_hint": "season_winter",
+          "beat": "舞台冰袋·季节外出"
+        },
+        {
+          "shot_id": "date_pc_close",
+          "kind": "date",
+          "members": [
+            "taotao",
+            "shenyuan"
+          ],
+          "location": "atelier",
+          "outfit_hint": "date",
+          "beat": "舞台冰袋·告白近距"
+        },
+        {
+          "shot_id": "date_pc_rooftop",
+          "kind": "date",
+          "members": [
+            "taotao",
+            "shenyuan"
+          ],
+          "location": "rooftop",
+          "outfit_hint": "casual",
+          "beat": "舞台冰袋·天台吹风"
+        },
+        {
+          "shot_id": "with_qingcai_studio",
+          "kind": "relation",
+          "members": [
+            "taotao",
+            "qingcai"
+          ],
+          "location": "atelier",
+          "outfit_hint": "casual",
+          "beat": "与qingcai·工作/足迹旁"
+        },
+        {
+          "shot_id": "with_qingcai_cafe",
+          "kind": "relation",
+          "members": [
+            "taotao",
+            "qingcai"
+          ],
+          "location": "atelier",
+          "outfit_hint": "date",
+          "beat": "与qingcai·咖啡闲聊"
+        },
+        {
+          "shot_id": "with_qingcai_street",
+          "kind": "relation",
+          "members": [
+            "taotao",
+            "qingcai"
+          ],
+          "location": "street",
+          "outfit_hint": "casual",
+          "beat": "与qingcai·街上并肩"
+        },
+        {
+          "shot_id": "with_qingcai_home",
+          "kind": "relation",
+          "members": [
+            "taotao",
+            "qingcai"
+          ],
+          "location": "atelier",
+          "outfit_hint": "home",
+          "beat": "与qingcai·私域做客"
+        },
+        {
+          "shot_id": "with_qingcai_night",
+          "kind": "relation",
+          "members": [
+            "taotao",
+            "qingcai"
+          ],
+          "location": "atelier",
+          "outfit_hint": "evening",
+          "beat": "与qingcai·夜色短叙"
+        },
+        {
+          "shot_id": "sec_gate",
+          "kind": "secondary",
+          "members": [
+            "taotao",
+            "qingcai"
+          ],
+          "location": "campus",
+          "outfit_hint": "work",
+          "beat": "舞台冰袋·守门对视"
+        },
+        {
+          "shot_id": "sec_rival",
+          "kind": "secondary",
+          "members": [
+            "taotao",
+            "qingcai"
+          ],
+          "location": "cafe",
+          "outfit_hint": "casual",
+          "beat": "舞台冰袋·微妙同席"
+        },
+        {
+          "shot_id": "sec_trio_pc_silhouette",
+          "kind": "secondary",
+          "members": [
+            "taotao",
+            "qingcai",
+            "shenyuan"
+          ],
+          "location": "street",
+          "outfit_hint": "date",
+          "beat": "舞台冰袋·三人剪影"
+        },
+        {
+          "shot_id": "sec_ensemble",
+          "kind": "secondary",
+          "members": [
+            "taotao",
+            "qingcai",
+            "shenyuan"
+          ],
+          "location": "festival",
+          "outfit_hint": "festival_spring",
+          "beat": "舞台冰袋·小型群像"
+        },
+        {
+          "shot_id": "sec_flashback",
+          "kind": "secondary",
+          "members": [
+            "taotao",
+            "qingcai"
+          ],
+          "location": "library",
+          "outfit_hint": "season_winter",
+          "beat": "舞台冰袋·旧日闪回"
+        }
+      ],
+      "existing": [],
+      "count": 0
+    },
+    "shizuku": {
+      "tier": "T1",
+      "theme": "图书馆层架",
+      "peer_primary": "ruolin",
+      "shots": [
+        {
+          "shot_id": "date_pc_park",
+          "kind": "date",
+          "members": [
+            "shizuku",
+            "shenyuan"
+          ],
+          "location": "park",
+          "outfit_hint": "casual",
+          "beat": "图书馆层架·公园散步"
+        },
+        {
+          "shot_id": "date_pc_home",
+          "kind": "date",
+          "members": [
+            "shizuku",
+            "shenyuan"
+          ],
+          "location": "library",
+          "outfit_hint": "home",
+          "beat": "图书馆层架·居家闲谈"
+        },
+        {
+          "shot_id": "date_pc_festival",
+          "kind": "date",
+          "members": [
+            "shizuku",
+            "shenyuan"
+          ],
+          "location": "festival",
+          "outfit_hint": "festival_spring",
+          "beat": "图书馆层架·节日约会"
+        },
+        {
+          "shot_id": "date_pc_night",
+          "kind": "date",
+          "members": [
+            "shizuku",
+            "shenyuan"
+          ],
+          "location": "cafe",
+          "outfit_hint": "evening",
+          "beat": "图书馆层架·夜里留灯"
+        },
+        {
+          "shot_id": "date_pc_commute",
+          "kind": "date",
+          "members": [
+            "shizuku",
+            "shenyuan"
+          ],
+          "location": "street",
+          "outfit_hint": "work",
+          "beat": "图书馆层架·通勤偶遇"
+        },
+        {
+          "shot_id": "date_pc_work",
+          "kind": "date",
+          "members": [
+            "shizuku",
+            "shenyuan"
+          ],
+          "location": "office",
+          "outfit_hint": "work",
+          "beat": "图书馆层架·职业场附近"
+        },
+        {
+          "shot_id": "date_pc_season",
+          "kind": "date",
+          "members": [
+            "shizuku",
+            "shenyuan"
+          ],
+          "location": "campus",
+          "outfit_hint": "season_winter",
+          "beat": "图书馆层架·季节外出"
+        },
+        {
+          "shot_id": "date_pc_close",
+          "kind": "date",
+          "members": [
+            "shizuku",
+            "shenyuan"
+          ],
+          "location": "library",
+          "outfit_hint": "date",
+          "beat": "图书馆层架·告白近距"
+        },
+        {
+          "shot_id": "date_pc_rooftop",
+          "kind": "date",
+          "members": [
+            "shizuku",
+            "shenyuan"
+          ],
+          "location": "rooftop",
+          "outfit_hint": "casual",
+          "beat": "图书馆层架·天台吹风"
+        },
+        {
+          "shot_id": "date_pc_library",
+          "kind": "date",
+          "members": [
+            "shizuku",
+            "shenyuan"
+          ],
+          "location": "library",
+          "outfit_hint": "casual",
+          "beat": "图书馆层架·安静同桌"
+        },
+        {
+          "shot_id": "with_ruolin_studio",
+          "kind": "relation",
+          "members": [
+            "shizuku",
+            "ruolin"
+          ],
+          "location": "library",
+          "outfit_hint": "casual",
+          "beat": "与ruolin·工作/足迹旁"
+        },
+        {
+          "shot_id": "with_ruolin_cafe",
+          "kind": "relation",
+          "members": [
+            "shizuku",
+            "ruolin"
+          ],
+          "location": "library",
+          "outfit_hint": "date",
+          "beat": "与ruolin·咖啡闲聊"
+        },
+        {
+          "shot_id": "with_ruolin_street",
+          "kind": "relation",
+          "members": [
+            "shizuku",
+            "ruolin"
+          ],
+          "location": "street",
+          "outfit_hint": "casual",
+          "beat": "与ruolin·街上并肩"
+        },
+        {
+          "shot_id": "with_ruolin_home",
+          "kind": "relation",
+          "members": [
+            "shizuku",
+            "ruolin"
+          ],
+          "location": "library",
+          "outfit_hint": "home",
+          "beat": "与ruolin·私域做客"
+        },
+        {
+          "shot_id": "with_ruolin_night",
+          "kind": "relation",
+          "members": [
+            "shizuku",
+            "ruolin"
+          ],
+          "location": "library",
+          "outfit_hint": "evening",
+          "beat": "与ruolin·夜色短叙"
+        },
+        {
+          "shot_id": "sec_gate",
+          "kind": "secondary",
+          "members": [
+            "shizuku",
+            "ruolin"
+          ],
+          "location": "campus",
+          "outfit_hint": "work",
+          "beat": "图书馆层架·守门对视"
+        },
+        {
+          "shot_id": "sec_rival",
+          "kind": "secondary",
+          "members": [
+            "shizuku",
+            "ruolin"
+          ],
+          "location": "cafe",
+          "outfit_hint": "casual",
+          "beat": "图书馆层架·微妙同席"
+        },
+        {
+          "shot_id": "sec_trio_pc_silhouette",
+          "kind": "secondary",
+          "members": [
+            "shizuku",
+            "ruolin",
+            "shenyuan"
+          ],
+          "location": "street",
+          "outfit_hint": "date",
+          "beat": "图书馆层架·三人剪影"
+        },
+        {
+          "shot_id": "sec_ensemble",
+          "kind": "secondary",
+          "members": [
+            "shizuku",
+            "ruolin",
+            "shenyuan"
+          ],
+          "location": "festival",
+          "outfit_hint": "festival_spring",
+          "beat": "图书馆层架·小型群像"
+        },
+        {
+          "shot_id": "sec_flashback",
+          "kind": "secondary",
+          "members": [
+            "shizuku",
+            "ruolin"
+          ],
+          "location": "library",
+          "outfit_hint": "season_winter",
+          "beat": "图书馆层架·旧日闪回"
+        }
+      ],
+      "existing": [],
+      "count": 0
+    },
+    "qiansha": {
+      "tier": "T1",
+      "theme": "前端夜审",
+      "peer_primary": "linxi",
+      "shots": [
+        {
+          "shot_id": "date_pc_home",
+          "kind": "date",
+          "members": [
+            "qiansha",
+            "shenyuan"
+          ],
+          "location": "office",
+          "outfit_hint": "home",
+          "beat": "前端夜审·居家闲谈"
+        },
+        {
+          "shot_id": "date_pc_festival",
+          "kind": "date",
+          "members": [
+            "qiansha",
+            "shenyuan"
+          ],
+          "location": "festival",
+          "outfit_hint": "festival_spring",
+          "beat": "前端夜审·节日约会"
+        },
+        {
+          "shot_id": "date_pc_night",
+          "kind": "date",
+          "members": [
+            "qiansha",
+            "shenyuan"
+          ],
+          "location": "cafe",
+          "outfit_hint": "evening",
+          "beat": "前端夜审·夜里留灯"
+        },
+        {
+          "shot_id": "date_pc_commute",
+          "kind": "date",
+          "members": [
+            "qiansha",
+            "shenyuan"
+          ],
+          "location": "street",
+          "outfit_hint": "work",
+          "beat": "前端夜审·通勤偶遇"
+        },
+        {
+          "shot_id": "date_pc_work",
+          "kind": "date",
+          "members": [
+            "qiansha",
+            "shenyuan"
+          ],
+          "location": "office",
+          "outfit_hint": "work",
+          "beat": "前端夜审·职业场附近"
+        },
+        {
+          "shot_id": "date_pc_season",
+          "kind": "date",
+          "members": [
+            "qiansha",
+            "shenyuan"
+          ],
+          "location": "campus",
+          "outfit_hint": "season_winter",
+          "beat": "前端夜审·季节外出"
+        },
+        {
+          "shot_id": "date_pc_close",
+          "kind": "date",
+          "members": [
+            "qiansha",
+            "shenyuan"
+          ],
+          "location": "office",
+          "outfit_hint": "date",
+          "beat": "前端夜审·告白近距"
+        },
+        {
+          "shot_id": "date_pc_rooftop",
+          "kind": "date",
+          "members": [
+            "qiansha",
+            "shenyuan"
+          ],
+          "location": "rooftop",
+          "outfit_hint": "casual",
+          "beat": "前端夜审·天台吹风"
+        },
+        {
+          "shot_id": "date_pc_library",
+          "kind": "date",
+          "members": [
+            "qiansha",
+            "shenyuan"
+          ],
+          "location": "library",
+          "outfit_hint": "casual",
+          "beat": "前端夜审·安静同桌"
+        },
+        {
+          "shot_id": "date_pc_bookstore",
+          "kind": "date",
+          "members": [
+            "qiansha",
+            "shenyuan"
+          ],
+          "location": "bookstore",
+          "outfit_hint": "casual",
+          "beat": "前端夜审·书架偶遇"
+        },
+        {
+          "shot_id": "with_linxi_studio",
+          "kind": "relation",
+          "members": [
+            "qiansha",
+            "linxi"
+          ],
+          "location": "office",
+          "outfit_hint": "casual",
+          "beat": "与linxi·工作/足迹旁"
+        },
+        {
+          "shot_id": "with_linxi_cafe",
+          "kind": "relation",
+          "members": [
+            "qiansha",
+            "linxi"
+          ],
+          "location": "cafe",
+          "outfit_hint": "date",
+          "beat": "与linxi·咖啡闲聊"
+        },
+        {
+          "shot_id": "with_linxi_street",
+          "kind": "relation",
+          "members": [
+            "qiansha",
+            "linxi"
+          ],
+          "location": "street",
+          "outfit_hint": "casual",
+          "beat": "与linxi·街上并肩"
+        },
+        {
+          "shot_id": "with_linxi_home",
+          "kind": "relation",
+          "members": [
+            "qiansha",
+            "linxi"
+          ],
+          "location": "office",
+          "outfit_hint": "home",
+          "beat": "与linxi·私域做客"
+        },
+        {
+          "shot_id": "with_linxi_night",
+          "kind": "relation",
+          "members": [
+            "qiansha",
+            "linxi"
+          ],
+          "location": "office",
+          "outfit_hint": "evening",
+          "beat": "与linxi·夜色短叙"
+        },
+        {
+          "shot_id": "sec_gate",
+          "kind": "secondary",
+          "members": [
+            "qiansha",
+            "linxi"
+          ],
+          "location": "campus",
+          "outfit_hint": "work",
+          "beat": "前端夜审·守门对视"
+        },
+        {
+          "shot_id": "sec_rival",
+          "kind": "secondary",
+          "members": [
+            "qiansha",
+            "linxi"
+          ],
+          "location": "cafe",
+          "outfit_hint": "casual",
+          "beat": "前端夜审·微妙同席"
+        },
+        {
+          "shot_id": "sec_trio_pc_silhouette",
+          "kind": "secondary",
+          "members": [
+            "qiansha",
+            "linxi",
+            "shenyuan"
+          ],
+          "location": "street",
+          "outfit_hint": "date",
+          "beat": "前端夜审·三人剪影"
+        },
+        {
+          "shot_id": "sec_ensemble",
+          "kind": "secondary",
+          "members": [
+            "qiansha",
+            "linxi",
+            "shenyuan"
+          ],
+          "location": "festival",
+          "outfit_hint": "festival_spring",
+          "beat": "前端夜审·小型群像"
+        },
+        {
+          "shot_id": "sec_flashback",
+          "kind": "secondary",
+          "members": [
+            "qiansha",
+            "linxi"
+          ],
+          "location": "library",
+          "outfit_hint": "season_winter",
+          "beat": "前端夜审·旧日闪回"
+        }
+      ],
+      "existing": [],
+      "count": 0
+    },
+    "shiori": {
+      "tier": "T1",
+      "theme": "窗边书",
+      "peer_primary": "xiaoyou",
+      "shots": [
+        {
+          "shot_id": "date_pc_festival",
+          "kind": "date",
+          "members": [
+            "shiori",
+            "shenyuan"
+          ],
+          "location": "festival",
+          "outfit_hint": "festival_spring",
+          "beat": "窗边书·节日约会"
+        },
+        {
+          "shot_id": "date_pc_night",
+          "kind": "date",
+          "members": [
+            "shiori",
+            "shenyuan"
+          ],
+          "location": "cafe",
+          "outfit_hint": "evening",
+          "beat": "窗边书·夜里留灯"
+        },
+        {
+          "shot_id": "date_pc_commute",
+          "kind": "date",
+          "members": [
+            "shiori",
+            "shenyuan"
+          ],
+          "location": "street",
+          "outfit_hint": "work",
+          "beat": "窗边书·通勤偶遇"
+        },
+        {
+          "shot_id": "date_pc_work",
+          "kind": "date",
+          "members": [
+            "shiori",
+            "shenyuan"
+          ],
+          "location": "office",
+          "outfit_hint": "work",
+          "beat": "窗边书·职业场附近"
+        },
+        {
+          "shot_id": "date_pc_season",
+          "kind": "date",
+          "members": [
+            "shiori",
+            "shenyuan"
+          ],
+          "location": "campus",
+          "outfit_hint": "season_winter",
+          "beat": "窗边书·季节外出"
+        },
+        {
+          "shot_id": "date_pc_close",
+          "kind": "date",
+          "members": [
+            "shiori",
+            "shenyuan"
+          ],
+          "location": "bookstore",
+          "outfit_hint": "date",
+          "beat": "窗边书·告白近距"
+        },
+        {
+          "shot_id": "date_pc_rooftop",
+          "kind": "date",
+          "members": [
+            "shiori",
+            "shenyuan"
+          ],
+          "location": "rooftop",
+          "outfit_hint": "casual",
+          "beat": "窗边书·天台吹风"
+        },
+        {
+          "shot_id": "date_pc_library",
+          "kind": "date",
+          "members": [
+            "shiori",
+            "shenyuan"
+          ],
+          "location": "library",
+          "outfit_hint": "casual",
+          "beat": "窗边书·安静同桌"
+        },
+        {
+          "shot_id": "date_pc_bookstore",
+          "kind": "date",
+          "members": [
+            "shiori",
+            "shenyuan"
+          ],
+          "location": "bookstore",
+          "outfit_hint": "casual",
+          "beat": "窗边书·书架偶遇"
+        },
+        {
+          "shot_id": "date_pc_atelier",
+          "kind": "date",
+          "members": [
+            "shiori",
+            "shenyuan"
+          ],
+          "location": "atelier",
+          "outfit_hint": "work",
+          "beat": "窗边书·创作旁观"
+        },
+        {
+          "shot_id": "with_xiaoyou_studio",
+          "kind": "relation",
+          "members": [
+            "shiori",
+            "xiaoyou"
+          ],
+          "location": "bookstore",
+          "outfit_hint": "casual",
+          "beat": "与xiaoyou·工作/足迹旁"
+        },
+        {
+          "shot_id": "with_xiaoyou_cafe",
+          "kind": "relation",
+          "members": [
+            "shiori",
+            "xiaoyou"
+          ],
+          "location": "bookstore",
+          "outfit_hint": "date",
+          "beat": "与xiaoyou·咖啡闲聊"
+        },
+        {
+          "shot_id": "with_xiaoyou_street",
+          "kind": "relation",
+          "members": [
+            "shiori",
+            "xiaoyou"
+          ],
+          "location": "street",
+          "outfit_hint": "casual",
+          "beat": "与xiaoyou·街上并肩"
+        },
+        {
+          "shot_id": "with_xiaoyou_home",
+          "kind": "relation",
+          "members": [
+            "shiori",
+            "xiaoyou"
+          ],
+          "location": "bookstore",
+          "outfit_hint": "home",
+          "beat": "与xiaoyou·私域做客"
+        },
+        {
+          "shot_id": "with_xiaoyou_night",
+          "kind": "relation",
+          "members": [
+            "shiori",
+            "xiaoyou"
+          ],
+          "location": "bookstore",
+          "outfit_hint": "evening",
+          "beat": "与xiaoyou·夜色短叙"
+        },
+        {
+          "shot_id": "sec_gate",
+          "kind": "secondary",
+          "members": [
+            "shiori",
+            "xiaoyou"
+          ],
+          "location": "campus",
+          "outfit_hint": "work",
+          "beat": "窗边书·守门对视"
+        },
+        {
+          "shot_id": "sec_rival",
+          "kind": "secondary",
+          "members": [
+            "shiori",
+            "xiaoyou"
+          ],
+          "location": "cafe",
+          "outfit_hint": "casual",
+          "beat": "窗边书·微妙同席"
+        },
+        {
+          "shot_id": "sec_trio_pc_silhouette",
+          "kind": "secondary",
+          "members": [
+            "shiori",
+            "xiaoyou",
+            "shenyuan"
+          ],
+          "location": "street",
+          "outfit_hint": "date",
+          "beat": "窗边书·三人剪影"
+        },
+        {
+          "shot_id": "sec_ensemble",
+          "kind": "secondary",
+          "members": [
+            "shiori",
+            "xiaoyou",
+            "shenyuan"
+          ],
+          "location": "festival",
+          "outfit_hint": "festival_spring",
+          "beat": "窗边书·小型群像"
+        },
+        {
+          "shot_id": "sec_flashback",
+          "kind": "secondary",
+          "members": [
+            "shiori",
+            "xiaoyou"
+          ],
+          "location": "library",
+          "outfit_hint": "season_winter",
+          "beat": "窗边书·旧日闪回"
+        }
+      ],
+      "existing": [],
+      "count": 0
+    },
+    "miara": {
+      "tier": "T1",
+      "theme": "谷子精灵耳",
+      "peer_primary": "shiori",
+      "shots": [
+        {
+          "shot_id": "date_pc_cafe",
+          "kind": "date",
+          "members": [
+            "miara",
+            "shenyuan"
+          ],
+          "location": "cafe",
+          "outfit_hint": "date",
+          "beat": "谷子精灵耳·咖啡馆日常约会"
+        },
+        {
+          "shot_id": "date_pc_rain",
+          "kind": "date",
+          "members": [
+            "miara",
+            "shenyuan"
+          ],
+          "location": "street",
+          "outfit_hint": "rain",
+          "beat": "谷子精灵耳·雨街共伞"
+        },
+        {
+          "shot_id": "date_pc_park",
+          "kind": "date",
+          "members": [
+            "miara",
+            "shenyuan"
+          ],
+          "location": "park",
+          "outfit_hint": "casual",
+          "beat": "谷子精灵耳·公园散步"
+        },
+        {
+          "shot_id": "date_pc_home",
+          "kind": "date",
+          "members": [
+            "miara",
+            "shenyuan"
+          ],
+          "location": "store",
+          "outfit_hint": "home",
+          "beat": "谷子精灵耳·居家闲谈"
+        },
+        {
+          "shot_id": "date_pc_festival",
+          "kind": "date",
+          "members": [
+            "miara",
+            "shenyuan"
+          ],
+          "location": "festival",
+          "outfit_hint": "festival_spring",
+          "beat": "谷子精灵耳·节日约会"
+        },
+        {
+          "shot_id": "date_pc_night",
+          "kind": "date",
+          "members": [
+            "miara",
+            "shenyuan"
+          ],
+          "location": "cafe",
+          "outfit_hint": "evening",
+          "beat": "谷子精灵耳·夜里留灯"
+        },
+        {
+          "shot_id": "date_pc_commute",
+          "kind": "date",
+          "members": [
+            "miara",
+            "shenyuan"
+          ],
+          "location": "street",
+          "outfit_hint": "work",
+          "beat": "谷子精灵耳·通勤偶遇"
+        },
+        {
+          "shot_id": "date_pc_work",
+          "kind": "date",
+          "members": [
+            "miara",
+            "shenyuan"
+          ],
+          "location": "office",
+          "outfit_hint": "work",
+          "beat": "谷子精灵耳·职业场附近"
+        },
+        {
+          "shot_id": "date_pc_season",
+          "kind": "date",
+          "members": [
+            "miara",
+            "shenyuan"
+          ],
+          "location": "campus",
+          "outfit_hint": "season_winter",
+          "beat": "谷子精灵耳·季节外出"
+        },
+        {
+          "shot_id": "date_pc_close",
+          "kind": "date",
+          "members": [
+            "miara",
+            "shenyuan"
+          ],
+          "location": "store",
+          "outfit_hint": "date",
+          "beat": "谷子精灵耳·告白近距"
+        },
+        {
+          "shot_id": "with_shiori_studio",
+          "kind": "relation",
+          "members": [
+            "miara",
+            "shiori"
+          ],
+          "location": "store",
+          "outfit_hint": "casual",
+          "beat": "与shiori·工作/足迹旁"
+        },
+        {
+          "shot_id": "with_shiori_cafe",
+          "kind": "relation",
+          "members": [
+            "miara",
+            "shiori"
+          ],
+          "location": "store",
+          "outfit_hint": "date",
+          "beat": "与shiori·咖啡闲聊"
+        },
+        {
+          "shot_id": "with_shiori_street",
+          "kind": "relation",
+          "members": [
+            "miara",
+            "shiori"
+          ],
+          "location": "street",
+          "outfit_hint": "casual",
+          "beat": "与shiori·街上并肩"
+        },
+        {
+          "shot_id": "with_shiori_home",
+          "kind": "relation",
+          "members": [
+            "miara",
+            "shiori"
+          ],
+          "location": "store",
+          "outfit_hint": "home",
+          "beat": "与shiori·私域做客"
+        },
+        {
+          "shot_id": "with_shiori_night",
+          "kind": "relation",
+          "members": [
+            "miara",
+            "shiori"
+          ],
+          "location": "store",
+          "outfit_hint": "evening",
+          "beat": "与shiori·夜色短叙"
+        },
+        {
+          "shot_id": "sec_gate",
+          "kind": "secondary",
+          "members": [
+            "miara",
+            "shiori"
+          ],
+          "location": "campus",
+          "outfit_hint": "work",
+          "beat": "谷子精灵耳·守门对视"
+        },
+        {
+          "shot_id": "sec_rival",
+          "kind": "secondary",
+          "members": [
+            "miara",
+            "shiori"
+          ],
+          "location": "cafe",
+          "outfit_hint": "casual",
+          "beat": "谷子精灵耳·微妙同席"
+        },
+        {
+          "shot_id": "sec_trio_pc_silhouette",
+          "kind": "secondary",
+          "members": [
+            "miara",
+            "shiori",
+            "shenyuan"
+          ],
+          "location": "street",
+          "outfit_hint": "date",
+          "beat": "谷子精灵耳·三人剪影"
+        },
+        {
+          "shot_id": "sec_ensemble",
+          "kind": "secondary",
+          "members": [
+            "miara",
+            "shiori",
+            "shenyuan"
+          ],
+          "location": "festival",
+          "outfit_hint": "festival_spring",
+          "beat": "谷子精灵耳·小型群像"
+        },
+        {
+          "shot_id": "sec_flashback",
+          "kind": "secondary",
+          "members": [
+            "miara",
+            "shiori"
+          ],
+          "location": "library",
+          "outfit_hint": "season_winter",
+          "beat": "谷子精灵耳·旧日闪回"
+        }
+      ],
+      "existing": [],
+      "count": 0
+    },
+    "xingnai": {
+      "tier": "T2",
+      "theme": "天台便当",
+      "peer_primary": "fengyin",
+      "shots": [
+        {
+          "shot_id": "date_pc_rain",
+          "kind": "date",
+          "members": [
+            "xingnai",
+            "shenyuan"
+          ],
+          "location": "street",
+          "outfit_hint": "rain",
+          "beat": "天台便当·雨街共伞"
+        },
+        {
+          "shot_id": "date_pc_park",
+          "kind": "date",
+          "members": [
+            "xingnai",
+            "shenyuan"
+          ],
+          "location": "park",
+          "outfit_hint": "casual",
+          "beat": "天台便当·公园散步"
+        },
+        {
+          "shot_id": "date_pc_home",
+          "kind": "date",
+          "members": [
+            "xingnai",
+            "shenyuan"
+          ],
+          "location": "rooftop",
+          "outfit_hint": "home",
+          "beat": "天台便当·居家闲谈"
+        },
+        {
+          "shot_id": "date_pc_festival",
+          "kind": "date",
+          "members": [
+            "xingnai",
+            "shenyuan"
+          ],
+          "location": "festival",
+          "outfit_hint": "festival_spring",
+          "beat": "天台便当·节日约会"
+        },
+        {
+          "shot_id": "date_pc_night",
+          "kind": "date",
+          "members": [
+            "xingnai",
+            "shenyuan"
+          ],
+          "location": "cafe",
+          "outfit_hint": "evening",
+          "beat": "天台便当·夜里留灯"
+        },
+        {
+          "shot_id": "date_pc_commute",
+          "kind": "date",
+          "members": [
+            "xingnai",
+            "shenyuan"
+          ],
+          "location": "street",
+          "outfit_hint": "work",
+          "beat": "天台便当·通勤偶遇"
+        },
+        {
+          "shot_id": "date_pc_work",
+          "kind": "date",
+          "members": [
+            "xingnai",
+            "shenyuan"
+          ],
+          "location": "office",
+          "outfit_hint": "work",
+          "beat": "天台便当·职业场附近"
+        },
+        {
+          "shot_id": "date_pc_season",
+          "kind": "date",
+          "members": [
+            "xingnai",
+            "shenyuan"
+          ],
+          "location": "campus",
+          "outfit_hint": "season_winter",
+          "beat": "天台便当·季节外出"
+        },
+        {
+          "shot_id": "date_pc_close",
+          "kind": "date",
+          "members": [
+            "xingnai",
+            "shenyuan"
+          ],
+          "location": "rooftop",
+          "outfit_hint": "date",
+          "beat": "天台便当·告白近距"
+        },
+        {
+          "shot_id": "date_pc_rooftop",
+          "kind": "date",
+          "members": [
+            "xingnai",
+            "shenyuan"
+          ],
+          "location": "rooftop",
+          "outfit_hint": "casual",
+          "beat": "天台便当·天台吹风"
+        },
+        {
+          "shot_id": "with_fengyin_studio",
+          "kind": "relation",
+          "members": [
+            "xingnai",
+            "fengyin"
+          ],
+          "location": "rooftop",
+          "outfit_hint": "casual",
+          "beat": "与fengyin·工作/足迹旁"
+        },
+        {
+          "shot_id": "with_fengyin_cafe",
+          "kind": "relation",
+          "members": [
+            "xingnai",
+            "fengyin"
+          ],
+          "location": "rooftop",
+          "outfit_hint": "date",
+          "beat": "与fengyin·咖啡闲聊"
+        },
+        {
+          "shot_id": "with_fengyin_street",
+          "kind": "relation",
+          "members": [
+            "xingnai",
+            "fengyin"
+          ],
+          "location": "street",
+          "outfit_hint": "casual",
+          "beat": "与fengyin·街上并肩"
+        },
+        {
+          "shot_id": "with_fengyin_home",
+          "kind": "relation",
+          "members": [
+            "xingnai",
+            "fengyin"
+          ],
+          "location": "rooftop",
+          "outfit_hint": "home",
+          "beat": "与fengyin·私域做客"
+        },
+        {
+          "shot_id": "with_fengyin_night",
+          "kind": "relation",
+          "members": [
+            "xingnai",
+            "fengyin"
+          ],
+          "location": "rooftop",
+          "outfit_hint": "evening",
+          "beat": "与fengyin·夜色短叙"
+        },
+        {
+          "shot_id": "sec_gate",
+          "kind": "secondary",
+          "members": [
+            "xingnai",
+            "fengyin"
+          ],
+          "location": "campus",
+          "outfit_hint": "work",
+          "beat": "天台便当·守门对视"
+        },
+        {
+          "shot_id": "sec_rival",
+          "kind": "secondary",
+          "members": [
+            "xingnai",
+            "fengyin"
+          ],
+          "location": "cafe",
+          "outfit_hint": "casual",
+          "beat": "天台便当·微妙同席"
+        },
+        {
+          "shot_id": "sec_trio_pc_silhouette",
+          "kind": "secondary",
+          "members": [
+            "xingnai",
+            "fengyin",
+            "shenyuan"
+          ],
+          "location": "street",
+          "outfit_hint": "date",
+          "beat": "天台便当·三人剪影"
+        },
+        {
+          "shot_id": "sec_ensemble",
+          "kind": "secondary",
+          "members": [
+            "xingnai",
+            "fengyin",
+            "shenyuan"
+          ],
+          "location": "festival",
+          "outfit_hint": "festival_spring",
+          "beat": "天台便当·小型群像"
+        },
+        {
+          "shot_id": "sec_flashback",
+          "kind": "secondary",
+          "members": [
+            "xingnai",
+            "fengyin"
+          ],
+          "location": "library",
+          "outfit_hint": "season_winter",
+          "beat": "天台便当·旧日闪回"
+        }
+      ],
+      "existing": [],
+      "count": 0
+    },
+    "fengyin": {
+      "tier": "T2",
+      "theme": "同居屋檐",
+      "peer_primary": "shuli",
+      "shots": [
+        {
+          "shot_id": "date_pc_park",
+          "kind": "date",
+          "members": [
+            "fengyin",
+            "shenyuan"
+          ],
+          "location": "park",
+          "outfit_hint": "casual",
+          "beat": "同居屋檐·公园散步"
+        },
+        {
+          "shot_id": "date_pc_home",
+          "kind": "date",
+          "members": [
+            "fengyin",
+            "shenyuan"
+          ],
+          "location": "home",
+          "outfit_hint": "home",
+          "beat": "同居屋檐·居家闲谈"
+        },
+        {
+          "shot_id": "date_pc_festival",
+          "kind": "date",
+          "members": [
+            "fengyin",
+            "shenyuan"
+          ],
+          "location": "festival",
+          "outfit_hint": "festival_spring",
+          "beat": "同居屋檐·节日约会"
+        },
+        {
+          "shot_id": "date_pc_night",
+          "kind": "date",
+          "members": [
+            "fengyin",
+            "shenyuan"
+          ],
+          "location": "cafe",
+          "outfit_hint": "evening",
+          "beat": "同居屋檐·夜里留灯"
+        },
+        {
+          "shot_id": "date_pc_commute",
+          "kind": "date",
+          "members": [
+            "fengyin",
+            "shenyuan"
+          ],
+          "location": "street",
+          "outfit_hint": "work",
+          "beat": "同居屋檐·通勤偶遇"
+        },
+        {
+          "shot_id": "date_pc_work",
+          "kind": "date",
+          "members": [
+            "fengyin",
+            "shenyuan"
+          ],
+          "location": "office",
+          "outfit_hint": "work",
+          "beat": "同居屋檐·职业场附近"
+        },
+        {
+          "shot_id": "date_pc_season",
+          "kind": "date",
+          "members": [
+            "fengyin",
+            "shenyuan"
+          ],
+          "location": "campus",
+          "outfit_hint": "season_winter",
+          "beat": "同居屋檐·季节外出"
+        },
+        {
+          "shot_id": "date_pc_close",
+          "kind": "date",
+          "members": [
+            "fengyin",
+            "shenyuan"
+          ],
+          "location": "home",
+          "outfit_hint": "date",
+          "beat": "同居屋檐·告白近距"
+        },
+        {
+          "shot_id": "date_pc_rooftop",
+          "kind": "date",
+          "members": [
+            "fengyin",
+            "shenyuan"
+          ],
+          "location": "rooftop",
+          "outfit_hint": "casual",
+          "beat": "同居屋檐·天台吹风"
+        },
+        {
+          "shot_id": "date_pc_library",
+          "kind": "date",
+          "members": [
+            "fengyin",
+            "shenyuan"
+          ],
+          "location": "library",
+          "outfit_hint": "casual",
+          "beat": "同居屋檐·安静同桌"
+        },
+        {
+          "shot_id": "with_shuli_studio",
+          "kind": "relation",
+          "members": [
+            "fengyin",
+            "shuli"
+          ],
+          "location": "home",
+          "outfit_hint": "casual",
+          "beat": "与shuli·工作/足迹旁"
+        },
+        {
+          "shot_id": "with_shuli_cafe",
+          "kind": "relation",
+          "members": [
+            "fengyin",
+            "shuli"
+          ],
+          "location": "home",
+          "outfit_hint": "date",
+          "beat": "与shuli·咖啡闲聊"
+        },
+        {
+          "shot_id": "with_shuli_street",
+          "kind": "relation",
+          "members": [
+            "fengyin",
+            "shuli"
+          ],
+          "location": "street",
+          "outfit_hint": "casual",
+          "beat": "与shuli·街上并肩"
+        },
+        {
+          "shot_id": "with_shuli_home",
+          "kind": "relation",
+          "members": [
+            "fengyin",
+            "shuli"
+          ],
+          "location": "home",
+          "outfit_hint": "home",
+          "beat": "与shuli·私域做客"
+        },
+        {
+          "shot_id": "with_shuli_night",
+          "kind": "relation",
+          "members": [
+            "fengyin",
+            "shuli"
+          ],
+          "location": "home",
+          "outfit_hint": "evening",
+          "beat": "与shuli·夜色短叙"
+        },
+        {
+          "shot_id": "sec_gate",
+          "kind": "secondary",
+          "members": [
+            "fengyin",
+            "shuli"
+          ],
+          "location": "campus",
+          "outfit_hint": "work",
+          "beat": "同居屋檐·守门对视"
+        },
+        {
+          "shot_id": "sec_rival",
+          "kind": "secondary",
+          "members": [
+            "fengyin",
+            "shuli"
+          ],
+          "location": "cafe",
+          "outfit_hint": "casual",
+          "beat": "同居屋檐·微妙同席"
+        },
+        {
+          "shot_id": "sec_trio_pc_silhouette",
+          "kind": "secondary",
+          "members": [
+            "fengyin",
+            "shuli",
+            "shenyuan"
+          ],
+          "location": "street",
+          "outfit_hint": "date",
+          "beat": "同居屋檐·三人剪影"
+        },
+        {
+          "shot_id": "sec_ensemble",
+          "kind": "secondary",
+          "members": [
+            "fengyin",
+            "shuli",
+            "shenyuan"
+          ],
+          "location": "festival",
+          "outfit_hint": "festival_spring",
+          "beat": "同居屋檐·小型群像"
+        },
+        {
+          "shot_id": "sec_flashback",
+          "kind": "secondary",
+          "members": [
+            "fengyin",
+            "shuli"
+          ],
+          "location": "library",
+          "outfit_hint": "season_winter",
+          "beat": "同居屋檐·旧日闪回"
+        }
+      ],
+      "existing": [],
+      "count": 0
+    },
+    "qingcai": {
+      "tier": "T2",
+      "theme": "练舞室镜",
+      "peer_primary": "xiaoyang",
+      "shots": [
+        {
+          "shot_id": "date_pc_home",
+          "kind": "date",
+          "members": [
+            "qingcai",
+            "shenyuan"
+          ],
+          "location": "campus",
+          "outfit_hint": "home",
+          "beat": "练舞室镜·居家闲谈"
+        },
+        {
+          "shot_id": "date_pc_festival",
+          "kind": "date",
+          "members": [
+            "qingcai",
+            "shenyuan"
+          ],
+          "location": "festival",
+          "outfit_hint": "festival_spring",
+          "beat": "练舞室镜·节日约会"
+        },
+        {
+          "shot_id": "date_pc_night",
+          "kind": "date",
+          "members": [
+            "qingcai",
+            "shenyuan"
+          ],
+          "location": "cafe",
+          "outfit_hint": "evening",
+          "beat": "练舞室镜·夜里留灯"
+        },
+        {
+          "shot_id": "date_pc_commute",
+          "kind": "date",
+          "members": [
+            "qingcai",
+            "shenyuan"
+          ],
+          "location": "street",
+          "outfit_hint": "work",
+          "beat": "练舞室镜·通勤偶遇"
+        },
+        {
+          "shot_id": "date_pc_work",
+          "kind": "date",
+          "members": [
+            "qingcai",
+            "shenyuan"
+          ],
+          "location": "office",
+          "outfit_hint": "work",
+          "beat": "练舞室镜·职业场附近"
+        },
+        {
+          "shot_id": "date_pc_season",
+          "kind": "date",
+          "members": [
+            "qingcai",
+            "shenyuan"
+          ],
+          "location": "campus",
+          "outfit_hint": "season_winter",
+          "beat": "练舞室镜·季节外出"
+        },
+        {
+          "shot_id": "date_pc_close",
+          "kind": "date",
+          "members": [
+            "qingcai",
+            "shenyuan"
+          ],
+          "location": "campus",
+          "outfit_hint": "date",
+          "beat": "练舞室镜·告白近距"
+        },
+        {
+          "shot_id": "date_pc_rooftop",
+          "kind": "date",
+          "members": [
+            "qingcai",
+            "shenyuan"
+          ],
+          "location": "rooftop",
+          "outfit_hint": "casual",
+          "beat": "练舞室镜·天台吹风"
+        },
+        {
+          "shot_id": "date_pc_library",
+          "kind": "date",
+          "members": [
+            "qingcai",
+            "shenyuan"
+          ],
+          "location": "library",
+          "outfit_hint": "casual",
+          "beat": "练舞室镜·安静同桌"
+        },
+        {
+          "shot_id": "date_pc_bookstore",
+          "kind": "date",
+          "members": [
+            "qingcai",
+            "shenyuan"
+          ],
+          "location": "bookstore",
+          "outfit_hint": "casual",
+          "beat": "练舞室镜·书架偶遇"
+        },
+        {
+          "shot_id": "with_xiaoyang_studio",
+          "kind": "relation",
+          "members": [
+            "qingcai",
+            "xiaoyang"
+          ],
+          "location": "campus",
+          "outfit_hint": "casual",
+          "beat": "与xiaoyang·工作/足迹旁"
+        },
+        {
+          "shot_id": "with_xiaoyang_cafe",
+          "kind": "relation",
+          "members": [
+            "qingcai",
+            "xiaoyang"
+          ],
+          "location": "campus",
+          "outfit_hint": "date",
+          "beat": "与xiaoyang·咖啡闲聊"
+        },
+        {
+          "shot_id": "with_xiaoyang_street",
+          "kind": "relation",
+          "members": [
+            "qingcai",
+            "xiaoyang"
+          ],
+          "location": "street",
+          "outfit_hint": "casual",
+          "beat": "与xiaoyang·街上并肩"
+        },
+        {
+          "shot_id": "with_xiaoyang_home",
+          "kind": "relation",
+          "members": [
+            "qingcai",
+            "xiaoyang"
+          ],
+          "location": "campus",
+          "outfit_hint": "home",
+          "beat": "与xiaoyang·私域做客"
+        },
+        {
+          "shot_id": "with_xiaoyang_night",
+          "kind": "relation",
+          "members": [
+            "qingcai",
+            "xiaoyang"
+          ],
+          "location": "campus",
+          "outfit_hint": "evening",
+          "beat": "与xiaoyang·夜色短叙"
+        },
+        {
+          "shot_id": "sec_gate",
+          "kind": "secondary",
+          "members": [
+            "qingcai",
+            "xiaoyang"
+          ],
+          "location": "campus",
+          "outfit_hint": "work",
+          "beat": "练舞室镜·守门对视"
+        },
+        {
+          "shot_id": "sec_rival",
+          "kind": "secondary",
+          "members": [
+            "qingcai",
+            "xiaoyang"
+          ],
+          "location": "cafe",
+          "outfit_hint": "casual",
+          "beat": "练舞室镜·微妙同席"
+        },
+        {
+          "shot_id": "sec_trio_pc_silhouette",
+          "kind": "secondary",
+          "members": [
+            "qingcai",
+            "xiaoyang",
+            "shenyuan"
+          ],
+          "location": "street",
+          "outfit_hint": "date",
+          "beat": "练舞室镜·三人剪影"
+        },
+        {
+          "shot_id": "sec_ensemble",
+          "kind": "secondary",
+          "members": [
+            "qingcai",
+            "xiaoyang",
+            "shenyuan"
+          ],
+          "location": "festival",
+          "outfit_hint": "festival_spring",
+          "beat": "练舞室镜·小型群像"
+        },
+        {
+          "shot_id": "sec_flashback",
+          "kind": "secondary",
+          "members": [
+            "qingcai",
+            "xiaoyang"
+          ],
+          "location": "library",
+          "outfit_hint": "season_winter",
+          "beat": "练舞室镜·旧日闪回"
+        }
+      ],
+      "existing": [],
+      "count": 0
+    },
+    "xiaoyang": {
+      "tier": "T2",
+      "theme": "社团海报",
+      "peer_primary": "qingcai",
+      "shots": [
+        {
+          "shot_id": "date_pc_festival",
+          "kind": "date",
+          "members": [
+            "xiaoyang",
+            "shenyuan"
+          ],
+          "location": "festival",
+          "outfit_hint": "festival_spring",
+          "beat": "社团海报·节日约会"
+        },
+        {
+          "shot_id": "date_pc_night",
+          "kind": "date",
+          "members": [
+            "xiaoyang",
+            "shenyuan"
+          ],
+          "location": "cafe",
+          "outfit_hint": "evening",
+          "beat": "社团海报·夜里留灯"
+        },
+        {
+          "shot_id": "date_pc_commute",
+          "kind": "date",
+          "members": [
+            "xiaoyang",
+            "shenyuan"
+          ],
+          "location": "street",
+          "outfit_hint": "work",
+          "beat": "社团海报·通勤偶遇"
+        },
+        {
+          "shot_id": "date_pc_work",
+          "kind": "date",
+          "members": [
+            "xiaoyang",
+            "shenyuan"
+          ],
+          "location": "office",
+          "outfit_hint": "work",
+          "beat": "社团海报·职业场附近"
+        },
+        {
+          "shot_id": "date_pc_season",
+          "kind": "date",
+          "members": [
+            "xiaoyang",
+            "shenyuan"
+          ],
+          "location": "campus",
+          "outfit_hint": "season_winter",
+          "beat": "社团海报·季节外出"
+        },
+        {
+          "shot_id": "date_pc_close",
+          "kind": "date",
+          "members": [
+            "xiaoyang",
+            "shenyuan"
+          ],
+          "location": "campus",
+          "outfit_hint": "date",
+          "beat": "社团海报·告白近距"
+        },
+        {
+          "shot_id": "date_pc_rooftop",
+          "kind": "date",
+          "members": [
+            "xiaoyang",
+            "shenyuan"
+          ],
+          "location": "rooftop",
+          "outfit_hint": "casual",
+          "beat": "社团海报·天台吹风"
+        },
+        {
+          "shot_id": "date_pc_library",
+          "kind": "date",
+          "members": [
+            "xiaoyang",
+            "shenyuan"
+          ],
+          "location": "library",
+          "outfit_hint": "casual",
+          "beat": "社团海报·安静同桌"
+        },
+        {
+          "shot_id": "date_pc_bookstore",
+          "kind": "date",
+          "members": [
+            "xiaoyang",
+            "shenyuan"
+          ],
+          "location": "bookstore",
+          "outfit_hint": "casual",
+          "beat": "社团海报·书架偶遇"
+        },
+        {
+          "shot_id": "date_pc_atelier",
+          "kind": "date",
+          "members": [
+            "xiaoyang",
+            "shenyuan"
+          ],
+          "location": "atelier",
+          "outfit_hint": "work",
+          "beat": "社团海报·创作旁观"
+        },
+        {
+          "shot_id": "with_qingcai_studio",
+          "kind": "relation",
+          "members": [
+            "xiaoyang",
+            "qingcai"
+          ],
+          "location": "campus",
+          "outfit_hint": "casual",
+          "beat": "与qingcai·工作/足迹旁"
+        },
+        {
+          "shot_id": "with_qingcai_cafe",
+          "kind": "relation",
+          "members": [
+            "xiaoyang",
+            "qingcai"
+          ],
+          "location": "campus",
+          "outfit_hint": "date",
+          "beat": "与qingcai·咖啡闲聊"
+        },
+        {
+          "shot_id": "with_qingcai_street",
+          "kind": "relation",
+          "members": [
+            "xiaoyang",
+            "qingcai"
+          ],
+          "location": "street",
+          "outfit_hint": "casual",
+          "beat": "与qingcai·街上并肩"
+        },
+        {
+          "shot_id": "with_qingcai_home",
+          "kind": "relation",
+          "members": [
+            "xiaoyang",
+            "qingcai"
+          ],
+          "location": "campus",
+          "outfit_hint": "home",
+          "beat": "与qingcai·私域做客"
+        },
+        {
+          "shot_id": "with_qingcai_night",
+          "kind": "relation",
+          "members": [
+            "xiaoyang",
+            "qingcai"
+          ],
+          "location": "campus",
+          "outfit_hint": "evening",
+          "beat": "与qingcai·夜色短叙"
+        },
+        {
+          "shot_id": "sec_gate",
+          "kind": "secondary",
+          "members": [
+            "xiaoyang",
+            "qingcai"
+          ],
+          "location": "campus",
+          "outfit_hint": "work",
+          "beat": "社团海报·守门对视"
+        },
+        {
+          "shot_id": "sec_rival",
+          "kind": "secondary",
+          "members": [
+            "xiaoyang",
+            "qingcai"
+          ],
+          "location": "cafe",
+          "outfit_hint": "casual",
+          "beat": "社团海报·微妙同席"
+        },
+        {
+          "shot_id": "sec_trio_pc_silhouette",
+          "kind": "secondary",
+          "members": [
+            "xiaoyang",
+            "qingcai",
+            "shenyuan"
+          ],
+          "location": "street",
+          "outfit_hint": "date",
+          "beat": "社团海报·三人剪影"
+        },
+        {
+          "shot_id": "sec_ensemble",
+          "kind": "secondary",
+          "members": [
+            "xiaoyang",
+            "qingcai",
+            "shenyuan"
+          ],
+          "location": "festival",
+          "outfit_hint": "festival_spring",
+          "beat": "社团海报·小型群像"
+        },
+        {
+          "shot_id": "sec_flashback",
+          "kind": "secondary",
+          "members": [
+            "xiaoyang",
+            "qingcai"
+          ],
+          "location": "library",
+          "outfit_hint": "season_winter",
+          "beat": "社团海报·旧日闪回"
+        }
+      ],
+      "existing": [],
+      "count": 0
+    },
+    "luna": {
+      "tier": "T2",
+      "theme": "夜班塔罗",
+      "peer_primary": "wanyu",
+      "shots": [
+        {
+          "shot_id": "date_pc_cafe",
+          "kind": "date",
+          "members": [
+            "luna",
+            "shenyuan"
+          ],
+          "location": "cafe",
+          "outfit_hint": "date",
+          "beat": "夜班塔罗·咖啡馆日常约会"
+        },
+        {
+          "shot_id": "date_pc_rain",
+          "kind": "date",
+          "members": [
+            "luna",
+            "shenyuan"
+          ],
+          "location": "street",
+          "outfit_hint": "rain",
+          "beat": "夜班塔罗·雨街共伞"
+        },
+        {
+          "shot_id": "date_pc_park",
+          "kind": "date",
+          "members": [
+            "luna",
+            "shenyuan"
+          ],
+          "location": "park",
+          "outfit_hint": "casual",
+          "beat": "夜班塔罗·公园散步"
+        },
+        {
+          "shot_id": "date_pc_home",
+          "kind": "date",
+          "members": [
+            "luna",
+            "shenyuan"
+          ],
+          "location": "cafe",
+          "outfit_hint": "home",
+          "beat": "夜班塔罗·居家闲谈"
+        },
+        {
+          "shot_id": "date_pc_festival",
+          "kind": "date",
+          "members": [
+            "luna",
+            "shenyuan"
+          ],
+          "location": "festival",
+          "outfit_hint": "festival_spring",
+          "beat": "夜班塔罗·节日约会"
+        },
+        {
+          "shot_id": "date_pc_night",
+          "kind": "date",
+          "members": [
+            "luna",
+            "shenyuan"
+          ],
+          "location": "cafe",
+          "outfit_hint": "evening",
+          "beat": "夜班塔罗·夜里留灯"
+        },
+        {
+          "shot_id": "date_pc_commute",
+          "kind": "date",
+          "members": [
+            "luna",
+            "shenyuan"
+          ],
+          "location": "street",
+          "outfit_hint": "work",
+          "beat": "夜班塔罗·通勤偶遇"
+        },
+        {
+          "shot_id": "date_pc_work",
+          "kind": "date",
+          "members": [
+            "luna",
+            "shenyuan"
+          ],
+          "location": "office",
+          "outfit_hint": "work",
+          "beat": "夜班塔罗·职业场附近"
+        },
+        {
+          "shot_id": "date_pc_season",
+          "kind": "date",
+          "members": [
+            "luna",
+            "shenyuan"
+          ],
+          "location": "campus",
+          "outfit_hint": "season_winter",
+          "beat": "夜班塔罗·季节外出"
+        },
+        {
+          "shot_id": "date_pc_close",
+          "kind": "date",
+          "members": [
+            "luna",
+            "shenyuan"
+          ],
+          "location": "cafe",
+          "outfit_hint": "date",
+          "beat": "夜班塔罗·告白近距"
+        },
+        {
+          "shot_id": "with_wanyu_studio",
+          "kind": "relation",
+          "members": [
+            "luna",
+            "wanyu"
+          ],
+          "location": "cafe",
+          "outfit_hint": "casual",
+          "beat": "与wanyu·工作/足迹旁"
+        },
+        {
+          "shot_id": "with_wanyu_cafe",
+          "kind": "relation",
+          "members": [
+            "luna",
+            "wanyu"
+          ],
+          "location": "cafe",
+          "outfit_hint": "date",
+          "beat": "与wanyu·咖啡闲聊"
+        },
+        {
+          "shot_id": "with_wanyu_street",
+          "kind": "relation",
+          "members": [
+            "luna",
+            "wanyu"
+          ],
+          "location": "street",
+          "outfit_hint": "casual",
+          "beat": "与wanyu·街上并肩"
+        },
+        {
+          "shot_id": "with_wanyu_home",
+          "kind": "relation",
+          "members": [
+            "luna",
+            "wanyu"
+          ],
+          "location": "cafe",
+          "outfit_hint": "home",
+          "beat": "与wanyu·私域做客"
+        },
+        {
+          "shot_id": "with_wanyu_night",
+          "kind": "relation",
+          "members": [
+            "luna",
+            "wanyu"
+          ],
+          "location": "cafe",
+          "outfit_hint": "evening",
+          "beat": "与wanyu·夜色短叙"
+        },
+        {
+          "shot_id": "sec_gate",
+          "kind": "secondary",
+          "members": [
+            "luna",
+            "wanyu"
+          ],
+          "location": "campus",
+          "outfit_hint": "work",
+          "beat": "夜班塔罗·守门对视"
+        },
+        {
+          "shot_id": "sec_rival",
+          "kind": "secondary",
+          "members": [
+            "luna",
+            "wanyu"
+          ],
+          "location": "cafe",
+          "outfit_hint": "casual",
+          "beat": "夜班塔罗·微妙同席"
+        },
+        {
+          "shot_id": "sec_trio_pc_silhouette",
+          "kind": "secondary",
+          "members": [
+            "luna",
+            "wanyu",
+            "shenyuan"
+          ],
+          "location": "street",
+          "outfit_hint": "date",
+          "beat": "夜班塔罗·三人剪影"
+        },
+        {
+          "shot_id": "sec_ensemble",
+          "kind": "secondary",
+          "members": [
+            "luna",
+            "wanyu",
+            "shenyuan"
+          ],
+          "location": "festival",
+          "outfit_hint": "festival_spring",
+          "beat": "夜班塔罗·小型群像"
+        },
+        {
+          "shot_id": "sec_flashback",
+          "kind": "secondary",
+          "members": [
+            "luna",
+            "wanyu"
+          ],
+          "location": "library",
+          "outfit_hint": "season_winter",
+          "beat": "夜班塔罗·旧日闪回"
+        }
+      ],
+      "existing": [],
+      "count": 0
+    },
+    "shuli": {
+      "tier": "L",
+      "theme": "日程本",
+      "peer_primary": "fengyin",
+      "shots": [
+        {
+          "shot_id": "date_pc_rain",
+          "kind": "date",
+          "members": [
+            "shuli",
+            "shenyuan"
+          ],
+          "location": "street",
+          "outfit_hint": "rain",
+          "beat": "日程本·雨街共伞"
+        },
+        {
+          "shot_id": "date_pc_park",
+          "kind": "date",
+          "members": [
+            "shuli",
+            "shenyuan"
+          ],
+          "location": "park",
+          "outfit_hint": "casual",
+          "beat": "日程本·公园散步"
+        },
+        {
+          "shot_id": "date_pc_home",
+          "kind": "date",
+          "members": [
+            "shuli",
+            "shenyuan"
+          ],
+          "location": "home",
+          "outfit_hint": "home",
+          "beat": "日程本·居家闲谈"
+        },
+        {
+          "shot_id": "date_pc_festival",
+          "kind": "date",
+          "members": [
+            "shuli",
+            "shenyuan"
+          ],
+          "location": "festival",
+          "outfit_hint": "festival_spring",
+          "beat": "日程本·节日约会"
+        },
+        {
+          "shot_id": "date_pc_night",
+          "kind": "date",
+          "members": [
+            "shuli",
+            "shenyuan"
+          ],
+          "location": "cafe",
+          "outfit_hint": "evening",
+          "beat": "日程本·夜里留灯"
+        },
+        {
+          "shot_id": "date_pc_commute",
+          "kind": "date",
+          "members": [
+            "shuli",
+            "shenyuan"
+          ],
+          "location": "street",
+          "outfit_hint": "work",
+          "beat": "日程本·通勤偶遇"
+        },
+        {
+          "shot_id": "date_pc_work",
+          "kind": "date",
+          "members": [
+            "shuli",
+            "shenyuan"
+          ],
+          "location": "office",
+          "outfit_hint": "work",
+          "beat": "日程本·职业场附近"
+        },
+        {
+          "shot_id": "date_pc_season",
+          "kind": "date",
+          "members": [
+            "shuli",
+            "shenyuan"
+          ],
+          "location": "campus",
+          "outfit_hint": "season_winter",
+          "beat": "日程本·季节外出"
+        },
+        {
+          "shot_id": "date_pc_close",
+          "kind": "date",
+          "members": [
+            "shuli",
+            "shenyuan"
+          ],
+          "location": "home",
+          "outfit_hint": "date",
+          "beat": "日程本·告白近距"
+        },
+        {
+          "shot_id": "date_pc_rooftop",
+          "kind": "date",
+          "members": [
+            "shuli",
+            "shenyuan"
+          ],
+          "location": "rooftop",
+          "outfit_hint": "casual",
+          "beat": "日程本·天台吹风"
+        },
+        {
+          "shot_id": "with_fengyin_studio",
+          "kind": "relation",
+          "members": [
+            "shuli",
+            "fengyin"
+          ],
+          "location": "home",
+          "outfit_hint": "casual",
+          "beat": "与fengyin·工作/足迹旁"
+        },
+        {
+          "shot_id": "with_fengyin_cafe",
+          "kind": "relation",
+          "members": [
+            "shuli",
+            "fengyin"
+          ],
+          "location": "home",
+          "outfit_hint": "date",
+          "beat": "与fengyin·咖啡闲聊"
+        },
+        {
+          "shot_id": "with_fengyin_street",
+          "kind": "relation",
+          "members": [
+            "shuli",
+            "fengyin"
+          ],
+          "location": "street",
+          "outfit_hint": "casual",
+          "beat": "与fengyin·街上并肩"
+        },
+        {
+          "shot_id": "with_fengyin_home",
+          "kind": "relation",
+          "members": [
+            "shuli",
+            "fengyin"
+          ],
+          "location": "home",
+          "outfit_hint": "home",
+          "beat": "与fengyin·私域做客"
+        },
+        {
+          "shot_id": "with_fengyin_night",
+          "kind": "relation",
+          "members": [
+            "shuli",
+            "fengyin"
+          ],
+          "location": "home",
+          "outfit_hint": "evening",
+          "beat": "与fengyin·夜色短叙"
+        },
+        {
+          "shot_id": "sec_gate",
+          "kind": "secondary",
+          "members": [
+            "shuli",
+            "fengyin"
+          ],
+          "location": "campus",
+          "outfit_hint": "work",
+          "beat": "日程本·守门对视"
+        },
+        {
+          "shot_id": "sec_rival",
+          "kind": "secondary",
+          "members": [
+            "shuli",
+            "fengyin"
+          ],
+          "location": "cafe",
+          "outfit_hint": "casual",
+          "beat": "日程本·微妙同席"
+        },
+        {
+          "shot_id": "sec_trio_pc_silhouette",
+          "kind": "secondary",
+          "members": [
+            "shuli",
+            "fengyin",
+            "shenyuan"
+          ],
+          "location": "street",
+          "outfit_hint": "date",
+          "beat": "日程本·三人剪影"
+        },
+        {
+          "shot_id": "sec_ensemble",
+          "kind": "secondary",
+          "members": [
+            "shuli",
+            "fengyin",
+            "shenyuan"
+          ],
+          "location": "festival",
+          "outfit_hint": "festival_spring",
+          "beat": "日程本·小型群像"
+        },
+        {
+          "shot_id": "sec_flashback",
+          "kind": "secondary",
+          "members": [
+            "shuli",
+            "fengyin"
+          ],
+          "location": "library",
+          "outfit_hint": "season_winter",
+          "beat": "日程本·旧日闪回"
+        }
+      ],
+      "existing": [],
+      "count": 0
+    },
+    "jingning": {
+      "tier": "L",
+      "theme": "旁观笔记",
+      "peer_primary": "jingliu",
+      "shots": [
+        {
+          "shot_id": "date_pc_park",
+          "kind": "date",
+          "members": [
+            "jingning",
+            "shenyuan"
+          ],
+          "location": "park",
+          "outfit_hint": "casual",
+          "beat": "旁观笔记·公园散步"
+        },
+        {
+          "shot_id": "date_pc_home",
+          "kind": "date",
+          "members": [
+            "jingning",
+            "shenyuan"
+          ],
+          "location": "office",
+          "outfit_hint": "home",
+          "beat": "旁观笔记·居家闲谈"
+        },
+        {
+          "shot_id": "date_pc_festival",
+          "kind": "date",
+          "members": [
+            "jingning",
+            "shenyuan"
+          ],
+          "location": "festival",
+          "outfit_hint": "festival_spring",
+          "beat": "旁观笔记·节日约会"
+        },
+        {
+          "shot_id": "date_pc_night",
+          "kind": "date",
+          "members": [
+            "jingning",
+            "shenyuan"
+          ],
+          "location": "cafe",
+          "outfit_hint": "evening",
+          "beat": "旁观笔记·夜里留灯"
+        },
+        {
+          "shot_id": "date_pc_commute",
+          "kind": "date",
+          "members": [
+            "jingning",
+            "shenyuan"
+          ],
+          "location": "street",
+          "outfit_hint": "work",
+          "beat": "旁观笔记·通勤偶遇"
+        },
+        {
+          "shot_id": "date_pc_work",
+          "kind": "date",
+          "members": [
+            "jingning",
+            "shenyuan"
+          ],
+          "location": "office",
+          "outfit_hint": "work",
+          "beat": "旁观笔记·职业场附近"
+        },
+        {
+          "shot_id": "date_pc_season",
+          "kind": "date",
+          "members": [
+            "jingning",
+            "shenyuan"
+          ],
+          "location": "campus",
+          "outfit_hint": "season_winter",
+          "beat": "旁观笔记·季节外出"
+        },
+        {
+          "shot_id": "date_pc_close",
+          "kind": "date",
+          "members": [
+            "jingning",
+            "shenyuan"
+          ],
+          "location": "office",
+          "outfit_hint": "date",
+          "beat": "旁观笔记·告白近距"
+        },
+        {
+          "shot_id": "date_pc_rooftop",
+          "kind": "date",
+          "members": [
+            "jingning",
+            "shenyuan"
+          ],
+          "location": "rooftop",
+          "outfit_hint": "casual",
+          "beat": "旁观笔记·天台吹风"
+        },
+        {
+          "shot_id": "date_pc_library",
+          "kind": "date",
+          "members": [
+            "jingning",
+            "shenyuan"
+          ],
+          "location": "library",
+          "outfit_hint": "casual",
+          "beat": "旁观笔记·安静同桌"
+        },
+        {
+          "shot_id": "with_jingliu_studio",
+          "kind": "relation",
+          "members": [
+            "jingning",
+            "jingliu"
+          ],
+          "location": "office",
+          "outfit_hint": "casual",
+          "beat": "与jingliu·工作/足迹旁"
+        },
+        {
+          "shot_id": "with_jingliu_cafe",
+          "kind": "relation",
+          "members": [
+            "jingning",
+            "jingliu"
+          ],
+          "location": "cafe",
+          "outfit_hint": "date",
+          "beat": "与jingliu·咖啡闲聊"
+        },
+        {
+          "shot_id": "with_jingliu_street",
+          "kind": "relation",
+          "members": [
+            "jingning",
+            "jingliu"
+          ],
+          "location": "street",
+          "outfit_hint": "casual",
+          "beat": "与jingliu·街上并肩"
+        },
+        {
+          "shot_id": "with_jingliu_home",
+          "kind": "relation",
+          "members": [
+            "jingning",
+            "jingliu"
+          ],
+          "location": "office",
+          "outfit_hint": "home",
+          "beat": "与jingliu·私域做客"
+        },
+        {
+          "shot_id": "with_jingliu_night",
+          "kind": "relation",
+          "members": [
+            "jingning",
+            "jingliu"
+          ],
+          "location": "office",
+          "outfit_hint": "evening",
+          "beat": "与jingliu·夜色短叙"
+        },
+        {
+          "shot_id": "sec_gate",
+          "kind": "secondary",
+          "members": [
+            "jingning",
+            "jingliu"
+          ],
+          "location": "campus",
+          "outfit_hint": "work",
+          "beat": "旁观笔记·守门对视"
+        },
+        {
+          "shot_id": "sec_rival",
+          "kind": "secondary",
+          "members": [
+            "jingning",
+            "jingliu"
+          ],
+          "location": "cafe",
+          "outfit_hint": "casual",
+          "beat": "旁观笔记·微妙同席"
+        },
+        {
+          "shot_id": "sec_trio_pc_silhouette",
+          "kind": "secondary",
+          "members": [
+            "jingning",
+            "jingliu",
+            "shenyuan"
+          ],
+          "location": "street",
+          "outfit_hint": "date",
+          "beat": "旁观笔记·三人剪影"
+        },
+        {
+          "shot_id": "sec_ensemble",
+          "kind": "secondary",
+          "members": [
+            "jingning",
+            "jingliu",
+            "shenyuan"
+          ],
+          "location": "festival",
+          "outfit_hint": "festival_spring",
+          "beat": "旁观笔记·小型群像"
+        },
+        {
+          "shot_id": "sec_flashback",
+          "kind": "secondary",
+          "members": [
+            "jingning",
+            "jingliu"
+          ],
+          "location": "library",
+          "outfit_hint": "season_winter",
+          "beat": "旁观笔记·旧日闪回"
+        }
+      ],
+      "existing": [],
+      "count": 0
+    },
+    "youwei": {
+      "tier": "L",
+      "theme": "第三支笔",
+      "peer_primary": "xiaoyou",
+      "shots": [
+        {
+          "shot_id": "date_pc_home",
+          "kind": "date",
+          "members": [
+            "youwei",
+            "shenyuan"
+          ],
+          "location": "room",
+          "outfit_hint": "home",
+          "beat": "第三支笔·居家闲谈"
+        },
+        {
+          "shot_id": "date_pc_festival",
+          "kind": "date",
+          "members": [
+            "youwei",
+            "shenyuan"
+          ],
+          "location": "festival",
+          "outfit_hint": "festival_spring",
+          "beat": "第三支笔·节日约会"
+        },
+        {
+          "shot_id": "date_pc_night",
+          "kind": "date",
+          "members": [
+            "youwei",
+            "shenyuan"
+          ],
+          "location": "cafe",
+          "outfit_hint": "evening",
+          "beat": "第三支笔·夜里留灯"
+        },
+        {
+          "shot_id": "date_pc_commute",
+          "kind": "date",
+          "members": [
+            "youwei",
+            "shenyuan"
+          ],
+          "location": "street",
+          "outfit_hint": "work",
+          "beat": "第三支笔·通勤偶遇"
+        },
+        {
+          "shot_id": "date_pc_work",
+          "kind": "date",
+          "members": [
+            "youwei",
+            "shenyuan"
+          ],
+          "location": "office",
+          "outfit_hint": "work",
+          "beat": "第三支笔·职业场附近"
+        },
+        {
+          "shot_id": "date_pc_season",
+          "kind": "date",
+          "members": [
+            "youwei",
+            "shenyuan"
+          ],
+          "location": "campus",
+          "outfit_hint": "season_winter",
+          "beat": "第三支笔·季节外出"
+        },
+        {
+          "shot_id": "date_pc_close",
+          "kind": "date",
+          "members": [
+            "youwei",
+            "shenyuan"
+          ],
+          "location": "room",
+          "outfit_hint": "date",
+          "beat": "第三支笔·告白近距"
+        },
+        {
+          "shot_id": "date_pc_rooftop",
+          "kind": "date",
+          "members": [
+            "youwei",
+            "shenyuan"
+          ],
+          "location": "rooftop",
+          "outfit_hint": "casual",
+          "beat": "第三支笔·天台吹风"
+        },
+        {
+          "shot_id": "date_pc_library",
+          "kind": "date",
+          "members": [
+            "youwei",
+            "shenyuan"
+          ],
+          "location": "library",
+          "outfit_hint": "casual",
+          "beat": "第三支笔·安静同桌"
+        },
+        {
+          "shot_id": "date_pc_bookstore",
+          "kind": "date",
+          "members": [
+            "youwei",
+            "shenyuan"
+          ],
+          "location": "bookstore",
+          "outfit_hint": "casual",
+          "beat": "第三支笔·书架偶遇"
+        },
+        {
+          "shot_id": "with_xiaoyou_studio",
+          "kind": "relation",
+          "members": [
+            "youwei",
+            "xiaoyou"
+          ],
+          "location": "room",
+          "outfit_hint": "casual",
+          "beat": "与xiaoyou·工作/足迹旁"
+        },
+        {
+          "shot_id": "with_xiaoyou_cafe",
+          "kind": "relation",
+          "members": [
+            "youwei",
+            "xiaoyou"
+          ],
+          "location": "room",
+          "outfit_hint": "date",
+          "beat": "与xiaoyou·咖啡闲聊"
+        },
+        {
+          "shot_id": "with_xiaoyou_street",
+          "kind": "relation",
+          "members": [
+            "youwei",
+            "xiaoyou"
+          ],
+          "location": "street",
+          "outfit_hint": "casual",
+          "beat": "与xiaoyou·街上并肩"
+        },
+        {
+          "shot_id": "with_xiaoyou_home",
+          "kind": "relation",
+          "members": [
+            "youwei",
+            "xiaoyou"
+          ],
+          "location": "room",
+          "outfit_hint": "home",
+          "beat": "与xiaoyou·私域做客"
+        },
+        {
+          "shot_id": "with_xiaoyou_night",
+          "kind": "relation",
+          "members": [
+            "youwei",
+            "xiaoyou"
+          ],
+          "location": "room",
+          "outfit_hint": "evening",
+          "beat": "与xiaoyou·夜色短叙"
+        },
+        {
+          "shot_id": "sec_gate",
+          "kind": "secondary",
+          "members": [
+            "youwei",
+            "xiaoyou"
+          ],
+          "location": "campus",
+          "outfit_hint": "work",
+          "beat": "第三支笔·守门对视"
+        },
+        {
+          "shot_id": "sec_rival",
+          "kind": "secondary",
+          "members": [
+            "youwei",
+            "xiaoyou"
+          ],
+          "location": "cafe",
+          "outfit_hint": "casual",
+          "beat": "第三支笔·微妙同席"
+        },
+        {
+          "shot_id": "sec_trio_pc_silhouette",
+          "kind": "secondary",
+          "members": [
+            "youwei",
+            "xiaoyou",
+            "shenyuan"
+          ],
+          "location": "street",
+          "outfit_hint": "date",
+          "beat": "第三支笔·三人剪影"
+        },
+        {
+          "shot_id": "sec_ensemble",
+          "kind": "secondary",
+          "members": [
+            "youwei",
+            "xiaoyou",
+            "shenyuan"
+          ],
+          "location": "festival",
+          "outfit_hint": "festival_spring",
+          "beat": "第三支笔·小型群像"
+        },
+        {
+          "shot_id": "sec_flashback",
+          "kind": "secondary",
+          "members": [
+            "youwei",
+            "xiaoyou"
+          ],
+          "location": "library",
+          "outfit_hint": "season_winter",
+          "beat": "第三支笔·旧日闪回"
+        }
+      ],
+      "existing": [],
+      "count": 0
+    },
+    "yuxi": {
+      "tier": "L",
+      "theme": "顶班护短",
+      "peer_primary": "wanyu",
+      "shots": [
+        {
+          "shot_id": "date_pc_festival",
+          "kind": "date",
+          "members": [
+            "yuxi",
+            "shenyuan"
+          ],
+          "location": "festival",
+          "outfit_hint": "festival_spring",
+          "beat": "顶班护短·节日约会"
+        },
+        {
+          "shot_id": "date_pc_night",
+          "kind": "date",
+          "members": [
+            "yuxi",
+            "shenyuan"
+          ],
+          "location": "cafe",
+          "outfit_hint": "evening",
+          "beat": "顶班护短·夜里留灯"
+        },
+        {
+          "shot_id": "date_pc_commute",
+          "kind": "date",
+          "members": [
+            "yuxi",
+            "shenyuan"
+          ],
+          "location": "street",
+          "outfit_hint": "work",
+          "beat": "顶班护短·通勤偶遇"
+        },
+        {
+          "shot_id": "date_pc_work",
+          "kind": "date",
+          "members": [
+            "yuxi",
+            "shenyuan"
+          ],
+          "location": "office",
+          "outfit_hint": "work",
+          "beat": "顶班护短·职业场附近"
+        },
+        {
+          "shot_id": "date_pc_season",
+          "kind": "date",
+          "members": [
+            "yuxi",
+            "shenyuan"
+          ],
+          "location": "campus",
+          "outfit_hint": "season_winter",
+          "beat": "顶班护短·季节外出"
+        },
+        {
+          "shot_id": "date_pc_close",
+          "kind": "date",
+          "members": [
+            "yuxi",
+            "shenyuan"
+          ],
+          "location": "cafe",
+          "outfit_hint": "date",
+          "beat": "顶班护短·告白近距"
+        },
+        {
+          "shot_id": "date_pc_rooftop",
+          "kind": "date",
+          "members": [
+            "yuxi",
+            "shenyuan"
+          ],
+          "location": "rooftop",
+          "outfit_hint": "casual",
+          "beat": "顶班护短·天台吹风"
+        },
+        {
+          "shot_id": "date_pc_library",
+          "kind": "date",
+          "members": [
+            "yuxi",
+            "shenyuan"
+          ],
+          "location": "library",
+          "outfit_hint": "casual",
+          "beat": "顶班护短·安静同桌"
+        },
+        {
+          "shot_id": "date_pc_bookstore",
+          "kind": "date",
+          "members": [
+            "yuxi",
+            "shenyuan"
+          ],
+          "location": "bookstore",
+          "outfit_hint": "casual",
+          "beat": "顶班护短·书架偶遇"
+        },
+        {
+          "shot_id": "date_pc_atelier",
+          "kind": "date",
+          "members": [
+            "yuxi",
+            "shenyuan"
+          ],
+          "location": "atelier",
+          "outfit_hint": "work",
+          "beat": "顶班护短·创作旁观"
+        },
+        {
+          "shot_id": "with_wanyu_studio",
+          "kind": "relation",
+          "members": [
+            "yuxi",
+            "wanyu"
+          ],
+          "location": "cafe",
+          "outfit_hint": "casual",
+          "beat": "与wanyu·工作/足迹旁"
+        },
+        {
+          "shot_id": "with_wanyu_cafe",
+          "kind": "relation",
+          "members": [
+            "yuxi",
+            "wanyu"
+          ],
+          "location": "cafe",
+          "outfit_hint": "date",
+          "beat": "与wanyu·咖啡闲聊"
+        },
+        {
+          "shot_id": "with_wanyu_street",
+          "kind": "relation",
+          "members": [
+            "yuxi",
+            "wanyu"
+          ],
+          "location": "street",
+          "outfit_hint": "casual",
+          "beat": "与wanyu·街上并肩"
+        },
+        {
+          "shot_id": "with_wanyu_home",
+          "kind": "relation",
+          "members": [
+            "yuxi",
+            "wanyu"
+          ],
+          "location": "cafe",
+          "outfit_hint": "home",
+          "beat": "与wanyu·私域做客"
+        },
+        {
+          "shot_id": "with_wanyu_night",
+          "kind": "relation",
+          "members": [
+            "yuxi",
+            "wanyu"
+          ],
+          "location": "cafe",
+          "outfit_hint": "evening",
+          "beat": "与wanyu·夜色短叙"
+        },
+        {
+          "shot_id": "sec_gate",
+          "kind": "secondary",
+          "members": [
+            "yuxi",
+            "wanyu"
+          ],
+          "location": "campus",
+          "outfit_hint": "work",
+          "beat": "顶班护短·守门对视"
+        },
+        {
+          "shot_id": "sec_rival",
+          "kind": "secondary",
+          "members": [
+            "yuxi",
+            "wanyu"
+          ],
+          "location": "cafe",
+          "outfit_hint": "casual",
+          "beat": "顶班护短·微妙同席"
+        },
+        {
+          "shot_id": "sec_trio_pc_silhouette",
+          "kind": "secondary",
+          "members": [
+            "yuxi",
+            "wanyu",
+            "shenyuan"
+          ],
+          "location": "street",
+          "outfit_hint": "date",
+          "beat": "顶班护短·三人剪影"
+        },
+        {
+          "shot_id": "sec_ensemble",
+          "kind": "secondary",
+          "members": [
+            "yuxi",
+            "wanyu",
+            "shenyuan"
+          ],
+          "location": "festival",
+          "outfit_hint": "festival_spring",
+          "beat": "顶班护短·小型群像"
+        },
+        {
+          "shot_id": "sec_flashback",
+          "kind": "secondary",
+          "members": [
+            "yuxi",
+            "wanyu"
+          ],
+          "location": "library",
+          "outfit_hint": "season_winter",
+          "beat": "顶班护短·旧日闪回"
+        }
+      ],
+      "existing": [],
+      "count": 0
+    },
+    "lingke": {
+      "tier": "L",
+      "theme": "红笔边界",
+      "peer_primary": "ruolin",
+      "shots": [
+        {
+          "shot_id": "date_pc_cafe",
+          "kind": "date",
+          "members": [
+            "lingke",
+            "shenyuan"
+          ],
+          "location": "cafe",
+          "outfit_hint": "date",
+          "beat": "红笔边界·咖啡馆日常约会"
+        },
+        {
+          "shot_id": "date_pc_rain",
+          "kind": "date",
+          "members": [
+            "lingke",
+            "shenyuan"
+          ],
+          "location": "street",
+          "outfit_hint": "rain",
+          "beat": "红笔边界·雨街共伞"
+        },
+        {
+          "shot_id": "date_pc_park",
+          "kind": "date",
+          "members": [
+            "lingke",
+            "shenyuan"
+          ],
+          "location": "park",
+          "outfit_hint": "casual",
+          "beat": "红笔边界·公园散步"
+        },
+        {
+          "shot_id": "date_pc_home",
+          "kind": "date",
+          "members": [
+            "lingke",
+            "shenyuan"
+          ],
+          "location": "campus",
+          "outfit_hint": "home",
+          "beat": "红笔边界·居家闲谈"
+        },
+        {
+          "shot_id": "date_pc_festival",
+          "kind": "date",
+          "members": [
+            "lingke",
+            "shenyuan"
+          ],
+          "location": "festival",
+          "outfit_hint": "festival_spring",
+          "beat": "红笔边界·节日约会"
+        },
+        {
+          "shot_id": "date_pc_night",
+          "kind": "date",
+          "members": [
+            "lingke",
+            "shenyuan"
+          ],
+          "location": "cafe",
+          "outfit_hint": "evening",
+          "beat": "红笔边界·夜里留灯"
+        },
+        {
+          "shot_id": "date_pc_commute",
+          "kind": "date",
+          "members": [
+            "lingke",
+            "shenyuan"
+          ],
+          "location": "street",
+          "outfit_hint": "work",
+          "beat": "红笔边界·通勤偶遇"
+        },
+        {
+          "shot_id": "date_pc_work",
+          "kind": "date",
+          "members": [
+            "lingke",
+            "shenyuan"
+          ],
+          "location": "office",
+          "outfit_hint": "work",
+          "beat": "红笔边界·职业场附近"
+        },
+        {
+          "shot_id": "date_pc_season",
+          "kind": "date",
+          "members": [
+            "lingke",
+            "shenyuan"
+          ],
+          "location": "campus",
+          "outfit_hint": "season_winter",
+          "beat": "红笔边界·季节外出"
+        },
+        {
+          "shot_id": "date_pc_close",
+          "kind": "date",
+          "members": [
+            "lingke",
+            "shenyuan"
+          ],
+          "location": "campus",
+          "outfit_hint": "date",
+          "beat": "红笔边界·告白近距"
+        },
+        {
+          "shot_id": "with_ruolin_studio",
+          "kind": "relation",
+          "members": [
+            "lingke",
+            "ruolin"
+          ],
+          "location": "campus",
+          "outfit_hint": "casual",
+          "beat": "与ruolin·工作/足迹旁"
+        },
+        {
+          "shot_id": "with_ruolin_cafe",
+          "kind": "relation",
+          "members": [
+            "lingke",
+            "ruolin"
+          ],
+          "location": "campus",
+          "outfit_hint": "date",
+          "beat": "与ruolin·咖啡闲聊"
+        },
+        {
+          "shot_id": "with_ruolin_street",
+          "kind": "relation",
+          "members": [
+            "lingke",
+            "ruolin"
+          ],
+          "location": "street",
+          "outfit_hint": "casual",
+          "beat": "与ruolin·街上并肩"
+        },
+        {
+          "shot_id": "with_ruolin_home",
+          "kind": "relation",
+          "members": [
+            "lingke",
+            "ruolin"
+          ],
+          "location": "campus",
+          "outfit_hint": "home",
+          "beat": "与ruolin·私域做客"
+        },
+        {
+          "shot_id": "with_ruolin_night",
+          "kind": "relation",
+          "members": [
+            "lingke",
+            "ruolin"
+          ],
+          "location": "campus",
+          "outfit_hint": "evening",
+          "beat": "与ruolin·夜色短叙"
+        },
+        {
+          "shot_id": "sec_gate",
+          "kind": "secondary",
+          "members": [
+            "lingke",
+            "ruolin"
+          ],
+          "location": "campus",
+          "outfit_hint": "work",
+          "beat": "红笔边界·守门对视"
+        },
+        {
+          "shot_id": "sec_rival",
+          "kind": "secondary",
+          "members": [
+            "lingke",
+            "ruolin"
+          ],
+          "location": "cafe",
+          "outfit_hint": "casual",
+          "beat": "红笔边界·微妙同席"
+        },
+        {
+          "shot_id": "sec_trio_pc_silhouette",
+          "kind": "secondary",
+          "members": [
+            "lingke",
+            "ruolin",
+            "shenyuan"
+          ],
+          "location": "street",
+          "outfit_hint": "date",
+          "beat": "红笔边界·三人剪影"
+        },
+        {
+          "shot_id": "sec_ensemble",
+          "kind": "secondary",
+          "members": [
+            "lingke",
+            "ruolin",
+            "shenyuan"
+          ],
+          "location": "festival",
+          "outfit_hint": "festival_spring",
+          "beat": "红笔边界·小型群像"
+        },
+        {
+          "shot_id": "sec_flashback",
+          "kind": "secondary",
+          "members": [
+            "lingke",
+            "ruolin"
+          ],
+          "location": "library",
+          "outfit_hint": "season_winter",
+          "beat": "红笔边界·旧日闪回"
+        }
+      ],
+      "existing": [],
+      "count": 0
+    },
+    "aichen": {
+      "tier": "L",
+      "theme": "复联守门",
+      "peer_primary": "aili",
+      "shots": [
+        {
+          "shot_id": "date_pc_rain",
+          "kind": "date",
+          "members": [
+            "aichen",
+            "shenyuan"
+          ],
+          "location": "street",
+          "outfit_hint": "rain",
+          "beat": "复联守门·雨街共伞"
+        },
+        {
+          "shot_id": "date_pc_park",
+          "kind": "date",
+          "members": [
+            "aichen",
+            "shenyuan"
+          ],
+          "location": "park",
+          "outfit_hint": "casual",
+          "beat": "复联守门·公园散步"
+        },
+        {
+          "shot_id": "date_pc_home",
+          "kind": "date",
+          "members": [
+            "aichen",
+            "shenyuan"
+          ],
+          "location": "store",
+          "outfit_hint": "home",
+          "beat": "复联守门·居家闲谈"
+        },
+        {
+          "shot_id": "date_pc_festival",
+          "kind": "date",
+          "members": [
+            "aichen",
+            "shenyuan"
+          ],
+          "location": "festival",
+          "outfit_hint": "festival_spring",
+          "beat": "复联守门·节日约会"
+        },
+        {
+          "shot_id": "date_pc_night",
+          "kind": "date",
+          "members": [
+            "aichen",
+            "shenyuan"
+          ],
+          "location": "cafe",
+          "outfit_hint": "evening",
+          "beat": "复联守门·夜里留灯"
+        },
+        {
+          "shot_id": "date_pc_commute",
+          "kind": "date",
+          "members": [
+            "aichen",
+            "shenyuan"
+          ],
+          "location": "street",
+          "outfit_hint": "work",
+          "beat": "复联守门·通勤偶遇"
+        },
+        {
+          "shot_id": "date_pc_work",
+          "kind": "date",
+          "members": [
+            "aichen",
+            "shenyuan"
+          ],
+          "location": "office",
+          "outfit_hint": "work",
+          "beat": "复联守门·职业场附近"
+        },
+        {
+          "shot_id": "date_pc_season",
+          "kind": "date",
+          "members": [
+            "aichen",
+            "shenyuan"
+          ],
+          "location": "campus",
+          "outfit_hint": "season_winter",
+          "beat": "复联守门·季节外出"
+        },
+        {
+          "shot_id": "date_pc_close",
+          "kind": "date",
+          "members": [
+            "aichen",
+            "shenyuan"
+          ],
+          "location": "store",
+          "outfit_hint": "date",
+          "beat": "复联守门·告白近距"
+        },
+        {
+          "shot_id": "date_pc_rooftop",
+          "kind": "date",
+          "members": [
+            "aichen",
+            "shenyuan"
+          ],
+          "location": "rooftop",
+          "outfit_hint": "casual",
+          "beat": "复联守门·天台吹风"
+        },
+        {
+          "shot_id": "with_aili_studio",
+          "kind": "relation",
+          "members": [
+            "aichen",
+            "aili"
+          ],
+          "location": "store",
+          "outfit_hint": "casual",
+          "beat": "与aili·工作/足迹旁"
+        },
+        {
+          "shot_id": "with_aili_cafe",
+          "kind": "relation",
+          "members": [
+            "aichen",
+            "aili"
+          ],
+          "location": "store",
+          "outfit_hint": "date",
+          "beat": "与aili·咖啡闲聊"
+        },
+        {
+          "shot_id": "with_aili_street",
+          "kind": "relation",
+          "members": [
+            "aichen",
+            "aili"
+          ],
+          "location": "street",
+          "outfit_hint": "casual",
+          "beat": "与aili·街上并肩"
+        },
+        {
+          "shot_id": "with_aili_home",
+          "kind": "relation",
+          "members": [
+            "aichen",
+            "aili"
+          ],
+          "location": "store",
+          "outfit_hint": "home",
+          "beat": "与aili·私域做客"
+        },
+        {
+          "shot_id": "with_aili_night",
+          "kind": "relation",
+          "members": [
+            "aichen",
+            "aili"
+          ],
+          "location": "store",
+          "outfit_hint": "evening",
+          "beat": "与aili·夜色短叙"
+        },
+        {
+          "shot_id": "sec_gate",
+          "kind": "secondary",
+          "members": [
+            "aichen",
+            "aili"
+          ],
+          "location": "campus",
+          "outfit_hint": "work",
+          "beat": "复联守门·守门对视"
+        },
+        {
+          "shot_id": "sec_rival",
+          "kind": "secondary",
+          "members": [
+            "aichen",
+            "aili"
+          ],
+          "location": "cafe",
+          "outfit_hint": "casual",
+          "beat": "复联守门·微妙同席"
+        },
+        {
+          "shot_id": "sec_trio_pc_silhouette",
+          "kind": "secondary",
+          "members": [
+            "aichen",
+            "aili",
+            "shenyuan"
+          ],
+          "location": "street",
+          "outfit_hint": "date",
+          "beat": "复联守门·三人剪影"
+        },
+        {
+          "shot_id": "sec_ensemble",
+          "kind": "secondary",
+          "members": [
+            "aichen",
+            "aili",
+            "shenyuan"
+          ],
+          "location": "festival",
+          "outfit_hint": "festival_spring",
+          "beat": "复联守门·小型群像"
+        },
+        {
+          "shot_id": "sec_flashback",
+          "kind": "secondary",
+          "members": [
+            "aichen",
+            "aili"
+          ],
+          "location": "library",
+          "outfit_hint": "season_winter",
+          "beat": "复联守门·旧日闪回"
+        }
+      ],
+      "existing": [],
+      "count": 0
+    }
+  }
+}

@@ -35,12 +35,13 @@ $validServices = @(
     "video_agent"
 )
 
+# compose restart 不重载 env_file；改 .env.agents-lan 后必须 force-recreate
 if ([string]::IsNullOrWhiteSpace($Service)) {
-    Write-Host "Restarting all agent services..." -ForegroundColor Cyan
+    Write-Host "Force-recreating all agent services (reloads env_file)..." -ForegroundColor Cyan
     if ($Build) {
-        docker compose --env-file "$envFile" -f "$composeFile" up -d --build
+        docker compose --env-file "$envFile" -f "$composeFile" up -d --build --force-recreate
     } else {
-        docker compose --env-file "$envFile" -f "$composeFile" restart
+        docker compose --env-file "$envFile" -f "$composeFile" up -d --force-recreate
     }
     Write-Host "Done." -ForegroundColor Green
     exit 0
@@ -52,10 +53,10 @@ if ($validServices -notcontains $Service) {
     exit 1
 }
 
-Write-Host "Restarting service: $Service" -ForegroundColor Cyan
+Write-Host "Force-recreating service: $Service (reloads env_file)" -ForegroundColor Cyan
 if ($Build) {
-    docker compose --env-file "$envFile" -f "$composeFile" up -d --build $Service
+    docker compose --env-file "$envFile" -f "$composeFile" up -d --build --force-recreate $Service
 } else {
-    docker compose --env-file "$envFile" -f "$composeFile" restart $Service
+    docker compose --env-file "$envFile" -f "$composeFile" up -d --force-recreate $Service
 }
 Write-Host "Done." -ForegroundColor Green

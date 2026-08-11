@@ -288,11 +288,16 @@ export function resolveCodeAuthorityPayload(
     const parsed = extractPayload(raw)
     answer = String(parsed.answer ?? raw).trim() || raw
     facts = (Array.isArray(parsed.facts) ? parsed.facts : [])
-      .map((f) => ({
-        key: String(f?.key ?? '').trim(),
-        value: f?.value,
-        source: 'code'
-      }))
+      .map((f) => {
+        const key = String(f?.key ?? '').trim()
+        const label = String(f?.label ?? '').trim()
+        return {
+          key,
+          value: f?.value,
+          ...(label ? { label } : {}),
+          source: 'code'
+        }
+      })
       .filter((f) => f.key)
     if (parsed.data && typeof parsed.data === 'object' && !Array.isArray(parsed.data)) {
       data = { ...(parsed.data as Record<string, unknown>) }
@@ -302,11 +307,16 @@ export function resolveCodeAuthorityPayload(
     if (obj) {
       answer = String(obj.answer ?? raw).trim() || raw
       facts = (Array.isArray(obj.facts) ? obj.facts : [])
-        .map((f) => ({
-          key: String((f as { key?: string })?.key ?? '').trim(),
-          value: (f as { value?: unknown })?.value,
-          source: 'code'
-        }))
+        .map((f) => {
+          const key = String((f as { key?: string })?.key ?? '').trim()
+          const label = String((f as { label?: string })?.label ?? '').trim()
+          return {
+            key,
+            value: (f as { value?: unknown })?.value,
+            ...(label ? { label } : {}),
+            source: 'code'
+          }
+        })
         .filter((f) => f.key)
       if (obj.data && typeof obj.data === 'object' && !Array.isArray(obj.data)) {
         data = { ...(obj.data as Record<string, unknown>) }
@@ -819,6 +829,54 @@ function humanizeSeriesLabel(label: string, sourceKey?: string): string {
   const fromLabel = pathLeafSegment(label)
   const fromKey = pathLeafSegment(sourceKey ?? '')
   return fromLabel || fromKey || String(label ?? sourceKey ?? '').trim()
+}
+
+/**
+ * 结构判定：展示文案是否像代码字段名（snake_case / camelCase / 点路径标识符）。
+ * 仅做形态校验，不做中英翻译。
+ */
+export function isMachineIdentifierLabel(label: string, sourceKey?: string): boolean {
+  const raw = String(label ?? '').trim()
+  if (!raw) return true
+  const leaf = pathLeafSegment(raw)
+  if (!leaf) return true
+  // 含非 ASCII（中文等）→ 用户可见
+  if (/[^\x00-\x7F]/.test(leaf)) return false
+  // 含空白或人类可读分隔符
+  if (/[\s\-–—·／/()（）]/.test(leaf)) return false
+  // snake_case
+  if (/^[A-Za-z][A-Za-z0-9]*(_[A-Za-z0-9]+)+$/.test(leaf)) return true
+  // camelCase
+  if (/^[a-z]+[A-Z][A-Za-z0-9]*$/.test(leaf)) return true
+  // 整段点路径均为 ASCII 标识符
+  if (raw.includes('.') && /^[A-Za-z][A-Za-z0-9_.]*$/.test(raw)) {
+    return raw.split('.').every((seg) => /^[A-Za-z][A-Za-z0-9_]*$/.test(seg))
+  }
+  // 展示名与 sourceKey 叶节点相同且为纯标识符 → 未做人文化
+  const skLeaf = pathLeafSegment(sourceKey ?? '')
+  if (
+    skLeaf &&
+    leaf.toLowerCase() === skLeaf.toLowerCase() &&
+    /^[A-Za-z][A-Za-z0-9_]*$/.test(leaf) &&
+    leaf.length >= 3
+  ) {
+    return true
+  }
+  return false
+}
+
+/** 图表 plan 的 series / tableRows 是否均可面向用户展示 */
+export function chartPlanHasUserFacingLabels(plan: LlmChartPlan | null | undefined): boolean {
+  if (!plan?.panels?.length) return false
+  for (const panel of plan.panels) {
+    for (const s of panel.series ?? []) {
+      if (isMachineIdentifierLabel(s.label, s.sourceKey)) return false
+    }
+  }
+  for (const row of plan.tableRows ?? []) {
+    if (isMachineIdentifierLabel(row.label)) return false
+  }
+  return true
 }
 
 export function inferUnitKindFromCoerce(
@@ -2130,6 +2188,8 @@ export function assembleVisualizeFromChartPlan(
     : plan
   const normalized = normalizeChartPlan(enriched)
   if (!normalized?.panels.length) return ''
+  // 禁止把 snake_case / 字段名原样写进面向用户的图与表
+  if (!chartPlanHasUserFacingLabels(normalized)) return ''
   const prefix = banner ? `${banner}\n\n` : ''
   const option = buildEchartsOptionFromPlan(normalized)
   const tableRows = collectTableRowsFromPlan(normalized)

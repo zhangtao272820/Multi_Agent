@@ -1,6 +1,7 @@
 """Sprite / BG path resolution with fallbacks.
 
-Q-version (`q_*`) is for map / seats / face rails only — never as Gal talk primary.
+Q-version (`q_*`) is for map / seats / face rails / Talk mood strip —
+not the Gal full-body primary (realistic stand remains talk hero).
 """
 
 from __future__ import annotations
@@ -114,6 +115,47 @@ def resolve_bg(location_id: str, weather_id: str | None = None) -> dict[str, Any
             rel = c.relative_to(data_dir()).as_posix()
             return {"path": f"/api/campus/assets/{rel}", "file": c.name, "fallback": False}
     return {"path": None, "file": None, "fallback": True}
+
+
+def resolve_ending_sprite(
+    student_id: str,
+    *,
+    emotion: str = "happy",
+    verdict: str | None = None,
+) -> dict[str, Any]:
+    """Romance ending hero art: prefer end_* ritual sprites, else happy stand.
+
+    Naming: end_stand_{emotion}.png (not in daily resolve chain).
+    """
+    emo = emotion if emotion in Q_EMOTIONS else "happy"
+    # Soft/bad lean shy or sad when present
+    order = [emo]
+    if verdict in {"soft", "bad"} and "shy" not in order:
+        order.append("shy")
+    if verdict == "bad" and "sad" not in order:
+        order.append("sad")
+    if "happy" not in order:
+        order.append("happy")
+    if "neutral" not in order:
+        order.append("neutral")
+
+    root = sprites_root() / student_id
+    for e in order:
+        primary = root / f"end_stand_{e}.png"
+        if _exists(primary):
+            ref = _asset_ref(student_id, primary, primary=primary, kind="ending")
+            ref["outfit"] = "end"
+            ref["action"] = "stand"
+            ref["emotion"] = e
+            return ref
+    # Fallback: daily stand (marked fallback so UI/audit can tell)
+    stand = resolve_student_sprite(student_id, emotion=order[0])
+    stand["kind"] = "ending"
+    stand["fallback"] = True
+    stand["outfit"] = stand.get("outfit") or "summer"
+    stand["action"] = "stand"
+    stand["emotion"] = order[0]
+    return stand
 
 
 def list_student_files(student_id: str) -> list[str]:

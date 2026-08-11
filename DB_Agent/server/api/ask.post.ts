@@ -12,6 +12,9 @@ import { appendAgentTraceLog } from "../utils/trace_log";
 import { ensureInternalAgentAccess } from "../utils/internal_auth";
 import { applyPlatformModelOverrides } from "../utils/platform_config";
 import { accumulateLlmUsage, resolveAgentUsage, type AgentUsage } from "#agent-shared/agentUsage";
+import { listPromptPatches } from "../../utils/prompt_evolution";
+import { recallSimilarExperience } from "../../utils/query_learning";
+import { buildEvolutionApplied } from "#agent-shared/evolutionApplied";
 
 export default defineEventHandler(async (event) => {
   ensureInternalAgentAccess(event);
@@ -142,6 +145,13 @@ export default defineEventHandler(async (event) => {
     undefined;
   const latencyMs = Date.now() - started;
 
+  const experienceHits = recallSimilarExperience(String(question), 2).length;
+  const promptPatches = listPromptPatches()
+    .filter((p) => !p.promotedAt)
+    .sort((a, b) => b.hits - a.hits)
+    .slice(0, 4)
+    .map((p) => ({ id: p.id, stage: p.stage, hits: p.hits }));
+
   const agentResult = buildDbAgentResult({
     answer: text,
     empty,
@@ -156,6 +166,7 @@ export default defineEventHandler(async (event) => {
     path: meta?.path ? String(meta.path) : undefined,
     latency_ms: latencyMs,
     usage: resolveAgentUsage({ llmUsage: llmUsageAcc, answerText: text }),
+    evolutionApplied: buildEvolutionApplied({ promptPatches, experienceHits }),
   });
 
   void appendAgentTraceLog({

@@ -13,8 +13,12 @@ import { guiOperateKindFromMeta } from '../../../server/utils/gui/guiOperateKind
 import { isDockerHeadlessMcpGui, resolveGuiBlockedErrorCode } from '../../../server/utils/gui/guiHumanConfirm'
 
 assert.ok(BUILTIN_GUI_WORKFLOW_IDS.includes('httpbin-form-fill'))
+assert.ok(BUILTIN_GUI_WORKFLOW_IDS.includes('runoob-click-extract' as (typeof BUILTIN_GUI_WORKFLOW_IDS)[number]))
+assert.ok(BUILTIN_GUI_WORKFLOW_IDS.includes('httpbin-form-submit' as (typeof BUILTIN_GUI_WORKFLOW_IDS)[number]))
 assert.ok(listKnownGuiWorkflowIds().includes('httpbin-form-fill'))
+assert.ok(listKnownGuiWorkflowIds().includes('runoob-click-extract'))
 assert.equal(sanitizeGuiWorkflowId('httpbin-form-fill').ok, true)
+assert.equal(sanitizeGuiWorkflowId('runoob-click-extract').ok, true)
 assert.equal((sanitizeGuiWorkflowId('httpbin-form-fill') as { ok: true; id: string }).id, 'httpbin-form-fill')
 
 const dropped = sanitizeGuiWorkflowId('navigate-and-extract-title')
@@ -49,6 +53,19 @@ const knownMeta = guiOperateKindFromMeta({
 assert.equal(knownMeta?.workflow_id, 'httpbin-form-fill')
 assert.equal(knownMeta?.dropped_workflow_id, undefined)
 
+const runoobMeta = guiOperateKindFromMeta({
+  guiOperateKind: {
+    task_kind: 'navigate',
+    needs_login: false,
+    confidence: 0.92,
+    rationale: 'C1 宏',
+    workflow_id: 'runoob-click-extract',
+  },
+})
+assert.equal(runoobMeta?.workflow_id, 'runoob-click-extract')
+assert.equal(resolveGuiWorkflowForTaskKind('runoob-click-extract', 'navigate').ok, true)
+assert.equal(resolveGuiWorkflowForTaskKind('runoob-click-extract', 'form_fill').ok, false)
+
 // browse 类误挂 form 宏 → 丢弃
 const mismatchNav = resolveGuiWorkflowForTaskKind('httpbin-form-fill', 'navigate')
 assert.equal(mismatchNav.ok, false)
@@ -56,6 +73,7 @@ assert.equal((mismatchNav as { ok: false; dropped: string }).dropped, 'httpbin-f
 const mismatchExtract = resolveGuiWorkflowForTaskKind('httpbin-form-fill', 'extract')
 assert.equal(mismatchExtract.ok, false)
 assert.equal(resolveGuiWorkflowForTaskKind('httpbin-form-fill', 'form_fill').ok, true)
+assert.equal(resolveGuiWorkflowForTaskKind('httpbin-form-submit', 'form_fill').ok, true)
 
 const navMeta = guiOperateKindFromMeta({
   guiOperateKind: {

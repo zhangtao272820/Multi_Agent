@@ -27,43 +27,82 @@ beats:
   - home_eating
   - home_sleeping
   - intimate_lounge
+  - bath_foam
+  - date
   soft_options:
   - 夸她
   - 点头
   - 沉默
-  narration: 泥土与花茎汁里，除夕她穿新春装，却递来一束没有祝福签的花：「收件人栏——空着。」。
-  pc_thought: 旧婚书的影子还在。我是新选择，不是替补——想起花。
+  narration: 泥土与花茎汁里，除夕她穿新春装，却递来一束没有祝福签的花：「收件人栏——空着。」。花茎切口还渗着水。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 旧婚书的影子还在。我是新选择，不是替补——想起花。我想靠近，又怕说错一句。
   brief: 除夕她穿新春装，却递来一束没有祝福签的花：「收件人栏——空着。」。等你回应。
+  pages:
+  - text: 泥土与花茎汁里，除夕她穿新春装，却递来一束没有祝福签的花：「收件人栏——空着。」。花茎切口还渗着水。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: festival_spring
+      emotion: neutral
+  - text: 旧婚书的影子还在。我是新选择，不是替补——想起花。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: festival_spring
+      emotion: shy
 - id: b2
   summary: 她等你写名字，也等你不写；重建的勇气需要对等的选择。等你回应。
   sprite_hint:
   - festival_spring
-  - date
   - season_winter
   - home_eating
   - home_sleeping
+  - intimate_lounge
+  - bath_foam
+  - date
   soft_options:
   - 接住
   - 问清楚
   - 退一步
-  narration: 泥土与花茎汁里，她等你写名字，也等你不写；重建的勇气需要对等的选择。
-  pc_thought: 修剪茎的声音很稳。我想学照顾她，不只是看花。
+  narration: 泥土与花茎汁里，她等你写名字，也等你不写；重建的勇气需要对等的选择。花茎切口还渗着水。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。空气有点静，连呼吸都听得见。
+  pc_thought: 修剪茎的声音很稳。我想学照顾她，不只是看花。我想靠近，又怕说错一句。
   brief: 她等你写名字，也等你不写；重建的勇气需要对等的选择。等你回应。
+  pages:
+  - text: 泥土与花茎汁里，她等你写名字，也等你不写；重建的勇气需要对等的选择。花茎切口还渗着水。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。空气有点静，连呼吸都听得见。
+    voice: narration
+    sprite:
+      outfit: festival_spring
+      emotion: neutral
+  - text: 修剪茎的声音很稳。我想学照顾她，不只是看花。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: festival_spring
+      emotion: shy
 - id: b3
   summary: 年夜将尽；接过花束或推开，都会留下不可回档的痕迹。等你回应。
   sprite_hint:
   - festival_spring
-  - home
   - season_winter
   - home_eating
   - home_sleeping
+  - intimate_lounge
+  - bath_foam
+  - date
   soft_options:
   - 承诺
   - 诚实犹豫
   - 拒绝
-  narration: 泥土与花茎汁里，年夜将尽；接过花束或推开，都会留下不可回档的痕迹。
-  pc_thought: 外送袋破了也好。弄脏的是完美人设，不是我们——想起花。
+  narration: 泥土与花茎汁里，年夜将尽；接过花束或推开，都会留下不可回档的痕迹。花茎切口还渗着水。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。空气有点静，连呼吸都听得见。
+  pc_thought: 外送袋破了也好。弄脏的是完美人设，不是我们——想起花。我想靠近，又怕说错一句。
   brief: 年夜将尽；接过花束或推开，都会留下不可回档的痕迹。等你回应。
+  pages:
+  - text: 泥土与花茎汁里，年夜将尽；接过花束或推开，都会留下不可回档的痕迹。花茎切口还渗着水。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。空气有点静，连呼吸都听得见。
+    voice: narration
+    sprite:
+      outfit: festival_spring
+      emotion: neutral
+  - text: 外送袋破了也好。弄脏的是完美人设，不是我们——想起花。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: festival_spring
+      emotion: shy
 rewards:
   flags_set:
   - al_spring_bouquet

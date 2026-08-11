@@ -31,6 +31,23 @@ def verify_admin_evolution_promote() -> dict:
 
         s2 = classify_admin_turn_scope("员工大会", "用户：帮我安排会议\n助手：标题是什么")
         checks.append({"id": "turn_scope_continuation", "ok": s2.mode == "continuation"})
+        s3 = classify_admin_turn_scope("翻译成英文", "用户：帮我写一封请假邮件\n助手：好的，草稿如下…")
+        checks.append(
+            {
+                "id": "turn_scope_output_followup",
+                "ok": s3.turn_kind == "output_followup" and s3.narrow_output_followup is True,
+            }
+        )
+        from app.core.admin_turn_scope import dialogue_for_nlu
+
+        wide = "用户：查邮件\n助手：有3封\n用户：安排会议\n助手：标题是什么\n用户：员工大会\n助手：时间呢"
+        narrow = dialogue_for_nlu(wide, s3)
+        checks.append(
+            {
+                "id": "dialogue_narrow_output_followup",
+                "ok": "查邮件" not in narrow and ("草稿" in narrow or "请假" in narrow or "助手：" in narrow),
+            }
+        )
     except Exception as e:
         checks.append({"id": "turn_scope_smoke", "ok": False, "detail": str(e)})
 

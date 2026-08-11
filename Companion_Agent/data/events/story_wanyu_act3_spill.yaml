@@ -22,7 +22,9 @@ beats:
   summary: 杯测时她手一抖，热液洒在杯垫上——笑容却还挂着，像习惯用完美服务掩盖走神。等你回应。
   sprite_hint:
   - pour_over
-  - work
+  - rain_window_seat
+  - roast_note_card
+  - milk_steam
   - season_winter
   - home_eating
   - home_sleeping
@@ -30,12 +32,25 @@ beats:
   - 递纸巾
   - 问是不是累了
   - 假装没看见
-  narration: 蒸汽与咖啡渣里，杯测时她手一抖，热液洒在杯垫上——笑容却还挂着，像习惯用完美服务掩盖走神。
-  pc_thought: 熟客位很安全。再近一步，营业笑就撑不住。
+  narration: 蒸汽与咖啡渣里，杯测时她手一抖，热液洒在杯垫上——笑容却还挂着，像习惯用完美服务掩盖走神。杯沿还留着一圈淡咖啡渍。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 熟客位很安全。再近一步，营业笑就撑不住。我想靠近，又怕说错一句。
   brief: 杯测时她手一抖，热液洒在杯垫上——笑容却还挂着，像习惯用完美服务掩盖走神。等你回应。
+  pages:
+  - text: 蒸汽与咖啡渣里，杯测时她手一抖，热液洒在杯垫上——笑容却还挂着，像习惯用完美服务掩盖走神。杯沿还留着一圈淡咖啡渍。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: pour_over
+      emotion: neutral
+  - text: 熟客位很安全。再近一步，营业笑就撑不住。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: pour_over
+      emotion: shy
 - id: b2
   summary: 电话里传来催她回家的声线；她按静音，指节发白，柜台后的世界忽然变得很窄。等你回应。
   sprite_hint:
+  - pour_over
+  - rain_window_seat
   - roast_note_card
   - milk_steam
   - season_winter
@@ -45,14 +60,27 @@ beats:
   - 问要不要出去接
   - 说你可以回避
   - 轻轻握住她手腕
-  narration: 蒸汽与咖啡渣里，电话里传来催她回家的声线；她按静音，指节发白，柜台后的世界忽然变得很窄。
-  pc_thought: 我想听她卸妆后的声音，不只是菜单上的温度。
+  narration: 蒸汽与咖啡渣里，电话里传来催她回家的声线；她按静音，指节发白，柜台后的世界忽然变得很窄。杯沿还留着一圈淡咖啡渍。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 我想听她卸妆后的声音，不只是菜单上的温度。我想靠近，又怕说错一句。
   brief: 电话里传来催她回家的声线；她按静音，指节发白，柜台后的世界忽然变得很窄。等你回应。
+  pages:
+  - text: 蒸汽与咖啡渣里，电话里传来催她回家的声线；她按静音，指节发白，柜台后的世界忽然变得很窄。杯沿还留着一圈淡咖啡渍。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: pour_over
+      emotion: neutral
+  - text: 我想听她卸妆后的声音，不只是菜单上的温度。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: pour_over
+      emotion: shy
 - id: b3
   summary: 雨窗座位上她终于说离职犹豫：怕一离开就只剩「谁的女儿」，店与家都像借来的身份。等你回应。
   sprite_hint:
+  - pour_over
   - rain_window_seat
-  - break_bench
+  - roast_note_card
+  - milk_steam
   - season_winter
   - home_eating
   - home_sleeping
@@ -60,14 +88,27 @@ beats:
   - 只听不劝
   - 支持她任何选择
   - 问她真正想要什么
-  narration: 蒸汽与咖啡渣里，雨窗座位上她终于说离职犹豫：怕一离开就只剩「谁的女儿」，店与家都像借来的身份。
-  pc_thought: 真心洒出来时，我是接住，还是假装没看见？
+  narration: 蒸汽与咖啡渣里，雨窗座位上她终于说离职犹豫：怕一离开就只剩「谁的女儿」，店与家都像借来的身份。杯沿还留着一圈淡咖啡渍。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 真心洒出来时，我是接住，还是假装没看见？我想靠近，又怕说错一句。
   brief: 雨窗座位上她终于说离职犹豫：怕一离开就只剩「谁的女儿」，店与家都像借来的身份。等你回应。
+  pages:
+  - text: 蒸汽与咖啡渣里，雨窗座位上她终于说离职犹豫：怕一离开就只剩「谁的女儿」，店与家都像借来的身份。杯沿还留着一圈淡咖啡渍。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: pour_over
+      emotion: neutral
+  - text: 真心洒出来时，我是接住，还是假装没看见？我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: pour_over
+      emotion: shy
 - id: b4
   summary: 真心洒出来后她有点慌；死党雨汐若看见你接得潦草，下次换班许可会收得比雨更紧。等你回应。
   sprite_hint:
+  - pour_over
   - rain_window_seat
-  - casual
+  - roast_note_card
+  - milk_steam
   - season_winter
   - home_eating
   - home_sleeping
@@ -75,9 +116,20 @@ beats:
   - 说今晚有你
   - 约打烊后再谈
   - 保证不转告别人
-  narration: 蒸汽与咖啡渣里，真心洒出来后她有点慌；死党雨汐若看见你接得潦草，下次换班许可会收得比雨更紧。
-  pc_thought: 留杯像约会。我怕自己把照料当成理所当然。
+  narration: 蒸汽与咖啡渣里，真心洒出来后她有点慌；死党雨汐若看见你接得潦草，下次换班许可会收得比雨更紧。杯沿还留着一圈淡咖啡渍。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 留杯像约会。我怕自己把照料当成理所当然。我想靠近，又怕说错一句。
   brief: 真心洒出来后她有点慌；死党雨汐若看见你接得潦草，下次换班许可会收得比雨更紧。等你回应。
+  pages:
+  - text: 蒸汽与咖啡渣里，真心洒出来后她有点慌；死党雨汐若看见你接得潦草，下次换班许可会收得比雨更紧。杯沿还留着一圈淡咖啡渍。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: pour_over
+      emotion: neutral
+  - text: 留杯像约会。我怕自己把照料当成理所当然。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: pour_over
+      emotion: shy
 rewards:
   flags_set:
   - wy_heard_her_night

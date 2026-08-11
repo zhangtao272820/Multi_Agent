@@ -13,14 +13,17 @@ trigger:
   - mi_oath_real
   flags_present:
   - mi_sew_night
-prompt_snippet: |
-  【专属故事 · 谷子与星约 · 第3幕 · 契约】
+prompt_snippet: '【专属故事 · 谷子与星约 · 第3幕 · 契约】
+
+  '
 advance: on_player_turn
 beats:
 - id: b1
-  summary: "徽章墙前她摘下一枚空位：今晚要把戏言写成生效条款。等你回应。"
+  summary: 徽章墙前她摘下一枚空位：今晚要把戏言写成生效条款。等你回应。
   sprite_hint:
   - badge_board
+  - date
+  - home
   - merch_counter
   - season_winter
   - home_eating
@@ -29,14 +32,27 @@ beats:
   - 问条款内容
   - 准备真心回答
   - 先握她的手
-  narration: "布料纤维与展会灯里，徽章墙前她摘下一枚空位：今晚要把戏言写成生效条款。"
-  pc_thought: 摊位笑很满。戏言契约当真时，我会不会退缩？
-  brief: "徽章墙前她摘下一枚空位：今晚要把戏言写成生效条款。等你回应。"
+  narration: 布料纤维与展会灯里，徽章墙前她摘下一枚空位：今晚要把戏言写成生效条款。摊位帘布蹭过手背。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 摊位笑很满。戏言契约当真时，我会不会退缩？我想靠近，又怕说错一句。
+  brief: 徽章墙前她摘下一枚空位：今晚要把戏言写成生效条款。等你回应。
+  pages:
+  - text: 布料纤维与展会灯里，徽章墙前她摘下一枚空位：今晚要把戏言写成生效条款。摊位帘布蹭过手背。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: badge_board
+      emotion: neutral
+  - text: 摊位笑很满。戏言契约当真时，我会不会退缩？我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: badge_board
+      emotion: shy
 - id: b2
   summary: 她说喜欢你——不是展会营业，是想把你从谷子清单划进人生。等你回应。
   sprite_hint:
-  - date
   - badge_board
+  - date
+  - home
+  - merch_counter
   - season_winter
   - home_eating
   - home_sleeping
@@ -44,14 +60,27 @@ beats:
   - 回应告白
   - 说你也划她进去
   - 确认专一与公开
-  narration: 布料纤维与展会灯里，她说喜欢你——不是展会营业，是想把你从谷子清单划进人生。
-  pc_thought: 缝纫针脚比誓言稳。我想帮她缝，不是只收谷子。
+  narration: 布料纤维与展会灯里，她说喜欢你——不是展会营业，是想把你从谷子清单划进人生。摊位帘布蹭过手背。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 缝纫针脚比誓言稳。我想帮她缝，不是只收谷子。我想靠近，又怕说错一句。
   brief: 她说喜欢你——不是展会营业，是想把你从谷子清单划进人生。等你回应。
+  pages:
+  - text: 布料纤维与展会灯里，她说喜欢你——不是展会营业，是想把你从谷子清单划进人生。摊位帘布蹭过手背。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: badge_board
+      emotion: neutral
+  - text: 缝纫针脚比誓言稳。我想帮她缝，不是只收谷子。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: badge_board
+      emotion: shy
 - id: b3
   summary: 她怕认真后梗会消失；你如何答，决定契约温度。等你回应。
   sprite_hint:
-  - home
+  - badge_board
   - date
+  - home
+  - merch_counter
   - season_winter
   - home_eating
   - home_sleeping
@@ -59,14 +88,27 @@ beats:
   - 说梗可以留认真不减
   - 承诺不消费玩笑
   - 一起定新梗边界
-  narration: 布料纤维与展会灯里，她怕认真后梗会消失；你如何答，决定契约温度。
-  pc_thought: 假发一摘，偶像壳裂了。素颜契约更重。
+  narration: 布料纤维与展会灯里，她怕认真后梗会消失；你如何答，决定契约温度。摊位帘布蹭过手背。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 假发一摘，偶像壳裂了。素颜契约更重。我想靠近，又怕说错一句。
   brief: 她怕认真后梗会消失；你如何答，决定契约温度。等你回应。
+  pages:
+  - text: 布料纤维与展会灯里，她怕认真后梗会消失；你如何答，决定契约温度。摊位帘布蹭过手背。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: badge_board
+      emotion: neutral
+  - text: 假发一摘，偶像壳裂了。素颜契约更重。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: badge_board
+      emotion: shy
 - id: b4
   summary: 空位钉上你们的徽章；星约盖章——这次，不许用撤回键。等你回应。
   sprite_hint:
+  - badge_board
   - date
-  - casual
+  - home
+  - merch_counter
   - season_winter
   - home_eating
   - home_sleeping
@@ -74,9 +116,20 @@ beats:
   - 盖章
   - 拥抱收摊
   - 约下次非展会见面
-  narration: 布料纤维与展会灯里，空位钉上你们的徽章；星约盖章——这次，不许用撤回键。
-  pc_thought: 冬摊位冷风灌进来。星约还作数吗？
+  narration: 布料纤维与展会灯里，空位钉上你们的徽章；星约盖章——这次，不许用撤回键。摊位帘布蹭过手背。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 冬摊位冷风灌进来。星约还作数吗？我想靠近，又怕说错一句。
   brief: 空位钉上你们的徽章；星约盖章——这次，不许用撤回键。等你回应。
+  pages:
+  - text: 布料纤维与展会灯里，空位钉上你们的徽章；星约盖章——这次，不许用撤回键。摊位帘布蹭过手背。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: badge_board
+      emotion: neutral
+  - text: 冬摊位冷风灌进来。星约还作数吗？我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: badge_board
+      emotion: shy
 rewards:
   flags_set:
   - mi_oath_real

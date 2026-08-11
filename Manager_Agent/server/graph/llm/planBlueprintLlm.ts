@@ -34,7 +34,9 @@ const BlueprintStepSchema = z.object({
   queryFocus: z.string().min(4).max(480),
   clauseIds: z.array(z.string()).max(4).optional(),
   dependsOnAgents: z.array(z.enum(AGENTS)).max(6).optional(),
-  parallelGroup: z.string().max(24).optional()
+  parallelGroup: z.string().max(24).optional(),
+  /** 任务级形态：仅约束本步职责，不改 cap */
+  taskForm: z.string().max(40).optional()
 })
 
 const BlueprintSchema = z.object({
@@ -271,10 +273,12 @@ export function materializeStepsFromBlueprint(
   return blueprint.steps.map((s, i) => {
     const agent = s.agent as Step['agent']
     const focus = String(s.queryFocus || '').trim() || agentRoleFocus(agent)
+    const taskForm = String((s as { taskForm?: string }).taskForm || '').trim().slice(0, 40)
     return {
       id: `step_${agent}_${i + 1}`,
       agent,
-      query: formatQuery(agent, focus)
+      query: formatQuery(agent, focus),
+      ...(taskForm ? { taskForm } : {})
     }
   })
 }

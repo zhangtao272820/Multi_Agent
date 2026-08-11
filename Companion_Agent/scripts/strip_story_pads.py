@@ -28,7 +28,6 @@ IDS = [
     "jingliu",
     "aili",
     "linxi",
-    "yeyu",
     "taotao",
     "shizuku",
     "qiansha",

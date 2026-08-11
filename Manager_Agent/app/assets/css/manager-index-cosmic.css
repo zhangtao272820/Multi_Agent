@@ -364,6 +364,24 @@
   box-shadow: inset 0 0 20px rgba(56, 189, 248, 0.06) !important;
 }
 
+/* cursor-workbench 冬雪壳：输入与任务栈改为浅底深字，避免深底被全局深字覆盖后不可读 */
+.spring-root.cosmic-theme.cursor-workbench .spring-input-field,
+.spring-root.cosmic-theme.cursor-workbench .spring-task-stack-input,
+.spring-root.cosmic-theme.cursor-workbench .spring-ops-token-input,
+.spring-root.cosmic-theme.cursor-workbench .spring-task-stack-select,
+.spring-root.cosmic-theme.cursor-workbench .spring-task-stack-datetime {
+  background: rgba(255, 255, 255, 0.95) !important;
+  color: #0a1a28 !important;
+  border-color: rgba(122, 168, 212, 0.5) !important;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.65) inset !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .spring-task-stack-input::placeholder,
+.spring-root.cosmic-theme.cursor-workbench .spring-ops-token-input::placeholder {
+  color: #3a536c !important;
+  opacity: 1 !important;
+}
+
 .spring-root.cosmic-theme .spring-input-field:focus {
   border-color: rgba(125, 211, 252, 0.65) !important;
   box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.15), 0 0 24px rgba(56, 189, 248, 0.2), inset 0 0 24px rgba(56, 189, 248, 0.08) !important;
@@ -384,6 +402,10 @@
   color: #bae6fd !important;
 }
 
+.spring-root.cosmic-theme.cursor-workbench .quick-card-title {
+  color: #0a1a28 !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .spring-root.cosmic-theme .spring-title,
   .spring-root.cosmic-theme .spring-btn::after {
@@ -398,6 +420,12 @@
 
 .spring-root.cosmic-theme .process-step.kind-thinking .process-step-text {
   color: #bae6fd !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .process-step.kind-thinking .process-step-text,
+.spring-root.cosmic-theme.cursor-workbench .process-step-text,
+.spring-root.cosmic-theme.cursor-workbench .process-step-phase {
+  color: #0a1a28 !important;
 }
 
 .spring-root.cosmic-theme .process-panel-summary {
@@ -558,12 +586,13 @@
 }
 
 .spring-root.cursor-workbench.cosmic-theme .report-card {
-  border-color: rgba(100, 116, 139, 0.24) !important;
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.5), rgba(8, 12, 28, 0.42)) !important;
+  border-color: rgba(122, 168, 212, 0.45) !important;
+  background: rgba(255, 255, 255, 0.94) !important;
+  color: #0a1a28 !important;
 }
 
 .spring-root.cursor-workbench.cosmic-theme .report-card-title {
-  color: #e2e8f0 !important;
+  color: #0a1a28 !important;
   font-size: 14px !important;
 }
 
@@ -582,9 +611,10 @@
 .spring-root.cursor-workbench.cosmic-theme .reply-inline-analytics .chart-card {
   padding: 14px 16px 16px !important;
   border-radius: 14px !important;
-  background: rgba(2, 6, 23, 0.35) !important;
-  border: 1px solid rgba(100, 116, 139, 0.2) !important;
+  background: rgba(255, 255, 255, 0.94) !important;
+  border: 1px solid rgba(122, 168, 212, 0.4) !important;
   box-shadow: none !important;
+  color: #0a1a28 !important;
 }
 
 /* 折叠外层已有卡片壳，内层 chart-card 去重边框/内边距 */
@@ -645,14 +675,14 @@
 .spring-root.cursor-workbench.cosmic-theme .message-actions {
   margin-top: 8px !important;
   padding-top: 0 !important;
-  border-top-color: rgba(148, 163, 184, 0.08) !important;
-  opacity: 0.7 !important;
+  border-top-color: rgba(122, 168, 212, 0.28) !important;
+  opacity: 1 !important;
 }
 
 .spring-root.cursor-workbench.cosmic-theme .md-body.reply-chat {
   font-size: 15px !important;
   line-height: 1.72 !important;
-  color: #e8eef7 !important;
+  color: #0a1a28 !important;
 }
 
 .spring-root.cursor-workbench.cosmic-theme .spring-container {

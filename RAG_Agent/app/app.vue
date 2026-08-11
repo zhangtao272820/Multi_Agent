@@ -95,7 +95,23 @@
               :disabled="intelResetting"
               @click="resetLearning('learning')"
             >
-              清空
+              清除学习
+            </button>
+            <button
+              type="button"
+              class="brand-btn brand-btn--ghost rag-btn-compact rag-btn-danger"
+              :disabled="intelResetting"
+              @click="resetLearning('prompts')"
+            >
+              重置进化
+            </button>
+            <button
+              type="button"
+              class="brand-btn brand-btn--ghost rag-btn-compact rag-btn-danger"
+              :disabled="intelResetting"
+              @click="resetLearning('all')"
+            >
+              全部清空
             </button>
           </div>
           <button
@@ -1953,7 +1969,17 @@ const runCurate = async () => {
 };
 
 const resetLearning = async (scope) => {
-  if (!confirm('确定清空学习数据？此操作不可恢复。')) return;
+  const labels = {
+    learning: '学习信号',
+    prompts: '自我进化（Prompt）',
+    all: '全部学习与进化',
+    evolved: '已晋级提示',
+    experience: '经验向量',
+    preferences: '偏好',
+    bandit: '检索 Bandit',
+    eval: '评测基线',
+  };
+  if (!confirm(`确定清除「${labels[scope] || scope}」？仅影响 RAG 本平面，不删知识库文档。`)) return;
   intelResetting.value = true;
   try {
     await $fetch('/api/learning/reset', { method: 'POST', body: { scope } });

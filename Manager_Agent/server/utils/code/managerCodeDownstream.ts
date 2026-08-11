@@ -13,6 +13,7 @@ import {
   enrichChartPlanWithPayload,
   syncChartPlanWithAuthorityTriplet,
   buildChartPlanFromFactsStructural,
+  chartPlanHasUserFacingLabels,
   type LlmChartPlan,
   type CodeAuthorityPayload
 } from '#agent-shared/codeAuthorityPayload'
@@ -64,6 +65,19 @@ async function tryAssembleValidatedVisualize(
   question: string,
   allowRetry: boolean
 ): Promise<{ output: string; mode: 'code_authority_deterministic' | 'code_authority_llm'; firstPass?: boolean } | null> {
+  // 结构 plan 含机器字段名时不得上屏，直接交由 LLM 补用户可见 label
+  if (!chartPlanHasUserFacingLabels(plan)) {
+    if (!allowRetry || !model || !isCodeAuthorityLlmEnabled()) return null
+    const retryPlan = await planChartFromCodeByLlm(model, payload, question, {
+      retryReason: 'machine_identifier_labels'
+    })
+    if (!retryPlan?.panels.length || !chartPlanHasUserFacingLabels(retryPlan)) return null
+    const fromRetry = assembleVisualizeFromPayload(retryPlan, payload, banner)
+    const retryCheck = validateVisualizeOutput(fromRetry)
+    if (!retryCheck.ok) return null
+    return { output: fromRetry, mode: 'code_authority_llm', firstPass: false }
+  }
+
   let fromPlan = assembleVisualizeFromPayload(plan, payload, banner)
   let check = validateVisualizeOutput(fromPlan)
   if (check.ok) {
@@ -78,7 +92,7 @@ async function tryAssembleValidatedVisualize(
   const retryPlan = await planChartFromCodeByLlm(model, payload, question, {
     retryReason: check.reason ?? 'chart_not_renderable'
   })
-  if (!retryPlan?.panels.length) return null
+  if (!retryPlan?.panels.length || !chartPlanHasUserFacingLabels(retryPlan)) return null
   fromPlan = assembleVisualizeFromPayload(retryPlan, payload, banner)
   check = validateVisualizeOutput(fromPlan)
   if (!check.ok) return null
@@ -165,7 +179,8 @@ export async function tryCodeAuthorityDownstreamOutput(
   // ③ 确定性结构 fallback（chartable facts；与 clean 结构层对齐，默认先于 LLM）
   if (isVisualizeStructuralFirstEnabled()) {
     const structuralPlan = buildChartPlanFromFactsStructural(payload)
-    if (structuralPlan?.panels.length) {
+    // 可渲染且标签可面向用户，才算结构层成功；否则回退 LLM 补 label
+    if (structuralPlan?.panels.length && chartPlanHasUserFacingLabels(structuralPlan)) {
       const validated = await tryAssembleValidatedVisualize(structuralPlan, payload, banner, null, q, false)
       if (validated) return { ...validated, firstPass: validated.firstPass ?? true }
     }
@@ -191,7 +206,7 @@ export async function tryCodeAuthorityDownstreamOutput(
   // ⑤ 结构层兜底（未开 structural-first 或 LLM 失败）
   if (!isVisualizeStructuralFirstEnabled()) {
     const structuralPlan = buildChartPlanFromFactsStructural(payload)
-    if (structuralPlan?.panels.length) {
+    if (structuralPlan?.panels.length && chartPlanHasUserFacingLabels(structuralPlan)) {
       const validated = await tryAssembleValidatedVisualize(structuralPlan, payload, banner, model, q, Boolean(model))
       if (validated) return { ...validated, firstPass: validated.firstPass ?? !model }
     }
@@ -222,7 +237,7 @@ export function repairCodeAuthorityVisualize(
   if (!payload) return null
 
   const structuralPlan = buildChartPlanFromFactsStructural(payload)
-  if (structuralPlan?.panels.length) {
+  if (structuralPlan?.panels.length && chartPlanHasUserFacingLabels(structuralPlan)) {
     const out = assembleVisualizeFromPayload(structuralPlan, payload, banner)
     if (isVisualizeOutputRenderable(out)) return out
   }

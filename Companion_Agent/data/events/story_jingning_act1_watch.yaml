@@ -3,40 +3,107 @@ label: 旁观
 priority: 5
 once: true
 chance: 1.0
-scene_id: ""
+scene_id: ''
 trigger:
-  character_ids: [jingning]
+  character_ids:
+  - jingning
   stage_min: friend
   affinity_min: 52
-  flags_absent: [cousin_watch_done]
-prompt_snippet: |
-  【专属故事 · 堂姐的观察日记 · 第1幕 · 旁观】
+  flags_absent:
+  - cousin_watch_done
+prompt_snippet: '【专属故事 · 堂姐的观察日记 · 第1幕 · 旁观】
+
+  '
 advance: on_player_turn
 beats:
-  - id: b1
-    narration: "时尚活动边缘她端着茶。看你看堂姐的眼神，比秀场还直白——观察日记已开页，笔尖轻点杯沿。"
-    pc_thought: "观察日记是刀。她记破例，也在记我算不算认真。"
-    brief: "端茶观察你对堂姐的眼神；日记开页。等你承认在意、寒暄或问她为何在。"
-    summary: "端茶观察你对堂姐的眼神；日记开页。等你承认在意、寒暄或问她为何在。"
-    sprite_hint: [cousin_tea, work]
-    soft_options: ["承认在意静流", "先寒暄", "问她怎么也在"]
-  - id: b2
-    narration: "她点破：堂姐不易靠近；你若只是新鲜感，她会提前挡。计时从这一句开始。"
-    pc_thought: "接受被观察像过安检。说明认真程度，才不会被挡在玻璃外。"
-    brief: "点破新鲜感会挡；观察计时开始。等你说明认真、接受观察或问怎样不算轻浮。"
-    summary: "点破新鲜感会挡；观察计时开始。等你说明认真、接受观察或问怎样不算轻浮。"
-    sprite_hint: [family_gather, cousin_tea]
-    soft_options: ["说明认真程度", "接受被观察", "问怎样才不算轻浮"]
-  - id: b3
-    narration: "她合上小本，名字旁勾了一笔。堂妹守门打开，静流真结局的门不再虚掩——她只说「别给堂姐添乱」。"
-    pc_thought: "那道门落章后，闲话会先找到我——也找到她。"
-    brief: "合本勾名；守门打开。等你接受待审、约喝茶或保证不添乱。"
-    summary: "合本勾名；守门打开。等你接受待审、约喝茶或保证不添乱。"
-    sprite_hint: [cousin_tea, casual]
-    soft_options: ["接受待审", "约下次喝茶细聊", "保证不给堂姐添乱"]
+- id: b1
+  narration: 时尚活动边缘她端着茶。看你看堂姐的眼神，比秀场还直白——观察日记已开页，笔尖轻点杯沿。小本子别在她包侧。她没再多说，只是看着你。
+  pc_thought: 观察日记是刀。她记破例，也在记我算不算认真。我想靠近，又怕说错一句。
+  brief: 端茶观察你对堂姐的眼神；日记开页。等你承认在意、寒暄或问她为何在。
+  summary: 端茶观察你对堂姐的眼神；日记开页。等你承认在意、寒暄或问她为何在。
+  sprite_hint:
+  - cousin_tea
+  - work
+  - family_gather
+  - casual
+  - season_winter
+  - home_eating
+  soft_options:
+  - 承认在意静流
+  - 先寒暄
+  - 问她怎么也在
+  pages:
+  - text: 时尚活动边缘她端着茶。看你看堂姐的眼神，比秀场还直白——观察日记已开页，笔尖轻点杯沿。小本子别在她包侧。她没再多说，只是看着你。
+    voice: narration
+    sprite:
+      outfit: cousin_tea
+      emotion: neutral
+  - text: 观察日记是刀。她记破例，也在记我算不算认真。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: cousin_tea
+      emotion: shy
+- id: b2
+  narration: 她点破：堂姐不易靠近；你若只是新鲜感，她会提前挡。计时从这一句开始。小本子别在她包侧。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 接受被观察像过安检。说明认真程度，才不会被挡在玻璃外
+  brief: 点破新鲜感会挡；观察计时开始。等你说明认真、接受观察或问怎样不算轻浮。
+  summary: 点破新鲜感会挡；观察计时开始。等你说明认真、接受观察或问怎样不算轻浮。
+  sprite_hint:
+  - cousin_tea
+  - work
+  - family_gather
+  - casual
+  - season_winter
+  - home_eating
+  soft_options:
+  - 说明认真程度
+  - 接受被观察
+  - 问怎样才不算轻浮
+  pages:
+  - text: 她点破：堂姐不易靠近；你若只是新鲜感，她会提前挡。计时从这一句开始。小本子别在她包侧。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: cousin_tea
+      emotion: neutral
+  - text: 接受被观察像过安检。说明认真程度，才不会被挡在玻璃外
+    voice: pc
+    sprite:
+      outfit: cousin_tea
+      emotion: shy
+- id: b3
+  narration: 她合上小本，名字旁勾了一笔。堂妹守门打开，静流真结局的门不再虚掩——她只说「别给堂姐添乱」。小本子别在她包侧。她没再多说，只是看着你。
+  pc_thought: 那道门落章后，闲话会先找到我——也找到她。我想靠近，又怕说错一句。
+  brief: 合本勾名；守门打开。等你接受待审、约喝茶或保证不添乱。
+  summary: 合本勾名；守门打开。等你接受待审、约喝茶或保证不添乱。
+  sprite_hint:
+  - cousin_tea
+  - work
+  - family_gather
+  - casual
+  - season_winter
+  - home_eating
+  soft_options:
+  - 接受待审
+  - 约下次喝茶细聊
+  - 保证不给堂姐添乱
+  pages:
+  - text: 她合上小本，名字旁勾了一笔。堂妹守门打开，静流真结局的门不再虚掩——她只说「别给堂姐添乱」。小本子别在她包侧。她没再多说，只是看着你。
+    voice: narration
+    sprite:
+      outfit: cousin_tea
+      emotion: neutral
+  - text: 那道门落章后，闲话会先找到我——也找到她。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: cousin_tea
+      emotion: shy
 rewards:
-  flags_set: [cousin_watch_done]
+  flags_set:
+  - cousin_watch_done
 choice_effects:
-  - { trust_delta: 3, affinity_delta: 3 }
-  - { trust_delta: 2, affinity_delta: 2 }
-  - { trust_delta: -2, affinity_delta: -1 }
+- trust_delta: 3
+  affinity_delta: 3
+- trust_delta: 2
+  affinity_delta: 2
+- trust_delta: -2
+  affinity_delta: -1

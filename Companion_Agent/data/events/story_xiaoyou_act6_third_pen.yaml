@@ -3,41 +3,115 @@ label: 第三支笔的阴影
 priority: 8
 once: true
 chance: 1.0
-scene_id: ""
+scene_id: ''
 trigger:
-  character_ids: [xiaoyou]
+  character_ids:
+  - xiaoyou
   stage_min: crush
   affinity_min: 82
-  flags_present: [xy_life_outside_frame]
-  flags_absent: [xy_third_pen_crisis]
-prompt_snippet: |
-  【专属故事 · 画框里的邻人 · 第6幕 · 第三支笔的阴影】
+  flags_present:
+  - xy_life_outside_frame
+  flags_absent:
+  - xy_third_pen_crisis
+prompt_snippet: '【专属故事 · 画框里的邻人 · 第6幕 · 第三支笔的阴影】
+
+  '
 advance: on_player_turn
 beats:
-  - id: b1
-    narration: "画室多出一支笔。悠微站在门口，声音很平：你进门是为了画，还是为了晚悠以外的座位？"
-    pc_thought: "第三支笔一来，画框外的位置就挤了。我站哪边？"
-    brief: "悠微堵门追问进门动机。画室空气紧。等他帮晚悠、听学妹或退开。"
-    summary: "悠微堵门追问进门动机。画室空气紧。等他帮晚悠、听学妹或退开。"
-    sprite_hint: [atelier_paint, work, casual, home]
-    soft_options: ["帮晚悠说话", "先听学妹", "退到门外"]
-  - id: b2
-    narration: "晚悠夹在学妹与你之间，颜料手抖。她怕被当成只负责灵感的画框，目光不敢抬。"
-    pc_thought: "握住她的手像越界；只看画布又像抛弃她。闲话已经在门外。"
-    brief: "颜料手抖；怕只是灵感画框。等他握住手、只看画，或说别怕闲话。"
-    summary: "颜料手抖；怕只是灵感画框。等他握住手、只看画，或说别怕闲话。"
-    sprite_hint: [deadline_lamp, floor_sketch, home, casual]
-    soft_options: ["握住她抖的手", "只看画布", "说别怕闲话"]
-  - id: b3
-    narration: "暖灯下三支笔并排放着。她等你说清：画布对面、学妹同盟，还是可以并肩的恋人。"
-    pc_thought: "说清位置才有画框外。留下比夸画难一万倍。"
-    brief: "逼他说清位置：画布对面、同盟或恋人。危机落槌。"
-    summary: "逼他说清位置：画布对面、同盟或恋人。危机落槌。"
-    sprite_hint: [intimate_lounge, atelier_paint, season_winter, casual, home]
-    soft_options: ["说我站你这边", "建议先缓画展", "推开第三者话题"]
+- id: b1
+  narration: 画室多出一支笔。悠微站在门口，声音很平：你进门是为了画，还是为了晚悠以外的座位？门缝里还能闻见一点松节油。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 第三支笔一来，画框外的位置就挤了。我站哪边？我想靠近，又怕说错一句。
+  brief: 悠微堵门追问进门动机。画室空气紧。等他帮晚悠、听学妹或退开。
+  summary: 悠微堵门追问进门动机。画室空气紧。等他帮晚悠、听学妹或退开。
+  sprite_hint:
+  - atelier_paint
+  - deadline_lamp
+  - intimate_lounge
+  - shared_sketchbook
+  - floor_sketch
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 帮晚悠说话
+  - 先听学妹
+  - 退到门外
+  pages:
+  - text: 画室多出一支笔。悠微站在门口，声音很平：你进门是为了画，还是为了晚悠以外的座位？门缝里还能闻见一点松节油。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: atelier_paint
+      emotion: neutral
+  - text: 第三支笔一来，画框外的位置就挤了。我站哪边？我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: atelier_paint
+      emotion: shy
+- id: b2
+  narration: 晚悠夹在学妹与你之间，颜料手抖。她怕被当成只负责灵感的画框，目光不敢抬。门缝里还能闻见一点松节油。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 握住她的手像越界；只看画布又像抛弃她。闲话已经在门外。我想靠近，又怕说错一句。
+  brief: 颜料手抖；怕只是灵感画框。等他握住手、只看画，或说别怕闲话。
+  summary: 颜料手抖；怕只是灵感画框。等他握住手、只看画，或说别怕闲话。
+  sprite_hint:
+  - atelier_paint
+  - deadline_lamp
+  - intimate_lounge
+  - shared_sketchbook
+  - floor_sketch
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 握住她抖的手
+  - 只看画布
+  - 说别怕闲话
+  pages:
+  - text: 晚悠夹在学妹与你之间，颜料手抖。她怕被当成只负责灵感的画框，目光不敢抬。门缝里还能闻见一点松节油。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: atelier_paint
+      emotion: neutral
+  - text: 握住她的手像越界；只看画布又像抛弃她。闲话已经在门外。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: atelier_paint
+      emotion: shy
+- id: b3
+  narration: 暖灯下三支笔并排放着。她等你说清：画布对面、学妹同盟，还是可以并肩的恋人。门缝里还能闻见一点松节油。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 说清位置才有画框外。留下比夸画难一万倍。我想靠近，又怕说错一句。
+  brief: 逼他说清位置：画布对面、同盟或恋人。危机落槌。
+  summary: 逼他说清位置：画布对面、同盟或恋人。危机落槌。
+  sprite_hint:
+  - atelier_paint
+  - deadline_lamp
+  - intimate_lounge
+  - shared_sketchbook
+  - floor_sketch
+  - season_winter
+  - home_eating
+  - home_sleeping
+  soft_options:
+  - 说我站你这边
+  - 建议先缓画展
+  - 推开第三者话题
+  pages:
+  - text: 暖灯下三支笔并排放着。她等你说清：画布对面、学妹同盟，还是可以并肩的恋人。门缝里还能闻见一点松节油。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: atelier_paint
+      emotion: neutral
+  - text: 说清位置才有画框外。留下比夸画难一万倍。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: atelier_paint
+      emotion: shy
 rewards:
-  flags_set: [xy_third_pen_crisis]
+  flags_set:
+  - xy_third_pen_crisis
 choice_effects:
-  - { trust_delta: 3, affinity_delta: 4 }
-  - { trust_delta: 2, affinity_delta: 2 }
-  - { trust_delta: -2, affinity_delta: -2 }
+- trust_delta: 3
+  affinity_delta: 4
+- trust_delta: 2
+  affinity_delta: 2
+- trust_delta: -2
+  affinity_delta: -2

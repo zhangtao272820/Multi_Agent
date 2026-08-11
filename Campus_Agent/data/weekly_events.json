@@ -9,6 +9,7 @@
       "chance": 1.0,
       "location_id": "classroom",
       "talk_npc": "neighbor",
+      "sprite_hint": { "outfit": "summer", "action": "pass_note", "emotion": "shy" },
       "effects": { "chat_affinity_bonus": 0.3, "study_mult": 1.05 }
     },
     {
@@ -20,6 +21,7 @@
       "chance": 0.9,
       "location_id": "library",
       "talk_npc": "affinity",
+      "sprite_hint": { "outfit": "summer", "action": "sc_library_read", "emotion": "neutral" },
       "effects": { "study_mult": 1.1 }
     },
     {
@@ -31,6 +33,7 @@
       "chance": 1.0,
       "location_id": "hallway",
       "talk_npc": "affinity",
+      "sprite_hint": { "outfit": "summer", "action": "sc_hallway_window", "emotion": "sad" },
       "effects": { "chat_affinity_bonus": 0.4 }
     },
     {
@@ -42,6 +45,7 @@
       "chance": 0.85,
       "location_id": "playground",
       "talk_npc": "random_present",
+      "sprite_hint": { "outfit": "summer", "action": "sc_playground_fence", "emotion": "happy" },
       "effects": { "outdoor_mult": 1.1, "chat_affinity_bonus": 0.35 }
     },
     {
@@ -53,6 +57,7 @@
       "chance": 0.8,
       "location_id": "rooftop",
       "talk_npc": "affinity",
+      "sprite_hint": { "outfit": "summer", "action": "sc_rooftop_rail", "emotion": "shy" },
       "effects": { "chat_affinity_bonus": 0.5 }
     },
     {
@@ -64,6 +69,7 @@
       "chance": 0.9,
       "location_id": "cafeteria",
       "talk_npc": "neighbor",
+      "sprite_hint": { "outfit": "summer", "action": "sc_cafeteria_seat", "emotion": "happy" },
       "effects": { "chat_affinity_bonus": 0.35 }
     },
     {
@@ -75,6 +81,7 @@
       "chance": 0.85,
       "location_id": "club_room",
       "talk_npc": "affinity",
+      "sprite_hint": { "outfit": "summer", "action": "sc_classroom_lean", "emotion": "happy" },
       "effects": { "chat_affinity_bonus": 0.45 }
     },
     {
@@ -86,6 +93,7 @@
       "chance": 0.8,
       "location_id": "shop",
       "talk_npc": "affinity",
+      "sprite_hint": { "outfit": "casual", "action": "sc_shop_browse", "emotion": "happy" },
       "effects": { "chat_affinity_bonus": 0.4 }
     },
     {
@@ -97,6 +105,7 @@
       "chance": 1.0,
       "location_id": "classroom",
       "talk_npc": "affinity",
+      "sprite_hint": { "outfit": "summer", "action": "sc_classroom_blackboard", "emotion": "neutral" },
       "effects": { "study_mult": 1.08, "chat_affinity_bonus": 0.5 }
     }
   ]

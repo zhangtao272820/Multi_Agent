@@ -44,7 +44,9 @@ export interface StudentPublic {
   id: string;
   name: string;
   gender: "male" | "female";
-  mbti: string;
+  mbti?: string;
+  class_role?: string;
+  class_role_label?: string;
   grade_tier: string;
   look_tag: string;
   charm?: number;
@@ -89,6 +91,7 @@ export interface ActiveEvent {
   location_id?: string | null;
   source?: string;
   effects?: Record<string, number>;
+  sprite_hint?: { outfit?: string; action?: string; emotion?: string };
 }
 
 export interface PeriodRecapNeighbor {
@@ -148,7 +151,8 @@ export interface HubState {
   protagonist: {
     name: string;
     grade_tier: string;
-    mbti: string;
+    stats?: { study: number; social: number; stamina: number; luck: number };
+    mbti?: string;
   };
   class_name: string;
   edge_count: number;
@@ -184,6 +188,9 @@ export interface EndingRomance {
   affinity: number;
   stage: string;
   stage_label?: string;
+  was_dating?: boolean;
+  relation_display?: string;
+  primary_label?: string;
   sprite?: SpriteRef;
   q_sprite?: SpriteRef;
 }
@@ -196,6 +203,11 @@ export interface EndingState {
   blurb: string;
   grade_band?: string;
   romance_bucket?: string;
+  verdict?: string;
+  with_you_ok?: boolean;
+  epilogue_line?: string;
+  verdict_judgment?: string;
+  verdict_source?: string;
   pc_rank: number;
   pc_total: number;
   pc_scores?: Record<string, number>;
@@ -204,8 +216,10 @@ export interface EndingState {
   social_epilogue?: {
     blurb?: string;
     couple_count?: number;
+    ex_count?: number;
     couples?: { label: string; affinity?: number; stage?: string }[];
     rivals?: { label: string; affinity?: number }[];
+    exes?: { label: string; affinity?: number }[];
     near_miss?: string[];
   } | null;
   day_index?: number;
@@ -222,7 +236,15 @@ export interface CampusMeta {
   personality: {
     grade_tiers: CatalogItem[];
     mbti_types: string[];
+    pc_stats?: {
+      keys: string[];
+      pool: number;
+      min: number;
+      max: number;
+      labels: Record<string, string>;
+    };
   };
+  class_roles?: CatalogItem[];
   subjects?: {
     subjects: { id: string; label: string; max: number }[];
   };
@@ -238,6 +260,11 @@ export interface BoardEdge {
   stage: string;
   track: string;
   bond_kind?: string;
+  was_dating?: boolean;
+  primary_label?: string;
+  context_tags?: string[];
+  relation_display?: string;
+  display?: string;
   other_id?: string;
   other_name?: string;
   other_sprite?: SpriteRef;
@@ -287,7 +314,19 @@ export interface SaveListItem {
 
 export interface TalkPrep {
   target: StudentPublic;
-  edge: { a: string; b: string; affinity: number; stage: string; track: string };
+  edge: {
+    a: string;
+    b: string;
+    affinity: number;
+    stage: string;
+    track: string;
+    bond_kind?: string;
+    was_dating?: boolean;
+    primary_label?: string;
+    context_tags?: string[];
+    relation_display?: string;
+    display?: string;
+  };
   seat_relation?: string | null;
   action_cost?: number;
   chat_actions_left?: number;
@@ -312,7 +351,17 @@ export interface ChatResult {
   judgment?: string;
   soft_options: string[];
   public_deltas?: { affinity_delta?: number; stage?: string; score_gain?: number; subject_id?: string };
-  edge: { affinity: number; stage: string; track: string };
+  edge: {
+    affinity: number;
+    stage: string;
+    track: string;
+    bond_kind?: string;
+    was_dating?: boolean;
+    primary_label?: string;
+    context_tags?: string[];
+    relation_display?: string;
+    display?: string;
+  };
   sprite?: SpriteRef;
   q_sprite?: SpriteRef;
   judge_ok?: boolean;
@@ -326,7 +375,60 @@ export type ScreenId =
   | "create"
   | "saves"
   | "save_slots"
+  | "settings"
+  | "gallery"
   | "map"
   | "location"
   | "talk"
   | "ending";
+
+export interface GallerySpriteRef {
+  path?: string | null;
+  file?: string | null;
+  fallback?: boolean;
+  kind?: string;
+  locked?: boolean;
+}
+
+export interface GalleryAlbumItem {
+  file: string;
+  path?: string | null;
+  outfit?: string;
+  action?: string;
+  emotion?: string;
+  label?: string;
+}
+
+export interface GalleryAlbum {
+  id: string;
+  label: string;
+  unlocked: boolean;
+  count: number;
+  items: GalleryAlbumItem[];
+}
+
+export interface GalleryCharacter {
+  id: string;
+  name: string;
+  gender?: string;
+  mbti?: string;
+  beauty_tier?: string;
+  met: boolean;
+  stage: string;
+  stage_label: string;
+  affinity?: number | null;
+  emotions: string[];
+  thumb?: GallerySpriteRef | null;
+  default_sprite?: GallerySpriteRef | null;
+  albums?: GalleryAlbum[];
+  signature_plan?: { id?: string; action?: string; label?: string }[];
+}
+
+export interface GalleryPayload {
+  class_name: string;
+  class_id: string;
+  save_id?: string | null;
+  characters: GalleryCharacter[];
+  total: number;
+  met_count: number;
+}

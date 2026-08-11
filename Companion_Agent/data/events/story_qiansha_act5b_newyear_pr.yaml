@@ -14,8 +14,9 @@ trigger:
   flags_absent:
   - qs_newyear_pr
   waypoint_min: q_winter_newyear
-prompt_snippet: |
-  【专属故事 · 沈千纱 · 节日加幕 · 元旦·Reopen】
+prompt_snippet: '【专属故事 · 沈千纱 · 节日加幕 · 元旦·Reopen】
+
+  '
 advance: on_player_turn
 beats:
 - id: b1
@@ -25,44 +26,83 @@ beats:
   - season_winter
   - home_eating
   - home_sleeping
-  - intimate_lounge
+  - date
+  - casual
+  - home
   soft_options:
   - 夸她
   - 点头
   - 沉默
-  narration: 元旦她穿节日装坐回工位，新建一个只有你们能看的 draft PR。
-  pc_thought: 旧 PR 还开着。Merge 还是 Close——我别当版本控制器。
+  narration: 元旦她穿节日装坐回工位，新建一个只有你们能看的draftPR。耳机麦还开着静音。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 旧PR还开着。Merge还是Close——我别当版本控制器
   brief: 元旦她穿节日装坐回工位，新建一个只有你们能看的 draft PR。等你回应。
+  pages:
+  - text: 元旦她穿节日装坐回工位，新建一个只有你们能看的draftPR。耳机麦还开着静音。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: festival_spring
+      emotion: neutral
+  - text: 旧PR还开着。Merge还是Close——我别当版本控制器
+    voice: pc
+    sprite:
+      outfit: festival_spring
+      emotion: shy
 - id: b2
   summary: 标题写着 Reopen?；描述栏空着，等你填收件人或关掉页面。
   sprite_hint:
   - festival_spring
-  - date
   - season_winter
   - home_eating
   - home_sleeping
+  - date
+  - casual
+  - home
   soft_options:
   - 接住
   - 问清楚
   - 退一步
-  narration: 显示器蓝光与键盘声里，标题写着 Reopen?；描述栏空着，等你填收件人或关掉页面。
-  pc_thought: debug 到深夜，像把分手理由一行行编译。
+  narration: 显示器蓝光与键盘声里，标题写着Reopen?；描述栏空着，等你填收件人或关掉页面。耳机麦还开着静音。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: debug到深夜，像把分手理由一行行编译。我想靠近，又怕说错一句。
   brief: 标题写着 Reopen?；描述栏空着，等你填收件人或关掉页面。
+  pages:
+  - text: 显示器蓝光与键盘声里，标题写着Reopen?；描述栏空着，等你填收件人或关掉页面。耳机麦还开着静音。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: festival_spring
+      emotion: neutral
+  - text: debug到深夜，像把分手理由一行行编译。我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: festival_spring
+      emotion: shy
 - id: b3
   summary: 年夜将尽；merge 或永久关闭，都会留下不可回档的提交。等你回应。
   sprite_hint:
   - festival_spring
-  - home
   - season_winter
   - home_eating
   - home_sleeping
+  - date
+  - casual
+  - home
   soft_options:
   - 承诺
   - 诚实犹豫
   - 拒绝
-  narration: 显示器蓝光与键盘声里，年夜将尽；merge 或永久关闭，都会留下不可回档的提交。
-  pc_thought: 脏 diff 里藏着没说完的话。我敢不敢 review？
+  narration: 显示器蓝光与键盘声里，年夜将尽；merge或永久关闭，都会留下不可回档的提交。耳机麦还开着静音。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+  pc_thought: 脏diff里藏着没说完的话。我敢不敢review？我想靠近，又怕说错一句。
   brief: 年夜将尽；merge 或永久关闭，都会留下不可回档的提交。等你回应。
+  pages:
+  - text: 显示器蓝光与键盘声里，年夜将尽；merge或永久关闭，都会留下不可回档的提交。耳机麦还开着静音。她没再多说，只是看着你。这一秒谁先开口，都会把关系往前推一点。
+    voice: narration
+    sprite:
+      outfit: festival_spring
+      emotion: neutral
+  - text: 脏diff里藏着没说完的话。我敢不敢review？我想靠近，又怕说错一句。
+    voice: pc
+    sprite:
+      outfit: festival_spring
+      emotion: shy
 rewards:
   flags_set:
   - qs_newyear_pr

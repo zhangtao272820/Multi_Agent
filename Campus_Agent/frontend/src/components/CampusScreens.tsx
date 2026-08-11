@@ -555,7 +555,14 @@ export function LocationScreen({
                 <div className="loc-portrait-meta">
                   <strong>{focus.name}</strong>
                   <span>
-                    {focus.mbti} · 魅力 {focus.charm ?? "—"} · {focus.look_tag}
+                    {[
+                      !focus.is_pc && focus.mbti,
+                      focus.class_role_label,
+                      `魅力 ${focus.charm ?? "—"}`,
+                      focus.look_tag,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
                   </span>
                   {focus.mind?.thought && <p className="loc-thought">「{focus.mind.thought}」</p>}
                   <div className="loc-portrait-actions">

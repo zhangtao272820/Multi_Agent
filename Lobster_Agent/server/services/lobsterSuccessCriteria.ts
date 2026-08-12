@@ -16,6 +16,8 @@ export const SuccessCriteriaSchema = z
     urlMatches: z.string().max(200).optional(),
     selectorPresent: z.string().max(160).optional(),
     extractMin: z.number().int().min(0).max(50).optional(),
+    /** form_fill：至少成功填写并校验 value 的字段数 */
+    filledMin: z.number().int().min(0).max(50).optional(),
     titleIncludes: z.array(z.string().min(1).max(80)).max(6).optional(),
   })
   .passthrough()
@@ -76,7 +78,9 @@ export function assembleDefaultSuccessCriteria(input: {
   // 离开起始页由 goals + navigation_unverified 硬闸；此处只保证「有可判定产物」
   if (mustExtract) out.extractMin = 1
   if (kind === 'form_fill') {
-    out.extractMin = out.extractMin ?? 1
+    // 填表成功看 filled 证据，禁止用首页标题凑 extractMin
+    out.filledMin = 1
+    delete (out as { extractMin?: number }).extractMin
   }
   return out
 }
@@ -111,15 +115,20 @@ export function resolveStructuredSuccessCriteria(input: {
     },
     recipeHints,
   )
-  // 若合并后仍为空对象，至少要求 extractMin=1（避免「点了就算」）
+  // 若合并后仍为空对象，至少要求 extractMin=1（避免「点了就算」）；form_fill 用 filledMin
   if (
     !mergedObj.urlIncludes?.length &&
     !mergedObj.urlMatches &&
     !mergedObj.selectorPresent &&
     !mergedObj.titleIncludes?.length &&
-    typeof mergedObj.extractMin !== 'number'
+    typeof mergedObj.extractMin !== 'number' &&
+    typeof mergedObj.filledMin !== 'number'
   ) {
+    if (String(spec?.task_kind || '').trim() === 'form_fill') return { filledMin: 1 }
     return { extractMin: 1 }
+  }
+  if (String(spec?.task_kind || '').trim() === 'form_fill' && typeof mergedObj.filledMin !== 'number') {
+    return { ...mergedObj, filledMin: 1, extractMin: undefined }
   }
   return mergedObj
 }
@@ -153,7 +162,8 @@ export function criteriaIsEmpty(c?: SuccessCriteria | null): boolean {
     Boolean(c.urlMatches) ||
     Boolean(c.selectorPresent) ||
     (Array.isArray(c.titleIncludes) && c.titleIncludes.length > 0) ||
-    typeof c.extractMin === 'number'
+    typeof c.extractMin === 'number' ||
+    typeof c.filledMin === 'number'
   )
 }
 
@@ -202,6 +212,7 @@ export function evaluateSuccessCriteria(input: {
   url: string
   title?: string
   extractCount?: number
+  filledCount?: number
   selectorHits?: number
   criteria: SuccessCriteria
 }): { ok: boolean; reason: string; missing: string[] } {
@@ -223,6 +234,11 @@ export function evaluateSuccessCriteria(input: {
   if (Array.isArray(c.titleIncludes) && c.titleIncludes.length) {
     const t = String(input.title || '')
     if (!c.titleIncludes.some((p) => t.includes(p))) missing.push(`titleIncludes`)
+  }
+  if (typeof c.filledMin === 'number' && c.filledMin > 0) {
+    if (Math.max(0, Number(input.filledCount || 0)) < c.filledMin) {
+      missing.push(`filledMin:${c.filledMin}`)
+    }
   }
   if (typeof c.extractMin === 'number' && c.extractMin > 0) {
     if (Math.max(0, Number(input.extractCount || 0)) < c.extractMin) {

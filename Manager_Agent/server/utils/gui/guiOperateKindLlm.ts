@@ -10,7 +10,11 @@ import {
   normalizeManagerGuiTaskKind,
   type ManagerGuiTaskKind,
 } from '#agent-shared/managerTaskEnvelope'
-import { listKnownGuiWorkflowIds, resolveGuiWorkflowForTaskKind } from './guiWorkflowAllowlist'
+import {
+  listKnownGuiWorkflowIds,
+  listMissingGuiWorkflowArgs,
+  resolveGuiWorkflowForTaskKind,
+} from './guiWorkflowAllowlist'
 
 const WorkflowArgsSchema = z.record(z.unknown()).optional()
 
@@ -59,7 +63,7 @@ function systemPrompt(): string {
     '只输出 JSON，禁止 markdown。勿用关键词表硬套；按语义判断。',
     '',
     'task_kind：',
-    '- form_fill：填写输入框/下拉/勾选并可选提交（httpbin、Ant Design 表单、登记表等）',
+    '- form_fill：填写输入框/下拉/勾选并可选提交（W3School 中文站表单、Ant Design、登记表等；国内优先）',
     '- login：登录/注册/鉴权（账号密码、验证码页人工确认也属此类）',
     '- search：站内搜索（打开搜索页、输入词、点结果）',
     '- extract：抽取标题/链接/列表（可在搜索或导航之后）',
@@ -72,13 +76,14 @@ function systemPrompt(): string {
     '',
     'needs_login：任务明确需要登录态或登录页时为 true。',
     '',
-    'workflow_id（可选）：仅当 task_kind=form_fill 且用户明确指定工作流/宏名，或明确要求跑下列已知黄金宏时填写。',
+    'workflow_id（可选）：仅当用户原话明确写出「工作流:xxx / 宏:xxx」且能给出该宏全部必填参数时填写。',
     `- 允许的宏 id（禁止编造其它 id）：${known}`,
-    '- httpbin-form-fill：仅 form_fill + httpbin.org/forms/post 填 Customer name',
+    '- 普通自然语言填表（如「打开 w3school.com.cn 表单，First name 填张三」）→ 禁止填 workflow_id，只出 task_kind=form_fill。',
+    '- w3school-form-* 必填 workflow_args.first_name + last_name；httpbin-form-* 必填 customer_name；缺任一键则省略 workflow_id。',
     '- navigate / extract / search / multi_step：必须省略 workflow_id（禁止误挂 form 宏）',
-    '- 不确定或仅为「打开网页/点链接/抽标题」→ 省略 workflow_id，只出 task_kind',
-    'workflow_args（可选）：宏参数对象。httpbin-form-fill 需 customer_name；startUrl 若任务含 URL 可写入。',
-    '勿把普通填表误判为必须走宏；无明确宏意图时只出 task_kind。',
+    '- 不确定 → 省略 workflow_id，只出 task_kind',
+    'workflow_args：仅在填写 workflow_id 时给出完整参数对象；startUrl 可从任务 URL 写入。',
+    '勿把普通填表误判为必须走宏；无明确宏意图或参数不全时只出 task_kind。',
     '',
     '「怎么学 Python / 教程推荐」等资讯问答不属于本分类器（应由上层判 search_chat）。',
     'schema: {"task_kind":"...","needs_login":boolean,"confidence":number,"rationale":string,"workflow_id"?:string,"workflow_args"?:object}',
@@ -98,14 +103,21 @@ function decisionFromParsed(data: z.infer<typeof GuiOperateKindSchema>): GuiOper
   const kind = normalizeManagerGuiTaskKind(data.task_kind)
   if (!kind) return null
   const rawWf = String(data.workflow_id || '').trim() || undefined
-  const resolved = resolveGuiWorkflowForTaskKind(rawWf, kind)
-  const workflow_id = resolved.ok ? resolved.id : undefined
-  const dropped_workflow_id =
-    !resolved.ok && resolved.dropped ? resolved.dropped : undefined
   const workflow_args =
     data.workflow_args && typeof data.workflow_args === 'object' && !Array.isArray(data.workflow_args)
       ? (data.workflow_args as Record<string, unknown>)
       : undefined
+  const resolved = resolveGuiWorkflowForTaskKind(rawWf, kind)
+  let workflow_id = resolved.ok ? resolved.id : undefined
+  let dropped_workflow_id =
+    !resolved.ok && resolved.dropped ? resolved.dropped : undefined
+  if (workflow_id) {
+    const missing = listMissingGuiWorkflowArgs(workflow_id, workflow_args)
+    if (missing.length) {
+      dropped_workflow_id = workflow_id
+      workflow_id = undefined
+    }
+  }
   return {
     task_kind: kind,
     needs_login: data.needs_login === true,

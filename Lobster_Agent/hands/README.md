@@ -18,7 +18,7 @@ powershell -ExecutionPolicy Bypass -File hands/start-hands.ps1
 | WS | `ws://127.0.0.1:13109/_ws` |
 | ready | `GET /api/ready` → `engines.desktop.ok` |
 
-总管 `.env`：
+总管 `.env`（本机 Manager）：
 
 ```env
 LOBSTER_AGENT_WS_URL=ws://127.0.0.1:13108/_ws
@@ -26,14 +26,25 @@ LOBSTER_HANDS_WS_URL=ws://127.0.0.1:13109/_ws
 # 可选：LOBSTER_HANDS_HTTP_URL=http://127.0.0.1:13109
 ```
 
+**Docker 总管**（`Manage-platform_Agent/.env.agents-lan` 已默认）：
+
+```env
+LOBSTER_HANDS_WS_URL=ws://host.docker.internal:13109/_ws
+LOBSTER_HANDS_HTTP_URL=http://host.docker.internal:13109
+```
+
+网页仍走容器 `lobster_agent:13108`；桌面走宿主 Hands `:13109`。侧车保持运行时，在总管发桌面句即可。
+
 桌面未起时，总管会澄清「请启动宿主 Hands」，**不会假成功**。
 
 ## 前置
 
 1. Windows 宿主机（非 Linux 容器）
 2. Node 20+、本仓 `npm install`
-3. `uv` / `uvx` 可用（`uvx windows-mcp`）
+3. `uv` / `uvx` 可用（`uvx windows-mcp serve`；需能列出桌面工具）
 4. 可选：`LOBSTER_ADMIN_TOKEN` 与总管内网 token 一致（默认 loopback）
+
+> **注意**：不必安装 Hands.exe。开发态用 `start-hands.ps1` 即可。`no_tools` 通常是 `windows-mcp` 启动参数过旧（须 `serve`），不是缺 exe。
 
 ## 验收
 

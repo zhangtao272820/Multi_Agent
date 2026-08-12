@@ -45,7 +45,7 @@ function lastHumanBefore(question: string, history: Array<{ role?: string; conte
   return last === q && humans.length >= 2 ? humans[humans.length - 2] : last
 }
 
-/** 结构回退：短承接 → continuation / output_followup；否则默认隔离 */
+/** 结构回退：仅明确指代/输出加工 → continuation；自洽新问默认隔离（禁止长度启发误判） */
 export function classifyDbTurnScopeStructural(
   question: string,
   history: Array<{ role?: string; content?: string }>
@@ -64,11 +64,8 @@ export function classifyDbTurnScopeStructural(
   if (compact.length <= 8 && refer.some((w) => compact.includes(w))) {
     return buildTurnScopePayload('continuation', 'continuation')
   }
-  if (q.length <= Math.max(48, Math.floor(prev.length * 0.52))) {
-    return buildTurnScopePayload('continuation', 'continuation')
-  }
-  if (q.length >= 40) return buildTurnScopePayload('topic_shift', 'new_task')
-  return buildTurnScopePayload('current_only', 'new_task')
+  // 有上文且本轮非明确承接 → 主题切换隔离（勿用「短句=承接」）
+  return buildTurnScopePayload('topic_shift', 'new_task')
 }
 
 export async function classifyDbTurnScopeByLlm(

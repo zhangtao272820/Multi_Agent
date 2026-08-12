@@ -299,10 +299,16 @@ export function resolveLobsterDesktopMcpServers(env: NodeJS.ProcessEnv = process
     parseJsonServers(String(env.MCP_DESKTOP_SERVERS ?? ''))
   if (fromEnv && Object.keys(fromEnv).length > 0) return fromEnv
   if (process.platform !== 'win32') return null
+  const cmd = String(env.LOBSTER_DESKTOP_MCP_COMMAND ?? 'uvx').trim() || 'uvx'
+  // 新版 CLI：`uvx windows-mcp serve`（旧版无子命令已失效 → Missing command / no_tools）
+  const argsRaw = String(env.LOBSTER_DESKTOP_MCP_ARGS ?? '').trim()
+  const args = argsRaw
+    ? argsRaw.split(/\s+/).filter(Boolean)
+    : ['windows-mcp', 'serve']
   return {
     windows: {
-      command: String(env.LOBSTER_DESKTOP_MCP_COMMAND ?? 'uvx').trim() || 'uvx',
-      args: ['windows-mcp'],
+      command: cmd,
+      args,
     },
   }
 }

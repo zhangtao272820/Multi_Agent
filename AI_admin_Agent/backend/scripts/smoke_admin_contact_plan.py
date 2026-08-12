@@ -61,7 +61,7 @@ def main() -> None:
 
     list_u = {
         "intent": "联系人",
-        "slots": {},
+        "slots": {"contact_action": "list"},
         "needs_clarification": False,
     }
     list_plan = build_deterministic_plan_from_understanding(list_u, "列出联系人")
@@ -93,12 +93,24 @@ def main() -> None:
 
     incomplete = {
         "intent": "联系人",
-        "slots": {"contact_name": "张三", "contact_email": ""},
+        "slots": {"contact_action": "add", "contact_name": "张三", "contact_email": ""},
         "needs_clarification": False,
     }
     _assert(
         build_deterministic_plan_from_understanding(incomplete, "添加联系人张三") is None,
         "missing email yields no write plan",
+    )
+
+    # 仅有姓名且未标明 add → search（不再扫原话关键词）
+    search_u = {
+        "intent": "联系人",
+        "slots": {"contact_name": "张三"},
+        "needs_clarification": False,
+    }
+    search_plan = build_deterministic_plan_from_understanding(search_u, "张三的邮箱")
+    _assert(
+        search_plan and search_plan[0]["name"] == "search_contact",
+        "name-only → search_contact",
     )
 
     print("smoke_admin_contact_plan: OK")

@@ -51,6 +51,9 @@ import { runSkillDraftBackfillJob } from '../../utils/skills/skillDraftBackfillJ
 import { listEvoPolicies } from '#agent-shared/evoPolicyStore'
 import { verifyBeforePromote } from '#agent-shared/evolutionVerify'
 import { seedManagerEvalSuiteFromGolden, runEvalSuite } from '#agent-shared/onlineEvalStore'
+import { forgetMemory } from '#agent-shared/agentMemoryApi'
+import { updateUserProfilePrefs } from '../../graph/core/memory/userProfile'
+import { resolveManagerPolicyDir } from '../../utils/session/managerPolicyDir'
 import { loadPolicyRules } from '#agent-shared/toolCallPolicyEngine'
 import { queryTenantAuditStats } from '#agent-shared/tenantAuditStore'
 import { maybePromoteManagerPolicyShadow } from '../../graph/core/evolution/autoEvolution'
@@ -200,22 +203,25 @@ export default defineEventHandler(async (event) => {
   if (action === 'skill_draft_promote') {
     const skillId = String(body?.skillId || '').trim()
     if (!skillId) return { ok: false, message: 'missing skillId' }
+    // 单条晋级禁止 skipVerify；与 batch 同纪律走 verifyBeforePromote
+    const verify = await verifyBeforePromote('manager')
+    if (!verify.ok) return { ok: false, message: verify.reason || 'verify_failed', verify }
     const pgHit = (await listSkillDraftsFromPg({ limit: 200 })).find((r) => r.skillId === skillId)
     const out = await promoteSkillDraft(skillId, pgHit?.markdown ? { markdown: pgHit.markdown } : undefined)
-    return { ok: true, ...out }
+    return { ok: true, ...out, verify }
   }
 
   if (action === 'skill_draft_promote_batch') {
     const dryRun = Boolean(body?.dryRun)
     const minScore = Number(body?.minScore ?? process.env.MGR_SKILL_BATCH_PROMOTE_MIN_SCORE ?? 0.85)
     const maxCount = Number(body?.maxCount ?? 50)
-    const skipVerify = body?.skipVerify === true
     const report = await promoteHighConfidenceSkillDrafts(
       {
         dryRun,
         minScore: Number.isFinite(minScore) ? minScore : 0.85,
         maxCount: Number.isFinite(maxCount) ? maxCount : 50,
-        skipVerify,
+        // skipVerify 仅 batch 内部二次门禁；请求体 true 仍可能被拒绝
+        skipVerify: body?.skipVerify === true,
         agent: body?.agent ? String(body.agent) : undefined
       },
       process.env
@@ -266,6 +272,41 @@ export default defineEventHandler(async (event) => {
   if (action === 'memory_fold') {
     const report = await runMemoryFoldJob()
     return { ok: true, memoryFold: report }
+  }
+
+  if (action === 'memory_forget') {
+    const report = await forgetMemory({
+      tenantId: body?.tenantId ? String(body.tenantId) : undefined,
+      memoryId: body?.memoryId ?? body?.id,
+      userKey: body?.userKey ? String(body.userKey) : undefined,
+      query: body?.query ? String(body.query) : undefined,
+      limit: body?.limit != null ? Number(body.limit) : undefined,
+    })
+    return { ok: report.ok, memoryForget: report }
+  }
+
+  if (action === 'memory_lifecycle') {
+    const [fold, consolidate] = await Promise.all([runMemoryFoldJob(), runSemanticConsolidationJob()])
+    return {
+      ok: true,
+      memoryLifecycle: {
+        fold,
+        consolidate,
+        note: 'curate≠promote; importance+forget via memory_forget',
+      },
+    }
+  }
+
+  if (action === 'user_profile_prefs') {
+    const userId = String(body?.userId || '').trim()
+    const prefs = (body?.prefs && typeof body.prefs === 'object' ? body.prefs : {}) as {
+      timezone?: string
+      preferredAgents?: string[]
+      refusePreference?: string
+    }
+    const policyDir = resolveManagerPolicyDir(body?.tenantId ? String(body.tenantId) : undefined)
+    const profile = await updateUserProfilePrefs(policyDir, userId, prefs, body?.tenantId ? String(body.tenantId) : undefined)
+    return { ok: Boolean(profile), profile }
   }
 
   if (action === 'tool_memory_stats') {
@@ -337,8 +378,17 @@ export default defineEventHandler(async (event) => {
   if (action === 'online_eval_run') {
     const suiteId = String(body?.suiteId || 'manager_golden_smoke').trim()
     if (suiteId === 'manager_golden_smoke') await seedManagerEvalSuiteFromGolden().catch(() => undefined)
-    const summary = await runEvalSuite(suiteId, { trigger: 'ops' })
-    return { ok: Boolean(summary?.ok), summary }
+    const runModeRaw = String(body?.runMode || '').trim().toLowerCase()
+    const runMode = runModeRaw === 'structure' || runModeRaw === 'trace' ? runModeRaw : undefined
+    const summary = await runEvalSuite(suiteId, { trigger: 'ops', runMode })
+    return { ok: Boolean(summary?.ok), summary, runMode: summary?.runMode }
+  }
+
+  if (action === 'online_eval_latest') {
+    const { getLatestEvalRun } = await import('#agent-shared/onlineEvalStore')
+    const suiteId = String(body?.suiteId || 'manager_golden_smoke').trim()
+    const latest = await getLatestEvalRun(suiteId)
+    return { ok: Boolean(latest?.ok), latest }
   }
 
   if (action === 'policy_rules_list') {
@@ -354,6 +404,6 @@ export default defineEventHandler(async (event) => {
   return {
     ok: false,
     message:
-      `未知 action：${action || '(empty)'}；支持：... | online_eval_seed | online_eval_run | policy_rules_list | tenant_audit_stats | evo_audit_tick`
+      `未知 action：${action || '(empty)'}；支持：... | online_eval_seed | online_eval_run | online_eval_latest | memory_forget | memory_lifecycle | user_profile_prefs | policy_rules_list | tenant_audit_stats | evo_audit_tick`
   }
 })

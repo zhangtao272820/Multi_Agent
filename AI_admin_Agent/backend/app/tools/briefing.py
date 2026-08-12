@@ -66,7 +66,12 @@ def _text_matches(text: str, tokens: list[str]) -> bool:
     return any(tok and tok in t for tok in tokens)
 
 
-def daily_briefing(city: str = "", session_id: str = "default", include_emails: bool = True) -> dict:
+def daily_briefing(
+    city: str = "",
+    session_id: str = "default",
+    include_emails: bool = True,
+    user_id: str = "",
+) -> dict:
     """聚合天气 + 今日日程 + 待办 +（可选）未读邮件摘要。"""
     now = local_now_aware()
     lines = [f"📋 **{now.strftime('%Y年%m月%d日')} 晨间简报**", ""]
@@ -89,7 +94,8 @@ def daily_briefing(city: str = "", session_id: str = "default", include_emails: 
 
     email_summary = ""
     if include_emails:
-        em = email.list_emails(limit=5, session_id=session_id or "default", user_id="")
+        uid = str(user_id or "").strip()
+        em = email.list_emails(limit=5, session_id=session_id or "default", user_id=uid)
         if isinstance(em, dict) and em.get("ok"):
             et = em.get("human_message", str(em))
             email_summary = et
@@ -130,6 +136,7 @@ def prepare_meeting(
     query: str = "",
     event_title: str = "",
     session_id: str = "default",
+    user_id: str = "",
 ) -> dict:
     """会前准备：仅用 Admin 本地数据（日程/待办/笔记/提醒/工作区/可选邮件），不调 RAG/DB。"""
     q = str(query or event_title or "").strip()
@@ -226,7 +233,13 @@ def prepare_meeting(
     lines.append("")
 
     try:
-        em = email.list_emails(session_id=session_id or "default", limit=10, unread_only=False)
+        uid = str(user_id or "").strip()
+        em = email.list_emails(
+            session_id=session_id or "default",
+            limit=10,
+            unread_only=False,
+            user_id=uid,
+        )
         em_items = _tool_items(em)
         matched_mail = [
             it
@@ -235,7 +248,7 @@ def prepare_meeting(
         ]
         lines.append("**相关邮件（主题）**")
         if isinstance(em, dict) and em.get("code") in ("email_not_bound", "imap_not_configured"):
-            lines.append("（邮箱未绑定）")
+            lines.append("（邮箱未绑定，请先连接国内邮箱）")
         elif matched_mail:
             for it in matched_mail[:8]:
                 lines.append(f"- #{it.get('id')} {it.get('subject')} | {it.get('sender')}")

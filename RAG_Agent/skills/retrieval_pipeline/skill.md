@@ -29,6 +29,12 @@ owner: rag_agent
 弱证据 / 零命中 / 分差过低且分数偏低 → clarify，不编造。  
 生成侧另有 **Citation Guard（H5）**：答案中的数字/条款须能在证据原文中核对。
 
+## J 波 Agentic 工具环（chat 复杂问句）
+
+当 `retrieval_mode=agentic` 时，不走 retrieve-first，进入 LangGraph：
+`kb_catalog` → `retrieve` / `retrieve_scoped` 有界多跳（`RAG_AGENTIC_TOOL_MAX_ROUNDS`），再 generate。
+简单事实仍用上表 pipeline。总管一次调用 ≠ Agentic（闭环在专家内）。
+
 ## Expansion
 
 你是一个检索专家。请根据用户的原始问题，生成 3 个不同侧重点或表述方式的检索词（可以是中文或英文），以提高检索召回率。

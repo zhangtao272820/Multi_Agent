@@ -185,5 +185,17 @@ const errTitleVerify = verifyLobsterRunResult({
 assert.equal(errTitleVerify.ok, false, 'error-page title must not verify ok')
 assert.equal(errTitleVerify.reason, 'network_unreachable')
 
+const formFailMsg = buildGuiFailureUserMessage({
+  failureTypeOrReason: 'success_criteria_unmet',
+  task: '打开 https://www.w3school.com.cn/html/html_forms.asp ，First name 填张三，Last name 填李四，不要点 Submit。',
+  finalUrl: 'https://www.w3school.com.cn/html/html_forms.asp',
+})
+assert.ok(formFailMsg.includes('填表'), 'form failure message mentions 填表')
+assert.ok(formFailMsg.includes('w3school.com.cn'), 'form failure hint uses CN form sample')
+assert.ok(!formFailMsg.includes('点进详情'), 'form failure must not suggest click-into-detail')
+assert.ok(isGuiIncompleteFailure('success_criteria_unmet'))
+assert.ok(isGuiIncompleteFailure('element_not_found'))
+assert.ok(isGuiIncompleteFailure('step_budget_exceeded'))
+
 console.log('smoke: gui captcha handoff protocol ok')
 

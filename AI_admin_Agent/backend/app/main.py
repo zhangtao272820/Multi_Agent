@@ -593,13 +593,19 @@ async def api_mailbox_binding_delete(request: Request, user_id: str = ""):
 
 
 @app.get("/api/briefing")
-async def api_daily_briefing(session_id: str = "default", city: str = "", include_emails: bool = True):
+async def api_daily_briefing(
+    session_id: str = "default",
+    city: str = "",
+    include_emails: bool = True,
+    user_id: str = "",
+):
     from app.tools.briefing import daily_briefing
 
     result = daily_briefing(
         city=str(city or "").strip(),
         session_id=str(session_id or "default").strip() or "default",
         include_emails=bool(include_emails),
+        user_id=str(user_id or "").strip(),
     )
     return {
         "ok": bool(result.get("ok")),
@@ -645,13 +651,18 @@ async def reply_mail_api(payload: ReplyEmailRequest):
         email_id=payload.email_id,
         content=payload.content,
         session_id=payload.session_id,
+        user_id=str(payload.user_id or "").strip(),
     )
     return {"result": _tool_text(result), "raw": result}
 
 
 @app.get("/api/mail/classify")
-async def classify_mail_api(session_id: str = "default", limit: int = 20):
-    result = classify_emails(session_id=session_id, limit=limit)
+async def classify_mail_api(session_id: str = "default", limit: int = 20, user_id: str = ""):
+    result = classify_emails(
+        session_id=session_id,
+        limit=limit,
+        user_id=str(user_id or "").strip(),
+    )
     return {"classification": _tool_text(result), "raw": result}
 
 

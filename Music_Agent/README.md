@@ -1,6 +1,6 @@
 # Music Agent
 
-> **学习文档**：[入门](../docs/Agent学习指南-入门版.md) · [进阶](../docs/Agent学习指南-进阶版.md) · [Music 专篇](学习指南.md)  
+> **说明**：Extended 档媒体能力，**不进** Supervisor 主叙事。面试主链见 [docs/面试备战](../docs/面试备战/00-使用说明与防穿帮.md)。  
 > **路线图**：[doc/瘦身与能力路线图.md](doc/瘦身与能力路线图.md) · [MCP 分阶段接入](doc/MCP音乐能力-分阶段接入.md)
 
 AI **作曲与 MIDI** 服务：自然语言 → 作曲意图 → MIDI 编排校验 → SoundFont 试听/导出。对应平台 `music_agent`，默认端口 **13110**；总管能力 cap 为 `music`。

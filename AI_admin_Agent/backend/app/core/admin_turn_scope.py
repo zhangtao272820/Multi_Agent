@@ -67,15 +67,8 @@ def _looks_like_continuation(last: str, prev: str) -> bool:
         return False
     compact = re.sub(r"\s+", "", last)
     refer = ("这个", "那个", "上述", "继续", "呢", "它", "他们", "刚才", "上面")
+    # 仅明确短指代承接；禁止长度比把自洽新问误判为 continuation
     if len(compact) <= 8 and any(w in compact for w in refer):
-        return True
-    # 自包含办公/时间句（非极短续问）→ 非承接
-    if len(last) >= 8 and re.search(r"(点|号|日|月|开会|会议|日程|待办|邮件|天气|查|帮我|请)", last):
-        if len(last) >= max(8, int(len(prev) * 0.55)):
-            return False
-    if len(last) <= max(48, int(len(prev) * 0.52)):
-        return True
-    if len(prev) >= 80 and len(last) / max(len(prev), 1) <= 0.45:
         return True
     return False
 
@@ -120,7 +113,8 @@ def _structural_turn_scope(user_message: str, dialogue: str) -> AdminTurnScope:
             rationale="structural_continuation",
         )
 
-    if len(msg) >= 40 or re.search(r"(帮我|请|添加|查|搜索|天气|邮件|待办|日程|开会|会议|删除|列出)", msg):
+    # 有上文且本轮非明确承接 → 主题切换隔离（勿用长度/办公词表误判 continuation）
+    if prev_user:
         return _scope_from_mode("topic_shift", "new_self_contained_task", "new_task")
 
     return _scope_from_mode("current_only", "default_isolated", "new_task")

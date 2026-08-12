@@ -18,6 +18,7 @@
     "smoke:lean": "npx tsx scripts/smoke-lean-browse-policy.ts",
     "smoke:workflow": "npx tsx scripts/smoke-workflow-macro.ts",
     "smoke:complex": "npx tsx scripts/smoke-complex-recovery.ts",
+    "smoke:playbook-evolution": "npx tsx scripts/smoke-playbook-evolution.ts",
     "postinstall": "nuxt prepare"
   },
   "dependencies": {

@@ -58,6 +58,7 @@ AVAILABLE_TOOLS = {
     "list_emails": email.list_emails,
     "search_emails": email.search_emails,
     "mark_email_read": email.mark_email_read,
+    "get_email_detail": email.get_email_detail,
     "reply_email": email.reply_email,
     "forward_email": email.forward_email,
     "delete_email": email.delete_email,

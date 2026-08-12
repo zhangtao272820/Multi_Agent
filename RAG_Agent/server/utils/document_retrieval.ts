@@ -64,6 +64,7 @@ import {
   planEntityKeywordTerms,
   resolveRetrievalLimits,
   mergeSubQueryCoverage,
+  mergeSourceCoverage,
   type EvidenceItem,
   type HybridDocRow,
 } from "./retrieval_shared";
@@ -199,6 +200,8 @@ export async function runDocumentRetrieval(input: {
   prefetchedPlan?: RagQueryPlan;
   prefetchedLeanQuery?: string;
   prefetchedPlanSource?: "catalog_llm" | "plan_llm" | "heuristic" | "probe";
+  /** J 波：Agent 指定文档源后再检 */
+  forceSources?: string[];
   _agenticAttempt?: number;
   _originalQuery?: string;
   _priorQueries?: string[];
@@ -368,7 +371,9 @@ export async function runDocumentRetrieval(input: {
       abVariant: promptAbVariant,
     };
   }
-  const retrievalLimits = resolveRetrievalLimits(ragPlan, effectiveQuery, queryIntent);
+  const retrievalLimits = resolveRetrievalLimits(ragPlan, effectiveQuery, queryIntent, {
+    docCount: uploadedDocs.length,
+  });
   const { maxResults, maxEvidence, keywordLimit, perSubQueryTopK, evidenceFilterOpts } = retrievalLimits;
   const banditContext = `${ragPlan.intent}:${promptAbVariant}`;
   const banditPlan =
@@ -522,17 +527,30 @@ export async function runDocumentRetrieval(input: {
     ).slice(0, env.maxRetrievalQueries);
   }
 
-  const routingDecision = await selectCandidateSources(effectiveQuery, queries, {
-    widenRouting: retrievalLimits.widenDocRouting,
-    subQueryCount: compoundParts.length,
-    intent: queryIntent,
-  });
+  const routingDecision = params.forceSources?.length
+    ? {
+        selectedSources: new Set(
+          params.forceSources.map((s) => String(s || "").trim()).filter(Boolean)
+        ),
+        debugScores: (params.forceSources || []).map((name) => ({
+          name,
+          score: 10,
+          reason: "agentic_force_sources",
+        })),
+        routingMode: "agentic_force_sources",
+      }
+    : await selectCandidateSources(effectiveQuery, queries, {
+        widenRouting: retrievalLimits.widenDocRouting,
+        subQueryCount: compoundParts.length,
+        intent: queryIntent,
+      });
   const routedSources = routingDecision.selectedSources;
   const shouldFilterBySource = [
     "explicit_doc_name_anchor",
     "top_n_scored_docs",
     "dominant_doc_name_match",
     "small_corpus_dominant_doc",
+    "agentic_force_sources",
   ].includes(String(routingDecision.routingMode || ""));
 
   const embeddings = getRagEmbeddings();
@@ -1052,8 +1070,20 @@ export async function runDocumentRetrieval(input: {
     );
   }
 
-  // H2：子块 → 父块文本扩展并去重
-  results = expandDocsToParent(results, env.enableParentExpand).slice(0, maxResults);
+  // H2：子块 → 父块文本扩展并去重；多文档时按 source 覆盖再截断
+  results = expandDocsToParent(results, env.enableParentExpand);
+  if (env.enableSourceCoverage && uploadedDocs.length >= 2) {
+    results = mergeSourceCoverage(
+      results,
+      (d) => resolveSourceLabel(d?.metadata ?? {}, routedSources),
+      {
+        perSourceMin: env.sourceCoveragePerSourceMin,
+        maxResults,
+      },
+    );
+  } else {
+    results = results.slice(0, maxResults);
+  }
 
   const content = results
     .map((r) => {

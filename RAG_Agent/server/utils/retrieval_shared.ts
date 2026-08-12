@@ -79,7 +79,8 @@ export type RetrievalLimits = {
 export function resolveRetrievalLimits(
   plan: RagQueryPlan,
   query: string,
-  intent?: Pick<RagIntentJudgment, "is_completeness_query">
+  intent?: Pick<RagIntentJudgment, "is_completeness_query">,
+  opts?: { docCount?: number },
 ): RetrievalLimits {
   const completeness = Boolean(intent?.is_completeness_query);
   const multiPart =
@@ -91,6 +92,11 @@ export function resolveRetrievalLimits(
   if (completeness) maxResults = 8;
   else if (multiPart) maxResults = 7;
   else if (plan.intent === "fact_lookup") maxResults = 5;
+
+  // 多文档库：fact_lookup 略放宽，给 per-source coverage 留槽位
+  if ((opts?.docCount ?? 0) >= 2 && plan.intent === "fact_lookup") {
+    maxResults = Math.min(maxResults + 1, 8);
+  }
 
   const maxEvidence = Math.min(maxResults + 2, 10);
   const keywordLimit = completeness || multiPart ? 52 : 40;
@@ -143,6 +149,60 @@ export function mergeSubQueryCoverage(
     }
   }
   return uniqBy([...picked, ...hybridDocs], (row) => row.key);
+}
+
+/**
+ * 多文档库：保证候选池中每个 source 至少保留 perSourceMin 条，再按原序填满 maxResults。
+ * 避免近义高分块被单一文档占满 top-k（挤占其它文档的正确段落）。
+ */
+export function mergeSourceCoverage<T>(
+  docs: T[],
+  resolveSource: (doc: T) => string,
+  opts: { perSourceMin?: number; maxResults: number },
+): T[] {
+  const maxResults = Math.max(1, Math.floor(opts.maxResults));
+  const perSourceMin = Math.max(1, Math.floor(opts.perSourceMin ?? 1));
+  if (!docs.length) return [];
+  if (docs.length <= maxResults) return docs.slice(0, maxResults);
+
+  const sourceOf = (doc: T) => String(resolveSource(doc) || "unknown").trim() || "unknown";
+  const sources: string[] = [];
+  const seenSrc = new Set<string>();
+  for (const doc of docs) {
+    const src = sourceOf(doc);
+    if (seenSrc.has(src)) continue;
+    seenSrc.add(src);
+    sources.push(src);
+  }
+  if (sources.length < 2) return docs.slice(0, maxResults);
+
+  const docKey = (doc: T, idx: number) =>
+    `${sourceOf(doc)}:${idx}:${String((doc as { pageContent?: unknown })?.pageContent ?? "").slice(0, 48)}`;
+  const seen = new Set<string>();
+  const out: T[] = [];
+
+  for (const src of sources) {
+    let added = 0;
+    for (let i = 0; i < docs.length && added < perSourceMin; i++) {
+      const doc = docs[i];
+      if (sourceOf(doc) !== src) continue;
+      const key = docKey(doc, i);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(doc);
+      added += 1;
+    }
+  }
+
+  for (let i = 0; i < docs.length && out.length < maxResults; i++) {
+    const doc = docs[i];
+    const key = docKey(doc, i);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(doc);
+  }
+
+  return out.slice(0, maxResults);
 }
 
 /** 复合问句：证据是否覆盖各子问句（用于档位升级，避免「命中一条就停」） */

@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import BrandMotif from "@brand/react/BrandMotif.jsx";
 import { brandAvatarUrl, brandLogoUrl } from "@brand/react/assetMap.js";
+import { logout } from "./clawhiveAuth";
 
 type WsStageMsg = {
   type: "stage";
@@ -132,7 +133,7 @@ type TimelineEntry = {
   at: number;
 };
 
-export default function App() {
+export default function App({ onLogout }: { onLogout?: () => void }) {
   const [prompt, setPrompt] = useState("10秒视频：一只白猫在钢琴上睡着，温暖治愈");
   const [busy, setBusy] = useState(false);
   const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
@@ -263,9 +264,16 @@ export default function App() {
     if (req) req();
   }, []);
 
+  function handleLogout() {
+    wsRef.current?.close();
+    logout();
+    onLogout?.();
+  }
+
   return (
     <div className="brand-shell video-brand-root" data-agent="video">
-      <BrandMotif motif="thunder" />
+      <div className="video-season-bg video-season-bg--dahan" aria-hidden="true" />
+      <BrandMotif motif="snow" />
       <div className="layout">
       <header className="video-brand-bar">
         <img className="brand-logo" src={brandLogoUrl("video")} alt="" width={36} height={36} />
@@ -276,6 +284,9 @@ export default function App() {
           </p>
         </div>
         <img className="brand-avatar" src={brandAvatarUrl("video")} alt="" width={48} height={48} title="破军虚拟形象" />
+        <button type="button" className="video-logout" onClick={handleLogout}>
+          退出登录
+        </button>
       </header>
 
       <div className="row">

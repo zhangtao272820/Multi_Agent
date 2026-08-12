@@ -106,6 +106,16 @@ if (agentsLookLocal && runtime === 'docker') {
 
 for (const w of warnings) console.warn(`[preflight] WARN: ${w}`)
 
+// Wave6：离线 registry / MCP inventory 形态（不要求服务已起）
+{
+  const { buildAgentRegistry } = await import('../../../server/graph/core/agent/agentRegistry')
+  const reg = buildAgentRegistry(process.env)
+  assert(reg.entries.some((e) => e.id === 'db'), 'registry has db')
+  assert(reg.entries.some((e) => e.id === 'rag'), 'registry has rag')
+  const mcpFaces = reg.entries.filter((e) => e.mcpUrl).map((e) => e.id)
+  console.log(`[preflight] registry entries=${reg.entries.length} mcp_faces=${mcpFaces.join(',') || '(none configured)'}`)
+}
+
 // ── 3) Live ready（可选）──
 const targets: Array<[string, string]> = [
   ['manager', process.env.MANAGER_HTTP_URL || 'http://localhost:13106'],

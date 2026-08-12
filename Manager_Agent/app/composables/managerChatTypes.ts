@@ -117,6 +117,8 @@ export type LogItem = {
   searchSources?: SearchSourceItem[]
   ragEvidence?: RagEvidenceItem[]
   guiScreenshot?: string
+  /** Lobster noVNC 实时画面（Stagehand/classic headed） */
+  guiVncUrl?: string
   adminUiCards?: unknown[]
   /** D1 用户态结构化载荷 */
   userFacing?: UserFacingPayload

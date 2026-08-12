@@ -1,20 +1,44 @@
 <template>
-  <div class="claw-login">
-    <form class="claw-login__card" @submit.prevent="submit">
-      <h1>登录</h1>
-      <p>使用 ClawHive 账号（控制台统一管理）。本地默认一般为 admin / admin123。</p>
-      <input v-model="username" placeholder="用户名" autocomplete="username" required />
-      <input v-model="password" type="password" placeholder="密码" autocomplete="current-password" required />
+  <div class="claw-login" data-agent="lobster">
+    <div class="lob-season-bg lob-season-bg--daxue" aria-hidden="true" />
+    <BrandMotif motif="snow" :count="72" />
+    <form class="claw-login__card lob-glass" @submit.prevent="submit">
+      <div class="claw-login__brand">
+        <img class="claw-login__logo" src="/brand/logos/lobster.svg" alt="" width="56" height="56" />
+        <div>
+          <p class="claw-login__eyebrow">大雪 · 七杀</p>
+          <h1>七杀 · 龙虾 Agent</h1>
+          <p class="claw-login__sub">使用 ClawHive 账号登录</p>
+        </div>
+      </div>
+      <label class="claw-login__field">
+        <span>用户名</span>
+        <input v-model="username" placeholder="请输入用户名" autocomplete="username" required />
+      </label>
+      <label class="claw-login__field">
+        <span>密码</span>
+        <input
+          v-model="password"
+          type="password"
+          placeholder="请输入密码"
+          autocomplete="current-password"
+          required
+        />
+      </label>
       <p v-if="err" class="claw-login__err">{{ err }}</p>
-      <button type="submit" :disabled="busy">{{ busy ? '登录中…' : '登录' }}</button>
+      <button type="submit" class="claw-login__submit" :disabled="busy">
+        {{ busy ? '登录中…' : '登录' }}
+      </button>
     </form>
   </div>
 </template>
 
 <script setup lang="ts">
+import BrandMotif from '@brand/vue/BrandMotif.vue'
+
 const emit = defineEmits<{ success: [] }>()
 const { login } = useClawhiveLogin()
-const username = ref('admin')
+const username = ref('')
 const password = ref('')
 const busy = ref(false)
 const err = ref('')
@@ -23,7 +47,7 @@ function formatLoginError(raw: string): string {
   const s = String(raw || '').trim()
   if (!s) return '登录失败'
   if (/401|unauthorized|invalid|密码|凭证|credential|Incorrect/i.test(s)) {
-    return '用户名或密码错误（本地默认多为 admin / admin123，以 ClawHive 控制台为准）'
+    return '用户名或密码错误'
   }
   return s
 }
@@ -41,42 +65,3 @@ async function submit() {
   }
 }
 </script>
-
-<style scoped>
-.claw-login {
-  min-height: 100vh;
-  display: grid;
-  place-items: center;
-  background: #0b1020;
-  color: #e8eefc;
-}
-.claw-login__card {
-  width: min(360px, 92vw);
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 24px;
-  border-radius: 14px;
-  background: #121a2e;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-}
-.claw-login__card input,
-.claw-login__card button {
-  padding: 10px 12px;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: #0a0f1c;
-  color: inherit;
-}
-.claw-login__card button {
-  background: #3b6cf0;
-  border: none;
-  font-weight: 600;
-  cursor: pointer;
-}
-.claw-login__err {
-  color: #ff8f8f;
-  margin: 0;
-  font-size: 0.85rem;
-}
-</style>

@@ -84,4 +84,52 @@ function assert(cond: unknown, msg: string): void {
   delete process.env.MANAGER_RUN_MAX_TOKENS
 }
 
+{
+  const { estimateTokensHeuristic, estimateTokensSync, clipToTokenBudget } = await import(
+    '../../../agent-repo-shared/tokenEstimate'
+  )
+  const cjk = estimateTokensHeuristic('护理员配比标准是多少')
+  assert(cjk >= 8 && cjk <= 20, `cjk heuristic tokens=${cjk}`)
+  const ascii = estimateTokensHeuristic('abcdefghijklmnop') // 16 chars → ~4
+  assert(ascii >= 3 && ascii <= 6, `ascii heuristic tokens=${ascii}`)
+  const sync = estimateTokensSync('探视制度说明文档摘要')
+  assert(sync.tokens >= 1 && (sync.accounting === 'estimated' || sync.accounting === 'tiktoken'), 'sync estimate')
+
+  const long = '护理员配比'.repeat(80)
+  const clipped = clipToTokenBudget(long, 20)
+  assert(clipped.tokens <= 22, `clip under budget got ${clipped.tokens}`)
+  assert(clipped.text.length < long.length, 'clip shortens text')
+
+  const { clipRulesBlock, promptBudgetSnapshot, useTokenPromptBudget } = await import(
+    '../../../server/graph/core/shared/promptBudget'
+  )
+  assert(useTokenPromptBudget(), 'token mode default on')
+  const snap = promptBudgetSnapshot()
+  assert(snap.rulesTokens > 0 && snap.tokenMode === true, 'snapshot token fields')
+  const rules = clipRulesBlock('规则内容'.repeat(400))
+  assert(rules.length < '规则内容'.repeat(400).length, 'rules clipped')
+}
+
+{
+  const {
+    buildCompactedHistoryWithStats,
+    estimateConversationTokens,
+    loadConversationBudgetConfig
+  } = await import('../../../server/graph/core/runtime/conversationBudget')
+  const turns = Array.from({ length: 16 }, (_, i) => ({
+    role: (i % 2 === 0 ? 'user' : 'assistant') as 'user' | 'assistant',
+    content: `轮次${i}：` + '护理员配比标准说明文档摘要内容'.repeat(12)
+  }))
+  const tok = estimateConversationTokens(turns)
+  assert(tok.tokens > 50, `conversation tokens=${tok.tokens}`)
+  const cfg = { ...loadConversationBudgetConfig(), recentTurns: 4, maxTurns: 20, summarizeEnabled: true }
+  const stats = await buildCompactedHistoryWithStats({
+    messages: turns,
+    sanitize: (s) => s,
+    cfg
+  })
+  assert(stats.fullTokens > stats.compactTokens, 'budget stats use tokenEstimate')
+  assert(stats.tokenAccounting === 'estimated' || stats.tokenAccounting === 'tiktoken', 'accounting')
+}
+
 console.log('smoke-budget: ok')

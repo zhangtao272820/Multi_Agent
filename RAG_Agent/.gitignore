@@ -28,3 +28,6 @@ logs
 
 # Orphan session dumps (runtime uses .data/rag-session-memory.json)
 data/session_summaries.json
+
+# Local RAG manual acceptance fixtures (do not commit)
+data/testdata/

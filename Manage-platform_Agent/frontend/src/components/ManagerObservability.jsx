@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { fetchJsonSafe } from "../utils/api";
+import EvolutionReview from "./EvolutionReview";
 
 function fmtNum(n) {
   if (n == null || Number.isNaN(Number(n))) return "—";
@@ -50,6 +51,10 @@ export default function ManagerObservability({ data, loading, onRefresh, apiBase
   const mgr = data?.manager || {};
   const [planeBusy, setPlaneBusy] = useState("");
   const [planeMsg, setPlaneMsg] = useState("");
+  const [dangerOpen, setDangerOpen] = useState(false);
+  const [intentOpen, setIntentOpen] = useState(false);
+  const [evoBusy, setEvoBusy] = useState("");
+  const [evoMsg, setEvoMsg] = useState("");
 
   async function resetAgentPlane(agent, scope) {
     const label = `${agent}/${scope}`;
@@ -101,10 +106,10 @@ export default function ManagerObservability({ data, loading, onRefresh, apiBase
         : null;
 
   const learnFlags = [
-    { key: "routeStrategy", label: "Route Strategy", value: evo.routeStrategy ?? regEvo.routeStrategy },
-    { key: "routeBandit", label: "Route Bandit", value: regEvo.routeBandit },
+    { key: "routeStrategy", label: "路由策略 hint", value: evo.routeStrategy ?? regEvo.routeStrategy },
+    { key: "routeBandit", label: "路径试探（Bandit）", value: regEvo.routeBandit },
     { key: "unifiedLearning", label: "统一学习", value: unified.enabled ?? regEvo.unifiedLearning },
-    { key: "promptEvolve", label: "Prompt 进化", value: regEvo.promptEvolve },
+    { key: "promptEvolve", label: "Prompt 影子学习", value: regEvo.promptEvolve },
     { key: "implicitLearning", label: "隐式学习", value: regEvo.implicitLearning },
     {
       key: "policyCanary",
@@ -113,6 +118,29 @@ export default function ManagerObservability({ data, loading, onRefresh, apiBase
       meta: policyCanaryPct != null ? `${policyCanaryPct}%` : null,
     },
   ];
+
+  async function evolutionOpsAction(action, label) {
+    if (!window.confirm(`确认执行「${label}」？可能影响线上策略，请谨慎。`)) return;
+    setEvoBusy(action);
+    setEvoMsg("");
+    try {
+      const { ok, error, data } = await fetchJsonSafe(`${apiBase}/api/manager/evolution/ops`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ action }),
+      });
+      if (!ok) throw new Error(error || data?.detail || data?.message || "请求失败");
+      setEvoMsg(`${label} 完成`);
+      onRefresh?.();
+    } catch (e) {
+      setEvoMsg(`${label} 失败：${String(e?.message || e)}`);
+    } finally {
+      setEvoBusy("");
+    }
+  }
 
   return (
     <div className="obs-page">
@@ -158,111 +186,153 @@ export default function ManagerObservability({ data, loading, onRefresh, apiBase
 
       <div className="obs-grid">
         <section className="card card--wide">
-          <h2>学习情况</h2>
+          <h2>自我进化</h2>
           <p className="muted" style={{ marginTop: 0 }}>
-            总管进化折中：可写可看板，默认不注入编排 hint（gated）。矩阵门与 strict 反馈防污染。数据来自 Manager{" "}
-            <code>evolution</code> / <code>registry.evolution</code>。
+            分区说明：上方<strong>待我审阅</strong>（日常工作）→ 中间<strong>学习是否在涨</strong>（看板）→ 底部
+            <strong>高级清除与回滚</strong>（危险，默认折叠）。默认不会自动改线上。
           </p>
 
-          <div style={{ marginBottom: 16, display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
-            {[
-              ["manager", "experience", "总管·清经验"],
-              ["manager", "summaries", "总管·清摘要"],
-              ["manager", "evolution", "总管·重置进化"],
-              ["db", "learning", "DB·清学习"],
-              ["db", "prompts", "DB·重置进化"],
-              ["rag", "learning", "RAG·清学习"],
-              ["rag", "prompts", "RAG·重置进化"],
-              ["admin", "memory", "Admin·清记忆"],
-              ["admin", "evolution", "Admin·重置进化"],
-            ].map(([agent, scope, label]) => (
-              <button
-                key={`${agent}-${scope}`}
-                type="button"
-                className="btn btn--ghost"
-                disabled={Boolean(planeBusy)}
-                onClick={() => void resetAgentPlane(agent, scope)}
-              >
-                {planeBusy === `${agent}/${scope}` ? "…" : label}
-              </button>
-            ))}
-            {planeMsg ? <span className="muted">{planeMsg}</span> : null}
-          </div>
+          {/* A+B：流程 + 待审 */}
+          <EvolutionReview apiBase={apiBase} authToken={authToken} onRefresh={onRefresh} />
 
-          <div className="kpi-grid kpi-grid--6" style={{ marginBottom: 16 }}>
-            {learnFlags.map((f) => (
-              <div className="kpi-tile" key={f.key}>
-                <span className="kpi-label">{f.label}</span>
-                <span className={`status ${flagStatusClass(f.value)}`}>{flagLabel(f.value)}</span>
-                {f.meta ? <span className="kpi-meta">{f.meta}</span> : null}
-              </div>
-            ))}
-          </div>
+          {/* C：学习是否在涨 */}
+          <div className="evo-zone evo-zone--board">
+            <h3 className="evo-zone__title">学习是否在涨</h3>
+            <p className="muted evo-zone__hint">开关与样本数字只说明「有没有在学」；不代表已经改线上路由。</p>
 
-          <div className="kpi-grid kpi-grid--6" style={{ marginBottom: 16 }}>
-            <div className="kpi-tile">
-              <span className="kpi-label">学习样本</span>
-              <span className="kpi-value">{fmtNum(unified.sampleCount)}</span>
-                  <span className="kpi-meta">
-                    avg composite {unified.avgComposite != null ? Number(unified.avgComposite).toFixed(3) : "—"}
-                    {unified.supersededCount ? ` · 已作废 ${unified.supersededCount}` : ""}
-                  </span>
-            </div>
-            <div className="kpi-tile">
-              <span className="kpi-label">经验条数</span>
-              <span className="kpi-value">{fmtNum(evo.experienceCount)}</span>
-            </div>
-            <div className="kpi-tile">
-              <span className="kpi-label">向量索引</span>
-              <span className="kpi-value">{fmtNum(vector.total)}</span>
-              <span className="kpi-meta">
-                exp {fmtNum(vector.experience)} · plan {fmtNum(vector.planOutcome)}
-              </span>
-            </div>
-            <div className="kpi-tile">
-              <span className="kpi-label">Prompt 补丁</span>
-              <span className="kpi-value">
-                {patches.activePresent ? "active" : patches.shadowPresent ? "shadow" : "无"}
-              </span>
-              <span className="kpi-meta">
-                router {fmtNum(patches.routerActive)}/{fmtNum(patches.routerShadow)} · planner{" "}
-                {fmtNum(patches.plannerActive)}/{fmtNum(patches.plannerShadow)}
-              </span>
-            </div>
-            <div className="kpi-tile">
-              <span className="kpi-label">Planner 规则</span>
-              <span className="kpi-value">{fmtNum(plannerRules.activeCount)}</span>
-              <span className="kpi-meta">shadow {fmtNum(plannerRules.shadowCount)}</span>
-            </div>
-            <div className="kpi-tile">
-              <span className="kpi-label">进化实验</span>
-              <span className="kpi-value">{fmtNum(experiments.experimentCount)}</span>
-              <span className="kpi-meta">
-                假设 {fmtNum(experiments.hypothesisCount)} · 运行中 {fmtNum(experiments.runningCount)}
-                {experiments.autoExperimentEnabled === false ? " · 自动关" : ""}
-              </span>
-            </div>
-          </div>
-
-          <h3 style={{ fontSize: "0.95rem", margin: "8px 0" }}>按意图成功率（byIntent）</h3>
-          {!byIntent.length ? (
-            <p className="muted">尚无 intent 经验统计；多跑真实题并写入 experience 后出现。</p>
-          ) : (
-            <div className="data-table">
-              <div className="data-table__head data-table__head--3">
-                <span>Intent</span>
-                <span>样本</span>
-                <span>平均成功率</span>
-              </div>
-              {byIntent.slice(0, 20).map(([name, v]) => (
-                <div className="data-table__row data-table__row--3" key={name}>
-                  <span>{name}</span>
-                  <span>{v.count}</span>
-                  <span>{fmtPct(v.avgSuccess)}</span>
+            <div className="kpi-grid kpi-grid--6" style={{ marginBottom: 16 }}>
+              {learnFlags.map((f) => (
+                <div className="kpi-tile" key={f.key}>
+                  <span className="kpi-label">{f.label}</span>
+                  <span className={`status ${flagStatusClass(f.value)}`}>{flagLabel(f.value)}</span>
+                  {f.meta ? <span className="kpi-meta">{f.meta}</span> : null}
                 </div>
               ))}
             </div>
-          )}
+
+            <div className="kpi-grid kpi-grid--6" style={{ marginBottom: 16 }}>
+              <div className="kpi-tile">
+                <span className="kpi-label">学习样本</span>
+                <span className="kpi-value">{fmtNum(unified.sampleCount)}</span>
+                <span className="kpi-meta">
+                  综合均分 {unified.avgComposite != null ? Number(unified.avgComposite).toFixed(3) : "—"}
+                  {unified.supersededCount ? ` · 已作废 ${unified.supersededCount}` : ""}
+                </span>
+              </div>
+              <div className="kpi-tile">
+                <span className="kpi-label">经验条数</span>
+                <span className="kpi-value">{fmtNum(evo.experienceCount)}</span>
+              </div>
+              <div className="kpi-tile">
+                <span className="kpi-label">向量索引</span>
+                <span className="kpi-value">{fmtNum(vector.total)}</span>
+                <span className="kpi-meta">
+                  经验 {fmtNum(vector.experience)} · 计划 {fmtNum(vector.planOutcome)}
+                </span>
+              </div>
+              <div className="kpi-tile">
+                <span className="kpi-label">Prompt 补丁</span>
+                <span className="kpi-value">
+                  {patches.activePresent ? "已生效" : patches.shadowPresent ? "仅试用版" : "无"}
+                </span>
+                <span className="kpi-meta">
+                  路由 {fmtNum(patches.routerActive)}/{fmtNum(patches.routerShadow)} · 规划{" "}
+                  {fmtNum(patches.plannerActive)}/{fmtNum(patches.plannerShadow)}
+                </span>
+              </div>
+              <div className="kpi-tile">
+                <span className="kpi-label">规划规则</span>
+                <span className="kpi-value">{fmtNum(plannerRules.activeCount)}</span>
+                <span className="kpi-meta">试用版 {fmtNum(plannerRules.shadowCount)}</span>
+              </div>
+              <div className="kpi-tile">
+                <span className="kpi-label">进化实验</span>
+                <span className="kpi-value">{fmtNum(experiments.experimentCount)}</span>
+                <span className="kpi-meta">
+                  假设 {fmtNum(experiments.hypothesisCount)} · 运行中 {fmtNum(experiments.runningCount)}
+                  {experiments.autoExperimentEnabled === false ? " · 自动关" : ""}
+                </span>
+              </div>
+            </div>
+
+            <details
+              className="evo-fold"
+              open={intentOpen}
+              onToggle={(e) => setIntentOpen(e.currentTarget.open)}
+            >
+              <summary className="evo-fold__summary">按意图明细（byIntent）</summary>
+              {!byIntent.length ? (
+                <p className="muted">尚无意图统计；多跑真实题并点「有用」写入经验后出现。</p>
+              ) : (
+                <div className="data-table">
+                  <div className="data-table__head data-table__head--3">
+                    <span>意图</span>
+                    <span>样本</span>
+                    <span>平均成功率</span>
+                  </div>
+                  {byIntent.slice(0, 20).map(([name, v]) => (
+                    <div className="data-table__row data-table__row--3" key={name}>
+                      <span>{name}</span>
+                      <span>{v.count}</span>
+                      <span>{fmtPct(v.avgSuccess)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </details>
+          </div>
+
+          {/* D：高级危险折叠 */}
+          <details
+            className="evo-danger-fold"
+            open={dangerOpen}
+            onToggle={(e) => setDangerOpen(e.currentTarget.open)}
+          >
+            <summary className="evo-danger-fold__summary">高级：清除与回滚（危险）</summary>
+            <p className="muted evo-danger-fold__hint">
+              仅运维排障时使用。清除学习数据或回滚策略不会自动再生成；误点需重新喂题。
+            </p>
+            <div className="evo-danger-fold__actions">
+              <button
+                type="button"
+                className="btn btn--ghost"
+                disabled={Boolean(evoBusy)}
+                onClick={() => void evolutionOpsAction("policy_rollback", "撤销策略")}
+              >
+                {evoBusy === "policy_rollback" ? "…" : "撤销策略"}
+              </button>
+              <button
+                type="button"
+                className="btn btn--ghost"
+                disabled={Boolean(evoBusy)}
+                onClick={() => void evolutionOpsAction("evolution_experiment_rollback", "撤销实验")}
+              >
+                {evoBusy === "evolution_experiment_rollback" ? "…" : "撤销实验"}
+              </button>
+              {[
+                ["manager", "experience", "总管·清经验"],
+                ["manager", "summaries", "总管·清摘要"],
+                ["manager", "evolution", "总管·重置进化"],
+                ["db", "learning", "DB·清学习"],
+                ["db", "prompts", "DB·重置进化"],
+                ["rag", "learning", "RAG·清学习"],
+                ["rag", "prompts", "RAG·重置进化"],
+                ["admin", "memory", "Admin·清记忆"],
+                ["admin", "evolution", "Admin·重置进化"],
+              ].map(([agent, scope, label]) => (
+                <button
+                  key={`${agent}-${scope}`}
+                  type="button"
+                  className="btn btn--ghost"
+                  disabled={Boolean(planeBusy)}
+                  onClick={() => void resetAgentPlane(agent, scope)}
+                >
+                  {planeBusy === `${agent}/${scope}` ? "…" : label}
+                </button>
+              ))}
+            </div>
+            {planeMsg || evoMsg ? <span className="muted">{planeMsg || evoMsg}</span> : null}
+          </details>
         </section>
 
         <section className="card">

@@ -525,6 +525,22 @@ function App() {
       setSessionHistoryItems((prev) => {
         const idx = prev.findIndex((s) => s.id === cid);
         let next = [...prev];
+        // 空会话不进侧栏，避免「新建 → 乐观插入 → 服务端 refetch 删掉」闪烁 / 假 0 轮
+        if (userMessageCount <= 0) {
+          if (idx >= 0) {
+            const row = next[idx]!;
+            if (!row.customTitle) {
+              next.splice(idx, 1);
+              next = next.slice(0, 80);
+              persistSessionHistoryList(next);
+              return next;
+            }
+            next[idx] = { ...row, messageCount, userMessageCount };
+            persistSessionHistoryList(next);
+            return next;
+          }
+          return prev;
+        }
         if (idx >= 0) {
           const row = { ...next[idx]! };
           row.messageCount = messageCount;
@@ -876,13 +892,13 @@ function App() {
   }, []);
 
   const truncateLocalFromTurn = useCallback((turnId: number): Message | null => {
-    let userMsg: Message | null = null;
-    setMessages((prev) => {
-      const cutIdx = prev.findIndex((m) => m.role === 'user' && m.turnId === turnId);
-      if (cutIdx < 0) return prev;
-      userMsg = prev[cutIdx] ?? null;
-      return prev.slice(0, cutIdx);
-    });
+    const prev = messagesRef.current;
+    const cutIdx = prev.findIndex((m) => m.role === 'user' && m.turnId === turnId);
+    if (cutIdx < 0) return null;
+    const userMsg = prev[cutIdx] ?? null;
+    const next = prev.slice(0, cutIdx);
+    messagesRef.current = next;
+    setMessages(next);
     return userMsg;
   }, []);
 
@@ -1462,8 +1478,8 @@ function App() {
                 setActiveTab('Mail');
               }
               if (pendingId) {
-                setMessages((prev) =>
-                  prev.map((msg) =>
+                setMessages((prev) => {
+                  const next = prev.map((msg) =>
                     msg.id === pendingId
                       ? {
                           ...msg,
@@ -1474,8 +1490,10 @@ function App() {
                           cards: cards.length ? cards : undefined,
                         }
                       : msg,
-                  ),
-                );
+                  );
+                  messagesRef.current = next;
+                  return next;
+                });
               }
               ws.close();
               resolve();
@@ -1498,17 +1516,17 @@ function App() {
       });
     } catch (error) {
       if (cancelPendingRef.current) {
-        setMessages((prev) => {
-          const updated = prev.map((msg) => {
-            if (msg.id !== pendingAgentIdRef.current) return msg;
-            const thoughts = [...(msg.thoughts ?? []), '已停止生成'];
-            const content = String(msg.content || '').trim() ? msg.content : '（已停止生成）';
-            return { ...msg, content, thoughts };
-          });
-          persistSessionMessages(updated, cid);
-          touchCurrentSessionHistory(updated, cid, { bump: false });
-          return updated;
+        const updated = messagesRef.current.map((msg) => {
+          if (msg.id !== pendingAgentIdRef.current) return msg;
+          const thoughts = [...(msg.thoughts ?? []), '已停止生成'];
+          const content = String(msg.content || '').trim() ? msg.content : '（已停止生成）';
+          return { ...msg, content, thoughts };
         });
+        messagesRef.current = updated;
+        setMessages(updated);
+        persistSessionMessages(updated, cid);
+        touchCurrentSessionHistory(updated, cid, { bump: false });
+        void fetchServerSessionHistory();
         return;
       }
       console.error('Error:', error);
@@ -1541,11 +1559,10 @@ function App() {
       cancelPendingRef.current = false;
       setLoading(false);
       setActiveTurnId(0);
-      setMessages((prev) => {
-        persistSessionMessages(prev, cid);
-        touchCurrentSessionHistory(prev, cid, { bump: true });
-        return prev;
-      });
+      const latest = messagesRef.current;
+      persistSessionMessages(latest, cid);
+      touchCurrentSessionHistory(latest, cid, { bump: true });
+      void fetchServerSessionHistory();
     }
   };
 
@@ -1567,11 +1584,11 @@ function App() {
       });
     }
     clearFeedbackFromTurn(turnId, conversationIdRef.current);
-    setMessages((prev) => {
-      persistSessionMessages(prev, conversationIdRef.current);
-      touchCurrentSessionHistory(prev, conversationIdRef.current, { bump: false });
-      return prev;
-    });
+    const cid = conversationIdRef.current;
+    const latest = messagesRef.current;
+    persistSessionMessages(latest, cid);
+    touchCurrentSessionHistory(latest, cid, { bump: false });
+    void fetchServerSessionHistory();
   };
 
   const submitEditResend = async (msg: Message) => {
@@ -1709,10 +1726,7 @@ function App() {
     }
     const prevCid = conversationIdRef.current;
     if (prevCid) {
-      setMessages((prev) => {
-        touchCurrentSessionHistory(prev, prevCid, { bump: false });
-        return prev;
-      });
+      touchCurrentSessionHistory(messagesRef.current, prevCid, { bump: false });
     }
     const id = generateSessionId();
     setConversationId(id);
@@ -1722,7 +1736,6 @@ function App() {
     setHandledActionIds(new Set());
     restoreSessionFeedback(id);
     persistHandledActionIds(new Set(), id);
-    touchCurrentSessionHistory([], id, { bump: true });
     persistSessionMessages([], id);
     void fetchServerSessionHistory();
   };
@@ -1793,10 +1806,7 @@ function App() {
     try {
       const prevCid = conversationIdRef.current;
       if (prevCid) {
-        setMessages((prev) => {
-          touchCurrentSessionHistory(prev, prevCid, { bump: false });
-          return prev;
-        });
+        touchCurrentSessionHistory(messagesRef.current, prevCid, { bump: false });
       }
       setConversationId(id);
       setTabSessionId(id);
@@ -2033,10 +2043,13 @@ function App() {
               }
             : msg,
         );
-        persistSessionMessages(next, cid);
-        touchCurrentSessionHistory(next, cid, { bump: false });
+        messagesRef.current = next;
         return next;
       });
+      const latest = messagesRef.current;
+      persistSessionMessages(latest, cid);
+      touchCurrentSessionHistory(latest, cid, { bump: false });
+      void fetchServerSessionHistory();
     };
 
     try {

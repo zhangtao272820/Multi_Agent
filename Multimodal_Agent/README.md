@@ -1,6 +1,6 @@
 # Multimodal Agent
 
-> **学习文档**：[入门](../docs/Agent学习指南-入门版.md) · [进阶](../docs/Agent学习指南-进阶版.md) · [Multimodal 专篇](学习指南.md)
+> **说明**：边界能力；面试主链见 [docs/面试备战](../docs/面试备战/00-使用说明与防穿帮.md)。
 
 矩阵的「眼睛 / 耳朵」：**图像 / 视频理解、语音转写、图文问答**。对应平台 `multimodal_agent`，默认端口 **13107**；总管能力 cap 为 `multimodal`。
 

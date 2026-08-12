@@ -1,10 +1,11 @@
 /**
  * B2 Prompt / 上下文预算层 — Rules / Skill / Obs / Handoff 分块硬截断。
- * 确定性 clip；不为省钱 silent fallback 到 regex 路由。
+ * W4：优先按 token 预算裁剪（shared/tokenEstimate）；失败回退字符预算。
  * G3：Observation 摘要入模前走 redactObservation（去密钥 + 截断）。
  */
 
 import { redactObservation } from '#agent-shared/redact'
+import { clipToTokenBudget, estimateTokensSync } from '#agent-shared/tokenEstimate'
 
 export function envInt(name: string, fallback: number, min: number, max: number): number {
   const n = Number(process.env[name] ?? fallback)
@@ -37,6 +38,35 @@ export function promptBudgetSystemChars(): number {
   return envInt('MANAGER_PROMPT_BUDGET_SYSTEM_CHARS', 5200, 1200, 16000)
 }
 
+/** Token 预算（未设则由 chars≈tokens*4 推导） */
+export function promptBudgetRulesTokens(): number {
+  const explicit = process.env.MANAGER_PROMPT_BUDGET_RULES_TOKENS
+  if (explicit != null && String(explicit).trim() !== '') {
+    return envInt('MANAGER_PROMPT_BUDGET_RULES_TOKENS', 500, 80, 4000)
+  }
+  return Math.max(80, Math.ceil(promptBudgetRulesChars() / 4))
+}
+
+export function promptBudgetSkillTokens(): number {
+  const explicit = process.env.MANAGER_PROMPT_BUDGET_SKILL_TOKENS
+  if (explicit != null && String(explicit).trim() !== '') {
+    return envInt('MANAGER_PROMPT_BUDGET_SKILL_TOKENS', 600, 80, 6000)
+  }
+  return Math.max(80, Math.ceil(promptBudgetSkillChars() / 4))
+}
+
+export function obsSummaryMaxTokens(): number {
+  const explicit = process.env.MANAGER_OBS_SUMMARY_MAX_TOKENS
+  if (explicit != null && String(explicit).trim() !== '') {
+    return envInt('MANAGER_OBS_SUMMARY_MAX_TOKENS', 100, 20, 800)
+  }
+  return Math.max(20, Math.ceil(obsSummaryMaxChars() / 4))
+}
+
+export function useTokenPromptBudget(env: NodeJS.ProcessEnv = process.env): boolean {
+  return String(env.MANAGER_PROMPT_BUDGET_TOKEN_MODE ?? '1').trim() !== '0'
+}
+
 export function assertSystemPromptWithinBudget(text: string, context: string): void {
   const max = promptBudgetSystemChars()
   const n = String(text || '').length
@@ -65,23 +95,33 @@ export function clipChars(text: string, max: number): string {
   return `${s.slice(0, Math.max(0, max - 1))}…`
 }
 
+function clipByBudget(text: string, maxChars: number, maxTokens: number): string {
+  if (!useTokenPromptBudget()) return clipChars(text, maxChars)
+  const byTok = clipToTokenBudget(text, maxTokens)
+  // 再套字符硬顶，防止估计偏差撑爆
+  return clipChars(byTok.text, maxChars)
+}
+
 export function clipRulesBlock(text: string): string {
-  return clipChars(text, promptBudgetRulesChars())
+  return clipByBudget(text, promptBudgetRulesChars(), promptBudgetRulesTokens())
 }
 
 export function clipSkillBlock(text: string): string {
-  return clipChars(text, promptBudgetSkillChars())
+  return clipByBudget(text, promptBudgetSkillChars(), promptBudgetSkillTokens())
 }
 
 export function clipObsSummary(text: string): string {
-  const max = obsSummaryMaxChars()
+  const maxChars = obsSummaryMaxChars()
   const cleaned = String(text || '').replace(/\s+/g, ' ').trim()
-  // redactObservation 的 truncate 后缀可能超过 max；再硬截断以守住预算
-  return clipChars(redactObservation(cleaned, max), max)
+  const redacted = redactObservation(cleaned, maxChars)
+  return clipByBudget(redacted, maxChars, obsSummaryMaxTokens())
 }
 
 export function clipHandoffSummary(text: string): string {
-  return clipChars(String(text || '').replace(/\s+/g, ' ').trim(), handoffSummaryMaxChars())
+  const maxChars = handoffSummaryMaxChars()
+  const cleaned = String(text || '').replace(/\s+/g, ' ').trim()
+  const maxTok = Math.max(40, Math.ceil(maxChars / 4))
+  return clipByBudget(cleaned, maxChars, maxTok)
 }
 
 /** 父上下文只保留最近 N 条 Observation 摘要 */
@@ -99,6 +139,10 @@ export type PromptBudgetSnapshot = {
   obsKeepLast: number
   handoffSummaryChars: number
   systemChars: number
+  rulesTokens: number
+  skillTokens: number
+  obsSummaryTokens: number
+  tokenMode: boolean
 }
 
 export function promptBudgetSnapshot(): PromptBudgetSnapshot {
@@ -108,6 +152,14 @@ export function promptBudgetSnapshot(): PromptBudgetSnapshot {
     obsSummaryChars: obsSummaryMaxChars(),
     obsKeepLast: obsKeepLast(),
     handoffSummaryChars: handoffSummaryMaxChars(),
-    systemChars: promptBudgetSystemChars()
+    systemChars: promptBudgetSystemChars(),
+    rulesTokens: promptBudgetRulesTokens(),
+    skillTokens: promptBudgetSkillTokens(),
+    obsSummaryTokens: obsSummaryMaxTokens(),
+    tokenMode: useTokenPromptBudget(),
   }
+}
+
+export function estimatePromptTokens(text: string): ReturnType<typeof estimateTokensSync> {
+  return estimateTokensSync(text)
 }

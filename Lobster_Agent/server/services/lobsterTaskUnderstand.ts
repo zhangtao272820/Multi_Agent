@@ -59,6 +59,7 @@ const UNDERSTAND_SYSTEM = [
   'browser_profile：managed=隔离浏览器；user=附着用户已登录Chrome(CDP)；auto=默认managed',
   'plan_steps：2-6 步，op=goto|click|type|submit|extract|wait|observe；含 target 与 done_when',
   'goals：must_leave_start / must_extract / must_submit / expected_url_change 布尔',
+  'form_fill：must_leave_start=false；用户说「不要点 Submit/不要提交」时 must_submit=false；勿把否定句当成提交',
   '',
   '输出（纯 JSON）示例（仅当任务含真实 URL 时照此填 start_url / goto.target）：',
   '{"canonical_task":"打开菜鸟教程首页，点击第一个教程并提取标题","start_url":"https://www.runoob.com/","engine_hint":"auto","task_kind":"navigate","browser_profile":"auto","intent_hint":"click_extract","needs_login":false,"explicitly_avoid_login":false,"completion_criteria":"得到教程页标题","success_criteria":"得到教程页标题","goals":{"must_leave_start":true,"must_extract":true,"must_submit":false,"expected_url_change":true},"plan_steps":[{"op":"goto","target":"https://www.runoob.com/","done_when":"首页打开"},{"op":"click","target":"第一个教程链接","done_when":"进入教程页"},{"op":"extract","target":"标题","done_when":"得到标题"}],"confidence":0.0-1.0,"rationale":"含明确 URL 与点击抽取"}',

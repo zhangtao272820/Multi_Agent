@@ -77,6 +77,16 @@ export type ManagerGuiTaskPayload = {
   /** OpenClaw 式 Workflow Macro id（Lobster workflows/*.json） */
   workflow_id?: string;
   workflow_args?: Record<string, unknown>;
+  /**
+   * 可选完成标准；有则 Lobster 优先于 task-understand 自拟。
+   * 不等于「点了就算」——仍须 verify。
+   */
+  success_criteria?: string;
+  /**
+   * 可选交互步预算（Stagehand / desktop MCP 交互步封顶）。
+   * 不等于总管图级 stepLimits。
+   */
+  max_interaction_steps?: number;
   /** P1-A：站点 recipe 元数据（总管 enrich，Lobster 消费；preferred_engine 仅 soft） */
   lobster?: {
     site_recipe_id?: string;
@@ -214,6 +224,8 @@ export function envelopeToV1ManagerTask(envelope: ManagerTaskEnvelope): Record<s
       browser_profile: d.browser_profile,
       workflow_id: d.workflow_id,
       workflow_args: d.workflow_args,
+      success_criteria: d.success_criteria,
+      max_interaction_steps: d.max_interaction_steps,
       turn_scope: d.turn_scope,
     };
   }
@@ -308,6 +320,13 @@ export function v1ToManagerTaskEnvelope(input: {
               : v1.workflowArgs && typeof v1.workflowArgs === "object" && !Array.isArray(v1.workflowArgs)
                 ? (v1.workflowArgs as Record<string, unknown>)
                 : undefined,
+          success_criteria:
+            String(v1.success_criteria ?? v1.successCriteria ?? v1.completion_criteria ?? "").trim() ||
+            undefined,
+          max_interaction_steps: (() => {
+            const n = Number(v1.max_interaction_steps ?? v1.maxInteractionSteps ?? NaN);
+            return Number.isFinite(n) && n > 0 ? Math.floor(n) : undefined;
+          })(),
         },
       },
     });

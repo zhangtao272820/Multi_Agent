@@ -1,6 +1,6 @@
 import { normalizeLobsterCallResult } from '../../../utils/agents/lobsterClient'
 import type { ManagerGraphState } from '../../state/state'
-import { extractStartUrlFromTask, guiSourceHitsForEvent, isDesktopGuiTask, parseGuiTaskHints, sanitizeGuiStartUrl } from '../agent/guiTaskPayload'
+import { extractStartUrlFromTask, guiSourceHitsForEvent, parseGuiTaskHints, resolveIsDesktopGuiTask, sanitizeGuiStartUrl } from '../agent/guiTaskPayload'
 import { extractStructuredPayload } from '../shared'
 import type { AgentExecutorDeps, AgentExecutorOpts, AgentStepOutcome } from './types'
 import { resolveSubAgentTurnScope, resolveTurnScopeFromMeta } from '../runtime/sessionBridge'
@@ -32,7 +32,10 @@ import {
   guiOperateKindFromMeta,
   resolveGuiOperateKindByLlm,
 } from '../../../utils/gui/guiOperateKindLlm'
-import { resolveGuiWorkflowForTaskKind, sanitizeGuiWorkflowId } from '../../../utils/gui/guiWorkflowAllowlist'
+import {
+  resolveGuiWorkflowWithArgs,
+  sanitizeGuiWorkflowId,
+} from '../../../utils/gui/guiWorkflowAllowlist'
 import {
   HANDS_NOT_READY_ERROR_CODE,
   HANDS_NOT_READY_MESSAGE,
@@ -351,18 +354,31 @@ export async function executeGuiStep(
   // 禁止经验召回写入 forced engineHint（软偏好仅留 lobster meta）
   // 用户显式「引擎:xxx」仍走 hints.engineHint
 
-  // workflow：LLM 优先；显式 `工作流:` hint 仅作 overlay。未知/与 task_kind 不兼容的宏丢弃。
+  // workflow：LLM 优先；显式 `工作流:` hint 仅作 overlay。未知/不兼容/缺参宏丢弃。
   const rawWorkflowId =
     String(operateKind?.workflow_id || '').trim() || String(hints.workflowId || '').trim() || undefined
-  const wfSanitized = resolveGuiWorkflowForTaskKind(rawWorkflowId, taskKind)
+  const mergedWorkflowArgsPreview: Record<string, unknown> = {
+    ...(operateKind?.workflow_args || {}),
+    ...(hints.workflowArgs || {}),
+    ...(startUrl ? { startUrl } : {}),
+  }
+  const wfSanitized = resolveGuiWorkflowWithArgs(rawWorkflowId, taskKind, mergedWorkflowArgsPreview)
   const workflowId = wfSanitized.ok ? wfSanitized.id : undefined
   if (!wfSanitized.ok && wfSanitized.dropped) {
-    const viaAllowlist = !sanitizeGuiWorkflowId(wfSanitized.dropped).ok
-    input.sendThinking(
-      viaAllowlist
-        ? `GUI：未知宏「${wfSanitized.dropped}」已丢弃，改走逐步 GUI`
-        : `GUI：宏「${wfSanitized.dropped}」与 task_kind=${taskKind || '?'} 不兼容已丢弃，改走逐步 GUI`,
-    )
+    if (wfSanitized.reason === 'missing_args') {
+      input.sendThinking(
+        `GUI：宏「${wfSanitized.dropped}」缺参 ${
+          (wfSanitized.missing || []).join(',') || '?'
+        } 已丢弃，改走逐步 GUI`,
+      )
+    } else {
+      const viaAllowlist = !sanitizeGuiWorkflowId(wfSanitized.dropped).ok
+      input.sendThinking(
+        viaAllowlist
+          ? `GUI：未知宏「${wfSanitized.dropped}」已丢弃，改走逐步 GUI`
+          : `GUI：宏「${wfSanitized.dropped}」与 task_kind=${taskKind || '?'} 不兼容已丢弃，改走逐步 GUI`,
+      )
+    }
   } else if (operateKind?.dropped_workflow_id && !workflowId) {
     input.sendThinking(
       `GUI：宏「${operateKind.dropped_workflow_id}」已丢弃，改走逐步 GUI`,
@@ -374,8 +390,16 @@ export async function executeGuiStep(
     hints.storageProfile ||
     (opts.userId && opts.sessionId ? `${opts.userId}_${opts.sessionId}` : opts.sessionId || opts.userId)
   const browserProfile = hints.browserProfile
-  const isDesktopTask =
-    isDesktopGuiTask(task, startUrl) || engineHint === 'desktop' || hints.engineHint === 'desktop'
+  const isDesktopTask = resolveIsDesktopGuiTask({
+    taskKind,
+    engineHint: engineHint || hints.engineHint,
+    task,
+    startUrl,
+  })
+  const isMobileTask =
+    taskKind === 'mobile_app' ||
+    engineHint === 'mobile' ||
+    hints.engineHint === 'mobile'
 
   const turn_scope = resolveSubAgentTurnScope(input.state.meta) ?? resolveTurnScopeFromMeta(input.state.meta)
   const handoffAlreadyAttempted = Boolean(input.state.meta?.guiHandoffAttempted)
@@ -399,10 +423,12 @@ export async function executeGuiStep(
     }
   }
   const lobsterMeta = enrichGuiLobsterMeta(task, startUrl, hints.engineHint)
-  // 仅用户显式引擎 hint 或 desktop 可 forced；禁止经验/recipe → engineHint
+  // 仅用户显式引擎 hint 或 desktop/mobile 可 forced；禁止经验/recipe → engineHint
   const forcedEngineHint = isDesktopTask
     ? 'desktop'
-    : hints.engineHint || undefined
+    : isMobileTask
+      ? 'mobile'
+      : hints.engineHint || undefined
 
   const workflowArgs: Record<string, unknown> = {
     ...(operateKind?.workflow_args || {}),
@@ -417,6 +443,17 @@ export async function executeGuiStep(
     )
   }
 
+  const successCriteria =
+    String((operateKind as { success_criteria?: string } | null)?.success_criteria || '').trim() ||
+    undefined
+  const maxInteractionStepsRaw = Number(
+    (operateKind as { max_interaction_steps?: number } | null)?.max_interaction_steps,
+  )
+  const maxInteractionSteps =
+    Number.isFinite(maxInteractionStepsRaw) && maxInteractionStepsRaw > 0
+      ? Math.floor(maxInteractionStepsRaw)
+      : undefined
+
   const guiPayload: ManagerGuiTaskPayload = {
     source: 'manager',
     task,
@@ -429,6 +466,8 @@ export async function executeGuiStep(
     ...(browserProfile ? { browser_profile: browserProfile } : {}),
     ...(workflowId ? { workflow_id: workflowId } : {}),
     ...(workflowId && Object.keys(workflowArgs).length ? { workflow_args: workflowArgs } : {}),
+    ...(successCriteria ? { success_criteria: successCriteria } : {}),
+    ...(maxInteractionSteps ? { max_interaction_steps: maxInteractionSteps } : {}),
     ...(lobsterMeta ? { lobster: lobsterMeta } : {}),
     ...(turn_scope ? { turn_scope } : {}),
   }
@@ -474,6 +513,7 @@ export async function executeGuiStep(
       signal: opts.signal,
       traceId: opts.runId,
       runId: opts.runId,
+      lockWsToPrimary: Boolean(isDesktopTask || hint === 'desktop' || desktopWs),
     })
   }
 

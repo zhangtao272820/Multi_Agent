@@ -153,7 +153,7 @@ export function resolveUiRetrievalModeFromPlan(params: {
   return mode;
 }
 
-/** document_query 一律走 RAGFlow 管线（retrieve→rerank→cite），不再因 mode=standard 跳过 */
+/** document_query 默认走 RAGFlow 管线；agentic 模式改走 LangGraph 工具环 */
 export function shouldUseDocumentRagPipeline(params: {
   intent: RagIntentJudgment | null | undefined;
   isManagerOrchestrated: boolean;
@@ -163,7 +163,10 @@ export function shouldUseDocumentRagPipeline(params: {
   if (!params.enableRetrieveFirstChat || params.isManagerOrchestrated || !params.hasDocuments) return false;
   if (!params.intent) return false;
   if (params.intent.is_chitchat) return false;
-  return params.intent.route_action === "document_query";
+  if (params.intent.route_action !== "document_query") return false;
+  if (params.intent.retrieval_mode === "agentic" || params.intent.is_completeness_query) return false;
+  if (params.intent.retrieve_first_ok === false) return false;
+  return true;
 }
 
 /** @deprecated 使用 shouldUseDocumentRagPipeline */

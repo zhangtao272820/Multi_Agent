@@ -117,10 +117,12 @@ async function assertEngineReadyOrThrow(engine: LobsterEngineId): Promise<void> 
 export async function runLobsterWithRouter(params: RunParams) {
   const handsOnly = isLobsterHandsOnly()
   const forcedHintEarly = String(params.engineHint || '').trim().toLowerCase()
+  const kindEarly = String(params.taskSpec?.task_kind || '').trim()
   const isDesktopRequest =
     forcedHintEarly === 'desktop' ||
-    requiresDesktopEngine(params.task, params.startUrl) ||
-    params.taskSpec?.task_kind === 'desktop_app'
+    kindEarly === 'desktop_app' ||
+    ((!kindEarly || kindEarly === 'unknown') &&
+      requiresDesktopEngine(params.task, params.startUrl))
 
   if (handsOnly && !isDesktopRequest) {
     const failAnswer =
@@ -205,13 +207,25 @@ export async function runLobsterWithRouter(params: RunParams) {
   }
 
   const forcedHint = String(params.engineHint || '').trim().toLowerCase()
-  if (forcedHint === 'mobile' || requiresMobileEngine(params.task, params.startUrl)) {
+  const kindHint = String(params.taskSpec?.task_kind || '').trim()
+  if (forcedHint === 'mobile' || kindHint === 'mobile_app') {
     await assertAndroidReady(params)
     return await runLobsterAndroidMcpAgent(params)
   }
-  if (forcedHint === 'desktop' || requiresDesktopEngine(params.task, params.startUrl)) {
+  if (forcedHint === 'desktop' || kindHint === 'desktop_app') {
     await assertDesktopReady(params)
     return await runLobsterDesktopMcpAgent(params)
+  }
+  // 无 task_kind / forced 时才允许关键词兜底（兼容旧调用方）
+  if (!kindHint || kindHint === 'unknown') {
+    if (requiresMobileEngine(params.task, params.startUrl)) {
+      await assertAndroidReady(params)
+      return await runLobsterAndroidMcpAgent(params)
+    }
+    if (requiresDesktopEngine(params.task, params.startUrl)) {
+      await assertDesktopReady(params)
+      return await runLobsterDesktopMcpAgent(params)
+    }
   }
 
   const managerSpec = taskSpecFromManagerHints({
@@ -221,6 +235,9 @@ export async function runLobsterWithRouter(params: RunParams) {
     intentHint: params.taskSpec?.intent_hint,
     taskKind: params.taskSpec?.task_kind,
     needsLogin: params.taskSpec?.needs_login,
+    successCriteria:
+      params.taskSpec?.success_criteria || params.taskSpec?.completion_criteria,
+    maxInteractionSteps: params.taskSpec?.max_interaction_steps,
   })
 
   const understoodRaw =
@@ -238,7 +255,7 @@ export async function runLobsterWithRouter(params: RunParams) {
   const mergedTask = understood
     ? {
         task: understood.canonical_task,
-        startUrl: understood.start_url || params.startUrl,
+        startUrl: params.startUrl || understood.start_url,
         engineHint: params.engineHint,
       }
     : applyLobsterTaskUnderstand(

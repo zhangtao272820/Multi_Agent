@@ -32,6 +32,12 @@ _SCENARIO_BY_QUERY = {
 }
 
 
+def scenario_id_for_query_type(query_type: str | None) -> str | None:
+    """将 amap query_type 映射为 admin_scenario id（非 raw route/nearby）。"""
+    qt = str(query_type or "").strip().lower()
+    return _SCENARIO_BY_QUERY.get(qt)
+
+
 def _extract_json_object(raw_text: str) -> dict[str, Any]:
     text = (raw_text or "").strip()
     if "```json" in text:

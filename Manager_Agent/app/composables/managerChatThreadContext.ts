@@ -54,6 +54,7 @@ export type ManagerChatThreadContext = {
     active?: boolean
     failed?: boolean
   }>
+  turnGuiVisuals: (t: TurnGroup) => { shot?: string; vncUrl?: string }
   thoughtPanelPreview: (t: TurnGroup) => string
   processStepKey: (t: TurnGroup, idx: number) => string
   isProcessStepClampable: (text: string, kind: string) => boolean

@@ -22,6 +22,11 @@ export type ManagerSliSnapshot = {
   hitlDecisionCount: number
   evidenceRejectionRate: number | null
   evidenceGateFailures: number
+  /** Wave6：路由权威链过程 SLI（非对外假 QPS） */
+  routeAuthoritySamples: number
+  routeSingleSourceRate: number | null
+  routeTrueMultiRate: number | null
+  routeCommitmentClearRate: number | null
 }
 
 export function aggregateManagerSli(
@@ -37,6 +42,10 @@ export function aggregateManagerSli(
   const errorsByCode: Record<string, number> = {}
   let totalTokens = 0
   let evidenceGateFailures = 0
+  let routeAuthoritySamples = 0
+  let routeSingleSource = 0
+  let routeTrueMulti = 0
+  let routeClear = 0
 
   for (const raw of metricRows) {
     const runId = String(raw?.runId ?? '').trim()
@@ -54,6 +63,13 @@ export function aggregateManagerSli(
     const phase = String(raw?.phase || '')
     if (phase === 'evidence_gate' && raw?.ok === false) {
       evidenceGateFailures += 1
+    }
+    if (phase === 'route_authority') {
+      routeAuthoritySamples += 1
+      const extra = (raw?.extra && typeof raw.extra === 'object' ? raw.extra : raw) as Record<string, unknown>
+      if (extra.singleSourcePassthrough === true) routeSingleSource += 1
+      if (extra.trueMulti === true) routeTrueMulti += 1
+      if (String(extra.sourceCommitment || '') === 'clear') routeClear += 1
     }
 
     const agent = resolveMetricAgentFromEntry({
@@ -103,7 +119,17 @@ export function aggregateManagerSli(
     hitlWaitMsP95: hitlWaits.length ? Math.round(p95(hitlWaits)) : null,
     hitlDecisionCount: hitlRows.length,
     evidenceRejectionRate,
-    evidenceGateFailures
+    evidenceGateFailures,
+    routeAuthoritySamples,
+    routeSingleSourceRate: routeAuthoritySamples
+      ? Math.round((routeSingleSource / routeAuthoritySamples) * 1000) / 1000
+      : null,
+    routeTrueMultiRate: routeAuthoritySamples
+      ? Math.round((routeTrueMulti / routeAuthoritySamples) * 1000) / 1000
+      : null,
+    routeCommitmentClearRate: routeAuthoritySamples
+      ? Math.round((routeClear / routeAuthoritySamples) * 1000) / 1000
+      : null
   }
 }
 

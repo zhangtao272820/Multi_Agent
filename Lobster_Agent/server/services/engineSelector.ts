@@ -40,7 +40,7 @@ export function isEngineSelectorEnabled(): boolean {
 /**
  * 无 TaskSpec 时的兜底选型。
  * 网页不再用 FORM/EXTRACT 用户原话 regex；默认 stagehand。
- * 仅保留 video / desktop / mobile 硬守卫。
+ * desktop / mobile 关键词仅作无 task_kind 时的兼容兜底（有 TaskSpec 时见 resolveEngineFromTaskSpec）。
  */
 export function selectEngineForTask(
   task: string,
@@ -65,6 +65,7 @@ export function engineFallbackChain(primary: LobsterEngineId): LobsterEngineId[]
   return ['classic']
 }
 
+/** 无 TaskSpec 的入口；有 task_kind 时请用 resolveEngineFromTaskSpec */
 export function resolvePrimaryEngine(
   task: string,
   startUrl?: string,
@@ -74,7 +75,5 @@ export function resolvePrimaryEngine(
   const raw = String(forced || '').trim().toLowerCase()
   if (raw === 'classic' || raw === 'mcp' || raw === 'stagehand' || raw === 'desktop' || raw === 'mobile') return raw
   if (!isEngineSelectorEnabled()) return 'stagehand'
-  if (requiresMobileEngine(task, startUrl)) return 'mobile'
-  if (requiresDesktopEngine(task, startUrl)) return 'desktop'
   return selectEngineForTask(task, startUrl, opts)
 }

@@ -29,6 +29,7 @@ import {
 } from '../../../utils/platform/collaborationPosture'
 import { resolveUnifiedOrchestration } from '../../orchestrate/unifiedOrchestrate'
 import { resolveOrchestratorRoutingContext } from '../../orchestrate/unifiedRouting'
+import { buildRouteAuthorityChain } from '../../orchestrate/routeAuthorityChain'
 import { buildTurnScopePayload } from '#agent-shared/turnScope'
 import type { OrchestratorDecision } from '../../orchestrate/orchestratorInvariants'
 import type { OrchestratorPipelineResult } from '../../orchestrate/orchestratorPipeline'
@@ -117,7 +118,18 @@ function finishOrchestrateTurn(input: {
       turnScopeMode: turnScope.mode,
       turn_scope: buildTurnScopePayload(turnScope.mode, turnScope.turnKind),
       sessionIntentAnchor: nextAnchor,
-      useLegacyRoute: false
+      useLegacyRoute: false,
+      routeAuthorityChain: buildRouteAuthorityChain({
+        meta: {
+          ...(input.orchestratorMetaBase ?? {}),
+          ...decision.metaPatch,
+          allowedAgents: decision.allowedAgents
+        },
+        raw: (decision as { raw?: Record<string, unknown> }).raw ?? null,
+        turnScopeMode: turnScope.mode,
+        turnKind: turnScope.turnKind,
+        allowedAgents: decision.allowedAgents.map(String)
+      })
     })
   }
 }

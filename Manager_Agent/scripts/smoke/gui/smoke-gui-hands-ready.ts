@@ -2,6 +2,7 @@
  * GUI Hands 就绪分流：desktop 未起 → hands_not_ready，禁止假成功
  */
 import assert from 'node:assert/strict'
+import { resolveIsDesktopGuiTask } from '../../../server/graph/core/agent/guiTaskPayload'
 import {
   HANDS_NOT_READY_ERROR_CODE,
   HANDS_NOT_READY_MESSAGE,
@@ -44,6 +45,45 @@ assert.equal(
     env: {} as NodeJS.ProcessEnv,
   }),
   'ws://127.0.0.1:13108/_ws',
+)
+
+// task_kind=desktop_app → Hands 路径（与关键词无关）
+assert.equal(
+  resolveIsDesktopGuiTask({
+    taskKind: 'desktop_app',
+    task: '帮我处理一下这个文件',
+  }),
+  true,
+  'desktop_app → Hands',
+)
+assert.equal(
+  resolveIsDesktopGuiTask({
+    taskKind: 'navigate',
+    task: '打开记事本输入 Hello',
+  }),
+  false,
+  'web task_kind 不被桌面关键词抢路由',
+)
+assert.equal(
+  resolveIsDesktopGuiTask({
+    taskKind: 'mobile_app',
+    task: '打开微信',
+  }),
+  false,
+  'mobile_app 不走 Windows Hands',
+)
+assert.equal(
+  resolveIsDesktopGuiTask({
+    taskKind: 'desktop_app',
+    task: 'x',
+  })
+    ? resolveGuiDesktopWsUrl({
+        lobsterAgentWsUrl: 'ws://127.0.0.1:13108/_ws',
+        env: { LOBSTER_HANDS_WS_URL: 'ws://127.0.0.1:13109/_ws' } as NodeJS.ProcessEnv,
+      })
+    : '',
+  'ws://127.0.0.1:13109/_ws',
+  'desktop_app 使用 Hands WS',
 )
 
 const down: LobsterReadyProbe = { ok: false, error: 'fetch failed' }

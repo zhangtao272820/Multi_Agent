@@ -9,6 +9,7 @@
  * 专家 condense 只服务本专家问句；总管下发子句后专家不得再双头改写用户原话意图。
  */
 import { AIMessage, HumanMessage, SystemMessage, type BaseMessage } from '@langchain/core/messages'
+import { estimateTokensSync, type TokenEstimateResult } from '#agent-shared/tokenEstimate'
 
 export type SessionTurn = { role: 'user' | 'assistant'; content: string }
 
@@ -36,13 +37,24 @@ export function loadConversationBudgetConfig(): ConversationBudgetConfig {
   }
 }
 
-/** 粗估 token（字符/2，验收用，非计费精确值） */
+/** 字符量（兼容旧 UI/日志；Token 真相见 estimateConversationTokens） */
 export function estimateConversationChars(messages: SessionTurn[]): number {
   return messages.reduce((n, m) => n + String(m.content || '').length, 0)
 }
 
 export function estimateMessageListChars(messages: BaseMessage[]): number {
   return messages.reduce((n, m) => n + String((m as { content?: unknown }).content ?? '').length, 0)
+}
+
+/** Wave6 K1：与 promptBudget / U4 同源 tokenEstimate（tiktoken 或启发式） */
+export function estimateConversationTokens(messages: SessionTurn[]): TokenEstimateResult {
+  const text = messages.map((m) => String(m.content || '')).join('\n')
+  return estimateTokensSync(text)
+}
+
+export function estimateMessageListTokens(messages: BaseMessage[]): TokenEstimateResult {
+  const text = messages.map((m) => String((m as { content?: unknown }).content ?? '')).join('\n')
+  return estimateTokensSync(text)
 }
 
 /** 规则摘要：将较早轮次压缩为 SystemMessage，供 LangGraph 路由/综合使用 */
@@ -126,12 +138,35 @@ export async function buildCompactedHistoryWithStats(input: {
   fullChars: number
   compactChars: number
   savedRatio: number
+  /** Wave6：token 同源计量（优先于 chars 做预算决策） */
+  fullTokens: number
+  compactTokens: number
+  tokenSavedRatio: number
+  tokenAccounting: TokenEstimateResult['accounting']
 }> {
   const cfg = input.cfg ?? loadConversationBudgetConfig()
   const fullChars = estimateConversationChars(input.messages)
+  const fullTok = estimateConversationTokens(input.messages)
   const messages = await buildGraphHistoryMessages(input)
   const compactChars = estimateMessageListChars(messages)
-  const compacted = input.messages.length > cfg.recentTurns && compactChars < fullChars
+  const compactTok = estimateMessageListTokens(messages)
+  const compacted =
+    input.messages.length > cfg.recentTurns &&
+    (compactTok.tokens < fullTok.tokens || compactChars < fullChars)
   const savedRatio = fullChars > 0 ? Math.max(0, 1 - compactChars / fullChars) : 0
-  return { messages, compacted, fullChars, compactChars, savedRatio }
+  const tokenSavedRatio =
+    fullTok.tokens > 0 ? Math.max(0, 1 - compactTok.tokens / fullTok.tokens) : 0
+  return {
+    messages,
+    compacted,
+    fullChars,
+    compactChars,
+    savedRatio,
+    fullTokens: fullTok.tokens,
+    compactTokens: compactTok.tokens,
+    tokenSavedRatio,
+    tokenAccounting: compactTok.accounting === 'tiktoken' || fullTok.accounting === 'tiktoken'
+      ? 'tiktoken'
+      : 'estimated'
+  }
 }

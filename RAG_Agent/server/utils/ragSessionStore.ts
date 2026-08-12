@@ -12,6 +12,12 @@ import {
 export type RagSessionMessage = { role: "user" | "assistant"; content: string };
 export type RagSession = { messages: RagSessionMessage[] };
 
+type RagSessionFilePayload = {
+  userId?: string;
+  messages: RagSessionMessage[];
+  updatedAt?: string;
+};
+
 const SESSION_MAX_TURNS = AMP_TTL.sessionTurnsMax;
 
 function sessionsDir(): string {
@@ -41,27 +47,55 @@ export function resolveRagStorageBackend(env: NodeJS.ProcessEnv = process.env) {
   return resolveStorageBackend(env.RAG_AGENT_STORAGE_BACKEND, "file");
 }
 
-async function readSessionFromFile(sessionId: string): Promise<RagSession> {
+async function readSessionFilePayload(sessionId: string): Promise<RagSessionFilePayload | null> {
   const sid = String(sessionId || "").trim();
-  if (!sid) return { messages: [] };
+  if (!sid) return null;
   try {
     const text = await fs.readFile(sessionFile(sid), "utf8").catch(() => "");
-    if (!text.trim()) return { messages: [] };
-    return { messages: normalizeMessages(JSON.parse(text)) };
+    if (!text.trim()) return null;
+    const parsed = JSON.parse(text) as RagSessionFilePayload | RagSessionMessage[];
+    if (Array.isArray(parsed)) {
+      return { messages: normalizeMessages(parsed) };
+    }
+    if (!parsed || typeof parsed !== "object") return null;
+    return {
+      userId: String(parsed.userId || "").trim() || undefined,
+      messages: normalizeMessages(parsed),
+      updatedAt: String(parsed.updatedAt || "").trim() || undefined,
+    };
   } catch {
-    return { messages: [] };
+    return null;
   }
 }
 
-async function writeSessionToFile(sessionId: string, messages: RagSessionMessage[]): Promise<void> {
+async function readSessionFromFile(sessionId: string): Promise<RagSession> {
+  const payload = await readSessionFilePayload(sessionId);
+  return { messages: payload?.messages || [] };
+}
+
+async function writeSessionToFile(
+  sessionId: string,
+  messages: RagSessionMessage[],
+  userId?: string
+): Promise<void> {
   const sid = String(sessionId || "").trim();
   if (!sid) return;
   await fs.mkdir(sessionsDir(), { recursive: true }).catch(() => undefined);
-  await fs.writeFile(
-    sessionFile(sid),
-    JSON.stringify({ messages: messages.slice(-SESSION_MAX_TURNS) }, null, 2),
-    "utf8"
-  );
+
+  let prevUserId = "";
+  try {
+    const prev = await readSessionFilePayload(sid);
+    prevUserId = String(prev?.userId || "").trim();
+  } catch {
+    /* ignore */
+  }
+  const uid = String(userId || "").trim() || prevUserId || undefined;
+  const payload: RagSessionFilePayload = {
+    ...(uid ? { userId: uid } : {}),
+    messages: messages.slice(-SESSION_MAX_TURNS),
+    updatedAt: new Date().toISOString(),
+  };
+  await fs.writeFile(sessionFile(sid), JSON.stringify(payload, null, 2), "utf8");
 }
 
 async function readSessionFromPg(sessionId: string): Promise<RagSession | null> {
@@ -119,6 +153,40 @@ async function writeSessionToPg(
   return true;
 }
 
+async function listSessionIdsFromFiles(userId: string): Promise<Array<{ id: string; updatedAt: string }>> {
+  const uid = String(userId || "").trim();
+  if (!uid) return [];
+  let names: string[] = [];
+  try {
+    names = await fs.readdir(sessionsDir());
+  } catch {
+    return [];
+  }
+  const out: Array<{ id: string; updatedAt: string }> = [];
+  for (const name of names) {
+    if (!name.endsWith(".json")) continue;
+    const id = name.slice(0, -".json".length);
+    if (!id) continue;
+    const filePath = sessionFile(id);
+    try {
+      const payload = await readSessionFilePayload(id);
+      if (!payload) continue;
+      if (String(payload.userId || "").trim() !== uid) continue;
+      if (!payload.messages.length) continue;
+      let updatedAt = String(payload.updatedAt || "").trim();
+      if (!updatedAt) {
+        const st = await fs.stat(filePath).catch(() => null);
+        updatedAt = st?.mtime?.toISOString?.() || "";
+      }
+      out.push({ id, updatedAt: updatedAt || new Date(0).toISOString() });
+    } catch {
+      /* skip corrupt file */
+    }
+  }
+  out.sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
+  return out;
+}
+
 export async function readRagSession(sessionId: string): Promise<RagSession> {
   const backend = resolveRagStorageBackend();
   if (isPostgresStorageEnabled(backend)) {
@@ -136,20 +204,27 @@ export async function writeRagSession(
 ): Promise<void> {
   const backend = resolveRagStorageBackend();
   const messages = session.messages.slice(-SESSION_MAX_TURNS);
+  let pgOk = !shouldWritePostgres(backend);
 
   if (shouldWritePostgres(backend)) {
     try {
-      await writeSessionToPg(sessionId, messages, opts?.userId);
-    } catch {
-      /* file fallback below */
+      pgOk = await writeSessionToPg(sessionId, messages, opts?.userId);
+      if (!pgOk) {
+        console.error("[ragSessionStore] postgres write returned false", { sessionId });
+      }
+    } catch (err) {
+      pgOk = false;
+      console.error("[ragSessionStore] postgres write failed", { sessionId, err });
     }
   }
 
-  if (shouldWriteFile(backend)) {
+  // dual/file 正常写文件；postgres-only 在 PG 失败时强制落盘，避免静默丢对话
+  const mustWriteFile = shouldWriteFile(backend) || !pgOk;
+  if (mustWriteFile) {
     try {
-      await writeSessionToFile(sessionId, messages);
-    } catch {
-      /* ignore */
+      await writeSessionToFile(sessionId, messages, opts?.userId);
+    } catch (err) {
+      console.error("[ragSessionStore] file write failed", { sessionId, err });
     }
   }
 }
@@ -260,12 +335,31 @@ export async function listRagSessionsForUser(userId: string): Promise<string[]> 
   const uid = String(userId || "").trim();
   if (!uid) return [];
   const backend = resolveRagStorageBackend();
+  const seen = new Set<string>();
+  const ordered: string[] = [];
+
+  const pushId = (id: string) => {
+    const sid = String(id || "").trim();
+    if (!sid || seen.has(sid)) return;
+    seen.add(sid);
+    ordered.push(sid);
+  };
+
   if (isPostgresStorageEnabled(backend)) {
     const res = await agentPgQuery<{ id: string }>(
       `SELECT id FROM rag_sessions WHERE user_id = $1 ORDER BY updated_at DESC LIMIT 80`,
       [uid]
     );
-    if (res) return res.rows.map((r) => r.id);
+    if (res) {
+      for (const row of res.rows) pushId(row.id);
+    }
   }
-  return [];
+
+  // 文件镜像补齐：PG 空/挂掉或 postgres-only 应急落盘后，侧栏仍可恢复
+  if (shouldWriteFile(backend) || backend === "postgres" || !ordered.length) {
+    const fromFiles = await listSessionIdsFromFiles(uid);
+    for (const row of fromFiles) pushId(row.id);
+  }
+
+  return ordered.slice(0, 80);
 }

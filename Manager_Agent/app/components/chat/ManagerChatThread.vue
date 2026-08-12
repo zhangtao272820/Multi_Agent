@@ -49,6 +49,7 @@ const {
   thoughtPanelLabel,
   stepResultsForTurn,
   userThoughtNarrative,
+  turnGuiVisuals,
   thoughtPanelPreview,
   processStepKey,
   isProcessStepClampable,
@@ -373,6 +374,24 @@ watch(streamingSynthText, async () => {
                   <span class="user-thought-dot" aria-hidden="true"></span>
                   <span class="user-thought-text">{{ line.text }}</span>
                 </div>
+                <div
+                  v-if="turnGuiVisuals(t).shot || turnGuiVisuals(t).vncUrl"
+                  class="user-gui-visual"
+                >
+                  <img
+                    v-if="turnGuiVisuals(t).shot"
+                    :src="turnGuiVisuals(t).shot"
+                    alt="GUI 截图预览"
+                    class="gui-screenshot-preview"
+                  />
+                  <a
+                    v-if="turnGuiVisuals(t).vncUrl"
+                    class="gui-live-view-link"
+                    :href="turnGuiVisuals(t).vncUrl"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >打开浏览器画面（noVNC）</a>
+                </div>
                 <details v-if="t.searchSources.length" class="user-thought-sources">
                   <summary>参考来源（{{ t.searchSources.length }}）</summary>
                   <ul class="spring-search-sources-list">
@@ -438,6 +457,13 @@ watch(streamingSynthText, async () => {
                       alt="GUI 截图预览"
                       class="gui-screenshot-preview"
                     />
+                    <a
+                      v-if="p.guiVncUrl"
+                      class="gui-live-view-link"
+                      :href="p.guiVncUrl"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >打开浏览器画面（noVNC）</a>
                     <button
                       v-if="isProcessStepClampable(p.text, p.kind)"
                       type="button"

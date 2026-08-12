@@ -19,6 +19,9 @@ def get_scenario_planning_addon(scenario: str | None) -> str:
     section_map = {
         "daily_briefing": ("daily_briefing", "Planning"),
         "email_triage": ("email_triage", "Planning"),
+        "email_read": ("email_hands", "Planning"),
+        "email_attachments": ("email_hands", "Planning"),
+        "email_classify": ("email_hands", "Planning"),
         "meeting_prep": ("meeting_prep", "Planning"),
         "ask_database": ("ask_database", "Planning"),
         "weekly_report": ("weekly_report", "Planning"),
@@ -33,6 +36,10 @@ def get_scenario_planning_addon(scenario: str | None) -> str:
         "minutes_to_tasks": ("meeting_minutes", "Planning"),
         "reminder_notify": ("reminder_notify", "Planning"),
         "integrations_status": ("integrations_setup", "Planning"),
+        "web_search": ("task_planning", "Planning"),
+        "knowledge_retrieval": ("task_planning", "Planning"),
+        "calendar_list": ("task_planning", "Planning"),
+        "task_list": ("task_planning", "Planning"),
     }
     pair = section_map.get(scenario)
     if not pair:
@@ -57,8 +64,23 @@ def preferred_tool_for_scenario(
     """确定性兜底：场景 → 单工具调用（参数来自模型 resolved_amap，不用 regex 拆原话）。"""
     if scenario == "daily_briefing":
         return {"name": "daily_briefing", "args": {}}
+    if scenario == "email_read":
+        # 多步由 _mail_fallback_plan 组装；此处不单给 triage
+        return None
+    if scenario == "email_attachments":
+        return None
+    if scenario == "email_classify":
+        return {"name": "classify_emails", "args": {"limit": 20}}
     if scenario == "email_triage":
         return {"name": "triage_emails", "args": {"limit": 20}}
+    if scenario == "web_search":
+        return None
+    if scenario == "knowledge_retrieval":
+        return None
+    if scenario == "calendar_list":
+        return {"name": "list_events", "args": {}}
+    if scenario == "task_list":
+        return {"name": "list_tasks", "args": {}}
     if scenario == "meeting_prep":
         return {"name": "prepare_meeting", "args": {"query": user_message}}
     if scenario == "ask_database":

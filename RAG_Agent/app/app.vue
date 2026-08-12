@@ -385,7 +385,7 @@
                   <textarea
                     v-model="editDraft"
                     rows="3"
-                    class="w-full rounded-lg border border-white/20 bg-slate-950/40 px-3 py-2 text-sm text-white placeholder:text-slate-300/60 focus:outline-none focus:ring-2 focus:ring-sky-400/40"
+                    class="rag-edit-textarea"
                     placeholder="编辑后重发…"
                   />
                   <div class="flex gap-2 justify-end">
@@ -421,7 +421,7 @@
 
               <!-- 助手消息 -->
               <template v-else>
-              <div class="text-[10px] font-medium text-sky-200/70 mb-1">
+              <div class="rag-msg-role-label">
                 文曲
               </div>
 
@@ -434,7 +434,7 @@
                   class="rag-process-toggle"
                   @click="toggleProcessPanel(msg.turnId)"
                 >
-                  <span class="inline-block w-1.5 h-1.5 rounded-full bg-sky-300" :class="{ 'animate-pulse': isTurnRunning(msg.turnId) }"></span>
+                  <span class="rag-process-live-dot" :class="{ 'animate-pulse': isTurnRunning(msg.turnId) }"></span>
                   <span>{{ isTurnRunning(msg.turnId) ? '思考中' : '思考过程' }}</span>
                   <span v-if="processElapsedLabel(msg)" class="rag-process-elapsed">{{ processElapsedLabel(msg) }}</span>
                   <span class="rag-process-count">{{ processSteps(msg).length }} 步</span>
@@ -460,8 +460,8 @@
                 </div>
               </div>
 
-              <div v-if="msg.status && !processSteps(msg).length && !isTurnRunning(msg.turnId)" class="text-xs text-sky-300/80 mb-2 flex items-center gap-1.5">
-                <span class="inline-block w-1.5 h-1.5 rounded-full bg-sky-300 animate-pulse"></span>
+              <div v-if="msg.status && !processSteps(msg).length && !isTurnRunning(msg.turnId)" class="rag-msg-status mb-2 flex items-center gap-1.5">
+                <span class="rag-msg-status-dot animate-pulse"></span>
                 {{ msg.status }}
               </div>
 
@@ -552,13 +552,13 @@
 
               <div
                 v-if="msg.content && index > 0 && msg.turnId > 0"
-                class="mt-1.5 pt-1.5 border-t border-white/10"
+                class="rag-feedback-row"
               >
                 <template v-if="!turnFeedbackSubmitted(msg)">
                   <div class="flex gap-2">
                     <button
                       type="button"
-                      class="text-[11px] rounded border border-emerald-400/30 bg-emerald-500/10 px-2 py-0.5 text-emerald-100 hover:bg-emerald-500/20 disabled:opacity-50"
+                      class="rag-feedback-btn rag-feedback-btn--up"
                       :disabled="feedbackSendingUserIndex === feedbackUserIndexForMessage(msg)"
                       @click="sendFeedback(msg, index, 1)"
                     >
@@ -566,7 +566,7 @@
                     </button>
                     <button
                       type="button"
-                      class="text-[11px] rounded border border-rose-400/30 bg-rose-500/10 px-2 py-0.5 text-rose-100 hover:bg-rose-500/20 disabled:opacity-50"
+                      class="rag-feedback-btn rag-feedback-btn--down"
                       :disabled="feedbackSendingUserIndex === feedbackUserIndexForMessage(msg)"
                       @click="sendFeedback(msg, index, -1)"
                     >
@@ -838,6 +838,15 @@ const touchCurrentSessionHistory = (opts = {}) => {
   const userMessageCount = messages.value.filter((m) => m.role === 'user').length;
   const messageCount = messages.value.filter((m) => m.role === 'user' || m.role === 'assistant').length;
   const idx = sessionHistoryItems.value.findIndex((s) => s.id === id);
+  // 空会话不进侧栏，避免「新建 → 乐观插入 → 服务端 refetch 删掉」闪烁
+  if (userMessageCount <= 0) {
+    if (idx >= 0) {
+      sessionHistoryItems.value.splice(idx, 1);
+      sessionHistoryItems.value = sessionHistoryItems.value.slice(0, 80);
+      persistSessionHistoryList();
+    }
+    return;
+  }
   if (idx >= 0) {
     const row = sessionHistoryItems.value[idx];
     row.messageCount = messageCount;
@@ -1447,7 +1456,6 @@ const ensureConversationId = () => {
   if (!id) id = generateSessionId();
   conversationId.value = id;
   setTabRagSessionId(id);
-  touchCurrentSessionHistory({ bump: false });
   return id;
 };
 
@@ -1464,14 +1472,13 @@ const newSession = async (opts = {}) => {
     };
     return;
   }
+  // 先把当前已有轮次的会话写回侧栏；新空会话不乐观入历史、不立刻 refetch
   touchCurrentSessionHistory({ bump: false });
   const id = generateSessionId();
   conversationId.value = id;
   setTabRagSessionId(id);
   resetChatMessages();
   restoreSessionFeedback();
-  touchCurrentSessionHistory({ bump: true });
-  void fetchServerSessionHistory();
 };
 
 const switchSession = async (id) => {
@@ -1534,14 +1541,7 @@ const onAppModalConfirm = async (inputValue) => {
     return;
   }
   if (action === 'new_session') {
-    touchCurrentSessionHistory({ bump: false });
-    const id = generateSessionId();
-    conversationId.value = id;
-    setTabRagSessionId(id);
-    resetChatMessages();
-    restoreSessionFeedback();
-    touchCurrentSessionHistory({ bump: true });
-    void fetchServerSessionHistory();
+    await newSession({ skipConfirm: true });
     return;
   }
   if (action?.type === 'switch') {
@@ -1956,7 +1956,7 @@ const refreshIntel = async () => {
 const runCurate = async () => {
   intelCurating.value = true;
   try {
-    const res = await $fetch('/api/learning/curate', { method: 'POST', body: { autoPromote: true } });
+    const res = await $fetch('/api/learning/curate', { method: 'POST', body: { autoPromote: false } });
     const n = res?.report?.promotedHints?.length ?? 0;
     await refreshIntel();
     if (n > 0) openModal('整理完成', `已晋级 ${n} 条进化提示`, 'success');
@@ -2234,7 +2234,7 @@ const formatAssistantMessage = (msg, msgIndex = 0) => formatAssistantContent(msg
 const formatAssistantContent = (content = '', msgIndex = 0) => {
   const { text: answerBody } = extractAnswerBody(content);
   if (!answerBody?.trim()) {
-    return '<p class="text-slate-300/70">（暂无内容）</p>';
+    return '<p class="rag-answer-empty">（暂无内容）</p>';
   }
   if (/<RAG_NEEDS_CLARIFY>/i.test(answerBody)) {
     const clarifyText = answerBody.replace(/<RAG_NEEDS_CLARIFY>/gi, '').replace(/\[clarify_json\][\s\S]*$/g, '').trim();
@@ -2622,26 +2622,103 @@ onUnmounted(() => {
 .user-message-text {
   font-size: 0.92rem;
   line-height: 1.6;
-  font-weight: 500;
+  font-weight: 550;
+  color: var(--rag-text, #0a1a14);
 }
 .assistant-message-shell {
   display: flex;
   flex-direction: column;
   gap: 0.45rem;
 }
+.rag-msg-role-label {
+  margin-bottom: 0.25rem;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--rag-accent, #2f7a64);
+}
+.rag-msg-status {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--rag-text-muted, #2f4a3c);
+}
+.rag-msg-status-dot {
+  display: inline-block;
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: 9999px;
+  background: var(--rag-accent, #2f7a64);
+}
+.rag-edit-textarea {
+  width: 100%;
+  border-radius: 0.65rem;
+  border: 1px solid var(--rag-glass-border-strong, rgba(45, 95, 72, 0.38));
+  background: rgba(255, 255, 255, 0.92);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  color: var(--rag-text, #0a1a14);
+  line-height: 1.5;
+}
+.rag-edit-textarea::placeholder {
+  color: var(--rag-text-muted, #2f4a3c);
+}
+.rag-edit-textarea:focus {
+  outline: none;
+  border-color: var(--rag-accent, #2f7a64);
+  box-shadow: 0 0 0 3px var(--rag-accent-soft, rgba(47, 122, 100, 0.14));
+}
+.rag-feedback-row {
+  margin-top: 0.4rem;
+  padding-top: 0.4rem;
+  border-top: 1px solid rgba(55, 100, 78, 0.16);
+}
+.rag-feedback-btn {
+  font-size: 11px;
+  border-radius: 0.45rem;
+  padding: 0.2rem 0.55rem;
+  font-weight: 650;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.rag-feedback-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.rag-feedback-btn--up {
+  border: 1px solid rgba(47, 122, 100, 0.35);
+  background: rgba(47, 122, 100, 0.1);
+  color: #1a5c48;
+}
+.rag-feedback-btn--up:hover:not(:disabled) {
+  background: rgba(47, 122, 100, 0.18);
+}
+.rag-feedback-btn--down {
+  border: 1px solid rgba(180, 35, 24, 0.3);
+  background: rgba(180, 35, 24, 0.06);
+  color: #912018;
+}
+.rag-feedback-btn--down:hover:not(:disabled) {
+  background: rgba(180, 35, 24, 0.12);
+}
 .rag-answer-main {
   font-size: 0.9rem;
   line-height: 1.65;
+  color: var(--rag-text, #0a1a14);
+}
+.rag-answer-empty {
+  margin: 0;
+  color: var(--rag-text-muted, #2f4a3c);
 }
 .rag-answer-body :deep(strong) {
-  color: rgba(248, 250, 252, 0.98);
-  font-weight: 600;
+  color: var(--rag-text, #0a1a14);
+  font-weight: 700;
 }
 .rag-answer-body :deep(p) {
   margin: 0;
-  color: rgba(248, 250, 252, 0.96);
+  color: var(--rag-text-secondary, #152a20);
   line-height: 1.7;
   font-size: 0.92rem;
+  font-weight: 500;
 }
 .rag-answer-body :deep(p + p) {
   margin-top: 0.7rem;
@@ -2652,13 +2729,14 @@ onUnmounted(() => {
   padding-left: 1.15rem;
 }
 .rag-answer-body :deep(li) {
-  color: rgba(248, 250, 252, 0.94);
+  color: var(--rag-text-secondary, #152a20);
   margin-top: 0.25rem;
+  font-weight: 500;
 }
 .rag-reply-footer {
   margin-top: 0.55rem;
   padding-top: 0.5rem;
-  border-top: 1px solid rgba(148, 163, 184, 0.12);
+  border-top: 1px solid rgba(55, 100, 78, 0.16);
 }
 .rag-footer-row {
   display: flex;
@@ -2683,7 +2761,8 @@ onUnmounted(() => {
 }
 .rag-strategy-hint {
   font-size: 0.62rem;
-  color: rgba(100, 116, 139, 0.85);
+  font-weight: 600;
+  color: var(--rag-text-muted, #2f4a3c);
   white-space: nowrap;
 }
 .rag-evidence-toggle {
@@ -2691,9 +2770,10 @@ onUnmounted(() => {
   align-items: center;
   gap: 0.3rem;
   font-size: 0.66rem;
-  color: rgba(125, 211, 252, 0.95);
-  background: rgba(14, 165, 233, 0.08);
-  border: 1px solid rgba(56, 189, 248, 0.22);
+  font-weight: 650;
+  color: #1a5c48;
+  background: rgba(47, 122, 100, 0.1);
+  border: 1px solid rgba(47, 122, 100, 0.32);
   border-radius: 9999px;
   padding: 0.16rem 0.5rem;
   cursor: pointer;
@@ -2701,12 +2781,12 @@ onUnmounted(() => {
   white-space: nowrap;
 }
 .rag-evidence-toggle:hover {
-  background: rgba(14, 165, 233, 0.16);
-  border-color: rgba(56, 189, 248, 0.38);
+  background: rgba(47, 122, 100, 0.18);
+  border-color: rgba(47, 122, 100, 0.48);
 }
 .rag-evidence-toggle-count {
   font-size: 0.62rem;
-  color: rgba(148, 163, 184, 0.9);
+  color: var(--rag-text-muted, #2f4a3c);
 }
 .rag-evidence-collapse-enter-active,
 .rag-evidence-collapse-leave-active {
@@ -2727,12 +2807,12 @@ onUnmounted(() => {
   margin-top: 0.45rem;
   padding: 0.45rem 0.5rem;
   border-radius: 0.55rem;
-  border: 1px solid rgba(148, 163, 184, 0.12);
-  background: rgba(15, 23, 42, 0.42);
+  border: 1px solid rgba(55, 100, 78, 0.18);
+  background: rgba(255, 255, 255, 0.88);
   max-height: 220px;
   overflow-y: auto;
   scrollbar-width: thin;
-  scrollbar-color: rgba(100, 116, 139, 0.45) transparent;
+  scrollbar-color: rgba(61, 139, 116, 0.45) transparent;
 }
 .rag-evidence-list {
   display: flex;
@@ -2742,7 +2822,8 @@ onUnmounted(() => {
 .rag-evidence-item {
   padding: 0.4rem 0.45rem;
   border-radius: 0.45rem;
-  background: rgba(2, 6, 23, 0.28);
+  background: rgba(47, 122, 100, 0.06);
+  border: 1px solid rgba(55, 100, 78, 0.1);
 }
 .rag-evidence-item-head {
   display: flex;
@@ -2758,25 +2839,25 @@ onUnmounted(() => {
   height: 1rem;
   border-radius: 9999px;
   font-size: 0.58rem;
-  font-weight: 600;
-  color: rgba(186, 230, 253, 0.9);
-  background: rgba(14, 165, 233, 0.15);
+  font-weight: 700;
+  color: #1a5c48;
+  background: rgba(47, 122, 100, 0.16);
   flex-shrink: 0;
 }
 .rag-evidence-source-inline {
   font-size: 0.62rem;
-  font-weight: 500;
-  color: rgba(125, 211, 252, 0.92);
+  font-weight: 650;
+  color: #1f6b55;
   background: transparent;
   border: none;
   padding: 0;
   cursor: pointer;
   text-decoration: underline;
   text-underline-offset: 2px;
-  text-decoration-color: rgba(56, 189, 248, 0.35);
+  text-decoration-color: rgba(47, 122, 100, 0.4);
 }
 .rag-evidence-source-inline:hover {
-  color: rgba(186, 230, 253, 1);
+  color: #0f4334;
 }
 .rag-evidence-quote {
   display: -webkit-box;
@@ -2786,35 +2867,36 @@ onUnmounted(() => {
 }
 .rag-evidence-quote :deep(.ev-heading) {
   font-size: 0.68rem;
-  font-weight: 600;
-  color: rgba(186, 230, 253, 0.82);
+  font-weight: 700;
+  color: var(--rag-text, #0a1a14);
   margin-bottom: 0.12rem;
 }
 .rag-evidence-quote :deep(.ev-line) {
   margin: 0;
   font-size: 0.72rem;
   line-height: 1.45;
-  color: rgba(203, 213, 225, 0.78);
+  color: var(--rag-text-secondary, #152a20);
 }
 .rag-evidence-quote :deep(.ev-bullet) {
   display: flex;
   gap: 0.3rem;
   font-size: 0.72rem;
   line-height: 1.4;
-  color: rgba(203, 213, 225, 0.78);
+  color: var(--rag-text-secondary, #152a20);
 }
 .rag-evidence-quote :deep(.ev-bullet-dot) {
-  color: rgba(56, 189, 248, 0.65);
+  color: var(--rag-accent, #2f7a64);
   flex-shrink: 0;
 }
 .rag-sources-inline {
   margin-top: 0.65rem;
   padding-top: 0.55rem;
-  border-top: 1px solid rgba(148, 163, 184, 0.12);
+  border-top: 1px solid rgba(55, 100, 78, 0.16);
 }
 .rag-sources-label {
   font-size: 0.64rem;
-  color: rgba(148, 163, 184, 0.75);
+  font-weight: 650;
+  color: var(--rag-text-muted, #2f4a3c);
   flex-shrink: 0;
 }
 .rag-source-chips {
@@ -2826,16 +2908,17 @@ onUnmounted(() => {
   display: inline-flex;
   align-items: center;
   border-radius: 9999px;
-  border: 1px solid rgba(56, 189, 248, 0.28);
-  background: rgba(14, 165, 233, 0.1);
+  border: 1px solid rgba(47, 122, 100, 0.35);
+  background: rgba(47, 122, 100, 0.1);
   padding: 0.18rem 0.55rem;
   font-size: 0.68rem;
-  color: rgba(186, 230, 253, 0.95);
+  font-weight: 650;
+  color: #1a5c48;
   cursor: pointer;
   transition: background 0.15s ease;
 }
 .rag-source-chip:hover {
-  background: rgba(14, 165, 233, 0.22);
+  background: rgba(47, 122, 100, 0.2);
 }
 .formatted-answer :deep(p) {
   margin: 0;
@@ -2854,9 +2937,10 @@ onUnmounted(() => {
 .formatted-answer :deep(pre) {
   margin: 0.75rem 0;
   overflow-x: auto;
-  border-radius: 1rem;
-  border: 1px solid rgba(148, 163, 184, 0.18);
-  background: rgba(2, 6, 23, 0.88);
+  border-radius: 0.85rem;
+  border: 1px solid rgba(55, 100, 78, 0.22);
+  background: rgba(15, 40, 30, 0.92);
+  color: #e8f5ef;
   padding: 0.9rem 1rem;
 }
 .formatted-answer :deep(code) {
@@ -2864,35 +2948,43 @@ onUnmounted(() => {
   font-size: 0.9em;
 }
 .formatted-answer :deep(:not(pre) > code) {
-  border-radius: 0.45rem;
-  background: rgba(15, 23, 42, 0.85);
-  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 0.4rem;
+  background: rgba(47, 122, 100, 0.12);
+  border: 1px solid rgba(55, 100, 78, 0.22);
+  color: #0f4334;
   padding: 0.12rem 0.34rem;
+  font-weight: 600;
 }
 .formatted-answer :deep(table) {
   border-collapse: collapse;
   width: 100%;
-  background: rgba(2, 6, 23, 0.35);
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(55, 100, 78, 0.18);
+  border-radius: 0.5rem;
+  overflow: hidden;
 }
 .formatted-answer :deep(th),
 .formatted-answer :deep(td) {
-  border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+  border-bottom: 1px solid rgba(55, 100, 78, 0.14);
   padding: 0.55rem 0.7rem;
   text-align: left;
   vertical-align: top;
+  color: var(--rag-text-secondary, #152a20);
 }
 .formatted-answer :deep(th) {
   font-size: 0.72rem;
-  color: rgba(191, 219, 254, 0.9);
+  color: var(--rag-text, #0a1a14);
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  background: rgba(15, 23, 42, 0.9);
+  background: rgba(47, 122, 100, 0.1);
+  font-weight: 700;
 }
 .formatted-answer :deep(footer button) {
   margin-top: 0.25rem;
 }
 .echarts-shell {
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.84), rgba(2, 6, 23, 0.9));
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(240, 248, 244, 0.94));
+  border: 1px solid rgba(55, 100, 78, 0.18);
 }
 .echarts-canvas {
   min-height: 18rem;
@@ -2903,30 +2995,40 @@ onUnmounted(() => {
 
 .msg-action-btn {
   font-size: 11px;
+  font-weight: 650;
   border-radius: 0.45rem;
-  border: 1px solid rgba(70, 120, 95, 0.22);
-  background: rgba(255, 255, 255, 0.45);
-  padding: 0.15rem 0.55rem;
-  color: #2f4a3c;
+  border: 1px solid rgba(55, 100, 78, 0.28);
+  background: rgba(255, 255, 255, 0.82);
+  padding: 0.2rem 0.6rem;
+  color: #1a2e24;
 }
 .msg-action-btn:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.96);
+  border-color: rgba(47, 122, 100, 0.45);
 }
 .msg-action-btn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
 .msg-action-primary {
-  border-color: rgba(61, 139, 116, 0.4);
-  background: rgba(61, 139, 116, 0.16);
-  color: #1a2e24;
+  border-color: rgba(47, 122, 100, 0.45);
+  background: rgba(47, 122, 100, 0.16);
+  color: #0f4334;
 }
 
 .rag-process-panel {
   border-radius: 0.75rem;
-  border: 1px solid rgba(70, 120, 95, 0.2);
-  background: rgba(255, 255, 255, 0.42);
+  border: 1px solid rgba(55, 100, 78, 0.22);
+  background: rgba(255, 255, 255, 0.88);
   overflow: hidden;
+}
+.rag-process-live-dot {
+  display: inline-block;
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: 9999px;
+  background: var(--rag-accent, #2f7a64);
+  flex-shrink: 0;
 }
 .rag-process-toggle {
   width: 100%;
@@ -2935,33 +3037,37 @@ onUnmounted(() => {
   gap: 0.45rem;
   padding: 0.45rem 0.65rem;
   font-size: 11px;
-  color: #2f4a3c;
+  font-weight: 650;
+  color: #1a2e24;
   text-align: left;
 }
 .rag-process-toggle:hover {
-  background: rgba(61, 139, 116, 0.08);
+  background: rgba(47, 122, 100, 0.08);
 }
 .rag-process-count {
-  color: #5a7264;
+  color: #2f4a3c;
   font-size: 10px;
+  font-weight: 600;
 }
 .rag-process-elapsed {
   margin-left: auto;
   font-variant-numeric: tabular-nums;
-  color: #3d8b74;
+  color: #1f6b55;
   font-size: 10px;
+  font-weight: 700;
 }
 .rag-process-chevron {
-  color: #5a7264;
+  color: #2f4a3c;
   font-size: 10px;
 }
 .rag-process-steps {
-  border-top: 1px solid rgba(70, 120, 95, 0.14);
+  border-top: 1px solid rgba(55, 100, 78, 0.14);
   padding: 0.35rem 0.55rem 0.5rem;
   max-height: 16rem;
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: rgba(61, 139, 116, 0.35) transparent;
+  background: rgba(248, 252, 249, 0.72);
 }
 .rag-process-step {
   display: flex;
@@ -2969,18 +3075,20 @@ onUnmounted(() => {
   gap: 0.45rem;
   font-size: 11px;
   line-height: 1.45;
-  color: #2f4a3c;
+  color: #1a2e24;
+  font-weight: 500;
   padding: 0.2rem 0;
 }
 .rag-process-step-ms {
   margin-left: auto;
   flex-shrink: 0;
   font-variant-numeric: tabular-nums;
-  color: #5a7264;
+  color: #2f4a3c;
   font-size: 9px;
+  font-weight: 600;
 }
 .rag-process-step.kind-phase .rag-process-dot {
-  background: #3d8b74;
+  background: #2f7a64;
 }
 .rag-process-dot {
   width: 6px;
@@ -2988,16 +3096,17 @@ onUnmounted(() => {
   border-radius: 9999px;
   margin-top: 0.35rem;
   flex-shrink: 0;
-  background: rgba(61, 139, 116, 0.65);
+  background: rgba(47, 122, 100, 0.75);
 }
 .rag-process-step.kind-node .rag-process-dot {
-  background: #6b8fd4;
+  background: #4a6fb8;
 }
 .rag-process-step.kind-tool .rag-process-dot {
-  background: #3d9a78;
+  background: #2f8a68;
 }
 .rag-process-step.kind-status .rag-process-text {
-  color: #327863;
+  color: #1f6b55;
+  font-weight: 650;
 }
 </style>
 

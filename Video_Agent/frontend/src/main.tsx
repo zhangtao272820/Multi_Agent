@@ -5,6 +5,7 @@ import ClawhiveLoginGate from "./ClawhiveLoginGate";
 import { installFetchAuth, isLoggedIn } from "./clawhiveAuth";
 import "@brand/index.css";
 import "./styles.css";
+import "./video-season.css";
 
 installFetchAuth();
 
@@ -17,7 +18,7 @@ function Root() {
   }, []);
   if (!ready) return null;
   if (!authed) return <ClawhiveLoginGate onSuccess={() => setAuthed(true)} />;
-  return <App />;
+  return <App onLogout={() => setAuthed(false)} />;
 }
 
 ReactDOM.createRoot(document.getElementById("root")!).render(

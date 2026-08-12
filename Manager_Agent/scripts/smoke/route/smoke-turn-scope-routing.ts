@@ -79,4 +79,66 @@ assert.equal(
   true
 )
 
+// Wave6 K1：continuation vs topic_shift 黄金集（无 LLM 时靠 intentBreak，禁关键词改 cap）
+{
+  const { shouldRunNlCoalesce } = await import('../../../server/graph/core/routing/nlResolve')
+  const shortFollow = [new HumanMessage('失能老人护理员配比标准是多少'), new HumanMessage('再详细一点')]
+  assert.equal(shouldRunNlCoalesce(shortFollow, '再详细一点'), true, 'short fragment coalesces')
+
+  const midNewTopic = [
+    new HumanMessage('从知识库检索失能老人护理员配比标准是多少并引用条文'),
+    new HumanMessage('老人一共有多少人')
+  ]
+  // 「老人一共有多少人」长度>24 且非极度短缩 → 不因纯长度 coalesce
+  assert.equal(shouldRunNlCoalesce(midNewTopic, '老人一共有多少人'), false, 'mid new topic not length-coalesce')
+
+  const noLlmShift = resolveTurnRoutingScope({
+    messages: midNewTopic,
+    lastUser: '老人一共有多少人',
+    sessionAnchor: {
+      primaryIntent: 'rag',
+      planShortcut: 'rag_only',
+      suggestedAgents: ['rag'],
+      isDbAnchored: false,
+      isMulti: false,
+      updatedAt: new Date().toISOString(),
+      lastExecutedAgents: ['rag']
+    },
+    intentClassify: {
+      primaryIntent: 'db',
+      planShortcut: 'db_only',
+      suggestedAgents: ['db'],
+      isDbAnchored: true,
+      isMulti: false,
+      confidence: 0.72,
+      dataSources: ['db']
+    }
+  })
+  assert.equal(noLlmShift.mode, 'topic_shift', 'intentBreak forces topic_shift without LLM')
+
+  const noLlmCont = resolveTurnRoutingScope({
+    messages: shortFollow,
+    lastUser: '再详细一点',
+    sessionAnchor: {
+      primaryIntent: 'rag',
+      planShortcut: 'rag_only',
+      suggestedAgents: ['rag'],
+      isDbAnchored: false,
+      isMulti: false,
+      updatedAt: new Date().toISOString(),
+      lastExecutedAgents: ['rag']
+    },
+    intentClassify: {
+      primaryIntent: 'rag',
+      planShortcut: 'rag_only',
+      suggestedAgents: ['rag'],
+      isDbAnchored: false,
+      isMulti: false,
+      confidence: 0.7,
+      dataSources: ['rag']
+    }
+  })
+  assert.equal(noLlmCont.mode, 'continuation', 'same-plane short followup = continuation')
+}
+
 console.log('smoke-turn-scope-routing ok')

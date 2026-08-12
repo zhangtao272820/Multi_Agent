@@ -20,6 +20,12 @@ dist/
 **/.data/
 backups/
 
+# Runtime traces / local DBs (never commit)
+**/agent-trace.jsonl
+**/*.db
+**/*.sqlite
+**/*.sqlite3
+
 # Crawler / agent runtime checkpoints & caches
 checkpoint_*.json
 **/cache_index.json
@@ -27,9 +33,7 @@ checkpoint_*.json
 # Generated docs (code_assistent_Agent writes at runtime)
 **/README.generated.md
 
-# Personal / local learning & design docs (do not push to Gitee)
-**/Agent知识-本地.md
-**/学习指南.md
+# Local scratch only (interview SSOT is docs/面试备战/)
 local-learning/
 
 # Upgrade / design docs — local only; README.md at project root stays tracked
@@ -72,3 +76,10 @@ Manage-platform_Agent/.local/
 # Ad-hoc temp scripts / dumps (never commit)
 **/_tmp*
 **/*_tmp_*
+
+# RAG_Agent local acceptance fixtures (upload-only; do not commit)
+RAG_Agent/data/testdata/
+
+# Local-only games (not part of the Agent monorepo product)
+Companion_Agent/
+Campus_Agent/

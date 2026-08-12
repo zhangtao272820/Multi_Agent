@@ -13,10 +13,10 @@ import { resolveOrchestratorPipeline } from '../../../server/graph/orchestrate/o
 import { resolveTurnRoutingScope } from '../../../server/graph/core/routing/turnScope'
 import { HumanMessage } from '@langchain/core/messages'
 
-process.env.MANAGER_ROUTE_MODE ??= 'convergence'
-process.env.MANAGER_PRO_MODE ??= 'strong'
-process.env.MANAGER_LLM_FIRST_ROUTE ??= '1'
-process.env.MANAGER_PLANE_COVERAGE_REJUDGE ??= '1'
+process.env.MANAGER_ROUTE_MODE = 'convergence'
+process.env.MANAGER_PRO_MODE = 'strong'
+process.env.MANAGER_LLM_FIRST_ROUTE = '1'
+process.env.MANAGER_PLANE_COVERAGE_REJUDGE = '1'
 
 function assert(cond: unknown, msg: string): void {
   if (!cond) throw new Error(msg)
@@ -184,6 +184,9 @@ const mockLlm = async (_stage: string, _state: unknown, messages: unknown[]) => 
       allowedAgents: ['db'],
       suggestedAgents: ['db'],
       isDbAnchored: true,
+      // 故意 ambiguous：逼出 planeCoverage（clear+db_only 会 skip_plane_cover）
+      sourceCommitment: 'ambiguous',
+      committedPlanes: [],
       planShortcut: 'db_only',
       intent: 'db',
       primaryIntent: 'db',
@@ -211,7 +214,7 @@ const pipe = await resolveOrchestratorPipeline({
     db: {
       matched: false,
       tables: [],
-      tableInventory: ['person_info', 'health_log', 'orders_meta']
+      tableInventory: ['sku_master', 'warehouses', 'orders_meta']
     },
     rag: {
       hits: 1,
@@ -233,5 +236,57 @@ assert(
   pipe.decision.planBlueprint?.steps?.some((s) => s.agent === 'rag'),
   'pipeline blueprint rag'
 )
+
+// —— Wave7：假 catalog 契约（无 p2026 / 养老专名）——
+{
+  const { formatRuntimeCatalogsForOrchestrator } = await import(
+    '../../../server/graph/core/probe/probeInterpretation'
+  )
+  const { assertNoDomainBleed } = await import('../fixtures/domainBleedDenyList')
+  const { CATALOG_ORDERS, CATALOG_COURSES } = await import('../fixtures/routeShapeCatalogs')
+
+  const ordersText = formatRuntimeCatalogsForOrchestrator(CATALOG_ORDERS)
+  assertNoDomainBleed(ordersText, 'plane-cover:orders catalog')
+  assert(ordersText.includes('orders') && ordersText.includes('refund_policy.md'), 'orders catalog names')
+
+  const coursesText = formatRuntimeCatalogsForOrchestrator(CATALOG_COURSES)
+  assertNoDomainBleed(coursesText, 'plane-cover:courses catalog')
+  assert(coursesText.includes('courses') && coursesText.includes('student_handbook.md'), 'courses catalog names')
+
+  // 禁止凭库存扩 multi：单面 flip 门禁不得把 dual 当成可翻面
+  assert(singleDataPlaneFromCap(['rag', 'db']) === null, 'dual never single')
+  assert(
+    gatePlaneCoverageFlip('db', {
+      dbCanAnswer: false,
+      ragCanAnswer: true,
+      preferredPlane: 'rag',
+      confidence: 0.95,
+      rationale: 'would-flip-if-single'
+    }) === 'rag',
+    'single-plane flip still ok'
+  )
+  // 库存存在但两侧都能答 → 不翻
+  assert(
+    gatePlaneCoverageFlip('rag', {
+      dbCanAnswer: true,
+      ragCanAnswer: true,
+      preferredPlane: 'db',
+      confidence: 0.95,
+      rationale: 'both'
+    }) === null,
+    'no flip when both can answer'
+  )
+
+  // 空库存跳过
+  assert(!catalogsHaveInventory({ db: { tableInventory: [] }, rag: { docInventory: [] } }), 'empty skip')
+  assert(
+    catalogsHaveInventory({
+      db: { tableInventory: ['sku_master', 'warehouses'] },
+      rag: { docInventory: ['ops_runbook.md'] }
+    }),
+    'synthetic inventory counts'
+  )
+  console.log('plane-coverage: Wave7 fake-catalog contract ok')
+}
 
 console.log('smoke-plane-coverage-rejudge: ok')

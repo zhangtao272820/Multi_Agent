@@ -161,7 +161,7 @@ async function runCurator() {
   try {
     const res = await $fetch<{ report?: { promotedHints?: string[] } }>("/api/learning/curate", {
       method: "POST",
-      body: { autoPromote: true },
+      body: { autoPromote: false },
     });
     await loadIntel();
     const n = res?.report?.promotedHints?.length ?? 0;

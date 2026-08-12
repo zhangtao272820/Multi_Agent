@@ -1,6 +1,6 @@
 # Manager Agent
 
-> **学习文档**：[入门](../docs/Agent学习指南-入门版.md) · [进阶](../docs/Agent学习指南-进阶版.md) · [Manager 专篇](学习指南.md) · [Star ⭐](https://gitee.com/assssshuhuhuh/agent/stargazers)
+> **面试讲义**：[备战入口](../docs/面试备战/00-使用说明与防穿帮.md) · [01 总管](../docs/面试备战/01-总管-Manager.md) · [06 协同](../docs/面试备战/06-多Agent协同.md) · [Star ⭐](https://gitee.com/assssshuhuhuh/agent/stargazers)
 
 多 Agent 矩阵的**编排总管**：统一 WebSocket 会话入口，用 LangGraph 做意图拆解、路由、规划与执行，调度下游专家服务，并支持人工确认、取消与反馈采集。默认端口 **13106**（平台服务名 `manager_agent`）。
 

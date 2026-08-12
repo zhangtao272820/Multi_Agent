@@ -18,6 +18,7 @@
     "smoke:person": "npx --yes tsx --tsconfig tsconfig.smoke.json scripts/smoke-person-basic-stats.ts",
     "smoke:person-info-a5": "npx --yes tsx --tsconfig tsconfig.smoke.json scripts/smoke-person-info-a5-path.ts",
     "smoke:nlu": "npx --yes tsx --tsconfig tsconfig.smoke.json scripts/smoke-db-nlu.ts",
+    "smoke:turn-scope": "npx --yes tsx --tsconfig tsconfig.smoke.json scripts/smoke-db-turn-scope.ts",
     "smoke:query-plan-prompt-packs": "npx --yes tsx --tsconfig tsconfig.smoke.json scripts/smoke-query-plan-prompt-packs.ts",
     "smoke:decompose": "npx --yes tsx --tsconfig tsconfig.smoke.json scripts/smoke-decompose-regression.ts",
     "smoke:structural-link": "npx --yes tsx --tsconfig tsconfig.smoke.json scripts/smoke-structural-link.ts",

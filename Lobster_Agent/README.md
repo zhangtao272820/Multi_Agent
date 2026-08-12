@@ -1,6 +1,6 @@
 # Lobster Agent
 
-> **学习文档**：[入门](../docs/Agent学习指南-入门版.md) · [进阶](../docs/Agent学习指南-进阶版.md) · [Lobster 专篇](学习指南.md)  
+> **面试讲义**：[备战入口](../docs/面试备战/00-使用说明与防穿帮.md) · [05 GUI](../docs/面试备战/05-GUI-Lobster.md)  
 > **协议 SSOT**：[Lobster升级SSOT](doc/Lobster升级SSOT.md) · [Docker 与宿主机动手](doc/Docker与宿主机动手部署.md)  
 > **能力升级规划**（与 Admin 双动手）：[`docs/动手Agent升级-Admin与Lobster.md`](../docs/动手Agent升级-Admin与Lobster.md)
 
@@ -19,7 +19,7 @@
 | verify / recover | 动作后校验；失败进入恢复分支 |
 | 风控 gate | 高风险动作限制或人工确认 |
 | 执行模式 | `auto`=网页 **Stagehand only**；`stagehand` / `mcp` / `classic` 为单引擎锁 |
-| Workflow Macro | `workflows/*.json` + 总管 `workflow_id`（含 runoob / httpbin） |
+| Workflow Macro | `workflows/*.json` + 总管 `workflow_id`（国内首选 w3school-form-* / runoob；httpbin 仅海外兜底） |
 | Hands 侧车 | `LOBSTER_HANDS_ONLY=1` · 默认 `:13109` · 见 [`hands/README.md`](hands/README.md) |
 | MCP 导出 | 默认可暴露 `/api/mcp`（见环境变量） |
 

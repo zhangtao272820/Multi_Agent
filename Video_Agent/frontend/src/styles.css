@@ -17,9 +17,13 @@
 
 body {
   margin: 0;
-  background: radial-gradient(1200px 600px at 20% -10%, #1a2840 0%, var(--bg) 55%);
+  background: transparent;
   color: var(--text);
   min-height: 100vh;
+}
+
+html {
+  background: #0e1824;
 }
 
 .layout {

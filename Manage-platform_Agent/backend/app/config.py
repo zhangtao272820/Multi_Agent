@@ -104,6 +104,8 @@ class Settings(BaseModel):
     ai_agent_port: str = Field(default_factory=lambda: getenv("AI_AGENT_PORT", "13112"))
     ai_agent_host: str = Field(default_factory=lambda: getenv("AI_AGENT_HOST", "localhost"))
     clawhive_internal_token: str = Field(default_factory=lambda: getenv("CLAWHIVE_INTERNAL_TOKEN", ""))
+    # Manager /api/manager/ops 要求 x-manager-ops-token；与 manager_agent 的 MANAGER_OPS_TOKEN 对齐
+    manager_ops_token: str = Field(default_factory=lambda: getenv("MANAGER_OPS_TOKEN", ""))
     clawhive_image_tag: str = Field(default_factory=lambda: getenv("CLAWHIVE_IMAGE_TAG", "prod"))
     skill_registry_urls: str = Field(default_factory=lambda: getenv("SKILL_REGISTRY_URLS", ""))
     skill_registry_token: str = Field(default_factory=lambda: getenv("SKILL_REGISTRY_TOKEN", ""))

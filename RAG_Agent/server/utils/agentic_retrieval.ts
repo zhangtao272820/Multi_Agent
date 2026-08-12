@@ -50,6 +50,9 @@ export async function rewriteQueryForAgenticRetrieval(params: {
     "2) 可换表述、拆关键词；扩词须优先依据【知识库目录】中的文件名/摘要术语；",
     "3) 不要编造目录中未出现的专有名词；",
     "4) 只输出一条问句，不要解释、不要序号。",
+    params.retrievalFailureMode === "false_negative_miss"
+      ? "5) 失败类型为假阴性：上一轮可能命中近义片段但未覆盖问题核心实体；请改写以区分易混淆对象，并优先对齐【知识库目录】中不同文档的专有表述。"
+      : "",
     `【知识库目录】\n${catalog}`,
     `原始问题：${params.originalQuery}`,
     `上一轮问句：${params.failedQuery}`,
@@ -95,6 +98,7 @@ export function shouldAttemptAgenticRetry(params: {
     params.clarifyReason === "zero_hits" ||
     params.clarifyReason === "weak_evidence" ||
     params.clarifyReason === "ambiguous_low_confidence" ||
-    params.clarifyReason === "evidence_filtered_off_topic"
+    params.clarifyReason === "evidence_filtered_off_topic" ||
+    params.clarifyReason === "false_negative_miss"
   );
 }

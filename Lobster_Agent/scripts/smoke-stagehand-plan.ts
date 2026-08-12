@@ -9,6 +9,9 @@ import {
   stagehandStepInstruction,
 } from '../server/services/stagehandPlanLoop'
 import { defaultPlanStepsForTask } from '../server/services/lobsterTaskUnderstandSchema'
+import { isInstructionalFillTarget } from '../server/services/stagehandPlaywrightBridge'
+import { extractFormFieldsHeuristic } from '../server/services/lobsterFormFill'
+import { matchSiteRecipe } from '../server/services/siteRecipes'
 import { isLobsterRetryableFailure } from '../../shared/lobsterRunVerifyLite'
 import {
   clearPlaybookCacheForTests,
@@ -31,6 +34,29 @@ assert.ok(steps.length >= 2, 'plan has steps')
 assert.equal(steps[0]?.op, 'goto')
 assert.ok(steps.some((s) => s.op === 'click'), 'has click')
 assert.ok(steps.some((s) => s.op === 'extract'), 'has extract')
+
+const formPlan = defaultPlanStepsForTask({
+  task: '打开 https://www.w3school.com.cn/html/html_forms.asp ，First name 填张三，Last name 填李四，不要点 Submit',
+  startUrl: 'https://www.w3school.com.cn/html/html_forms.asp',
+  taskKind: 'form_fill',
+})
+assert.ok(formPlan.some((s) => s.op === 'type'), 'form plan has type')
+const typeTarget = String(formPlan.find((s) => s.op === 'type')?.target || '')
+assert.ok(typeTarget.includes('张三') || typeTarget.includes('用户任务'), 'type target carries task constraint')
+assert.equal(isInstructionalFillTarget('按任务填写表单字段'), true)
+assert.equal(isInstructionalFillTarget(typeTarget), true, 'default form type target is instructional → act path')
+assert.equal(isInstructionalFillTarget('alice'), false)
+const cnRecipe = matchSiteRecipe('填表', 'https://www.w3school.com.cn/html/html_forms.asp')
+assert.equal(cnRecipe?.id, 'w3school-cn')
+assert.ok((cnRecipe?.formFields?.length || 0) >= 2, 'cn recipe has formFields')
+assert.equal(goalsNeedLeaveStart({ must_leave_start: false }, '打开表单填张三，不要点 Submit', 'form_fill'), false)
+assert.equal(goalsNeedLeaveStart({ must_submit: true, expected_url_change: true }, '不要点 Submit', 'form_fill'), false)
+
+const heur = extractFormFieldsHeuristic(
+  '打开 https://www.w3school.com.cn/html/html_forms.asp ，First name 填张三，Last name 填李四，不要点 Submit。',
+)
+assert.equal(heur.find((f) => f.key === 'first_name')?.value, '张三')
+assert.equal(heur.find((f) => f.key === 'last_name')?.value, '李四')
 
 const resolved = resolveStagehandPlanSteps({
   task: '填表',

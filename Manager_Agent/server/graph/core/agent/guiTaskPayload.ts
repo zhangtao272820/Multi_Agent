@@ -15,7 +15,7 @@ const BROWSER_PROFILE_RE = /(?:browser[_\s-]?profile|浏览器\s*profile|profile
 const DESKTOP_TASK_RE =
   /(记事本|Notepad|桌面|Windows\s*应用|原生应用|Excel|Word|PowerPoint|设置|控制面板|资源管理器|Explorer|保存到桌面|Win\s*App|UWP|系统设置)/i
 
-/** Windows 原生桌面任务（无 http(s) URL）→ engine=desktop */
+/** Windows 原生桌面任务（无 http(s) URL）→ engine=desktop。兼容兜底，主路径用 task_kind。 */
 export function isDesktopGuiTask(task: string, startUrl?: string): boolean {
   const url = String(startUrl || '').trim()
   if (url && /^https?:\/\//i.test(url)) return false
@@ -23,8 +23,28 @@ export function isDesktopGuiTask(task: string, startUrl?: string): boolean {
 }
 
 /**
+ * 桌面 Hands 分流真源：task_kind / 显式引擎 hint；关键词仅 unknown 时兜底。
+ * mobile_app 不走 Hands（Windows sidecar），由 Lobster mobile 引擎处理。
+ */
+export function resolveIsDesktopGuiTask(input: {
+  taskKind?: string | null
+  engineHint?: string | null
+  task: string
+  startUrl?: string
+}): boolean {
+  const kind = String(input.taskKind || '').trim()
+  if (kind === 'desktop_app') return true
+  if (kind === 'mobile_app') return false
+  const hint = String(input.engineHint || '').trim().toLowerCase()
+  if (hint === 'desktop') return true
+  if (hint === 'mobile') return false
+  if (kind && kind !== 'unknown') return false
+  return isDesktopGuiTask(input.task, input.startUrl)
+}
+
+/**
  * 显式调用方 hint 语法（非意图识别主路径）：
- * - `工作流:httpbin-form-fill` / `customer_name=xxx`
+ * - `工作流:w3school-form-fill` / `first_name=张三` / `last_name=李四` / `customer_name=xxx`
  * - `引擎:classic|mcp|stagehand|desktop`
  * - `profile:managed|user` / `登录态:profile`
  * 语义上的 workflow / task_kind 由 LLM（guiOperateKind）判定；本函数只剥离显式标注。
@@ -72,10 +92,22 @@ export function parseGuiTaskHints(task: string): {
     t = t.replace(wfMatch[0], '').trim()
   }
 
-  const custMatch = t.match(/(?:customer[_\s-]?name|客户名|姓名)\s*[=:：]\s*([^\s,，]+)/i)
+  const custMatch = t.match(/(?:customer[_\s-]?name|客户名)\s*[=:：]\s*([^\s,，]+)/i)
   if (custMatch?.[1]) {
     workflowArgs.customer_name = custMatch[1].trim()
     t = t.replace(custMatch[0], '').trim()
+  }
+
+  const firstMatch = t.match(/(?:first[_\s-]?name)\s*[=:：]\s*([^\s,，]+)/i)
+  if (firstMatch?.[1]) {
+    workflowArgs.first_name = firstMatch[1].trim()
+    t = t.replace(firstMatch[0], '').trim()
+  }
+
+  const lastMatch = t.match(/(?:last[_\s-]?name)\s*[=:：]\s*([^\s,，]+)/i)
+  if (lastMatch?.[1]) {
+    workflowArgs.last_name = lastMatch[1].trim()
+    t = t.replace(lastMatch[0], '').trim()
   }
 
   if (!engineHint && isDesktopGuiTask(t)) engineHint = 'desktop'
@@ -128,9 +160,9 @@ export function buildGuiResultForManager(
     if (workflowId) lines.push(`工作流：${workflowId}`)
     if (answer) lines.push(answer.slice(0, 1200))
     lines.push(
-      agentResult?.ok === false || agentResult?.needs_clarify
-        ? '状态：未完全成功（可能需 HITL / 登录确认）'
-        : '状态：已执行操作',
+      agentResult?.ok === true
+        ? '状态：已执行操作'
+        : '状态：未完全成功（可能需 HITL / 登录确认）',
     )
     if (engine) lines.push(`引擎：${engine}`)
     if (finalUrl) lines.push(`页面：${finalUrl}`)

@@ -4,7 +4,10 @@ import {
   promotePromptPatch,
   promotePromptPatchVerified,
 } from "../../../utils/prompt_evolution";
-import { isPromoteVerifyRequired } from "#agent-shared/evolutionPromotePolicy";
+import {
+  isExpertAutoPromoteAllowed,
+  isPromoteVerifyRequired,
+} from "#agent-shared/evolutionPromotePolicy";
 import { DB_AGENT_DEFAULTS } from "../../../utils/db_agent_env";
 import { ensureRateLimit } from "../../../utils/rate";
 
@@ -17,6 +20,14 @@ export default defineEventHandler(async (event) => {
   } | null;
 
   if (body?.auto) {
+    if (!isExpertAutoPromoteAllowed()) {
+      return {
+        ok: false,
+        reason: "expert_auto_promote_disabled",
+        promoted: [],
+        count: 0,
+      };
+    }
     const minHits = Number.isFinite(body.minHits)
       ? Number(body.minHits)
       : DB_AGENT_DEFAULTS.promptPromoteMinHits;
@@ -33,6 +44,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: "请提供 patchId 或 auto=true" });
   }
 
+  // 人审单条：默认 verify；仅 EVO_ALLOW_UNVERIFIED_PROMOTE=1 可裸晋级
   const res = isPromoteVerifyRequired()
     ? await promotePromptPatchVerified(patchId)
     : promotePromptPatch(patchId);

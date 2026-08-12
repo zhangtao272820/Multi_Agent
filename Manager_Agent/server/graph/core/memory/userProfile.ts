@@ -5,6 +5,15 @@ import { resolveUserKey } from '#agent-shared/resolveUserKey'
 import { resolveStorageBackend, shouldWriteFile, shouldWritePostgres } from '#agent-shared/storageBackend'
 import { sanitizeUserId } from '../task/userIdentity'
 
+export type UserProfilePrefs = {
+  /** IANA 时区，弱 hint */
+  timezone?: string
+  /** 常用专家 cap，弱 hint，禁止扩写路由 */
+  preferredAgents?: string[]
+  /** 拒答/谨慎偏好说明 */
+  refusePreference?: string
+}
+
 export type UserProfile = {
   sessionId: string
   userId?: string
@@ -19,6 +28,64 @@ export type UserProfile = {
   recentSuccessSummaries: string[]
   prefersRag?: boolean
   prefersDb?: boolean
+  /** 弱 CRM 结构化偏好 */
+  prefs?: UserProfilePrefs
+}
+
+/** Wave6：热路径反馈 → 弱 prefs（不得改 cap） */
+export function prefsPatchFromFeedbackSignal(input: {
+  feedbackScore?: number | null
+  implicitKind?: string | null
+  successScore?: number | null
+  preferredAgentsHint?: string[] | null
+}): UserProfilePrefs | null {
+  const patch: UserProfilePrefs = {}
+  const fb = typeof input.feedbackScore === 'number' ? input.feedbackScore : null
+  const kind = String(input.implicitKind || '').trim()
+  if (kind === 'human_reject' || kind === 'user_cancel' || (fb != null && fb <= 0.35)) {
+    patch.refusePreference = '用户近期对答案不满意或取消；优先证据与澄清，勿硬编'
+  }
+  if (fb != null && fb >= 0.78) {
+    const agents = (input.preferredAgentsHint || []).map((a) => String(a || '').trim()).filter(Boolean).slice(0, 6)
+    if (agents.length) patch.preferredAgents = agents
+  }
+  if (typeof input.successScore === 'number' && input.successScore >= 0.85 && !patch.preferredAgents) {
+    const agents = (input.preferredAgentsHint || []).map((a) => String(a || '').trim()).filter(Boolean).slice(0, 6)
+    if (agents.length) patch.preferredAgents = agents
+  }
+  if (!patch.refusePreference && !patch.preferredAgents && !patch.timezone) return null
+  return patch
+}
+
+export async function applyHotPathPrefsFromSignal(
+  policyDir: string,
+  userId: string | undefined,
+  signal: {
+    feedbackScore?: number | null
+    implicitKind?: string | null
+    successScore?: number | null
+    preferredAgentsHint?: string[] | null
+    tenantId?: string
+  }
+): Promise<UserProfile | null> {
+  const uid = sanitizeUserId(userId || '')
+  if (!uid) return null
+  const patch = prefsPatchFromFeedbackSignal(signal)
+  if (!patch) return null
+  return updateUserProfilePrefs(policyDir, uid, patch, signal.tenantId)
+}
+
+/** Trace / ops 可读的弱画像摘要（非 CRM 产品） */
+export function summarizeWeakProfileForTrace(profile: UserProfile | null): Record<string, unknown> | null {
+  if (!profile || profile.runCount < 1) return null
+  return {
+    runCount: profile.runCount,
+    successCount: profile.successCount,
+    lastIntent: profile.lastIntent || null,
+    prefersRag: Boolean(profile.prefersRag),
+    prefersDb: Boolean(profile.prefersDb),
+    prefs: profile.prefs || null
+  }
 }
 
 const PROFILE_FILE = 'manager-user-profiles.json'
@@ -69,6 +136,18 @@ function coerceProfile(raw: unknown, fallbackSessionId = ''): UserProfile | null
   const summaries = Array.isArray(o.recentSuccessSummaries)
     ? o.recentSuccessSummaries.map((x) => String(x || '').trim()).filter(Boolean).slice(-5)
     : []
+  const prefsRaw = o.prefs && typeof o.prefs === 'object' ? (o.prefs as Record<string, unknown>) : null
+  const prefs: UserProfilePrefs | undefined = prefsRaw
+    ? {
+        timezone: prefsRaw.timezone ? String(prefsRaw.timezone).slice(0, 64) : undefined,
+        preferredAgents: Array.isArray(prefsRaw.preferredAgents)
+          ? prefsRaw.preferredAgents.map((x) => String(x || '').trim()).filter(Boolean).slice(0, 8)
+          : undefined,
+        refusePreference: prefsRaw.refusePreference
+          ? String(prefsRaw.refusePreference).slice(0, 200)
+          : undefined,
+      }
+    : undefined
   return {
     sessionId: String(o.sessionId || fallbackSessionId || ''),
     userId: o.userId ? String(o.userId) : undefined,
@@ -81,7 +160,8 @@ function coerceProfile(raw: unknown, fallbackSessionId = ''): UserProfile | null
     intentCounts,
     recentSuccessSummaries: summaries,
     prefersRag: Boolean(o.prefersRag),
-    prefersDb: Boolean(o.prefersDb)
+    prefersDb: Boolean(o.prefersDb),
+    prefs,
   }
 }
 
@@ -148,8 +228,50 @@ function mergeProfiles(session: UserProfile | null, user: UserProfile | null): U
     intentCounts,
     recentSuccessSummaries: summaries,
     prefersRag: session.prefersRag || user.prefersRag,
-    prefersDb: session.prefersDb || user.prefersDb
+    prefersDb: session.prefersDb || user.prefersDb,
+    prefs: { ...(user.prefs || {}), ...(session.prefs || {}) },
   }
+}
+
+/** 更新弱 CRM prefs（不改路由 cap；仅注入 composer hint） */
+export async function updateUserProfilePrefs(
+  policyDir: string,
+  userId: string,
+  prefs: UserProfilePrefs,
+  tenantId?: string
+): Promise<UserProfile | null> {
+  const uid = sanitizeUserId(userId)
+  if (!uid) return null
+  const prev = await loadUserProfile(policyDir, '', uid, tenantId)
+  const next: UserProfile = {
+    sessionId: prev?.sessionId || '',
+    userId: uid,
+    updatedAt: new Date().toISOString(),
+    runCount: prev?.runCount || 1,
+    successCount: prev?.successCount || 0,
+    intentCounts: prev?.intentCounts || {},
+    recentSuccessSummaries: prev?.recentSuccessSummaries || [],
+    lastIntent: prev?.lastIntent,
+    lastPath: prev?.lastPath,
+    lastScenarioKey: prev?.lastScenarioKey,
+    prefersRag: prev?.prefersRag,
+    prefersDb: prev?.prefersDb,
+    prefs: {
+      ...(prev?.prefs || {}),
+      ...prefs,
+      preferredAgents: prefs.preferredAgents ?? prev?.prefs?.preferredAgents,
+    },
+  }
+  const backend = profileStorageBackend()
+  if (shouldWritePostgres(backend)) {
+    await savePgUserProfile(uid, next, tenantId)
+  }
+  if (shouldWriteFile(backend) || !isPgProfileEnabled()) {
+    const all = await readProfiles(policyDir)
+    all[userKey(uid)] = next
+    await writeProfiles(policyDir, all)
+  }
+  return next
 }
 
 function applyRunToProfile(
@@ -183,7 +305,8 @@ function applyRunToProfile(
     intentCounts,
     recentSuccessSummaries: [...(prev?.recentSuccessSummaries || [])],
     prefersRag: Boolean(run.probeRagHits && run.probeRagHits > 0) || prev?.prefersRag,
-    prefersDb: Boolean(run.probeDbMatched) || prev?.prefersDb
+    prefersDb: Boolean(run.probeDbMatched) || prev?.prefersDb,
+    prefs: prev?.prefs,
   }
 
   if (score >= 0.75) {
@@ -274,6 +397,13 @@ export function formatUserProfileBlock(profile: UserProfile | null, scope?: 'ses
     profile.prefersRag ? '- 历史倾向：知识库/RAG' : '',
     profile.prefersDb ? '- 历史倾向：数据库/结构化查询' : ''
   ]
+  if (profile.prefs?.timezone) lines.push(`- 时区偏好：${profile.prefs.timezone}（弱参考）`)
+  if (profile.prefs?.preferredAgents?.length) {
+    lines.push(`- 常用专家偏好：${profile.prefs.preferredAgents.join('、')}（弱参考，不得据此扩写 allowedAgents）`)
+  }
+  if (profile.prefs?.refusePreference) {
+    lines.push(`- 拒答偏好：${profile.prefs.refusePreference}（弱参考）`)
+  }
   if (profile.recentSuccessSummaries.length) {
     lines.push('- 近期成功任务摘要：')
     for (const s of profile.recentSuccessSummaries.slice(-3)) {

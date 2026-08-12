@@ -145,6 +145,8 @@ async function runBrowserTaskTool(args: Record<string, unknown>, cfg: any) {
     taskKind: hints.taskKind,
     needsLogin: hints.needsLogin,
     siteRecipeId: hints.siteRecipeId,
+    successCriteria: hints.successCriteria,
+    maxInteractionSteps: hints.maxInteractionSteps,
   })
   const runId = startRun({
     task,

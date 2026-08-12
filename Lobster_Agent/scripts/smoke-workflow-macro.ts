@@ -22,6 +22,8 @@ clearLobsterWorkflowCache()
 const ids = listLobsterWorkflowIds()
 assert(ids.includes('httpbin-form-fill'), `ids=${ids.join(',')}`)
 assert(ids.includes('httpbin-form-submit'), 'httpbin-form-submit macro')
+assert(ids.includes('w3school-form-fill'), 'w3school-form-fill macro')
+assert(ids.includes('w3school-form-submit'), 'w3school-form-submit macro')
 assert(ids.includes('runoob-click-extract'), 'runoob-click-extract macro')
 
 const def = loadLobsterWorkflow('httpbin-form-fill')
@@ -36,6 +38,18 @@ assert(runoob.steps.some((s) => s.action === 'extract'), 'runoob extract')
 const submit = loadLobsterWorkflow('httpbin-form-submit')
 assert(submit.steps.some((s) => s.action === 'approve'), 'submit approve')
 assert(submit.steps.some((s) => s.action === 'click'), 'submit click')
+
+const w3 = loadLobsterWorkflow('w3school-form-fill')
+assert(w3.steps.filter((s) => s.action === 'type').length >= 2, 'w3school two fields')
+assert(w3.args.includes('first_name') && w3.args.includes('last_name'), 'w3school name args')
+const w3vars = resolveWorkflowArgs(w3, {
+  first_name: '张三',
+  last_name: '李四',
+  startUrl: 'https://www.w3school.com.cn/html/html_forms.asp',
+})
+assertRequiredWorkflowArgs(w3, w3vars)
+const w3Submit = loadLobsterWorkflow('w3school-form-submit')
+assert(w3Submit.steps.some((s) => s.action === 'click'), 'w3school submit click')
 
 const vars = resolveWorkflowArgs(def, {
   customer_name: 'alice',

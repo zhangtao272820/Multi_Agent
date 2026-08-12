@@ -206,7 +206,12 @@ export async function runLobsterDesktopMcpAgent(params: RunParams) {
     tools = await listMcpTools(servers)
     if (!tools.length) throw new Error('lobster_desktop_no_tools')
 
-    const maxSteps = lobsterDesktopMcpMaxSteps()
+    const maxStepsEnv = lobsterDesktopMcpMaxSteps()
+    const mgrSteps = Number(params.taskSpec?.max_interaction_steps)
+    const maxSteps =
+      Number.isFinite(mgrSteps) && mgrSteps > 0
+        ? Math.min(maxStepsEnv, Math.floor(mgrSteps))
+        : maxStepsEnv
     const loopTracker = new McpToolLoopTracker()
     const messages: Array<SystemMessage | HumanMessage> = [
       new SystemMessage(buildSystemPrompt(tools, params.task, params.taskSpec)),

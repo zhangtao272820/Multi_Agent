@@ -12,6 +12,12 @@ export type ResultPageHints = {
   channelHomeExclude?: string[]
 }
 
+export type SiteFormField = {
+  key: string
+  selectors: string[]
+  aliases?: string[]
+}
+
 export type SiteRecipe = {
   id: string
   hosts: RegExp
@@ -27,6 +33,8 @@ export type SiteRecipe = {
   actTemplate?: string
   /** 结果页 / 列表态契约（verify · open_first 根） */
   resultPageHints?: ResultPageHints
+  /** form_fill 确定性 Playwright 字段映射 */
+  formFields?: SiteFormField[]
 }
 
 const RECIPES: SiteRecipe[] = [
@@ -98,7 +106,10 @@ const RECIPES: SiteRecipe[] = [
     preferredEngine: 'stagehand',
     mcpHints: ['httpbin 表单字段 name=custname，提交前 snapshot 确认。'],
     stagehandHints: ['custname 字段填写后勿提交，除非用户明确要求。'],
-    actTemplate: '在 custname 输入框填写用户指定的值'
+    actTemplate: '在 custname 输入框填写用户指定的值',
+    formFields: [
+      { key: 'customer_name', selectors: ['input[name="custname"]', '#custname'], aliases: ['custname', 'Customer name'] },
+    ],
   },
   {
     id: 'example',
@@ -108,15 +119,46 @@ const RECIPES: SiteRecipe[] = [
     stagehandHints: ['单页 extract title 与第一个 a 标签。']
   },
   {
+    id: 'w3school-cn',
+    hosts: /w3school\.com\.cn/i,
+    preferredEngine: 'stagehand',
+    mcpHints: [
+      'W3School 中文站 HTML 表单示例页：First name=#fname，Last name=#lname。',
+      '用户未要求提交时不要点 Submit。',
+    ],
+    stagehandHints: [
+      '在 #fname / input[name=fname] 与 #lname / input[name=lname] 填入任务中的姓名值。',
+      '勿点 Submit，除非用户明确要求提交。',
+    ],
+    actTemplate:
+      '在 First name（#fname）与 Last name（#lname）填入用户任务中的姓名；未要求提交则不要点 Submit',
+    formFields: [
+      {
+        key: 'first_name',
+        selectors: ['input#fname', 'input[name="fname"]'],
+        aliases: ['fname', 'First name', '名'],
+      },
+      {
+        key: 'last_name',
+        selectors: ['input#lname', 'input[name="lname"]'],
+        aliases: ['lname', 'Last name', '姓'],
+      },
+    ],
+  },
+  {
     id: 'w3schools',
     hosts: /w3schools\.com/i,
     preferredEngine: 'stagehand',
     complex: true,
     mcpHints: [
-      'W3Schools 有 cookie 同意条，先点 Accept all / 同意。',
-      '教程列表在左侧或主内容区；搜索框在顶部。'
+      '英文 W3Schools 有 cookie 同意条，先点 Accept all / 同意。',
+      '表单演示常在 iframe/tryit 内；优先用 act，勿盲填顶层 input:visible。',
+      '教程列表在左侧或主内容区；搜索框在顶部。',
     ],
-    stagehandHints: ['先关闭 cookie 横幅再操作。']
+    stagehandHints: [
+      '先关闭 cookie 横幅再操作。',
+      '表单若在 iframe 内，对 iframe 内字段操作；禁止把步骤说明当作输入值。',
+    ],
   },
   {
     id: 'github',

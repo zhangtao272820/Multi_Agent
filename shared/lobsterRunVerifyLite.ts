@@ -241,6 +241,59 @@ function isOpenOnlyBrowseTask(task: string): boolean {
   return !/(点击|进入|first|第一条|搜索|search|查找|抽取|提取|列表|items)/i.test(t)
 }
 
+/** 填表任务：同页完成，禁止用「打开/First name」误判成须离页导航 */
+export function isFormFillBrowseTask(task: string, result?: unknown): boolean {
+  const row = resultPayload(result)
+  const kind = String(row.task_kind || row.taskKind || '').trim().toLowerCase()
+  if (kind === 'form_fill' || kind === 'login') return true
+  const enginePath = String(
+    (row.stats && typeof row.stats === 'object'
+      ? (row.stats as Record<string, unknown>).enginePath
+      : '') || '',
+  )
+  if (enginePath === 'playwright_form') return true
+  const t = String(task || '')
+  if (/(填|填写|form\s*fill|输入框|First\s*name|Last\s*name|custname|Customer\s*name)/i.test(t)) {
+    // 明确点进详情/搜索的复合句不算纯填表
+    if (/(点击第一个|进入详情|搜索|search)/i.test(t) && !/(填|填写)/i.test(t)) return false
+    return true
+  }
+  return false
+}
+
+export function collectFormFilledEvidence(result: unknown): Array<{ key: string; value: string }> {
+  const row = resultPayload(result)
+  const out: Array<{ key: string; value: string }> = []
+  const push = (k: unknown, v: unknown) => {
+    const key = String(k || '').trim()
+    const value = String(v || '').trim()
+    if (key && value && !out.some((x) => x.key === key)) out.push({ key, value })
+  }
+  if (Array.isArray(row.filled)) {
+    for (const it of row.filled) {
+      if (it && typeof it === 'object') {
+        push((it as any).key, (it as any).value)
+      }
+    }
+  }
+  const data = Array.isArray(row.data) ? row.data : []
+  for (const chunk of data) {
+    if (!chunk || typeof chunk !== 'object') continue
+    const filled = (chunk as Record<string, unknown>).filled
+    if (Array.isArray(filled)) {
+      for (const it of filled) {
+        if (it && typeof it === 'object') push((it as any).key, (it as any).value)
+      }
+    }
+  }
+  const answer = String(row.answer || '').trim()
+  const m = answer.matchAll(/([a-zA-Z0-9_\u4e00-\u9fff]+)=([^\s；;，,]+)/g)
+  for (const hit of m) {
+    if (hit[1] && hit[2] && /已填/.test(answer)) push(hit[1], hit[2])
+  }
+  return out
+}
+
 function hasMeaningfulTaskOutput(task: string, result: unknown): boolean {
   const row = resultPayload(result)
   const items = collectResultItems(result)
@@ -255,6 +308,14 @@ function hasMeaningfulTaskOutput(task: string, result: unknown): boolean {
   if (isDesktopAppTask(task, result)) {
     const desktop = verifyDesktopAppOutput(task, result)
     return desktop?.ok === true
+  }
+
+  // form_fill：必须看 filled 证据，禁止首页标题/空 items 冒充成功
+  if (isFormFillBrowseTask(task, result)) {
+    const filled = collectFormFilledEvidence(result)
+    if (filled.length > 0) return true
+    if (/已填\s+\S+=/.test(answer)) return true
+    return false
   }
 
   if (items.length > 0 && !CAPTCHA_URL_RE.test(finalUrl)) return true
@@ -446,6 +507,7 @@ export function verifyLobsterRunResult(input: LobsterRunVerifyInput): LobsterRun
       const finalUrlEarly = String(rowEarly.finalUrl || rowEarly.url || '').trim()
       const itemsEarly = collectResultItems(input.result)
       if (
+        !isFormFillBrowseTask(task, input.result) &&
         /(打开|点击|进入|first|第一条)/i.test(task) &&
         !isOpenOnlyBrowseTask(task) &&
         isLikelyStartPageOnly(task, finalUrlEarly) &&
@@ -494,18 +556,34 @@ export function verifyLobsterRunResult(input: LobsterRunVerifyInput): LobsterRun
   const blob = [answer, collectResultText(input.result), finalUrl].filter(Boolean).join('\n')
 
   // 龙虾显式标记与总管对齐：未离开起始页 / 未验证导航
+  // form_fill 同页完成：即使上游误标 navigation_unverified，有 filled 证据则放行；无证据则改 success_criteria_unmet
   if (failureType === 'navigation_unverified') {
-    return {
-      ok: false,
-      reason: 'navigation_unverified',
-      failureType: 'navigation_unverified',
-      hints: [finalUrl ? `仍停留在起始页：${finalUrl}` : '导航未完成'],
+    if (isFormFillBrowseTask(task, input.result)) {
+      const filled = collectFormFilledEvidence(input.result)
+      if (filled.length > 0) {
+        // fall through — 填表成功证据优先
+      } else {
+        return {
+          ok: false,
+          reason: 'success_criteria_unmet',
+          failureType: 'success_criteria_unmet',
+          hints: [finalUrl ? `填表未完成（仍在表单页）：${finalUrl}` : '填表字段未校验成功'],
+        }
+      }
+    } else {
+      return {
+        ok: false,
+        reason: 'navigation_unverified',
+        failureType: 'navigation_unverified',
+        hints: [finalUrl ? `仍停留在起始页：${finalUrl}` : '导航未完成'],
+      }
     }
   }
 
   if (failureType.startsWith('incomplete') || isIncompleteRunAnswer(blob)) {
     // 要求点击/进入但仍停在起始页：优先 navigation_unverified（比笼统 incomplete 可操作）
     if (
+      !isFormFillBrowseTask(task, input.result) &&
       /(打开|点击|进入|first|第一条)/i.test(task) &&
       !isOpenOnlyBrowseTask(task) &&
       isLikelyStartPageOnly(task, finalUrl) &&
@@ -515,6 +593,14 @@ export function verifyLobsterRunResult(input: LobsterRunVerifyInput): LobsterRun
         ok: false,
         reason: 'navigation_unverified',
         hints: [finalUrl ? `仍停留在起始页：${finalUrl}` : '导航未完成'],
+      }
+    }
+    if (isFormFillBrowseTask(task, input.result) && collectFormFilledEvidence(input.result).length === 0) {
+      return {
+        ok: false,
+        reason: 'success_criteria_unmet',
+        failureType: 'success_criteria_unmet',
+        hints: [answer.slice(0, 240) || '填表未完成'],
       }
     }
     return {
@@ -563,14 +649,25 @@ export function verifyLobsterRunResult(input: LobsterRunVerifyInput): LobsterRun
     }
   }
   if (/(打开|点击|进入|first|第一条)/i.test(task)) {
-    if (!isOpenOnlyBrowseTask(task) && isLikelyStartPageOnly(task, finalUrl) && items.length === 0) {
+    // form_fill：「First name」含 first，不得误判须离页
+    if (isFormFillBrowseTask(task, input.result)) {
+      const filled = collectFormFilledEvidence(input.result)
+      if (filled.length === 0 && !/已填\s+\S+=/.test(answer)) {
+        return {
+          ok: false,
+          reason: 'success_criteria_unmet',
+          failureType: 'success_criteria_unmet',
+          hints: [finalUrl ? `填表未完成：${finalUrl}` : '未校验到已填字段'],
+        }
+      }
+    } else if (!isOpenOnlyBrowseTask(task) && isLikelyStartPageOnly(task, finalUrl) && items.length === 0) {
       return {
         ok: false,
         reason: 'navigation_unverified',
         hints: [finalUrl ? `仍停留在起始页：${finalUrl}` : '导航未完成'],
       }
     }
-    if (!finalUrl && items.length === 0 && !answer) {
+    if (!isFormFillBrowseTask(task, input.result) && !finalUrl && items.length === 0 && !answer) {
       return { ok: false, reason: 'navigation_unverified' }
     }
   }

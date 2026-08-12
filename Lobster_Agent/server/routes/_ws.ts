@@ -207,6 +207,8 @@ export default defineWebSocketHandler({
       taskKind: merged.taskKind,
       needsLogin: merged.needsLogin,
       siteRecipeId: merged.siteRecipeId,
+      successCriteria: merged.successCriteria,
+      maxInteractionSteps: merged.maxInteractionSteps,
     })
 
     const runStartedAt = Date.now()
@@ -239,6 +241,10 @@ export default defineWebSocketHandler({
         }
         if (evt.type === 'screenshot') {
           send('screenshot', evt.payload)
+          return
+        }
+        if (evt.type === 'live_view') {
+          send('live_view', evt.payload)
           return
         }
         if (evt.type === 'step') {

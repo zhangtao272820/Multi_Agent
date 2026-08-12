@@ -420,7 +420,9 @@ export function createManagerGraph(opts: {
           const resolved = await resolvedPolicyPromise.catch(() => ({
             policy: defaultPolicy(),
             source: 'active' as const,
-            canary: false
+            canary: false,
+            bundleId: null as string | null,
+            bundleCanary: false,
           }))
           const baseMeta = (state?.meta && typeof state.meta === 'object' ? state.meta : {}) as Record<string, any>
           state = {
@@ -429,13 +431,16 @@ export function createManagerGraph(opts: {
               ...baseMeta,
               policySource: resolved.source,
               policyCanary: resolved.canary,
-              policyVersion: resolved.policy.version
+              policyVersion: resolved.policy.version,
+              bundleId: resolved.bundleId ?? null,
+              bundleCanary: Boolean(resolved.bundleCanary),
             }
           }
           let traceExtra: Record<string, any> = {
             kind: 'langgraph_root',
             policySource: resolved.source,
-            policyCanary: resolved.canary
+            policyCanary: resolved.canary,
+            bundleCanary: Boolean(resolved.bundleCanary),
           }
           if (policyShadowLogEnabled() || (lsEnabled && policyShadowObserveMetaEnabled())) {
             const shadow = await loadManagerPolicyShadow(policyDir).catch(() => null)

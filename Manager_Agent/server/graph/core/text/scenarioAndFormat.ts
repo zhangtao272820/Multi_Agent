@@ -1,5 +1,6 @@
 import { BaseMessage, HumanMessage } from '@langchain/core/messages'
 import { extractManagerCoreQuestion, stripDbManagerPrefixes, stripPlanConstraintsFromQuery } from '#agent-shared/managerSubAgentProtocol'
+import { estimateTokensSync } from '#agent-shared/tokenEstimate'
 import { normalizeEntities, type Intent, type Step, type TaskPlan } from '../../../utils/shared/taskPlan'
 import { safeJsonParse } from '../shared/llmJson'
 import type { TaskConstraints } from '../plan'
@@ -68,9 +69,8 @@ export function uncertaintyFromConfidence(conf?: number): 'low' | 'medium' | 'hi
 }
 
 export function estimateTokensFromText(text: string) {
-  const s = String(text ?? '')
-  const chars = s.length
-  return Math.max(1, Math.ceil(chars / 4))
+  const r = estimateTokensSync(String(text ?? ''))
+  return Math.max(1, r.tokens || 1)
 }
 
 export function estimateTokensFromMessages(messages: BaseMessage[]) {

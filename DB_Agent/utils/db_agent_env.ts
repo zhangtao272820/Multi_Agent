@@ -60,7 +60,8 @@ export const DB_AGENT_DEFAULTS = {
   enableBlueprintLlmSelect: false,
   promptPromoteMinHits: 3,
   enableSqlTemplateLearning: true,
-  enableAutoCurateOnQuery: true,
+  /** 默认关：curate 只产出 shadow；晋级须人审（见 evolutionPromotePolicy） */
+  enableAutoCurateOnQuery: false,
   enableClarificationLoop: true,
   clarificationConfidenceThreshold: 0.55,
   enableUserPreferences: true,

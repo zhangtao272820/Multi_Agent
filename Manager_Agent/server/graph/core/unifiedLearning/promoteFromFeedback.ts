@@ -107,5 +107,13 @@ export async function promoteExperienceFromPositiveFeedback(input: {
     indexed = Boolean((r as { indexed?: boolean })?.indexed)
   }
 
+  const { applyHotPathPrefsFromSignal } = await import('../memory/userProfile')
+  await applyHotPathPrefsFromSignal(input.policyDir, input.userId || undefined, {
+    feedbackScore: fb,
+    successScore,
+    preferredAgentsHint: agentPath,
+    tenantId: input.tenantId ? String(input.tenantId) : undefined
+  }).catch(() => null)
+
   return { promoted: true, indexed }
 }

@@ -1,0 +1,286 @@
+/* Video 节气主题 · 小寒/大寒（本 Agent 本地，不挂进 brand 全局） */
+
+.video-brand-root,
+.claw-login {
+  --video-glass: rgba(18, 28, 42, 0.52);
+  --video-glass-bar: rgba(16, 24, 36, 0.58);
+  --video-glass-panel: rgba(20, 30, 44, 0.48);
+  --video-glass-input: rgba(12, 18, 28, 0.55);
+  --video-border: rgba(212, 90, 40, 0.38);
+  --video-border-strong: rgba(212, 90, 40, 0.58);
+  --video-blur: 16px;
+  --brand-motif-opacity: 0.3;
+  --video-text: #f2f6fc;
+  --video-text-secondary: #d4dde8;
+  --video-text-muted: #a8b4c4;
+  --video-accent: #d45a28;
+  --bg: transparent;
+  --panel: var(--video-glass-panel);
+  --border: rgba(148, 170, 196, 0.28);
+  --text: var(--video-text);
+  --muted: var(--video-text-muted);
+  --accent: #5eead4;
+  --accent-dim: rgba(94, 234, 212, 0.18);
+  --danger: #f87171;
+  --brand-dark-text: var(--video-text);
+  --brand-dark-text-secondary: var(--video-text-secondary);
+  --brand-dark-text-muted: var(--video-text-muted);
+}
+
+.video-brand-root {
+  position: relative;
+  min-height: 100vh;
+  color: var(--video-text);
+  background: transparent !important;
+  isolation: auto !important;
+}
+
+.video-brand-root.brand-shell {
+  background: transparent !important;
+  color: var(--video-text);
+  isolation: auto !important;
+}
+
+.video-brand-root.brand-shell::before,
+.video-brand-root.brand-shell::after {
+  content: none !important;
+  display: none !important;
+  opacity: 0 !important;
+}
+
+.video-brand-root.brand-shell > .video-season-bg,
+.claw-login > .video-season-bg {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 0 !important;
+  width: auto !important;
+  height: auto !important;
+  pointer-events: none;
+}
+
+.video-brand-root.brand-shell > .brand-motif,
+.claw-login > .brand-motif {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 1 !important;
+  width: auto !important;
+  height: auto !important;
+  pointer-events: none;
+}
+
+.video-brand-root.brand-shell > .layout,
+.claw-login > .claw-login__card {
+  position: relative !important;
+  z-index: 2 !important;
+}
+
+.video-season-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: #0e1824 center / cover no-repeat;
+}
+
+.video-season-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(8, 14, 24, 0.22) 0%,
+    rgba(10, 16, 28, 0.12) 40%,
+    rgba(6, 12, 20, 0.38) 100%
+  );
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  filter: none;
+}
+
+.video-season-bg--xiaohan {
+  background-image: url('@brand/backgrounds/winter/xiaohan-video.png');
+}
+
+.video-season-bg--dahan {
+  background-image: url('@brand/backgrounds/winter/dahan-video.png');
+}
+
+.video-glass {
+  background: var(--video-glass);
+  border: 1px solid var(--video-border);
+  border-radius: 14px;
+  backdrop-filter: blur(var(--video-blur)) saturate(1.2);
+  -webkit-backdrop-filter: blur(var(--video-blur)) saturate(1.2);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.08) inset,
+    0 12px 32px rgba(0, 0, 0, 0.28);
+}
+
+.video-brand-root .panel {
+  background: var(--video-glass-panel);
+  border-color: var(--video-border);
+  backdrop-filter: blur(var(--video-blur)) saturate(1.15);
+  -webkit-backdrop-filter: blur(var(--video-blur)) saturate(1.15);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.06) inset,
+    0 10px 28px rgba(0, 0, 0, 0.22);
+}
+
+.video-brand-root textarea,
+.video-brand-root .row textarea {
+  background: var(--video-glass-input);
+  border-color: var(--video-border);
+  color: var(--video-text);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.video-brand-root .wan-wait-banner {
+  background: linear-gradient(135deg, var(--accent-dim), rgba(16, 24, 36, 0.55));
+  border-color: rgba(94, 234, 212, 0.35);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.video-brand-root button.primary {
+  border-color: rgba(212, 90, 40, 0.55);
+  background: linear-gradient(180deg, #d45a28, #b44820);
+  color: #fff8f4;
+}
+
+.video-logout {
+  margin-left: auto;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff8f4;
+  background: var(--video-accent);
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  align-self: flex-start;
+}
+
+.video-logout:hover {
+  background: #c04e22;
+}
+
+.video-brand-root .video-brand-bar .brand-avatar {
+  margin-left: 0;
+}
+
+/* —— 登录门 —— */
+.claw-login {
+  position: relative;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 28px 20px;
+  color: var(--video-text);
+  background: transparent !important;
+  box-sizing: border-box;
+  font-family: 'Segoe UI Variable', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+}
+
+.claw-login__card {
+  position: relative;
+  z-index: 2;
+  width: min(480px, 94vw);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 32px;
+}
+
+.claw-login .video-glass {
+  background: rgba(18, 28, 42, 0.62);
+  border-color: var(--video-border-strong);
+}
+
+.claw-login__brand {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.claw-login__logo {
+  border-radius: 12px;
+  border: 1px solid var(--video-border);
+  flex-shrink: 0;
+}
+
+.claw-login__eyebrow {
+  margin: 0 0 6px;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--video-text-muted);
+}
+
+.claw-login__card h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 750;
+  color: var(--video-text);
+}
+
+.claw-login__sub {
+  margin: 6px 0 0;
+  font-size: 14px;
+  color: var(--video-text-secondary);
+}
+
+.claw-login__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--video-text-secondary);
+}
+
+.claw-login__field input {
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--video-border);
+  background: var(--video-glass-input);
+  color: var(--video-text);
+  font: inherit;
+  outline: none;
+}
+
+.claw-login__field input:focus {
+  border-color: var(--video-border-strong);
+}
+
+.claw-login__field input:-webkit-autofill,
+.claw-login__field input:-webkit-autofill:hover,
+.claw-login__field input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #f2f6fc;
+  caret-color: #f2f6fc;
+  transition: background-color 99999s ease-out;
+  box-shadow: 0 0 0 1000px rgba(16, 24, 36, 0.72) inset;
+}
+
+.claw-login__card button[type='submit'] {
+  margin-top: 4px;
+  padding: 12px;
+  border-radius: 10px;
+  border: none;
+  background: var(--video-accent);
+  color: #fff8f4;
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.claw-login__card button[type='submit']:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.claw-login__err {
+  margin: 0;
+  color: #ff9f9f;
+  font-size: 0.9rem;
+}

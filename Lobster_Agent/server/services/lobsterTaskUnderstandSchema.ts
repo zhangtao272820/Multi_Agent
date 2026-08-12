@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { sanitizeExtractedHttpUrl } from '#agent-shared/extractHttpUrl'
+import { clampFormFillGoals, taskAffirmsSubmit } from './lobsterFormGoals'
 
 export const LobsterTaskKindSchema = z.enum([
   'search',
@@ -99,6 +100,7 @@ export type LobsterTaskSpec = {
     urlMatches?: string
     selectorPresent?: string
     extractMin?: number
+    filledMin?: number
     titleIncludes?: string[]
   }
   plan_steps: LobsterPlanStep[]
@@ -107,6 +109,8 @@ export type LobsterTaskSpec = {
   confidence: number
   rationale: string
   source: 'llm' | 'manager' | 'fallback'
+  /** 总管下发的交互步预算；缺省用引擎默认封顶 */
+  max_interaction_steps?: number
 }
 
 export function isLobsterTaskUnderstandEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
@@ -137,7 +141,11 @@ export function defaultPlanStepsForTask(input: {
 
   if (kind === 'form_fill' || kind === 'login') {
     steps.push({ op: 'observe', target: '表单可交互字段', done_when: '可见输入框' })
-    steps.push({ op: 'type', target: '按任务填写表单字段', done_when: '字段已填入' })
+    steps.push({
+      op: 'type',
+      target: `根据用户任务在真实输入框填写字段值（任务：${String(input.task || '').slice(0, 160)}）`,
+      done_when: '字段已填入任务给出的真实值',
+    })
     if (input.goals?.must_submit) {
       steps.push({ op: 'submit', target: '提交表单', done_when: '提交完成或跳转' })
     }
@@ -188,11 +196,12 @@ export function defaultPlanStepsForTask(input: {
 export function defaultGoalsForTaskKind(kind: LobsterTaskKind, task?: string): LobsterTaskGoals {
   const t = String(task || '')
   if (kind === 'form_fill') {
+    const affirms = taskAffirmsSubmit(t)
     return {
       must_leave_start: false,
       must_extract: true,
-      must_submit: /提交|submit/i.test(t),
-      expected_url_change: /提交|submit/i.test(t),
+      must_submit: affirms,
+      expected_url_change: affirms,
     }
   }
   if (kind === 'login') {
@@ -240,10 +249,12 @@ export function toLobsterTaskSpec(
   // 保持 LLM/调用方的 engine_hint；网页默认 stagehand 由 resolveEngineFromTaskSpec 落地
   const softEngine = understood.engine_hint
 
-  const goals: LobsterTaskGoals = {
+  const goalsRaw: LobsterTaskGoals = {
     ...defaultGoalsForTaskKind(task_kind, understood.canonical_task),
     ...(understood.goals || {}),
   }
+  const goals: LobsterTaskGoals =
+    task_kind === 'form_fill' ? clampFormFillGoals(goalsRaw, understood.canonical_task) : goalsRaw
 
   const completion =
     String(understood.success_criteria || understood.completion_criteria || '').trim() || undefined

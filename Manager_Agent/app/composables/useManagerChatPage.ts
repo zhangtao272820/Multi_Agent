@@ -331,6 +331,8 @@ export function useManagerChatPage() {
     lobsterRunId?: string
   } | null>(null)
   const latestGuiScreenshot = ref('')
+  const latestGuiVncUrl = ref('')
+  const guiVncAutoOpenedRunId = ref('')
   const humanConfirmSending = ref(false)
   let lastHumanConfirmDecision: 'confirm' | 'cancel' | null = null
   let lastHumanConfirmId = ''
@@ -652,7 +654,13 @@ export function useManagerChatPage() {
   
   function hasThoughtContent(t: TurnGroup): boolean {
     if (thoughtViewMode.value === 'user') {
-      return userThoughtNarrative(t).length > 0 || t.searchSources.length > 0 || (isTurnRunning(t) && t.process.length > 0)
+      const gui = turnGuiVisuals(t)
+      return (
+        userThoughtNarrative(t).length > 0 ||
+        t.searchSources.length > 0 ||
+        Boolean(gui.shot || gui.vncUrl) ||
+        (isTurnRunning(t) && t.process.length > 0)
+      )
     }
     return !!(t.process.length || t.ragEvidence.length || t.codePatches.length || t.searchSources.length)
   }
@@ -4456,7 +4464,7 @@ export function useManagerChatPage() {
   
   function isDevProcessKind(kind: string): boolean {
     const k = String(kind || '').toLowerCase()
-    return ['route_cap', 'route_plan_card', 'plan_outline', 'delta', 'gui_screenshot', 'db_explain', 'search_sources', 'run_report'].includes(k)
+    return ['route_cap', 'route_plan_card', 'plan_outline', 'delta', 'gui_screenshot', 'gui_live_view', 'db_explain', 'search_sources', 'run_report'].includes(k)
   }
   
   function isUserVisibleProcessKind(kind: string): boolean {
@@ -4714,9 +4722,25 @@ export function useManagerChatPage() {
     if (k === 'trace') return '追踪'
     if (k === 'search_sources') return '联网来源'
     if (k === 'gui_screenshot') return 'GUI 截图'
+    if (k === 'gui_live_view') return '浏览器画面'
     if (k === 'db_explain') return 'SQL 预检'
     if (k === 'error') return '错误'
     return k || 'event'
+  }
+
+  /** 本轮最新 GUI 截图 / noVNC（用户态与开发态共用） */
+  function turnGuiVisuals(t: TurnGroup): { shot?: string; vncUrl?: string } {
+    let shot = ''
+    let vncUrl = ''
+    for (const p of t.process) {
+      const k = String(p.kind || '').toLowerCase()
+      if (k === 'gui_screenshot' && p.guiScreenshot) shot = String(p.guiScreenshot)
+      if (k === 'gui_live_view' && p.guiVncUrl) vncUrl = String(p.guiVncUrl)
+    }
+    return {
+      ...(shot ? { shot } : {}),
+      ...(vncUrl ? { vncUrl } : {}),
+    }
   }
   
   function kindClass(kind: string) {
@@ -4907,6 +4931,7 @@ export function useManagerChatPage() {
       | 'searchSources'
       | 'ragEvidence'
       | 'guiScreenshot'
+      | 'guiVncUrl'
       | 'adminUiCards'
       | 'routeCap'
       | 'routePlanCard'
@@ -5002,6 +5027,8 @@ export function useManagerChatPage() {
     runObservabilityLive,
     conversationCompactLive,
     latestGuiScreenshot,
+    latestGuiVncUrl,
+    guiVncAutoOpenedRunId,
     streamingSynthText,
     streamAgentLabel,
     lastFinalRunId,
@@ -5566,6 +5593,7 @@ export function useManagerChatPage() {
     thoughtPanelLabel,
     stepResultsForTurn,
     userThoughtNarrative,
+    turnGuiVisuals,
     thoughtPanelPreview,
     processStepKey,
     isProcessStepClampable,
@@ -5883,6 +5911,7 @@ export function useManagerChatPage() {
     newSession,
     pendingHumanConfirm,
     latestGuiScreenshot,
+    latestGuiVncUrl,
     humanConfirmSending,
     respondHumanConfirm,
     respondActionCardConfirm,

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-/** U1：Trace / 排障抽屉 — 复制 trace_id、阶段时间线、排障三问 */
+/** U1：Trace / 排障抽屉 — 复制 trace_id、阶段时间线、排障三问、Wave6 深链 */
 
 export type TracePhaseItem = { phase: string; ms: number; agent?: string; tokens?: number }
 
@@ -21,6 +21,7 @@ const emit = defineEmits<{
 
 const copyAck = ref(false)
 let copyTimer: ReturnType<typeof setTimeout> | null = null
+const deepLinks = ref<{ langfuseUrl: string | null; tempoUrl: string | null } | null>(null)
 
 async function copyTrace() {
   const id = String(props.traceId || '').trim()
@@ -36,6 +37,34 @@ async function copyTrace() {
     /* ignore */
   }
 }
+
+async function loadDeepLinks() {
+  const id = String(props.runId || props.traceId || '').trim()
+  if (!id) {
+    deepLinks.value = null
+    return
+  }
+  try {
+    const res = await $fetch<{ langfuseUrl?: string | null; tempoUrl?: string | null }>(
+      '/api/metrics/trace-links',
+      { query: { runId: id } }
+    )
+    deepLinks.value = {
+      langfuseUrl: res.langfuseUrl || null,
+      tempoUrl: res.tempoUrl || null
+    }
+  } catch {
+    deepLinks.value = null
+  }
+}
+
+watch(
+  () => [props.open, props.traceId, props.runId] as const,
+  ([open]) => {
+    if (open) void loadDeepLinks()
+  },
+  { immediate: true }
+)
 
 onBeforeUnmount(() => {
   if (copyTimer) clearTimeout(copyTimer)
@@ -68,6 +97,22 @@ onBeforeUnmount(() => {
             <span v-if="wallClockMs">总耗时 {{ formatObsMs(wallClockMs) }}</span>
             <span v-if="tokenTotal">Token {{ formatTokenCount(tokenTotal) }}</span>
           </div>
+          <div v-if="deepLinks?.langfuseUrl || deepLinks?.tempoUrl" class="mgr-trace-deeplinks">
+            <a
+              v-if="deepLinks.langfuseUrl"
+              class="mgr-trace-deeplink"
+              :href="deepLinks.langfuseUrl"
+              target="_blank"
+              rel="noopener noreferrer"
+            >打开 Langfuse</a>
+            <a
+              v-if="deepLinks.tempoUrl"
+              class="mgr-trace-deeplink"
+              :href="deepLinks.tempoUrl"
+              target="_blank"
+              rel="noopener noreferrer"
+            >打开 Tempo</a>
+          </div>
         </section>
 
         <section v-if="phaseTimeline?.length" class="mgr-trace-drawer-section">
@@ -85,7 +130,7 @@ onBeforeUnmount(() => {
           <ol class="mgr-trace-triage-list">
             <li>
               <strong>路由错？</strong>
-              看 NLU / plan 与用户任务是否一致；开发视图中的路由卡片。
+              看 meta.routeAuthorityChain（sourceCommitment / turnScopeMode / 单源透传）与路由卡片。
             </li>
             <li>
               <strong>执行错？</strong>
@@ -208,6 +253,18 @@ onBeforeUnmount(() => {
   margin-top: 10px;
   font-size: 12px;
   color: #94a3b8;
+}
+.mgr-trace-deeplinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+.mgr-trace-deeplink {
+  font-size: 12px;
+  color: #a5b4fc;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 .mgr-trace-phase-list {
   list-style: none;

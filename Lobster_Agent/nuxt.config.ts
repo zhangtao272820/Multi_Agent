@@ -11,7 +11,11 @@ function agentSharedDir() {
 }
 
 function agentBrandDir() {
-  return join(agentSharedDir(), 'brand')
+  const dockerBrand = join(fileURLToPath(new URL('./agent-repo-shared', import.meta.url)), 'brand')
+  const localBrand = join(fileURLToPath(new URL('../shared', import.meta.url)), 'brand')
+  // Docker 镜像会把 brand 打进 agent-repo-shared；本地 sync:shared 只拷 TS，brand 仍在仓库 shared/
+  if (existsSync(dockerBrand)) return dockerBrand
+  return localBrand
 }
 
 const brandDir = agentBrandDir()
@@ -37,7 +41,7 @@ const devPortParsed = hasFixedDevPort ? Number.parseInt(String(_rawDevPort), 10)
 const devPort = Number.isFinite(devPortParsed) && devPortParsed > 0 ? devPortParsed : 3000
 
 export default defineNuxtConfig({
-  css: [join(brandDir, 'index.css')],
+  css: [join(brandDir, 'index.css'), '~/assets/css/lobster-season.css'],
   alias: {
     '#agent-shared': agentSharedDir(),
     '@brand': brandDir
@@ -60,6 +64,17 @@ export default defineNuxtConfig({
     server: {
       fs: { allow: [brandDir, agentSharedDir()] },
       strictPort: hasFixedDevPort,
+      // Docker Manager → host.docker.internal:13109 访问宿主 Hands 时 Host 头非 localhost
+      allowedHosts: [
+        'localhost',
+        '.localhost',
+        '127.0.0.1',
+        'host.docker.internal',
+        ...(String(process.env.LOBSTER_HANDS_ALLOWED_HOSTS || '')
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean)),
+      ],
       // Docker：HMR WebSocket 必须绑在映射端口；本地换端口时不要写死 3000，否则 ws 连不上
       ...(hasFixedDevPort
         ? {

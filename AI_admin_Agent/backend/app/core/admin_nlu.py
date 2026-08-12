@@ -1,6 +1,6 @@
 """
-Admin NLU：Stage-2 意图/槽位解耦 + Stage-3 Playbook/经验 RAG 预召回。
-禁止用 regex 从用户原话判场景；场景由 RAG 快路径或 LLM 语义分类。
+Admin NLU：Stage-2 意图/槽位解耦；可选 Stage-3 Playbook 召回（默认关，ADMIN_INTENT_RAG=1 才开）。
+场景默认由意图/场景 LLM 给出，禁止用 regex 从用户原话判场景。
 """
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from app.core.admin_env_modes import (
+    is_admin_intent_rag_enabled,
     is_admin_nlu_decoupled,
     is_admin_nlu_enabled,
     is_admin_scenario_llm_enabled,
@@ -58,6 +59,29 @@ _EMPTY_SLOTS: dict[str, str] = {
     "email_to_name_or_email": "",
     "email_subject": "",
     "email_content": "",
+    # list|read|triage|send|reply|search|mark_read|forward|delete|list_attachments|save_attachment|classify
+    "mail_action": "",
+    "email_id": "",
+    # true|false|"" — empty means planner default (read/list → unread)
+    "mail_unread_only": "",
+    "attachment_index": "",
+    # create|list|modify|delete|complete|bulk_delete|sync
+    "calendar_action": "",
+    # create|list|complete|delete|modify
+    "task_action": "",
+    # add|list|search|import
+    "contact_action": "",
+    # list|read|write|move|mkdir
+    "file_action": "",
+    "file_path": "",
+    "file_content": "",
+    "file_dest": "",
+    # web|knowledge
+    "search_action": "",
+    "search_query": "",
+    "search_target": "",
+    # legacy alias：true/list → 等价于对应 *_action=list
+    "list_mode": "",
     "route_origin": "",
     "route_destination": "",
     "travel_mode": "",
@@ -172,7 +196,12 @@ def _llm_json(prompt: str) -> dict[str, Any]:
 
 
 def build_admin_rag_query(dialogue: str, user_message: str) -> str:
-    parts = [str(dialogue or "").strip(), str(user_message or "").strip()]
+    """拼检索问句：有 dialogue 时带上；suppress/topic_shift 传入空 dialogue 则仅末轮。"""
+    msg = str(user_message or "").strip()
+    dlg = str(dialogue or "").strip()
+    if not dlg:
+        return msg[:1400]
+    parts = [dlg, msg]
     return "\n".join(p for p in parts if p)[:1400]
 
 
@@ -202,7 +231,9 @@ def _playbook_vector_rows() -> list[tuple[AdminScenarioPlaybookEntry, str, list[
 
 
 def recall_admin_scenario(query: str, intent: str = "") -> AdminScenarioRecallHit | None:
-    """Playbook paraphrase + 历史经验：lexical + 可选向量混合召回。"""
+    """Playbook paraphrase + 历史经验召回。默认关闭（ADMIN_INTENT_RAG=1 才启用）。"""
+    if not is_admin_intent_rag_enabled():
+        return None
     q = str(query or "").strip()
     if len(q) < 3:
         return None
@@ -259,16 +290,18 @@ def resolve_admin_scenario(
     *,
     suppress_scenario_llm: bool = False,
 ) -> str | None:
-    """统一场景解析：understanding 缓存 → RAG → LLM。"""
+    """统一场景解析：understanding 缓存 →（可选召回）→ LLM。"""
     if isinstance(understanding, dict):
         cached = str(understanding.get("admin_scenario") or "").strip()
         if cached:
             return cached
 
-    query = build_admin_rag_query("", user_message)
-    hit = recall_admin_scenario(query, intent=intent)
-    if hit and hit.score >= _rag_fast_min_score():
-        return hit.scenario
+    hit = None
+    if is_admin_intent_rag_enabled():
+        query = build_admin_rag_query("", user_message)
+        hit = recall_admin_scenario(query, intent=intent)
+        if hit and hit.score >= _rag_fast_min_score():
+            return hit.scenario
 
     if suppress_scenario_llm or not is_admin_scenario_llm_enabled():
         return hit.scenario if hit else None
@@ -441,12 +474,19 @@ def fill_admin_slots(
 - 「列出联系人/通讯录」不必填 name/email。
 """
     writable_addon = ""
-    if intent in ("日程", "待办", "邮件"):
+    if intent in ("日程", "待办", "邮件", "联系人", "文件", "搜索"):
         writable_addon = """
-【可写字段专规】
-- 日程：用户给出的详细内容/详细说明 → slots.event_description；禁止用 event_title 顶替；未给则可空。
-- 待办：用户给出的详细说明/描述 → slots.task_description；禁止用 task_title 顶替；未给则可空。
-- 邮件：用户给出的正文 → slots.email_content；未给则可空（勿把整段「发邮件给…」指令当正文）。
+【可写字段 / 动作槽专规】
+- 日程：详细内容 → event_description；calendar_action=create|list|modify|delete|complete|bulk_delete|sync。
+  创建需 event_title+start_time_expression；列出日程→list（勿误建）；删除全部会议提醒→bulk_delete 且 needs_clarification=false。
+- 待办：详细说明 → task_description；task_action=create|list|complete|delete|modify。列出→list；完成/删除需 task_title 若用户点名。
+- 联系人：contact_action=add|list|search|import。添加需 name+email；列出→list；查某人→search+contact_name。
+- 邮件：正文 → email_content；mail_action=list|read|triage|send|reply|search|mark_read|forward|delete|list_attachments|save_attachment|classify。
+  读信/翻译/摘要/抽要点/对正文任意处理→read（禁止 triage）；定位某封→email_id；mail_unread_only；attachment_index。
+- 文件：file_action=list|read|write|move|mkdir；读/写需 file_path；写可填 file_content；移动填 file_dest。
+- 搜索：search_action=web|knowledge；search_query 摘用户要查的内容；知识库/内部资料→knowledge，其余默认 web。
+- list_mode：仅兼容字段；优先填对应 *_action=list。
+- 不要把「列出/查看」误建成 create/add。
 """
     prompt = f"""
 {get_slot_fill_rules(intent)}
@@ -514,7 +554,9 @@ def _semantic_understanding_merged(user_message: str, dialogue: str = "") -> dic
 
 
 def warm_admin_nlu_caches() -> None:
-    """启动时预热 Playbook 向量缓存，避免首条请求冷启动。"""
+    """启动预热：仅当显式开启意图召回时才建 Playbook 向量缓存（省启动 embedding）。"""
+    if not is_admin_intent_rag_enabled():
+        return
     try:
         _playbook_vector_rows()
     except Exception:
@@ -528,7 +570,7 @@ def understand_admin_user_message(
     suppress_experience_replay: bool = False,
 ) -> dict[str, Any]:
     """
-    Admin 主 NLU 入口：RAG 预召回 → 意图识别 → 槽位填充。
+    Admin 主 NLU 入口：意图识别 → 槽位填充；（可选）Playbook 召回默认关。
     dialogue 应由 turn scope 过滤后传入；suppress_experience_replay 时跳过经验 hint。
     """
     msg = str(user_message or "").strip()
@@ -549,32 +591,34 @@ def understand_admin_user_message(
 
     recall: AdminScenarioRecallHit | None = None
     exp_hints: list[str] = []
-    recall_timeout = 15.0
-    try:
-        recall_timeout = float(os.getenv("ADMIN_NLU_RECALL_TIMEOUT_SEC") or "15")
-    except (TypeError, ValueError):
+    # 默认不跑意图召回 / 经验 hint，省 embedding 与 prompt token
+    if is_admin_intent_rag_enabled():
         recall_timeout = 15.0
-    recall_timeout = max(3.0, min(45.0, recall_timeout))
-
-    with ThreadPoolExecutor(max_workers=2) as pool:
-        f_recall = pool.submit(recall_admin_scenario, query)
         try:
-            if suppress_experience_replay:
-                recall = f_recall.result(timeout=recall_timeout)
-            else:
-                f_hints = pool.submit(get_admin_tool_experience_hints, msg, 3)
-                recall = f_recall.result(timeout=recall_timeout)
-                try:
-                    exp_hints = f_hints.result(timeout=min(8.0, recall_timeout)) or []
-                except (FuturesTimeout, Exception):
-                    exp_hints = []
-        except FuturesTimeout:
-            emit_admin_thought("场景召回超时，继续意图识别…")
-            recall = None
-        except Exception:
-            recall = None
+            recall_timeout = float(os.getenv("ADMIN_NLU_RECALL_TIMEOUT_SEC") or "15")
+        except (TypeError, ValueError):
+            recall_timeout = 15.0
+        recall_timeout = max(3.0, min(45.0, recall_timeout))
 
-    fast = recall is not None and recall.score >= _rag_fast_min_score()
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            f_recall = pool.submit(recall_admin_scenario, query)
+            try:
+                if suppress_experience_replay:
+                    recall = f_recall.result(timeout=recall_timeout)
+                else:
+                    f_hints = pool.submit(get_admin_tool_experience_hints, msg, 3)
+                    recall = f_recall.result(timeout=recall_timeout)
+                    try:
+                        exp_hints = f_hints.result(timeout=min(8.0, recall_timeout)) or []
+                    except (FuturesTimeout, Exception):
+                        exp_hints = []
+            except FuturesTimeout:
+                emit_admin_thought("场景召回超时，继续意图识别…")
+                recall = None
+            except Exception:
+                recall = None
+
+    fast = bool(recall is not None and recall.score >= _rag_fast_min_score())
 
     try:
         if is_admin_nlu_decoupled():
@@ -617,11 +661,12 @@ def understand_admin_user_message(
             }
 
         if not understanding.get("admin_scenario"):
+            # 默认：场景 LLM；仅显式开启意图 RAG 且 fast 命中时才 suppress
             sc = resolve_admin_scenario(
                 msg,
                 str(understanding.get("intent") or ""),
                 understanding,
-                suppress_scenario_llm=suppress_experience_replay or fast,
+                suppress_scenario_llm=bool(suppress_experience_replay or (fast and is_admin_intent_rag_enabled())),
             )
             if sc:
                 understanding["admin_scenario"] = sc

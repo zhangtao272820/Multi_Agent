@@ -1,6 +1,5 @@
 /**
- * P4 Curator：自动晋级影子补丁、汇总学习状态。
- * P6：A/B 显著性触发晋级。
+ * P4 Curator：汇总学习状态；默认只写 shadow / 出候选，不自动晋级。
  */
 import { getLearningSummary } from "./rag_learning";
 import { getRagExperienceSummary } from "./experience_vectors";
@@ -14,6 +13,7 @@ import { getUserPreferencesSummary } from "./user_preferences";
 import { listEvolvedHints } from "./rag_evolved_config";
 import { analyzeAbSignificance, type AbSignificanceReport } from "./ab_significance";
 import { getRagAgentEnv } from "./rag_agent_env";
+import { resolveCurateAutoPromote } from "#agent-shared/evolutionPromotePolicy";
 
 export type RagCuratorReport = {
   ts: string;
@@ -29,6 +29,7 @@ export type RagCuratorReport = {
   experience: ReturnType<typeof getRagExperienceSummary>;
   evolution: ReturnType<typeof getPromptEvolutionSummary>;
   userPreferences: ReturnType<typeof getUserPreferencesSummary>;
+  autoPromoteAllowed?: boolean;
 };
 
 function scanTopFailureModes() {
@@ -54,15 +55,17 @@ export async function runRagLearningCurator(opts?: {
   promoteFromAb?: boolean;
 }): Promise<RagCuratorReport> {
   const env = getRagAgentEnv();
+  const allowAuto = resolveCurateAutoPromote(opts?.autoPromote);
   const abSignificance = analyzeAbSignificance();
   const abAutoPromoted =
+    allowAuto &&
     opts?.promoteFromAb !== false &&
     env.enableAbAutoPromote &&
     abSignificance.significant;
 
   let promotedHints: string[] = [];
   let verifyGate: RagCuratorReport["verifyGate"];
-  if (opts?.autoPromote !== false) {
+  if (allowAuto) {
     const abGated = Boolean(opts?.promoteFromAb && env.enableAbAutoPromote);
     if (!abGated || abAutoPromoted) {
       const verified = await autoPromoteEligiblePatchesVerified(opts?.minHits);
@@ -79,7 +82,7 @@ export async function runRagLearningCurator(opts?: {
     verifyGate,
     topFailureModes: scanTopFailureModes(),
     abSignificance,
-    abAutoPromoted,
+    abAutoPromoted: Boolean(abAutoPromoted && promotedHints.length),
     shadowPatches: listPromptPatches().filter((p) => !p.promotedAt).length,
     promotableRemaining: evolution.promotableCount,
     evolvedHintCount: listEvolvedHints().length,
@@ -87,10 +90,15 @@ export async function runRagLearningCurator(opts?: {
     experience: getRagExperienceSummary(),
     evolution,
     userPreferences: getUserPreferencesSummary(),
+    autoPromoteAllowed: allowAuto,
   };
 }
 
+/** 反馈后轻量：默认不晋级（enableAutoCurateOnFeedback 现默认 false） */
 export function runLightweightCuratorOnFeedback() {
+  const env = getRagAgentEnv();
+  if (!env.enableAutoCurateOnFeedback) return;
+  if (!resolveCurateAutoPromote(true)) return;
   void autoPromoteEligiblePatchesVerified()
     .then(() => undefined)
     .catch(() => undefined);

@@ -4,9 +4,11 @@ import { isManagerSubAgentSessionId } from "#agent-shared/managerStepSession";
 import { buildEvolutionApplied } from "#agent-shared/evolutionApplied";
 import { createAgent } from "../utils/agent";
 import { sanitizeIncomingQuestion, looksLikeManagerRetrievalTask, parseManagerRagTaskFromJson } from "../utils/incoming_question";
-import { resolveRagStandaloneTurnScope } from "../utils/ragTurnScope";
+import { isRagTurnScopeLlmEnabled, resolveRagStandaloneTurnScope } from "../utils/ragTurnScope";
+import { createRagChatOpenAI } from "../utils/rag_chat_openai";
 import { listPromptPatches } from "../utils/prompt_evolution";
 import { getRagAgentEnv } from "../utils/rag_agent_env";
+import { setRagChatRetrievalMode } from "../utils/rag_agentic_mode";
 import {
   buildFilteredAgentSummaryInjection,
   extractTopicKeywords,
@@ -320,11 +322,18 @@ export default defineEventHandler(async (event) => {
     let standaloneHistory = mergedHistory;
     let standaloneTurnScope = managerTask?.turn_scope ?? null;
     if (!isManagerOrchestrated && !isManagerStepSession && !managerTask?.turn_scope) {
+      const turnScopeModel = isRagTurnScopeLlmEnabled()
+        ? createRagChatOpenAI({
+            modelName: process.env.CONDENSE_MODEL ?? env.condenseModel,
+            maxTokens: 220,
+            jsonTask: true,
+          })
+        : null;
       standaloneTurnScope = await resolveRagStandaloneTurnScope({
         question: sanitizedMessage,
         chatHistory: mergedHistory,
         managerTurnScope: null,
-        model: null,
+        model: turnScopeModel,
       });
       if (standaloneTurnScope.suppress_history && !standaloneTurnScope.narrow_output_followup) {
         standaloneHistory = [];
@@ -433,18 +442,31 @@ export default defineEventHandler(async (event) => {
             : ragPreflight.is_chitchat
               ? "直接回答"
               : ragPreflight.route_action;
+    const wantAgentic =
+      getRagAgentEnv().enableAgenticToolLoop &&
+      ragPreflight.route_action === "document_query" &&
+      !ragPreflight.is_chitchat &&
+      (ragPreflight.retrieval_mode === "agentic" || ragPreflight.is_completeness_query);
+    setRagRequestIntent(ragPreflight);
+    setRagChatRetrievalMode(wantAgentic ? "agentic" : "pipeline");
     sendData({
       type: "phase",
       phase: "preflight_done",
-      content: `意图：${routeLabel}${ragPreflight.route_action === "document_query" ? "，RAGFlow 检索管线" : ""}`,
+      content: `意图：${routeLabel}${
+        ragPreflight.route_action === "document_query"
+          ? wantAgentic
+            ? "，Agentic 多跳"
+            : "，RAGFlow 检索管线"
+          : ""
+      }`,
       ms: preflightMs,
       detail: {
         route: ragPreflight.route_action,
-        retrieveFirstOk: ragPreflight.retrieve_first_ok !== false,
+        retrieveFirstOk: !wantAgentic && ragPreflight.retrieve_first_ok !== false,
+        retrievalMode: wantAgentic ? "agentic" : ragPreflight.retrieval_mode || "pipeline",
         preflightMs,
       },
     });
-    setRagRequestIntent(ragPreflight);
 
     setRetrievalCondenseContext({
       summary:
@@ -533,6 +555,7 @@ export default defineEventHandler(async (event) => {
     }
 
     const useLangGraphFallback =
+      wantAgentic ||
       ragPreflight.route_action !== "document_query" ||
       docsForScope.length === 0 ||
       ragPreflight.is_chitchat;
@@ -582,8 +605,9 @@ export default defineEventHandler(async (event) => {
     sendData({
       type: "phase",
       phase: "agent_fallback",
-      content: "非文档检索意图，走 Agent 路由",
+      content: wantAgentic ? "Agentic 多跳检索" : "非文档检索意图，走 Agent 路由",
       ms: Date.now() - startedAt,
+      detail: { path: wantAgentic ? "agentic_tool_loop" : "agent_router" },
     });
 
     const agent = await createAgent();
@@ -811,9 +835,13 @@ export default defineEventHandler(async (event) => {
     event.node.res.end();
     } finally {
       clearRetrievalUserKey();
+      setRagChatRetrievalMode("pipeline");
+      setRagRequestIntent(null);
     }
   } catch (error: any) {
     clearRetrievalUserKey();
+    setRagChatRetrievalMode("pipeline");
+    setRagRequestIntent(null);
     console.error("Error in agent execution:", error);
     const code = classifyRagThrownError(error);
     const detail = String(error?.message || error || "chat_failed").slice(0, 240);

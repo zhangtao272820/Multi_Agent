@@ -24,6 +24,10 @@ const WHITELIST = [
   'mcpJsonRpc.ts',
   'lobsterGuiProgressContract.ts',
   'managerTaskEnvelope.ts',
+  'nitroClawhiveAuth.ts',
+  'clawhiveJwt.ts',
+  'evolutionVerifyLobster.ts',
+  'agentEvolutionMode.ts',
 ]
 
 function main() {

@@ -17,7 +17,7 @@ import { buildGovernanceSnapshot, writeGovernanceSnapshot } from '../../core/evo
 import { isExperienceReplayEnabled } from '../../core/memory/experienceReplay'
 import { indexMemoryEntry, isVectorMemoryEnabled } from '../../core/memory/vectorMemory'
 import { runEvolutionExperimentCycle } from '../../core/evolution/evolutionExperiments'
-import { updateUserProfileFromRun } from '../../core/memory/userProfile'
+import { updateUserProfileFromRun, applyHotPathPrefsFromSignal, loadUserProfile, summarizeWeakProfileForTrace } from '../../core/memory/userProfile'
 import { recordLayeredMemoryFromRun } from '../../core/layeredMemory'
 import { recordUnifiedLearningFromRun } from '../../core/unifiedLearning'
 import { interactionModeFromMeta } from '../../core/runtime/modeIsolate'
@@ -193,6 +193,65 @@ export function buildFinalizeNodeRun(deps: CreateFinalNodesDeps) {
           error_code: evidenceGate.pass ? undefined : 'business',
           extra: { reason: evidenceGate.reason }
         }).catch(() => {})
+        {
+          const { buildRouteAuthorityChain, routeAuthorityMetricExtra } = await import(
+            '../../orchestrate/routeAuthorityChain'
+          )
+          const chain = buildRouteAuthorityChain({
+            meta: state.meta,
+            turnScopeMode: String((state.meta as any)?.turnScopeMode || ''),
+            turnKind: String((state.meta as any)?.turnKind || ''),
+            allowedAgents: Array.isArray(state.allowedAgents)
+              ? state.allowedAgents.map(String)
+              : undefined
+          })
+          void appendMetrics({
+            runId: opts.runId,
+            phase: 'route_authority',
+            ms: 0,
+            ok: true,
+            extra: routeAuthorityMetricExtra(chain)
+          }).catch(() => {})
+        }
+        {
+          const meta = (state.meta || {}) as Record<string, unknown>
+          const bundleId = meta.bundleId != null ? String(meta.bundleId) : null
+          const inCanary = Boolean(meta.bundleCanary || meta.promptCanary)
+          void appendMetrics({
+            runId: opts.runId,
+            phase: 'release_canary',
+            ms: 0,
+            ok: true,
+            extra: {
+              bundleId,
+              inCanary,
+              promptCanary: Boolean(meta.promptCanary),
+              promptPatchVersion: meta.promptPatchVersion ?? null,
+              promptPatchSource: meta.promptPatchSource ?? null
+            }
+          }).catch(() => {})
+          const { recordEvolutionShadowSampleIfNeeded } = await import(
+            '../../core/evolution/evolutionShadowSample'
+          )
+          await recordEvolutionShadowSampleIfNeeded({
+            policyDir,
+            runId: opts.runId,
+            sessionId: opts.sessionId,
+            bundleId,
+            inCanary,
+            activeDecision: {
+              sourceCommitment: (meta.routeAuthorityChain as { sourceCommitment?: string } | undefined)
+                ?.sourceCommitment,
+              allowedAgents: Array.isArray(state.allowedAgents) ? state.allowedAgents : [],
+              turnScopeMode: meta.turnScopeMode
+            },
+            candidateDecision: {
+              note: 'shadow_hypothesis_placeholder',
+              promptPatchSource: meta.promptPatchSource ?? 'active',
+              wouldUseShadow: Boolean(meta.promptCanary)
+            }
+          }).catch(() => ({ sampled: false }))
+        }
         const evidenceSupportedClaimRate =
           typeof state.meta?.evidenceSupportedClaimRate === 'number' ? Number(state.meta.evidenceSupportedClaimRate) : null
         const routeMatrixPass = inferManagerRouteMatrixPass((state.meta || {}) as Record<string, unknown>)
@@ -469,6 +528,22 @@ export function buildFinalizeNodeRun(deps: CreateFinalNodesDeps) {
             userId: opts.userId,
             tenantId: String(state.tenantId || state.meta?.tenantId || opts.tenantId || '')
           }).catch(() => undefined)
+          await applyHotPathPrefsFromSignal(policyDir, opts.userId, {
+            feedbackScore: fb?.score ?? null,
+            successScore,
+            preferredAgentsHint: planAgents,
+            tenantId: String(state.tenantId || state.meta?.tenantId || opts.tenantId || '')
+          }).catch(() => undefined)
+          const weakProfile = await loadUserProfile(
+            policyDir,
+            opts.sessionId,
+            opts.userId,
+            String(state.tenantId || state.meta?.tenantId || opts.tenantId || '')
+          ).catch(() => null)
+          const weakSummary = summarizeWeakProfileForTrace(weakProfile)
+          if (weakSummary) {
+            state.meta = { ...(state.meta || {}), weakUserProfile: weakSummary }
+          }
           await recordLayeredMemoryFromRun(policyDir, {
             sessionId: opts.sessionId,
             tenantId: String(state.tenantId || state.meta?.tenantId || opts.tenantId || ''),
@@ -505,6 +580,7 @@ export function buildFinalizeNodeRun(deps: CreateFinalNodesDeps) {
           policyCanary: Boolean((state.meta as any)?.policyCanary),
           promptCanary: Boolean((state.meta as any)?.promptCanary),
           plannerRulesCanary: Boolean((state.meta as any)?.plannerRulesCanary),
+          bundleCanary: Boolean((state.meta as any)?.bundleCanary),
           retryCount,
           routeMatrixPass,
           orchestratorSource: String((state.meta as any)?.orchestratorSource || ''),

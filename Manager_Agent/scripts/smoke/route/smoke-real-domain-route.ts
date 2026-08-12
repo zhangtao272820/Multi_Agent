@@ -269,6 +269,64 @@ const CASES: CaseSpec[] = [
     draft: [{ agent: 'db', scopedUserLanguage: '情绪识别仪检测记录条数' }],
     meta: { dataPlaneTaskIntent: 'structured_query', dataPlanePrimaryPlane: 'db' },
     expectCap: ['db']
+  },
+  // Wave6 W — LAN 加深（catalog/eval only；禁领域词进生产 Prompt）
+  {
+    id: 'W1',
+    userTask: '张三最近一次血压是多少',
+    draft: [{ agent: 'db', scopedUserLanguage: '查张三最近一次血压' }],
+    meta: {
+      dataPlaneTaskIntent: 'structured_query',
+      dataPlanePrimaryPlane: 'db',
+      dataPlaneClarifyRisk: 'low',
+      dataPlaneConfidence: 0.82
+    },
+    expectCap: ['db']
+  },
+  {
+    id: 'W2',
+    userTask: '养老机构服务规范里探视制度怎么规定的',
+    draft: [{ agent: 'rag', scopedUserLanguage: '探视制度规定' }],
+    meta: {
+      dataPlaneTaskIntent: 'document_retrieval',
+      dataPlanePrimaryPlane: 'rag',
+      dataPlaneClarifyRisk: 'low',
+      dataPlaneConfidence: 0.8
+    },
+    expectCap: ['rag']
+  },
+  {
+    id: 'W3',
+    userTask: '帮我查一下明天天津的天气，顺便提醒我带伞',
+    draft: [{ agent: 'admin', scopedUserLanguage: '明天天津天气并提醒带伞' }],
+    meta: { taskShape: 'action_only', wantsAdminHint: true },
+    expectCap: ['admin']
+  },
+  {
+    id: 'W4',
+    userTask: '知识库查半失能护理要求，数据库查林雨欣足底压力次数，对比说明',
+    draft: [
+      { agent: 'rag', scopedUserLanguage: '半失能护理要求' },
+      { agent: 'db', scopedUserLanguage: '林雨欣足底压力次数' }
+    ],
+    meta: {
+      requiresAgentPipelineHint: true,
+      taskShape: 'multi_source_parallel',
+      dataPlaneTaskIntent: 'hybrid'
+    },
+    expectCap: ['rag', 'db']
+  },
+  {
+    id: 'W5',
+    userTask: '个人月收入文档里总支出大概多少',
+    draft: [{ agent: 'rag', scopedUserLanguage: '个人月收入文档总支出' }],
+    meta: {
+      dataPlaneTaskIntent: 'document_retrieval',
+      dataPlanePrimaryPlane: 'rag',
+      dataPlaneClarifyRisk: 'low',
+      dataPlaneConfidence: 0.78
+    },
+    expectCap: ['rag']
   }
 ]
 
@@ -342,6 +400,42 @@ for (const id of requiredAb) {
   assert(CASES.some((c) => c.id === id), `missing required case ${id}`)
 }
 console.log(`real-domain route ok: A1–A5 / B1–B6 coverage (${requiredAb.length})`)
+
+const requiredW = ['W1', 'W2', 'W3', 'W4', 'W5']
+for (const id of requiredW) {
+  assert(CASES.some((c) => c.id === id), `missing Wave6 case ${id}`)
+}
+console.log(`real-domain route ok: Wave6 W1–W5 coverage (${requiredW.length})`)
+
+{
+  const { buildRouteAuthorityChain, routeAuthorityMetricExtra } = await import(
+    '../../../server/graph/orchestrate/routeAuthorityChain'
+  )
+  const { aggregateManagerSli } = await import('../../../server/graph/core/runtime/sliAggregate')
+  const chain = buildRouteAuthorityChain({
+    meta: {
+      allowedAgents: ['db'],
+      sourceCommitment: 'clear',
+      committedPlanes: ['db'],
+      webFetchKind: 'none',
+      intentClassify: { planShortcut: 'db_only', primaryIntent: 'db' }
+    },
+    turnScopeMode: 'current_only',
+    turnKind: 'new_task',
+    allowedAgents: ['db']
+  })
+  assert(chain.sourceCommitment === 'clear', 'authority chain commitment')
+  assert(chain.turnScopeMode === 'current_only', 'authority turnScope')
+  assert(Array.isArray(chain.committedPlanes) && chain.committedPlanes.includes('db'), 'planes')
+  const extra = routeAuthorityMetricExtra(chain)
+  const sli = aggregateManagerSli([
+    { runId: 'r1', phase: 'route_authority', ms: 0, ok: true, extra },
+    { runId: 'r2', phase: 'route_authority', ms: 0, ok: true, extra: { ...extra, trueMulti: true, singleSourcePassthrough: false } }
+  ])
+  assert(sli.routeAuthoritySamples === 2, 'route SLI samples')
+  assert(sli.routeCommitmentClearRate === 1, 'clear rate')
+  console.log('real-domain route ok: Wave6 routeAuthorityChain + SLI')
+}
 
 
 // E4 强路由：编排 LLM 必须参与（mock），不得 pu_stack_authority 短路

@@ -71,6 +71,8 @@ export default defineEventHandler(async (event) => {
     taskKind: merged.taskKind,
     needsLogin: merged.needsLogin,
     siteRecipeId: merged.siteRecipeId,
+    successCriteria: merged.successCriteria,
+    maxInteractionSteps: merged.maxInteractionSteps,
   })
 
   const runId = startRun({

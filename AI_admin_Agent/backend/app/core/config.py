@@ -112,10 +112,11 @@ class Settings(BaseSettings):
         "no",
     )
     ADMIN_PROMOTE_MIN_HITS: int = int(os.getenv("ADMIN_PROMOTE_MIN_HITS", "3"))
-    ADMIN_AUTO_CURATE: bool = os.getenv("ADMIN_AUTO_CURATE", "1").strip().lower() not in (
+    ADMIN_AUTO_CURATE: bool = os.getenv("ADMIN_AUTO_CURATE", "0").strip().lower() not in (
         "0",
         "false",
         "no",
+        "",
     )
 
     # Batch 3: integrations

@@ -1,6 +1,6 @@
 # DB Agent
 
-> **学习文档**：[入门](../docs/Agent学习指南-入门版.md) · [进阶](../docs/Agent学习指南-进阶版.md) · [DB 专篇](学习指南.md)
+> **面试讲义**：[备战入口](../docs/面试备战/00-使用说明与防穿帮.md) · [02 DB](../docs/面试备战/02-DB-Agent.md)
 
 单库 **自然语言查数（NL2SQL）** Agent：Schema 接地 → 路径选择 → 只读 SQL 执行。对应平台 `db_agent`，默认端口 **13101**；总管能力 cap 为 `db`。
 

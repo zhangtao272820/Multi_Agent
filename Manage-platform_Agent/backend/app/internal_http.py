@@ -21,9 +21,26 @@ def internal_request_headers(extra: dict[str, str] | None = None) -> dict[str, s
     return headers
 
 
-def fetch_json(url: str, timeout_sec: float = 3.0, *, accept: str = "application/json") -> dict[str, Any]:
+def manager_ops_headers(extra: dict[str, str] | None = None) -> dict[str, str]:
+    """Headers for Manager /api/manager/ops (requires x-manager-ops-token)."""
+    headers: dict[str, str] = {}
+    ops = str(getattr(get_settings(), "manager_ops_token", "") or "").strip()
+    if ops:
+        headers["x-manager-ops-token"] = ops
+    if extra:
+        headers.update(extra)
+    return headers
+
+
+def fetch_json(
+    url: str,
+    timeout_sec: float = 3.0,
+    *,
+    accept: str = "application/json",
+    extra_headers: dict[str, str] | None = None,
+) -> dict[str, Any]:
     """GET JSON from an Agent/Manager endpoint; attaches internal token when configured."""
-    return _request_json(url, timeout_sec=timeout_sec, accept=accept)
+    return _request_json(url, timeout_sec=timeout_sec, accept=accept, extra_headers=extra_headers)
 
 
 def post_json(
@@ -32,9 +49,17 @@ def post_json(
     timeout_sec: float = 8.0,
     *,
     accept: str = "application/json",
+    extra_headers: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     """POST JSON to an Agent/Manager endpoint."""
-    return _request_json(url, timeout_sec=timeout_sec, accept=accept, method="POST", body=body or {})
+    return _request_json(
+        url,
+        timeout_sec=timeout_sec,
+        accept=accept,
+        method="POST",
+        body=body or {},
+        extra_headers=extra_headers,
+    )
 
 
 def _request_json(
@@ -44,11 +69,12 @@ def _request_json(
     accept: str = "application/json",
     method: str = "GET",
     body: dict[str, Any] | None = None,
+    extra_headers: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     started = time.perf_counter()
     try:
         data = None
-        headers = internal_request_headers({"Accept": accept})
+        headers = internal_request_headers({"Accept": accept, **(extra_headers or {})})
         if method.upper() != "GET":
             payload = json.dumps(body or {}).encode("utf-8")
             headers["Content-Type"] = "application/json"
@@ -95,6 +121,11 @@ def _request_json(
             detail = (
                 f"{detail}（平台→Agent 探测缺 internal token 或令牌不一致；"
                 "请确认 CLAWHIVE_INTERNAL_TOKEN 已注入 clawhive_backend 与目标 Agent）"
+            )
+        if exc.code == 403 and "/api/manager/ops" in url:
+            detail = (
+                f"{detail}（平台→Manager ops 缺 x-manager-ops-token 或与 MANAGER_OPS_TOKEN 不一致；"
+                "请确认 MANAGER_OPS_TOKEN 已注入 clawhive_backend 与 manager_agent）"
             )
         return {
             "ok": False,

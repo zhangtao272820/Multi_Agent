@@ -25,6 +25,12 @@ import { getRagPromptPatchesForStage } from "./prompt_evolution";
 import { resolvePromptAbVariant } from "./prompt_ab_router";
 import { getRetrievalUserKey, isOrchestratedByManager } from "./retrieval_context";
 import { resolveRagRetrievalMode, resolveRetrievalRunParams } from "./rag_retrieval_mode";
+import { formatRagDocCatalog } from "./query_plan_builder";
+import {
+  bumpRagAgenticToolRound,
+  getRagAgenticToolRounds,
+  isRagAgenticToolLoopActive,
+} from "./rag_agentic_mode";
 
 const withRetry = async <T>(fn: () => Promise<T>, retries = 3, delay = 1000): Promise<T> => {
   try {
@@ -177,39 +183,119 @@ const documentListSkill = tool(
   }
 );
 
-const documentQuerySkill = tool(
-  async ({ query, rawQuery }: { query: string; rawQuery?: string }) => {
-    const intent = getRagRequestIntent();
+const formatRetrievalToolOutput = async (params: {
+  query: string;
+  rawQuery?: string;
+  forceSources?: string[];
+}) => {
+  const intent = getRagRequestIntent();
+  const docs = await getUploadedDocuments();
+  const mode = resolveRagRetrievalMode({
+    intent,
+    corpusSize: docs.length,
+    isManagerOrchestrated: isOrchestratedByManager(),
+  });
+  const runParams = resolveRetrievalRunParams(mode);
+  const result = await runDocumentRetrieval({
+    query: params.query,
+    rawQuery: params.rawQuery,
+    skipCondense: true,
+    forceSources: params.forceSources,
+    ...runParams,
+  });
+  const meta = {
+    agenticRounds: result.agenticRounds ?? 0,
+    rerankMode: result.rerankMode,
+    evidenceCount: result.evidence.length,
+    needsClarify: result.needsClarify,
+    experienceHits: result.experienceHits ?? 0,
+    abVariant: result.abVariant,
+    banditArm: result.banditArm,
+    ms: result.ms,
+    forceSources: params.forceSources ?? [],
+    toolRound: getRagAgenticToolRounds(),
+  };
+  return `${result.output}\n[retrieval_meta]\n${JSON.stringify(meta)}`;
+};
+
+const kbCatalogSkill = tool(
+  async () => {
     const docs = await getUploadedDocuments();
-    const mode = resolveRagRetrievalMode({
-      intent,
-      corpusSize: docs.length,
-      isManagerOrchestrated: isOrchestratedByManager(),
-    });
-    const runParams = resolveRetrievalRunParams(mode);
-    const result = await runDocumentRetrieval({
+    if (!docs.length) {
+      return "知识库为空：尚未上传任何文档。请先引导用户上传。";
+    }
+    const catalog = formatRagDocCatalog(docs);
+    return [
+      `知识库共 ${docs.length} 份文档。请据此决定是否检索、检索哪些来源、是否需要多跳。`,
+      catalog,
+      "文档文件名列表：" + docs.map((d) => d.name).join(" | "),
+    ].join("\n");
+  },
+  {
+    name: "kb_catalog",
+    description:
+      "查看知识库目录与摘要。复杂调研时应先调用，再决定是否 retrieve / retrieve_scoped。不替代正式检索。",
+  }
+);
+
+const retrieveSkill = tool(
+  async ({ query, rawQuery }: { query: string; rawQuery?: string }) => {
+    return formatRetrievalToolOutput({ query, rawQuery });
+  },
+  {
+    name: "retrieve",
+    description:
+      "按主题从知识库混合检索相关片段。用于回答条款/定义/流程/事实。复杂问题可先 kb_catalog 再调用。",
+    schema: z.object({
+      query: z.string().describe("用于检索的关键词或问题"),
+      rawQuery: z.string().optional().describe("用户原始问题"),
+    }),
+  }
+);
+
+const retrieveScopedSkill = tool(
+  async ({
+    query,
+    sources,
+    rawQuery,
+  }: {
+    query: string;
+    sources: string[];
+    rawQuery?: string;
+  }) => {
+    const docs = await getUploadedDocuments();
+    const names = new Set(docs.map((d) => d.name));
+    const forceSources = (sources || [])
+      .map((s) => String(s || "").trim())
+      .filter(Boolean)
+      .filter((s) => names.has(s) || [...names].some((n) => n.includes(s) || s.includes(n)));
+    return formatRetrievalToolOutput({
       query,
       rawQuery,
-      skipCondense: true,
-      ...runParams,
+      forceSources: forceSources.length ? forceSources : undefined,
     });
-    const meta = {
-      agenticRounds: result.agenticRounds ?? 0,
-      rerankMode: result.rerankMode,
-      evidenceCount: result.evidence.length,
-      needsClarify: result.needsClarify,
-      experienceHits: result.experienceHits ?? 0,
-      abVariant: result.abVariant,
-      banditArm: result.banditArm,
-      ms: result.ms,
-    };
-    return `${result.output}\n[retrieval_meta]\n${JSON.stringify(meta)}`;
+  },
+  {
+    name: "retrieve_scoped",
+    description:
+      "在指定文档 sources 范围内检索。用于对比、深挖某一手册，或 catalog 选定来源后的第二跳。",
+    schema: z.object({
+      query: z.string().describe("检索问句"),
+      sources: z.array(z.string()).min(1).describe("文档文件名列表"),
+      rawQuery: z.string().optional().describe("用户原始问题"),
+    }),
+  }
+);
+
+const documentQuerySkill = tool(
+  async ({ query, rawQuery }: { query: string; rawQuery?: string }) => {
+    return formatRetrievalToolOutput({ query, rawQuery });
   },
   {
     name: "document_query",
     description: skillToolDescription(
       documentQueryDesc,
-      "从上传的非结构化文档中搜索信息。当用户提问关于文档内容的问题时使用。"
+      "兼容别名：等同 retrieve。从上传文档中搜索信息。"
     ),
     schema: z.object({
       query: z.string().describe("用于检索的关键词或问题"),
@@ -231,8 +317,19 @@ const documentUploadSkill = tool(
   }
 );
 
-const skills = [documentListSkill, documentQuerySkill, documentUploadSkill];
+const skills = [
+  kbCatalogSkill,
+  retrieveSkill,
+  retrieveScopedSkill,
+  documentListSkill,
+  documentQuerySkill,
+  documentUploadSkill,
+];
 const toolNode = new ToolNode(skills);
+
+const RETRIEVAL_TOOL_NAMES = new Set(["retrieve", "retrieve_scoped", "document_query"]);
+const PRESENT_TOOL_NAMES = new Set(["document_list", "document_upload"]);
+const LOOP_TOOL_NAMES = new Set(["kb_catalog"]);
 
 const GraphState = Annotation.Root({
   messages: Annotation<BaseMessage[]>({
@@ -317,7 +414,8 @@ export const createAgent = async () => {
       getRagAgentEnv().preferDocumentQueryWhenDocsExist &&
       intent.route_action === "document_query" &&
       !isChitchat &&
-      docs.length > 0
+      docs.length > 0 &&
+      !isRagAgenticToolLoopActive()
     ) {
       const humanTurns = state.messages.filter((m) => m instanceof HumanMessage).length;
       const hasSummary = Boolean(String(state.summary || "").trim());
@@ -339,31 +437,45 @@ export const createAgent = async () => {
         }
       }
       const forcedToolCall: any = {
-        name: "document_query",
+        name: "retrieve",
         args: { query: queryForRetrieval || question, rawQuery: question },
         id: `tool_call_${Date.now()}`,
       };
       return { messages: [new AIMessage({ content: "", tool_calls: [forcedToolCall] })] };
     }
 
+    const agenticActive = isRagAgenticToolLoopActive();
+    const toolRound = getRagAgenticToolRounds();
+    const maxToolRounds = getRagAgentEnv().agenticToolMaxRounds;
     const systemPrompt = new SystemMessage(
       [
-        "你是一个工具路由 Agent。你必须在需要时调用工具，否则直接回答。",
+        agenticActive
+          ? "你是文档知识库 Agentic RAG Agent。把检索当工具，自主规划是否检索、检哪些源、是否多跳。"
+          : "你是一个工具路由 Agent。你必须在需要时调用工具，否则直接回答。",
         "可用工具：",
-        "- document_query：从用户上传文档中检索并返回相关片段（用于回答具体条款/定义/流程/事实）。",
+        "- kb_catalog：查看知识库目录与摘要（复杂问题优先调用）。",
+        "- retrieve：主题检索（混合检索+重排）。",
+        "- retrieve_scoped：限定 sources[] 文档再检。",
+        "- document_query：retrieve 兼容别名。",
         "- document_list：列出已上传文档。",
         "- document_upload：告诉用户如何上传文档。",
         "路由原则：",
-        "1) 用户在问文档内容/制度/手册/SOP/条款/定义/流程 -> document_query",
-        "2) 用户在问有哪些文档 -> document_list",
-        "3) 用户在问怎么上传/导入 -> document_upload",
-        "4) 若与文档无关 -> 直接简短回答，不要调用工具，也不要编造“文档里写了什么”。",
-        "5) 调用 document_query 时，query 填写用户当前问题即可（可用自然语言）；若存在多轮或指代，系统会在检索前自动改写为自包含检索问句。",
+        "1) 复杂对比/跨文档/多步调研：先 kb_catalog，再 retrieve 或 retrieve_scoped。",
+        "2) 简单单事实：可直接 retrieve。",
+        "3) 用户问有哪些文档 -> document_list。",
+        "4) 用户问怎么上传 -> document_upload。",
+        "5) 与文档无关 -> 直接简短回答，不要编造文档内容。",
+        "6) 证据不足时可换问句或换源再检索；不要在无证据时硬答。",
+        agenticActive
+          ? `7) 当前是 Agentic 多跳模式，已用工具轮次 ${toolRound}/${maxToolRounds}；接近上限时根据已有证据作答或澄清。`
+          : "",
         state.summary ? `历史对话摘要（仅供参考，勿复述给用户）：${state.summary}` : "历史对话摘要：暂无",
-      ].join("\n")
+      ]
+        .filter(Boolean)
+        .join("\n")
     );
 
-    const response = await withRetry(() => model.invoke([systemPrompt, ...state.messages.slice(-6)]));
+    const response = await withRetry(() => model.invoke([systemPrompt, ...state.messages.slice(-8)]));
 
     if (!(response instanceof AIMessage) || !response.tool_calls?.length) {
       return { messages: [response] };
@@ -376,7 +488,7 @@ export const createAgent = async () => {
       getRagAgentEnv().enableQueryCondense &&
       cachedIntent?.needs_condense !== false &&
       (cachedIntent?.needs_condense === true || humanTurns > 1 || hasSummary) &&
-      response.tool_calls.some((tc: any) => tc?.name === "document_query");
+      response.tool_calls.some((tc: any) => RETRIEVAL_TOOL_NAMES.has(String(tc?.name || "")));
 
     if (!shouldRunCondense) {
       return { messages: [response] };
@@ -384,7 +496,7 @@ export const createAgent = async () => {
 
     const newToolCalls: any[] = [];
     for (const tc of response.tool_calls as any[]) {
-      if (tc?.name === "document_query" && tc?.args && typeof tc.args.query === "string") {
+      if (RETRIEVAL_TOOL_NAMES.has(String(tc?.name || "")) && tc?.args && typeof tc.args.query === "string") {
         const draft = tc.args.query.trim();
         if (draft) {
           try {
@@ -484,16 +596,49 @@ export const createAgent = async () => {
   };
 
   const afterTools = (state: typeof GraphState.State) => {
+    const round = bumpRagAgenticToolRound();
+    const maxRounds = getRagAgentEnv().agenticToolMaxRounds;
+    const agentic = isRagAgenticToolLoopActive() && getRagAgentEnv().enableAgenticToolLoop;
+
+    let toolNames: string[] = [];
     for (let i = state.messages.length - 1; i >= 0; i--) {
       const msg = state.messages[i];
       if (msg instanceof AIMessage && msg.tool_calls && msg.tool_calls.length > 0) {
-        const toolNames = msg.tool_calls.map((c: any) => c?.name).filter(Boolean);
-        if (toolNames.includes("document_query")) return "generate";
-        if (toolNames.includes("document_list") || toolNames.includes("document_upload")) {
-          return "present_tool";
-        }
+        toolNames = msg.tool_calls.map((c: any) => String(c?.name || "")).filter(Boolean);
         break;
       }
+    }
+
+    if (toolNames.some((n) => PRESENT_TOOL_NAMES.has(n))) {
+      return "present_tool";
+    }
+
+    // catalog / 规划类工具：Agentic 模式下回 agent 继续决策
+    if (agentic && toolNames.some((n) => LOOP_TOOL_NAMES.has(n)) && round < maxRounds) {
+      console.log(`[AgenticLoop] round=${round}/${maxRounds} tools=${toolNames.join(",")} → agent`);
+      return "agent";
+    }
+
+    const didRetrieve = toolNames.some((n) => RETRIEVAL_TOOL_NAMES.has(n));
+    if (didRetrieve) {
+      const toolMessages = state.messages.filter((m) => m instanceof ToolMessage);
+      const lastTool = toolMessages[toolMessages.length - 1];
+      const meta = parseRetrievalMetaFromTool(String(lastTool?.content ?? ""));
+      const evidenceCount = Number(meta?.evidenceCount ?? 0);
+      const needsClarify = Boolean(meta?.needsClarify);
+
+      // 弱证据且未达预算：允许再规划一跳
+      if (agentic && (needsClarify || evidenceCount <= 0) && round < maxRounds) {
+        console.log(
+          `[AgenticLoop] weak evidence round=${round}/${maxRounds} evidence=${evidenceCount} → agent`
+        );
+        return "agent";
+      }
+      return "generate";
+    }
+
+    if (agentic && round < maxRounds) {
+      return "agent";
     }
     return END;
   };
@@ -524,8 +669,14 @@ export const createAgent = async () => {
 
   const generateNode = async (state: typeof GraphState.State) => {
     const toolMessages = state.messages.filter((m) => m instanceof ToolMessage);
-    const lastToolMessage = toolMessages[toolMessages.length - 1];
-    const rawToolText = String(lastToolMessage?.content ?? "");
+    // 多跳：合并所有检索类工具输出的证据
+    const retrievalToolTexts = toolMessages
+      .map((m) => String(m.content ?? ""))
+      .filter((t) => t.includes("[evidence_json]") || t.includes("[retrieval_meta]"));
+    const rawToolText =
+      retrievalToolTexts.length > 0
+        ? retrievalToolTexts.join("\n\n---\n\n")
+        : String(toolMessages[toolMessages.length - 1]?.content ?? "");
 
     const humanMessages = state.messages.filter((m) => m instanceof HumanMessage);
     const lastHumanMessage = humanMessages[humanMessages.length - 1] as HumanMessage | undefined;
@@ -534,9 +685,11 @@ export const createAgent = async () => {
       (lastHumanMessage?.additional_kwargs as { raw_incoming?: string } | undefined)?.raw_incoming ?? questionText
     );
 
-    const retrievalMeta = parseRetrievalMetaFromTool(rawToolText);
+    const retrievalMeta = parseRetrievalMetaFromTool(
+      retrievalToolTexts[retrievalToolTexts.length - 1] || rawToolText
+    );
     const retrievalEvidenceCount = Number(retrievalMeta?.evidenceCount ?? 0);
-    if (retrievalMeta?.needsClarify && retrievalEvidenceCount === 0) {
+    if (retrievalMeta?.needsClarify && retrievalEvidenceCount === 0 && !isRagAgenticToolLoopActive()) {
       const clarifyMsg =
         parseClarifyMessageFromTool(rawToolText) || (await buildClarifyMessage(questionText));
       return { messages: [new AIMessage({ content: clarifyMsg })] };
@@ -555,21 +708,32 @@ export const createAgent = async () => {
     });
     const evidenceCount = Number(retrievalMeta?.evidenceCount ?? 0);
     const fallbackItems = parseEvidenceJsonFromTool(rawToolText);
+    // 合并多段 evidence_json
+    const mergedItems = [...fallbackItems];
+    for (const chunk of retrievalToolTexts.slice(0, -1)) {
+      for (const it of parseEvidenceJsonFromTool(chunk)) {
+        mergedItems.push(it);
+      }
+    }
     const envGen = getRagAgentEnv();
     let effectiveContext = contextText;
-    if (!effectiveContext.trim() && fallbackItems.length) {
+    if (!effectiveContext.trim() && mergedItems.length) {
       const lines: string[] = [];
-      for (const it of fallbackItems.slice(0, envGen.maxContextSnippets)) {
+      const seen = new Set<string>();
+      for (const it of mergedItems.slice(0, envGen.maxContextSnippets * 2)) {
         const content = String(it?.content ?? "").trim();
         const source = String(it?.source ?? "unknown").trim();
         if (!content) continue;
+        const key = `${source}::${content.slice(0, 80)}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
         lines.push(`[内容]: ${content}`);
         lines.push(`[来源]: ${source}`);
         lines.push("");
       }
       effectiveContext = lines.join("\n").trim();
     }
-    if (!effectiveContext.trim() || (evidenceCount === 0 && !fallbackItems.length)) {
+    if (!effectiveContext.trim() || (evidenceCount === 0 && !mergedItems.length)) {
       const notFoundMsg = `当前知识库暂未找到与「${questionText}」直接相关的内容。请指定左侧已有文档名称，或上传新文档后再查。`;
       return { messages: [new AIMessage({ content: notFoundMsg })] };
     }
@@ -616,6 +780,7 @@ export const createAgent = async () => {
     .addConditionalEdges("tools", afterTools, {
       generate: "generate",
       present_tool: "present_tool",
+      agent: "agent",
       [END]: "summarize",
     })
     .addConditionalEdges("generate", afterGenerate, {

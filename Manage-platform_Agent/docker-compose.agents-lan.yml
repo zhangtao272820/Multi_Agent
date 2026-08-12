@@ -1,5 +1,9 @@
 # 模型 SSOT：Manage-platform_Agent/.env.capability-models → scripts/apply-capability-models.ps1
 # 同步到各 Agent/.env；Docker 仅通过 env_file 注入，勿在 services.environment 写 OPENAI_MODEL/CAP_* 等模型键。
+#
+# 持久化注意：对话历史在 clawhive_pg_data + 各 agent 的 .data 命名卷（dual）。
+# 重建/重启服务请用 `up -d --force-recreate`，切勿 `docker compose down -v`，
+# 否则会清空 Postgres 与 agent 数据卷，导致对话/记忆丢失。
 services:
   clawhive_postgres:
     image: docker.1ms.run/pgvector/pgvector:pg16
@@ -11,6 +15,7 @@ services:
     ports:
       - "${CLAWHIVE_PG_PORT:-15432}:5432"
     volumes:
+      # 会话/记忆权威库；勿随 down -v 删除
       - clawhive_pg_data:/var/lib/postgresql/data
       - ./monitoring/postgres/init-langfuse-db.sh:/docker-entrypoint-initdb.d/02-langfuse.sh:ro
     healthcheck:
@@ -94,7 +99,6 @@ services:
       MULTIMODAL_AGENT_HOST: multimodal_agent
       LOBSTER_AGENT_HOST: lobster_agent
       TAVERN_AGENT_HOST: tavern_agent
-      COMPANION_AGENT_HOST: companion_agent
       MUSIC_AGENT_HOST: music_agent
       VIDEO_AGENT_HOST: video_agent
       AI_AGENT_HOST: ai_agent
@@ -112,7 +116,6 @@ services:
       MULTIMODAL_PORT: ${MULTIMODAL_PORT:-13107}
       LOBSTER_PORT: ${LOBSTER_PORT:-13108}
       TAVERN_PORT: ${TAVERN_PORT:-13109}
-      COMPANION_PORT: ${COMPANION_PORT:-13115}
       MUSIC_AGENT_PORT: ${MUSIC_AGENT_PORT:-13110}
       VIDEO_AGENT_PORT: ${VIDEO_AGENT_PORT:-13111}
       # 容器内 AI_Agent 监听 8080；宿主机映射仍为 ${AI_AGENT_PORT:-13112}:8080
@@ -229,11 +232,14 @@ services:
       NUXT_MYSQL_PASSWORD: ${DB_AGENT_MYSQL_PASSWORD:-123456}
       NUXT_MYSQL_DATABASE: ${DB_AGENT_MYSQL_DATABASE:-p2026}
       AGENT_DATABASE_URL: postgresql://${CLAWHIVE_PG_USER:-postgres}:${CLAWHIVE_PG_PASSWORD:-postgres}@clawhive_postgres:5432/${CLAWHIVE_PG_DB:-clawhive}
-      DB_AGENT_STORAGE_BACKEND: ${DB_AGENT_STORAGE_BACKEND:-postgres}
+      # dual：PG + .data 文件镜像，避免 PG 短暂不可用时丢对话
+      DB_AGENT_STORAGE_BACKEND: ${DB_AGENT_STORAGE_BACKEND:-dual}
       DB_VECTOR_BACKEND: ${DB_VECTOR_BACKEND:-pgvector}
       EVO_VERIFY_BEFORE_PROMOTE: ${EVO_VERIFY_BEFORE_PROMOTE:-1}
       EVO_AGENT_PROMPT_EXECUTION_ONLY: ${EVO_AGENT_PROMPT_EXECUTION_ONLY:-1}
       EVO_PROMOTE_REQUIRES_VERIFY: ${EVO_PROMOTE_REQUIRES_VERIFY:-1}
+    volumes:
+      - db_agent_data:/app/.data
     ports:
       - "${DB_PORT:-13101}:${DB_PORT:-13101}"
     extra_hosts:
@@ -303,8 +309,14 @@ services:
       RAG_MMR_LAMBDA: ${RAG_MMR_LAMBDA:-0.7}
       RAG_ENABLE_CITATION_GUARD: ${RAG_ENABLE_CITATION_GUARD:-1}
       RAG_ENABLE_AGENTIC_RETRIEVAL: ${RAG_ENABLE_AGENTIC_RETRIEVAL:-1}
+      RAG_HEAVY_PARSE: ${RAG_HEAVY_PARSE:-1}
+      MINERU_API_URL: ${MINERU_API_URL:-http://mineru_api:8080}
+      RAG_HEAVY_PARSE_TIMEOUT_MS: ${RAG_HEAVY_PARSE_TIMEOUT_MS:-120000}
+      RAG_ENABLE_AGENTIC_TOOL_LOOP: ${RAG_ENABLE_AGENTIC_TOOL_LOOP:-1}
+      RAG_AGENTIC_TOOL_MAX_ROUNDS: ${RAG_AGENTIC_TOOL_MAX_ROUNDS:-4}
       AGENT_DATABASE_URL: postgresql://${CLAWHIVE_PG_USER:-postgres}:${CLAWHIVE_PG_PASSWORD:-postgres}@clawhive_postgres:5432/${CLAWHIVE_PG_DB:-clawhive}
-      RAG_AGENT_STORAGE_BACKEND: ${RAG_AGENT_STORAGE_BACKEND:-postgres}
+      # dual：PG + rag_agent_data 文件镜像；重建容器勿 down -v
+      RAG_AGENT_STORAGE_BACKEND: ${RAG_AGENT_STORAGE_BACKEND:-dual}
       EVO_VERIFY_BEFORE_PROMOTE: ${EVO_VERIFY_BEFORE_PROMOTE:-1}
       EVO_AGENT_PROMPT_EXECUTION_ONLY: ${EVO_AGENT_PROMPT_EXECUTION_ONLY:-1}
       EVO_PROMOTE_REQUIRES_VERIFY: ${EVO_PROMOTE_REQUIRES_VERIFY:-1}
@@ -566,6 +578,8 @@ services:
       - ../AI_admin_Agent/backend/workspace:/app/workspace
       - ../AI_admin_Agent/backend/data:/app/data
       - ../AI_admin_Agent/backend/.env:/app/.env:ro
+      # Playbook SSOT：intent_routing / email_hands / task_planning 等
+      - ../AI_admin_Agent/skills:/app/skills:ro
     environment:
       FRONTEND_DIST_DIR: /frontend-dist
       WORKSPACE_DIR: /app/workspace
@@ -576,8 +590,8 @@ services:
       CLAWHIVE_PUBLIC_URL: ${CLAWHIVE_PUBLIC_URL:-http://127.0.0.1:18000}
       NUXT_PUBLIC_CLAWHIVE_AUTH_URL: ${CLAWHIVE_PUBLIC_URL:-http://127.0.0.1:18000}
       # 与 .env.agents-lan 对齐：内网服务名必须 bypass 宿主机 HTTP_PROXY，否则登录代理 502
-      NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,clawhive_backend,clawhive_postgres,clawhive_redis,extractor_agent,manager_agent,db_agent,rag_agent,code_assistent_agent,ai_admin_agent,video_agent,ai_agent,searxng,crw,playwright_mcp,lobster_agent,admin_mcp_gateway,mineru_api,multimodal_agent,music_agent,companion_agent,tavern_agent}
-      no_proxy: ${NO_PROXY:-localhost,127.0.0.1,clawhive_backend,clawhive_postgres,clawhive_redis,extractor_agent,manager_agent,db_agent,rag_agent,code_assistent_agent,ai_admin_agent,video_agent,ai_agent,searxng,crw,playwright_mcp,lobster_agent,admin_mcp_gateway,mineru_api,multimodal_agent,music_agent,companion_agent,tavern_agent}
+      NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,clawhive_backend,clawhive_postgres,clawhive_redis,extractor_agent,manager_agent,db_agent,rag_agent,code_assistent_agent,ai_admin_agent,video_agent,ai_agent,searxng,crw,playwright_mcp,lobster_agent,admin_mcp_gateway,mineru_api,multimodal_agent,music_agent,tavern_agent}
+      no_proxy: ${NO_PROXY:-localhost,127.0.0.1,clawhive_backend,clawhive_postgres,clawhive_redis,extractor_agent,manager_agent,db_agent,rag_agent,code_assistent_agent,ai_admin_agent,video_agent,ai_agent,searxng,crw,playwright_mcp,lobster_agent,admin_mcp_gateway,mineru_api,multimodal_agent,music_agent,tavern_agent}
       # CLAWHIVE_INTERNAL_TOKEN：由 env_file 注入。勿写 ${CLAWHIVE_INTERNAL_TOKEN:-}——
       # 当 --env-file .env.agents-lan 无法插值（首行被压成单行/注释）时会注入空串并覆盖 .env 中的有效令牌。
       AGENT_LLM_REQUEST_TIMEOUT_MS: ${AGENT_LLM_REQUEST_TIMEOUT_MS:-120000}
@@ -704,9 +718,8 @@ services:
       start_period: 120s
     restart: unless-stopped
 
-  # Phase 3：MinerU 兼容 API（轻量 PDF 提取；可换真实 MinerU）
+  # K 波：MinerU 重解析侧车（enhanced 默认；MINERU_ENGINE=full 需自备 mineru CLI）
   mineru_api:
-    profiles: ["fun-mcp"]
     build:
       context: ../AI_admin_Agent/mineru-api
       dockerfile: Dockerfile
@@ -716,6 +729,8 @@ services:
     container_name: mineru_api
     environment:
       MINERU_WORKSPACE_DIR: /data/workspace
+      MINERU_ENGINE: ${MINERU_ENGINE:-auto}
+      MINERU_MAX_TEXT_CHARS: ${MINERU_MAX_TEXT_CHARS:-500000}
     volumes:
       - ../AI_admin_Agent/backend/workspace:/data/workspace:ro
     ports:
@@ -725,7 +740,7 @@ services:
       interval: 15s
       timeout: 6s
       retries: 6
-      start_period: 30s
+      start_period: 60s
     restart: unless-stopped
 
   manager_agent:
@@ -826,7 +841,8 @@ services:
       AGENT_DATABASE_URL: postgresql://${CLAWHIVE_PG_USER:-postgres}:${CLAWHIVE_PG_PASSWORD:-postgres}@clawhive_postgres:5432/${CLAWHIVE_PG_DB:-clawhive}
       AGENT_PG_POOL_MAX: ${AGENT_PG_POOL_MAX:-16}
       AGENT_PG_CONNECT_TIMEOUT_MS: ${AGENT_PG_CONNECT_TIMEOUT_MS:-8000}
-      MANAGER_STORAGE_BACKEND: ${MANAGER_STORAGE_BACKEND:-postgres}
+      # dual：PG + manager_agent_data 文件镜像；重建容器勿 down -v
+      MANAGER_STORAGE_BACKEND: ${MANAGER_STORAGE_BACKEND:-dual}
       MANAGER_LANGGRAPH_CHECKPOINTER: ${MANAGER_LANGGRAPH_CHECKPOINTER:-postgres}
       MGR_CHECKPOINTER_AUTO: ${MGR_CHECKPOINTER_AUTO:-1}
       MGR_TOOL_CALL_AUDIT: ${MGR_TOOL_CALL_AUDIT:-1}
@@ -1132,54 +1148,6 @@ services:
       - tavern_agent_data:/tavern/.data
     restart: unless-stopped
 
-  companion_agent:
-    profiles: ["extended"]
-    build:
-      context: ../Companion_Agent
-      dockerfile: Dockerfile
-    image: clawhive/companion_agent:${CLAWHIVE_IMAGE_TAG:-prod}
-    container_name: companion_agent
-    env_file:
-      - path: ../Companion_Agent/.env
-        required: false
-      - path: .env.agents-lan
-        required: false
-    environment:
-      API_HOST: 0.0.0.0
-      API_PORT: "13115"
-      CORS_ORIGINS: ${COMPANION_CORS_ORIGINS:-http://localhost:13115,http://127.0.0.1:13115}
-      CLAWHIVE_BACKEND_URL: http://clawhive_backend:8000
-      JWT_SECRET: ${CLAWHIVE_JWT_SECRET:-change-this-secret}
-      AGENT_BROWSER_AUTH: ${AGENT_BROWSER_AUTH:-1}
-      CLAWHIVE_PUBLIC_URL: ${CLAWHIVE_PUBLIC_URL:-http://127.0.0.1:18000}
-      NUXT_PUBLIC_CLAWHIVE_AUTH_URL: ${CLAWHIVE_PUBLIC_URL:-http://127.0.0.1:18000}
-      # CLAWHIVE_INTERNAL_TOKEN：由 env_file 注入。勿写 ${CLAWHIVE_INTERNAL_TOKEN:-}——
-      # 当 --env-file .env.agents-lan 无法插值（首行被压成单行/注释）时会注入空串并覆盖 .env 中的有效令牌。
-      AGENT_LLM_REQUEST_TIMEOUT_MS: ${AGENT_LLM_REQUEST_TIMEOUT_MS:-120000}
-      AGENT_LLM_MAX_RETRIES: ${AGENT_LLM_MAX_RETRIES:-0}
-      AGENT_LLM_JSON_MAX_TOKENS: ${AGENT_LLM_JSON_MAX_TOKENS:-896}
-      AGENT_LLM_SYNTH_MAX_TOKENS: ${AGENT_LLM_SYNTH_MAX_TOKENS:-2048}
-      CLAWHIVE_CONFIG_SYNC: "1"
-    ports:
-      - "${COMPANION_PORT:-13115}:13115"
-    volumes:
-      # 本地新增/替换 Live2D 模型后无需重建镜像
-      - ../Companion_Agent/live2d/models:/companion/live2d/models:ro
-      # data 需可写：SQLite 存档 · TTS cache · unlocked endings
-      - ../Companion_Agent/data:/companion/data
-      - ../Companion_Agent/backend/app:/companion/backend/app:ro
-    healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "python -c \"import urllib.request,sys; r=urllib.request.urlopen('http://127.0.0.1:13115/api/health',timeout=5); sys.exit(0 if r.status==200 else 1)\""
-        ]
-      interval: 20s
-      timeout: 8s
-      retries: 6
-      start_period: 30s
-    restart: unless-stopped
-
   music_agent:
     profiles: ["extended"]
     build:
@@ -1269,8 +1237,8 @@ services:
   video_agent:
     profiles: ["extended"]
     build:
-      context: ../Video_Agent
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: Video_Agent/Dockerfile
       args:
         NODE_BASE_IMAGE: ${VIDEO_AGENT_NODE_IMAGE:-docker.m.daocloud.io/library/node:20-bullseye}
         PYTHON_BASE_IMAGE: ${VIDEO_AGENT_PYTHON_IMAGE:-docker.m.daocloud.io/library/python:3.12-slim-bookworm}
@@ -1565,6 +1533,7 @@ volumes:
   clawhive_tempo_data:
   clawhive_loki_data:
   manager_agent_data:
+  db_agent_data:
   rag_agent_data:
   rag_agent_node_modules:
   rag_agent_nuxt:

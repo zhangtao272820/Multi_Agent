@@ -108,7 +108,8 @@ export type EmitEvent =
   | { type: 'log'; payload: { level: 'info' | 'warn' | 'error'; message: string; ts: number } }
   | { type: 'thinking'; payload: { stage: string; text: string; ts: number } }
   | { type: 'state'; payload: LobsterPublicState }
-  | { type: 'screenshot'; payload: { dataUrl: string; ts: number } }
+  | { type: 'screenshot'; payload: { dataUrl: string; pageUrl?: string; ts: number } }
+  | { type: 'live_view'; payload: { vncUrl: string; hint?: string; ts: number } }
   | { type: 'confirm'; payload: { id: string; title: string; message: string; ts: number } }
   | { type: 'error'; payload: { message: string; ts: number } }
   | { type: 'result'; payload: any }

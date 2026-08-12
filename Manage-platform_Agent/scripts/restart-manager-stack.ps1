@@ -1,7 +1,9 @@
 # 重启 Manager_Agent 及其协作依赖的全部子 Agent（含 Multimodal / Music / Video）
 # 用法：
-#   .\scripts\restart-manager-stack.ps1           # 仅 restart
+#   .\scripts\restart-manager-stack.ps1           # force-recreate（重载 env，保留卷）
 #   .\scripts\restart-manager-stack.ps1 -Build  # 重新构建镜像后启动
+#
+# 禁止 down -v：见 doc/docker-persist-no-volume-wipe.md
 
 param(
     [switch]$Build
@@ -28,7 +30,7 @@ $managerStack = @(
     "manager_agent"
 )
 
-Write-Host "Manager stack services:" -ForegroundColor Cyan
+Write-Host "Manager stack services (volumes preserved; no -v):" -ForegroundColor Cyan
 Write-Host ($managerStack -join ", ")
 
 # 释放 13107：旧 older_agent 若仍占用端口会导致 multimodal_agent 无法启动
@@ -40,11 +42,12 @@ if ($legacy) {
 }
 
 if ($Build) {
-    Write-Host "Building and starting manager stack..." -ForegroundColor Yellow
-    docker compose --env-file "$envFile" -f "$composeFile" up -d --build @managerStack
+    Write-Host "Building and force-recreating manager stack (keep volumes)..." -ForegroundColor Yellow
+    docker compose --env-file "$envFile" -f "$composeFile" up -d --build --force-recreate @managerStack
 } else {
-    Write-Host "Restarting manager stack..." -ForegroundColor Yellow
-    docker compose --env-file "$envFile" -f "$composeFile" restart @managerStack
+    # restart 不重载 env_file；改 STORAGE_BACKEND 等必须 force-recreate
+    Write-Host "Force-recreating manager stack (keep volumes)..." -ForegroundColor Yellow
+    docker compose --env-file "$envFile" -f "$composeFile" up -d --force-recreate @managerStack
 }
 
 if ($LASTEXITCODE -ne 0) {

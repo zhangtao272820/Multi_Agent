@@ -69,4 +69,15 @@ assert(sli.p95LatencyMs > 0, 'p95 latency')
 assert(sli.p95ByPhase.rag > 0, 'p95 by phase')
 assert(sli.evidenceRejectionRate != null, 'rejection rate present')
 
+{
+  const { buildTraceDeepLinks } = await import('../../../server/graph/core/runtime/traceDeepLinks')
+  const links = buildTraceDeepLinks('run-obs-deeplink', {
+    LANGFUSE_PUBLIC_URL: 'http://langfuse.test:3000',
+    TEMPO_UI_URL: 'http://grafana.test/explore',
+    MANAGER_OTEL_EXPORT: '1'
+  } as NodeJS.ProcessEnv)
+  assert(links.langfuseUrl?.includes('/trace/run-obs-deeplink'), 'langfuse deep link')
+  assert(links.tempoUrl?.includes('traceId=run-obs-deeplink'), 'tempo deep link')
+}
+
 console.log('smoke-observability: OK')

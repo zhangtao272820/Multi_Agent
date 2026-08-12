@@ -284,3 +284,94 @@ def trim_turns_pg(session_id: str, keep_last: int) -> bool:
         )
         conn.commit()
     return True
+
+
+def _normalize_user_anchor_text(content: str) -> str:
+    import re
+
+    s = str(content or "").strip()
+    s = re.sub(r"\n\[附件:[^\]]+\]\s*$", "", s, flags=re.I)
+    s = re.sub(r"^\[附件:[^\]]+\]\s*$", "", s, flags=re.I)
+    return re.sub(r"\s+", " ", s).strip()
+
+
+def truncate_turns_pg(
+    session_id: str,
+    from_user_index: int,
+    *,
+    replace_user_text: str | None = None,
+    fallback_user_text: str | None = None,
+) -> dict[str, int | bool]:
+    """从第 from_user_index 条用户消息起截断 adm_session_turns（含该条及之后）。"""
+    sid = (session_id or "default").strip() or "default"
+    try:
+        raw_idx = int(from_user_index)
+    except (TypeError, ValueError):
+        raw_idx = -1
+    idx = raw_idx if raw_idx >= 0 else -1
+    needle = _normalize_user_anchor_text(fallback_user_text or replace_user_text or "")
+    rows = load_turns_pg(sid)
+    user_idx = 0
+    cut_id: int | None = None
+    resolved_user_index = -1
+    for row in rows:
+        if str(row.get("role") or "") == "user":
+            if idx >= 0 and user_idx == idx:
+                cut_id = int(row["id"])
+                resolved_user_index = user_idx
+                break
+            user_idx += 1
+    if cut_id is None and needle:
+        user_idx = 0
+        hits: list[tuple[int, int]] = []
+        for row in rows:
+            if str(row.get("role") or "") != "user":
+                continue
+            if _normalize_user_anchor_text(str(row.get("content") or "")) == needle:
+                hits.append((int(row["id"]), user_idx))
+            user_idx += 1
+        if hits:
+            if idx >= 0:
+                best = min(hits, key=lambda h: abs(h[1] - idx))
+            else:
+                best = hits[-1]
+            cut_id, resolved_user_index = best
+    if cut_id is None:
+        return {"ok": False, "message_count": len(rows), "user_message_count": user_idx}
+    with _connect() as conn:
+        conn.execute(
+            "DELETE FROM adm_session_turns WHERE session_id = %s AND id >= %s",
+            (sid, cut_id),
+        )
+        replace = (replace_user_text or "").strip()
+        if replace:
+            conn.execute(
+                "INSERT INTO adm_session_turns (session_id, role, content) VALUES (%s, %s, %s)",
+                (sid, "user", replace),
+            )
+        conn.execute(
+            """
+            INSERT INTO adm_sessions (id, updated_at)
+            VALUES (%s, NOW())
+            ON CONFLICT (id) DO UPDATE SET updated_at = NOW()
+            """,
+            (sid,),
+        )
+        conn.commit()
+        msg_row = conn.execute(
+            "SELECT COUNT(*)::int AS cnt FROM adm_session_turns WHERE session_id = %s",
+            (sid,),
+        ).fetchone()
+        user_row = conn.execute(
+            """
+            SELECT COUNT(*)::int AS cnt FROM adm_session_turns
+            WHERE session_id = %s AND role = 'user'
+            """,
+            (sid,),
+        ).fetchone()
+    return {
+        "ok": True,
+        "message_count": int(msg_row["cnt"] if msg_row else 0),
+        "user_message_count": int(user_row["cnt"] if user_row else 0),
+        "resolved_user_index": resolved_user_index,
+    }

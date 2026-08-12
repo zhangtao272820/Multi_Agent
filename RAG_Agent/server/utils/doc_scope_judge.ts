@@ -8,6 +8,8 @@ import { ragFastJudgeModelName } from "./rag_agent_env";
 
 export type RouteAction = "document_list" | "document_upload" | "document_query" | "direct_answer";
 
+export type RagRetrievalMode = "pipeline" | "agentic";
+
 export type RagIntentJudgment = {
   specified_documents: string[];
   missing_documents: string[];
@@ -19,6 +21,11 @@ export type RagIntentJudgment = {
   needs_condense?: boolean;
   /** 是否可走 retrieve-first 快路径（简单单主题 document_query） */
   retrieve_first_ok?: boolean;
+  /**
+   * J 波：pipeline=固定 Hybrid 管线；agentic=专家内工具多跳。
+   * 由模型判定，代码仅做安全校正。
+   */
+  retrieval_mode?: RagRetrievalMode;
 };
 
 /** @deprecated 别名，保持兼容 */
@@ -35,7 +42,7 @@ const INTENT_SYSTEM_BASE = [
   "你是文档知识库「意图与范围判断器」。",
   "给定用户问题与当前已上传文档文件名列表，输出结构化 JSON 判断。",
   "仅输出 JSON：",
-  '{"specified_documents":[],"missing_documents":[],"is_chitchat":false,"route_action":"document_query","is_completeness_query":false,"has_explicit_doc_anchor":false,"needs_condense":false,"retrieve_first_ok":true}',
+  '{"specified_documents":[],"missing_documents":[],"is_chitchat":false,"route_action":"document_query","is_completeness_query":false,"has_explicit_doc_anchor":false,"needs_condense":false,"retrieve_first_ok":true,"retrieval_mode":"pipeline"}',
   "字段说明：",
   "- specified_documents：用户明确点名的文档/手册/文件名（含书名、扩展名文件、口语专名）；未点名则 []。",
   "- missing_documents：specified 中在已上传列表找不到合理对应的名称。",
@@ -51,6 +58,7 @@ const INTENT_SYSTEM_BASE = [
   "  false=问句已自包含（含用户重复同一完整问句）。",
   "- retrieve_first_ok：true 当 route 为 document_query、非闲聊、无 missing_documents、非 is_completeness_query，",
   "  且为单主题或不超过 2 个具体事实子问（如「压疮护理要求和行走训练时长分别是多少」仍可为 true）。",
+  "- retrieval_mode：pipeline=简单单事实/明确锚文档，走固定检索管线；agentic=跨文档对比、多步调研、综合分析、需要先看目录再选源。",
   "不要输出其它文字。",
 ].join("\n");
 
@@ -67,11 +75,12 @@ const ANSWER_ADEQUACY_SYSTEM = [
 const INTENT_FAST_SYSTEM = [
   "你是文档知识库「快路径意图判定器」。给定用户问题与已上传文档文件名，仅输出 JSON，不要其它文字。",
   '{"route_action":"document_query","is_chitchat":false,"is_completeness_query":false,"retrieve_first_ok":true,',
-  '"specified_documents":[],"missing_documents":[],"has_explicit_doc_anchor":false,"needs_condense":false}',
+  '"specified_documents":[],"missing_documents":[],"has_explicit_doc_anchor":false,"needs_condense":false,"retrieval_mode":"pipeline"}',
   "route_action：document_list=问有哪些文档；document_upload=问如何上传；document_query=问文档内容/事实；direct_answer=闲聊或与文档无关。",
   "is_completeness_query：仅当用户要求穷尽列全**全部**条目、跨文档汇总**所有**选项时为 true；",
   "  问 2～4 个具体事实（如「A 和 B 分别是多少、某类标准、某字段取值」）为 false。",
   "retrieve_first_ok：document_query 且非闲聊、missing_documents 为空时为 true（含多事实问句，由 compound 快路径处理）。",
+  "retrieval_mode：跨文档对比/综合调研/多步分析用 agentic；其余用 pipeline。",
   "specified_documents/missing_documents：仅用户明确点名文件名时使用；未点名时 missing_documents 必须为 []。",
 ].join("\n");
 
@@ -99,6 +108,7 @@ function parseIntentJson(text: string): RagIntentJudgment {
     has_explicit_doc_anchor: false,
     needs_condense: false,
     retrieve_first_ok: true,
+    retrieval_mode: "pipeline",
   };
   const t = String(text ?? "").trim();
   const start = t.indexOf("{");
@@ -114,10 +124,13 @@ function parseIntentJson(text: string): RagIntentJudgment {
       has_explicit_doc_anchor?: boolean;
       needs_condense?: boolean;
       retrieve_first_ok?: boolean;
+      retrieval_mode?: string;
     };
     const arr = (v: unknown) =>
       Array.isArray(v) ? v.map((x) => String(x ?? "").trim()).filter(Boolean) : [];
     const route = String(parsed.route_action ?? "").trim() as RouteAction;
+    const modeRaw = String(parsed.retrieval_mode ?? "").trim().toLowerCase();
+    const retrieval_mode: RagRetrievalMode = modeRaw === "agentic" ? "agentic" : "pipeline";
     return {
       specified_documents: arr(parsed.specified_documents),
       missing_documents: arr(parsed.missing_documents),
@@ -127,6 +140,7 @@ function parseIntentJson(text: string): RagIntentJudgment {
       has_explicit_doc_anchor: Boolean(parsed.has_explicit_doc_anchor),
       needs_condense: Boolean(parsed.needs_condense),
       retrieve_first_ok: parsed.retrieve_first_ok !== false,
+      retrieval_mode,
     };
   } catch {
     return fallback;
@@ -155,11 +169,26 @@ function createJudgeModel(maxTokens: number) {
 
 /** 依据模型结构化输出校正快路径资格，避免 LLM 误把简单 document_query 判成不可快路径 */
 function normalizeRetrieveFirstOk(j: RagIntentJudgment, docCount: number): RagIntentJudgment {
-  if (docCount <= 0) return { ...j, retrieve_first_ok: false };
-  if (j.is_chitchat || j.route_action !== "document_query") return { ...j, retrieve_first_ok: false };
-  if (j.missing_documents.length > 0) return { ...j, retrieve_first_ok: false };
-  // 模型误判 completeness 时仍允许 compound 快路径（is_completeness_query 仅影响 compound vs fast）
-  return { ...j, retrieve_first_ok: true };
+  if (docCount <= 0) return { ...j, retrieve_first_ok: false, retrieval_mode: j.retrieval_mode || "pipeline" };
+  if (j.is_chitchat || j.route_action !== "document_query") {
+    return { ...j, retrieve_first_ok: false, retrieval_mode: j.retrieval_mode || "pipeline" };
+  }
+  if (j.missing_documents.length > 0) {
+    return { ...j, retrieve_first_ok: false, retrieval_mode: j.retrieval_mode || "pipeline" };
+  }
+  // 穷尽/跨文档综合 → agentic，且不走 retrieve-first
+  if (j.is_completeness_query || j.retrieval_mode === "agentic") {
+    return {
+      ...j,
+      retrieve_first_ok: false,
+      retrieval_mode: "agentic",
+    };
+  }
+  return {
+    ...j,
+    retrieve_first_ok: true,
+    retrieval_mode: j.retrieval_mode === "agentic" ? "agentic" : "pipeline",
+  };
 }
 
 /** 请求级复用：chat 入口已判定时跳过后续重复 judge */
@@ -209,6 +238,7 @@ export async function judgeRagPreflight(input: RagPreflightInput): Promise<RagIn
       has_explicit_doc_anchor: false,
       needs_condense: false,
       retrieve_first_ok: false,
+      retrieval_mode: "pipeline",
     };
     intentCache.set(key, { at: Date.now(), value: empty });
     return empty;
@@ -242,6 +272,7 @@ export async function judgeRagPreflight(input: RagPreflightInput): Promise<RagIn
       has_explicit_doc_anchor: false,
       needs_condense: Boolean(input.hasDialogContext),
       retrieve_first_ok: true,
+      retrieval_mode: "pipeline",
     };
   }
 }

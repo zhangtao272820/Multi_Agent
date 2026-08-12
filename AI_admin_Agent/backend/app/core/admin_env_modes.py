@@ -40,7 +40,15 @@ def is_admin_chitchat_fastpath_enabled() -> bool:
 
 
 def is_admin_intent_rag_enabled() -> bool:
+    """意图 Playbook/经验向量召回：默认关（省 embedding token；场景交给意图 LLM）。
+
+    显式 ADMIN_INTENT_RAG=1 才开启。与 knowledge_retrieval→RAG_Agent 无关。
+    """
     if _token("ADMIN_INTENT_RAG") in _OFF:
+        return False
+    # 未配置时默认关；仅显式开启
+    raw = str(os.getenv("ADMIN_INTENT_RAG", "") or "").strip().lower()
+    if raw not in ("1", "true", "yes", "on"):
         return False
     return resolve_admin_nlu_mode() == "full"
 
@@ -96,6 +104,10 @@ def is_admin_prompt_evolution_enabled() -> bool:
 
 
 def is_admin_auto_curate_enabled() -> bool:
+    """仅当显式 ADMIN_AUTO_CURATE=1 且允许专家自动晋级时开启（默认关）。"""
+    if _token("EVO_ALLOW_EXPERT_AUTO_PROMOTE") not in ("1", "true", "yes", "on"):
+        return False
     if _token("ADMIN_AUTO_CURATE") in _OFF:
         return False
-    return resolve_admin_evolution_mode() == "convergence"
+    # 显式开启才 curate；不再因 convergence 默许自动晋级
+    return _token("ADMIN_AUTO_CURATE", "0") in ("1", "true", "yes", "on")

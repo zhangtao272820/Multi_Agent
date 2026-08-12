@@ -35,23 +35,27 @@ async function main() {
   }
   turns.push({ role: 'user', content: '刚才那个代号 ALPHA 是多少？请复述最近一次。' })
 
-  const { messages, compacted, fullChars, compactChars, savedRatio } = await buildCompactedHistoryWithStats({
-    messages: turns,
-    sanitize: (s) => s,
-    cfg
-  })
+  const { messages, compacted, fullChars, compactChars, savedRatio, fullTokens, compactTokens, tokenSavedRatio, tokenAccounting } =
+    await buildCompactedHistoryWithStats({
+      messages: turns,
+      sanitize: (s) => s,
+      cfg
+    })
 
   assert(turns.length >= 20, 'need 20+ turns')
   assert(compacted, 'should compact long conversation')
   assert(compactChars < fullChars, `compact ${compactChars} should be < full ${fullChars}`)
   assert(savedRatio >= 0.35, `savedRatio ${savedRatio} should be >= 0.35 for long filler history`)
+  assert(compactTokens < fullTokens, `token compact ${compactTokens} < full ${fullTokens}`)
+  assert(tokenSavedRatio >= 0.3, `tokenSavedRatio ${tokenSavedRatio} should be >= 0.3`)
+  assert(tokenAccounting === 'estimated' || tokenAccounting === 'tiktoken', 'token accounting labeled')
 
   const joined = messages.map((m) => String((m as { content?: string }).content || '')).join('\n')
   assert(/ALPHA-24/.test(joined) || /ALPHA-23/.test(joined), 'recent ALPHA code must survive in window')
   assert(messages.length < turns.length, 'message count after compact must shrink')
 
   console.log(
-    `smoke-conversation-compact OK: turns=${turns.length} fullChars=${fullChars} compactChars=${compactChars} saved=${(savedRatio * 100).toFixed(1)}% msgs=${messages.length}`
+    `smoke-conversation-compact OK: turns=${turns.length} fullChars=${fullChars} compactChars=${compactChars} saved=${(savedRatio * 100).toFixed(1)}% fullTok=${fullTokens} compactTok=${compactTokens} tokSaved=${(tokenSavedRatio * 100).toFixed(1)}% acct=${tokenAccounting} msgs=${messages.length}`
   )
 }
 

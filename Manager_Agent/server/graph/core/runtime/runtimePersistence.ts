@@ -71,6 +71,8 @@ export async function appendNluMetrics(entry: {
   promptPatchSource?: string
   plannerRulesCanary?: boolean
   plannerRulesSource?: string
+  bundleCanary?: boolean
+  bundleId?: string
 }) {
   try {
     const dir = path.join(process.cwd(), '.data')
@@ -107,6 +109,10 @@ export async function appendNluMetrics(entry: {
         ...(typeof entry.plannerRulesCanary === 'boolean' ? { plannerRulesCanary: entry.plannerRulesCanary } : {}),
         ...(typeof entry.plannerRulesSource === 'string' && entry.plannerRulesSource.trim()
           ? { plannerRulesSource: entry.plannerRulesSource.trim() }
+          : {}),
+        ...(typeof entry.bundleCanary === 'boolean' ? { bundleCanary: entry.bundleCanary } : {}),
+        ...(typeof entry.bundleId === 'string' && entry.bundleId.trim()
+          ? { bundleId: entry.bundleId.trim() }
           : {})
       })}\n`,
       'utf8'

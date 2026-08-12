@@ -23,6 +23,10 @@ export type LobsterManagerStartHints = {
   /** OpenClaw 式 Workflow Macro */
   workflowId?: string
   workflowArgs?: Record<string, unknown>
+  /** 总管下发的完成标准（优先于 task-understand 自拟） */
+  successCriteria?: string
+  /** 总管下发的交互步预算（≠ 图级 stepLimits） */
+  maxInteractionSteps?: number
 }
 
 function guiPayloadFromEnvelope(raw: unknown): ManagerGuiTaskPayload | null {
@@ -39,6 +43,12 @@ function guiPayloadFromV1Json(raw: string): ManagerGuiTaskPayload | null {
   } catch {
     return null
   }
+}
+
+function parsePositiveInt(raw: unknown): number | undefined {
+  const n = Number(raw)
+  if (!Number.isFinite(n) || n <= 0) return undefined
+  return Math.floor(n)
 }
 
 export function resolveLobsterManagerStartHints(input: {
@@ -80,6 +90,11 @@ export function resolveLobsterManagerStartHints(input: {
       ? (workflowArgsRaw as Record<string, unknown>)
       : undefined
 
+  const successCriteria =
+    String(gui?.success_criteria || (gui as any)?.successCriteria || '').trim() || undefined
+  const maxInteractionSteps =
+    parsePositiveInt(gui?.max_interaction_steps ?? (gui as any)?.maxInteractionSteps) || undefined
+
   return {
     task: task || input.task,
     startUrl: String(gui?.startUrl || input.startUrl || '').trim() || undefined,
@@ -96,5 +111,7 @@ export function resolveLobsterManagerStartHints(input: {
         : undefined,
     workflowId,
     workflowArgs,
+    successCriteria,
+    maxInteractionSteps,
   }
 }

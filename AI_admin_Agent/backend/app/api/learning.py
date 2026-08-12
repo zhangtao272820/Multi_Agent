@@ -11,11 +11,20 @@ from app.core.prompt_evolution import (
     auto_promote_eligible_patches,
     clear_evolved_hints,
     clear_prompt_patches,
-    promote_prompt_patch,
+    promote_prompt_patch_verified,
     promote_min_hits,
 )
 
 router = APIRouter()
+
+
+def _expert_auto_promote_allowed() -> bool:
+    return str(os.getenv("EVO_ALLOW_EXPERT_AUTO_PROMOTE", "0")).strip().lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    )
 
 
 class PromoteBody(BaseModel):
@@ -25,7 +34,7 @@ class PromoteBody(BaseModel):
 
 
 class CurateBody(BaseModel):
-    autoPromote: bool = True
+    autoPromote: bool = False
     minHits: int | None = None
     ingestAudit: bool = True
 
@@ -93,13 +102,21 @@ async def learning_get(_: None = Depends(verify_internal_token)):
 @router.post("/api/learning/promote")
 async def learning_promote(body: PromoteBody, _: None = Depends(verify_internal_token)):
     if body.auto:
+        if not _expert_auto_promote_allowed():
+            return {
+                "ok": False,
+                "reason": "expert_auto_promote_disabled",
+                "promoted": [],
+                "count": 0,
+            }
         th = body.minHits if body.minHits is not None else promote_min_hits()
         promoted = auto_promote_eligible_patches(th)
         return {"ok": True, "promoted": promoted, "count": len(promoted)}
     patch_id = str(body.patchId or "").strip()
     if not patch_id:
         raise HTTPException(status_code=400, detail="请提供 patchId 或 auto=true")
-    res = promote_prompt_patch(patch_id)
+    # 人审单条：与 auto 路径一致，走 verified promote
+    res = promote_prompt_patch_verified(patch_id)
     if not res.get("ok"):
         raise HTTPException(status_code=400, detail=str(res.get("reason") or "promote_failed"))
     return {"ok": True, "hintId": res.get("hintId"), "skillId": res.get("skillId")}

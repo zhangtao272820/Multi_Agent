@@ -1,6 +1,6 @@
 # Tavern Agent（Agent 酒馆）
 
-> **学习文档**：[入门](../docs/Agent学习指南-入门版.md) · [进阶](../docs/Agent学习指南-进阶版.md) · [Tavern 专篇](学习指南.md)
+> **说明**：独立 Demo，**不进** Supervisor 主叙事。面试主链见 [docs/面试备战](../docs/面试备战/00-使用说明与防穿帮.md)。
 
 基于 **FastAPI + React (Vite)** 的角色扮演对话 Demo：用户选择「酒品 × 角色」，系统用 **行为参数矩阵** 动态生成醉酒人格提示词，并支持角色/酒类插画生成。
 

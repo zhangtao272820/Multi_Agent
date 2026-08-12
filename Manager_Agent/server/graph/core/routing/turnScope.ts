@@ -185,16 +185,13 @@ export function detectTopicShiftStructural(input: {
   if (!anchor || !classify) return false
 
   const continuation = shouldRunNlCoalesce(input.messages, last)
-  if (continuation && (!llm || llm.mode === 'continuation')) return false
+  // Wave6：意图面相对锚点已变时，禁止用「短句 coalesce」挡住 topic_shift
+  const intentBreak =
+    Number(classify.confidence ?? 0) >= 0.58 && classify.primaryIntent !== anchor.primaryIntent
+  if (continuation && !intentBreak && (!llm || llm.mode === 'continuation')) return false
 
   if (classify.isMulti !== anchor.isMulti && Number(classify.confidence ?? 0) >= 0.55) return true
-  if (
-    classify.primaryIntent !== anchor.primaryIntent &&
-    Number(classify.confidence ?? 0) >= 0.58 &&
-    !continuation
-  ) {
-    return true
-  }
+  if (intentBreak) return true
 
   if (resolveStandaloneMediaRoute(last, null, null) && anchor.primaryIntent !== 'admin') {
     const dataIntents = new Set(['db', 'rag', 'crawler', 'code', 'clean', 'visualize', 'report', 'multi'])
@@ -248,9 +245,7 @@ export function resolveTurnRoutingScope(input: {
     if (llm.turnKind === 'output_followup') {
       return scopeFromMode('current_only', lastOnly, input.messages, llm.directChitchatSynth, 'output_followup', llm.clarifyKind)
     }
-    if (llm.mode === 'topic_shift' && preferCurrentTurnScope(input.messages, lastOnly)) {
-      return scopeFromMode('current_only', lastOnly, input.messages, false, llm.turnKind, llm.clarifyKind)
-    }
+    // Wave6：高置信 topic_shift 保持 mode（不因 preferCurrentTurnScope 降级为 current_only）
     return scopeFromMode(llm.mode, lastOnly, input.messages, llm.directChitchatSynth, llm.turnKind, llm.clarifyKind)
   }
 

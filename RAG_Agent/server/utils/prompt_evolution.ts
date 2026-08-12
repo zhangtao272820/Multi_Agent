@@ -9,7 +9,7 @@ import { appendEvolvedHint, listEvolvedHints } from "./rag_evolved_config";
 import type { PromptAbVariant } from "./prompt_ab_router";
 import { verifyBeforePromote } from "#agent-shared/evolutionVerify";
 import { promoteEvoPolicy, writeEvoShadowPolicy } from "#agent-shared/evoPolicyStore";
-import { isAgentEvolutionStageAllowed, isPromoteVerifyRequired } from "#agent-shared/evolutionPromotePolicy";
+import { isAgentEvolutionStageAllowed, isPromoteVerifyRequired, resolveCurateAutoPromote } from "#agent-shared/evolutionPromotePolicy";
 
 export type RagPromptPatch = {
   id: string;
@@ -70,7 +70,8 @@ export function appendRagPromptPatch(input: {
   }
   saveStore(store);
   void writeEvoShadowPolicy("rag", input.stage, { text: t, source: input.source }).catch(() => undefined);
-  if (getRagAgentEnv().enableAutoCurateOnFeedback) {
+  // feedback 写 shadow 后：仅当 curate 双门（专家自动晋级 + 显式请求）才尝试晋级
+  if (getRagAgentEnv().enableAutoCurateOnFeedback && resolveCurateAutoPromote(true)) {
     void autoPromoteEligiblePatchesVerified()
       .then(() => undefined)
       .catch(() => undefined);

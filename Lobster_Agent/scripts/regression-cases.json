@@ -27,6 +27,12 @@
     "timeoutSec": 180
   },
   {
+    "name": "w3school-cn-form-fill",
+    "task": "打开 https://www.w3school.com.cn/html/html_forms.asp ，在 First name 填张三、Last name 填李四，不要点 Submit，截图并输出 JSON 并结束。",
+    "startUrl": "https://www.w3school.com.cn/html/html_forms.asp",
+    "timeoutSec": 200
+  },
+  {
     "name": "example-form-mock",
     "task": "打开 https://httpbin.org/forms/post ，在 custname 字段填写 test_user 并截图，输出 JSON 并结束。",
     "startUrl": "https://httpbin.org/forms/post",

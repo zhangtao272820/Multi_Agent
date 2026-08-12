@@ -6,7 +6,6 @@ import path from 'node:path'
 import { existsSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
 import { resolveEvolutionEnvBool } from './agentEvolutionMode'
-import { evalGateForPromote, isOnlineEvalPromoteGateEnabled } from './onlineEvalStore'
 
 export type EvolutionVerifyResult = {
   ok: boolean
@@ -73,6 +72,14 @@ export async function verifyDbEvolutionPromote(): Promise<EvolutionVerifyResult>
     process.chdir(prevCwd)
   }
 
+  checks.push({
+    id: 'auto_curate_default_off',
+    ok:
+      String(process.env.ENABLE_AUTO_CURATE_ON_QUERY ?? '0').trim() !== '1' ||
+      String(process.env.EVO_ALLOW_EXPERT_AUTO_PROMOTE ?? '0').trim() !== '1',
+    detail: 'curate≠auto-promote',
+  })
+
   const ok = checks.every((c) => c.ok)
   return { ok, agent: 'db', gate: 'smoke_metrics', reason: ok ? undefined : 'metrics_regression', checks }
 }
@@ -100,14 +107,28 @@ export async function verifyManagerEvolutionPromote(): Promise<EvolutionVerifyRe
     checks.push({ id: 'manager_golden_exception', ok: false, detail: String((e as Error)?.message || e) })
   }
 
+  try {
+    const mgrRoot = repoAgentDir('Manager_Agent')
+    const st = await (await import('node:fs/promises')).stat(
+      path.join(mgrRoot, 'server', 'utils', 'skills', 'skillDiscoverIndex.ts')
+    ).catch(() => null)
+    checks.push({ id: 'skill_discover_index', ok: Boolean(st?.isFile()), detail: 'learned skill recall SSOT' })
+    checks.push({
+      id: 'expert_auto_promote_default_off',
+      ok: String(process.env.EVO_ALLOW_EXPERT_AUTO_PROMOTE ?? '0').trim() !== '1',
+    })
+  } catch (e) {
+    checks.push({ id: 'manager_skill_gate_exception', ok: false, detail: String((e as Error)?.message || e) })
+  }
+
   if (isManagerRouteMatrixGateEnabled()) {
     try {
       const mgrRoot = repoAgentDir('Manager_Agent')
       const casesMod = await import(
-        pathToFileURL(path.join(mgrRoot, 'scripts', 'route-matrix-cases.ts')).href
+        pathToFileURL(path.join(mgrRoot, 'scripts', 'smoke', 'route', 'route-matrix-cases.ts')).href
       )
       const verifyMod = await import(
-        pathToFileURL(path.join(mgrRoot, 'server', 'utils', 'managerRouteMatrixVerify.ts')).href
+        pathToFileURL(path.join(mgrRoot, 'server', 'utils', 'route', 'managerRouteMatrixVerify.ts')).href
       )
       const matrixCases = (casesMod as { ROUTE_MATRIX_CASES?: unknown[] }).ROUTE_MATRIX_CASES ?? []
       const topology = (
@@ -172,6 +193,17 @@ export async function verifyRagEvolutionPromote(): Promise<EvolutionVerifyResult
     checks.push({ id: 'html_strip', ok: plain.includes('探视制度') && !plain.includes('<p>') })
     const buf = Buffer.from(sample, 'utf-8')
     checks.push({ id: 'html_sniff', ok: looksLikeHtmlDocument(buf, 'policy.html') })
+    checks.push({
+      id: 'auto_curate_default_off',
+      ok: String(process.env.RAG_AUTO_CURATE_ON_FEEDBACK ?? '0').trim() !== '1'
+        || String(process.env.EVO_ALLOW_EXPERT_AUTO_PROMOTE ?? '0').trim() !== '1',
+      detail: 'curate≠auto-promote',
+    })
+    checks.push({
+      id: 'ab_auto_promote_default_off',
+      ok: String(process.env.RAG_AB_AUTO_PROMOTE ?? '0').trim() !== '1'
+        || String(process.env.EVO_ALLOW_EXPERT_AUTO_PROMOTE ?? '0').trim() !== '1',
+    })
   } catch (e) {
     checks.push({ id: 'rag_smoke_exception', ok: false, detail: String((e as Error)?.message || e) })
   }
@@ -185,11 +217,16 @@ export async function verifyAdminEvolutionPromote(): Promise<EvolutionVerifyResu
   try {
     const fs = await import('node:fs/promises')
     const adminRoot = path.join(repoAgentDir('AI_admin_Agent'), 'backend', 'scripts')
-    for (const name of ['smoke_batch0.py', 'smoke_batch1.py']) {
+    for (const name of ['smoke_batch0.py', 'smoke_batch1.py', 'smoke_batch2.py']) {
       const p = path.join(adminRoot, name)
       const st = await fs.stat(p).catch(() => null)
       checks.push({ id: name, ok: Boolean(st?.isFile()) })
     }
+    checks.push({
+      id: 'admin_auto_curate_default_off',
+      ok: String(process.env.ADMIN_AUTO_CURATE ?? '0').trim() !== '1'
+        || String(process.env.EVO_ALLOW_EXPERT_AUTO_PROMOTE ?? '0').trim() !== '1',
+    })
   } catch (e) {
     checks.push({ id: 'admin_golden_exception', ok: false, detail: String((e as Error)?.message || e) })
   }
@@ -231,8 +268,15 @@ export async function verifyExtractorEvolutionPromote(): Promise<EvolutionVerify
   return { ok, agent: 'extractor', gate: 'extractor_structure', reason: ok ? undefined : 'extractor_smoke_failed', checks }
 }
 
+/** Lobster：playbook shadow 结构门禁（实现见 evolutionVerifyLobster，避免循环/重依赖） */
+export async function verifyLobsterEvolutionPromote(): Promise<EvolutionVerifyResult> {
+  const { verifyLobsterEvolutionPromote: run } = await import('./evolutionVerifyLobster')
+  const r = await run()
+  return { ok: r.ok, agent: r.agent, gate: r.gate, reason: r.reason, checks: r.checks }
+}
+
 export async function verifyBeforePromote(
-  agent: 'db' | 'manager' | 'rag' | 'admin' | 'code' | 'extractor',
+  agent: 'db' | 'manager' | 'rag' | 'admin' | 'code' | 'extractor' | 'lobster',
   env: NodeJS.ProcessEnv = process.env
 ): Promise<EvolutionVerifyResult & { evalGate?: { ok: boolean; gate: string; reason?: string } }> {
   if (!isEvolutionVerifyEnabled(env)) {
@@ -240,17 +284,20 @@ export async function verifyBeforePromote(
   }
 
   let evalGate: { ok: boolean; gate: string; reason?: string } | undefined
-  if (isOnlineEvalPromoteGateEnabled(env) && (agent === 'manager' || agent === 'db' || agent === 'rag' || agent === 'admin')) {
-    const eg = await evalGateForPromote(agent, env)
-    evalGate = { ok: eg.ok, gate: eg.gate, reason: eg.reason }
-    if (!eg.ok) {
-      return {
-        ok: false,
-        agent,
-        gate: 'online_eval',
-        reason: eg.reason || 'online_eval_failed',
-        checks: [{ id: 'online_eval_gate', ok: false, detail: eg.reason }],
-        evalGate
+  if (agent === 'manager' || agent === 'db' || agent === 'rag' || agent === 'admin') {
+    const { evalGateForPromote, isOnlineEvalPromoteGateEnabled } = await import('./onlineEvalStore')
+    if (isOnlineEvalPromoteGateEnabled(env)) {
+      const eg = await evalGateForPromote(agent, env)
+      evalGate = { ok: eg.ok, gate: eg.gate, reason: eg.reason }
+      if (!eg.ok) {
+        return {
+          ok: false,
+          agent,
+          gate: 'online_eval',
+          reason: eg.reason || 'online_eval_failed',
+          checks: [{ id: 'online_eval_gate', ok: false, detail: eg.reason }],
+          evalGate
+        }
       }
     }
   }
@@ -266,7 +313,9 @@ export async function verifyBeforePromote(
             ? await verifyCodeEvolutionPromote()
             : agent === 'extractor'
               ? await verifyExtractorEvolutionPromote()
-              : await verifyAdminEvolutionPromote()
+              : agent === 'lobster'
+                ? await verifyLobsterEvolutionPromote()
+                : await verifyAdminEvolutionPromote()
 
   return { ...base, evalGate }
 }

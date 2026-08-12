@@ -96,6 +96,33 @@ def inject_slots_into_plan(plan: list[dict[str, Any]] | Any, understanding: dict
             if email_content and not str(args.get("content", "")).strip():
                 args["content"] = email_content
 
+        if name == "list_emails":
+            unread_slot = _slot("mail_unread_only").lower()
+            if "unread_only" not in args or args.get("unread_only") is None:
+                if unread_slot in ("0", "false", "no", "all", "已读"):
+                    args["unread_only"] = False
+                elif unread_slot in ("1", "true", "yes", "unread", "未读"):
+                    args["unread_only"] = True
+
+        if name in (
+            "get_email_detail",
+            "mark_email_read",
+            "reply_email",
+            "forward_email",
+            "delete_email",
+            "draft_email_reply",
+            "list_email_attachments",
+            "save_email_attachment",
+        ):
+            email_id = _slot("email_id")
+            if email_id.isdigit() and not str(args.get("email_id", "")).strip():
+                args["email_id"] = int(email_id)
+
+        if name == "save_email_attachment":
+            att = _slot("attachment_index")
+            if att.isdigit() and not str(args.get("attachment_index", "")).strip():
+                args["attachment_index"] = int(att)
+
         if name == "get_travel_route":
             origin = _slot("route_origin")
             destination = _slot("route_destination")
@@ -106,6 +133,40 @@ def inject_slots_into_plan(plan: list[dict[str, Any]] | Any, understanding: dict
                 args["destination"] = destination
             if travel_mode and not str(args.get("mode", "")).strip():
                 args["mode"] = travel_mode
+
+        if name in ("web_search", "knowledge_retrieval", "ask_database"):
+            q = _slot("search_query")
+            key = "question" if name == "ask_database" else "query"
+            if q and not str(args.get(key, "")).strip():
+                args[key] = q
+
+        if name in ("read_file_content", "write_file", "create_directory"):
+            path = _slot("file_path")
+            if path and not str(args.get("path", "")).strip():
+                args["path"] = path
+        if name == "write_file":
+            content = _slot("file_content")
+            if content and not str(args.get("content", "")).strip():
+                args["content"] = content
+        if name == "move_file":
+            src = _slot("file_path")
+            dest = _slot("file_dest")
+            if src and not str(args.get("src", "")).strip():
+                args["src"] = src
+            if dest and not str(args.get("dest", "")).strip():
+                args["dest"] = dest
+
+        if name in ("search_nearby_amap", "search_places_amap"):
+            kw = _slot("poi_keywords")
+            if kw and not str(args.get("keywords", "")).strip():
+                args["keywords"] = kw
+            near = _slot("near_place")
+            if near and not str(args.get("location", "")).strip():
+                args["location"] = near
+        if name in ("resolve_address_amap", "suggest_address_amap"):
+            addr = _slot("geocode_address")
+            if addr and not str(args.get("address", "")).strip():
+                args["address"] = addr
 
         injected.append({"name": name, "args": args})
 

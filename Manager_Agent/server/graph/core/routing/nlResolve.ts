@@ -11,6 +11,9 @@ function humanTexts(messages: BaseMessage[]): string[] {
 
 /**
  * 是否值得在路由前做一次「多轮语义合并」：仅结构条件（轮数、长度比），不依赖承接词正则。
+ *
+ * Wave6 K1：收紧「末句更短⇒承接」——中等长度完整问句不再因短于上轮被误标 continuation；
+ * 仅极短碎片或相对上轮极度短缩才 coalesce（话题切换仍由 turnScope LLM / intentBreak 权威）。
  */
 export function shouldRunNlCoalesce(messages: BaseMessage[], lastUser: string): boolean {
   if (String(process.env.MANAGER_DISABLE_NL_COALESCE || '').trim() === '1') return false
@@ -19,9 +22,15 @@ export function shouldRunNlCoalesce(messages: BaseMessage[], lastUser: string): 
   const last = String(lastUser || '').trim()
   const prev = texts[texts.length - 2]!
   if (!last || !prev) return false
-  if (last.length > 220) return false
-  if (last.length <= Math.max(48, Math.floor(prev.length * 0.52))) return true
-  if (prev.length >= 80 && last.length / prev.length <= 0.45) return true
+  if (last.length > 64) return false
+  // 极短碎片（「再详细一点」「只要前3」）→ 合并
+  if (last.length <= 6) return true
+  // 短句但可能是完整新问句：仅当相对上轮极度短缩才 coalesce
+  if (last.length <= 24) {
+    if (prev.length >= 40 && last.length / prev.length <= 0.2) return true
+    return false
+  }
+  if (prev.length >= 60 && last.length / prev.length <= 0.28) return true
   return false
 }
 

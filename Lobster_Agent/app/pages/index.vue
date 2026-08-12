@@ -20,6 +20,7 @@
         </a>
         <label class="chk"><input v-model="debugMode" type="checkbox" />调试模式</label>
         <img class="hdr-avatar" src="/brand/avatars/lobster.svg" alt="" width="48" height="48" title="七杀虚拟形象" />
+        <button v-if="needAuth" type="button" class="lob-logout" @click="onLogout">退出登录</button>
       </div>
     </header>
 
@@ -392,6 +393,12 @@ type Candidate = {
 }
 
 const runtimeConfig = useRuntimeConfig()
+const needAuth = computed(() => String(runtimeConfig.public?.agentBrowserAuth ?? '1') !== '0')
+const { logout: clawLogout } = useClawhiveLogin()
+function onLogout() {
+  clawLogout()
+  if (import.meta.client) window.location.reload()
+}
 const wsPath = computed(() => String(runtimeConfig.public?.wsPath || '/_ws'))
 
 const task = ref('打开 https://www.baidu.com/ ，搜索「Python 教程」，点击第一条结果并提取标题与链接，输出 JSON。')
@@ -1321,16 +1328,19 @@ watch(
 
 <style scoped>
 .wrap {
-  --text-primary: #1c2230;
-  --text-secondary: #4a5568;
-  --text-muted: #6b778c;
-  --border-soft: rgba(184, 74, 88, 0.22);
-  --panel-bg: rgba(251, 252, 254, 0.88);
-  --panel-bg-strong: rgba(255, 255, 255, 0.94);
-  --panel-bg-soft: rgba(244, 246, 250, 0.78);
-  --field-bg: rgba(255, 255, 255, 0.92);
-  --accent: #b84a58;
-  --accent-warm: #d4893a;
+  --text-primary: #0a1a28;
+  --text-secondary: #1a3550;
+  --text-muted: #2a4a66;
+  --border-soft: rgba(90, 140, 190, 0.38);
+  --panel-bg: rgba(248, 252, 255, 0.78);
+  --panel-bg-strong: rgba(255, 255, 255, 0.9);
+  --panel-bg-soft: rgba(236, 244, 252, 0.72);
+  --field-bg: rgba(255, 255, 255, 0.94);
+  --accent: #1e6bb8;
+  --accent-warm: #3a86c8;
+  --danger: #a83d52;
+  --ok: #1a7a58;
+  --warn: #9a5b12;
   position: relative;
   z-index: 3;
   max-width: 1080px;
@@ -1357,7 +1367,7 @@ watch(
 .hdr-logo,
 .hdr-avatar {
   border-radius: 10px;
-  border: 1px solid rgba(184, 74, 88, 0.35);
+  border: 1px solid rgba(90, 140, 190, 0.4);
   flex: 0 0 auto;
 }
 
@@ -1376,6 +1386,7 @@ watch(
 
 .sub {
   font-size: 12px;
+  font-weight: 550;
   color: var(--text-secondary);
   letter-spacing: 0.4px;
 }
@@ -1417,9 +1428,9 @@ watch(
   display: block;
   margin-bottom: 8px;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.3px;
-  color: var(--text-secondary);
+  color: var(--text-primary);
 }
 
 .field {
@@ -1441,19 +1452,21 @@ watch(
 }
 
 .chip {
-  border: 1px solid rgba(126, 196, 255, 0.28);
-  background: rgba(10, 28, 52, 0.55);
-  color: #c7e7ff;
+  border: 1px solid rgba(90, 140, 190, 0.42);
+  background: rgba(232, 242, 252, 0.92);
+  color: #0f2a42;
   border-radius: 999px;
   padding: 6px 12px;
   font-size: 12px;
+  font-weight: 650;
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease, transform 0.12s ease;
 }
 
 .chip:hover {
-  background: rgba(40, 110, 168, 0.35);
-  border-color: rgba(160, 220, 255, 0.5);
+  background: rgba(210, 230, 248, 0.98);
+  border-color: rgba(30, 107, 184, 0.55);
+  color: #071828;
   transform: translateY(-1px);
 }
 
@@ -1479,27 +1492,27 @@ watch(
 
 .ta::placeholder,
 .inp::placeholder {
-  color: rgba(198, 216, 238, 0.45);
+  color: rgba(42, 74, 102, 0.55);
 }
 
 .ta:focus,
 .inp:focus {
-  border-color: rgba(142, 200, 255, 0.7);
+  border-color: rgba(30, 107, 184, 0.65);
   box-shadow:
-    0 0 0 3px rgba(142, 200, 255, 0.16),
-    0 0 18px rgba(120, 180, 255, 0.12);
+    0 0 0 3px rgba(30, 107, 184, 0.14),
+    0 0 16px rgba(90, 150, 210, 0.12);
 }
 
 select.inp.engine-select {
   cursor: pointer;
-  color-scheme: dark;
-  background-color: rgba(12, 28, 52, 0.94);
+  color-scheme: light;
+  background-color: var(--field-bg);
   color: var(--text-primary);
 }
 
 select.inp.engine-select option {
-  color: #e8f4ff;
-  background-color: #152238;
+  color: #0a1a28;
+  background-color: #f7fbff;
 }
 
 .hint {
@@ -1511,8 +1524,8 @@ select.inp.engine-select option {
 .advanced {
   margin: 4px 0 16px;
   border-radius: 12px;
-  border: 1px dashed rgba(168, 206, 255, 0.2);
-  background: rgba(6, 14, 28, 0.28);
+  border: 1px dashed rgba(90, 140, 190, 0.4);
+  background: rgba(232, 242, 252, 0.72);
   overflow: hidden;
 }
 
@@ -1521,8 +1534,8 @@ select.inp.engine-select option {
   cursor: pointer;
   padding: 10px 14px;
   font-size: 12px;
-  font-weight: 600;
-  color: var(--text-secondary);
+  font-weight: 700;
+  color: var(--text-primary);
   display: flex;
   align-items: center;
   gap: 10px;
@@ -1534,7 +1547,7 @@ select.inp.engine-select option {
 }
 
 .adv-brief {
-  font-weight: 400;
+  font-weight: 500;
   color: var(--text-muted);
   white-space: nowrap;
   overflow: hidden;
@@ -1552,21 +1565,22 @@ select.inp.engine-select option {
   grid-column: 1 / -1;
   font-size: 11px;
   line-height: 1.5;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   padding: 8px 10px;
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(168, 206, 255, 0.12);
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(90, 140, 190, 0.28);
 }
 
 .notice {
   margin: 0 0 14px;
   padding: 10px 12px;
   border-radius: 12px;
-  background: rgba(120, 170, 230, 0.12);
-  border: 1px solid rgba(150, 200, 255, 0.28);
-  color: rgba(210, 230, 255, 0.92);
+  background: rgba(210, 230, 248, 0.72);
+  border: 1px solid rgba(30, 107, 184, 0.28);
+  color: #0f2a42;
   font-size: 12px;
+  font-weight: 550;
   line-height: 1.5;
 }
 
@@ -1590,20 +1604,20 @@ select.inp.engine-select option {
   gap: 8px 12px;
   padding: 10px 12px;
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(168, 206, 255, 0.14);
+  background: rgba(232, 242, 252, 0.7);
+  border: 1px solid rgba(90, 140, 190, 0.3);
 }
 
 .btn {
   background: linear-gradient(135deg, var(--accent), var(--accent-warm));
-  color: #07111f;
-  border: 1px solid rgba(255, 255, 255, 0.22);
+  color: #f7fbff;
+  border: 1px solid rgba(20, 80, 140, 0.35);
   border-radius: 12px;
   padding: 10px 18px;
   font-size: 13px;
-  font-weight: 650;
+  font-weight: 700;
   cursor: pointer;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.24), 0 0 18px rgba(142, 200, 255, 0.18);
+  box-shadow: 0 8px 20px rgba(30, 107, 184, 0.26);
 }
 
 .btn:disabled {
@@ -1612,11 +1626,16 @@ select.inp.engine-select option {
 }
 
 .btn.ghost {
-  color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.08);
-  border-color: var(--border-soft);
+  color: #0f2a42;
+  background: rgba(255, 255, 255, 0.82);
+  border-color: rgba(90, 140, 190, 0.42);
   box-shadow: none;
-  font-weight: 550;
+  font-weight: 650;
+}
+
+.btn.ghost:disabled {
+  color: rgba(42, 74, 102, 0.45);
+  background: rgba(236, 242, 248, 0.7);
 }
 
 .btn.sm {
@@ -1630,7 +1649,8 @@ select.inp.engine-select option {
   gap: 6px;
   align-items: center;
   font-size: 12px;
-  color: var(--text-secondary);
+  font-weight: 600;
+  color: var(--text-primary);
   user-select: none;
 }
 
@@ -1646,29 +1666,34 @@ select.inp.engine-select option {
   padding: 7px 12px;
   border-radius: 999px;
   font-size: 12px;
-  border: 1px solid var(--border-soft);
-  color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.07);
+  font-weight: 700;
+  border: 1px solid rgba(90, 140, 190, 0.4);
+  color: #0f2a42;
+  background: rgba(232, 242, 252, 0.92);
 }
 
 .badge.on {
-  background: rgba(142, 200, 255, 0.22);
-  border-color: rgba(142, 200, 255, 0.45);
+  background: rgba(30, 107, 184, 0.16);
+  border-color: rgba(30, 107, 184, 0.45);
+  color: #0a3a68;
 }
 
 .badge.idle {
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.88);
+  color: #1a3550;
 }
 
 .badge.off {
-  background: rgba(255, 177, 177, 0.1);
-  border-color: rgba(255, 177, 177, 0.36);
+  background: rgba(168, 61, 82, 0.12);
+  border-color: rgba(168, 61, 82, 0.36);
+  color: var(--danger);
 }
 
 .err {
-  color: rgba(255, 146, 146, 0.95);
+  color: var(--danger);
   padding: 10px 2px 0;
   font-size: 13px;
+  font-weight: 600;
 }
 
 .grid {
@@ -1867,8 +1892,9 @@ select.inp.engine-select option {
   padding: 8px 10px;
   border-bottom: 1px solid var(--border-soft);
   font-size: 12px;
-  font-weight: 600;
-  background: rgba(255, 255, 255, 0.04);
+  font-weight: 700;
+  color: var(--text-primary);
+  background: rgba(232, 242, 252, 0.7);
 }
 
 .sig-pre {
@@ -1996,11 +2022,13 @@ select.inp.engine-select option {
 
 .logline.error .lv,
 .tline.fail .kk {
-  color: rgba(255, 146, 146, 0.95);
+  color: var(--danger);
+  font-weight: 700;
 }
 
 .logline.warn .lv {
-  color: rgba(255, 210, 143, 0.95);
+  color: var(--warn);
+  font-weight: 700;
 }
 
 .ts {
@@ -2019,7 +2047,7 @@ select.inp.engine-select option {
   font-size: 13px;
   line-height: 1.62;
   background: var(--panel-bg-strong);
-  color: #e8f0fa;
+  color: var(--text-primary);
   border-top: 1px solid var(--border-soft);
   min-height: 260px;
 }
@@ -2034,7 +2062,8 @@ select.inp.engine-select option {
 }
 
 .tline.ok .kk {
-  color: rgba(168, 246, 204, 0.96);
+  color: var(--ok);
+  font-weight: 700;
 }
 
 .tline .mm {
@@ -2063,8 +2092,8 @@ select.inp.engine-select option {
   text-align: center;
   padding: 28px 20px;
   background:
-    radial-gradient(420px 200px at 50% 20%, rgba(142, 200, 255, 0.14), transparent 70%),
-    linear-gradient(180deg, rgba(10, 20, 40, 0.55), rgba(8, 14, 28, 0.35));
+    radial-gradient(420px 200px at 50% 20%, rgba(120, 180, 230, 0.18), transparent 70%),
+    linear-gradient(180deg, rgba(236, 244, 252, 0.88), rgba(248, 252, 255, 0.72));
   border-top: 1px solid var(--border-soft);
 }
 
@@ -2074,19 +2103,20 @@ select.inp.engine-select option {
   margin: 0 auto;
   border-radius: 50%;
   background:
-    radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.95), rgba(180, 220, 255, 0.55) 45%, transparent 70%);
-  box-shadow: 0 0 24px rgba(160, 210, 255, 0.45);
-  opacity: 0.9;
+    radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.98), rgba(140, 190, 230, 0.65) 45%, transparent 70%);
+  box-shadow: 0 0 20px rgba(90, 150, 210, 0.35);
+  opacity: 0.95;
 }
 
 .empty-title {
   font-size: 16px;
-  font-weight: 650;
+  font-weight: 700;
   color: var(--text-primary);
 }
 
 .empty-sub {
   font-size: 13px;
+  font-weight: 500;
   color: var(--text-secondary);
   max-width: 320px;
   margin: 0 auto;

@@ -20,9 +20,17 @@ UNTRUSTED_POLICY_LINE = (
 EXTERNAL_CONTENT_TOOLS = frozenset(
     {
         "list_emails",
+        "search_emails",
         "get_email_detail",
+        "mark_email_read",
         "reply_email",
+        "forward_email",
+        "delete_email",
+        "draft_email_reply",
+        "classify_emails",
+        "triage_emails",
         "send_email",
+        "list_email_attachments",
         "web_search",
         "search_web",
         "ask_knowledge",
@@ -34,6 +42,66 @@ EXTERNAL_CONTENT_TOOLS = frozenset(
 def is_untrusted_wrapped(text: str | None) -> bool:
     s = str(text or "")
     return UNTRUSTED_BEGIN in s and UNTRUSTED_END in s
+
+
+def unwrap_untrusted_content(text: str | None) -> str:
+    """去掉 UNTRUSTED 包装，只保留事实正文（供用户可见回复；入模仍须包装）。"""
+    s = str(text or "").replace("\r", "").strip()
+    if not s or UNTRUSTED_BEGIN not in s:
+        return s
+    out_parts: list[str] = []
+    rest = s
+    while UNTRUSTED_BEGIN in rest:
+        before, _, after = rest.partition(UNTRUSTED_BEGIN)
+        if before.strip():
+            out_parts.append(before.strip())
+        # 跳过首行 source=… 与策略行，取到 END
+        if UNTRUSTED_END not in after:
+            # 残缺包装：丢掉标记行，保留其余
+            lines = after.splitlines()
+            body_lines = [
+                ln
+                for ln in lines[1:]
+                if ln.strip() and ln.strip() != UNTRUSTED_POLICY_LINE and not ln.strip().startswith("source=")
+            ]
+            if body_lines:
+                out_parts.append("\n".join(body_lines).strip())
+            break
+        block, _, rest = after.partition(UNTRUSTED_END)
+        lines = block.splitlines()
+        # lines[0] 常为 " source=…" 粘在 BEGIN 同行已切掉；块内首行多为 source= 或策略
+        body_lines: list[str] = []
+        for i, ln in enumerate(lines):
+            t = ln.strip()
+            if not t:
+                continue
+            if i == 0 and t.lstrip().startswith("source="):
+                continue
+            if t == UNTRUSTED_POLICY_LINE or t.startswith(UNTRUSTED_POLICY_LINE[:8]):
+                continue
+            body_lines.append(ln)
+        if body_lines:
+            out_parts.append("\n".join(body_lines).strip())
+    if rest.strip() and UNTRUSTED_BEGIN not in rest:
+        out_parts.append(rest.strip())
+    return "\n\n".join(p for p in out_parts if p).strip()
+
+
+def sanitize_user_facing_text(text: str | None) -> str:
+    """用户可见回复：剥离 UNTRUSTED 标记，禁止把隔离包装当最终答案。"""
+    s = unwrap_untrusted_content(text)
+    # 兜底：若仍残留标记行，删掉
+    if UNTRUSTED_BEGIN in s or UNTRUSTED_END in s:
+        lines = [
+            ln
+            for ln in s.splitlines()
+            if UNTRUSTED_BEGIN not in ln
+            and UNTRUSTED_END not in ln
+            and ln.strip() != UNTRUSTED_POLICY_LINE
+            and not ln.strip().startswith("source=tool:")
+        ]
+        s = "\n".join(lines).strip()
+    return s
 
 
 def wrap_untrusted_content(*, source: str, text: str, max_chars: int = 4000) -> str:

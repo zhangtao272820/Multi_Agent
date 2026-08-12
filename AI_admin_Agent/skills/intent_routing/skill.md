@@ -21,18 +21,25 @@ owner: ai_admin_agent
 场景提示：
 - 「简报/早报/今天有什么安排」→ intent=简报
 - 「未读邮件/急件/邮件分拣」→ intent=邮件 或 混合任务（规划时用 triage_emails）
+- 「读正文/打开某封/翻译/摘要/抽要点/对正文做处理」→ intent=邮件（规划：list→get_email_detail；勿用 triage）
+- 「看看明天有什么会 / 列出日程」→ intent=日程（calendar_action=list，勿误建成会）
+- 「列出待办 / 完成某任务」→ intent=待办（task_action=list|complete）
+- 「网上查一下 / 搜资料」→ intent=搜索（search_action=web|knowledge）
+- 「打开某文件 / 列工作区」→ intent=文件
 - 「会前准备/会议材料」→ intent=会前准备
 - 「查统计/多少条/问数/报表」→ intent=问数
-- 「添加联系人/存邮箱到通讯录/查联系人邮箱」→ intent=联系人（不是待办）
+- 「添加联系人/存邮箱到通讯录/查联系人邮箱/列通讯录」→ intent=联系人（不是待办）
 - 「添加待办/记一下任务」→ intent=待办（即使内容提到要联系某人）
 
 澄清规则（重要）：
 - 如果 intent 是「天气」：必须具备城市（slots.city）才能调用工具；若缺失，needs_clarification=true。
-- 如果 intent 是「日程」：创建日程需要标题与开始时间表达；缺任何一个就 needs_clarification=true；详细内容可选写入 event_description（勿用标题顶替）。
-- 如果用户明确「删除/取消所有/全部」会议提醒或日程：needs_clarification=false，禁止问「哪个会议」；后续规划用 delete_all_meeting_reminders。
-- 如果 intent 是「待办」：创建待办至少需要标题；详细说明可选写入 task_description（勿用标题顶替）。
-- 如果 intent 是「联系人」：创建联系人需要 contact_name 与 contact_email；缺任一 → needs_clarification=true；has_time_reference=false。
-- 如果 intent 是「邮件」：发送/回复需要收件人或邮件编号、主题、正文等；缺失就 needs_clarification=true。
+- 如果 intent 是「日程」：创建（calendar_action=create）需要标题与开始时间表达；缺任何一个就 needs_clarification=true；list/bulk_delete 不因缺标题澄清。
+- 如果用户明确「删除/取消所有/全部」会议提醒或日程：needs_clarification=false，calendar_action=bulk_delete；禁止问「哪个会议」。
+- 如果 intent 是「待办」：创建（task_action=create）至少需要标题；list/complete 按语义填 action，list 不因缺标题澄清。
+- 如果 intent 是「联系人」：添加需 contact_name 与 contact_email；list 不澄清；search 需 contact_name；has_time_reference=false。
+- 如果 intent 是「邮件」：发送/回复需要收件人或邮件编号、主题、正文等；缺失就 needs_clarification=true。读信/翻译/摘要不因缺「动作类型」而澄清——一律视为读正文后再按原话作答。
+- 如果 intent 是「搜索」：需 search_query；缺则 needs_clarification=true。
+- 如果 intent 是「文件」：read/write 需 file_path；list 不澄清。
 
 时间理解（重要，交给后续时间模型解析，此处只摘录原话）：
 - slots.start_time_expression / slots.task_due_time_expression：原样摘录用户说的日期时间用语（中文或英文均可），不要填 ISO 时间戳，不要自行换算。
@@ -61,12 +68,23 @@ owner: ai_admin_agent
 
 消歧（重要）：
 - 通讯录增删查（添加联系人、存邮箱、查某人邮箱、列通讯录）→ 联系人
-- 任务清单（添加待办、记任务、完成待办）→ 待办；勿因句中含「联系」二字改判联系人
+- 任务清单（添加待办、记任务、完成待办、列出待办）→ 待办；勿因句中含「联系」二字改判联系人
+- 列出日程 / 明天有什么会 → 日程（勿误判简报，除非用户明确要「简报/早报」）
+- 网上搜 / 查资料 → 搜索；内部知识库检索 → 搜索 + knowledge
+- 打开/读取工作区文件 → 文件
 
 场景 hint（可选写入 admin_scenario，无则 null）：
-daily_briefing | email_triage | meeting_prep | ask_database | weekly_report | meeting_minutes |
+daily_briefing | email_triage | email_read | email_attachments | email_classify |
+meeting_prep | ask_database | weekly_report | meeting_minutes |
 lobster_automation | travel_route | amap_poi | amap_geocode | feishu_calendar | calendar_multi |
-feishu_notify | minutes_to_tasks | reminder_notify | integrations_status | add_contact
+feishu_notify | minutes_to_tasks | reminder_notify | integrations_status | add_contact |
+web_search | knowledge_retrieval
+
+邮件场景消歧：
+- 读正文 / 打开某封 / 翻译 / 摘要 / 抽要点 / 对正文任意处理 → email_read（禁止 email_triage）
+- 分拣 / 急件优先级 → email_triage
+- 列附件 / 保存附件 → email_attachments
+- 给邮件打标签/分类（非分拣急件）→ email_classify
 
 输出：{"intent":"...","confidence":0-1,"rationale":"...","admin_scenario":null或场景id}
 
@@ -85,16 +103,31 @@ feishu_notify | minutes_to_tasks | reminder_notify | integrations_status | add_c
 
 规则：
 - 天气：缺 city → needs_clarification=true；句中城市名（如「天津气温如何」→ city=天津）必须写入 slots.city；天气不是地图查询 → has_location_query=false
-- 日程：创建需 event_title + start_time_expression；缺则 needs_clarification=true；用户给出的详细内容/说明 → event_description（禁止用标题顶替；未给则可空）
-- 日程批量删除：用户明确「删除/取消所有/全部」会议提醒或日程 → needs_clarification=false，禁止问哪个会议
-- 待办：创建需 task_title；用户给出的详细说明 → task_description（禁止用标题顶替；未给则可空）
-- 联系人：创建需 contact_name + contact_email；缺则 needs_clarification=true；勿填 task_*；has_time_reference=false
+- 日程：calendar_action=create|list|modify|delete|complete|bulk_delete|sync；创建需 event_title + start_time_expression；list/bulk_delete 不因缺标题澄清；详细内容 → event_description
+- 日程批量删除：明确「删除/取消所有/全部」会议提醒或日程 → calendar_action=bulk_delete，needs_clarification=false
+- 待办：task_action=create|list|complete|delete|modify；创建需 task_title；list 不澄清；详细说明 → task_description
+- 联系人：contact_action=add|list|search|import；add 需 name+email；list 不澄清；search 需 contact_name；勿填 task_*；has_time_reference=false
 - 邮件：发送/回复缺收件人/主题/正文 → needs_clarification=true；正文 → email_content
+- 邮件动作 mail_action（语义填，禁止扫关键词表）：
+  list|read|triage|send|reply|search|mark_read|forward|delete|list_attachments|save_attachment|classify
+  - 读信/看详情/翻译/摘要/抽要点/对正文任意处理 → read（禁止标成 triage）
+  - 分拣急件优先级 → triage；仅列清单 → list；附件列表 → list_attachments；保存附件 → save_attachment；打标签分类 → classify
+- email_id：需定位某封时填写（从 1 起）；未指定可空（规划可默认 1）
+- mail_unread_only：true|false|空。明确未读→true；明确已读/全部/不限未读，或指定编号打开某封且未强调未读→false；未提范围可空（读信规划默认 true）
+- attachment_index：保存第几个附件时填写（从 1 起）；未指定可空
+- 文件：file_action=list|read|write|move|mkdir；file_path / file_content / file_dest 按需填；list 不澄清
+- 搜索：search_action=web|knowledge；search_query 摘查询内容；缺 query → needs_clarification=true；search_target 可冗余填 web|knowledge
+- list_mode：兼容字段；优先填对应 *_action=list
 - 时间/地图：只摘录用户原话到 slots 与 time_expression，不要换算 ISO
 - slots 字段：city, day, event_title, event_description, start_time_expression,
   task_title, task_description, task_due_time_expression,
   contact_name, contact_email, contact_description,
-  email_to_name_or_email, email_subject, email_content, route_origin, route_destination, travel_mode,
+  email_to_name_or_email, email_subject, email_content,
+  mail_action, email_id, mail_unread_only, attachment_index,
+  calendar_action, task_action, contact_action,
+  file_action, file_path, file_content, file_dest,
+  search_action, search_query, search_target, list_mode,
+  route_origin, route_destination, travel_mode,
   poi_keywords, near_place, geocode_address
 
 ## IntentFallback
@@ -105,6 +138,10 @@ feishu_notify | minutes_to_tasks | reminder_notify | integrations_status | add_c
 场景提示：
 - 「简报/早报/今天有什么安排」→ intent=简报
 - 「未读邮件/急件/邮件分拣」→ intent=邮件 或 混合任务（规划时用 triage_emails）
+- 「读正文/翻译/摘要邮件」→ intent=邮件（读信链，非分拣）
+- 「列出日程/待办/通讯录」→ 对应 日程/待办/联系人
+- 「网上搜/查资料」→ intent=搜索
+- 「打开文件/列工作区」→ intent=文件
 - 「会前准备/会议材料」→ intent=会前准备
 - 「查统计/多少条/问数/报表」→ intent=问数
 - 「添加联系人/存邮箱到通讯录」→ intent=联系人

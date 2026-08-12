@@ -36,7 +36,6 @@ $standardFirst = @(
 $extendedFirst = @(
     "clawhive/lobster_agent:$tag",
     "clawhive/tavern_agent:$tag",
-    "clawhive/companion_agent:$tag",
     "clawhive/music_agent:$tag",
     "clawhive/video_agent:$tag",
     "clawhive/ai_agent:$tag"

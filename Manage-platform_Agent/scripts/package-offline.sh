@@ -51,7 +51,6 @@ STANDARD_FIRST=(
 EXTENDED_FIRST=(
   "clawhive/lobster_agent:${TAG}"
   "clawhive/tavern_agent:${TAG}"
-  "clawhive/companion_agent:${TAG}"
   "clawhive/music_agent:${TAG}"
   "clawhive/video_agent:${TAG}"
   "clawhive/ai_agent:${TAG}"

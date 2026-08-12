@@ -6,11 +6,14 @@ import assert from 'node:assert/strict'
 import {
   isDesktopGuiTask,
   parseGuiTaskHints,
+  resolveIsDesktopGuiTask,
 } from '../../../server/graph/core/agent/guiTaskPayload'
 import { LOBSTER_GUI_MCP_TOOLS } from '../../../../Lobster_Agent/server/mcp/lobsterGuiMcpSchema'
 import {
   buildManagerTaskEnvelope,
+  envelopeToV1ManagerTask,
   serializeManagerTaskEnvelope,
+  v1ToManagerTaskEnvelope,
 } from '#agent-shared/managerTaskEnvelope'
 import {
   LOBSTER_GUI_PROGRESS_LIMITS,
@@ -30,6 +33,14 @@ assert(parseGuiTaskHints('引擎:stagehand\n打开百度').engineHint === 'stage
 assert(parseGuiTaskHints('引擎:mcp\n打开百度').engineHint === 'mcp', 'mcp engine hint')
 assert(isDesktopGuiTask('打开记事本输入 Hello'), 'desktop task detect')
 assert(!isDesktopGuiTask('打开百度', 'https://www.baidu.com'), 'url skips desktop')
+assert(
+  resolveIsDesktopGuiTask({ taskKind: 'desktop_app', task: '随便说一句' }),
+  'task_kind desktop_app 真源',
+)
+assert(
+  !resolveIsDesktopGuiTask({ taskKind: 'navigate', task: '打开记事本输入 Hello' }),
+  '明确网页 kind 不被关键词抢',
+)
 
 const env = buildManagerTaskEnvelope({
   target_agent: 'gui',
@@ -43,12 +54,33 @@ const env = buildManagerTaskEnvelope({
       task: '打开 runoob 搜索',
       browser_profile: 'managed',
       task_kind: 'navigate',
+      success_criteria: '得到教程页标题',
+      max_interaction_steps: 4,
     },
   },
 })
 const ser = serializeManagerTaskEnvelope(env)
 assert(ser.includes('browser_profile'), 'envelope has browser_profile')
+assert(ser.includes('success_criteria'), 'envelope has success_criteria')
+assert(ser.includes('max_interaction_steps'), 'envelope has max_interaction_steps')
 assert(!ser.includes('"engineHint"') || !/"engineHint"\s*:\s*"(mcp|classic|stagehand)"/.test(ser), 'no forced legacy engine in default envelope')
+
+const v1 = envelopeToV1ManagerTask(env)
+assert(v1?.success_criteria === '得到教程页标题', 'v1 round-trip criteria')
+assert(v1?.max_interaction_steps === 4, 'v1 round-trip steps')
+const back = v1ToManagerTaskEnvelope({
+  target_agent: 'gui',
+  trace_id: 't2',
+  session_id: 's2',
+  utterance: '打开 runoob 搜索',
+  v1: { source: 'manager', ...(v1 || {}) },
+})
+assert(
+  back?.payload.kind === 'gui' &&
+    back.payload.data.success_criteria === '得到教程页标题' &&
+    back.payload.data.max_interaction_steps === 4,
+  'v1→v2 criteria/steps',
+)
 
 assert(LOBSTER_GUI_MCP_TOOLS.some((t) => t.name === 'run_desktop_task'), 'run_desktop_task exported')
 assert(LOBSTER_GUI_MCP_TOOLS.some((t) => t.name === 'run_browser_task'), 'run_browser_task exported')
@@ -80,5 +112,42 @@ const c1 = resolveEngineFromTaskSpec({
 })
 assert.equal(c1.engine, 'stagehand')
 assert.equal(buildEngineChainFromPick(c1).length, 1, 'C1 chain length 1')
+
+const deskByKind = resolveEngineFromTaskSpec({
+  task: '帮我处理一下这个文件',
+  spec: {
+    canonical_task: '处理文件',
+    engine_hint: 'auto',
+    task_kind: 'desktop_app',
+    confidence: 0.9,
+    source: 'manager',
+    rationale: 'desktop',
+    browser_profile: 'managed',
+    needs_login: false,
+    explicitly_avoid_login: false,
+    plan_steps: [],
+    goals: {},
+  } as any,
+})
+assert.equal(deskByKind.engine, 'desktop', 'task_kind desktop_app → desktop')
+
+const webIgnoresDesktopKw = resolveEngineFromTaskSpec({
+  task: '打开记事本介绍页 https://example.com/notepad',
+  startUrl: 'https://example.com/notepad',
+  spec: {
+    canonical_task: '打开记事本介绍页',
+    engine_hint: 'auto',
+    task_kind: 'navigate',
+    confidence: 0.9,
+    source: 'llm',
+    rationale: 'web',
+    browser_profile: 'managed',
+    needs_login: false,
+    explicitly_avoid_login: false,
+    plan_steps: [],
+    goals: {},
+  } as any,
+})
+assert.equal(webIgnoresDesktopKw.engine, 'stagehand', 'web kind 不被桌面词抢')
 
 console.log('smoke-gui-protocol-align: PASS')

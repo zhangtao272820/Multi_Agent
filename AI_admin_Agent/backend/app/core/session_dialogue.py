@@ -25,6 +25,7 @@ from app.core.admin_pg_store import (
     save_task_context_pg,
     trim_turns_pg,
     touch_adm_session_pg,
+    truncate_turns_pg,
 )
 from app.db.database import SessionLocal, engine, Base
 from sqlalchemy import Column, DateTime, Integer, String, Text
@@ -105,17 +106,14 @@ def replace_last_assistant_turn(session_id: str, content: str) -> bool:
         db.close()
 
 
-def truncate_session_from_user_index(
+def _truncate_session_sqlite(
     session_id: str,
     from_user_index: int,
     *,
     replace_user_text: str | None = None,
     fallback_user_text: str | None = None,
 ) -> dict[str, int | bool]:
-    """从第 from_user_index 条用户消息起截断（含该条及之后所有轮次）。
-
-    index 未命中时，可用 fallback_user_text / replace_user_text 按内容回落定位。
-    """
+    """SQLite session_turns 截断（sqlite / dual 镜像）。"""
     sid = (session_id or "default").strip() or "default"
     try:
         raw_idx = int(from_user_index)
@@ -181,6 +179,31 @@ def truncate_session_from_user_index(
         }
     finally:
         db.close()
+
+
+def truncate_session_from_user_index(
+    session_id: str,
+    from_user_index: int,
+    *,
+    replace_user_text: str | None = None,
+    fallback_user_text: str | None = None,
+) -> dict[str, int | bool]:
+    """从第 from_user_index 条用户消息起截断（含该条及之后所有轮次）。
+
+    index 未命中时，可用 fallback_user_text / replace_user_text 按内容回落定位。
+    PG 主存时改 adm_session_turns；dual 时同步镜像 SQLite。
+    """
+    sid = (session_id or "default").strip() or "default"
+    kwargs = {
+        "replace_user_text": replace_user_text,
+        "fallback_user_text": fallback_user_text,
+    }
+    if _use_pg_dialogue():
+        result = truncate_turns_pg(sid, from_user_index, **kwargs)
+        if _mirror_sqlite():
+            _truncate_session_sqlite(sid, from_user_index, **kwargs)
+        return result
+    return _truncate_session_sqlite(sid, from_user_index, **kwargs)
 
 
 def _normalize_user_anchor_text(content: str) -> str:

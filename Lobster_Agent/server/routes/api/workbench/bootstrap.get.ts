@@ -7,6 +7,7 @@ import {
   resolveBrowserProfile,
 } from '../../../services/browserProfiles'
 import { isLobsterDesktopMcpEnabled, isLobsterMcpHeadlessSidecar, lobsterMcpTransportMode, shouldUseLocalHeadedMcp } from '../../../utils/lobster_env'
+import { resolveLobsterVncLiveView } from '../../../utils/lobsterVnc'
 import { probeLobsterDesktopReady } from '../../../services/lobsterDesktopMcpAgent'
 import { probeLobsterMcpReady } from '../../../services/lobsterMcpAgent'
 
@@ -16,14 +17,10 @@ export default defineEventHandler(async (event) => {
   const adminToken = String(cfg?.lobster?.adminToken || '').trim()
   const prefill = String(process.env.LOBSTER_WORKBENCH_PREFILL_TOKEN ?? '0').trim() === '1'
   const headless = Boolean(cfg?.lobster?.headless)
-  const vncPortRaw = String(process.env.LOBSTER_VNC_PORT || process.env.NOVNC_PORT || '').trim()
-  const vncPort = Number(vncPortRaw)
   const hostHeader = String(getRequestHeader(event, 'host') || '').trim()
   const hostname = hostHeader.split(':')[0] || 'localhost'
-  const vncUrl =
-    !headless && Number.isFinite(vncPort) && vncPort > 0
-      ? `http://${hostname}:${vncPort}/vnc.html`
-      : ''
+  const live = resolveLobsterVncLiveView({ hostname })
+  const vncUrl = live.vncUrl
 
   const mcpUrl = String(process.env.LOBSTER_MCP_URL || '').trim()
   const mcpSidecar = Boolean(mcpUrl && /playwright_mcp|8931/i.test(mcpUrl)) || String(process.env.LOBSTER_MCP_HEADLESS_SIDECAR ?? '').trim() === '1'

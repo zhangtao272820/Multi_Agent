@@ -1,6 +1,6 @@
 # RAG Agent
 
-> **学习文档**：[入门](../docs/Agent学习指南-入门版.md) · [进阶](../docs/Agent学习指南-进阶版.md) · [RAG 专篇](学习指南.md)
+> **面试讲义**：[备战入口](../docs/面试备战/00-使用说明与防穿帮.md) · [03 RAG](../docs/面试备战/03-RAG-Agent.md)
 
 私有文档 **检索增强生成** 服务：上传解析 → 切分入库 → Hybrid 检索 → 有据问答。对应平台 `rag_agent`，默认端口 **13102**；总管能力 cap 为 `rag`。
 
@@ -12,34 +12,37 @@
 
 | 能力 | 说明 |
 |------|------|
-| 多格式入库 | PDF / Word / TXT 等；OCR 辅助扫描件 |
+| 多格式入库 | PDF / Word / Excel / PPTX / HTML / 图片 / TXT；**MinerU 重解析优先**（扫描 PDF/版面），失败回落本地解析 |
 | 幂等与版本 | content hash / `source_version` / `ingest_at`（H1） |
 | 父子块 | Parent-Child 切分，检索 child、展开 parent 上下文（H2） |
 | Hybrid 检索 | 向量 + keyword + BM25，RRF 融合（默认开） |
 | 重排 | Cross-Encoder / LLM 梯子；MMR 去冗余（H3） |
 | Corrective | 弱证据触发 rewrite / clarify / 拒答（H4） |
+| **Agentic（J）** | 复杂问句：`kb_catalog` → `retrieve` / `retrieve_scoped` 有界多跳；简单问句仍走 pipeline |
 | Citation | 引用片段可核验门禁（H5） |
 | 离线重建 | reindex 脚本与流程（H6） |
 | 向量后端 | 内存向量（开发）或 `pgvector`（持久化） |
 
-企业化细节见 [doc/企业化升级方案.md](doc/企业化升级方案.md)；守门 `npm run smoke:enterprise-h`。
+企业化细节见 [doc/企业化升级方案.md](doc/企业化升级方案.md)；守门 `npm run smoke:enterprise-h` / `npm run smoke:agentic-jk`。
 
 ## 技术栈
 
 - Nuxt 4、Vue 3、Tailwind
 - LangGraph、`@langchain/openai`、Zod
-- 解析：`pdf-parse`、`mammoth`、`word-extractor`、`sharp`
+- 解析：`pdf-parse`、`mammoth`、`word-extractor`、`sharp`；**MinerU 侧车**（`heavy_parse_client`）
 - 向量：`server/utils/vectorStore.ts`
 
 ## 架构与关键路径
 
 ```text
-upload → parse → chunk（parent/child）→ embed → store
+upload → MinerU重解析(可选) → parse → chunk（parent/child）→ embed → store
                                               │
-chat / ask ← generate ← rerank ← hybrid retrieve ← query intent
-                │
-         citation / clarify / refuse
+chat ← generate ← tools⇄agent(多跳) ← intent(pipeline|agentic)
+         │              │
+    citation/clarify   Hybrid retrieve（简单问句 retrieve-first）
 ```
+
+**边界**：Manager 一次派发 `cap=rag` ≠ Agentic RAG；Agentic 闭环在专家内。明确不做 GraphRAG / 完整 RAGAS。
 
 ## 目录结构速览
 
@@ -77,9 +80,22 @@ npm run dev
 
 ## 能力边界
 
-- **适合**：内部文档问答、带出处的解释、资料列表检索
+- **适合**：内部文档问答、带出处的解释、资料列表检索、跨文档对比（Agentic）
 - **不适合**：实时公网搜索、大规模爬虫、无文档依据的开放闲聊
-- **明确不做**：完整 RAGAS 流水线、GraphRAG、多租户物理隔离
+- **明确不做**：完整 RAGAS 流水线、GraphRAG、多租户物理隔离、无限 Agent 探索
+
+## 环境变量（J/K 波）
+
+```bash
+# K：MinerU 重解析（Compose 默认 http://mineru_api:8080）
+RAG_HEAVY_PARSE=1
+MINERU_API_URL=http://127.0.0.1:8798
+RAG_HEAVY_PARSE_TIMEOUT_MS=120000
+
+# J：专家内 Agentic 工具多跳
+RAG_ENABLE_AGENTIC_TOOL_LOOP=1
+RAG_AGENTIC_TOOL_MAX_ROUNDS=4
+```
 
 ## Docker / 平台编排
 

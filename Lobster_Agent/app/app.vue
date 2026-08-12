@@ -7,7 +7,8 @@
     class="brand-shell lobster-shell"
     data-agent="lobster"
   >
-    <BrandMotif motif="snow" />
+    <div class="lob-season-bg lob-season-bg--dongzhi" aria-hidden="true" />
+    <BrandMotif motif="snow" :count="72" />
     <NuxtPage />
   </div>
 </template>
@@ -35,14 +36,6 @@ body,
 #__nuxt {
   margin: 0;
   min-height: 100%;
-}
-
-.lobster-shell {
-  min-height: 100vh;
-}
-
-.lobster-shell > :not(.brand-motif) {
-  position: relative;
-  z-index: 1;
+  background: transparent;
 }
 </style>

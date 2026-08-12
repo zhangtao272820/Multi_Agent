@@ -44,13 +44,14 @@ compatible_agents:
 | `lobster.*` | recipe 元数据（soft） |
 
 ### hint 语法（用户可在原话中附带；显式 overlay，非意图主路径）
-- `工作流:httpbin-form-fill` — 显式指定 Workflow Macro
+- `工作流:w3school-form-fill` — 显式指定 Workflow Macro（国内首选）
 - `引擎:stagehand` / `引擎:mcp` / `引擎:classic` / `引擎:desktop`
 - `登录态:profile_name` — 复用 Playwright storageState
 - 起始 URL 写在任务中 → 组装为 `startUrl`
 
-### 示例句
-- 填表：`打开 https://httpbin.org/forms/post ，在 Customer name 填 demo_user，截图给我。`
+### 示例句（日常测试用国内站；勿默认 httpbin）
+- 填表：`打开 https://www.w3school.com.cn/html/html_forms.asp ，First name 填张三，Last name 填李四，不要点 Submit。`
+- 填表+宏：`工作流:w3school-form-fill first_name=张三 last_name=李四 打开 https://www.w3school.com.cn/html/html_forms.asp`
 - 搜索点开：`打开 https://www.runoob.com/，点击第一个教程链接并提取标题`
 - 勿走 gui：`Python 教程怎么学比较好？` → search_chat
 

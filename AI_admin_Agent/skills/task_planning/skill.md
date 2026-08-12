@@ -31,20 +31,29 @@ add_task, add_task_with_due, modify_task, list_tasks, complete_task, delete_task
 add_event, list_events, complete_event, modify_event, delete_event, delete_all_meeting_reminders,
 import_calendar_ics, fetch_and_import_calendar, export_calendar_ics,
 add_note, list_notes, delete_note,
-send_email, list_emails, search_emails, mark_email_read, reply_email, forward_email, delete_email, draft_email_reply, classify_emails,
+send_email, list_emails, search_emails, mark_email_read, get_email_detail, reply_email, forward_email, delete_email, draft_email_reply, classify_emails, triage_emails,
 web_search, knowledge_retrieval, get_weather,
 list_files, read_file_content, write_file, move_file, create_directory,
 read_office_document, write_office_document,
 list_email_attachments, save_email_attachment,
 add_reminder, list_reminders, cancel_reminder, add_memory,
 list_pending_actions, decide_action,
-daily_briefing, triage_emails, prepare_meeting, weekly_report, ask_database,
+daily_briefing, prepare_meeting, weekly_report, ask_database,
 send_wecom_message, send_dingtalk_message, send_feishu_message, send_team_notification,
 lobster_browser_task, extract_meeting_actions, get_travel_route,
 search_places_amap, search_nearby_amap, resolve_address_amap, suggest_address_amap, locate_coordinates_amap,
 sync_feishu_calendar, sync_all_calendars,
 add_tasks_from_minutes, show_integrations_status
 （若启用 ADMIN_MCP_ENABLED，还会动态注册 mcp_* 工具）
+
+邮件链式：读正文/翻译/摘要/抽要点/处理某封 → list_emails（unread_only 信 NLU mail_unread_only）后 get_email_detail(email_id)；分拣用 triage_emails；分类打标用 classify_emails；附件 list_email_attachments / save_email_attachment（先 list）；发信 RISKY。禁止用 triage 冒充读信。
+
+其它办公动作槽（只信 NLU，不扫原话关键词）：
+- 日程 calendar_action：list→list_events；create→add_event；bulk_delete→delete_all_meeting_reminders
+- 待办 task_action：list→list_tasks；create→add_task(_with_due)；complete→complete_task
+- 联系人 contact_action：list|add|search
+- 文件 file_action + file_path；搜索 search_action=web|knowledge + search_query
+- 简报→daily_briefing；问数→ask_database；会前→prepare_meeting
 
 ## Evolution
 

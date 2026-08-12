@@ -1,6 +1,6 @@
 # Video Agent
 
-> **学习文档**：[入门](../docs/Agent学习指南-入门版.md) · [进阶](../docs/Agent学习指南-进阶版.md) · [Video 专篇](学习指南.md)
+> **说明**：Extended 档媒体能力，**不进** Supervisor 主叙事。面试主链见 [docs/面试备战](../docs/面试备战/00-使用说明与防穿帮.md)。
 
 短视频 **文生视频** Agent：一句话 → 分镜 LLM → 通义万相（Wan）→ 可选 Music BGM → ffmpeg 混流。对应平台 `video_agent`，默认端口 **13111**；总管能力 cap 为 `video`。
 

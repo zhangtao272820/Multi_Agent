@@ -29,6 +29,13 @@ export const AMP_TTL = {
   hitlCheckpointHours: 24
 } as const
 
+/** Wave6：召回时间衰减 λ/天（越大旧记忆掉分越快）；可用 AMP_RECALL_DECAY_LAMBDA 覆盖 */
+export function ampRecallDecayLambdaPerDay(env: NodeJS.ProcessEnv = process.env): number {
+  const n = Number(env.AMP_RECALL_DECAY_LAMBDA ?? env.MANAGER_MEMORY_DECAY_LAMBDA ?? 0.09)
+  if (!Number.isFinite(n) || n < 0) return 0.09
+  return Math.min(1, n)
+}
+
 /** 写入策略标签（供 ops / ready 报告） */
 export const AMP_WRITE_GATE = {
   sessionTurn: 'always_append',

@@ -19,6 +19,7 @@ import {
   resolveBrowserProfile,
 } from '../../services/browserProfiles'
 import { listLobsterMcpToolNames, listLobsterSkillIds, loadLobsterSkillsManifest } from '../../utils/lobsterSkillLoader'
+import { resolveLobsterVncLiveView } from '../../utils/lobsterVnc'
 
 /** 总管 probe：health=进程存活，ready=至少一种执行引擎可用 */
 export default defineEventHandler(async () => {
@@ -169,6 +170,7 @@ export default defineEventHandler(async () => {
 
   const browserProfile = resolveBrowserProfile()
   const browserCdpUrl = resolveBrowserCdpUrl()
+  const liveView = resolveLobsterVncLiveView()
 
   return {
     ok: true,
@@ -192,6 +194,9 @@ export default defineEventHandler(async () => {
     desktop,
     android,
     engines,
+    /** 总管/前端打开 noVNC；headless 时为空 */
+    vncUrl: liveView.vncUrl || null,
+    vncHint: liveView.hint || null,
     detail,
     ts: Date.now(),
   }

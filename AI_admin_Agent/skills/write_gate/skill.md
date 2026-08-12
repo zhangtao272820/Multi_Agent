@@ -11,20 +11,21 @@ compatible_agents:
 ## Planning
 
 以下工具默认 **待确认**（返回 action_id）：
-send_email, reply_email, add_event, modify_event, delete_event, delete_all_meeting_reminders,
+send_email, reply_email, forward_email, delete_email, add_event, modify_event, delete_event, delete_all_meeting_reminders,
 import_contacts, import_calendar_ics,
 fetch_and_import_calendar, send_wecom_message, send_dingtalk_message, send_feishu_message, send_team_notification,
 lobster_browser_task, sync_feishu_calendar, sync_all_calendars, add_tasks_from_minutes,
 write_file, move_file, write_office_document, save_email_attachment
 
-批量导入、对外发信、协作通知、批量删除会议提醒、工作区写文件/Office/附件落盘必须先走确认流，除非编排器传入 auto_confirm_risky。
+批量导入、对外发信/转发/删信、协作通知、批量删除会议提醒、工作区写文件/Office/附件落盘必须先走确认流，除非编排器传入 auto_confirm_risky。
 
 人能填的字段 AI 必须写入工具 args（标题/详细说明/截止时间/邮件正文等）；`draft_email_reply` 只起草不发信，**不**走发送闸。
 
 只读/聚合工具可直接执行：
 daily_briefing, triage_emails, prepare_meeting, weekly_report, ask_database,
-list_*, get_weather, knowledge_retrieval, web_search, export_calendar_ics, read_file_content,
-extract_meeting_actions, read_office_document, list_email_attachments, draft_email_reply
+list_*, search_emails, mark_email_read, get_email_detail, get_weather, knowledge_retrieval, web_search,
+export_calendar_ics, read_file_content, extract_meeting_actions, read_office_document,
+list_email_attachments, draft_email_reply
 
 ## Reply
 

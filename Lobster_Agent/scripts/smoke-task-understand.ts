@@ -7,11 +7,13 @@ import {
   toLobsterTaskSpec,
   taskSpecPromptAddon,
   defaultPlanStepsForTask,
+  defaultGoalsForTaskKind,
 } from '../server/services/lobsterTaskUnderstandSchema'
 import {
   taskSpecFromManagerHints,
   mergeManagerAndUnderstoodTaskSpec,
 } from '../server/services/lobsterManagerTaskSpec'
+import { taskAffirmsSubmit, clampFormFillGoals } from '../server/services/lobsterFormGoals'
 import {
   buildEngineChainFromPick,
   reorderChainForTaskSpec,
@@ -163,9 +165,13 @@ const mgrForm = taskSpecFromManagerHints({
   startUrl: 'https://httpbin.org/forms/post',
   taskKind: 'form_fill',
   needsLogin: false,
+  successCriteria: 'Customer name 已填入目标值',
+  maxInteractionSteps: 3,
 })
 assert(mgrForm?.task_kind === 'form_fill', 'manager hints form_fill')
 assert(mgrForm?.source === 'manager', 'manager source')
+assert(mgrForm?.success_criteria === 'Customer name 已填入目标值', 'manager success_criteria')
+assert(mgrForm?.max_interaction_steps === 3, 'manager max_interaction_steps')
 assert((mgrForm?.plan_steps?.length || 0) >= 1, 'manager form has plan_steps')
 const mgrPick = resolveEngineFromTaskSpec({
   spec: mgrForm!,
@@ -187,6 +193,7 @@ const understoodAsSearch = toLobsterTaskSpec(
     needs_login: false,
     explicitly_avoid_login: false,
     browser_profile: 'auto',
+    success_criteria: '搜到结果',
   },
   'llm',
   'managed',
@@ -194,6 +201,50 @@ const understoodAsSearch = toLobsterTaskSpec(
 const merged = mergeManagerAndUnderstoodTaskSpec(mgrForm, understoodAsSearch)
 assert(merged?.task_kind === 'form_fill', 'manager priority over misunderstood search')
 assert(merged?.engine_hint === 'auto', 'operate merge keeps engine_hint auto')
+assert(merged?.start_url === 'https://httpbin.org/forms/post', 'manager start_url kept')
+assert(merged?.success_criteria === 'Customer name 已填入目标值', 'manager criteria wins')
+assert(merged?.max_interaction_steps === 3, 'manager steps kept')
+
+const mgrCn = taskSpecFromManagerHints({
+  task: '打开 w3school 中文站填表',
+  startUrl: 'https://www.w3school.com.cn/html/html_forms.asp',
+  taskKind: 'form_fill',
+})
+const undEn = toLobsterTaskSpec(
+  {
+    canonical_task: '填表',
+    start_url: 'https://www.w3schools.com/html/html_forms.asp',
+    engine_hint: 'auto',
+    task_kind: 'form_fill',
+    confidence: 0.9,
+    rationale: '幻觉英文站',
+    needs_login: false,
+    explicitly_avoid_login: false,
+    browser_profile: 'auto',
+  },
+  'llm',
+  'managed',
+)
+const mergedCn = mergeManagerAndUnderstoodTaskSpec(mgrCn, undEn)
+assert(
+  mergedCn?.start_url === 'https://www.w3school.com.cn/html/html_forms.asp',
+  'CN start_url must beat EN hallucination',
+)
+assert(mergedCn?.goals?.must_leave_start !== true, 'form_fill must not require leave start')
+assert(mergedCn?.goals?.must_submit !== true, '不要点 Submit must not set must_submit')
+
+const noSubmitGoals = defaultGoalsForTaskKind(
+  'form_fill',
+  '打开 https://www.w3school.com.cn/html/html_forms.asp ，First name 填张三，Last name 填李四，不要点 Submit。',
+)
+assert(noSubmitGoals.must_submit === false, 'defaultGoals: 不要点 Submit → must_submit false')
+assert(noSubmitGoals.must_leave_start === false, 'defaultGoals: form_fill no leave')
+assert(noSubmitGoals.expected_url_change === false, 'defaultGoals: no url change')
+
+assert(taskAffirmsSubmit('请填写并提交表单') === true, 'affirms submit')
+assert(taskAffirmsSubmit('不要点 Submit') === false, 'negates submit')
+assert(clampFormFillGoals({ must_leave_start: true, must_submit: true }, '不要点 Submit').must_submit === false)
+assert(clampFormFillGoals({ must_leave_start: true, must_submit: true }, '不要点 Submit').must_leave_start === false)
 
 const fallbackPlan = defaultPlanStepsForTask({
   task: '点第一个教程并提取标题',

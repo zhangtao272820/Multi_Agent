@@ -76,6 +76,9 @@ export function isGuiIncompleteFailure(code: string): boolean {
     t === 'empty_result' ||
     t === 'network' ||
     t === 'network_unreachable' ||
+    t === 'success_criteria_unmet' ||
+    t === 'step_budget_exceeded' ||
+    t === 'element_not_found' ||
     t.startsWith('incomplete_')
   )
 }
@@ -106,22 +109,37 @@ export function buildGuiIncompleteFinalMessage(input: {
     return buildGuiNetworkFinalMessage({ task: input.task, finalUrl: input.finalUrl })
   }
   const url = String(input.finalUrl || '').trim()
+  const task = String(input.task || '').trim()
+  const isForm =
+    /(填|填写|form\s*fill|First\s*name|Last\s*name|custname|Customer\s*name)/i.test(task) &&
+    !/(点击第一个|进入详情)/i.test(task)
   const head =
-    reason === 'navigation_unverified'
-      ? '浏览器任务未完成：仍停留在起始页，未完成点击/进入目标页。'
-      : reason === 'search_no_results' || reason === 'search_extract_empty'
-        ? '浏览器任务未完成：搜索/抽取未得到可用结果（页面可能已打开）。'
-        : reason.startsWith('incomplete_')
-          ? '浏览器任务未完成：步数用尽或目标动作未做完（打开≠成功）。'
-          : '浏览器任务未完成：目标动作未达成（有截图仍可能失败）。'
+    isForm && (reason === 'navigation_unverified' || reason === 'success_criteria_unmet' || reason === 'element_not_found')
+      ? reason === 'element_not_found'
+        ? '浏览器填表未完成：未找到可填输入框（定位失败）。'
+        : '浏览器填表未完成：字段未成功写入或未通过 value 校验。'
+      : reason === 'navigation_unverified'
+        ? '浏览器任务未完成：仍停留在起始页，未完成点击/进入目标页。'
+        : reason === 'step_budget_exceeded'
+          ? '浏览器任务未完成：交互步数已达上限（打开≠成功）。'
+        : reason === 'search_no_results' || reason === 'search_extract_empty'
+          ? '浏览器任务未完成：搜索/抽取未得到可用结果（页面可能已打开）。'
+          : reason.startsWith('incomplete_')
+            ? '浏览器任务未完成：步数用尽或目标动作未做完（打开≠成功）。'
+            : '浏览器任务未完成：目标动作未达成（有截图仍可能失败）。'
+  const hint = isForm
+    ? '建议：在 noVNC / Lobster(:13108) 看 First name/Last name 是否已填；国内样例：`打开 https://www.w3school.com.cn/html/html_forms.asp ，First name 填张三，Last name 填李四，不要点 Submit。`'
+    : '建议：在 noVNC / Lobster(:13108) 观察是否点进详情；可显式加 `引擎:classic` 强制有头逐步；或先测短句 `打开 https://www.runoob.com/`。'
   const lines = [
     head,
     url ? `当前页面：${url}` : '',
     input.hasScreenshot
-      ? '说明：截图只证明页面已加载，不代表已点击链接或抽出标题。'
+      ? isForm
+        ? '说明：截图只证明页面已加载，不代表字段已填入目标值。'
+        : '说明：截图只证明页面已加载，不代表已点击链接或抽出标题。'
       : '',
-    '建议：在 noVNC / Lobster(:13108) 观察是否点进详情；可显式加 `引擎:classic` 强制有头逐步；或先测短句 `打开 https://www.runoob.com/`。',
-    `任务：${String(input.task || '').trim().slice(0, 240)}`,
+    hint,
+    `任务：${task.slice(0, 240)}`,
   ]
   return lines.filter(Boolean).join('\n')
 }

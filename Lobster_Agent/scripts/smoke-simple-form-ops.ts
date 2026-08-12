@@ -1,0 +1,130 @@
+/**
+ * SimpleOps form_fill：fill+value 校验 + verify 不打 navigation_unverified（无浏览器）
+ */
+import assert from 'node:assert/strict'
+import { playwrightFillFormFields } from '../server/services/stagehandPlaywrightBridge'
+import { assembleDefaultSuccessCriteria, evaluateSuccessCriteria } from '../server/services/lobsterSuccessCriteria'
+import { extractFormFieldsHeuristic } from '../server/services/lobsterFormFill'
+import {
+  collectFormFilledEvidence,
+  isFormFillBrowseTask,
+  verifyLobsterRunResult,
+} from '../../shared/lobsterRunVerifyLite'
+
+function makeMockPage(store: Record<string, string>) {
+  const makeLoc = (sel: string) => {
+    const key =
+      sel.includes('fname') || /First name/i.test(sel) || sel === 'first_name'
+        ? 'fname'
+        : sel.includes('lname') || /Last name/i.test(sel) || sel === 'last_name'
+          ? 'lname'
+          : sel
+    return {
+      first() {
+        return this
+      },
+      async fill(v: string) {
+        store[key] = v
+      },
+      async inputValue() {
+        return store[key] || ''
+      },
+      async getAttribute(name: string) {
+        return name === 'value' ? store[key] || '' : null
+      },
+    }
+  }
+  return {
+    locator(sel: string) {
+      return makeLoc(sel)
+    },
+    getByLabel(label: string) {
+      return makeLoc(label)
+    },
+    getByRole(_role: string, opts?: { name?: string }) {
+      return makeLoc(String(opts?.name || ''))
+    },
+  }
+}
+
+const store: Record<string, string> = {}
+const stagehand = { page: makeMockPage(store) }
+const filled = await playwrightFillFormFields(stagehand, {
+  fields: [
+    { key: 'first_name', value: '张三' },
+    { key: 'last_name', value: '李四' },
+  ],
+  recipeFields: [
+    { key: 'first_name', selectors: ['input#fname'], aliases: ['First name'] },
+    { key: 'last_name', selectors: ['input#lname'], aliases: ['Last name'] },
+  ],
+})
+assert.equal(filled.ok, true, 'mock fill ok')
+assert.equal(store.fname, '张三')
+assert.equal(store.lname, '李四')
+assert.equal(filled.filled.length, 2)
+
+const criteria = assembleDefaultSuccessCriteria({ taskKind: 'form_fill' })
+assert.equal(criteria.filledMin, 1)
+assert.equal(criteria.extractMin, undefined)
+const evalOk = evaluateSuccessCriteria({
+  url: 'https://www.w3school.com.cn/html/html_forms.asp',
+  filledCount: 2,
+  extractCount: 0,
+  criteria,
+})
+assert.equal(evalOk.ok, true, 'filledMin met')
+const evalFail = evaluateSuccessCriteria({
+  url: 'https://www.w3school.com.cn/html/html_forms.asp',
+  filledCount: 0,
+  extractCount: 1,
+  criteria,
+})
+assert.equal(evalFail.ok, false, 'title alone must not pass form_fill')
+
+const task =
+  '打开 https://www.w3school.com.cn/html/html_forms.asp ，First name 填张三，Last name 填李四，不要点 Submit。'
+assert.equal(isFormFillBrowseTask(task), true)
+const heur = extractFormFieldsHeuristic(task)
+assert.equal(heur.find((f) => f.key === 'first_name')?.value, '张三')
+
+const okResult = {
+  answer: '已填 first_name=张三；last_name=李四（未提交）',
+  finalUrl: 'https://www.w3school.com.cn/html/html_forms.asp',
+  task_kind: 'form_fill',
+  filled: [
+    { key: 'first_name', value: '张三' },
+    { key: 'last_name', value: '李四' },
+  ],
+  stats: { enginePath: 'playwright_form' },
+  data: [{ filled: [{ key: 'first_name', value: '张三' }], items: [] }],
+}
+assert.equal(collectFormFilledEvidence(okResult).length, 2)
+const vOk = verifyLobsterRunResult({ task, status: 'done', result: okResult })
+assert.equal(vOk.ok, true, `form with filled must pass: ${vOk.reason}`)
+
+const fakeNav = verifyLobsterRunResult({
+  task,
+  status: 'done',
+  result: {
+    ...okResult,
+    failureType: 'navigation_unverified',
+  },
+})
+assert.equal(fakeNav.ok, true, 'form_fill + filled must override false navigation_unverified')
+
+const noFill = verifyLobsterRunResult({
+  task,
+  status: 'done',
+  result: {
+    answer: '标题：HTML 表单',
+    finalUrl: 'https://www.w3school.com.cn/html/html_forms.asp',
+    task_kind: 'form_fill',
+    items: [{ title: 'HTML 表单' }],
+    stats: { enginePath: 'playwright_form' },
+  },
+})
+assert.equal(noFill.ok, false, 'title-only form_fill must fail')
+assert.notEqual(noFill.reason, 'navigation_unverified', 'must not use navigation_unverified for form')
+
+console.log('smoke-simple-form-ops: PASS')

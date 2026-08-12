@@ -65,18 +65,26 @@ def suppress_clarify_for_bulk_delete(
     understanding: dict[str, Any] | None,
     user_message: str = "",
 ) -> dict[str, Any]:
-    """
-    编排产出闸：批量删除语义已明确时，清空「哪个会议」类错误澄清。
-    不对用户原话做意图路由，只校正 understanding 产物。
-    """
+    """批量删除：只信 NLU slots.calendar_action=bulk_delete；legacy 才扫原话校正。"""
     und: dict[str, Any] = dict(understanding) if isinstance(understanding, dict) else {}
-    msg = str(user_message or "").strip()
-    if not _looks_like_bulk_delete_meeting_reminders(msg):
+    slots = und.get("slots") if isinstance(und.get("slots"), dict) else {}
+    slots = {str(k): str(v or "").strip() for k, v in slots.items()}
+    action = str(slots.get("calendar_action") or "").strip().lower()
+    is_bulk = action == "bulk_delete"
+    if not is_bulk and is_admin_legacy_infer_enabled():
+        is_bulk = _looks_like_bulk_delete_meeting_reminders(user_message)
+        if is_bulk:
+            slots = {**slots, "calendar_action": "bulk_delete"}
+            und["slots"] = slots
+    if not is_bulk:
         return und
     und["needs_clarification"] = False
     und["clarification_questions"] = []
     if not str(und.get("intent") or "").strip() or und.get("intent") == "其他":
         und["intent"] = "日程"
+    if str(slots.get("calendar_action") or "").strip().lower() != "bulk_delete":
+        slots = {**slots, "calendar_action": "bulk_delete"}
+        und["slots"] = slots
     return und
 
 
@@ -305,31 +313,33 @@ def build_deterministic_plan_from_action_text(
     intent_hint: str = "",
     understanding: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]] | None:
-    """从 action_text 结构推断 tool_plan（总管/规划 LLM 失败时的兜底）。"""
+    """优先信 NLU understanding；对原话关键词推断仅 legacy。"""
     if not is_admin_plan_fastpath_enabled():
         return None
     action = str(action_text or "").strip()
+
+    # 主路径：路由/NLU 模型已填 slots → 确定性组装（不扫原话）
+    if isinstance(understanding, dict) and understanding:
+        from_u = build_deterministic_plan_from_understanding(understanding, action)
+        if from_u:
+            return from_u
+
     if not action:
+        return None
+
+    # 以下仅 legacy：玩法台 / 关键词意图（默认 ADMIN_NLU_MODE=full 不走）
+    if not is_admin_legacy_infer_enabled():
         return None
 
     playground_plan = build_playground_plan_from_text(action)
     if playground_plan:
         return playground_plan
 
-    # 批量删除：不依赖 legacy infer / 槽位，尽早短路
     if _looks_like_bulk_delete_meeting_reminders(action):
         return _bulk_delete_plan()
 
-    if isinstance(understanding, dict) and understanding and not understanding.get("needs_clarification"):
-        from_action = build_deterministic_plan_from_understanding(understanding, action)
-        if from_action:
-            return from_action
-
-    if not is_admin_legacy_infer_enabled():
-        return None
-
     intent = str(intent_hint or "").strip()
-    if (not intent or intent == "其他") and is_admin_legacy_infer_enabled():
+    if not intent or intent == "其他":
         intent = infer_intent_from_action(action)
     if not intent or intent == "其他":
         return None
@@ -352,11 +362,12 @@ def build_deterministic_plan_from_action_text(
             return _ok("get_travel_route", {"origin": "", "destination": action, "mode": "compare", "compare_modes": True})
 
     if intent == "邮件":
-        if list_like:
-            return _ok("list_emails", {})
-        if write_like or _includes_any(action, ("发邮件", "写邮件", "发送")):
-            return _ok("send_email", {"to": "", "subject": title[:80], "content": action})
-        return _ok("list_emails", {})
+        # 仅当 NLU 已给出 mail_action / email_* scenario 时用 slots 组装；否则交规划 LLM
+        from app.core.admin_mail_plan import build_mail_fallback_plan, resolve_mail_action
+
+        if resolve_mail_action(understanding if isinstance(understanding, dict) else None):
+            return build_mail_fallback_plan(action, understanding if isinstance(understanding, dict) else None)
+        return None
 
     if intent == "联系人":
         if list_like:
@@ -434,7 +445,8 @@ def build_deterministic_plan_from_understanding(
     user_message: str = "",
 ) -> list[dict[str, Any]] | None:
     """
-    当理解结果已具备可执行槽位时，直接产出 tools 计划，避免 planning_node 再调一次 LLM。
+    路由/NLU 模型已产出 intent+slots 时，确定性组装 tools。
+    禁止对用户原话做关键词/正则意图路由（玩法台仅 legacy）。
     """
     if not is_admin_plan_fastpath_enabled():
         return None
@@ -444,13 +456,28 @@ def build_deterministic_plan_from_understanding(
         return None
 
     msg = str(user_message or "").strip()
-    playground_plan = build_playground_plan_from_text(msg)
-    if playground_plan:
-        return playground_plan
+    # 玩法台关键词路由仅 legacy（主路径只信 NLU slots）
+    if is_admin_legacy_infer_enabled():
+        playground_plan = build_playground_plan_from_text(msg)
+        if playground_plan:
+            return playground_plan
 
-    # 批量删除：即使槽位 LLM 误澄清，仍可从消息短路出计划
-    if _looks_like_bulk_delete_meeting_reminders(msg):
-        return _bulk_delete_plan()
+    intent_early = str(understanding.get("intent") or "").strip()
+    if intent_early in ("日程", "待办", "联系人", "文件", "搜索", "简报", "问数", "会前准备", "会议准备"):
+        from app.core.admin_office_plan import build_office_fallback_plan
+
+        office_early = build_office_fallback_plan(intent_early, msg, understanding)
+        if office_early:
+            names = [str(p.get("name") or "") for p in office_early]
+            create_like = {
+                "add_event",
+                "add_task",
+                "add_task_with_due",
+                "add_contact",
+            }
+            # 非创建动作（list/complete/search…）不因误澄清被挡住
+            if names and names[0] not in create_like:
+                return office_early
 
     if understanding.get("needs_clarification"):
         return None
@@ -458,11 +485,19 @@ def build_deterministic_plan_from_understanding(
     intent = str(understanding.get("intent") or "").strip()
     slots = understanding.get("slots") if isinstance(understanding.get("slots"), dict) else {}
 
-    if intent == "日程":
-        list_intent = any(w in msg for w in ("列出", "查看", "有哪些", "列表", "list "))
-        if list_intent:
-            return [{"name": "list_events", "args": {}}]
+    # 创建类：office 组装缺 resolved_time 时落到下方精细路径
+    if intent in ("日程", "待办", "联系人", "文件", "搜索", "简报", "问数", "会前准备", "会议准备"):
+        from app.core.admin_office_plan import build_office_fallback_plan
 
+        office_plan = build_office_fallback_plan(intent, msg, understanding)
+        if office_plan:
+            names = [str(p.get("name") or "") for p in office_plan]
+            if not (intent == "日程" and names == ["add_event"]):
+                if not (intent == "待办" and names and names[0] in ("add_task", "add_task_with_due")):
+                    return office_plan
+
+    if intent == "日程":
+        # list vs create 由 slots.calendar_action 决定；此处仅在标题+时间齐时建日程
         resolved = understanding.get("resolved_time")
         resolved = resolved if isinstance(resolved, dict) else {}
         title = _slot_str(slots, "event_title")
@@ -470,12 +505,9 @@ def build_deterministic_plan_from_understanding(
         start_expr = _slot_str(slots, "start_time_expression") or str(
             resolved.get("time_expression") or ""
         ).strip()
+        # 标题/时间只信 NLU 槽位与时间模型；缺槽则交规划 LLM，禁止从原话正则抽标题
         if not title or _looks_like_composite_manager_dump(title):
-            title = resolve_event_title(msg, slots)
-        if not title:
             return None
-        if not start_local and not start_expr and _has_time_hint(msg):
-            start_expr = msg
         if not start_local and not start_expr:
             return None
         args: dict[str, Any] = {"title": title}
@@ -490,10 +522,7 @@ def build_deterministic_plan_from_understanding(
         return [{"name": "add_event", "args": args}]
 
     if intent == "待办":
-        list_intent = any(w in msg for w in ("列出", "查看", "有哪些", "列表", "list "))
-        if list_intent:
-            return [{"name": "list_tasks", "args": {}}]
-        title = _slot_str(slots, "task_title") or (_strip_action_prefix(msg)[:120] if msg else "")
+        title = _slot_str(slots, "task_title")
         due_expr = _slot_str(slots, "task_due_time_expression")
         resolved = understanding.get("resolved_time")
         resolved = resolved if isinstance(resolved, dict) else {}
@@ -501,7 +530,8 @@ def build_deterministic_plan_from_understanding(
         if not title:
             return None
         task_desc = resolve_task_description(title, slots)
-        if due_expr or due_local or _has_time_hint(msg):
+        # 截止时间只信槽位 / 时间模型 / has_time_reference，不扫原话时间词
+        if due_expr or due_local or understanding.get("has_time_reference"):
             args: dict[str, Any] = {"title": title}
             if task_desc:
                 args["description"] = task_desc
@@ -509,9 +539,15 @@ def build_deterministic_plan_from_understanding(
                 args["due_time_local"] = due_local
                 args["due_time_str"] = due_expr or due_local
             else:
-                args["due_time_str"] = due_expr or msg
+                due_str = due_expr or str(understanding.get("time_expression") or "").strip()
+                if not due_str:
+                    task_args: dict[str, Any] = {"title": title}
+                    if task_desc:
+                        task_args["description"] = task_desc
+                    return [{"name": "add_task", "args": task_args}]
+                args["due_time_str"] = due_str
             return [{"name": "add_task_with_due", "args": args}]
-        task_args: dict[str, Any] = {"title": title}
+        task_args = {"title": title}
         if task_desc:
             task_args["description"] = task_desc
         return [{"name": "add_task", "args": task_args}]
@@ -537,35 +573,23 @@ def build_deterministic_plan_from_understanding(
             return [{"name": "get_travel_route", "args": args}]
 
     if intent == "邮件":
-        list_intent = any(w in msg for w in ("列出", "查看", "有哪些", "列表", "未读", "list "))
-        if list_intent:
-            return [{"name": "list_emails", "args": {}}]
+        # 通用：只信 NLU slots.mail_action / admin_scenario，不按原话关键词特判
+        from app.core.admin_mail_plan import build_mail_fallback_plan, resolve_mail_action
+
+        if resolve_mail_action(understanding):
+            return build_mail_fallback_plan(msg, understanding)
         to = _slot_str(slots, "email_to_name_or_email")
         subject = _slot_str(slots, "email_subject")
-        content = _slot_str(slots, "email_content") or msg
-        if not to:
-            return None
-        if not subject and msg:
-            subject = _strip_action_prefix(msg)[:80] or msg[:80]
-        if not subject:
+        content = _slot_str(slots, "email_content")
+        if not to or not subject:
             return None
         return [{"name": "send_email", "args": {"to": to, "subject": subject, "content": content or subject}}]
 
     if intent == "联系人":
-        list_intent = any(w in msg for w in ("列出", "查看", "有哪些", "列表", "通讯录", "list "))
-        if list_intent and not any(w in msg for w in ("添加", "新建", "存", "导入")):
-            return [{"name": "list_contacts", "args": {}}]
-        name = _slot_str(slots, "contact_name")
-        email = _slot_str(slots, "contact_email")
-        if name and email:
-            args: dict[str, Any] = {"name": name, "email": email}
-            desc = _slot_str(slots, "contact_description")
-            if desc:
-                args["description"] = desc
-            return [{"name": "add_contact", "args": args}]
-        if name and any(w in msg for w in ("查", "找", "搜索", "邮箱是")):
-            return [{"name": "search_contact", "args": {"name": name}}]
-        return None
+        from app.core.admin_office_plan import build_contact_fallback_plan
+
+        plan = build_contact_fallback_plan(msg, understanding)
+        return plan or None
 
     return None
 
@@ -628,7 +652,15 @@ def build_deterministic_plan_from_manager_task(
 
         return sanitize_manager_admin_plan(action_plan, action) or action_plan
 
-    if intent in _INTENT_LIST_TOOLS and _looks_like_list_intent(action):
+    # list：只信 NLU 动作槽，不扫 action_text 关键词
+    if isinstance(understanding, dict) and intent in ("日程", "待办", "联系人", "文件", "搜索"):
+        from app.core.admin_office_plan import build_office_fallback_plan
+
+        office = build_office_fallback_plan(intent, action, understanding)
+        if office:
+            return office
+
+    if is_admin_legacy_infer_enabled() and intent in _INTENT_LIST_TOOLS and _looks_like_list_intent(action):
         name = _INTENT_LIST_TOOLS[intent]
         if name in AVAILABLE_TOOLS:
             return [{"name": name, "args": {}}]

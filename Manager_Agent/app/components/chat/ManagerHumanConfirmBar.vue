@@ -7,6 +7,7 @@ const props = defineProps<{
   agent: string
   screenshot?: string
   pageUrl?: string
+  vncUrl?: string
   failureType?: string
   lobsterRunId?: string
   sending: boolean
@@ -133,6 +134,10 @@ onBeforeUnmount(() => {
           <div v-if="pageUrl && isGui" class="hitl-confirm-meta">
             <span class="hitl-confirm-meta-label">页面</span>
             <a :href="pageUrl" target="_blank" rel="noopener noreferrer" class="hitl-confirm-page-link">{{ pageUrl }}</a>
+          </div>
+          <div v-if="vncUrl && isGui" class="hitl-confirm-meta">
+            <span class="hitl-confirm-meta-label">实时画面</span>
+            <a :href="vncUrl" target="_blank" rel="noopener noreferrer" class="hitl-confirm-page-link">打开 noVNC</a>
           </div>
           <div v-if="lobsterRunId && isGui" class="hitl-confirm-meta">
             <span class="hitl-confirm-meta-label">Run</span>

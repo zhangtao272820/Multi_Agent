@@ -7,8 +7,9 @@ export default defineEventHandler(async (event) => {
     autoPromote?: boolean;
     minHits?: number;
   } | null;
+  // 默认不晋级：仅当请求显式 autoPromote=true 且 EVO_ALLOW_EXPERT_AUTO_PROMOTE=1 时才可能晋级
   const report = await runLearningCurator({
-    autoPromote: body?.autoPromote !== false,
+    autoPromote: body?.autoPromote === true,
     minHits: Number.isFinite(body?.minHits) ? Number(body!.minHits) : undefined,
   });
   return { ok: true, report };

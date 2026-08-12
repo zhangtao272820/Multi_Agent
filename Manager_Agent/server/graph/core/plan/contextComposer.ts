@@ -32,6 +32,10 @@ import {
   isGuiExperienceReadEnabled,
   recallGuiExperience
 } from '#agent-shared/guiExperienceRetrieve'
+import {
+  formatLearnedSkillHints,
+  recallLearnedSkills,
+} from '../../../utils/skills/skillDiscoverIndex'
 import type { TaskStackItem } from '../task/taskStack'
 
 export type ManagerContextStage = 'router' | 'planner'
@@ -133,6 +137,16 @@ export async function composeManagerPromptContext(
     metaPatch.plannerRulesSource = resolvedRules.source
     metaPatch.plannerRulesCanary = resolvedRules.canary
   }
+  if ('bundleCanary' in resolvedPrompt || 'bundleCanary' in resolvedRules) {
+    metaPatch.bundleCanary = Boolean(
+      (resolvedPrompt as { bundleCanary?: boolean }).bundleCanary ??
+        (resolvedRules as { bundleCanary?: boolean }).bundleCanary
+    )
+    metaPatch.bundleId =
+      (resolvedPrompt as { bundleId?: string | null }).bundleId ??
+      (resolvedRules as { bundleId?: string | null }).bundleId ??
+      null
+  }
 
   let experienceReplayCount = 0
   let longMemoryItemCount = 0
@@ -167,6 +181,21 @@ export async function composeManagerPromptContext(
       }
       if (trimBlock(experienceReplay.text)) blocks.push(experienceReplay.text)
       if (trimBlock(experienceReplay.negativeText)) blocks.push(experienceReplay.negativeText)
+    }
+
+    // 已晋级 skill 可发现检索（弱 hint；不扫脏 skills/）
+    if (String(process.env.MGR_LEARNED_SKILL_RECALL ?? '1').trim() !== '0') {
+      try {
+        const learnedHits = await recallLearnedSkills(heuristicsText || '', { topK: 2 })
+        const learnedBlock = formatLearnedSkillHints(learnedHits)
+        if (trimBlock(learnedBlock)) {
+          blocks.push(learnedBlock)
+          metaPatch.learnedSkillRecallCount = learnedHits.length
+          metaPatch.learnedSkillIds = learnedHits.map((h) => h.skillId).slice(0, 3)
+        }
+      } catch {
+        /* ignore */
+      }
     }
 
     const longMemory = skipLongMemoryForRoute

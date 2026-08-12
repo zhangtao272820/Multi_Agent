@@ -96,6 +96,9 @@ export const RAG_AGENT_DEFAULTS = {
   /** H3：MMR 去冗余 */
   enableMmr: true,
   mmrLambda: 0.7,
+  /** 多文档 top-k：按 source 至少保留 1 条，减轻近义挤占 */
+  enableSourceCoverage: true,
+  sourceCoveragePerSourceMin: 1,
   /** H4：Top1/Top2 分差过小且分数偏低 → Corrective */
   correctiveMinScoreGap: 0.015,
   correctiveAmbiguousTopMax: 0.22,
@@ -110,6 +113,13 @@ export const RAG_AGENT_DEFAULTS = {
   /** P2：证据不足时改写 query 再检（默认 1 轮，平衡速度与召回） */
   enableAgenticRetrieval: true,
   agenticMaxRounds: 1,
+  /** J 波：专家内 Agentic 工具多跳（catalog/retrieve/scoped） */
+  enableAgenticToolLoop: true,
+  agenticToolMaxRounds: 4,
+  /** K 波：MinerU 重解析入库 */
+  enableHeavyParse: true,
+  mineruApiUrl: "" as string,
+  heavyParseTimeoutMs: 120_000,
   /** P2：从 rag-learning-signals 调检索偏好 */
   enableLearningLoop: true,
   /** P2：gte-rerank 等；未配则词法 + LLM */
@@ -126,7 +136,8 @@ export const RAG_AGENT_DEFAULTS = {
   sessionMemoryMaxTopics: 8,
   /** P4：影子补丁晋级阈值 */
   promptPromoteMinHits: 3,
-  enableAutoCurateOnFeedback: true,
+  /** 默认关：反馈只写 shadow；晋级须人审 */
+  enableAutoCurateOnFeedback: false,
   /** P4：跨会话用户画像 */
   enableUserPreferences: true,
   userPrefsFromConversationId: true,
@@ -145,7 +156,8 @@ export const RAG_AGENT_DEFAULTS = {
   enableAutoCuratorScheduler: true,
   autoCuratorIntervalMs: 3_600_000,
   /** P6：A/B 显著性达标才自动晋级（定时任务） */
-  enableAbAutoPromote: true,
+  /** 默认关：A/B 达标也不自动晋级 */
+  enableAbAutoPromote: false,
   abAutoPromoteMinSamples: 20,
   abAutoPromoteMinDelta: 0.08,
   /** P6：读取总管 user-session-map */
@@ -191,6 +203,7 @@ export type RagAgentEnv = typeof RAG_AGENT_DEFAULTS & {
   dedicatedRerankModel: string | undefined;
   embeddingModel: string;
   vectorBackend: "memory" | "pgvector";
+  mineruApiUrl: string;
 };
 
 export function chatModelName() {
@@ -292,6 +305,11 @@ export function getRagAgentEnv(opts?: { docCount?: number }): RagAgentEnv {
     ),
     enableMmr: envBool(process.env.RAG_ENABLE_MMR, d.enableMmr),
     mmrLambda: Math.max(0, Math.min(1, envNum(process.env.RAG_MMR_LAMBDA, d.mmrLambda))),
+    enableSourceCoverage: envBool(process.env.RAG_ENABLE_SOURCE_COVERAGE, d.enableSourceCoverage),
+    sourceCoveragePerSourceMin: Math.max(
+      1,
+      Math.min(3, Math.floor(envNum(process.env.RAG_SOURCE_COVERAGE_PER_SOURCE, d.sourceCoveragePerSourceMin))),
+    ),
     correctiveMinScoreGap: Math.max(0, envNum(process.env.RAG_CORRECTIVE_MIN_SCORE_GAP, d.correctiveMinScoreGap)),
     correctiveAmbiguousTopMax: Math.max(
       0,
@@ -310,6 +328,17 @@ export function getRagAgentEnv(opts?: { docCount?: number }): RagAgentEnv {
     embeddingBatchSize: Math.max(1, Math.min(10, Math.floor(envNum(process.env.RAG_EMBEDDING_BATCH_SIZE, d.embeddingBatchSize)))),
     enableAgenticRetrieval: envBool(process.env.RAG_ENABLE_AGENTIC_RETRIEVAL, d.enableAgenticRetrieval),
     agenticMaxRounds: Math.max(0, Math.min(3, Math.floor(envNum(process.env.RAG_AGENTIC_MAX_ROUNDS, d.agenticMaxRounds)))),
+    enableAgenticToolLoop: envBool(process.env.RAG_ENABLE_AGENTIC_TOOL_LOOP, d.enableAgenticToolLoop),
+    agenticToolMaxRounds: Math.max(
+      1,
+      Math.min(8, Math.floor(envNum(process.env.RAG_AGENTIC_TOOL_MAX_ROUNDS, d.agenticToolMaxRounds)))
+    ),
+    enableHeavyParse: envBool(process.env.RAG_HEAVY_PARSE, d.enableHeavyParse),
+    mineruApiUrl: String(process.env.MINERU_API_URL ?? d.mineruApiUrl ?? "").trim(),
+    heavyParseTimeoutMs: Math.max(
+      5_000,
+      Math.floor(envNum(process.env.RAG_HEAVY_PARSE_TIMEOUT_MS, d.heavyParseTimeoutMs))
+    ),
     enableLearningLoop: envBool(process.env.RAG_ENABLE_LEARNING_LOOP, d.enableLearningLoop),
     enableCrossEncoderRerank: envBool(process.env.RAG_ENABLE_CROSS_ENCODER, d.enableCrossEncoderRerank),
     crossEncoderSkipLlmThreshold: envNum(process.env.RAG_CROSS_ENCODER_SKIP_LLM, d.crossEncoderSkipLlmThreshold),

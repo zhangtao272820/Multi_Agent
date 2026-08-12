@@ -242,7 +242,11 @@ export async function persistHypotheses(policyDir: string, hypotheses: Evolution
   return added
 }
 
-function canaryFieldForArtifact(artifact: EvolutionArtifact): 'policyCanary' | 'promptCanary' | 'plannerRulesCanary' {
+function canaryFieldForArtifact(artifact: EvolutionArtifact): 'bundleCanary' | 'policyCanary' | 'promptCanary' | 'plannerRulesCanary' {
+  // W2：优先按 sticky bundle 臂聚合；无字段时回退单制品
+  if (String(process.env.MANAGER_STICKY_CANARY_BUNDLE ?? '1').trim() !== '0') {
+    return 'bundleCanary'
+  }
   if (artifact === 'policy') return 'policyCanary'
   if (artifact === 'planner_rules') return 'plannerRulesCanary'
   return 'promptCanary'

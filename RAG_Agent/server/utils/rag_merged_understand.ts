@@ -6,8 +6,8 @@ import { createRagChatOpenAI } from "./rag_chat_openai";
 import { getRagAgentEnv } from "./rag_agent_env";
 import { condenseRetrievalQuery } from "./query_condense";
 import {
+  allowRagMultiTurnMerge,
   buildRagMultiTurnQueryText,
-  shouldRunRagMultiTurnMerge,
   type RagSessionRetrievalAnchor,
 } from "./rag_multi_turn";
 import { extractTopicKeywords } from "./session_memory";
@@ -69,7 +69,8 @@ async function mergeByLlm(input: {
       "2) 保留时间、数字、否定与全部字段关键词；",
       "3) 去掉「从知识库检索」等元指令；",
       "4) 不编造文档里未出现的专有名词；",
-      "5) 若存在【上轮任务锚点】：必须在同一主题上合并，禁止另起新检索主题或新专名；",
+      "5) 仅当末轮是指代承接（缺主语、这个/那个/呢 等）时，才用对话与锚点消指代补全；",
+      "6) 若末轮已是自洽完整新问题（含新指标/新主题），coalesced 必须只保留末轮语义，禁止并入上轮主题或锚点；",
       '只输出 JSON：{"coalesced":"...","retrieval_keywords":["..."]}',
     ].join("\n"),
   );
@@ -123,48 +124,42 @@ export async function mergeRagMultiTurnUnderstand(input: {
     };
   }
 
-  const priorHuman = (() => {
-    const humans = input.messages
-      .filter((m) => m._getType() === "human")
-      .map((m) => String(m.content ?? "").trim())
-      .filter(Boolean);
-    if (!humans.length) return "";
-    const lastH = humans[humans.length - 1];
-    return lastH === last && humans.length >= 2 ? humans[humans.length - 2] : lastH === last ? "" : lastH;
-  })();
-  const anchorTask =
-    (!input.suppressAnchor && input.sessionAnchor?.coalescedTask) || priorHuman || "";
+  const multiTurn = allowRagMultiTurnMerge({
+    messages: input.messages,
+    lastUser: last,
+    turnKind: input.turnKind,
+    suppressAnchor: input.suppressAnchor,
+  });
 
-  const multiTurn = shouldRunRagMultiTurnMerge(input.messages, last);
-  if (!multiTurn && (!input.sessionAnchor?.coalescedTask || input.suppressAnchor)) {
-    const passthrough = shouldGroundFollowupQuery({
-      turnKind: input.turnKind,
-      lastUser: last,
-      anchorTask,
-    })
-      ? groundFollowupQuery({
-          lastUser: last,
-          turnKind: input.turnKind,
-          anchorTask,
-          candidate: last,
-        })
-      : last;
+  // 仅会话锚点存在不得强行进入合并；自洽新问直接透传末轮
+  if (!multiTurn) {
     return {
-      effectiveQuery: passthrough,
+      effectiveQuery: last,
       multiTurn: false,
       needsCondense: false,
       retrievalKeywords: [],
-      topics: extractTopicKeywords(passthrough),
+      topics: extractTopicKeywords(last),
       source: "passthrough",
     };
   }
+
+  // 短承接锚定：只用会话锚点，禁止用 priorHuman 把新主题拉回旧题
+  const anchorTask =
+    !input.suppressAnchor && input.sessionAnchor?.coalescedTask
+      ? String(input.sessionAnchor.coalescedTask).trim()
+      : "";
 
   let coalesced: string | undefined;
   let retrievalKeywords: string[] = [];
   let source: RagMergedUnderstandResult["source"] = "structural";
 
-  if (isRagMergedUnderstandEnabled() && multiTurn) {
-    const llm = await mergeByLlm(input);
+  if (isRagMergedUnderstandEnabled()) {
+    const llm = await mergeByLlm({
+      messages: input.messages,
+      lastUser: last,
+      summary: input.summary,
+      sessionAnchor: input.suppressAnchor ? null : input.sessionAnchor,
+    });
     if (llm) {
       coalesced = llm.coalesced;
       retrievalKeywords = llm.retrieval_keywords;
@@ -178,6 +173,7 @@ export async function mergeRagMultiTurnUnderstand(input: {
     coalesced,
     sessionAnchor: input.suppressAnchor ? null : input.sessionAnchor,
     suppressAnchor: input.suppressAnchor,
+    turnKind: input.turnKind,
   });
 
   let effectiveQuery = coalesced || structural.query || last;
@@ -199,23 +195,28 @@ export async function mergeRagMultiTurnUnderstand(input: {
     }
   }
 
+  // 仅明确 turnKind 承接时 ground；禁止用 multiTurn 启发式伪造 continuation
   if (
     shouldGroundFollowupQuery({
-      turnKind: input.turnKind || (multiTurn ? "continuation" : undefined),
+      turnKind: input.turnKind,
       lastUser: last,
       anchorTask,
     })
   ) {
     effectiveQuery = groundFollowupQuery({
       lastUser: last,
-      turnKind: input.turnKind || "continuation",
+      turnKind: input.turnKind,
       anchorTask,
       candidate: effectiveQuery,
     });
   }
 
   const topics = extractTopicKeywords(effectiveQuery);
-  if (input.sessionAnchor?.topics?.length) {
+  if (
+    !input.suppressAnchor &&
+    input.sessionAnchor?.topics?.length &&
+    (input.turnKind === "continuation" || input.turnKind === "output_followup")
+  ) {
     retrievalKeywords = Array.from(
       new Set([...retrievalKeywords, ...input.sessionAnchor.topics]),
     ).slice(0, 12);

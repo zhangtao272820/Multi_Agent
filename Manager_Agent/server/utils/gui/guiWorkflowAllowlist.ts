@@ -6,6 +6,8 @@
 
 /** 与 Lobster_Agent/workflows 磁盘宏对齐的内置清单 */
 export const BUILTIN_GUI_WORKFLOW_IDS = [
+  'w3school-form-fill',
+  'w3school-form-submit',
   'httpbin-form-fill',
   'httpbin-form-submit',
   'runoob-click-extract',
@@ -13,9 +15,61 @@ export const BUILTIN_GUI_WORKFLOW_IDS = [
 
 /** 内置宏允许的 task_kind（未列出的 env 扩展宏：无 kind 约束） */
 export const GUI_WORKFLOW_COMPATIBLE_KINDS: Record<string, readonly string[]> = {
+  'w3school-form-fill': ['form_fill'],
+  'w3school-form-submit': ['form_fill'],
   'httpbin-form-fill': ['form_fill'],
   'httpbin-form-submit': ['form_fill'],
   'runoob-click-extract': ['navigate', 'extract', 'multi_step'],
+}
+
+/**
+ * 与 Lobster workflows/*.json `args` 对齐的必填键（不含可由任务 URL 补的 startUrl）。
+ * 扩展宏未列出 → 不校验 args。
+ */
+export const GUI_WORKFLOW_REQUIRED_ARGS: Record<string, readonly string[]> = {
+  'w3school-form-fill': ['first_name', 'last_name'],
+  'w3school-form-submit': ['first_name', 'last_name'],
+  'httpbin-form-fill': ['customer_name'],
+  'httpbin-form-submit': ['customer_name'],
+}
+
+export function listMissingGuiWorkflowArgs(
+  workflowId: string,
+  args: Record<string, unknown> | null | undefined,
+): string[] {
+  const required = GUI_WORKFLOW_REQUIRED_ARGS[String(workflowId || '').trim()]
+  if (!required?.length) return []
+  const src = args && typeof args === 'object' ? args : {}
+  return required.filter((k) => !String((src as Record<string, unknown>)[k] ?? '').trim())
+}
+
+export type ResolveGuiWorkflowWithArgsResult =
+  | { ok: true; id: string }
+  | { ok: false; dropped: string; reason?: 'unknown' | 'kind_mismatch' | 'missing_args'; missing?: string[] }
+
+/**
+ * 白名单 + task_kind + 必填 args。缺参时丢弃宏（改逐步 GUI），禁止下发不完整宏。
+ */
+export function resolveGuiWorkflowWithArgs(
+  raw: unknown,
+  taskKind: string | undefined,
+  args: Record<string, unknown> | null | undefined,
+  env: NodeJS.ProcessEnv = process.env,
+): ResolveGuiWorkflowWithArgsResult {
+  const kindResolved = resolveGuiWorkflowForTaskKind(raw, taskKind, env)
+  if (!kindResolved.ok) {
+    const viaAllowlist = !sanitizeGuiWorkflowId(kindResolved.dropped, env).ok
+    return {
+      ok: false,
+      dropped: kindResolved.dropped,
+      reason: viaAllowlist ? 'unknown' : 'kind_mismatch',
+    }
+  }
+  const missing = listMissingGuiWorkflowArgs(kindResolved.id, args)
+  if (missing.length) {
+    return { ok: false, dropped: kindResolved.id, reason: 'missing_args', missing }
+  }
+  return { ok: true, id: kindResolved.id }
 }
 
 export function listKnownGuiWorkflowIds(env: NodeJS.ProcessEnv = process.env): string[] {

@@ -1,0 +1,48 @@
+{
+  "id": "w3school-form-submit",
+  "name": "W3School 中文站表单填写并提交（国内黄金宏）",
+  "description": "打开 w3school.com.cn HTML 表单示例页，填写姓名，HITL 确认后点 Submit，抽取结果页片段",
+  "args": ["first_name", "last_name", "startUrl"],
+  "steps": [
+    {
+      "action": "goto",
+      "url": "{{startUrl}}",
+      "waitUntil": "domcontentloaded"
+    },
+    {
+      "action": "type",
+      "selector": "input#fname, input[name=\"fname\"]",
+      "text": "{{first_name}}",
+      "clear": true
+    },
+    {
+      "action": "type",
+      "selector": "input#lname, input[name=\"lname\"]",
+      "text": "{{last_name}}",
+      "clear": true
+    },
+    {
+      "action": "approve",
+      "title": "确认提交表单",
+      "message": "已填 First name={{first_name}}、Last name={{last_name}}。确认后将点击 Submit（教程演示页，无真实业务）。"
+    },
+    {
+      "action": "click",
+      "selector": "form input[type=\"submit\"], form button[type=\"submit\"], input.demo-input-button",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "wait",
+      "ms": 1000
+    },
+    {
+      "action": "extract",
+      "selector": "body",
+      "assignTo": "submit_body"
+    },
+    {
+      "action": "finish",
+      "answer": "工作流 w3school-form-submit 完成。First name={{first_name}}；Last name={{last_name}}；结果摘要={{submit_body}}"
+    }
+  ]
+}

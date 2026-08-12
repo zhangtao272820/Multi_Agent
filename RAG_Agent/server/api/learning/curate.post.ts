@@ -6,7 +6,7 @@ export default defineEventHandler(async (event) => {
     minHits?: number;
   } | null;
   const report = await runRagLearningCurator({
-    autoPromote: body?.autoPromote !== false,
+    autoPromote: body?.autoPromote === true,
     minHits: Number.isFinite(body?.minHits) ? Number(body!.minHits) : undefined,
   });
   return { ok: true, report };

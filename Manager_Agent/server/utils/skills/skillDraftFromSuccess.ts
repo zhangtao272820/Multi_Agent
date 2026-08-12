@@ -4,6 +4,10 @@ import { agentPgQuery, isAgentPgConfigured } from '#agent-shared/agentPgClient'
 import { clearPlaybookCache } from './loadPlaybook'
 import { skillPathAlignsWithUser } from '../../graph/core/memory/userIntentSupremacy'
 import { assertPromptHygiene } from '#agent-shared/promptHygiene'
+import {
+  normalizePromotableSkillId,
+  upsertLearnedSkillIndex,
+} from './skillDiscoverIndex'
 
 export type SkillSuccessSignal = {
   agent: string
@@ -234,12 +238,12 @@ function pathAgentsFromSkillMarkdown(raw: string): string[] {
 export async function promoteSkillDraftContent(
   skillId: string,
   rawMarkdown: string,
-  opts?: { skillsDir?: string }
+  opts?: { skillsDir?: string; sourceDraftId?: string }
 ): Promise<{ skillId: string; playbookPath: string }> {
-  const id = String(skillId || '').trim()
-  if (!id) throw new Error('skillId required')
   const q = questionFromSkillMarkdown(rawMarkdown)
   const pathAgents = pathAgentsFromSkillMarkdown(rawMarkdown)
+  const id = normalizePromotableSkillId(String(skillId || '').trim(), q)
+  if (!id) throw new Error('skillId required')
   if (q && pathAgents.length && !skillPathAlignsWithUser(q, pathAgents)) {
     throw new Error(`skill promote rejected: path [${pathAgents.join('→')}] drifts from user question`)
   }
@@ -252,6 +256,14 @@ export async function promoteSkillDraftContent(
   await fs.mkdir(path.dirname(target), { recursive: true })
   await fs.writeFile(target, promoted, 'utf8')
   clearPlaybookCache()
+  await upsertLearnedSkillIndex({
+    skillId: id,
+    question: q,
+    pathAgents,
+    playbookPath: target,
+    promotedAt: new Date().toISOString(),
+    sourceDraftId: opts?.sourceDraftId || skillId,
+  })
   return { skillId: id, playbookPath: target }
 }
 

@@ -2,6 +2,7 @@
 
 用 **Docker Compose** 一键拉起整套 Agent 集群：紫微控制台（前端 + 后端 + Postgres + Redis）+ Manager 与协作子 Agent（DB / RAG / Code / Extractor / Admin / Multimodal 等）。日常只改 **一个配置文件 + 控制台**，不必手改十几份 `.env`。
 
+- **面试讲义**：[07 控制面](../docs/面试备战/07-控制面-ClawHive.md) · [备战入口](../docs/面试备战/00-使用说明与防穿帮.md) · [06 协同](../docs/面试备战/06-多Agent协同.md)
 - 公网 / 云主机清单：[docs/公网演示部署.md](../docs/公网演示部署.md) · 反代模板 [`docker/public/`](docker/public/)
 - 离线镜像包：[offline/README.md](offline/README.md)
 - K8s（可选）：[helm/clawhive/README.md](helm/clawhive/README.md)
@@ -90,13 +91,18 @@ powershell -ExecutionPolicy Bypass -File .\scripts\up-agents-lan.ps1
 
 以下均在 `Manage-platform_Agent` 目录；**必须**带 `.env.agents-lan`（脚本已内置）。
 
+> **禁止 `down -v`**：命名卷（`clawhive_pg_data`、各 `*_agent_data`、`rag_pgvector_data`）存对话/记忆/向量。  
+> `docker compose … down -v` 会清空数据。重启只用 `up -d --force-recreate`（可选 `--build`）。  
+> 详见 [doc/docker-persist-no-volume-wipe.md](./doc/docker-persist-no-volume-wipe.md)。
+
 ### Linux 客户机（推荐脚本）
 
 | 动作 | 命令 |
 |------|------|
 | 首次 / 全量启动 | `bash scripts/install-linux.sh`（或 `--no-monitor`） |
 | 等价 compose 启动 | `docker compose --env-file .env.agents-lan -f docker-compose.agents-lan.yml up -d` |
-| 停止 | `docker compose --env-file .env.agents-lan -f docker-compose.agents-lan.yml down` |
+| 停止（**保留卷**） | `docker compose --env-file .env.agents-lan -f docker-compose.agents-lan.yml down` |
+| 停止并删卷 | **禁止**（除非明确要求清库）；勿加 `-v` |
 | 看状态 | `docker compose --env-file .env.agents-lan -f docker-compose.agents-lan.yml ps` |
 | 看日志 | `… logs --tail=200 <service>`（如 `manager_agent`） |
 | PG 备份 | `bash scripts/backup-postgres.sh` |
@@ -110,7 +116,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\up-agents-lan.ps1
 | 动作 | 命令 |
 |------|------|
 | 启动全部 | `.\scripts\up-agents-lan.ps1` |
-| 停止全部 | `.\scripts\down-agents-lan.ps1` |
+| 停止全部（保留卷） | `.\scripts\down-agents-lan.ps1` |
 | 重启全部（不重建镜像） | `.\scripts\restart-agents-lan.ps1` |
 | 重启 Manager + 协作链 | `.\scripts\restart-manager-stack.ps1`（改代码加 `-Build`） |
 | 仅重建紫微前后端 | `.\scripts\restart-clawhive-platform.ps1` |
@@ -158,7 +164,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\up-agents-lan.ps1
 | 安装报缺 `LAN_HOST` / Key | 检查 `.env.agents-lan` 是否仍含「请填写」或空 Key |
 | `/health/ready` 超时 | `docker compose … ps` / `logs clawhive_backend` |
 | 局域网打不开 / CORS | `.env.agents-lan` 的 `CLAWHIVE_ALLOW_ORIGINS` 加上访问源 |
-| 旧代码未生效 | `--build --force-recreate` 或 `down` 后再 `up` |
+| 旧代码未生效 | `--build --force-recreate`（**勿** `down -v`） |
 | 总管搜不到网 | 容器内 `SEARXNG_BASE_URL=http://searxng:8080`；勿用宿主机 `localhost` |
 | 公网 WS 失败 | 反代需支持 Upgrade；用 `wss`（见公网文档） |
 

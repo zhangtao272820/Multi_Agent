@@ -59,6 +59,10 @@ assert(cold.includes(ORCH_PACK_MARKERS.gui_interact), 'C4 cold mounts gui_intera
 assert(!cold.includes(ORCH_PACK_MARKERS.multi_three), 'C4 cold omits multi_three')
 assert(!/护理员配比|王建国|足底压力|个人月收入/.test(cold), 'C4 no test-domain few-shot')
 assert(cold.includes('库存') || cold.includes('catalog') || cold.includes('db_catalog'), 'C4 teaches catalog inventory')
+{
+  const { assertNoDomainBleed } = await import('../fixtures/domainBleedDenyList')
+  assertNoDomainBleed(cold, 'C4 cold assembleOrchestratorSystemPrompt')
+}
 
 const dbOnly = assembleOrchestratorSystemPrompt({ probeDbRelevant: true, probeRagHits: false })
 assert(dbOnly.includes(ORCH_PACK_MARKERS.db_only), 'C4 db probe db_only')

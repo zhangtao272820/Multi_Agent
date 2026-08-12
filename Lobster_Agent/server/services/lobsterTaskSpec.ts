@@ -46,29 +46,61 @@ export function resolveEngineFromTaskSpec(input: {
     return { engine: forced, confidence: 1, reason: 'engine_hint', source: 'forced' }
   }
 
-  if (requiresMobileEngine(input.task, input.startUrl) || input.spec?.task_kind === 'mobile_app') {
+  const kind = String(input.spec?.task_kind || '').trim()
+
+  // task_kind 真源优先于用户原话关键词兜底
+  if (kind === 'mobile_app') {
     return {
       engine: 'mobile',
-      confidence: 0.9,
-      reason: 'hard_guard: mobile_app / Android',
-      source: 'regex',
+      confidence: 0.95,
+      reason: 'task_kind:mobile_app',
+      source: 'llm',
     }
   }
-
-  if (requiresDesktopEngine(input.task, input.startUrl) || input.spec?.task_kind === 'desktop_app') {
+  if (kind === 'desktop_app') {
     return {
       engine: 'desktop',
-      confidence: 0.92,
-      reason: 'hard_guard: desktop_app / 原生应用',
-      source: 'regex',
+      confidence: 0.95,
+      reason: 'task_kind:desktop_app',
+      source: 'llm',
     }
   }
-
-  if (requiresClassicEngine(input.task, input.startUrl) || input.spec?.task_kind === 'video_play') {
+  if (kind === 'video_play' || kind === 'social_engagement') {
     return {
       engine: 'classic',
       confidence: 0.95,
-      reason: 'hard_guard: video_play / B站互动需 classic',
+      reason: `task_kind:${kind}`,
+      source: 'llm',
+    }
+  }
+
+  // 已明确网页类 task_kind 时，禁止 DESKTOP/MOBILE 关键词抢路由
+  const kindBlocksNativeRegex =
+    isWebTaskKind(kind) || kind === 'form_fill' || kind === 'login' || kind === 'video_play'
+
+  if (!kindBlocksNativeRegex && requiresMobileEngine(input.task, input.startUrl)) {
+    return {
+      engine: 'mobile',
+      confidence: 0.9,
+      reason: 'fallback_guard: Android 关键词',
+      source: 'regex',
+    }
+  }
+
+  if (!kindBlocksNativeRegex && requiresDesktopEngine(input.task, input.startUrl)) {
+    return {
+      engine: 'desktop',
+      confidence: 0.92,
+      reason: 'fallback_guard: 原生应用关键词',
+      source: 'regex',
+    }
+  }
+
+  if (requiresClassicEngine(input.task, input.startUrl)) {
+    return {
+      engine: 'classic',
+      confidence: 0.95,
+      reason: 'hard_guard: video / B站互动需 classic',
       source: 'regex',
     }
   }

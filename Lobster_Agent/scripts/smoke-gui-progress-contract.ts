@@ -11,6 +11,7 @@ import {
 } from '../../shared/lobsterGuiProgressContract'
 import { verifyLobsterRunResult } from '../../shared/lobsterRunVerifyLite'
 import { ensureLobsterGuiFinalPayload } from '../server/services/lobsterGuiFinalPayload'
+import { resolveLobsterVncLiveView } from '../server/utils/lobsterVnc'
 
 function assert(cond: unknown, msg: string) {
   if (!cond) throw new Error(msg)
@@ -31,6 +32,43 @@ assert(!shouldForwardGuiThinking('[stagehand] verbose internals'), 'drop stageha
 assert(!shouldForwardGuiThinking('引擎链：stagehand → mcp'), 'drop engine_chain noise')
 assert(shouldForwardGuiThinking('百度直达搜索结果页'), 'keep useful log')
 assert(shouldForwardGuiThinking('3 步：goto → click → extract'), 'keep plan milestone')
+
+// --- Stagehand 可视：screenshot / live_view 事件形状（总管 lobsterClient 依赖） ---
+type ShotEvt = { type: 'screenshot'; payload: { dataUrl: string; pageUrl?: string; ts: number } }
+type LiveEvt = { type: 'live_view'; payload: { vncUrl: string; hint?: string; ts: number } }
+const shotEvt: ShotEvt = {
+  type: 'screenshot',
+  payload: {
+    dataUrl: 'data:image/jpeg;base64,/9j/aaaa',
+    pageUrl: 'https://www.w3school.com.cn/html/html_forms.asp',
+    ts: Date.now(),
+  },
+}
+assert(shotEvt.type === 'screenshot' && shotEvt.payload.dataUrl.startsWith('data:image/'), 'shot shape')
+const liveEvt: LiveEvt = {
+  type: 'live_view',
+  payload: { vncUrl: 'http://localhost:6080/vnc.html', ts: Date.now() },
+}
+assert(liveEvt.payload.vncUrl.includes('/vnc.html'), 'live_view vnc path')
+
+// --- vnc resolver ---
+const headed = resolveLobsterVncLiveView({
+  hostname: 'demo.local',
+  env: { LOBSTER_HEADLESS: 'false', LOBSTER_VNC_PORT: '6080' } as NodeJS.ProcessEnv,
+})
+assert(headed.vncUrl === 'http://demo.local:6080/vnc.html', `headed vnc got ${headed.vncUrl}`)
+const headlessLive = resolveLobsterVncLiveView({
+  env: { LOBSTER_HEADLESS: 'true', LOBSTER_VNC_PORT: '6080' } as NodeJS.ProcessEnv,
+})
+assert(!headlessLive.vncUrl, 'headless: empty vnc')
+assert(Boolean(headlessLive.hint), 'headless: hint')
+const overridden = resolveLobsterVncLiveView({
+  env: {
+    LOBSTER_HEADLESS: 'true',
+    LOBSTER_VNC_PUBLIC_URL: 'http://lan:6080/vnc.html',
+  } as NodeJS.ProcessEnv,
+})
+assert(overridden.vncUrl === 'http://lan:6080/vnc.html', 'public url override')
 
 // --- MCP agentResult envelope ---
 const mcpPayload = {

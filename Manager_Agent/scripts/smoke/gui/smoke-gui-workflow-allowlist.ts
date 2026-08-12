@@ -6,16 +6,23 @@ import {
   BUILTIN_GUI_WORKFLOW_IDS,
   isKnownGuiWorkflowId,
   listKnownGuiWorkflowIds,
+  listMissingGuiWorkflowArgs,
   resolveGuiWorkflowForTaskKind,
+  resolveGuiWorkflowWithArgs,
   sanitizeGuiWorkflowId,
 } from '../../../server/utils/gui/guiWorkflowAllowlist'
 import { guiOperateKindFromMeta } from '../../../server/utils/gui/guiOperateKindLlm'
 import { isDockerHeadlessMcpGui, resolveGuiBlockedErrorCode } from '../../../server/utils/gui/guiHumanConfirm'
 
 assert.ok(BUILTIN_GUI_WORKFLOW_IDS.includes('httpbin-form-fill'))
+assert.ok(BUILTIN_GUI_WORKFLOW_IDS.includes('w3school-form-fill' as (typeof BUILTIN_GUI_WORKFLOW_IDS)[number]))
+assert.ok(BUILTIN_GUI_WORKFLOW_IDS.includes('w3school-form-submit' as (typeof BUILTIN_GUI_WORKFLOW_IDS)[number]))
 assert.ok(BUILTIN_GUI_WORKFLOW_IDS.includes('runoob-click-extract' as (typeof BUILTIN_GUI_WORKFLOW_IDS)[number]))
 assert.ok(BUILTIN_GUI_WORKFLOW_IDS.includes('httpbin-form-submit' as (typeof BUILTIN_GUI_WORKFLOW_IDS)[number]))
 assert.ok(listKnownGuiWorkflowIds().includes('httpbin-form-fill'))
+assert.ok(listKnownGuiWorkflowIds().includes('w3school-form-fill'))
+assert.equal(resolveGuiWorkflowForTaskKind('w3school-form-fill', 'form_fill').ok, true)
+assert.equal(resolveGuiWorkflowForTaskKind('w3school-form-submit', 'navigate').ok, false)
 assert.ok(listKnownGuiWorkflowIds().includes('runoob-click-extract'))
 assert.equal(sanitizeGuiWorkflowId('httpbin-form-fill').ok, true)
 assert.equal(sanitizeGuiWorkflowId('runoob-click-extract').ok, true)
@@ -52,6 +59,49 @@ const knownMeta = guiOperateKindFromMeta({
 })
 assert.equal(knownMeta?.workflow_id, 'httpbin-form-fill')
 assert.equal(knownMeta?.dropped_workflow_id, undefined)
+
+const incompleteW3 = guiOperateKindFromMeta({
+  guiOperateKind: {
+    task_kind: 'form_fill',
+    needs_login: false,
+    confidence: 0.95,
+    rationale: '国内填表误挂宏',
+    workflow_id: 'w3school-form-fill',
+  },
+})
+assert.equal(incompleteW3?.workflow_id, undefined, 'NL form_fill without args must drop macro')
+assert.equal(incompleteW3?.dropped_workflow_id, 'w3school-form-fill')
+assert.equal(incompleteW3?.task_kind, 'form_fill')
+
+const completeW3 = guiOperateKindFromMeta({
+  guiOperateKind: {
+    task_kind: 'form_fill',
+    needs_login: false,
+    confidence: 0.95,
+    rationale: '显式宏',
+    workflow_id: 'w3school-form-fill',
+    workflow_args: { first_name: '张三', last_name: '李四' },
+  },
+})
+assert.equal(completeW3?.workflow_id, 'w3school-form-fill')
+assert.equal(String(completeW3?.workflow_args?.first_name), '张三')
+
+assert.deepEqual(listMissingGuiWorkflowArgs('w3school-form-fill', { startUrl: 'https://x' }), [
+  'first_name',
+  'last_name',
+])
+assert.equal(
+  resolveGuiWorkflowWithArgs('w3school-form-fill', 'form_fill', { startUrl: 'https://x' }).ok,
+  false,
+)
+assert.equal(
+  resolveGuiWorkflowWithArgs(
+    'w3school-form-fill',
+    'form_fill',
+    { first_name: 'a', last_name: 'b', startUrl: 'https://x' },
+  ).ok,
+  true,
+)
 
 const runoobMeta = guiOperateKindFromMeta({
   guiOperateKind: {

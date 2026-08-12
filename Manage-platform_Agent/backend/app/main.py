@@ -2743,6 +2743,194 @@ async def manager_evolution_global_review(
     return {"ok": True, **data}
 
 
+class EvolutionOpsBody(BaseModel):
+    action: str
+    skillId: str | None = None
+    note: str | None = None
+    patchId: str | None = None
+    agent: str | None = None
+    key: str | None = None
+    minConfidence: float | None = None
+    status: str | None = None
+
+
+@app.post("/api/manager/evolution/ops")
+async def manager_evolution_ops(
+    body: EvolutionOpsBody,
+    current: UserRecord = Depends(require_roles("operator", "admin")),
+    db: Session = Depends(get_db),
+):
+    """代理 Manager /api/manager/ops：skill drafts / prompt / rollback / hub（人审，非自动晋级）。"""
+    api_requests_total.labels(endpoint="/api/manager/evolution/ops", method="POST").inc()
+    from .internal_http import post_json, fetch_json
+    from .config import get_settings
+
+    action = str(body.action or "").strip()
+    allowed = {
+        "skill_drafts_list",
+        "skill_draft_promote",
+        "skill_draft_reject",
+        "skill_playbook_reload",
+        "evolution_hub",
+        "evolution_review_bundle",
+        "prompt_shadow_diff",
+        "prompt_promote",
+        "policy_rollback",
+        "evolution_experiment_rollback",
+        "expert_patch_promote",
+    }
+    if action not in allowed:
+        raise HTTPException(status_code=400, detail=f"action not allowed: {action}")
+    settings = get_settings()
+
+    # 专家 shadow 人审晋级：DB / RAG / Admin
+    if action == "expert_patch_promote":
+        agent = str(body.agent or "").strip().lower()
+        patch_id = str(body.patchId or "").strip()
+        if agent not in ("db", "rag", "admin") or not patch_id:
+            raise HTTPException(status_code=400, detail="agent=db|rag|admin and patchId required")
+        if agent == "db":
+            host, port = settings.db_agent_host, settings.db_agent_port
+        elif agent == "rag":
+            host, port = settings.rag_agent_host, settings.rag_agent_port
+        else:
+            host, port = settings.ai_admin_agent_host, settings.ai_admin_agent_port
+        url = f"http://{str(host or 'localhost').strip()}:{str(port).strip()}/api/learning/promote"
+        result = post_json(url, {"patchId": patch_id}, timeout_sec=30.0)
+        if not result.get("ok"):
+            raise HTTPException(status_code=502, detail=str(result.get("error") or "expert_unreachable"))
+        data = result.get("data") if isinstance(result.get("data"), dict) else {}
+        write_audit(db, current, "evolution.expert_patch_promote", agent, patch_id, body.note or "")
+        return {"ok": True, "agent": agent, **data}
+
+    host = str(settings.manager_agent_host or "localhost").strip()
+    port = str(settings.manager_agent_port or "13106").strip()
+    url = f"http://{host}:{port}/api/manager/ops"
+    from .internal_http import manager_ops_headers
+
+    ops_headers = manager_ops_headers()
+    if not ops_headers.get("x-manager-ops-token"):
+        raise HTTPException(
+            status_code=503,
+            detail="MANAGER_OPS_TOKEN 未配置：无法代理 Manager ops（请注入 clawhive_backend 与 manager_agent）",
+        )
+    payload: dict = {"action": action if action != "evolution_review_bundle" else "skill_drafts_list"}
+    if body.skillId:
+        payload["skillId"] = body.skillId
+    if body.minConfidence is not None:
+        payload["minConfidence"] = body.minConfidence
+    result = post_json(url, payload, timeout_sec=30.0, extra_headers=ops_headers)
+    if not result.get("ok"):
+        raise HTTPException(status_code=502, detail=str(result.get("error") or "manager_unreachable"))
+    data = result.get("data") if isinstance(result.get("data"), dict) else {}
+
+    # bundle：hub + lobster shadows + candidates（失败降级为空）
+    if action == "evolution_review_bundle":
+        hub = post_json(url, {"action": "evolution_hub"}, timeout_sec=20.0, extra_headers=ops_headers)
+        hub_data = hub.get("data") if hub.get("ok") and isinstance(hub.get("data"), dict) else {}
+        prompt_diff = post_json(
+            url, {"action": "prompt_shadow_diff"}, timeout_sec=15.0, extra_headers=ops_headers
+        )
+        prompt_data = (
+            prompt_diff.get("data") if prompt_diff.get("ok") and isinstance(prompt_diff.get("data"), dict) else {}
+        )
+        lobster_host = str(settings.lobster_agent_host or "localhost").strip()
+        lobster_port = str(settings.lobster_agent_port or "13108").strip()
+        lobster = post_json(
+            f"http://{lobster_host}:{lobster_port}/api/lobster/playbook-evolution",
+            {"action": "list", "status": "all"},
+            timeout_sec=12.0,
+        )
+        lobster_data = lobster.get("data") if lobster.get("ok") and isinstance(lobster.get("data"), dict) else {}
+        cand = fetch_json(
+            f"http://{host}:{port}/api/manager/evolution-global-candidates?status=pending",
+            timeout_sec=12.0,
+        )
+        cand_data = cand.get("data") if cand.get("ok") and isinstance(cand.get("data"), dict) else {}
+        eval_latest = post_json(
+            url,
+            {"action": "online_eval_latest", "suiteId": "manager_golden_smoke"},
+            timeout_sec=12.0,
+            extra_headers=ops_headers,
+        )
+        eval_data = (
+            eval_latest.get("data") if eval_latest.get("ok") and isinstance(eval_latest.get("data"), dict) else {}
+        )
+        data = {
+            **data,
+            "evolutionHub": hub_data.get("evolutionHub") or hub_data,
+            "promptShadow": prompt_data,
+            "lobsterPlaybooks": lobster_data.get("items") if isinstance(lobster_data.get("items"), list) else [],
+            "pendingCandidates": cand_data.get("candidates")
+            or cand_data.get("items")
+            or cand_data.get("rows")
+            or [],
+            "onlineEvalLatest": eval_data.get("latest") or eval_data,
+        }
+    if action in (
+        "skill_draft_promote",
+        "skill_draft_reject",
+        "prompt_promote",
+        "policy_rollback",
+        "evolution_experiment_rollback",
+    ):
+        write_audit(
+            db,
+            current,
+            f"evolution.{action}",
+            "evolution",
+            str(body.skillId or body.patchId or body.key or ""),
+            body.note or "",
+        )
+    return {"ok": True, **data}
+
+
+class LobsterPlaybookEvolutionBody(BaseModel):
+    action: str
+    key: str | None = None
+    status: str | None = None
+    note: str | None = None
+
+
+@app.post("/api/lobster/playbook-evolution")
+async def lobster_playbook_evolution_proxy(
+    body: LobsterPlaybookEvolutionBody,
+    current: UserRecord = Depends(require_roles("operator", "admin")),
+    db: Session = Depends(get_db),
+):
+    """代理 Lobster playbook 门禁进化（list/promote/reject/rollback）。"""
+    api_requests_total.labels(endpoint="/api/lobster/playbook-evolution", method="POST").inc()
+    from .internal_http import post_json
+    from .config import get_settings
+
+    action = str(body.action or "").strip()
+    if action not in ("list", "promote", "reject", "rollback"):
+        raise HTTPException(status_code=400, detail=f"action not allowed: {action}")
+    settings = get_settings()
+    host = str(settings.lobster_agent_host or "localhost").strip()
+    port = str(settings.lobster_agent_port or "13108").strip()
+    url = f"http://{host}:{port}/api/lobster/playbook-evolution"
+    payload: dict = {"action": action}
+    if body.key:
+        payload["key"] = body.key
+    if body.status:
+        payload["status"] = body.status
+    result = post_json(url, payload, timeout_sec=20.0)
+    if not result.get("ok"):
+        raise HTTPException(status_code=502, detail=str(result.get("error") or "lobster_unreachable"))
+    data = result.get("data") if isinstance(result.get("data"), dict) else {}
+    if action in ("promote", "reject", "rollback"):
+        write_audit(
+            db,
+            current,
+            f"evolution.lobster_{action}",
+            "lobster_playbook",
+            str(body.key or ""),
+            body.note or "",
+        )
+    return {"ok": True, **data}
+
+
 @app.get("/api/observability/trace-link")
 async def observability_trace_link(
     trace_id: str = "",

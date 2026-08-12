@@ -49,7 +49,6 @@ if (( EXTENDED )); then
   SERVICES+=(
     lobster_agent
     tavern_agent
-    companion_agent
     music_agent
     video_agent
     ai_agent

@@ -39,6 +39,7 @@ import {
   prioritizeEvidenceForGeneration,
   prioritizeEvidenceBySubQueries,
 } from "./rag_evidence_answer";
+import { rewriteQueryForAgenticRetrieval } from "./agentic_retrieval";
 
 const clampText = (text: string, max: number) => {
   const s = String(text ?? "").trim();
@@ -127,7 +128,8 @@ export type RetrieveFirstSkipReason =
   | "no_documents"
   | "chitchat"
   | "not_document_query"
-  | "missing_documents";
+  | "missing_documents"
+  | "agentic_mode";
 
 export function explainRetrieveFirstSkip(input: RetrieveFirstChatInput): RetrieveFirstSkipReason | null {
   const env = getRagAgentEnv();
@@ -138,6 +140,12 @@ export function explainRetrieveFirstSkip(input: RetrieveFirstChatInput): Retriev
   if (intent?.is_chitchat) return "chitchat";
   if (intent && intent.route_action !== "document_query") return "not_document_query";
   if (intent && intent.missing_documents.length > 0) return "missing_documents";
+  if (
+    env.enableAgenticToolLoop &&
+    (intent?.retrieval_mode === "agentic" || intent?.is_completeness_query)
+  ) {
+    return "agentic_mode";
+  }
 
   return null;
 }
@@ -172,6 +180,7 @@ const skipReasonLabel: Record<RetrieveFirstSkipReason, string> = {
   chitchat: "闲聊/非文档问句",
   not_document_query: "非文档检索意图",
   missing_documents: "指定文档不存在",
+  agentic_mode: "Agentic 多跳检索",
 };
 
 async function streamGenerateAnswer(
@@ -427,28 +436,70 @@ export async function runRetrieveFirstChatStream(
   const skipEvidenceFocus =
     !isMultiPartFinal &&
     (env.retrieveFirstSkipEvidenceSelect || modeUsesTurboRetrieval(usedMode));
-  const focusedEvidence = skipEvidenceFocus
-    ? isMultiPartFinal
-      ? prioritizeEvidenceBySubQueries(
-          subQueriesFinal,
-          retrieval.evidence,
-          env.maxContextSnippets,
-        )
-      : prioritizeEvidenceForGeneration(
-          input.sanitizedMessage,
-          retrieval.effectiveQuery || input.sanitizedMessage,
-          retrieval.evidence,
-          env.maxContextSnippets,
-          docs,
-        )
-    : await focusEvidenceForGeneration(
+
+  const focusEvidence = async (
+    ev: EvidenceItem[],
+    effectiveQuery: string,
+    opts?: { forceMultiSource?: boolean },
+  ) => {
+    if (skipEvidenceFocus) {
+      return isMultiPartFinal
+        ? prioritizeEvidenceBySubQueries(subQueriesFinal, ev, env.maxContextSnippets)
+        : prioritizeEvidenceForGeneration(
+            input.sanitizedMessage,
+            effectiveQuery || input.sanitizedMessage,
+            ev,
+            env.maxContextSnippets,
+            docs,
+            opts,
+          );
+    }
+    if (opts?.forceMultiSource) {
+      // LLM 精选易再塌缩到近义高分文档；假阴性再检强制 round-robin
+      return prioritizeEvidenceForGeneration(
         input.sanitizedMessage,
-        retrieval.effectiveQuery || input.sanitizedMessage,
-        retrieval.evidence,
+        effectiveQuery || input.sanitizedMessage,
+        ev,
         env.maxContextSnippets,
         docs,
+        { forceMultiSource: true },
       );
-  const contextText = buildContextFromEvidenceItems(focusedEvidence);
+    }
+    return focusEvidenceForGeneration(
+      input.sanitizedMessage,
+      effectiveQuery || input.sanitizedMessage,
+      ev,
+      env.maxContextSnippets,
+      docs,
+    );
+  };
+
+  /** 首轮生成只用到的来源；假阴性再检时改扫其它文档 */
+  const resolveAlternateSources = (used: EvidenceItem[]): string[] => {
+    const usedNames = new Set(
+      used.map((e) => String(e.source || "").trim()).filter(Boolean),
+    );
+    const matchesUsed = (name: string) =>
+      [...usedNames].some((u) => u === name || u.includes(name) || name.includes(u));
+    const alternates = docs
+      .map((d) => String(d.name || "").trim())
+      .filter((n) => n && !matchesUsed(n));
+    if (alternates.length) return alternates;
+    // 首轮已覆盖全部来源时，仍强制扫「非唯一主导源」
+    if (usedNames.size === 1) {
+      const sole = [...usedNames][0];
+      return docs
+        .map((d) => String(d.name || "").trim())
+        .filter((n) => n && n !== sole && !sole.includes(n) && !n.includes(sole));
+    }
+    return docs.map((d) => String(d.name || "").trim()).filter(Boolean);
+  };
+
+  let focusedEvidence = await focusEvidence(
+    retrieval.evidence,
+    retrieval.effectiveQuery || input.sanitizedMessage,
+  );
+  let contextText = buildContextFromEvidenceItems(focusedEvidence);
   if (!contextText.trim()) {
     const clarify = "检索到片段但无法组装上下文，请换一种问法或指定文档名称。";
     onEvent({ type: "token", content: clarify });
@@ -465,27 +516,34 @@ export async function runRetrieveFirstChatStream(
     };
   }
 
-  const sourceNames = Array.from(
-    new Set(focusedEvidence.map((e) => String(e.source || "").trim()).filter(Boolean))
-  ).slice(0, 4);
-  onEvent({
-    type: "phase",
-    phase: "generate",
-    content: `基于 ${focusedEvidence.length} 条引用生成回答${sourceNames.length ? `（${sourceNames.join("、")}）` : ""}`,
-    ms: Date.now() - pipelineStartedAt,
-  });
+  const emitGeneratePhase = (items: EvidenceItem[]) => {
+    const sourceNames = Array.from(
+      new Set(items.map((e) => String(e.source || "").trim()).filter(Boolean)),
+    ).slice(0, 4);
+    onEvent({
+      type: "phase",
+      phase: "generate",
+      content: `基于 ${items.length} 条引用生成回答${sourceNames.length ? `（${sourceNames.join("、")}）` : ""}`,
+      ms: Date.now() - pipelineStartedAt,
+    });
+  };
+
+  emitGeneratePhase(focusedEvidence);
   onEvent({ type: "tool_output", name: "document_query", output: toolOutput });
 
+  // 多文档：先不流式出稿，便于「未提及」假阴性时再检一次再展示最终答
+  const deferStreamForMissRetry = docs.length >= 2 && env.enableAgenticRetrieval;
+  let streamedFinal = (skipEvidenceFocus || isMultiPartFinal) && !deferStreamForMissRetry;
   const questionForGenerate = buildGenerateQuestionForRag({
     rawQuestion: input.sanitizedMessage,
     effectiveQuery: retrieval.effectiveQuery || input.sanitizedMessage,
   });
-  const { answer: draftAnswer, usage } = await streamGenerateAnswer(
+  let { answer: draftAnswer, usage } = await streamGenerateAnswer(
     input,
     contextText,
     questionForGenerate,
     onEvent,
-    skipEvidenceFocus || isMultiPartFinal,
+    streamedFinal,
   );
   let answer = draftAnswer.trim();
   if (!skipEvidenceFocus || isMultiPartFinal || answerLooksLikeRetrievalMiss(answer)) {
@@ -496,14 +554,124 @@ export async function runRetrieveFirstChatStream(
       draftAnswer,
     });
   }
+
+  let falseNegativeRetried = false;
   if (
+    answerLooksLikeRetrievalMiss(answer) &&
+    docs.length >= 2 &&
+    env.enableAgenticRetrieval
+  ) {
+    falseNegativeRetried = true;
+    const priorFocused = focusedEvidence;
+    const alternateSources = resolveAlternateSources(priorFocused);
+    onEvent({
+      type: "phase",
+      phase: "false_negative_retry",
+      content: alternateSources.length
+        ? `回答似未命中文档事实，改扫未用文档再检索一次（${alternateSources.slice(0, 3).join("、")}${alternateSources.length > 3 ? "…" : ""}）`
+        : "回答似未命中文档事实，改写问句后按多文档覆盖再检索一次",
+      ms: Date.now() - pipelineStartedAt,
+      detail: {
+        docCount: docs.length,
+        priorEffectiveQuery: retrieval.effectiveQuery,
+        priorSources: [...new Set(priorFocused.map((e) => e.source))],
+        alternateSources,
+      },
+    });
+    const rewritten = await rewriteQueryForAgenticRetrieval({
+      originalQuery: input.sanitizedMessage,
+      failedQuery: retrieval.effectiveQuery || input.sanitizedMessage,
+      attempt: 1,
+      priorQueries: [retrieval.effectiveQuery || input.sanitizedMessage],
+      retrievalFailureMode: "false_negative_miss",
+      docCatalog: docs,
+    });
+    // 保留原问实体词，避免改写漂到「失能老人补贴」；与改写句拼成再检问句
+    const retryQuery = [input.sanitizedMessage.trim(), rewritten.query.trim()]
+      .filter(Boolean)
+      .filter((q, i, arr) => arr.indexOf(q) === i)
+      .join(" ")
+      .slice(0, 300);
+    const runParams = resolveRetrievalRunParams(usedMode, {
+      forceCompound: catalogPlan.sub_queries.length >= 2,
+    });
+    const retryResult = await runDocumentRetrieval({
+      query: retryQuery,
+      rawQuery: input.rawMessage,
+      ...runParams,
+      skipCondense: true,
+      condenseSummary: input.summaryInjection,
+      condenseMessages: [...input.historyMessages, new HumanMessage({ content: input.sanitizedMessage })],
+      userKey: input.userKey,
+      prefetchedPlan: catalogPlan,
+      prefetchedLeanQuery: retryQuery,
+      prefetchedPlanSource: catalogSource === "llm" ? "catalog_llm" : "heuristic",
+      forceSources: alternateSources.length ? alternateSources : undefined,
+      _agenticAttempt: 1,
+      _originalQuery: input.sanitizedMessage,
+      _priorQueries: [retrieval.effectiveQuery || input.sanitizedMessage],
+    });
+    if (retryResult.evidence.length > 0) {
+      // 交替文档证据优先，再并入首轮（避免 docx 近义块再次占满）
+      const mergedEvidence = [...retryResult.evidence, ...priorFocused];
+      retrieval = {
+        ...retryResult,
+        evidence: mergedEvidence,
+        effectiveQuery: retryResult.effectiveQuery || retryQuery,
+      };
+      focusedEvidence = await focusEvidence(
+        mergedEvidence,
+        retrieval.effectiveQuery || retryQuery,
+        { forceMultiSource: true },
+      );
+      contextText = buildContextFromEvidenceItems(focusedEvidence);
+      if (contextText.trim()) {
+        emitGeneratePhase(focusedEvidence);
+        onEvent({
+          type: "tool_output",
+          name: "document_query",
+          output: buildRetrieveFirstToolOutput(retrieval),
+        });
+        const retryQuestion = buildGenerateQuestionForRag({
+          rawQuestion: input.sanitizedMessage,
+          effectiveQuery: retrieval.effectiveQuery || retryQuery,
+        });
+        const retryGen = await streamGenerateAnswer(
+          input,
+          contextText,
+          retryQuestion,
+          onEvent,
+          true,
+        );
+        streamedFinal = true;
+        draftAnswer = retryGen.answer;
+        usage = retryGen.usage;
+        answer = draftAnswer.trim();
+        if (answerLooksLikeRetrievalMiss(answer)) {
+          answer = await finalizeRagAnswerWithEvidenceGuard({
+            question: input.sanitizedMessage,
+            effectiveQuery: retrieval.effectiveQuery || retryQuery,
+            evidence: focusedEvidence,
+            draftAnswer,
+          });
+        }
+      }
+    }
+  }
+
+  if (!streamedFinal && answer.trim()) {
+    onEvent({ type: "token", content: answer });
+    streamedFinal = true;
+  } else if (
     !skipEvidenceFocus &&
     !isMultiPartFinal &&
+    streamedFinal &&
     answer.trim() &&
     answer.trim() !== draftAnswer.trim()
   ) {
     onEvent({ type: "token", content: answer });
   }
+
   const evidence = focusedEvidence.map((e) => ({
     source: e.source,
     content: e.content,
@@ -512,11 +680,14 @@ export async function runRetrieveFirstChatStream(
   return {
     answer,
     evidence,
-    toolOutput,
+    toolOutput: buildRetrieveFirstToolOutput(retrieval),
     retrievalNeedsClarify: false,
     usage,
     effectiveQuery: retrieval.effectiveQuery,
     workflowMode: usedMode,
-    retrievalFailureMode: retrieval.retrievalFailureMode || retrieval.clarifyReason,
+    retrievalFailureMode:
+      falseNegativeRetried && answerLooksLikeRetrievalMiss(answer)
+        ? "false_negative_miss"
+        : retrieval.retrievalFailureMode || retrieval.clarifyReason,
   };
 }

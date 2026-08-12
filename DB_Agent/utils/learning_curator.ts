@@ -1,5 +1,5 @@
 /**
- * P5 Curator：扫描学习信号、合并重复补丁/SQL 模板、自动晋级影子 prompt。
+ * P5 Curator：扫描学习信号、合并重复补丁/SQL 模板；晋级须人审（默认不 auto promote）。
  */
 import { DB_AGENT_DEFAULTS } from "./db_agent_env";
 import {
@@ -11,7 +11,7 @@ import {
 import { dedupeSqlTemplates, getSqlTemplateSummary } from "./query_sql_templates";
 import { getLearningSummary, readLearningSignals } from "./query_learning";
 import { inferCausalFailureTag } from "./query_route_policy";
-import { isPromoteVerifyRequired } from "#agent-shared/evolutionPromotePolicy";
+import { isPromoteVerifyRequired, resolveCurateAutoPromote } from "#agent-shared/evolutionPromotePolicy";
 
 export type CuratorReport = {
   ts: string;
@@ -24,6 +24,7 @@ export type CuratorReport = {
   learning: ReturnType<typeof getLearningSummary>;
   sqlTemplates: ReturnType<typeof getSqlTemplateSummary>;
   evolution: ReturnType<typeof getPromptEvolutionSummary>;
+  autoPromoteAllowed?: boolean;
 };
 
 function scanFailureTags() {
@@ -48,9 +49,10 @@ function scanFailureTags() {
 
 export async function runLearningCurator(opts?: { autoPromote?: boolean; minHits?: number }): Promise<CuratorReport> {
   const minHits = opts?.minHits ?? DB_AGENT_DEFAULTS.promptPromoteMinHits;
+  const allowAuto = resolveCurateAutoPromote(opts?.autoPromote);
   let promotedHints: string[] = [];
   let verifyGate: CuratorReport["verifyGate"];
-  if (opts?.autoPromote !== false) {
+  if (allowAuto) {
     const verified = await autoPromoteEligiblePatchesVerified(minHits);
     promotedHints = verified.promoted;
     verifyGate = verified.verify;
@@ -68,15 +70,14 @@ export async function runLearningCurator(opts?: { autoPromote?: boolean; minHits
     learning: getLearningSummary(),
     sqlTemplates: getSqlTemplateSummary(),
     evolution: getPromptEvolutionSummary(),
+    autoPromoteAllowed: allowAuto,
   };
 }
 
 export function runLearningCuratorSync(opts?: { autoPromote?: boolean; minHits?: number }): CuratorReport {
   const minHits = opts?.minHits ?? DB_AGENT_DEFAULTS.promptPromoteMinHits;
-  const promotedHints =
-    opts?.autoPromote === false || isPromoteVerifyRequired()
-      ? []
-      : autoPromoteEligiblePatches(minHits);
+  const allowAuto = resolveCurateAutoPromote(opts?.autoPromote) && !isPromoteVerifyRequired();
+  const promotedHints = allowAuto ? autoPromoteEligiblePatches(minHits) : [];
   const templatesDeduped = dedupeSqlTemplates();
   return {
     ts: new Date().toISOString(),
@@ -88,16 +89,28 @@ export function runLearningCuratorSync(opts?: { autoPromote?: boolean; minHits?:
     learning: getLearningSummary(),
     sqlTemplates: getSqlTemplateSummary(),
     evolution: getPromptEvolutionSummary(),
+    autoPromoteAllowed: allowAuto,
   };
 }
 
+/** 查询结束轻量 curate：只做模板去重，不自动晋级 */
 export function runLightweightCuratorOnQueryEnd() {
-  if (!DB_AGENT_DEFAULTS.enableAutoCurateOnQuery) return;
+  if (!DB_AGENT_DEFAULTS.enableAutoCurateOnQuery) {
+    try {
+      dedupeSqlTemplates();
+    } catch {
+      /* ignore */
+    }
+    return;
+  }
   try {
-    if (isPromoteVerifyRequired()) {
-      void autoPromoteEligiblePatchesVerified().then(() => undefined).catch(() => undefined);
-    } else {
-      autoPromoteEligiblePatches();
+    // enableAutoCurateOnQuery 仅允许写 shadow/去重；晋级仍受 resolveCurateAutoPromote 门禁
+    if (resolveCurateAutoPromote(true)) {
+      if (isPromoteVerifyRequired()) {
+        void autoPromoteEligiblePatchesVerified().then(() => undefined).catch(() => undefined);
+      } else {
+        autoPromoteEligiblePatches();
+      }
     }
     dedupeSqlTemplates();
   } catch {

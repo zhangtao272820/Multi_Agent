@@ -55,6 +55,27 @@ def main() -> None:
     assert_true(should_mark_tool_untrusted("web_search"), "web_search is external")
     assert_true(not should_mark_tool_untrusted("add_task"), "add_task is not external content")
 
+    from app.core.content_trust import sanitize_user_facing_text, unwrap_untrusted_content
+
+    sample = wrap_tool_observation_for_llm(
+        tool_name="list_emails",
+        observation="邮箱 a@qq.com / INBOX（1 封）：\n1. 发件人: x | 主题: hello",
+    )
+    unwrapped = unwrap_untrusted_content(sample)
+    assert_true("hello" in unwrapped, "unwrap keeps mail body")
+    assert_true(UNTRUSTED_BEGIN not in unwrapped, "unwrap removes begin")
+    assert_true(UNTRUSTED_END not in unwrapped, "unwrap removes end")
+    leaked = ": <<<UNTRUSTED_DATA source=tool:list_emails"
+    assert_true("UNTRUSTED" not in sanitize_user_facing_text(leaked), "sanitize drops leaked marker line")
+    # 含 UNTRUSTED 的执行记录不得作为用户可见短回复（与 verifying 短路策略一致）
+    exec_leak = "list_emails 结果: 成功：" + sample
+    assert_true("<<<UNTRUSTED_DATA" in exec_leak, "fixture has wrap")
+    assert_true(
+        sanitize_user_facing_text(exec_leak).find("<<<UNTRUSTED_DATA") < 0,
+        "sanitize cleans exec-style leak",
+    )
+    assert_true("hello" in sanitize_user_facing_text(exec_leak), "sanitize keeps list text")
+
     # 与 verifying_node 同构：整段 exec 记录入 untrusted 区
     safe_exec = wrap_untrusted_content(source="tool:observation", text=poison, max_chars=6000)
     prompt = f'用户刚才说："查邮件"\n内部执行记录：\n{safe_exec}'

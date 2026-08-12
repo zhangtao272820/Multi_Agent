@@ -67,6 +67,7 @@
         :agent="pendingHumanConfirm.agent"
         :screenshot="pendingHumanConfirm.screenshotDataUrl || latestGuiScreenshot"
         :page-url="pendingHumanConfirm.pageUrl"
+        :vnc-url="latestGuiVncUrl"
         :failure-type="pendingHumanConfirm.failureType"
         :lobster-run-id="pendingHumanConfirm.lobsterRunId"
         :sending="humanConfirmSending"
@@ -159,6 +160,7 @@ const {
   newSession,
   pendingHumanConfirm,
   latestGuiScreenshot,
+  latestGuiVncUrl,
   humanConfirmSending,
   respondHumanConfirm,
   chatScrollHostEl,

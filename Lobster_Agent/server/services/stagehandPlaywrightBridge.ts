@@ -18,6 +18,31 @@ function getPage(stagehand: any): any | null {
   }
 }
 
+/**
+ * 关键帧截图（JPEG）供总管进度条 / HITL；体积远小于 PNG，避免撑爆 WS。
+ */
+export async function captureStagehandScreenshot(
+  stagehand: any,
+): Promise<{ dataUrl: string; pageUrl: string } | null> {
+  const page = getPage(stagehand)
+  if (!page || typeof page.screenshot !== 'function') return null
+  try {
+    const buf = await page.screenshot({ type: 'jpeg', quality: 60, fullPage: false })
+    if (!buf || !Buffer.isBuffer(buf) && !(buf instanceof Uint8Array)) return null
+    const b64 = Buffer.from(buf).toString('base64')
+    if (!b64) return null
+    let pageUrl = ''
+    try {
+      pageUrl = String(page.url?.() || '').trim()
+    } catch {
+      pageUrl = ''
+    }
+    return { dataUrl: `data:image/jpeg;base64,${b64}`, pageUrl }
+  } catch {
+    return null
+  }
+}
+
 function linkLocator(page: any) {
   if (typeof page.getByRole === 'function') return page.getByRole('link')
   return page.locator('a[href]')
@@ -209,6 +234,10 @@ export async function playwrightFillAndSubmit(
   if (!page) return { ok: false, reason: 'no_page' }
   const target = String(step.target || '').trim()
   if (step.op === 'type' && target) {
+    // 禁止把「按任务填写…」类说明当 fill 文本盲填首个 input
+    if (isInstructionalFillTarget(target)) {
+      return { ok: false, reason: 'instructional_target' }
+    }
     try {
       const box = page.locator('input:visible, textarea:visible').first()
       await box.fill(target.slice(0, 200), { timeout: 8000 })
@@ -226,6 +255,169 @@ export async function playwrightFillAndSubmit(
     }
   }
   return { ok: false, reason: 'unsupported_op' }
+}
+
+/** plan target 是操作说明而非字段字面值时，不得 Playwright 盲填 */
+export function isInstructionalFillTarget(target: string): boolean {
+  const t = String(target || '').trim()
+  if (!t) return true
+  if (t.length > 64) return true
+  if (
+    /按任务|填写表单|表单字段|可见输入|输入框|填入用户|根据任务|完成填写|用户任务|步骤说明|禁止把/i.test(
+      t,
+    )
+  ) {
+    return true
+  }
+  return false
+}
+
+async function readLocatorValue(loc: any): Promise<string> {
+  try {
+    if (typeof loc.inputValue === 'function') {
+      return String((await loc.inputValue()) || '').trim()
+    }
+  } catch {
+    /* fall through */
+  }
+  try {
+    return String((await loc.getAttribute?.('value')) || '').trim()
+  } catch {
+    return ''
+  }
+}
+
+async function tryFillLocator(
+  loc: any,
+  value: string,
+): Promise<'ok' | 'value_mismatch' | 'fail'> {
+  try {
+    await loc.fill(value.slice(0, 200), { timeout: 8000 })
+    const got = await readLocatorValue(loc)
+    if (got === value.slice(0, 200)) return 'ok'
+    return 'value_mismatch'
+  } catch {
+    return 'fail'
+  }
+}
+
+function labelCandidatesForField(field: {
+  key: string
+  recipe?: { key: string; aliases?: string[] }
+}): string[] {
+  const key = String(field.key || '').trim()
+  const names = new Set<string>()
+  if (key) names.add(key)
+  const recipeKey = String(field.recipe?.key || '').trim()
+  if (recipeKey) names.add(recipeKey)
+  for (const a of field.recipe?.aliases || []) {
+    const s = String(a || '').trim()
+    if (s) names.add(s)
+  }
+  // 常见英文字段展示名
+  if (/first_?name|fname/i.test(key)) {
+    names.add('First name')
+    names.add('名')
+  }
+  if (/last_?name|lname/i.test(key)) {
+    names.add('Last name')
+    names.add('姓')
+  }
+  if (/customer_?name|custname/i.test(key)) {
+    names.add('Customer name')
+    names.add('客户名')
+  }
+  return [...names]
+}
+
+/** 按站点 recipe + 抽取字段值确定性填写（不依赖 Stagehand act JSON schema） */
+export async function playwrightFillFormFields(
+  stagehand: any,
+  input: {
+    fields: Array<{ key: string; value: string }>
+    recipeFields: Array<{ key: string; selectors: string[]; aliases?: string[] }>
+  },
+): Promise<{ ok: boolean; filled: Array<{ key: string; value: string }>; reason?: string }> {
+  const page = getPage(stagehand)
+  if (!page) return { ok: false, filled: [], reason: 'no_page' }
+  const filled: Array<{ key: string; value: string }> = []
+  if (!input.fields.length) return { ok: false, filled, reason: 'no_fields' }
+
+  for (const field of input.fields) {
+    const key = String(field.key || '').trim().toLowerCase()
+    const value = String(field.value || '').trim()
+    if (!key || !value) continue
+    const recipe =
+      input.recipeFields.find((r) => r.key.toLowerCase() === key) ||
+      input.recipeFields.find((r) =>
+        (r.aliases || []).some((a) => String(a).toLowerCase() === key),
+      )
+    const outKey = recipe?.key || field.key
+    const selectors = [
+      ...(recipe?.selectors || []),
+      `input[name="${key}"]`,
+      `input#${key}`,
+      `textarea[name="${key}"]`,
+      `input[name="${outKey}"]`,
+      `input#${outKey}`,
+    ].filter(Boolean)
+
+    let wrote = false
+    let lastMismatch = false
+
+    for (const sel of selectors) {
+      try {
+        const loc = page.locator(sel).first()
+        const status = await tryFillLocator(loc, value)
+        if (status === 'ok') {
+          filled.push({ key: outKey, value })
+          wrote = true
+          break
+        }
+        if (status === 'value_mismatch') lastMismatch = true
+      } catch {
+        /* try next */
+      }
+    }
+
+    if (!wrote) {
+      const labels = labelCandidatesForField({ key: field.key, recipe })
+      for (const label of labels) {
+        if (typeof page.getByLabel === 'function') {
+          const status = await tryFillLocator(page.getByLabel(label, { exact: false }).first(), value)
+          if (status === 'ok') {
+            filled.push({ key: outKey, value })
+            wrote = true
+            break
+          }
+          if (status === 'value_mismatch') lastMismatch = true
+        }
+        if (typeof page.getByRole === 'function') {
+          const status = await tryFillLocator(
+            page.getByRole('textbox', { name: label }).first(),
+            value,
+          )
+          if (status === 'ok') {
+            filled.push({ key: outKey, value })
+            wrote = true
+            break
+          }
+          if (status === 'value_mismatch') lastMismatch = true
+        }
+      }
+    }
+
+    if (!wrote) {
+      return {
+        ok: false,
+        filled,
+        reason: lastMismatch
+          ? `value_mismatch:${outKey}`
+          : `element_not_found:${outKey}`,
+      }
+    }
+  }
+  return { ok: filled.length > 0, filled, reason: filled.length ? undefined : 'nothing_filled' }
 }
 
 /** 确定性抽取：title + h1 + url（不依赖 Stagehand LLM JSON） */

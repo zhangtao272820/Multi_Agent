@@ -49,6 +49,8 @@ export type UploadedDocMeta = {
   ingest_at?: string;
   source_version?: string;
   chunk_count?: number;
+  /** K 波：mineru | local_pdf | local_* */
+  parser?: string;
 };
 
 let uploadedDocuments: UploadedDocMeta[] = [];
@@ -71,6 +73,9 @@ type ProcessLimits = {
 export type ProcessDocumentOptions = {
   /** 调用方显式版本号；缺省用 content_hash 前 12 位 */
   source_version?: string;
+  /** K 波解析器标记 */
+  parser?: string;
+  parser_provider?: string;
 };
 
 const getDefaultLimits = (): ProcessLimits => ({
@@ -747,6 +752,34 @@ export const processDocument = async (
     }
   }
 
+  // K 波：优先 MinerU 重解析（PDF/Office/图片）；失败回落本地解析
+  try {
+    const { parseWithMineru, heavyParseToDocuments, shouldAttemptHeavyParse } = await import(
+      "./heavy_parse_client"
+    );
+    if (shouldAttemptHeavyParse(fileName)) {
+      const heavy = await parseWithMineru({ buffer, fileName });
+      if (heavy.ok) {
+        const heavyDocs = await heavyParseToDocuments({
+          result: heavy,
+          fileName,
+          fileType,
+        });
+        console.log(
+          `[HeavyParse] ${fileName} provider=${heavy.provider} chars=${heavy.chars} blocks=${heavy.blocks.length} ms=${heavy.ms}`
+        );
+        return upsertParsedDocuments(heavyDocs as any[], fileName, fileType, effectiveLimits, {
+          ...opts,
+          parser: "mineru",
+          parser_provider: heavy.provider,
+        });
+      }
+      console.warn(`[HeavyParse] fallback local for ${fileName}: ${heavy.reason}`);
+    }
+  } catch (heavyErr: any) {
+    console.warn(`[HeavyParse] error, fallback local for ${fileName}:`, heavyErr?.message || heavyErr);
+  }
+
   let docs = [];
 
   try {
@@ -869,7 +902,24 @@ export const processDocument = async (
   if (docs.length === 0) return 0;
 
   const inferredType = fileType === "unknown" ? "txt" : fileType;
-  return upsertParsedDocuments(docs as any[], fileName, inferredType, effectiveLimits, opts);
+  const localParser =
+    fileType === "pdf"
+      ? "local_pdf"
+      : fileType === "docx" || fileType === "doc"
+        ? "local_word"
+        : ["png", "jpg", "jpeg", "bmp", "tiff", "gif", "webp"].includes(fileType)
+          ? "local_ocr"
+          : fileType === "xlsx" || fileType === "xls"
+            ? "local_spreadsheet"
+            : fileType === "pptx"
+              ? "local_pptx"
+              : fileType === "html" || fileType === "htm"
+                ? "local_html"
+                : "local_text";
+  return upsertParsedDocuments(docs as any[], fileName, inferredType, effectiveLimits, {
+    ...opts,
+    parser: opts?.parser || localParser,
+  });
 };
 
 /**
@@ -925,6 +975,8 @@ export async function upsertParsedDocuments(
       ingest_at,
       source_version: sourceVersion,
       content_hash: contentHash,
+      parser: opts?.parser || String(doc.metadata?.parser || "local_text"),
+      parser_provider: opts?.parser_provider || doc.metadata?.parser_provider,
     },
   }));
 
@@ -962,6 +1014,7 @@ export async function upsertParsedDocuments(
     ingest_at,
     source_version: sourceVersion,
     chunk_count: docsWithMetadata.length,
+    parser: opts?.parser || String(docsWithMetadata[0]?.metadata?.parser || "local_text"),
   };
   const idx = uploadedDocuments.findIndex((d) => d.name === fileName);
   if (idx === -1) {

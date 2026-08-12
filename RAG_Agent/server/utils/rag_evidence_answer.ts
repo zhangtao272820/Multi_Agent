@@ -32,6 +32,11 @@ const NEGATIVE_ANSWER_MARKERS = [
   "库里暂未",
   "无法确定",
   "没有更多关于",
+  "未提及",
+  "没有提及",
+  "未包含",
+  "没有写明",
+  "未写明",
 ];
 
 export function answerLooksLikeRetrievalMiss(answer: string): boolean {
@@ -59,6 +64,7 @@ export function prioritizeEvidenceForGeneration(
   items: EvidenceItem[],
   max = 6,
   docCatalog?: { name: string; summary?: string }[],
+  opts?: { forceMultiSource?: boolean },
 ): EvidenceItem[] {
   const list = (items || []).filter((e) => String(e.content ?? "").trim().length >= 4);
   if (!list.length) return [];
@@ -100,20 +106,46 @@ export function prioritizeEvidenceForGeneration(
   const sourceRank = [...bySource.entries()].sort((a, b) => b[1].total - a[1].total);
   const dominant = sourceRank[0];
   const runner = sourceRank[1];
+  // 仅当主导源显著领先时塌缩；假阴性再检可 forceMultiSource 禁止塌缩
   const dominantWins =
-    dominant &&
-    dominant[1].total > 0 &&
-    (!runner || dominant[1].total >= runner[1].total * 1.35 || top.score >= 0.08);
+    !opts?.forceMultiSource &&
+    Boolean(dominant) &&
+    dominant![1].total > 0 &&
+    (!runner || dominant![1].total >= runner[1].total * 1.35);
 
-  const pool = dominantWins ? dominant![1].rows : scored.map((s) => s.item);
   const seen = new Set<string>();
   const out: EvidenceItem[] = [];
-  for (const item of pool) {
+  const pushItem = (item: EvidenceItem) => {
     const key = `${item.source}:${String(item.content ?? "").slice(0, 48)}`;
-    if (seen.has(key)) continue;
+    if (seen.has(key)) return false;
     seen.add(key);
     out.push(item);
-    if (out.length >= max) break;
+    return true;
+  };
+
+  if (dominantWins) {
+    for (const item of dominant![1].rows) {
+      pushItem(item);
+      if (out.length >= max) break;
+    }
+  } else if (sourceRank.length >= 2 || opts?.forceMultiSource) {
+    const queues = sourceRank.map(([, v]) => [...v.rows]);
+    let guard = 0;
+    while (out.length < max && queues.some((q) => q.length) && guard < max * 8) {
+      guard += 1;
+      for (const q of queues) {
+        if (out.length >= max) break;
+        while (q.length) {
+          const item = q.shift()!;
+          if (pushItem(item)) break;
+        }
+      }
+    }
+  } else {
+    for (const row of scored) {
+      pushItem(row.item);
+      if (out.length >= max) break;
+    }
   }
   return out.length ? out : list.slice(0, max);
 }

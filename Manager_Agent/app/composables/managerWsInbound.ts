@@ -97,6 +97,9 @@ export type ManagerWsInboundCtx = {
     turns?: number
   } | null>
   latestGuiScreenshot: Ref<string>
+  latestGuiVncUrl: Ref<string>
+  /** 已为哪个 runId 自动打开过 noVNC（每 run 一次） */
+  guiVncAutoOpenedRunId: Ref<string>
   streamingSynthText: Ref<string>
   streamAgentLabel: Ref<string>
   lastFinalRunId: Ref<string>
@@ -679,6 +682,7 @@ export function handleManagerWsInboundMessage(evt: MessageEvent, ctx: ManagerWsI
     if (event === 'human_confirm_ack') {
       ctx.pendingHumanConfirm.value = null
       ctx.latestGuiScreenshot.value = ''
+      ctx.latestGuiVncUrl.value = ''
       ctx.humanConfirmSending.value = false
       ctx.onHumanConfirmAck?.()
       return
@@ -692,6 +696,48 @@ export function handleManagerWsInboundMessage(evt: MessageEvent, ctx: ManagerWsI
       ctx.add('gui_screenshot', label, data.from || 'gui', turn, runId, {
         guiScreenshot: dataUrl || undefined
       })
+      return
+    }
+    if (event === 'gui_live_view') {
+      const p = data?.data && typeof data.data === 'object' ? (data.data as Record<string, unknown>) : {}
+      let vncUrl = String(p.vncUrl || p.vnc_url || '').trim()
+      const hint = String(p.hint || '').trim()
+      // 浏览器无法解析 Docker 服务名：改写为 localhost（端口映射场景）
+      if (vncUrl && typeof window !== 'undefined') {
+        try {
+          const u = new URL(vncUrl)
+          if (/^(lobster_agent|lobster-agent)$/i.test(u.hostname)) {
+            u.hostname = 'localhost'
+            vncUrl = u.toString()
+          }
+        } catch {
+          /* keep */
+        }
+      }
+      if (vncUrl) ctx.latestGuiVncUrl.value = vncUrl
+      const label = vncUrl
+        ? '打开浏览器画面（noVNC）'
+        : hint
+          ? `浏览器画面：${hint}`
+          : '浏览器画面'
+      ctx.add('gui_live_view', label, data.from || 'gui', turn, runId, {
+        guiVncUrl: vncUrl || undefined,
+      })
+      // 每轮任务自动打开一次实时画面（与 Lobster 工作台 autoOpenVnc 对齐）
+      const runKey = String(runId || turn || '')
+      if (
+        vncUrl &&
+        typeof window !== 'undefined' &&
+        runKey &&
+        ctx.guiVncAutoOpenedRunId.value !== runKey
+      ) {
+        ctx.guiVncAutoOpenedRunId.value = runKey
+        try {
+          window.open(vncUrl, 'manager_gui_novnc', 'noopener,noreferrer,width=1280,height=800')
+        } catch {
+          /* popup blocked */
+        }
+      }
       return
     }
     if (event === 'db_explain') {

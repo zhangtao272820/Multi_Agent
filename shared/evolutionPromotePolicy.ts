@@ -1,10 +1,20 @@
 /**
  * 跨 Agent 自进化 promote / 路由学习门禁（收敛期 SSOT）。
+ * 纪律：curate/feedback 只写 shadow；active 须人审（禁止无人值守晋级）。
  */
 import { resolveEvolutionEnvBool } from './agentEvolutionMode'
 import { isAgentPromptEvolutionExecutionOnly } from './evolutionConvergence'
 
-export type EvolutionAgentId = 'manager' | 'db' | 'rag' | 'admin' | 'code' | 'extractor' | 'crawler'
+export type EvolutionAgentId =
+  | 'manager'
+  | 'db'
+  | 'rag'
+  | 'admin'
+  | 'code'
+  | 'extractor'
+  | 'crawler'
+  | 'lobster'
+  | 'gui'
 
 /** 是否允许跳过 verifyBeforePromote 直接晋级（默认否） */
 export function isUnverifiedPromoteAllowed(env: NodeJS.ProcessEnv = process.env): boolean {
@@ -13,6 +23,23 @@ export function isUnverifiedPromoteAllowed(env: NodeJS.ProcessEnv = process.env)
 
 export function isPromoteVerifyRequired(env: NodeJS.ProcessEnv = process.env): boolean {
   return resolveEvolutionEnvBool('EVO_PROMOTE_REQUIRES_VERIFY', true, env) && !isUnverifiedPromoteAllowed(env)
+}
+
+/**
+ * 专家侧 curator / feedback / AB 是否允许自动写入 active。
+ * 默认否；仅显式 EVO_ALLOW_EXPERT_AUTO_PROMOTE=1 时放开（面试/生产保持关闭）。
+ */
+export function isExpertAutoPromoteAllowed(env: NodeJS.ProcessEnv = process.env): boolean {
+  return String(env.EVO_ALLOW_EXPERT_AUTO_PROMOTE ?? '0').trim() === '1'
+}
+
+/** curate 请求里的 autoPromote：默认 false；且受 isExpertAutoPromoteAllowed 二次门禁 */
+export function resolveCurateAutoPromote(
+  requested: boolean | undefined | null,
+  env: NodeJS.ProcessEnv = process.env
+): boolean {
+  if (!isExpertAutoPromoteAllowed(env)) return false
+  return requested === true
 }
 
 /** 执行期-only 模式下禁止进化 routing/router 阶段补丁 */

@@ -47,7 +47,7 @@ function lastHumanBefore(question: string, history: Array<{ role?: string; conte
   return last === q && humans.length >= 2 ? humans[humans.length - 2] : last
 }
 
-/** 结构回退：短承接 → continuation；否则默认隔离 */
+/** 结构回退：仅明确指代/输出加工 → continuation；自洽新问默认隔离（禁止长度启发误判） */
 export function classifyRagTurnScopeStructural(
   question: string,
   history: Array<{ role?: string; content?: string }>
@@ -58,7 +58,7 @@ export function classifyRagTurnScopeStructural(
   if (!prev || !history?.length) return buildTurnScopePayload('current_only', 'new_task')
 
   const compact = q.replace(/\s+/g, '')
-  const refer = ['这个', '那个', '上述', '继续', '呢', '它', '他们', '刚才', '上面', '他', '她', '文档', '资料']
+  const refer = ['这个', '那个', '上述', '继续', '呢', '它', '他们', '刚才', '上面', '他', '她']
   if (compact.length <= 10 && refer.some((w) => compact.includes(w))) {
     return buildTurnScopePayload('continuation', 'continuation')
   }
@@ -66,11 +66,8 @@ export function classifyRagTurnScopeStructural(
   if (compact.length <= 24 && followup.some((w) => compact.includes(w))) {
     return buildTurnScopePayload('continuation', 'output_followup')
   }
-  if (q.length <= Math.max(48, Math.floor(prev.length * 0.52))) {
-    return buildTurnScopePayload('continuation', 'continuation')
-  }
-  if (q.length >= 40) return buildTurnScopePayload('topic_shift', 'new_task')
-  return buildTurnScopePayload('current_only', 'new_task')
+  // 有上文且本轮非明确承接 → 主题切换隔离（勿用「短句=承接」）
+  return buildTurnScopePayload('topic_shift', 'new_task')
 }
 
 export async function classifyRagTurnScopeByLlm(

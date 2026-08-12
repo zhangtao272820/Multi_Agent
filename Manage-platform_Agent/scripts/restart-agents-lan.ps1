@@ -3,6 +3,9 @@ param(
     [switch]$Build
 )
 
+# 禁止 down -v：本脚本只用 up --force-recreate，保留命名卷
+# 文档：doc/docker-persist-no-volume-wipe.md
+
 $ErrorActionPreference = "Stop"
 
 $root = Split-Path -Parent $PSScriptRoot
@@ -37,7 +40,7 @@ $validServices = @(
 
 # compose restart 不重载 env_file；改 .env.agents-lan 后必须 force-recreate
 if ([string]::IsNullOrWhiteSpace($Service)) {
-    Write-Host "Force-recreating all agent services (reloads env_file)..." -ForegroundColor Cyan
+    Write-Host "Force-recreating all agent services (reloads env_file; volumes preserved)..." -ForegroundColor Cyan
     if ($Build) {
         docker compose --env-file "$envFile" -f "$composeFile" up -d --build --force-recreate
     } else {
@@ -48,12 +51,11 @@ if ([string]::IsNullOrWhiteSpace($Service)) {
 }
 
 if ($validServices -notcontains $Service) {
-    Write-Host "Invalid service: $Service" -ForegroundColor Red
-    Write-Host "Valid services: $($validServices -join ', ')" -ForegroundColor Yellow
+    Write-Error "Unknown service: $Service. Valid: $($validServices -join ', ')"
     exit 1
 }
 
-Write-Host "Force-recreating service: $Service (reloads env_file)" -ForegroundColor Cyan
+Write-Host "Force-recreating $Service (volumes preserved)..." -ForegroundColor Cyan
 if ($Build) {
     docker compose --env-file "$envFile" -f "$composeFile" up -d --build --force-recreate $Service
 } else {

@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { loadActivePromptPatches, loadShadowPromptPatches, type PromptPatchSet } from './promptPatches'
 import { loadActivePlannerRules, loadShadowPlannerRules, type PlannerRuleSet } from './plannerRules'
+import { isStickyCanaryBundleEnabled, resolveBundleCanaryDecision } from './releaseBundleCanary'
 
 export function artifactCanaryPercent(envKey: string, fallback = 0): number {
   const n = Number(process.env[envKey] ?? fallback)
@@ -37,12 +38,16 @@ export type ResolvedPromptPatches = {
   patches: PromptPatchSet | null
   source: 'active' | 'shadow_canary' | 'none'
   canary: boolean
+  bundleId?: string | null
+  bundleCanary?: boolean
 }
 
 export type ResolvedPlannerRules = {
   rules: PlannerRuleSet | null
   source: 'active' | 'shadow_canary' | 'none'
   canary: boolean
+  bundleId?: string | null
+  bundleCanary?: boolean
 }
 
 export async function resolveEffectivePromptPatches(
@@ -51,13 +56,27 @@ export async function resolveEffectivePromptPatches(
   opts?: { suppressCanary?: boolean }
 ): Promise<ResolvedPromptPatches> {
   const active = await loadActivePromptPatches(dir)
-  const percent = promptCanaryPercent()
-  if (opts?.suppressCanary || !sessionInCanaryBucket(sessionId, 'prompt-canary', percent)) {
-    return { patches: active, source: active ? 'active' : 'none', canary: false }
+  const sticky = isStickyCanaryBundleEnabled()
+  let inBucket = false
+  let bundleId: string | null = null
+  let bundleCanary = false
+  if (sticky) {
+    const d = await resolveBundleCanaryDecision(dir, sessionId, { suppressCanary: opts?.suppressCanary })
+    bundleId = d.bundleId
+    bundleCanary = d.inCanary
+    inBucket = d.inCanary
+  } else {
+    const percent = promptCanaryPercent()
+    inBucket = !opts?.suppressCanary && sessionInCanaryBucket(sessionId, 'prompt-canary', percent)
+  }
+  if (opts?.suppressCanary || !inBucket) {
+    return { patches: active, source: active ? 'active' : 'none', canary: false, bundleId, bundleCanary: false }
   }
   const shadow = await loadShadowPromptPatches(dir)
-  if (shadow) return { patches: shadow, source: 'shadow_canary', canary: true }
-  return { patches: active, source: active ? 'active' : 'none', canary: false }
+  if (shadow) {
+    return { patches: shadow, source: 'shadow_canary', canary: true, bundleId, bundleCanary }
+  }
+  return { patches: active, source: active ? 'active' : 'none', canary: false, bundleId, bundleCanary: false }
 }
 
 export async function resolveEffectivePlannerRules(
@@ -66,11 +85,25 @@ export async function resolveEffectivePlannerRules(
   opts?: { suppressCanary?: boolean }
 ): Promise<ResolvedPlannerRules> {
   const active = await loadActivePlannerRules(dir)
-  const percent = plannerRulesCanaryPercent()
-  if (opts?.suppressCanary || !sessionInCanaryBucket(sessionId, 'planner-rules-canary', percent)) {
-    return { rules: active, source: active ? 'active' : 'none', canary: false }
+  const sticky = isStickyCanaryBundleEnabled()
+  let inBucket = false
+  let bundleId: string | null = null
+  let bundleCanary = false
+  if (sticky) {
+    const d = await resolveBundleCanaryDecision(dir, sessionId, { suppressCanary: opts?.suppressCanary })
+    bundleId = d.bundleId
+    bundleCanary = d.inCanary
+    inBucket = d.inCanary
+  } else {
+    const percent = plannerRulesCanaryPercent()
+    inBucket = !opts?.suppressCanary && sessionInCanaryBucket(sessionId, 'planner-rules-canary', percent)
+  }
+  if (opts?.suppressCanary || !inBucket) {
+    return { rules: active, source: active ? 'active' : 'none', canary: false, bundleId, bundleCanary: false }
   }
   const shadow = await loadShadowPlannerRules(dir)
-  if (shadow) return { rules: shadow, source: 'shadow_canary', canary: true }
-  return { rules: active, source: active ? 'active' : 'none', canary: false }
+  if (shadow) {
+    return { rules: shadow, source: 'shadow_canary', canary: true, bundleId, bundleCanary }
+  }
+  return { rules: active, source: active ? 'active' : 'none', canary: false, bundleId, bundleCanary: false }
 }

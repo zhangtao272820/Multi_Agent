@@ -32,6 +32,17 @@ function resolveLobsterWsCandidates(env: NodeJS.ProcessEnv = process.env): strin
   return out
 }
 
+/** 桌面 Hands：禁止回退到 Docker 网页 Lobster（否则会 lobster_desktop_requires_windows_host） */
+function isDesktopHandsWsUrl(wsUrl: string, env: NodeJS.ProcessEnv = process.env): boolean {
+  const u = String(wsUrl || '').trim().toLowerCase()
+  if (!u) return false
+  const hands = String(env.LOBSTER_HANDS_WS_URL || '').trim().toLowerCase()
+  if (hands && u === hands.toLowerCase()) return true
+  if (u.includes(':13109')) return true
+  if (u.includes('hands')) return true
+  return false
+}
+
 function resolveLobsterToken(env: NodeJS.ProcessEnv = process.env): string {
   return String(env.LOBSTER_ADMIN_TOKEN || env.CLAWHIVE_INTERNAL_TOKEN || env.AGENT_INTERNAL_TOKEN || '').trim()
 }
@@ -241,6 +252,20 @@ async function callLobsterAgentWs(params: {
           params.sendEvent?.({ event: 'gui_screenshot', data: data.payload, from: 'gui' })
           return
         }
+        if (type === 'live_view') {
+          const p = data?.payload || {}
+          const override = String(process.env.MANAGER_LOBSTER_VNC_URL || '').trim()
+          const vncUrl = override || String(p.vncUrl || p.vnc_url || '').trim()
+          const hint = String(p.hint || '').trim()
+          // 允许仅 hint（headless 说明）；有 URL 时优先
+          if (!vncUrl && !hint) return
+          params.sendEvent?.({
+            event: 'gui_live_view',
+            data: { vncUrl: vncUrl || undefined, hint: hint || undefined },
+            from: 'gui',
+          })
+          return
+        }
         if (type === 'status') {
           const st = String(data.payload || '')
           if (st === 'queued') forwardThinking('GUI Agent：任务排队中…')
@@ -299,11 +324,33 @@ export async function callLobsterAgent(params: {
   signal?: AbortSignal
   traceId?: string
   runId?: string
+  /** true：只打传入的 WS（Hands），禁止回退网页 Lobster */
+  lockWsToPrimary?: boolean
 }) {
-  params.sendThinking?.('GUI Agent：正在启动浏览器自动化…')
+  const desktopLocked =
+    params.lockWsToPrimary === true ||
+    String(params.engineHint || '').trim().toLowerCase() === 'desktop' ||
+    isDesktopHandsWsUrl(params.lobsterAgentWsUrl)
+  params.sendThinking?.(
+    desktopLocked ? 'GUI Agent：正在连接宿主 Hands（桌面）…' : 'GUI Agent：正在启动浏览器自动化…',
+  )
   const primaryWs = resolveAgentUrl(params.lobsterAgentWsUrl, process.env) || String(params.lobsterAgentWsUrl || '').trim()
-  const wsUrls = resolveLobsterWsCandidates(process.env)
-  if (primaryWs && !wsUrls.includes(primaryWs)) wsUrls.unshift(primaryWs)
+  const wsUrls = desktopLocked
+    ? primaryWs
+      ? [primaryWs]
+      : []
+    : (() => {
+        const list = resolveLobsterWsCandidates(process.env)
+        if (primaryWs && !list.includes(primaryWs)) list.unshift(primaryWs)
+        return list
+      })()
+  if (!wsUrls.length) {
+    throw new Error(
+      desktopLocked
+        ? 'lobster_hands_ws_missing: 桌面任务需配置 LOBSTER_HANDS_WS_URL（宿主 Hands :13109）'
+        : 'lobster_ws_missing',
+    )
+  }
   const httpBases = Array.from(new Set(wsUrls.map((ws) => agentWsUrlToHttpOrigin(ws)).filter(Boolean)))
   const docker = isManagerDockerRuntime(process.env)
   const bootWaitMs = docker ? 120_000 : 25_000
@@ -332,6 +379,13 @@ export async function callLobsterAgent(params: {
         if (!isCrawlerTransportError(e)) throw e
       }
     }
+  }
+
+  // 桌面 Hands：禁止 HTTP 轮询回退到网页 Lobster
+  if (desktopLocked) {
+    throw lastErr instanceof Error
+      ? lastErr
+      : new Error(String(lastErr ?? 'lobster_hands_unavailable: 宿主 Hands WebSocket 不可用'))
   }
 
   if (lobsterHttpPollEnabled()) {

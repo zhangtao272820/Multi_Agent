@@ -89,6 +89,19 @@ const wfSchema = GuiOperateKindSchema.safeParse({
 })
 assert(wfSchema.success, 'workflow fields in operate kind schema')
 
+const incompleteMacro = guiOperateKindFromMeta({
+  guiOperateKind: {
+    task_kind: 'form_fill',
+    needs_login: false,
+    confidence: 0.95,
+    rationale: 'NL 填表',
+    workflow_id: 'w3school-form-fill',
+  },
+})
+assert(!incompleteMacro?.workflow_id, 'incomplete w3school macro dropped')
+assert(incompleteMacro?.dropped_workflow_id === 'w3school-form-fill', 'dropped recorded')
+assert(incompleteMacro?.task_kind === 'form_fill', 'task_kind kept for stepwise')
+
 const framed = buildGuiResultForManager(
   {
     answer: '已在 Customer name 填入 lobster_mgr_test',
@@ -102,7 +115,43 @@ const framed = buildGuiResultForManager(
 )
 assert(framed.includes('【浏览器操作】'), 'operate frame')
 assert(framed.includes('stagehand') || framed.includes('引擎'), 'operate engine line')
+assert(framed.includes('已执行操作'), 'ok true → 已执行')
 assert(!framed.includes('小结'), 'no news-style summary')
+
+const framedFail = buildGuiResultForManager(
+  {
+    answer: '字段未写入',
+    agentResult: { answer: '字段未写入', ok: false },
+    finalUrl: 'https://httpbin.org/forms/post',
+    engine: 'stagehand',
+    task_kind: 'form_fill',
+  },
+  '填表',
+  { taskKind: 'form_fill' },
+)
+assert(framedFail.includes('未完全成功'), 'ok false → 未完全成功')
+assert(!framedFail.includes('已执行操作'), 'ok false 不称已执行')
+
+const framedMissingOk = buildGuiResultForManager(
+  {
+    answer: '可能完成',
+    agentResult: { answer: '可能完成' },
+    engine: 'workflow',
+    task_kind: 'form_fill',
+  },
+  '填表',
+  { taskKind: 'form_fill' },
+)
+assert(framedMissingOk.includes('未完全成功'), 'ok 缺失不称已执行')
+
+const desktopKind = GuiOperateKindSchema.safeParse({
+  task_kind: 'desktop_app',
+  needs_login: false,
+  confidence: 0.92,
+  rationale: '记事本',
+})
+assert(desktopKind.success, 'desktop_app operate kind')
+assert(normalizeManagerGuiTaskKind('desktop_app') === 'desktop_app', 'normalize desktop_app')
 
 const searchOut = buildGuiResultForManager(
   {

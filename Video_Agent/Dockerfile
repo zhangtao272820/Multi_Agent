@@ -1,12 +1,13 @@
-# 前端构建 + FastAPI 单端口（与 Music_Agent / Tavern_Agent 同模式）
+# 前端构建 + FastAPI 单端口（context = 仓库根，与 CodePy 同，以便打入 shared/brand）
 ARG NODE_BASE_IMAGE=node:20-bullseye
 ARG PYTHON_BASE_IMAGE=python:3.12-slim-bookworm
 FROM ${NODE_BASE_IMAGE} AS frontend-build
-WORKDIR /fe
+WORKDIR /build/Video_Agent/frontend
 ENV NPM_CONFIG_REGISTRY=https://registry.npmmirror.com
-COPY frontend/package.json frontend/package-lock.json ./
+COPY Video_Agent/frontend/package.json Video_Agent/frontend/package-lock.json ./
 RUN npm ci --silent 2>/dev/null || npm install --silent
-COPY frontend/ ./
+COPY Video_Agent/frontend/ ./
+COPY shared /build/shared
 RUN npm run build
 
 FROM ${PYTHON_BASE_IMAGE}
@@ -39,14 +40,14 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
-COPY backend/requirements.txt .
+COPY Video_Agent/backend/requirements.txt .
 ARG PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
 RUN pip install --no-cache-dir --timeout=180 \
     -i "${PIP_INDEX_URL}" \
     -r requirements.txt
 
-COPY backend/app ./app
-COPY --from=frontend-build /fe/dist /video/frontend/dist
+COPY Video_Agent/backend/app ./app
+COPY --from=frontend-build /build/Video_Agent/frontend/dist /video/frontend/dist
 
 ENV VIDEO_FRONTEND_DIST=/video/frontend/dist \
     API_PORT=13111 \

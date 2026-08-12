@@ -5,6 +5,7 @@ import type { LobsterPlanStep, LobsterTaskSpec } from './lobsterTaskUnderstandSc
 import { defaultPlanStepsForTask } from './lobsterTaskUnderstandSchema'
 import { isUnreachableBrowseUrl, looksLikeNetworkFailure } from '#agent-shared/lobsterRunVerifyLite'
 import { lookupPlaybook, touchPlaybookHit } from './lobsterPlaybookCache'
+import { lookupEvolvedOrCache } from './lobsterPlaybookEvolution'
 
 /** 短计划硬上限（goto + act* + extract） */
 export const STAGEHAND_PLAN_MAX_STEPS = 6
@@ -25,10 +26,16 @@ export function resolveStagehandPlanSteps(input: {
   const startUrl = input.startUrl || input.taskSpec?.start_url
   const fromSpec = input.taskSpec?.plan_steps
 
-  const hit = lookupPlaybook({
+  const hit = lookupEvolvedOrCache({
     startUrl,
     taskKind: input.taskSpec?.task_kind,
     goals: input.taskSpec?.goals,
+    legacyLookup: () =>
+      lookupPlaybook({
+        startUrl,
+        taskKind: input.taskSpec?.task_kind,
+        goals: input.taskSpec?.goals,
+      }),
   })
   if (hit?.plan_steps?.length) {
     touchPlaybookHit(hit.key)
@@ -134,7 +141,15 @@ export async function detectStagehandNetworkErrorPage(
   return { unreachable, url, title }
 }
 
-export function goalsNeedLeaveStart(goals?: LobsterTaskGoals | null, task = ''): boolean {
+export function goalsNeedLeaveStart(
+  goals?: LobsterTaskGoals | null,
+  task = '',
+  taskKind?: string,
+): boolean {
+  // form_fill 停留在表单页即成功；禁止被任务原文「打开…」类词或误 goals 拖成离页硬闸
+  if (String(taskKind || '').trim() === 'form_fill') {
+    return goals?.must_leave_start === true
+  }
   if (goals?.must_leave_start === true) return true
   if (goals?.expected_url_change === true) return true
   return /(点击|进入|打开第一个|第一条|教程|详情)/i.test(task)

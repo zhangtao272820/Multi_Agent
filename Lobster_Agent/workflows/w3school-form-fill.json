@@ -1,0 +1,50 @@
+{
+  "id": "w3school-form-fill",
+  "name": "W3School 中文站表单填写（国内黄金宏）",
+  "description": "打开 w3school.com.cn HTML 表单示例页，填写 First name / Last name，HITL 确认后结束（默认不点 Submit）",
+  "args": ["first_name", "last_name", "startUrl"],
+  "steps": [
+    {
+      "action": "goto",
+      "url": "{{startUrl}}",
+      "waitUntil": "domcontentloaded"
+    },
+    {
+      "action": "snapshot",
+      "assignTo": "landing"
+    },
+    {
+      "action": "type",
+      "selector": "input#fname, input[name=\"fname\"]",
+      "text": "{{first_name}}",
+      "clear": true
+    },
+    {
+      "action": "type",
+      "selector": "input#lname, input[name=\"lname\"]",
+      "text": "{{last_name}}",
+      "clear": true
+    },
+    {
+      "action": "approve",
+      "title": "确认表单已填写",
+      "message": "已在 First name 填入 {{first_name}}、Last name 填入 {{last_name}}。确认后结束（默认不点 Submit）。"
+    },
+    {
+      "action": "extract",
+      "selector": "input#fname, input[name=\"fname\"]",
+      "attr": "value",
+      "assignTo": "filled_first"
+    },
+    {
+      "action": "extract",
+      "selector": "input#lname, input[name=\"lname\"]",
+      "attr": "value",
+      "assignTo": "filled_last"
+    },
+    {
+      "action": "finish",
+      "answer": "工作流 w3school-form-fill 完成。First name={{filled_first}}；Last name={{filled_last}}；落地={{landing}}"
+    }
+  ]
+}

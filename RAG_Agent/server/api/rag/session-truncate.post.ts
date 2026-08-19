@@ -5,6 +5,8 @@ import {
   deleteRagSessionFeedbackFromTurn,
   deleteRagSessionFeedbackFromUserIndex,
 } from "../../utils/ragSessionFeedback";
+import { supersedeRagLearningSignalsForRevision } from "../../../utils/learning_signal_store";
+import { supersedeRagPromptPatchesForRevision } from "../../utils/prompt_evolution";
 
 const BodySchema = z.object({
   sessionId: z.string().min(1).max(120).regex(/^[A-Za-z0-9_-]+$/),
@@ -35,7 +37,8 @@ export default defineEventHandler(async (event) => {
   }
   let feedbackDeleted = 0;
   const resolvedIdx = result.resolvedUserIndex >= 0 ? result.resolvedUserIndex : body.fromUserIndex ?? 0;
-  if (body.replaceUserText != null && body.replaceUserText !== "") {
+  const isRegenOrEdit = body.replaceUserText != null && body.replaceUserText !== "";
+  if (isRegenOrEdit) {
     feedbackDeleted += await deleteRagSessionFeedbackAtUserMessageIndex(
       "rag",
       body.sessionId,
@@ -47,12 +50,30 @@ export default defineEventHandler(async (event) => {
     }
     feedbackDeleted += await deleteRagSessionFeedbackFromUserIndex("rag", body.sessionId, resolvedIdx);
   }
+
+  // 对齐总管：撤回作废 >= idx；重生/编辑仅作废同轮
+  const reason = isRegenOrEdit ? "regenerate" : "withdraw";
+  const learning = await supersedeRagLearningSignalsForRevision({
+    sessionId: body.sessionId,
+    userMessageIndex: resolvedIdx,
+    fromUserMessageIndex: isRegenOrEdit ? null : resolvedIdx,
+    reason,
+  });
+  const patches = supersedeRagPromptPatchesForRevision({
+    sessionId: body.sessionId,
+    userMessageIndex: resolvedIdx,
+    fromUserMessageIndex: isRegenOrEdit ? null : resolvedIdx,
+    reason,
+  });
+
   return {
     ok: true,
     sessionId: body.sessionId,
     userCount: result.userCount,
     messageCount: result.messages.length,
     feedbackDeleted,
+    learningSuperseded: learning.superseded,
+    patchesVoided: patches.voided,
     resolvedUserIndex: resolvedIdx,
   };
 });

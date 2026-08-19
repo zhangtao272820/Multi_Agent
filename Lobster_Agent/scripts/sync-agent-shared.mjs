@@ -25,6 +25,7 @@ const WHITELIST = [
   'lobsterGuiProgressContract.ts',
   'managerTaskEnvelope.ts',
   'nitroClawhiveAuth.ts',
+  'agentServiceAuth.ts',
   'clawhiveJwt.ts',
   'evolutionVerifyLobster.ts',
   'agentEvolutionMode.ts',

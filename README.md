@@ -52,7 +52,7 @@
 2. **编排层** — `Manager_Agent`：会话、路由、HITL、合成  
 3. **专家层** — RAG / DB / Code / Extractor / Lobster / Admin / 媒体 …  
 
-升级与面试进度见 [`docs/Agent集群升级与面试对照.md`](docs/Agent集群升级与面试对照.md)（工程主轴已收口；口述轨继续）。控制面细节见 [`Manage-platform_Agent/doc/企业级控制面升级方案.md`](Manage-platform_Agent/doc/企业级控制面升级方案.md)（P3-CP 默认不开）。
+升级与面试进度见 [`docs/Agent集群升级与面试对照.md`](docs/Agent集群升级与面试对照.md)（工程主轴已收口；口述轨继续）。下一波能力见 [`docs/Agent集群下一波升级-结构与新专家.md`](docs/Agent集群下一波升级-结构与新专家.md)；2026 热度与企业三轴（可维护/可扩展/安全）见 [`docs/Agent前沿热度与企业级竞争力升级.md`](docs/Agent前沿热度与企业级竞争力升级.md)（含 **E1 爆炸半径**、**E5.2 服务身份**、**E7 Agent 形态日志**）。控制面细节见 [`Manage-platform_Agent/doc/企业级控制面升级方案.md`](Manage-platform_Agent/doc/企业级控制面升级方案.md)（P3-CP 默认不开）。
 
 媒体理解（multimodal）与作曲 / 文生视频由总管 **直连** 对应服务，不强制经多模态二次转发。
 
@@ -148,9 +148,7 @@ cd Manager_Agent && npm i && cp .env.example .env && npm run dev
 | 目录 | 星曜 | 端口 | 一句话 |
 |------|------|------|--------|
 | [AI_Agent](AI_Agent/README.md) | **太阴** | 后端常见 **8080** | 实时语音数字人（ASR → 对话 → TTS） |
-| [Companion_Agent](Companion_Agent/README.md) | — | **13115** | GAL + 多角色小镇 |
 | [Tavern_Agent](Tavern_Agent/README.md) | **天府** | **13109** | 酒品 × 角色行为矩阵人格 Demo |
-| [Campus_Agent](Campus_Agent/README.md) | — | **13116** / 前端 **5176** | 高考前校园模拟 |
 
 ### shared
 
@@ -169,7 +167,7 @@ cd Manager_Agent && npm i && cp .env.example .env && npm run dev
 | 浏览器操作 | `Lobster_Agent` |
 | 办公助理 | `AI_admin_Agent` |
 | 短视频 | `Video_Agent`（常联动 `Music_Agent`） |
-| 数字人 / 互动玩法 | `AI_Agent` / `Companion_Agent` / `Tavern_Agent` / `Campus_Agent` |
+| 数字人 / 互动玩法 | `AI_Agent` / `Tavern_Agent` |
 | 内网一键拉起 | `Manage-platform_Agent` |
 
 ---
@@ -210,9 +208,7 @@ agent/
 ├── Music_Agent/             # 13110
 ├── Video_Agent/             # 13111
 ├── AI_Agent/                # 数字人
-├── Companion_Agent/         # 13115
 ├── Tavern_Agent/            # 13109
-├── Campus_Agent/            # 13116
 ├── Manage-platform_Agent/   # Compose + 控制台
 ├── shared/
 ├── scripts/

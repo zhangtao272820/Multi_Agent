@@ -1,0 +1,44 @@
+{
+  "schemaSearchKeywords": [
+    "突发事件",
+    "Cultivate_Examination",
+    "老人库",
+    "PC_OldPeople",
+    "学生档案",
+    "Sys_Student",
+    "Sys_User",
+    "Sys_Menu"
+  ],
+  "hints": [
+    {
+      "id": "emergency_exam",
+      "scope": "突发事件、事件管理、事件名称、目前有几个突发事件、分别是什么",
+      "text": "主表 Cultivate_Examination（表注释：突发事件）。列表用 Name（名称）、Type（事件类型）。问数量且问分别是什么时 SELECT Name, Type，不要只 COUNT。StartTime/EndTime/IsOpen 多为 NULL：「目前」不要加时间窗或 IsOpen=1，否则会变成 0 行。答题记录是 Cultivate_ExaminationAnswerRecord，不是事件清单。"
+    },
+    {
+      "id": "old_people",
+      "scope": "老人库、老人档案、老人数量、护理级别、入住",
+      "text": "候选库用 PC_OldPeople。PC_SignedOldPeople 仅在用户明确说签约/已入住时使用（两表注释都叫老人库，未说签约不要选 Signed）。"
+    },
+    {
+      "id": "student_roster",
+      "scope": "学生人数、学生档案、花名册、学号、姓名、学生表现、分组学生",
+      "text": "学生花名册主表 Sys_Student（Name 姓名、Code 学号）。分组内学生 PC_PersonGroupItem；表现分 PC_StudentPerformance。考试参与 Cultivate_ExaminationUser。未说分组/表现/考试时优先 Sys_Student。"
+    },
+    {
+      "id": "sys_assistant",
+      "scope": "用户、账号、角色、菜单、权限、部门、字典、房间",
+      "text": "登录用户 Sys_User（UserTrueName/UserName/RoleName/Enable），禁止查询 UserPwd。角色 Sys_Role，菜单 Sys_Menu，部门 Sys_Department，字典 Sys_Dictionary+Sys_DictionaryList，房间 Sys_Room。不要用 Sys_Log/Sys_TableInfo/工作流表，除非用户明确问日志或代码生成。"
+    },
+    {
+      "id": "org_cycle",
+      "scope": "养老机构、床位、在院、运营周期、团队分组",
+      "text": "机构 PC_Company；建造 PC_CompanyBuild；团队 PC_PersonGroup / PC_PersonGroupItem；运营周期 PC_OperatingCycle*。"
+    },
+    {
+      "id": "question_bank",
+      "scope": "题库、试题、视频资源、VR、突发事件绑题库",
+      "text": "题库 PC_QuestionBank，试题 PC_Question，资源 PC_QuestionResource。突发事件与题库对照 Cultivate_ExaminationXQuestionBank（ExaminationId + QuestionBankId）。"
+    }
+  ]
+}

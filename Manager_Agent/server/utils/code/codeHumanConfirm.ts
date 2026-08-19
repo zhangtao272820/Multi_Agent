@@ -7,6 +7,7 @@ import {
   gateCopy,
   resolveRiskExecutionPolicy
 } from '../../graph/core/policy/riskExecutionPolicy'
+import { mintHitlConfirmToken } from '#agent-shared/agentServiceAuth'
 
 export type CodeEditPreview = {
   files?: string[]
@@ -125,11 +126,15 @@ export async function requestCodeEditHumanConfirm(input: {
   if (!runId) return true
   const confirmId = crypto.randomUUID()
   const copy = buildCodeEditConfirmMessage(input.preview, input.task)
-  input.sendThinking?.(`Code Agent：${gateCopy('action')}，等待您确认…`)
+  const confirmToken = mintHitlConfirmToken(runId, confirmId)
+  input.sendThinking?.(
+    `Code Agent：${gateCopy('action')}（${riskPolicy.blast_radius.toUpperCase()}），等待您确认…`
+  )
   input.sendEvent?.({
     event: 'human_confirm_request',
     data: {
       confirmId,
+      confirm_token: confirmToken,
       title: copy.title,
       message: `${gateCopy('action')}\n${copy.message}`,
       agent: 'code',
@@ -138,7 +143,8 @@ export async function requestCodeEditHumanConfirm(input: {
       diffStat: input.preview.diff_stat,
       unifiedDiff: String(input.preview.unified_diff || '').slice(0, 8000),
       branch: input.preview.branch,
-      riskTier: riskPolicy.tier
+      riskTier: riskPolicy.tier,
+      blast_radius: riskPolicy.blast_radius
     },
     from: 'manager',
   })

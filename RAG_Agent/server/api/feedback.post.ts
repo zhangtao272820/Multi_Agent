@@ -63,13 +63,19 @@ export default defineEventHandler(async (event) => {
     comment: String(body?.comment ?? "").trim().slice(0, 300) || undefined,
     path: String(body?.path ?? "document_query").trim() || "document_query",
     source: String(body?.source ?? artifact?.source_labels?.[0] ?? "").trim() || undefined,
+    sessionId: sessionId || undefined,
+    userMessageIndex: userMessageIndex ?? undefined,
+    runId: runId || undefined,
   });
 
   const artifactAction = await handleRagAgentFeedback({ score, question, runId, artifact });
   await refreshArtifactPrefsCache(true);
 
   if (score === -1 && getRagAgentEnv().enablePromptEvolution) {
-    evolveFromNegativeFeedback(question, String(body?.comment ?? ""));
+    evolveFromNegativeFeedback(question, String(body?.comment ?? ""), {
+      sessionId: sessionId || undefined,
+      userMessageIndex: userMessageIndex ?? undefined,
+    });
   }
 
   if (sessionId) {

@@ -647,24 +647,10 @@ export const createAgent = async () => {
     const toolMessages = state.messages.filter((m) => m instanceof ToolMessage);
     const lastToolMessage = toolMessages[toolMessages.length - 1];
     const raw = String(lastToolMessage?.content ?? "").trim();
-    const humanMessages = state.messages.filter((m) => m instanceof HumanMessage);
-    const question = String(humanMessages[humanMessages.length - 1]?.content ?? "").trim();
     if (!raw) {
       return { messages: [new AIMessage({ content: "已完成操作，但未返回可用内容。" })] };
     }
-    const presenter = createRagChatOpenAI({
-      modelName: chatModelName(),
-      streaming: true,
-    });
-    const response = await withRetry(() =>
-      presenter.invoke([
-        new SystemMessage(
-          "你是文档助手。根据工具返回结果，用自然、简洁的中文直接回答用户，不要提 Skill、路由或工具名称。"
-        ),
-        new HumanMessage(`用户问题：${question || "（无）"}\n\n工具结果：${raw}`),
-      ])
-    );
-    return { messages: [response] };
+    return { messages: [new AIMessage({ content: raw })] };
   };
 
   const generateNode = async (state: typeof GraphState.State) => {

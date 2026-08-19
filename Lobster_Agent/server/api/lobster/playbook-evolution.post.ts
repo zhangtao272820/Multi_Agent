@@ -41,6 +41,17 @@ export default defineEventHandler(async (event) => {
     })
     return { ok: Boolean(rec), record: rec }
   }
+  if (action === 'supersede') {
+    const { supersedePlaybooksForRun } = await import('../../services/lobsterPlaybookEvolution')
+    return {
+      ok: true,
+      ...supersedePlaybooksForRun({
+        runId: String(body?.runId || ''),
+        sessionId: String(body?.sessionId || ''),
+        reason: String(body?.reason || 'withdraw'),
+      }),
+    }
+  }
   if (action === 'verify') {
     return verifyLobsterPlaybookStructure({
       host: String(body?.host || ''),

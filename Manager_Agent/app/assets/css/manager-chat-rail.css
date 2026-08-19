@@ -308,9 +308,9 @@
   justify-content: center;
   font-size: 11px;
   font-weight: 800;
-  color: #c7d2fe;
-  background: rgba(99, 102, 241, 0.22);
-  border: 1px solid rgba(165, 180, 252, 0.25);
+  color: #0a4a86;
+  background: rgba(47, 127, 209, 0.14);
+  border: 1px solid rgba(47, 127, 209, 0.4);
 }
 
 .spring-root.cursor-workbench .conv-plan-preview-item {

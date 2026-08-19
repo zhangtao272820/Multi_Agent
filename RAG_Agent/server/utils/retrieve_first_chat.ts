@@ -11,7 +11,7 @@ import type { EvidenceItem } from "./retrieval_shared";
 import { parseClarifyMessageFromTool } from "./retrieval_shared";
 import { getUploadedDocuments } from "./vectorStore";
 import { getRagRequestIntent, type RagIntentJudgment } from "./doc_scope_judge";
-import { getRagMergedUnderstand } from "./retrieval_context";
+import { getRagMergedUnderstand, getRagPrefetchedUnderstand } from "./retrieval_context";
 import { heuristicRagQueryPlan, isMultiPartRagQuery, resolveCompoundSubQueries } from "./query_plan";
 import { evidenceCoversSubQueries } from "./retrieval_shared";
 import {
@@ -140,10 +140,7 @@ export function explainRetrieveFirstSkip(input: RetrieveFirstChatInput): Retriev
   if (intent?.is_chitchat) return "chitchat";
   if (intent && intent.route_action !== "document_query") return "not_document_query";
   if (intent && intent.missing_documents.length > 0) return "missing_documents";
-  if (
-    env.enableAgenticToolLoop &&
-    (intent?.retrieval_mode === "agentic" || intent?.is_completeness_query)
-  ) {
+  if (env.enableAgenticToolLoop && intent?.is_completeness_query) {
     return "agentic_mode";
   }
 
@@ -265,16 +262,18 @@ export async function runRetrieveFirstChatStream(
   const intent = resolvePreflight(input);
   const dialogContext = buildDialogFromRetrieveInput(input);
   const mergedUnderstand = getRagMergedUnderstand();
+  const prefetched = getRagPrefetchedUnderstand();
   const hasDialogContext = Boolean(dialogContext.recentDialog || dialogContext.sessionSummary);
   let catalogPlan = enrichHeuristicPlanWithCatalog(
-    heuristicRagQueryPlan(queryForRetrieval),
-    queryForRetrieval,
+    prefetched?.plan ?? heuristicRagQueryPlan(queryForRetrieval),
+    prefetched?.leanQuery || queryForRetrieval,
     docs,
   );
-  let catalogSource: "llm" | "heuristic" = "heuristic";
-  let catalogLean = queryForRetrieval;
-  const compoundSubs = resolveCompoundSubQueries(catalogPlan, queryForRetrieval);
+  let catalogSource: "llm" | "heuristic" = prefetched ? "llm" : "heuristic";
+  let catalogLean = (prefetched?.leanQuery || queryForRetrieval).trim() || queryForRetrieval;
+  const compoundSubs = resolveCompoundSubQueries(catalogPlan, catalogLean);
   if (
+    !prefetched &&
     isCatalogGroundedPlanEnabled() &&
     shouldUseCatalogLlmPlan({
       docCount: docs.length,
@@ -283,6 +282,7 @@ export async function runRetrieveFirstChatStream(
       heuristicConfidence: catalogPlan.confidence,
       subQueryCount: compoundSubs.length,
       intent: catalogPlan.intent,
+      prefetched: false,
     })
   ) {
     const grounded = await buildCatalogGroundedQueryPlan(queryForRetrieval, {
@@ -312,7 +312,8 @@ export async function runRetrieveFirstChatStream(
     !env.enableQueryCondense ||
     intent?.needs_condense === false ||
     mergedUnderstand?.source === "llm" ||
-    Boolean(mergedUnderstand?.coalesced);
+    Boolean(mergedUnderstand?.coalesced) ||
+    Boolean(prefetched);
   const modesToTry = buildModeEscalation(initialMode, {
     corpusSize: docs.length,
     smallCorpusTurboMaxDocs: env.smallCorpusTurboMaxDocs,
@@ -531,9 +532,6 @@ export async function runRetrieveFirstChatStream(
   emitGeneratePhase(focusedEvidence);
   onEvent({ type: "tool_output", name: "document_query", output: toolOutput });
 
-  // 多文档：先不流式出稿，便于「未提及」假阴性时再检一次再展示最终答
-  const deferStreamForMissRetry = docs.length >= 2 && env.enableAgenticRetrieval;
-  let streamedFinal = (skipEvidenceFocus || isMultiPartFinal) && !deferStreamForMissRetry;
   const questionForGenerate = buildGenerateQuestionForRag({
     rawQuestion: input.sanitizedMessage,
     effectiveQuery: retrieval.effectiveQuery || input.sanitizedMessage,
@@ -543,17 +541,10 @@ export async function runRetrieveFirstChatStream(
     contextText,
     questionForGenerate,
     onEvent,
-    streamedFinal,
+    true,
   );
   let answer = draftAnswer.trim();
-  if (!skipEvidenceFocus || isMultiPartFinal || answerLooksLikeRetrievalMiss(answer)) {
-    answer = await finalizeRagAnswerWithEvidenceGuard({
-      question: input.sanitizedMessage,
-      effectiveQuery: retrieval.effectiveQuery || input.sanitizedMessage,
-      evidence: focusedEvidence,
-      draftAnswer,
-    });
-  }
+  let streamedFinal = true;
 
   let falseNegativeRetried = false;
   if (
@@ -647,16 +638,17 @@ export async function runRetrieveFirstChatStream(
         draftAnswer = retryGen.answer;
         usage = retryGen.usage;
         answer = draftAnswer.trim();
-        if (answerLooksLikeRetrievalMiss(answer)) {
-          answer = await finalizeRagAnswerWithEvidenceGuard({
-            question: input.sanitizedMessage,
-            effectiveQuery: retrieval.effectiveQuery || retryQuery,
-            evidence: focusedEvidence,
-            draftAnswer,
-          });
-        }
       }
     }
+  }
+
+  if (!skipEvidenceFocus || isMultiPartFinal || answerLooksLikeRetrievalMiss(answer)) {
+    answer = await finalizeRagAnswerWithEvidenceGuard({
+      question: input.sanitizedMessage,
+      effectiveQuery: retrieval.effectiveQuery || input.sanitizedMessage,
+      evidence: focusedEvidence,
+      draftAnswer: answer,
+    });
   }
 
   if (!streamedFinal && answer.trim()) {

@@ -1,0 +1,52 @@
+[
+  {
+    "when": "突发事件试题/题目/选项",
+    "sql": "Cultivate_Examination.ExaminationId = Cultivate_ExaminationItem.ExaminationId",
+    "tables": ["Cultivate_Examination", "Cultivate_ExaminationItem"]
+  },
+  {
+    "when": "考试学生/谁参加突发事件",
+    "sql": "Cultivate_Examination.ExaminationId = Cultivate_ExaminationUser.ExaminationId",
+    "tables": ["Cultivate_Examination", "Cultivate_ExaminationUser"]
+  },
+  {
+    "when": "突发事件绑定题库/绑定了哪些题库/绑题库",
+    "sql": "Cultivate_Examination.ExaminationId = Cultivate_ExaminationXQuestionBank.ExaminationId AND Cultivate_ExaminationXQuestionBank.QuestionBankId = PC_QuestionBank.QuestionBankId",
+    "tables": ["Cultivate_Examination", "Cultivate_ExaminationXQuestionBank", "PC_QuestionBank"]
+  },
+  {
+    "when": "题库里的试题/题库试题/哪些试题",
+    "sql": "PC_QuestionBank.QuestionBankId = PC_Question.QuestionBankId",
+    "tables": ["PC_QuestionBank", "PC_Question"]
+  },
+  {
+    "when": "团队成员/组内学生/分组学生/分组里/各组成员",
+    "sql": "PC_PersonGroup.PersonGroupId = PC_PersonGroupItem.PersonGroupId",
+    "tables": ["PC_PersonGroup", "PC_PersonGroupItem"]
+  },
+  {
+    "when": "分组学生对照花名册",
+    "sql": "PC_PersonGroupItem.StudentId = Sys_Student.Id",
+    "tables": ["PC_PersonGroupItem", "Sys_Student"]
+  },
+  {
+    "when": "学生账号/登录名",
+    "sql": "Sys_Student.UserId = Sys_User.User_Id",
+    "tables": ["Sys_Student", "Sys_User"]
+  },
+  {
+    "when": "用户角色",
+    "sql": "Sys_User.Role_Id = Sys_Role.Role_Id",
+    "tables": ["Sys_User", "Sys_Role"]
+  },
+  {
+    "when": "老人房间/房号",
+    "sql": "PC_OldPeople.RoomId = Sys_Room.ID",
+    "tables": ["PC_OldPeople", "Sys_Room"]
+  },
+  {
+    "when": "机构建造/床位",
+    "sql": "PC_Company.CompanyId = PC_CompanyBuild.CompanyId",
+    "tables": ["PC_Company", "PC_CompanyBuild"]
+  }
+]

@@ -127,6 +127,8 @@ export type LogItem = {
   planOutline?: { dag?: string; steps: PlanStepTodo[] }
   /** 本轮发送时的协作姿态（Ask/Plan/Agent/Debug） */
   collaborationPosture?: CollaborationPosture
+  /** 编排建议切到的姿态（来自 plan_preview.suggestedPosture） */
+  suggestedPosture?: CollaborationPosture
   /** 姿态门禁原因，如 debug_no_observation / write_filtered */
   postureBlocked?: string
   postureReadOnly?: boolean

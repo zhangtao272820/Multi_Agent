@@ -1,0 +1,50 @@
+{
+  "Cultivate_Examination.Type": {
+    "1": "文本",
+    "2": "视频"
+  },
+  "Cultivate_Examination.IsOpen": {
+    "0": "否",
+    "1": "是"
+  },
+  "Cultivate_Examination.IsClosed": {
+    "0": "否",
+    "1": "是"
+  },
+  "Cultivate_Examination.IsIssue": {
+    "0": "否",
+    "1": "是"
+  },
+  "Cultivate_ExaminationAnswerRecord.OperationType": {
+    "1": "随堂练习",
+    "2": "模拟考试"
+  },
+  "PC_PersonGroup.Status": {
+    "1": "筹建",
+    "2": "试运营",
+    "3": "正式"
+  },
+  "PC_Number.Type": {
+    "1": "声望值"
+  },
+  "Sys_User.Enable": {
+    "0": "否",
+    "1": "是"
+  },
+  "Sys_Student.IsEnable": {
+    "0": "否",
+    "1": "是"
+  },
+  "PC_Question.IsEnable": {
+    "0": "否",
+    "1": "是"
+  },
+  "PC_QuestionBank.IsEnable": {
+    "0": "否",
+    "1": "是"
+  },
+  "PC_Semester.IsActive": {
+    "0": "否",
+    "1": "是"
+  }
+}

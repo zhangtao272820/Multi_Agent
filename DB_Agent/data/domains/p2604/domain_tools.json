@@ -1,0 +1,6 @@
+{
+  "tables": {
+    "person_info": "PC_OldPeople"
+  },
+  "health_link_columns": ["OldPeopleId", "StudentId", "UserId", "PersonGroupId", "ExaminationId"]
+}

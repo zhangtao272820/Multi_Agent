@@ -19,7 +19,7 @@ from app.core.admin_env_modes import (
 )
 
 PatchStage = Literal["routing", "planning", "executing", "verifying"]
-PatchSource = Literal["audit", "tool_failure", "reflection", "manual"]
+PatchSource = Literal["audit", "tool_failure", "reflection", "manual", "feedback"]
 
 STAGE_SKILL_MAP: dict[PatchStage, str] = {
     "routing": "intent_routing",
@@ -91,6 +91,12 @@ class PromptPatch:
     promoted_at: str | None = None
     promoted_hint_id: str | None = None
     promoted_skill: str | None = None
+    session_id: str = ""
+    user_message_index: int | None = None
+    run_id: str = ""
+    voided: bool = False
+    voided_at: str | None = None
+    void_reason: str | None = None
 
 
 @dataclass
@@ -130,6 +136,20 @@ def _load_shadow() -> list[PromptPatch]:
                     promoted_at=row.get("promoted_at") or row.get("promotedAt"),
                     promoted_hint_id=row.get("promoted_hint_id") or row.get("promotedHintId"),
                     promoted_skill=row.get("promoted_skill") or row.get("promotedSkill"),
+                    session_id=str(row.get("session_id") or row.get("sessionId") or ""),
+                    user_message_index=(
+                        int(row["user_message_index"])
+                        if row.get("user_message_index") is not None
+                        else (
+                            int(row["userMessageIndex"])
+                            if row.get("userMessageIndex") is not None
+                            else None
+                        )
+                    ),
+                    run_id=str(row.get("run_id") or row.get("runId") or ""),
+                    voided=bool(row.get("voided")),
+                    voided_at=row.get("voided_at") or row.get("voidedAt"),
+                    void_reason=row.get("void_reason") or row.get("voidReason"),
                 )
             )
         return out
@@ -183,6 +203,9 @@ def append_prompt_patch(
     source: PatchSource = "reflection",
     tool_name: str = "",
     code: str = "",
+    session_id: str = "",
+    user_message_index: int | None = None,
+    run_id: str = "",
 ) -> None:
     if not _evolution_enabled():
         return
@@ -196,14 +219,26 @@ def append_prompt_patch(
         (
             p
             for p in patches
-            if not p.promoted_at and p.stage == stage and p.text == t and p.code == (code or "")
+            if not p.promoted_at
+            and not p.voided
+            and p.stage == stage
+            and p.text == t
+            and p.code == (code or "")
         ),
         None,
     )
     now = datetime.now(timezone.utc).isoformat()
+    sid = str(session_id or "").strip()
+    rid = str(run_id or "").strip()
     if dup:
         dup.hits += 1
         dup.ts = now
+        if sid:
+            dup.session_id = sid
+        if user_message_index is not None:
+            dup.user_message_index = int(user_message_index)
+        if rid:
+            dup.run_id = rid
     else:
         patches.append(
             PromptPatch(
@@ -214,9 +249,58 @@ def append_prompt_patch(
                 source=source,
                 tool_name=tool_name or "",
                 code=code or "",
+                session_id=sid,
+                user_message_index=user_message_index,
+                run_id=rid,
             )
         )
     _save_shadow(patches)
+
+
+def supersede_prompt_patches_for_revision(
+    *,
+    session_id: str,
+    user_message_index: int | None = None,
+    from_user_message_index: int | None = None,
+    reason: str = "withdraw",
+) -> dict[str, Any]:
+    """撤回 / 重新生成 / 编辑重发：作废同会话反馈类影子补丁（对齐总管）。"""
+    sid = str(session_id or "").strip()
+    if not sid:
+        return {"voided": 0}
+    uidx = int(user_message_index) if user_message_index is not None else None
+    from_idx = (
+        int(from_user_message_index)
+        if from_user_message_index is not None
+        else (uidx if reason == "withdraw" and uidx is not None else None)
+    )
+    patches = _load_shadow()
+    voided = 0
+    now = datetime.now(timezone.utc).isoformat()
+    for p in patches:
+        if p.voided or p.promoted_at:
+            continue
+        if str(p.session_id or "") != sid:
+            continue
+        if p.source != "feedback":
+            continue
+        sig_idx = p.user_message_index if isinstance(p.user_message_index, int) else None
+        same_turn = uidx is not None and sig_idx == uidx
+        from_turn = from_idx is not None and sig_idx is not None and sig_idx >= from_idx
+        withdraw_legacy = reason == "withdraw" and from_idx is not None and sig_idx is None
+        if not same_turn and not from_turn and not withdraw_legacy:
+            continue
+        p.voided = True
+        p.voided_at = now
+        p.void_reason = reason
+        voided += 1
+    if voided:
+        _save_shadow(patches)
+    return {"voided": voided}
+
+
+def live_shadow_patches() -> list[PromptPatch]:
+    return [p for p in _load_shadow() if not p.voided]
 
 
 # 失败码 → 建议补丁（大步：覆盖 admin 常见失败域）
@@ -271,7 +355,7 @@ def get_prompt_patches_for_stage(stage: PatchStage, max_items: int = 4) -> str:
         return ""
     evolved = [h for h in _load_evolved() if h.stage == stage][-3:]
     shadow = sorted(
-        [p for p in _load_shadow() if not p.promoted_at and p.stage == stage],
+        [p for p in _load_shadow() if not p.promoted_at and not p.voided and p.stage == stage],
         key=lambda p: -p.hits,
     )[:max_items]
     lines: list[str] = []
@@ -285,7 +369,7 @@ def get_prompt_patches_for_stage(stage: PatchStage, max_items: int = 4) -> str:
 
 
 def list_prompt_patches() -> list[dict[str, Any]]:
-    return [asdict(p) for p in _load_shadow()]
+    return [asdict(p) for p in _load_shadow() if not p.voided]
 
 
 def list_promotable_patches(min_hits: int | None = None) -> list[dict[str, Any]]:
@@ -293,7 +377,7 @@ def list_promotable_patches(min_hits: int | None = None) -> list[dict[str, Any]]
     return [
         asdict(p)
         for p in _load_shadow()
-        if not p.promoted_at and p.hits >= th and _stage_evolution_allowed(p.stage)
+        if not p.promoted_at and not p.voided and p.hits >= th and _stage_evolution_allowed(p.stage)
     ]
 
 
@@ -302,7 +386,7 @@ def list_evolved_hints() -> list[dict[str, Any]]:
 
 
 def get_prompt_evolution_summary() -> dict[str, Any]:
-    patches = _load_shadow()
+    patches = [p for p in _load_shadow() if not p.voided]
     th = promote_min_hits()
     return {
         "shadowCount": len([p for p in patches if not p.promoted_at]),
@@ -346,6 +430,8 @@ def promote_prompt_patch(patch_id: str) -> dict[str, Any]:
     patch = next((p for p in patches if p.id == patch_id), None)
     if not patch:
         return {"ok": False, "reason": "patch_not_found"}
+    if patch.voided:
+        return {"ok": False, "reason": "patch_voided"}
     if patch.promoted_at:
         return {"ok": False, "reason": "already_promoted"}
     if not _stage_evolution_allowed(patch.stage):

@@ -1,0 +1,3187 @@
+{
+  "tables": [
+    {
+      "name": "Cultivate_Examination",
+      "comment": "突发事件",
+      "cols": [
+        {
+          "name": "ExaminationId",
+          "comment": ""
+        },
+        {
+          "name": "Name",
+          "comment": "名称"
+        },
+        {
+          "name": "StartTime",
+          "comment": "开始时间"
+        },
+        {
+          "name": "EndTime",
+          "comment": "结束时间"
+        },
+        {
+          "name": "Duration",
+          "comment": "考试时长"
+        },
+        {
+          "name": "IsOpen",
+          "comment": "是否开放考试"
+        },
+        {
+          "name": "IsViewResolution",
+          "comment": "是否允许查看试题解析"
+        },
+        {
+          "name": "IsClosed",
+          "comment": "是否已关闭考卷"
+        },
+        {
+          "name": "Modifier",
+          "comment": ""
+        },
+        {
+          "name": "ModifyDate",
+          "comment": ""
+        },
+        {
+          "name": "ModifyID",
+          "comment": ""
+        },
+        {
+          "name": "CreateDate",
+          "comment": ""
+        },
+        {
+          "name": "CreateID",
+          "comment": ""
+        },
+        {
+          "name": "Creator",
+          "comment": ""
+        },
+        {
+          "name": "TotalScore",
+          "comment": "总分"
+        },
+        {
+          "name": "IsEnable",
+          "comment": ""
+        },
+        {
+          "name": "ResourceId",
+          "comment": "资源Id"
+        },
+        {
+          "name": "Type",
+          "comment": "事件类型"
+        },
+        {
+          "name": "IsIssue",
+          "comment": "是否下发"
+        }
+      ]
+    },
+    {
+      "name": "Cultivate_ExaminationAnswerRecord",
+      "comment": "突发事件答题记录",
+      "cols": [
+        {
+          "name": "Id",
+          "comment": ""
+        },
+        {
+          "name": "ExaminationId",
+          "comment": ""
+        },
+        {
+          "name": "QuestionId",
+          "comment": "试题Id"
+        },
+        {
+          "name": "OperationType",
+          "comment": "操作类型：（随堂练习：1，模拟考试：2）"
+        },
+        {
+          "name": "UserId",
+          "comment": ""
+        },
+        {
+          "name": "UserName",
+          "comment": "学生姓名"
+        },
+        {
+          "name": "ExaminationScore",
+          "comment": "试题分数"
+        },
+        {
+          "name": "CorrectScore",
+          "comment": "得分"
+        },
+        {
+          "name": "QuestionType",
+          "comment": "题型"
+        },
+        {
+          "name": "Description",
+          "comment": "问题描述"
+        },
+        {
+          "name": "EnterAnswer",
+          "comment": "输入答案"
+        },
+        {
+          "name": "CorrectAnswer",
+          "comment": "正确答案"
+        },
+        {
+          "name": "CreateDate",
+          "comment": "创建时间"
+        },
+        {
+          "name": "CreateID",
+          "comment": ""
+        },
+        {
+          "name": "Creator",
+          "comment": "创建人"
+        },
+        {
+          "name": "ExaminationItemId",
+          "comment": ""
+        }
+      ]
+    },
+    {
+      "name": "Cultivate_ExaminationItem",
+      "comment": "突发事件试题",
+      "cols": [
+        {
+          "name": "ExaminationItemId",
+          "comment": ""
+        },
+        {
+          "name": "ExaminationId",
+          "comment": ""
+        },
+        {
+          "name": "VideoPlaybackDuration",
+          "comment": ""
+        },
+        {
+          "name": "Modifier",
+          "comment": ""
+        },
+        {
+          "name": "ModifyDate",
+          "comment": ""
+        },
+        {
+          "name": "ModifyID",
+          "comment": ""
+        },
+        {
+          "name": "CreateDate",
+          "comment": ""
+        },
+        {
+          "name": "CreateID",
+          "comment": ""
+        },
+        {
+          "name": "Creator",
+          "comment": ""
+        },
+        {
+          "name": "Score",
+          "comment": "试题分数"
+        },
+        {
+          "name": "QuestionType",
+          "comment": "题型：（单选、多选、判断、仿真实验）"
+        },
+        {
+          "name": "QuestionDescription",
+          "comment": "描述"
+        },
+        {
+          "name": "QuestionAnalysis",
+          "comment": "试题解析"
+        },
+        {
+          "name": "CorrectAnswer",
+          "comment": "正确答案"
+        },
+        {
+          "name": "Option",
+          "comment": "选择题选项"
+        },
+        {
+          "name": "EncCorrectAnswer",
+          "comment": "加密正确答案"
+        },
+        {
+          "name": "QuestionId",
+          "comment": ""
+        }
+      ]
+    },
+    {
+      "name": "Cultivate_ExaminationReport",
+      "comment": "",
+      "cols": [
+        {
+          "name": "Id",
+          "comment": ""
+        },
+        {
+          "name": "ExaminationUserId",
+          "comment": "考试绑定考生表主键"
+        },
+        {
+          "name": "ExaminationName",
+          "comment": "试卷名称"
+        },
+        {
+          "name": "StartTime",
+          "comment": "开始时间"
+        },
+        {
+          "name": "EndTime",
+          "comment": "结束时间"
+        },
+        {
+          "name": "Duartion",
+          "comment": "耗时"
+        },
+        {
+          "name": "TotalScore",
+          "comment": "本次得分"
+        },
+        {
+          "name": "AnswerCount",
+          "comment": "答题数量"
+        },
+        {
+          "name": "Times",
+          "comment": "第几次练习"
+        },
+        {
+          "name": "StudentId",
+          "comment": "学生Id"
+        },
+        {
+          "name": "StudentName",
+          "comment": "学生姓名"
+        },
+        {
+          "name": "ExaminationType",
+          "comment": "试卷类型"
+        },
+        {
+          "name": "PersonGroupId",
+          "comment": "团队主键"
+        },
+        {
+          "name": "PersonGroupName",
+          "comment": "团队名称"
+        },
+        {
+          "name": "Grade",
+          "comment": "班级"
+        },
+        {
+          "name": "GradeValue",
+          "comment": "班级名称"
+        }
+      ]
+    },
+    {
+      "name": "Cultivate_ExaminationUser",
+      "comment": "考试学生",
+      "cols": [
+        {
+          "name": "Id",
+          "comment": ""
+        },
+        {
+          "name": "ExaminationId",
+          "comment": "考试Id"
+        },
+        {
+          "name": "StudentId",
+          "comment": "学生Id"
+        },
+        {
+          "name": "StudentName",
+          "comment": "学号"
+        },
+        {
+          "name": "StudentTrueName",
+          "comment": "学生姓名"
+        },
+        {
+          "name": "Modifier",
+          "comment": "修改人"
+        },
+        {
+          "name": "ModifyDate",
+          "comment": "修改时间"
+        },
+        {
+          "name": "ModifyID",
+          "comment": "修改人Id"
+        },
+        {
+          "name": "CreateDate",
+          "comment": "创建时间"
+        },
+        {
+          "name": "CreateID",
+          "comment": "创建人Id"
+        },
+        {
+          "name": "Creator",
+          "comment": "创建人"
+        },
+        {
+          "name": "Duration",
+          "comment": "考试耗时"
+        },
+        {
+          "name": "StartTime",
+          "comment": "开始时间"
+        },
+        {
+          "name": "EndTime",
+          "comment": "结束时间"
+        },
+        {
+          "name": "RoleId",
+          "comment": "角色Id"
+        },
+        {
+          "name": "RoleName",
+          "comment": "角色"
+        },
+        {
+          "name": "PersongroupId",
+          "comment": "分组ID"
+        }
+      ]
+    },
+    {
+      "name": "Cultivate_ExaminationXQuestionBank",
+      "comment": "题库和突发事件关系对照表",
+      "cols": [
+        {
+          "name": "ExaminationXQuestionBankId",
+          "comment": ""
+        },
+        {
+          "name": "ExaminationId",
+          "comment": ""
+        },
+        {
+          "name": "QuestionBankId",
+          "comment": ""
+        }
+      ]
+    },
+    {
+      "name": "Cultivate_ExperimentalExerciseRecord",
+      "comment": "仿真实验练习记录",
+      "cols": [
+        {
+          "name": "Id",
+          "comment": ""
+        },
+        {
+          "name": "ClientCode",
+          "comment": "设备编号"
+        },
+        {
+          "name": "ExperimentalCode",
+          "comment": "仿真实验编号"
+        },
+        {
+          "name": "ExperimentalName",
+          "comment": "仿真实验名称"
+        },
+        {
+          "name": "ExperimentalId",
+          "comment": "仿真实验Id"
+        },
+        {
+          "name": "UserName",
+          "comment": ""
+        },
+        {
+          "name": "UserTrueName",
+          "comment": ""
+        },
+        {
+          "name": "Duration",
+          "comment": "耗时"
+        },
+        {
+          "name": "ExerciseProgress",
+          "comment": "练习进度"
+        },
+        {
+          "name": "StartTime",
+          "comment": "开始时间"
+        },
+        {
+          "name": "EndTime",
+          "comment": "结束时间"
+        },
+        {
+          "name": "Modifier",
+          "comment": ""
+        },
+        {
+          "name": "ModifyDate",
+          "comment": ""
+        },
+        {
+          "name": "ModifyID",
+          "comment": ""
+        },
+        {
+          "name": "CreateDate",
+          "comment": ""
+        },
+        {
+          "name": "CreateID",
+          "comment": ""
+        },
+        {
+          "name": "Creator",
+          "comment": ""
+        },
+        {
+          "name": "OperationMode",
+          "comment": "操作模式"
+        },
+        {
+          "name": "Score",
+          "comment": "得分"
+        },
+        {
+          "name": "PersongroupId",
+          "comment": "分组"
+        },
+        {
+          "name": "Grade",
+          "comment": "班级"
+        }
+      ]
+    },
+    {
+      "name": "Cultivate_ExperimentalExerciseRecordItem",
+      "comment": "虚拟仿真实验记录明显",
+      "cols": [
+        {
+          "name": "ItemId",
+          "comment": ""
+        },
+        {
+          "name": "StepNumber",
+          "comment": "步骤号"
+        },
+        {
+          "name": "StepName",
+          "comment": "步骤名称"
+        },
+        {
+          "name": "StepScore",
+          "comment": "步骤分数"
+        },
+        {
+          "name": "UserName",
+          "comment": "用户"
+        },
+        {
+          "name": "UserTrueName",
+          "comment": "用户名称"
+        },
+        {
+          "name": "CreateDate",
+          "comment": "创建时间"
+        },
+        {
+          "name": "CreateID",
+          "comment": "创建人ID"
+        },
+        {
+          "name": "Creator",
+          "comment": "创建人"
+        },
+        {
+          "name": "Id",
+          "comment": ""
+        },
+        {
+          "name": "ExerciseProgress",
+          "comment": ""
+        }
+      ]
+    },
+    {
+      "name": "PC_BankInfo",
+      "comment": "",
+      "cols": [
+        {
+          "name": "BankId",
+          "comment": ""
+        },
+        {
+          "name": "Name",
+          "comment": "银行名称"
+        },
+        {
+          "name": "LoanType",
+          "comment": "贷款类型"
+        },
+        {
+          "name": "AnnualizedRate",
+          "comment": "年化率"
+        },
+        {
+          "name": "RepaymentMethod",
+          "comment": "还款方式"
+        }
+      ]
+    },
+    {
+      "name": "PC_ClassHourRecord",
+      "comment": "",
+      "cols": [
+        {
+          "name": "ClassHourRecordId",
+          "comment": ""
+        },
+        {
+          "name": "UserId",
+          "comment": "用户Id"
+        },
+        {
+          "name": "UserName",
+          "comment": "用户姓名"
+        },
+        {
+          "name": "ClassTime",
+          "comment": "上课时间"
+        },
+        {
+          "name": "ClassBreakTime",
+          "comment": "下课时间"
+        },
+        {
+          "name": "SemesterId",
+          "comment": "学期ID"
+        },
+        {
+          "name": "Name",
+          "comment": "学期名"
+        },
+        {
+          "name": "StartDate",
+          "comment": "开始时间"
+        },
+        {
+          "name": "EndDate",
+          "comment": "结束时间"
+        },
+        {
+          "name": "Status",
+          "comment": "课程状态"
+        },
+        {
+          "name": "CreateID",
+          "comment": ""
+        },
+        {
+          "name": "Creator",
+          "comment": "创建人"
+        },
+        {
+          "name": "Modifier",
+          "comment": "修改人"
+        },
+        {
+          "name": "ModifyDate",
+          "comment": "修改时间"
+        },
+        {
+          "name": "ModifyID",
+          "comment": ""
+        },
+        {
+          "name": "CreateDate",
+          "comment": "创建时间"
+        }
+      ]
+    },
+    {
+      "name": "PC_Company",
+      "comment": "养老机构",
+      "cols": [
+        {
+          "name": "CompanyId",
+          "comment": ""
+        },
+        {
+          "name": "PersonGroupId",
+          "comment": ""
+        },
+        {
+          "name": "Name",
+          "comment": "机构名称"
+        },
+        {
+          "name": "ServiceScope",
+          "comment": "服务范围"
+        },
+        {
+          "name": "LogoUrl",
+          "comment": "logo"
+        },
+        {
+          "name": "Description",
+          "comment": "企业文化"
+        },
+        {
+          "name": "CreateDate",
+          "comment": "创建时间"
+        },
+        {
+          "name": "CreateID",
+          "comment": ""
+        },
+        {
+          "name": "Creator",
+          "comment": "创建人"
+        },
+        {
+          "name": "Modifier",
+          "comment": "修改人"
+        },
+        {
+          "name": "ModifyDate",
+          "comment": "修改时间"
+        },
+        {
+          "name": "ModifyID",
+          "comment": ""
+        },
+        {
+          "name": "Grade",
+          "comment": "班级"
+        },
+        {
+          "name": "Income",
+          "comment": "收入"
+        },
+        {
+          "name": "Expenses",
+          "comment": "支出"
+        },
+        {
+          "name": "Cash",
+          "comment": "现金"
+        },
+        {
+          "name": "Profit",
+          "comment": "利润"
+        },
+        {
+          "name": "BrandValue",
+          "comment": "品牌值"
+        },
+        {
+          "name": "OperatingCycleDicId",
+          "comment": "运行周期"
+        },
+        {
+          "name": "JsonInfo",
+          "comment": "信息"
+        },
+        {
+          "name": "TotalBedSpace",
+          "comment": "总床位"
+        },
+        {
+          "name": "Residents",
+          "comment": "在院人数"
+        },
+        {
+          "name": "ActiveElderly",
+          "comment": "活力老人"
+        },
+        {
+          "name": "MildlyDisabledElderly",
+          "comment": "轻度失能老人"
+        },
+        {
+          "name": "ModeratelyDisabledElderly",
+          "comment": "中度失能老人"
+        },
+        {
+          "name": "SeverelyDisabledElderly",
+          "comment": "重度失能老人"
+        },
+        {
+          "name": "FullyDisabledElderly",
+          "comment": "完全失能老人"
+        },
+        {
+          "name": "TotalNurse",
+          "comment": "护理总人数"
+        },
+        {
+          "name": "SpecialCare",
+          "comment": "特护"
+        },
+        {
+          "name": "PrivateNursing",
+          "comment": "专护"
+        },
+        {
+          "name": "Area",
+          "comment": "地区"
+        },
+        {
+          "name": "Plot",
+          "comment": "地块"
+        }
+      ]
+    },
+    {
+      "name": "PC_CompanyBuild",
+      "comment": "养老机构建造信息",
+      "cols": [
+        {
+          "name": "CompanyBuildId",
+          "comment": ""
+        },
+        {
+          "name": "CompanyId",
+          "comment": ""
+        },
+        {
+          "name": "PersonGroupId",
+          "comment": ""
+        },
+        {
+          "name": "AddressType",
+          "comment": "机构选址"
+        },
+        {
+          "name": "BuildMethod",
+          "comment": "服务场所性质"
+        },
+        {
+          "name": "ItemJson",
+          "comment": "规模"
+        },
+        {
+          "name": "TotalBedSpace",
+          "comment": "共计床位"
+        },
+        {
+          "name": "TotalArea",
+          "comment": "总面积"
+        },
+        {
+          "name": "CreateID",
+          "comment": ""
+        },
+        {
+          "name": "Creator",
+          "comment": "创建人"
+        },
+        {
+          "name": "Modifier",
+          "comment": "修改人"
+        },
+        {
+          "name": "ModifyDate",
+          "comment": "修改时间"
+        },
+        {
+          "name": "ModifyID",
+          "comment": ""
+        },
+        {
+          "name": "CreateDate",
+          "comment": "创建时间"
+        },
+        {
+          "name": "Area",
+          "comment": "位置"
+        },
+        {
+          "name": "LandUnitPrice",
+          "comment": "土地价格"
+        }
+      ]
+    },
+    {
+      "name": "PC_CompanyItem",
+      "comment": "",
+      "cols": [
+        {
+          "name": "CompanyItemId",
+          "comment": ""
+        },
+        {
+          "name": "CompanyId",
+          "comment": ""
+        },
+        {
+          "name": "PersonGroupId",
+          "comment": ""
+        },
+        {
+          "name": "Grade",
+          "comment": "班级"
+        },
+        {
+          "name": "Income",
+          "comment": "收入"
+        },
+        {
+          "name": "Expenses",
+          "comment": "支出"
+        },
+        {
+          "name": "Cash",
+          "comment": "现金"
+        },
+        {
+          "name": "Profit",
+          "comment": "利润"
+        },
+        {
+          "name": "BrandValue",
+          "comment": "品牌值"
+        },
+        {
+          "name": "OperatingCycleDicId",
+          "comment": "运行周期"
+        },
+        {
+          "name": "TotalBedSpace",
+          "comment": "总床位"
+        },
+        {
+          "name": "Residents",
+          "comment": "在院人数"
+        },
+        {
+          "name": "TotalNurse",
+          "comment": "护理总人数"
+        }
+      ]
+    },
+    {
+      "name": "PC_ElderlyCareStatistics",
+      "comment": "老年人口与养老机构统计表",
+      "cols": [
+        {
+          "name": "ElderlyCareStatisticsId",
+          "comment": ""
+        },
+        {
+          "name": "Year",
+          "comment": "年份"
+        },
+        {
+          "name": "Modifier",
+          "comment": "修改人"
+        },
+        {
+          "name": "ModifyDate",
+          "comment": "修改时间"
+        },
+        {
+          "name": "ModifyID",
+          "comment": ""
+        },
+        {
+          "name": "CreateDate",
+          "comment": "创建时间"
+        },
+        {
+          "name": "CreateID",
+          "comment": ""
+        },
+        {
+          "name": "Creator",
+          "comment": "创建人"
+        }
+      ]
+    },
+    {
+      "name": "PC_ElderlyCareStatisticsItem",
+      "comment": "老年人口与养老机构统计明细表",
+      "cols": [
+        {
+          "name": "ElderlyCareStatisticsItemId",
+          "comment": "主键，自增ID"
+        },
+        {
+          "name": "Region",
+          "comment": "区域名称（如和平区、南开区、全市合计）"
+        },
+        {
+          "name": "TotalPopulationOver60",
+          "comment": "60岁以上总人数，单位：万人"
+        },
+        {
+          "name": "ActiveSelfCare",
+          "comment": "活力自理人数，单位：万人"
+        },
+        {
+          "name": "MildDisability",
+          "comment": "轻度失能人数，单位：万人"
+        },
+        {
+          "name": "ModerateDisability",
+          "comment": "中度失能人数，单位：万人"
+        },
+        {
+          "name": "SevereDisability",
+          "comment": "重度失能人数，单位：万人"
+        },
+        {
+          "name": "CompleteDisability",
+          "comment": "完全失能人数，单位：万人"
+        },
+        {
+          "name": "AgingRate",
+          "comment": "老龄化率，单位：%（如30.12表示30.12%）"
+        },
+        {
+          "name": "NumberOfElderlyInstitutions",
+          "comment": "养老机构数量，单位：所"
+        },
+        {
+          "name": "ElderlyCareStatisticsId",
+          "comment": "主表Id"
+        }
+      ]
+    },
+    {
+      "name": "PC_Info",
+      "comment": "数据存储",
+      "cols": [
+        {
+          "name": "InfoId",
+          "comment": ""
+        },
+        {
+          "name": "PersonGroupId",
+          "comment": ""
+        },
+        {
+          "name": "Class",
+          "comment": ""
+        },
+        {
+          "name": "Grade",
+          "comment": "年级"
+        },
+        {
+          "name": "InfoKey",
+          "comment": "数据类型"
+        },
+        {
+          "name": "Info",
+          "comment": "数据Json"
+        },
+        {
+          "name": "CreateDate",
+          "comment": "创建时间"
+        },
+        {
+          "name": "CreateID",
+          "comment": ""
+        },
+        {
+          "name": "Creator",
+          "comment": "创建人"
+        },
+        {
+          "name": "Modifier",
+          "comment": "修改人"
+        },
+        {
+          "name": "ModifyDate",
+          "comment": "修改时间"
+        },
+        {
+          "name": "ModifyID",
+          "comment": ""
+        },
+        {
+          "name": "OperatingCycleKey",
+          "comment": "运营周期"
+        },
+        {
+          "name": "RoleID",
+          "comment": "角色"
+        }
+      ]
+    },
+    {
+      "name": "PC_Number",
+      "comment": "数值相关（声望值）",
+      "cols": [
+        {
+          "name": "Id",
+          "comment": ""
+        },
+        {
+          "name": "PersonGroupId",
+          "comment": ""
+        },
+        {
+          "name": "Type",
+          "comment": "类型（1、声望值）"
+        },
+        {
+          "name": "Number",
+          "comment": "值"
+        },
+        {
+          "name": "CreateDate",
+          "comment": "创建时间"
+        },
+        {
+          "name": "CreateID",
+          "comment": ""
+        },
+        {
+          "name": "Creator",
+          "comment": "创建人"
+        },
+        {
+          "name": "Modifier",
+          "comment": "修改人"
+        },
+        {
+          "name": "ModifyDate",
+          "comment": "修改时间"
+        },
+        {
+          "name": "ModifyID",
+          "comment": ""
+        }
+      ]
+    },
+    {
+      "name": "PC_NumberLog",
+      "comment": "数值修改记录",
+      "cols": [
+        {
+          "name": "Id",
+          "comment": ""
+        },
+        {
+          "name": "PersonGroupId",
+          "comment": ""
+        },
+        {
+          "name": "NumberId",
+          "comment": ""
+        },
+        {
+          "name": "SourceValue",
+          "comment": ""
+        },
+        {
+          "name": "TargetValue",
+          "comment": ""
+        },
+        {
+          "name": "CreateDate",
+          "comment": "创建时间"
+        },
+        {
+          "name": "CreateID",
+          "comment": ""
+        },
+        {
+          "name": "Creator",
+          "comment": "创建人"
+        },
+        {
+          "name": "Modifier",
+          "comment": "修改人"
+        },
+        {
+          "name": "ModifyDate",
+          "comment": "修改时间"
+        },
+        {
+          "name": "ModifyID",
+          "comment": ""
+        },
+        {
+          "name": "Description",
+          "comment": "描述"
+        }
+      ]
+    },
+    {
+      "name": "PC_OldPeople",
+      "comment": "老人库",
+      "cols": [
+        {
+          "name": "OldPeopleId",
+          "comment": ""
+        },
+        {
+          "name": "Name",
+          "comment": "姓名"
+        },
+        {
+          "name": "Age",
+          "comment": "年龄"
+        },
+        {
+          "name": "Sex",
+          "comment": "性别"
+        },
+        {
+          "name": "Nation",
+          "comment": "民族"
+        },
+        {
+          "name": "Phone",
+          "comment": "电话"
+        },
+        {
+          "name": "Occupation",
+          "comment": "职业"
+        },
+        {
+          "name": "RegionalPreference",
+          "comment": "地区偏好"
+        },
+        {
+          "name": "PerformancePreferences",
+          "comment": "性能偏好"
+        },
+        {
+          "name": "Nursinglevel",
+          "comment": "护理级别"
+        },
+        {
+          "name": "Character",
+          "comment": "性格"
+        },
+        {
+          "name": "Assessment1",
+          "comment": "健康指数"
+        },
+        {
+          "name": "Assessment2",
+          "comment": "认知功能"
+        },
+        {
+          "name": "Assessment3",
+          "comment": "社交活动"
+        },
+        {
+          "name": "Assessment4",
+          "comment": "ADL日常生活能力"
+        },
+        {
+          "name": "Assessment5",
+          "comment": "情绪指数"
+        },
+        {
+          "name": "PersonGroupId",
+          "comment": ""
+        },
+        {
+          "name": "Budget",
+          "comment": "预算"
+        },
+        {
+          "name": "CreateID",
+          "comment": ""
+        },
+        {
+          "name": "Creator",
+          "comment": "创建人"
+        },
+        {
+          "name": "Modifier",
+          "comment": "修改人"
+        },
+        {
+          "name": "ModifyDate",
+          "comment": "修改时间"
+        },
+        {
+          "name": "ModifyID",
+          "comment": ""
+        },
+        {
+          "name": "CreateDate",
+          "comment": "创建时间"
+        },
+        {
+          "name": "RoomId",
+          "comment": "房间号"
+        },
+        {
+          "name": "MaritalStatus",
+          "comment": "婚姻状况"
+        },
+        {
+          "name": "Spouse",
+          "comment": "配偶"
+        },
+        {
+          "name": "SpouseName",
+          "comment": ""
+        },
+        {
+          "name": "SigningDuration",
+          "comment": "签约时长"
+        },
+        {
+          "name": "ReligiousBelief",
+          "comment": "宗教信仰"
+        },
+        {
+          "name": "ActualAmount",
+          "comment": "实际入住金额"
+        },
+        {
+          "name": "Pension",
+          "comment": "退休金"
+        },
+        {
+          "name": "CustomerSourceChannel",
+          "comment": "客源渠道"
+        },
+        {
+          "name": "ElderlyAbility",
+          "comment": "老年能力评估"
+        },
+        {
+          "name": "SignContract",
+          "comment": "签订入住合同"
+        },
+        {
+          "name": "Assessmen6",
+          "comment": "忠诚度"
+        },
+        {
+          "name": "Assessmen7",
+          "comment": "满意度"
+        },
+        {
+          "name": "EducationLevel",
+          "comment": "教育程度"
+        },
+        {
+          "name": "PhysiologicalNeed",
+          "comment": "生理需求得分"
+        },
+        {
+          "name": "SafetyNeed",
+          "comment": "安全需求得分"
+        },
+        {
+          "name": "BelongingAndLoveNeed",
+          "comment": "归属与爱的需求得分"
+        },
+        {
+          "name": "EsteemNeed",
+          "comment": "尊重需求得分"
+        },
+        {
+          "name": "SelfActualizationNeed",
+          "comment": "自我实现需求得分"
+        },
+        {
+          "name": "NewElderlyAbility",
+          "comment": "当前能力评估"
+        }
+      ]
+    },
+    {
+      "name": "PC_OperatingCycle",
+      "comment": "运营周期列表",
+      "cols": [
+        {
+          "name": "OperatingCycleId",
+          "comment": ""
+        },
+        {
+          "name": "Time",
+          "comment": "时长"
+        },
+        {
+          "name": "Status",
+          "comment": "状态"
+        },
+        {
+          "name": "CreateID",
+          "comment": ""
+        },
+        {
+          "name": "Creator",
+          "comment": "创建人"
+        },
+        {
+          "name": "Modifier",
+          "comment": "修改人"
+        },
+        {
+          "name": "ModifyDate",
+          "comment": "修改时间"
+        },
+        {
+          "name": "ModifyID",
+          "comment": ""
+        },
+        {
+          "name": "CreateDate",
+          "comment": "创建时间"
+        },
+        {
+          "name": "Grade",
+          "comment": "班级"
+        },
+        {
+          "name": "OperatingCycleKey",
+          "comment": "当前运营周期"
+        },
+        {
+          "name": "OperatingCycleValue",
+          "comment": ""
+        },
+        {
+          "name": "OpenStatus",
+          "comment": "开始状态"
+        },
+        {
+          "name": "RoundsNum",
+          "comment": "轮次"
+        }
+      ]
+    },
+    {
+      "name": "PC_OperatingCycleDic",
+      "comment": "运营周期字典",
+      "cols": [
+        {
+          "name": "OperatingCycleDicId",
+          "comment": ""
+        },
+        {
+          "name": "OperatingCycleName",
+          "comment": "名称"
+        },
+        {
+          "name": "CreateID",
+          "comment": ""
+        },
+        {
+          "name": "Creator",
+          "comment": "创建人"
+        },
+        {
+          "name": "Modifier",
+          "comment": "修改人"
+        },
+        {
+          "name": "ModifyDate",
+          "comment": "修改时间"
+        },
+        {
+          "name": "ModifyID",
+          "comment": ""
+        },
+        {
+          "name": "CreateDate",
+          "comment": "创建时间"
+        },
+        {
+          "name": "Grade",
+          "comment": "班级"
+        }
+      ]
+    },
+    {
+      "name": "PC_OperatingCycleItem",
+      "comment": "运营周期明细",
+      "cols": [
+        {
+          "name": "OperatingCycleItemId",
+          "comment": ""
+        },
+        {
+          "name": "OperatingCycleId",
+          "comment": ""
+        },
+        {
+          "name": "Name",
+          "comment": "分组名称"
+        },
+        {
+          "name": "PersonGroupId",
+          "comment": ""
+        },
+        {
+          "name": "CreateID",
+          "comment": ""
+        },
+        {
+          "name": "Creator",
+          "comment": "创建人"
+        },
+        {
+          "name": "Modifier",
+          "comment": "修改人"
+        },
+        {
+          "name": "ModifyDate",
+          "comment": "修改时间"
+        },
+        {
+          "name": "ModifyID",
+          "comment": ""
+        },
+        {
+          "name": "CreateDate",
+          "comment": "创建时间"
+        },
+        {
+          "name": "Status",
+          "comment": "状态"
+        }
+      ]
+    },
+    {
+      "name": "PC_PersonGroup",
+      "comment": "人员分组",
+      "cols": [
+        {
+          "name": "PersonGroupId",
+          "comment": ""
+        },
+        {
+          "name": "GroupKey",
+          "comment": "秘钥"
+        },
+        {
+          "name": "Name",
+          "comment": "名称"
+        },
+        {
+          "name": "CreateDate",
+          "comment": "创建时间"
+        },
+        {
+          "name": "CreateID",
+          "comment": ""
+        },
+        {
+          "name": "Creator",
+          "comment": "创建人"
+        },
+        {
+          "name": "Modifier",
+          "comment": "修改人"
+        },
+        {
+          "name": "ModifyDate",
+          "comment": "修改时间"
+        },
+        {
+          "name": "ModifyID",
+          "comment": ""
+        },
+        {
+          "name": "IsEnable",
+          "comment": "是否启用"
+        },
+        {
+          "name": "Status",
+          "comment": "状态（1、筹建，2、试运营，3、正式）"
+        },
+        {
+          "name": "Grade",
+          "comment": "年级"
+        },
+        {
+          "name": "Class",
+          "comment": ""
+        },
+        {
+          "name": "Round",
+          "comment": "轮次"
+        },
+        {
+          "name": "SelfFunded",
+          "comment": "自筹资金"
+        }
+      ]
+    },
+    {
+      "name": "PC_PersonGroupItem",
+      "comment": "人员分组明细",
+      "cols": [
+        {
+          "name": "PersonGroupItemId",
+          "comment": ""
+        },
+        {
+          "name": "PersonGroupId",
+          "comment": ""
+        },
+        {
+          "name": "UserId",
+          "comment": "用户ID"
+        },
+        {
+          "name": "StudentId",
+          "comment": "学生ID"
+        },
+        {
+          "name": "StudentCode",
+          "comment": "学号"
+        },
+        {
+          "name": "StudentName",
+          "comment": "学生姓名"
+        },
+        {
+          "name": "GameRoleValue",
+          "comment": "游戏角色value"
+        },
+        {
+          "name": "GameRoleText",
+          "comment": "游戏角色"
+        },
+        {
+          "name": "JobDescription",
+          "comment": "职责描述"
+        },
+        {
+          "name": "Salary",
+          "comment": "薪资"
+        },
+        {
+          "name": "CreateID",
+          "comment": ""
+        },
+        {
+          "name": "Creator",
+          "comment": "创建人"
+        },
+        {
+          "name": "Modifier",
+          "comment": "修改人"
+        },
+        {
+          "name": "ModifyDate",
+          "comment": "修改时间"
+        },
+        {
+          "name": "ModifyID",
+          "comment": ""
+        },
+        {
+          "name": "IsEnable",
+          "comment": "是否启用"
+        },
+        {
+          "name": "CreateDate",
+          "comment": "创建时间"
+        },
+        {
+          "name": "HeadUrl",
+          "comment": "头像"
+        }
+      ]
+    },
+    {
+      "name": "PC_Question",
+      "comment": "试题",
+      "cols": [
+        {
+          "name": "QuestionId",
+          "comment": ""
+        },
+        {
+          "name": "QuestionBankId",
+          "comment": ""
+        },
+        {
+          "name": "Type",
+          "comment": "题型：（单选、多选、判断、仿真实验）"
+        },
+        {
+          "name": "ExperimentalProgramId",
+          "comment": ""
+        },
+        {
+          "name": "ExperimentalCode",
+          "comment": ""
+        },
+        {
+          "name": "ExperimentalName",
+          "comment": ""
+        },
+        {
+          "name": "Description",
+          "comment": "描述"
+        },
+        {
+          "name": "Analysis",
+          "comment": "试题解析"
+        },
+        {
+          "name": "CorrectAnswer",
+          "comment": "正确答案"
+        },
+        {
+          "name": "Option",
+          "comment": "选择题选项"
+        },
+        {
+          "name": "IsEnable",
+          "comment": ""
+        },
+        {
+          "name": "Modifier",
+          "comment": ""
+        },
+        {
+          "name": "ModifyDate",
+          "comment": ""
+        },
+        {
+          "name": "ModifyID",
+          "comment": ""
+        },
+        {
+          "name": "CreateDate",
+          "comment": ""
+        },
+        {
+          "name": "CreateID",
+          "comment": ""
+        },
+        {
+          "name": "Creator",
+          "comment": ""
+        },
+        {
+          "name": "EncCorrectAnswer",
+          "comment": "正确答案"
+        },
+        {
+          "name": "SortNumber",
+          "comment": "序号"
+        }
+      ]
+    },
+    {
+      "name": "PC_QuestionBank",
+      "comment": "题库",
+      "cols": [
+        {
+          "name": "QuestionBankId",
+          "comment": ""
+        },
+        {
+          "name": "Name",
+          "comment": ""
+        },
+        {
+          "name": "GameRole",
+          "comment": ""
+        },
+        {
+          "name": "IsEnable",
+          "comment": ""
+        },
+        {
+          "name": "IsOpen",
+          "comment": ""
+        },
+        {
+          "name": "Modifier",
+          "comment": ""
+        },
+        {
+          "name": "ModifyDate",
+          "comment": ""
+        },
+        {
+          "name": "ModifyID",
+          "comment": ""
+        },
+        {
+          "name": "CreateDate",
+          "comment": ""
+        },
+        {
+          "name": "CreateID",
+          "comment": ""
+        },
+        {
+          "name": "Creator",
+          "comment": ""
+        }
+      ]
+    },
+    {
+      "name": "PC_QuestionResource",
+      "comment": "题库资源（视频和VR资源）",
+      "cols": [
+        {
+          "name": "ResourceId",
+          "comment": ""
+        },
+        {
+          "name": "Name",
+          "comment": "资源名称"
+        },
+        {
+          "name": "Type",
+          "comment": "资源分类"
+        },
+        {
+          "name": "FilePath",
+          "comment": "文件"
+        },
+        {
+          "name": "Modifier",
+          "comment": ""
+        },
+        {
+          "name": "ModifyDate",
+          "comment": ""
+        },
+        {
+          "name": "ModifyID",
+          "comment": ""
+        },
+        {
+          "name": "CreateDate",
+          "comment": ""
+        },
+        {
+          "name": "CreateID",
+          "comment": ""
+        },
+        {
+          "name": "Creator",
+          "comment": ""
+        },
+        {
+          "name": "ImgPath",
+          "comment": "封面图"
+        },
+        {
+          "name": "ResourceType",
+          "comment": "视频分类"
+        },
+        {
+          "name": "Code",
+          "comment": "资源编码"
+        }
+      ]
+    },
+    {
+      "name": "PC_RegionOverview",
+      "comment": "区域养老行业概况主表",
+      "cols": [
+        {
+          "name": "RegionId",
+          "comment": "自增主键，对应序号"
+        },
+        {
+          "name": "AdminDistrict",
+          "comment": "行政区名称，如：和平区、河东区"
+        },
+        {
+          "name": "JurisdictionArea",
+          "comment": "辖区面积（平方公里）"
+        },
+        {
+          "name": "ServiceTarget",
+          "comment": "可服务对象描述"
+        },
+        {
+          "name": "MainBuildingConfig",
+          "comment": "主要建筑配置描述"
+        },
+        {
+          "name": "AvgBeds",
+          "comment": "区域养老机构核定平均床位数"
+        },
+        {
+          "name": "AvgYearlyRent",
+          "comment": "区域养老机构年均市场租金（万元/年）"
+        },
+        {
+          "name": "LocationPositioning",
+          "comment": "地段整体定位"
+        },
+        {
+          "name": "MedicalResourceDesc",
+          "comment": "周边医疗资源"
+        },
+        {
+          "name": "RegisteredCareOrgCount",
+          "comment": "周边已备案养老机构数量（家）"
+        },
+        {
+          "name": "IndustryRemark",
+          "comment": "备注"
+        },
+        {
+          "name": "Status",
+          "comment": "竞拍状态"
+        },
+        {
+          "name": "Modifier",
+          "comment": "修改人"
+        },
+        {
+          "name": "ModifyDate",
+          "comment": "修改时间"
+        },
+        {
+          "name": "ModifyID",
+          "comment": ""
+        },
+        {
+          "name": "CreateDate",
+          "comment": "创建时间"
+        },
+        {
+          "name": "CreateID",
+          "comment": ""
+        },
+        {
+          "name": "Creator",
+          "comment": "创建人"
+        },
+        {
+          "name": "PublicTrans",
+          "comment": "公共交通概况"
+        }
+      ]
+    },
+    {
+      "name": "PC_RegionOverviewItem",
+      "comment": "具体地块养老项目明细表",
+      "cols": [
+        {
+          "name": "RegionItemId",
+          "comment": "自增主键，地块唯一标识"
+        },
+        {
+          "name": "RegionId",
+          "comment": "关联主表RegionOverview的RegionId"
+        },
+        {
+          "name": "PlotName",
+          "comment": "地块名称或编号"
+        },
+        {
+          "name": "TargetDemographic",
+          "comment": "服务对象"
+        },
+        {
+          "name": "LandArea",
+          "comment": "辖区面积/地块面积"
+        },
+        {
+          "name": "BuildingSpecs",
+          "comment": "建筑配置"
+        },
+        {
+          "name": "ApprovedBeds",
+          "comment": "核定床位数"
+        },
+        {
+          "name": "MarketRentPrice",
+          "comment": "市场年均租金"
+        },
+        {
+          "name": "SitePositioning",
+          "comment": "地段整体定位"
+        },
+        {
+          "name": "MedicalResources",
+          "comment": "医疗资源概况"
+        },
+        {
+          "name": "CareOrgQuantity",
+          "comment": "养老机构数量"
+        },
+        {
+          "name": "PublicTransport",
+          "comment": "公共交通概况"
+        },
+        {
+          "name": "Modifier",
+          "comment": "修改人"
+        },
+        {
+          "name": "ModifyDate",
+          "comment": "修改时间"
+        },
+        {
+          "name": "ModifyID",
+          "comment": ""
+        },
+        {
+          "name": "CreateDate",
+          "comment": "创建时间"
+        },
+        {
+          "name": "CreateID",
+          "comment": ""
+        },
+        {
+          "name": "Creator",
+          "comment": "创建人"
+        },
+        {
+          "name": "LowPrices",
+          "comment": "经营竞标低价"
+        },
+        {
+          "name": "ProjectRemark",
+          "comment": "项目背景"
+        },
+        {
+          "name": "ProjectName",
+          "comment": "项目名称"
+        },
+        {
+          "name": "ElderlyNum",
+          "comment": "接待老人数量"
+        },
+        {
+          "name": "Coefficient",
+          "comment": "系数"
+        },
+        {
+          "name": "Floor",
+          "comment": "楼层"
+        },
+        {
+          "name": "FloorArea",
+          "comment": "建筑面积"
+        },
+        {
+          "name": "EachFloorArea",
+          "comment": "每层面积"
+        }
+      ]
+    },
+    {
+      "name": "PC_RegionOverviewItemPersonGroup",
+      "comment": "具体地块养老项目明细表和团队对照表",
+      "cols": [
+        {
+          "name": "RegionOverviewItemId",
+          "comment": ""
+        },
+        {
+          "name": "Id",
+          "comment": ""
+        },
+        {
+          "name": "PersonGroupId",
+          "comment": ""
+        },
+        {
+          "name": "Grade",
+          "comment": ""
+        }
+      ]
+    },
+    {
+      "name": "PC_Semester",
+      "comment": "教学学期表",
+      "cols": [
+        {
+          "name": "SemesterId",
+          "comment": ""
+        },
+        {
+          "name": "Name",
+          "comment": "学期名"
+        },
+        {
+          "name": "StartDate",
+          "comment": "开始时间"
+        },
+        {
+          "name": "EndDate",
+          "comment": "结束时间"
+        },
+        {
+          "name": "IsActive",
+          "comment": "是否当前学期"
+        },
+        {
+          "name": "CreateID",
+          "comment": ""
+        },
+        {
+          "name": "Creator",
+          "comment": "创建人"
+        },
+        {
+          "name": "Modifier",
+          "comment": "修改人"
+        },
+        {
+          "name": "ModifyDate",
+          "comment": "修改时间"
+        },
+        {
+          "name": "ModifyID",
+          "comment": ""
+        },
+        {
+          "name": "CreateDate",
+          "comment": "创建时间"
+        }
+      ]
+    },
+    {
+      "name": "PC_SignedOldPeople",
+      "comment": "已签约老人库",
+      "cols": [
+        {
+          "name": "OldPeopleId",
+          "comment": ""
+        },
+        {
+          "name": "Id",
+          "comment": ""
+        },
+        {
+          "name": "Name",
+          "comment": "姓名"
+        },
+        {
+          "name": "Age",
+          "comment": "年龄"
+        },
+        {
+          "name": "Sex",
+          "comment": "性别"
+        },
+        {
+          "name": "Nation",
+          "comment": "民族"
+        },
+        {
+          "name": "Phone",
+          "comment": "电话"
+        },
+        {
+          "name": "Occupation",
+          "comment": "职业"
+        },
+        {
+          "name": "RegionalPreference",
+          "comment": "地区偏好"
+        },
+        {
+          "name": "PerformancePreferences",
+          "comment": "性能偏好"
+        },
+        {
+          "name": "Nursinglevel",
+          "comment": "护理级别"
+        },
+        {
+          "name": "Character",
+          "comment": "性格"
+        },
+        {
+          "name": "Assessment1",
+          "comment": "健康指数"
+        },
+        {
+          "name": "Assessment2",
+          "comment": "认知功能"
+        },
+        {
+          "name": "Assessment3",
+          "comment": "社交活动"
+        },
+        {
+          "name": "Assessment4",
+          "comment": "ADL日常生活能力"
+        },
+        {
+          "name": "Assessment5",
+          "comment": "情绪指数"
+        },
+        {
+          "name": "PersonGroupId",
+          "comment": ""
+        },
+        {
+          "name": "Budget",
+          "comment": "预算"
+        },
+        {
+          "name": "CreateID",
+          "comment": ""
+        },
+        {
+          "name": "Creator",
+          "comment": "创建人"
+        },
+        {
+          "name": "Modifier",
+          "comment": "修改人"
+        },
+        {
+          "name": "ModifyDate",
+          "comment": "修改时间"
+        },
+        {
+          "name": "ModifyID",
+          "comment": ""
+        },
+        {
+          "name": "CreateDate",
+          "comment": "创建时间"
+        },
+        {
+          "name": "RoomId",
+          "comment": "房间号"
+        },
+        {
+          "name": "MaritalStatus",
+          "comment": "婚姻状况"
+        },
+        {
+          "name": "Spouse",
+          "comment": "配偶"
+        },
+        {
+          "name": "SpouseName",
+          "comment": ""
+        },
+        {
+          "name": "SigningDuration",
+          "comment": "签约时长"
+        },
+        {
+          "name": "ReligiousBelief",
+          "comment": "宗教信仰"
+        },
+        {
+          "name": "ActualAmount",
+          "comment": "实际入住金额"
+        },
+        {
+          "name": "Pension",
+          "comment": "退休金"
+        },
+        {
+          "name": "CustomerSourceChannel",
+          "comment": "客源渠道"
+        },
+        {
+          "name": "ElderlyAbility",
+          "comment": "老年能力评估"
+        },
+        {
+          "name": "SignContract",
+          "comment": "签订入住合同"
+        },
+        {
+          "name": "Assessmen6",
+          "comment": "忠诚度"
+        },
+        {
+          "name": "Assessmen7",
+          "comment": "满意度"
+        },
+        {
+          "name": "EducationLevel",
+          "comment": "教育程度"
+        },
+        {
+          "name": "PhysiologicalNeed",
+          "comment": "生理需求得分"
+        },
+        {
+          "name": "SafetyNeed",
+          "comment": "安全需求得分"
+        },
+        {
+          "name": "BelongingAndLoveNeed",
+          "comment": "归属与爱的需求得分"
+        },
+        {
+          "name": "EsteemNeed",
+          "comment": "尊重需求得分"
+        },
+        {
+          "name": "SelfActualizationNeed",
+          "comment": "自我实现需求得分"
+        },
+        {
+          "name": "NewElderlyAbility",
+          "comment": "当前能力评估"
+        }
+      ]
+    },
+    {
+      "name": "PC_SignedTalent",
+      "comment": "人才库",
+      "cols": [
+        {
+          "name": "TalentId",
+          "comment": ""
+        },
+        {
+          "name": "Name",
+          "comment": "姓名"
+        },
+        {
+          "name": "Age",
+          "comment": "年龄"
+        },
+        {
+          "name": "Sex",
+          "comment": "性别"
+        },
+        {
+          "name": "Nation",
+          "comment": "民族"
+        },
+        {
+          "name": "Major",
+          "comment": "专业"
+        },
+        {
+          "name": "SalaryExpectation",
+          "comment": "期望薪资"
+        },
+        {
+          "name": "Salary",
+          "comment": "薪资"
+        },
+        {
+          "name": "IsNight",
+          "comment": "夜班轮岗"
+        },
+        {
+          "name": "EntryTime",
+          "comment": "入职时间"
+        },
+        {
+          "name": "Certificate",
+          "comment": "资格证书"
+        },
+        {
+          "name": "Capacity",
+          "comment": "基础能力"
+        },
+        {
+          "name": "CreateID",
+          "comment": ""
+        },
+        {
+          "name": "Creator",
+          "comment": "创建人"
+        },
+        {
+          "name": "Modifier",
+          "comment": "修改人"
+        },
+        {
+          "name": "ModifyDate",
+          "comment": "修改时间"
+        },
+        {
+          "name": "ModifyID",
+          "comment": ""
+        },
+        {
+          "name": "CreateDate",
+          "comment": "创建时间"
+        },
+        {
+          "name": "Rank",
+          "comment": "等级"
+        },
+        {
+          "name": "ExperienceCare",
+          "comment": "失能护理经验"
+        },
+        {
+          "name": "Emergency",
+          "comment": "应急能力"
+        },
+        {
+          "name": "WorkEnthusiasm",
+          "comment": "工作热情"
+        },
+        {
+          "name": "LearningAbility",
+          "comment": "学习能力"
+        },
+        {
+          "name": "Status",
+          "comment": "人员状态"
+        },
+        {
+          "name": "PersonGroupId",
+          "comment": "团队ID"
+        },
+        {
+          "name": "SignedTalentId",
+          "comment": ""
+        },
+        {
+          "name": "IsSubsidy",
+          "comment": "是否补贴"
+        }
+      ]
+    },
+    {
+      "name": "PC_StudentPerformance",
+      "comment": "学生表现",
+      "cols": [
+        {
+          "name": "StudentPerformanceId",
+          "comment": ""
+        },
+        {
+          "name": "StudentId",
+          "comment": "学生ID"
+        },
+        {
+          "name": "StudentCode",
+          "comment": "学号"
+        },
+        {
+          "name": "StudentName",
+          "comment": "学生姓名"
+        },
+        {
+          "name": "UserId",
+          "comment": "用户ID"
+        },
+        {
+          "name": "PerformanceScore",
+          "comment": "表现分"
+        },
+        {
+          "name": "SemesterId",
+          "comment": "学期ID"
+        },
+        {
+          "name": "SemesterName",
+          "comment": "学期名称"
+        },
+        {
+          "name": "CreateID",
+          "comment": ""
+        },
+        {
+          "name": "Creator",
+          "comment": "创建人"
+        },
+        {
+          "name": "Modifier",
+          "comment": "修改人"
+        },
+        {
+          "name": "ModifyDate",
+          "comment": "修改时间"
+        },
+        {
+          "name": "ModifyID",
+          "comment": ""
+        },
+        {
+          "name": "CreateDate",
+          "comment": "创建时间"
+        },
+        {
+          "name": "Grade",
+          "comment": "班级ID"
+        },
+        {
+          "name": "ClassTime",
+          "comment": "上课时间"
+        },
+        {
+          "name": "SemesterPerformanceScore",
+          "comment": "学期表现分"
+        }
+      ]
+    },
+    {
+      "name": "PC_Talent",
+      "comment": "人才库",
+      "cols": [
+        {
+          "name": "TalentId",
+          "comment": ""
+        },
+        {
+          "name": "Name",
+          "comment": "姓名"
+        },
+        {
+          "name": "Age",
+          "comment": "年龄"
+        },
+        {
+          "name": "Sex",
+          "comment": "性别"
+        },
+        {
+          "name": "Nation",
+          "comment": "民族"
+        },
+        {
+          "name": "Major",
+          "comment": "专业"
+        },
+        {
+          "name": "SalaryExpectation",
+          "comment": "期望薪资"
+        },
+        {
+          "name": "Salary",
+          "comment": "薪资"
+        },
+        {
+          "name": "IsNight",
+          "comment": "夜班轮岗"
+        },
+        {
+          "name": "EntryTime",
+          "comment": "入职时间"
+        },
+        {
+          "name": "Certificate",
+          "comment": "资格证书"
+        },
+        {
+          "name": "Capacity",
+          "comment": "基础能力"
+        },
+        {
+          "name": "CreateID",
+          "comment": ""
+        },
+        {
+          "name": "Creator",
+          "comment": "创建人"
+        },
+        {
+          "name": "Modifier",
+          "comment": "修改人"
+        },
+        {
+          "name": "ModifyDate",
+          "comment": "修改时间"
+        },
+        {
+          "name": "ModifyID",
+          "comment": ""
+        },
+        {
+          "name": "CreateDate",
+          "comment": "创建时间"
+        },
+        {
+          "name": "Rank",
+          "comment": "等级"
+        },
+        {
+          "name": "ExperienceCare",
+          "comment": "失能护理经验"
+        },
+        {
+          "name": "Emergency",
+          "comment": "应急能力"
+        },
+        {
+          "name": "WorkEnthusiasm",
+          "comment": "工作热情"
+        },
+        {
+          "name": "LearningAbility",
+          "comment": "学习能力"
+        },
+        {
+          "name": "Status",
+          "comment": "人员状态"
+        }
+      ]
+    },
+    {
+      "name": "Sys_BaseInfo",
+      "comment": "",
+      "cols": [
+        {
+          "name": "Id",
+          "comment": ""
+        },
+        {
+          "name": "Type",
+          "comment": ""
+        },
+        {
+          "name": "Digit",
+          "comment": "数字"
+        },
+        {
+          "name": "Content",
+          "comment": "文字描述"
+        },
+        {
+          "name": "TypeValue",
+          "comment": "分类"
+        },
+        {
+          "name": "Modifier",
+          "comment": "修改人"
+        },
+        {
+          "name": "ModifyDate",
+          "comment": "修改时间"
+        },
+        {
+          "name": "ModifyID",
+          "comment": "修改人Id"
+        },
+        {
+          "name": "CreateDate",
+          "comment": "创建时间"
+        },
+        {
+          "name": "CreateID",
+          "comment": "创建人Id"
+        },
+        {
+          "name": "Creator",
+          "comment": "创建人"
+        }
+      ]
+    },
+    {
+      "name": "Sys_Department",
+      "comment": "",
+      "cols": [
+        {
+          "name": "DepartmentId",
+          "comment": ""
+        },
+        {
+          "name": "DepartmentName",
+          "comment": ""
+        },
+        {
+          "name": "DepartmentCode",
+          "comment": ""
+        },
+        {
+          "name": "ParentId",
+          "comment": ""
+        },
+        {
+          "name": "DepartmentType",
+          "comment": ""
+        },
+        {
+          "name": "Enable",
+          "comment": ""
+        },
+        {
+          "name": "Remark",
+          "comment": ""
+        },
+        {
+          "name": "CreateID",
+          "comment": ""
+        },
+        {
+          "name": "Creator",
+          "comment": ""
+        },
+        {
+          "name": "CreateDate",
+          "comment": ""
+        },
+        {
+          "name": "ModifyID",
+          "comment": ""
+        },
+        {
+          "name": "Modifier",
+          "comment": ""
+        },
+        {
+          "name": "ModifyDate",
+          "comment": ""
+        }
+      ]
+    },
+    {
+      "name": "Sys_Dictionary",
+      "comment": "",
+      "cols": [
+        {
+          "name": "Dic_ID",
+          "comment": ""
+        },
+        {
+          "name": "Config",
+          "comment": ""
+        },
+        {
+          "name": "CreateDate",
+          "comment": ""
+        },
+        {
+          "name": "CreateID",
+          "comment": ""
+        },
+        {
+          "name": "Creator",
+          "comment": ""
+        },
+        {
+          "name": "DBServer",
+          "comment": ""
+        },
+        {
+          "name": "DbSql",
+          "comment": ""
+        },
+        {
+          "name": "DicName",
+          "comment": ""
+        },
+        {
+          "name": "DicNo",
+          "comment": ""
+        },
+        {
+          "name": "Enable",
+          "comment": ""
+        },
+        {
+          "name": "Modifier",
+          "comment": ""
+        },
+        {
+          "name": "ModifyDate",
+          "comment": ""
+        },
+        {
+          "name": "ModifyID",
+          "comment": ""
+        },
+        {
+          "name": "OrderNo",
+          "comment": ""
+        },
+        {
+          "name": "ParentId",
+          "comment": ""
+        },
+        {
+          "name": "Remark",
+          "comment": ""
+        }
+      ]
+    },
+    {
+      "name": "Sys_DictionaryList",
+      "comment": "",
+      "cols": [
+        {
+          "name": "DicList_ID",
+          "comment": ""
+        },
+        {
+          "name": "CreateDate",
+          "comment": ""
+        },
+        {
+          "name": "CreateID",
+          "comment": ""
+        },
+        {
+          "name": "Creator",
+          "comment": ""
+        },
+        {
+          "name": "DicName",
+          "comment": ""
+        },
+        {
+          "name": "DicValue",
+          "comment": ""
+        },
+        {
+          "name": "Dic_ID",
+          "comment": ""
+        },
+        {
+          "name": "Enable",
+          "comment": ""
+        },
+        {
+          "name": "Modifier",
+          "comment": ""
+        },
+        {
+          "name": "ModifyDate",
+          "comment": ""
+        },
+        {
+          "name": "ModifyID",
+          "comment": ""
+        },
+        {
+          "name": "OrderNo",
+          "comment": ""
+        },
+        {
+          "name": "Remark",
+          "comment": ""
+        }
+      ]
+    },
+    {
+      "name": "Sys_Menu",
+      "comment": "",
+      "cols": [
+        {
+          "name": "Menu_Id",
+          "comment": ""
+        },
+        {
+          "name": "MenuName",
+          "comment": ""
+        },
+        {
+          "name": "Auth",
+          "comment": ""
+        },
+        {
+          "name": "Icon",
+          "comment": ""
+        },
+        {
+          "name": "Description",
+          "comment": ""
+        },
+        {
+          "name": "Enable",
+          "comment": ""
+        },
+        {
+          "name": "OrderNo",
+          "comment": ""
+        },
+        {
+          "name": "TableName",
+          "comment": ""
+        },
+        {
+          "name": "ParentId",
+          "comment": ""
+        },
+        {
+          "name": "Url",
+          "comment": ""
+        },
+        {
+          "name": "CreateDate",
+          "comment": ""
+        },
+        {
+          "name": "Creator",
+          "comment": ""
+        },
+        {
+          "name": "ModifyDate",
+          "comment": ""
+        },
+        {
+          "name": "Modifier",
+          "comment": ""
+        },
+        {
+          "name": "MenuType",
+          "comment": ""
+        }
+      ]
+    },
+    {
+      "name": "Sys_Role",
+      "comment": "",
+      "cols": [
+        {
+          "name": "Role_Id",
+          "comment": ""
+        },
+        {
+          "name": "CreateDate",
+          "comment": ""
+        },
+        {
+          "name": "Creator",
+          "comment": ""
+        },
+        {
+          "name": "DeleteBy",
+          "comment": ""
+        },
+        {
+          "name": "DeptName",
+          "comment": ""
+        },
+        {
+          "name": "Dept_Id",
+          "comment": ""
+        },
+        {
+          "name": "Enable",
+          "comment": ""
+        },
+        {
+          "name": "Modifier",
+          "comment": ""
+        },
+        {
+          "name": "ModifyDate",
+          "comment": ""
+        },
+        {
+          "name": "OrderNo",
+          "comment": ""
+        },
+        {
+          "name": "ParentId",
+          "comment": ""
+        },
+        {
+          "name": "RoleName",
+          "comment": ""
+        }
+      ]
+    },
+    {
+      "name": "Sys_Room",
+      "comment": "房间信息表",
+      "cols": [
+        {
+          "name": "ID",
+          "comment": "房间ID"
+        },
+        {
+          "name": "RoomName",
+          "comment": "房间名"
+        },
+        {
+          "name": "NormalDecorationCost",
+          "comment": "普装装修费用"
+        },
+        {
+          "name": "PremiumDecorationCost",
+          "comment": "精装费用"
+        },
+        {
+          "name": "LuxuryDecorationCost",
+          "comment": "高等装修费用"
+        },
+        {
+          "name": "RoomArea",
+          "comment": "房间面积"
+        },
+        {
+          "name": "NormalRent",
+          "comment": "普通租金"
+        },
+        {
+          "name": "PremiumRent",
+          "comment": "精装租金"
+        },
+        {
+          "name": "LuxuryRent",
+          "comment": "高等租金"
+        },
+        {
+          "name": "NormalImageUrl",
+          "comment": "普通房间图片地址"
+        },
+        {
+          "name": "PremiumImageUrl",
+          "comment": "精装房间图片地址"
+        },
+        {
+          "name": "LuxuryImageUrl",
+          "comment": "高等房间图片地址"
+        },
+        {
+          "name": "RoomScene",
+          "comment": "房间场景"
+        }
+      ]
+    },
+    {
+      "name": "Sys_Student",
+      "comment": "学生档案",
+      "cols": [
+        {
+          "name": "Id",
+          "comment": ""
+        },
+        {
+          "name": "UserId",
+          "comment": ""
+        },
+        {
+          "name": "Code",
+          "comment": "学号"
+        },
+        {
+          "name": "Name",
+          "comment": "姓名"
+        },
+        {
+          "name": "Grade",
+          "comment": "年级"
+        },
+        {
+          "name": "Class",
+          "comment": ""
+        },
+        {
+          "name": "PhoneNumber",
+          "comment": "联系电话"
+        },
+        {
+          "name": "CreateID",
+          "comment": ""
+        },
+        {
+          "name": "Creator",
+          "comment": "创建人"
+        },
+        {
+          "name": "Modifier",
+          "comment": "修改人"
+        },
+        {
+          "name": "ModifyDate",
+          "comment": "修改时间"
+        },
+        {
+          "name": "ModifyID",
+          "comment": ""
+        },
+        {
+          "name": "IsEnable",
+          "comment": "是否启用"
+        },
+        {
+          "name": "CreateDate",
+          "comment": "创建时间"
+        },
+        {
+          "name": "HeadUrl",
+          "comment": "头像"
+        }
+      ]
+    },
+    {
+      "name": "Sys_User",
+      "comment": "",
+      "cols": [
+        {
+          "name": "User_Id",
+          "comment": ""
+        },
+        {
+          "name": "Role_Id",
+          "comment": ""
+        },
+        {
+          "name": "RoleName",
+          "comment": ""
+        },
+        {
+          "name": "PhoneNo",
+          "comment": ""
+        },
+        {
+          "name": "Remark",
+          "comment": ""
+        },
+        {
+          "name": "Tel",
+          "comment": ""
+        },
+        {
+          "name": "UserName",
+          "comment": ""
+        },
+        {
+          "name": "UserTrueName",
+          "comment": ""
+        },
+        {
+          "name": "DeptName",
+          "comment": ""
+        },
+        {
+          "name": "Dept_Id",
+          "comment": ""
+        },
+        {
+          "name": "Email",
+          "comment": ""
+        },
+        {
+          "name": "Enable",
+          "comment": ""
+        },
+        {
+          "name": "Gender",
+          "comment": ""
+        },
+        {
+          "name": "HeadImageUrl",
+          "comment": ""
+        },
+        {
+          "name": "IsRegregisterPhone",
+          "comment": ""
+        },
+        {
+          "name": "LastLoginDate",
+          "comment": ""
+        },
+        {
+          "name": "LastModifyPwdDate",
+          "comment": ""
+        },
+        {
+          "name": "Address",
+          "comment": ""
+        },
+        {
+          "name": "AppType",
+          "comment": ""
+        },
+        {
+          "name": "AuditDate",
+          "comment": ""
+        },
+        {
+          "name": "AuditStatus",
+          "comment": ""
+        },
+        {
+          "name": "Auditor",
+          "comment": ""
+        },
+        {
+          "name": "OrderNo",
+          "comment": ""
+        },
+        {
+          "name": "Token",
+          "comment": ""
+        },
+        {
+          "name": "CreateID",
+          "comment": ""
+        },
+        {
+          "name": "CreateDate",
+          "comment": ""
+        },
+        {
+          "name": "Creator",
+          "comment": ""
+        },
+        {
+          "name": "Mobile",
+          "comment": ""
+        },
+        {
+          "name": "Modifier",
+          "comment": ""
+        },
+        {
+          "name": "ModifyDate",
+          "comment": ""
+        },
+        {
+          "name": "ModifyID",
+          "comment": ""
+        },
+        {
+          "name": "DeptIds",
+          "comment": ""
+        }
+      ]
+    }
+  ],
+  "skipped": [
+    "FormCollectionObject",
+    "FormDesignOptions",
+    "SellOrder",
+    "SellOrderList",
+    "Sys_City",
+    "Sys_CodingRules",
+    "Sys_Log",
+    "Sys_Province",
+    "Sys_QuartzLog",
+    "Sys_QuartzOptions",
+    "Sys_RoleAuth",
+    "Sys_TableColumn",
+    "Sys_TableInfo",
+    "Sys_UserDepartment",
+    "Sys_WorkFlow",
+    "Sys_WorkFlowStep",
+    "Sys_WorkFlowTable",
+    "Sys_WorkFlowTableAuditLog",
+    "Sys_WorkFlowTableStep",
+    "TestDb",
+    "TestService"
+  ]
+}

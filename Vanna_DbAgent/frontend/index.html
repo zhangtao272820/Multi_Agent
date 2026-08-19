@@ -1,0 +1,1335 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Vanna 库问数</title>
+  <style>
+    :root {
+      --bg: #e8edf4;
+      --ink: #1c2430;
+      --muted: #5c6b7a;
+      --line: #d5dee8;
+      --accent: #2f5d8a;
+      --accent-2: #3d6fa3;
+      --navy: #1b2a41;
+      --navy-2: #243650;
+      --warn: #9a3412;
+      --ok: #166534;
+      --sql: #15202b;
+      --sqlink: #e7eef6;
+      --card: #fbfcfe;
+      --shadow: 0 10px 28px rgba(27, 42, 65, 0.08);
+      --radius: 14px;
+      --user: #1b2a41;
+      --rail-bg: #f4f7fb;
+    }
+    * { box-sizing: border-box; }
+    html { color-scheme: light; }
+    html, body { margin: 0; height: 100%; overflow: hidden; }
+    body {
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(1200px 420px at 70% -10%, #f7fafc 0%, transparent 60%),
+        var(--bg);
+    }
+    button, select, textarea { font-family: inherit; }
+    .shell {
+      display: grid;
+      grid-template-columns: 280px minmax(0, 1fr) 320px;
+      grid-template-rows: minmax(0, 1fr);
+      height: 100%;
+      max-height: 100vh;
+      overflow: hidden;
+    }
+    aside.nav {
+      background: linear-gradient(180deg, var(--navy) 0%, var(--navy-2) 100%);
+      color: #eef3f8;
+      padding: 20px 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      height: 100%;
+      min-height: 0;
+      overflow: hidden;
+      border-right: 1px solid #31445c;
+    }
+    aside.nav .legend { color: #c5d2e0; }
+    .brand { font-size: 24px; font-weight: 720; letter-spacing: -0.03em; line-height: 1; color: #f4f7fb; }
+    .brand small { display: block; margin-top: 8px; font-size: 12px; font-weight: 400; line-height: 1.5; color: #c5d2e0; opacity: 1; }
+    .new-chat {
+      width: 100%;
+      border: 1px solid #4d6480;
+      background: #2a3d58;
+      color: #f4f7fb;
+      border-radius: 10px;
+      padding: 9px 12px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .new-chat:hover { background: #334968; }
+    .sessions, .examples {
+      background: rgba(10, 18, 30, 0.28);
+      padding: 12px;
+      border: 1px solid #3a506b;
+      border-radius: 12px;
+      overflow: auto;
+    }
+    .sessions { max-height: 34vh; }
+    .examples { flex: 1; min-height: 0; }
+    .sessions h2, .examples h2 {
+      margin: 0 0 8px;
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #b7c6d6;
+      opacity: 1;
+      font-weight: 650;
+    }
+    .sess {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      margin: 0 0 6px;
+    }
+    .sess button.pick {
+      flex: 1;
+      text-align: left;
+      background: transparent;
+      color: #e8eef5;
+      border: 1px solid #445a73;
+      border-radius: 8px;
+      padding: 7px 8px;
+      cursor: pointer;
+      font-size: 12px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .sess button.pick.on { background: #3a5473; border-color: #6b87a8; }
+    .sess .del {
+      border: 0;
+      background: transparent;
+      color: #d5e0ea;
+      cursor: pointer;
+      opacity: 0.9;
+    }
+    .chip-group { margin: 0 0 10px; }
+    .chip-group span { display: block; font-size: 11px; color: #b7c6d6; opacity: 1; margin: 0 0 6px; }
+    .chip {
+      display: block; width: 100%; text-align: left; background: transparent;
+      color: #eef3f8; border: 1px solid #4d6480; border-radius: 8px;
+      padding: 7px 10px; margin: 0 0 5px; cursor: pointer; font-size: 12.5px;
+    }
+    .chip:hover { background: #334968; }
+    .chip.join { border-color: #8aa4c2; }
+    .status { margin-top: auto; font-size: 12px; color: #c5d2e0; opacity: 1; line-height: 1.5; }
+    main {
+      padding: 18px 20px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-width: 0;
+      height: 100%;
+      min-height: 0;
+      overflow: hidden;
+    }
+    .toolbar {
+      display: grid;
+      grid-template-columns: 220px 220px minmax(0, 1fr);
+      gap: 12px;
+      align-items: end;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 14px 16px;
+    }
+    .field label {
+      display: block; margin: 0 0 6px; font-size: 11px; letter-spacing: 0.08em;
+      text-transform: uppercase; color: var(--muted); font-weight: 650;
+    }
+    .select-wrap select {
+      width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px;
+      background: #fff; color: var(--ink);
+    }
+    .scene-hint { margin: 0; font-size: 13px; color: #4b5d6e; line-height: 1.5; }
+    .thread {
+      flex: 1;
+      min-height: 0;
+      overflow: auto;
+      padding: 8px 2px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .empty { color: #4b5d6e; font-size: 14px; line-height: 1.7; padding: 28px 10px; }
+    .msg { max-width: min(720px, 92%); }
+    .msg.user { align-self: flex-end; }
+    .msg.assistant { align-self: flex-start; width: min(720px, 92%); max-width: 100%; }
+    .bubble {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px 14px;
+      box-shadow: var(--shadow);
+      white-space: pre-wrap;
+      line-height: 1.55;
+      font-size: 14px;
+      color: var(--ink);
+    }
+    .msg.user .bubble { background: var(--user); color: #f4f7fb; border-color: transparent; }
+    .agent-card {
+      margin: 0 0 10px;
+      background: linear-gradient(180deg, #f7f9fc 0%, #eef3f8 100%);
+      border: 1px solid #c9d5e3;
+      border-radius: 14px;
+      padding: 12px 14px;
+      box-shadow: var(--shadow);
+    }
+    .agent-card.is-running { border-color: #8aa4c2; }
+    .agent-card.is-await { border-color: #d4a574; background: linear-gradient(180deg, #fffaf4 0%, #f7f0e8 100%); }
+    .agent-head {
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+      margin: 0 0 8px; font-size: 13px; color: #243447; font-weight: 650;
+    }
+    .agent-mark {
+      width: 22px; height: 22px; border-radius: 7px; display: inline-grid; place-items: center;
+      background: #1b2a41; color: #eef3f8; font-size: 12px; font-weight: 700;
+    }
+    .agent-live {
+      margin-left: auto; font-size: 11px; font-weight: 700; letter-spacing: 0.04em;
+      color: #1d4ed8; background: #dbeafe; padding: 2px 8px; border-radius: 999px;
+    }
+    .agent-live.is-await { color: #9a3412; background: #ffedd5; }
+    .agent-live.is-done { color: #14532d; background: #dcfce7; }
+    .agent-count { font-size: 12px; color: #5c6b7a; font-weight: 600; }
+    .agent-progress {
+      height: 4px; border-radius: 999px; background: #d5dee8; overflow: hidden; margin: 0 0 10px;
+    }
+    .agent-progress > i {
+      display: block; height: 100%; width: 0; border-radius: inherit;
+      background: linear-gradient(90deg, #2f5d8a, #5b8fc4);
+      transition: width 0.25s ease;
+    }
+    .agent-card.is-running .agent-progress > i {
+      background-size: 200% 100%;
+      animation: agentPulse 1.4s linear infinite;
+    }
+    @keyframes agentPulse {
+      0% { background-position: 0% 50%; }
+      100% { background-position: 200% 50%; }
+    }
+    .agent-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+    .agent-step {
+      display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; gap: 8px; align-items: start;
+      font-size: 13px; color: #1c2430;
+    }
+    .agent-step .dot {
+      width: 10px; height: 10px; margin-top: 4px; border-radius: 50%;
+      border: 2px solid #9aabbc; background: transparent; box-sizing: border-box;
+    }
+    .agent-step.is-running .dot {
+      border-color: #2563eb; background: #93c5fd;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+    }
+    .agent-step.is-success .dot { border-color: #15803d; background: #22c55e; }
+    .agent-step.is-await .dot { border-color: #c2410c; background: #fb923c; }
+    .agent-step.is-failed .dot { border-color: #b91c1c; background: #ef4444; }
+    .agent-step.is-pending { opacity: 0.55; }
+    .agent-step .title { font-weight: 650; line-height: 1.35; }
+    .agent-step .detail { display: block; margin-top: 2px; font-size: 12px; color: #4b5d6e; line-height: 1.4; word-break: break-word; }
+    .agent-step .st {
+      font-size: 11px; font-weight: 700; color: #5c6b7a; white-space: nowrap; margin-top: 2px;
+    }
+    .agent-step.is-running .st { color: #1d4ed8; }
+    .agent-step.is-success .st { color: #15803d; }
+    .agent-step.is-await .st { color: #c2410c; }
+    .agent-step.is-failed .st { color: #b91c1c; }
+    .chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+    .chip-tag {
+      display: inline-block; font-size: 11px; line-height: 1.3; padding: 2px 7px;
+      border-radius: 999px; background: #e8eef5; color: #243447; border: 1px solid #c9d5e3;
+      max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .tool-sql {
+      margin-top: 10px; border: 1px solid #31445c; border-radius: 10px; background: #15202b; color: #e7eef6;
+      overflow: hidden;
+    }
+    .tool-sql summary {
+      cursor: pointer; list-style: none; padding: 8px 10px; font-size: 12px; font-weight: 650;
+      display: flex; align-items: center; gap: 8px; color: #d7e3f0;
+    }
+    .tool-sql summary::-webkit-details-marker { display: none; }
+    .tool-sql summary::before { content: "▾"; opacity: 0.7; }
+    .tool-sql:not([open]) summary::before { content: "▸"; }
+    .tool-sql .src {
+      margin-left: auto; font-size: 11px; font-weight: 700; color: #9fb4cc;
+      background: rgba(255,255,255,0.08); padding: 1px 7px; border-radius: 999px;
+    }
+    .tool-sql pre {
+      margin: 0; padding: 0 10px 10px; font-family: Consolas, "Courier New", monospace;
+      font-size: 12px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; color: #e7eef6;
+    }
+    .hitl {
+      margin-top: 10px; padding: 10px 12px; border-radius: 10px;
+      background: #fff7ed; border: 1px solid #fdba74; color: #7c2d12;
+    }
+    .hitl p { margin: 0 0 8px; font-size: 13px; line-height: 1.45; }
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .actions button, .go, .primary, .ghost {
+      border-radius: 8px; padding: 8px 12px; cursor: pointer; font-size: 13px;
+    }
+    .primary, .go { background: var(--accent); color: #fff; border: 0; }
+    .primary:hover, .go:hover { background: var(--accent-2); }
+    .ghost { background: #fff; border: 1px solid var(--line); color: var(--ink); }
+    .go:disabled { opacity: 0.5; cursor: not-allowed; }
+    .result-wrap {
+      margin-top: 10px; background: var(--card); border: 1px solid var(--line);
+      border-radius: 12px; overflow: auto; max-height: 280px; box-shadow: var(--shadow);
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; background: #fff; }
+    th, td { border-bottom: 1px solid var(--line); padding: 7px 10px; text-align: left; color: var(--ink); }
+    th { background: #eef3f8; position: sticky; top: 0; font-weight: 650; }
+    .field-details {
+      margin-top: 10px; padding: 10px 12px; border-radius: 10px;
+      background: #f8fafc; border: 1px dashed #c9d5e3; color: #334155; font-size: 12px;
+    }
+    .field-details h4 {
+      margin: 0 0 6px; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+      color: #5c6b7a; font-weight: 700;
+    }
+    .field-details ul { margin: 0; padding-left: 16px; }
+    .field-details li { margin: 0 0 4px; line-height: 1.45; }
+    .field-details code {
+      font-size: 11px; color: #64748b; background: #eef2f7; padding: 1px 5px; border-radius: 4px;
+    }
+    .feedback-row {
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+      margin-top: 10px; font-size: 12px; color: #5c6b7a;
+    }
+    .feedback-row .fb {
+      border: 1px solid #c9d5e3; background: #fff; color: #1c2430;
+      border-radius: 8px; padding: 5px 10px; cursor: pointer; font-size: 12px;
+    }
+    .feedback-row .fb:hover { border-color: #2f5d8a; color: #2f5d8a; }
+    .feedback-row .fb-neg:hover { border-color: #9a3412; color: #9a3412; }
+    .feedback-row .fb:disabled { opacity: 0.55; cursor: default; }
+    .feedback-ack { margin: 0; color: #166534; font-weight: 650; }
+    .msg.assistant .bubble { margin-top: 0; }
+    .ask-card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 10px;
+    }
+    .ask { display: grid; grid-template-columns: minmax(0, 1fr) 88px; gap: 8px; }
+    textarea {
+      width: 100%; min-height: 64px; resize: vertical; border: 1px solid var(--line);
+      border-radius: 8px; padding: 8px 10px; font-size: 14px; color: var(--ink); background: #fff;
+    }
+    .meta-row { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+    .cost { display: flex; gap: 12px; font-size: 12px; color: #4b5d6e; }
+    .cost b { color: var(--ink); }
+    .legend { margin: 0; font-size: 13px; color: #3f5163; line-height: 1.5; }
+    .rail {
+      background: var(--rail-bg);
+      border-left: 1px solid #c9d5e3;
+      padding: 18px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      height: 100%;
+      min-height: 0;
+      min-width: 0;
+      overflow: hidden;
+      color: #152033;
+    }
+    .rail code, .audit-item code {
+      font-family: Consolas, "Courier New", monospace;
+    }
+    .rail h2 { margin: 0; flex: 0 0 auto; font-size: 15px; color: #152033; font-weight: 700; }
+    .rail > .legend { flex: 0 0 auto; color: #3f5163; }
+    #auditList {
+      overflow-x: hidden;
+      overflow-y: auto;
+      flex: 1 1 auto;
+      min-height: 0;
+      padding-right: 4px;
+    }
+    .audit-item {
+      font-size: 13px;
+      background: #fff;
+      border: 1px solid #cfd9e6;
+      border-radius: 10px;
+      padding: 10px 12px;
+      margin: 0 0 10px;
+      line-height: 1.5;
+      color: #1c2430;
+    }
+    .audit-item .q {
+      font-weight: 650;
+      color: #152033;
+      margin: 0 0 6px;
+      word-break: break-word;
+    }
+    .audit-item code {
+      display: block;
+      margin-top: 8px;
+      font-size: 12px;
+      line-height: 1.5;
+      color: #e7eef6;
+      background: #15202b;
+      border-radius: 8px;
+      padding: 8px 10px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 9.5em;
+      overflow: auto;
+    }
+    .badge {
+      display: inline-block;
+      font-size: 12px;
+      font-weight: 650;
+      padding: 2px 8px;
+      border-radius: 999px;
+    }
+    .ok { color: #14532d; }
+    .warn { color: #9a3412; }
+    .badge.ok { background: #dcfce7; color: #14532d; }
+    .badge.warn { background: #ffedd5; color: #9a3412; }
+    .role {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.06em;
+      text-transform: uppercase; color: #6b7c8d; margin: 0 0 6px;
+    }
+    .msg.user .role { text-align: right; color: #8aa0b5; }
+    .message-actions {
+      display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px;
+    }
+    .msg.user .message-actions { justify-content: flex-end; }
+    .msg-action-btn {
+      border: 1px solid #c9d5e3; background: #fff; color: #334155;
+      border-radius: 7px; padding: 4px 9px; font-size: 12px; cursor: pointer;
+    }
+    .msg-action-btn:hover { background: #eef3f8; border-color: #9fb4cc; }
+    .msg-action-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .msg-action-btn.is-primary { background: #1b2a41; color: #f4f7fb; border-color: transparent; }
+    .user-edit-wrap { display: flex; flex-direction: column; gap: 8px; }
+    .user-edit-input {
+      width: 100%; min-height: 72px; resize: vertical; border: 1px solid var(--line);
+      border-radius: 10px; padding: 10px 12px; font-size: 14px; color: var(--ink); background: #fff;
+    }
+    .agent-process { margin: 0; }
+    .agent-process > summary {
+      cursor: pointer; list-style: none; display: flex; align-items: center; gap: 8px;
+      font-size: 12px; font-weight: 650; color: #334155; padding: 2px 0 8px;
+    }
+    .agent-process > summary::-webkit-details-marker { display: none; }
+    .agent-process > summary::before { content: "▾"; opacity: 0.65; }
+    .agent-process:not([open]) > summary::before { content: "▸"; }
+    .agent-process .agent-steps { margin-top: 2px; }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside class="nav">
+      <div class="brand">Vanna<small>后台问数助手 · 多轮记忆 · SQL 确认后执行</small></div>
+      <button class="new-chat" id="newChat" type="button">新对话</button>
+      <div class="sessions">
+        <h2>历史会话</h2>
+        <div id="sessionList"></div>
+      </div>
+      <div class="examples">
+        <h2>真实库示例</h2>
+        <div class="chip-group">
+          <span>精确匹配 · 不耗模型</span>
+          <button class="chip" type="button" data-q="目前突发事件有几个，分别是什么">突发事件名单</button>
+          <button class="chip" type="button" data-q="老人库有多少人">老人库人数</button>
+          <button class="chip" type="button" data-q="签约老人有多少">签约老人数</button>
+          <button class="chip" type="button" data-q="现在系统里挂着几场突发事件练习，分别叫什么、是文本还是视频？">自然语言 · 突发事件</button>
+        </div>
+        <div class="chip-group">
+          <span>连表 / 业务问法</span>
+          <button class="chip join" type="button" data-q="「二战」这个组里现在有哪些成员？学号也给我。">二战组成员</button>
+          <button class="chip join" type="button" data-q="各护理级别分别多少人，哪一级最多？">护理级别</button>
+          <button class="chip join" type="button" data-q="「测试文本类」这场绑了哪些题库？">文本类绑题库</button>
+          <button class="chip join" type="button" data-q="谁报名或参加了「测试视频类」？把姓名和学号列出来。">谁参加视频类</button>
+        </div>
+      </div>
+      <p class="status" id="catalogStatus">正在读取目录…</p>
+    </aside>
+    <main>
+      <div class="toolbar">
+        <div class="field">
+          <label for="tenant">租户</label>
+          <div class="select-wrap"><select id="tenant"></select></div>
+        </div>
+        <div class="field">
+          <label for="scene">场景</label>
+          <div class="select-wrap"><select id="scene"></select></div>
+        </div>
+        <p class="scene-hint" id="sceneHint"></p>
+      </div>
+      <div class="thread" id="thread">
+        <div class="empty" id="welcome">这是一个后台问数助手。左侧可开新对话或点示例；我会先给你 SQL 预览，确认后再查库。</div>
+      </div>
+      <form class="ask-card" id="form">
+        <div class="ask">
+          <textarea id="q" maxlength="400" placeholder="例如：目前突发事件有几个，分别是什么" required></textarea>
+          <button class="go" type="submit" id="go">问问</button>
+        </div>
+      </form>
+      <div class="meta-row">
+        <div class="cost">
+          <span>llm <b id="cLlm">0</b>/<b id="cLlmMax">1</b></span>
+          <span>答 <b id="cAns">0</b>/<b id="cAnsMax">1</b></span>
+          <span>embed <b id="cEmb">0</b>/<b id="cEmbMax">1</b></span>
+          <span>耗时 <b id="cMs">0</b> ms</span>
+          <span>行数 <b id="cRows">—</b></span>
+          <span>来源 <b id="cSrc">—</b></span>
+        </div>
+        <p class="legend" id="budgetHint">生 SQL 最多 1 次；确认执行后另用 1 次模型写助手回复。黄金问句生 SQL 为 0。</p>
+      </div>
+    </main>
+    <aside class="rail">
+      <h2>查询记录</h2>
+      <p class="legend">本轮审计：问句、是否已执行、SQL 留痕。</p>
+      <div id="auditList"></div>
+    </aside>
+  </div>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const SESSION_KEY = "vanna_session_id";
+    const FEEDBACK_KEY = "vanna_session_feedback";
+    let pendingId = "";
+    let lastSql = "";
+    let lastQuestion = "";
+    let feedbackByMsg = {};
+    let scenes = [];
+    let maxQuestion = 400;
+    let sessionId = localStorage.getItem(SESSION_KEY) || "";
+    let liveCard = null;
+
+    function escapeHtml(v) {
+      if (v == null) return "";
+      return String(v).replace(/[&<>"']/g, (ch) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+      }[ch]));
+    }
+
+    async function boot() {
+      const meta = await fetch("/api/meta").then((r) => r.json());
+      $("tenant").innerHTML = (meta.tenants || []).map((t) =>
+        `<option value="${t.id}">${t.title} (${t.id})</option>`
+      ).join("");
+      scenes = meta.scenes || [];
+      $("scene").innerHTML = scenes.map((s) =>
+        `<option value="${s.id}">${s.title}${s.stub ? " · 建设中" : ""}</option>`
+      ).join("");
+      onScene();
+      const budget = meta.budget || {};
+      $("cLlmMax").textContent = budget.max_llm_calls ?? 1;
+      $("cEmbMax").textContent = budget.max_embed_calls ?? 1;
+      $("cAnsMax").textContent = budget.max_answer_llm_calls ?? 1;
+      maxQuestion = Number(budget.max_question_chars || 400);
+      $("q").maxLength = maxQuestion;
+      const t = (meta.tenants || [])[0];
+      $("catalogStatus").textContent = t
+        ? `目录 ${t.catalog || 0} 条 · 对话会记住最近几轮。`
+        : "未发现租户。";
+      await ensureSession();
+      await refreshSessions();
+      await loadThread();
+      await refreshAudit();
+    }
+
+    function onScene() {
+      const s = scenes.find((x) => x.id === $("scene").value);
+      if (!s) { $("sceneHint").textContent = ""; return; }
+      $("sceneHint").textContent = s.stub
+        ? "本场景入口已通，深度能力尚未实现。"
+        : "先预览 SQL，确认后再执行。回复会用模型写成助手口吻。";
+    }
+    $("scene").addEventListener("change", onScene);
+
+    async function ensureSession() {
+      if (sessionId) {
+        const res = await fetch("/api/sessions/" + sessionId);
+        if (res.ok) return;
+      }
+      const created = await fetch("/api/sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tenant: $("tenant").value || "p2604", scene: $("scene").value || "assistant" }),
+      }).then((r) => r.json());
+      sessionId = created.id;
+      localStorage.setItem(SESSION_KEY, sessionId);
+    }
+
+    async function refreshSessions() {
+      const data = await fetch("/api/sessions").then((r) => r.json());
+      $("sessionList").innerHTML = (data.items || []).map((s) => `
+        <div class="sess">
+          <button class="pick ${s.id === sessionId ? "on" : ""}" data-id="${s.id}" type="button">${escapeHtml(s.title || "对话")}</button>
+          <button class="del" data-del="${s.id}" type="button">×</button>
+        </div>`).join("") || "<p class='legend'>还没有会话。</p>";
+      $("sessionList").querySelectorAll(".pick").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          sessionId = btn.getAttribute("data-id");
+          localStorage.setItem(SESSION_KEY, sessionId);
+          await refreshSessions();
+          await loadThread();
+        });
+      });
+      $("sessionList").querySelectorAll(".del").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          await fetch("/api/sessions/" + btn.getAttribute("data-del"), { method: "DELETE" });
+          if (sessionId === btn.getAttribute("data-del")) {
+            sessionId = "";
+            localStorage.removeItem(SESSION_KEY);
+            await ensureSession();
+          }
+          await refreshSessions();
+          await loadThread();
+        });
+      });
+    }
+
+    let asking = false;
+    let editingMsgId = "";
+
+    async function loadThread() {
+      const doc = await fetch("/api/sessions/" + sessionId).then((r) => r.ok ? r.json() : null);
+      const msgs = (doc && doc.messages) || [];
+      $("thread").innerHTML = "";
+      loadFeedbackMap();
+      if (!msgs.length) {
+        $("thread").innerHTML = `<div class="empty" id="welcome">这是一个后台问数助手。左侧可开新对话或点示例；我会先给你 SQL 预览，确认后再查库。</div>`;
+        return;
+      }
+      msgs.forEach((m) => {
+        if (m.role === "user" && m.content) lastQuestion = m.content;
+        appendBubble(m.role, m.content, m.meta || {}, { id: m.id || "" });
+      });
+      // 恢复最近一条待确认的 pending
+      for (let i = msgs.length - 1; i >= 0; i--) {
+        const meta = msgs[i].meta || {};
+        if (msgs[i].role === "assistant" && meta.checkpoint && meta.pending_id) {
+          pendingId = meta.pending_id;
+          lastSql = meta.sql || "";
+          break;
+        }
+      }
+      $("thread").scrollTop = $("thread").scrollHeight;
+    }
+
+    async function truncateFrom(messageId) {
+      const res = await fetch("/api/sessions/" + sessionId + "/truncate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message_id: messageId }),
+      });
+      if (!res.ok) throw new Error("truncate failed " + res.status);
+      // 与总管一致：撤回/重生/编辑重发后，该轮及之后反馈作废（本地 UI + 服务端 learningVoid）
+      clearFeedbackFromMessage(messageId);
+      return res.json().catch(() => ({}));
+    }
+
+    function clearFeedbackFromMessage(fromMsgId) {
+      const from = String(fromMsgId || "").trim();
+      if (!from) return;
+      const thread = document.getElementById("thread");
+      const nodes = thread ? Array.from(thread.querySelectorAll("[data-msg-id]")) : [];
+      let dropping = false;
+      const dropIds = new Set();
+      for (const node of nodes) {
+        const id = String(node.getAttribute("data-msg-id") || "");
+        if (id === from) dropping = true;
+        if (dropping && id) dropIds.add(id);
+      }
+      // 若 DOM 尚未带齐 id，至少清当前键
+      dropIds.add(from);
+      let changed = false;
+      for (const key of Object.keys(feedbackByMsg || {})) {
+        if (dropIds.has(key) || key === from) {
+          delete feedbackByMsg[key];
+          changed = true;
+        }
+      }
+      if (changed) saveFeedbackMap();
+    }
+
+    async function copyText(text, btn) {
+      const t = String(text || "").trim();
+      if (!t) return;
+      try { await navigator.clipboard.writeText(t); } catch { return; }
+      if (!btn) return;
+      const old = btn.textContent;
+      btn.textContent = "已复制";
+      setTimeout(() => { btn.textContent = old; }, 1200);
+    }
+
+    function bindMsgActions(wrap, role, text, meta, msgId) {
+      const copyBtn = wrap.querySelector("[data-act=copy]");
+      if (copyBtn) copyBtn.addEventListener("click", () => copyText(text, copyBtn));
+      const copySql = wrap.querySelector(".copy-live");
+      if (copySql) copySql.addEventListener("click", () => copyText(lastSql || (meta && meta.sql) || "", copySql));
+      const confirmBtn = wrap.querySelector(".confirm-live");
+      if (confirmBtn) confirmBtn.addEventListener("click", () => confirmExec());
+      const promoteBtn = wrap.querySelector(".promote-live");
+      if (promoteBtn) promoteBtn.addEventListener("click", () => promoteGolden(meta, promoteBtn));
+      if (role !== "user" || !msgId) return;
+      const editBtn = wrap.querySelector("[data-act=edit]");
+      const withdrawBtn = wrap.querySelector("[data-act=withdraw]");
+      const regenBtn = wrap.querySelector("[data-act=regen]");
+      if (editBtn) editBtn.addEventListener("click", () => startEdit(wrap, text, msgId));
+      if (withdrawBtn) withdrawBtn.addEventListener("click", () => withdrawTurn(msgId));
+      if (regenBtn) regenBtn.addEventListener("click", () => regenerateTurn(msgId, text));
+    }
+
+    function startEdit(wrap, text, msgId) {
+      if (asking) return;
+      editingMsgId = msgId;
+      const bubble = wrap.querySelector(".bubble");
+      if (!bubble) return;
+      bubble.outerHTML = `<div class="user-edit-wrap">
+        <textarea class="user-edit-input">${escapeHtml(text || "")}</textarea>
+        <div class="message-actions">
+          <button type="button" class="msg-action-btn" data-act="edit-cancel">取消</button>
+          <button type="button" class="msg-action-btn is-primary" data-act="edit-send">重发</button>
+        </div>
+      </div>`;
+      const actions = wrap.querySelector(".message-actions-user");
+      if (actions) actions.remove();
+      wrap.querySelector("[data-act=edit-cancel]").addEventListener("click", () => loadThread());
+      wrap.querySelector("[data-act=edit-send]").addEventListener("click", async () => {
+        const draft = (wrap.querySelector(".user-edit-input") || {}).value || "";
+        const q = String(draft).trim();
+        if (!q || asking) return;
+        editingMsgId = "";
+        await truncateFrom(msgId);
+        await loadThread();
+        await ask({
+          question: q,
+          tenant: $("tenant").value,
+          scene: $("scene").value,
+          confirm: false,
+        }, { userText: q });
+      });
+    }
+
+    async function withdrawTurn(msgId) {
+      if (asking || !msgId) return;
+      if (!window.confirm("撤回后将删除该轮及之后的对话，是否继续？")) return;
+      await truncateFrom(msgId);
+      pendingId = "";
+      lastSql = "";
+      await loadThread();
+      await refreshSessions();
+    }
+
+    async function regenerateTurn(msgId, text) {
+      if (asking || !msgId) return;
+      const q = String(text || "").trim();
+      if (!q) return;
+      await truncateFrom(msgId);
+      await loadThread();
+      await ask({
+        question: q,
+        tenant: $("tenant").value,
+        scene: $("scene").value,
+        confirm: false,
+      }, { userText: q });
+    }
+
+    function sourceLabel(src) {
+      if (src === "golden") return "黄金匹配 · 0 次生 SQL";
+      if (src === "llm") return "模型生成";
+      if (src === "pending") return "确认后执行";
+      if (src === "stub") return "场景占位";
+      return src || "—";
+    }
+
+    function statusLabel(st) {
+      if (st === "running") return "进行中";
+      if (st === "success") return "完成";
+      if (st === "await") return "待确认";
+      if (st === "failed") return "失败";
+      if (st === "skipped") return "跳过";
+      return "待办";
+    }
+
+    function tableChips(tables, limit) {
+      const list = (tables || []).filter(Boolean);
+      if (!list.length) return "";
+      const max = limit || 8;
+      const shown = list.slice(0, max);
+      const more = list.length - shown.length;
+      return `<div class="chips">${shown.map((t) => `<span class="chip-tag" title="${escapeHtml(t)}">${escapeHtml(t)}</span>`).join("")}${more > 0 ? `<span class="chip-tag">+${more}</span>` : ""}</div>`;
+    }
+
+    function defaultSteps(mode) {
+      // mode: preview | execute | confirm
+      const steps = [
+        { id: "retrieve", label: "检索目录", status: "pending", detail: "" },
+        { id: "understand", label: "理解意图", status: "pending", detail: "" },
+        { id: "sql", label: "生成 SQL", status: "pending", detail: "" },
+        { id: "guard", label: "安全闸门", status: "pending", detail: "" },
+      ];
+      if (mode === "preview") {
+        steps.push({ id: "checkpoint", label: "确认执行", status: "pending", detail: "核对 SQL 后再查库" });
+      } else {
+        steps.push({ id: "execute", label: "执行查询", status: "pending", detail: "" });
+        steps.push({ id: "answer", label: "整理回复", status: "pending", detail: "" });
+      }
+      return steps;
+    }
+
+    function buildStepsFromMeta(meta) {
+      const m = meta || {};
+      const checkpoint = !!m.checkpoint;
+      const executed = !!m.executed || (!checkpoint && (m.row_count > 0 || !!m.sql));
+      const steps = defaultSteps(checkpoint ? "preview" : "execute");
+      const set = (id, status, detail) => {
+        const s = steps.find((x) => x.id === id);
+        if (s) { s.status = status; if (detail != null) s.detail = detail; }
+      };
+      if ((m.tables || []).length || m.sql) {
+        set("retrieve", "success", (m.tables || []).length ? `命中 ${(m.tables || []).length} 张表` : "已检索");
+      }
+      if (m.intent || m.reason) {
+        set("understand", "success", [m.intent, m.reason].filter(Boolean).join(" · "));
+      } else if (m.sql) {
+        set("understand", "success", "已就绪");
+      }
+      if (m.sql) set("sql", "success", sourceLabel(m.source));
+      if (m.guard_ok === false) set("guard", "failed", m.error || "未通过");
+      else if (m.sql) set("guard", "success", "只读闸门通过");
+      if (checkpoint) {
+        set("checkpoint", "await", "等待你确认后再执行");
+      } else {
+        if (m.error && !executed) set("execute", "failed", m.error);
+        else if (executed || m.row_count != null) set("execute", "success", `${m.row_count || 0} 行`);
+        set("answer", "success", m.repair ? "已修复后回复" : "已完成");
+      }
+      if (m.repair) {
+        const sqlStep = steps.find((x) => x.id === "sql");
+        if (sqlStep) sqlStep.detail = (sqlStep.detail || "") + " · 曾修复";
+      }
+      return steps;
+    }
+
+    function renderAgentCard(state) {
+      const steps = state.steps || [];
+      const done = steps.filter((s) => s.status === "success" || s.status === "skipped").length;
+      const failed = steps.some((s) => s.status === "failed");
+      const awaiting = steps.some((s) => s.status === "await");
+      const running = !!state.running;
+      const pct = steps.length ? Math.round((done / steps.length) * 100) : 0;
+      const live = running ? "进行中" : (awaiting ? "待确认" : (failed ? "已中断" : "已完成"));
+      const liveClass = running ? "" : (awaiting ? "is-await" : "is-done");
+      const cardClass = running ? "is-running" : (awaiting ? "is-await" : "");
+      const stepsHtml = steps.map((s) => {
+        let detail = escapeHtml(s.detail || "");
+        if (s.id === "retrieve" && (state.tables || []).length) {
+          detail = `${escapeHtml(s.detail || "")}${tableChips(state.tables)}`;
+        }
+        return `<li class="agent-step is-${s.status}">
+          <span class="dot" aria-hidden="true"></span>
+          <div><div class="title">${escapeHtml(s.label)}</div>${detail ? `<div class="detail">${detail}</div>` : ""}</div>
+          <span class="st">${statusLabel(s.status)}</span>
+        </li>`;
+      }).join("");
+      const sqlBlock = state.sql
+        ? `<details class="tool-sql" ${state.checkpoint || running ? "open" : ""}>
+            <summary>工具 · SQL<span class="src">${escapeHtml(sourceLabel(state.source))}</span></summary>
+            <pre>${escapeHtml(state.sql)}</pre>
+          </details>`
+        : "";
+      const hitl = state.checkpoint
+        ? `<div class="hitl"><p>人工确认闸门：核对 SQL 后才会查库，不会自动执行。</p>
+            <div class="actions">
+              <button type="button" class="primary confirm-live">确认执行</button>
+              <button type="button" class="ghost copy-live">复制 SQL</button>
+            </div></div>`
+        : (state.sql && !running
+          ? `<div class="actions" style="margin-top:10px">
+              <button type="button" class="ghost copy-live">复制 SQL</button>
+              ${state.executed && !state.checkpoint ? `<button type="button" class="ghost promote-live">收入黄金</button>` : ""}
+            </div>`
+          : "");
+      const processBody = `
+        <div class="agent-progress" aria-hidden="true"><i style="width:${Math.max(pct, running ? 8 : 0)}%"></i></div>
+        <ul class="agent-steps">${stepsHtml}</ul>
+        ${sqlBlock}
+        ${hitl}`;
+      const processBlock = (running || awaiting)
+        ? processBody
+        : `<details class="agent-process" ${state.forceOpen ? "open" : ""}>
+            <summary>思考过程 · ${done}/${steps.length} 步</summary>
+            ${processBody}
+          </details>`;
+      return `<div class="agent-card ${cardClass}">
+        <div class="agent-head">
+          <span class="agent-mark" aria-hidden="true">⬡</span>
+          <span>活动</span>
+          <span class="agent-count">${done}/${steps.length} 步</span>
+          <span class="agent-live ${liveClass}">${live}</span>
+        </div>
+        ${processBlock}
+      </div>`;
+    }
+
+    function setStep(steps, id, status, detail) {
+      const s = steps.find((x) => x.id === id);
+      if (!s) return;
+      s.status = status;
+      if (detail != null) s.detail = detail;
+    }
+
+    function advanceRunning(steps, nextId) {
+      steps.forEach((s) => {
+        if (s.status === "running") s.status = "success";
+      });
+      if (nextId) setStep(steps, nextId, "running", "");
+    }
+
+    function appendBubble(role, text, meta, opts) {
+      const welcome = $("welcome");
+      if (welcome) welcome.remove();
+      const wrap = document.createElement("div");
+      wrap.className = "msg " + (role === "user" ? "user" : "assistant");
+      const msgId = (opts && opts.id) || "";
+      if (msgId) wrap.dataset.msgId = msgId;
+      const m = meta || {};
+      if (role === "user") {
+        const actions = msgId
+          ? `<div class="message-actions message-actions-user">
+              <button type="button" class="msg-action-btn" data-act="copy">复制</button>
+              <button type="button" class="msg-action-btn" data-act="edit" ${asking ? "disabled" : ""}>编辑</button>
+              <button type="button" class="msg-action-btn" data-act="withdraw" ${asking ? "disabled" : ""}>撤回</button>
+              <button type="button" class="msg-action-btn" data-act="regen" ${asking ? "disabled" : ""}>重新生成</button>
+            </div>`
+          : "";
+        wrap.innerHTML = `<div class="role">你</div><div class="bubble">${escapeHtml(text || "")}</div>${actions}`;
+      } else {
+        const state = {
+          steps: m.steps || buildStepsFromMeta(m),
+          tables: m.tables || [],
+          sql: m.sql || "",
+          source: m.source || "",
+          checkpoint: !!m.checkpoint,
+          executed: !!m.executed,
+          running: !!m.running,
+        };
+        const showCard = state.steps.length || state.sql || state.checkpoint || state.running;
+        const bubble = text ? `<div class="bubble">${escapeHtml(text)}</div>` : "";
+        const copyAns = (!m.running && text)
+          ? `<div class="message-actions"><button type="button" class="msg-action-btn" data-act="copy">复制</button></div>`
+          : "";
+        wrap.innerHTML = `<div class="role">助手</div>${showCard ? renderAgentCard(state) : ""}${bubble}${copyAns}`;
+        if (m.rows && m.rows.length) {
+          const box = document.createElement("div");
+          box.className = "result-wrap";
+          box.appendChild(buildTable(m.rows));
+          wrap.appendChild(box);
+        }
+        const details = Array.isArray(m.field_details) ? m.field_details : [];
+        if (details.length && m.executed && !m.checkpoint) {
+          wrap.appendChild(buildFieldDetails(details));
+        }
+        if (m.executed && !m.checkpoint && !m.running && text) {
+          wrap.appendChild(buildFeedbackRow(msgId, m));
+        }
+      }
+      $("thread").appendChild(wrap);
+      bindMsgActions(wrap, role, text, m, msgId);
+      $("thread").scrollTop = $("thread").scrollHeight;
+      return wrap;
+    }
+
+    function paintLive(wrap, state) {
+      if (!wrap) return;
+      const bubble = wrap.querySelector(".bubble");
+      const bubbleHtml = bubble ? bubble.outerHTML : "";
+      const result = wrap.querySelector(".result-wrap");
+      wrap.innerHTML = `<div class="role">助手</div>${renderAgentCard(state)}${bubbleHtml}`;
+      if (result) wrap.appendChild(result);
+      bindMsgActions(wrap, "assistant", "", { sql: state.sql }, "");
+      $("thread").scrollTop = $("thread").scrollHeight;
+    }
+
+    function removeCheckpointCards() {
+      $("thread").querySelectorAll(".msg.assistant").forEach((el) => {
+        if (el.querySelector(".hitl") || el.querySelector(".agent-live.is-await")) el.remove();
+      });
+    }
+
+    function buildTable(rows) {
+      const el = document.createElement("table");
+      const keys = Object.keys(rows[0] || {});
+      el.innerHTML = `<thead><tr>${keys.map((k) => `<th>${escapeHtml(k)}</th>`).join("")}</tr></thead>` +
+        `<tbody>${rows.map((r) => `<tr>${keys.map((k) => `<td>${escapeHtml(r[k])}</td>`).join("")}</tr>`).join("")}</tbody>`;
+      return el;
+    }
+
+    function buildFieldDetails(details) {
+      const el = document.createElement("div");
+      el.className = "field-details";
+      const items = (details || []).map((d) => {
+        const label = escapeHtml(d.label || d.comment || d.column || "");
+        const col = escapeHtml(d.column || "");
+        const cmt = escapeHtml(d.comment || d.label || "");
+        const table = d.table ? ` · <code>${escapeHtml(d.table)}</code>` : "";
+        return `<li><strong>${label}</strong>：${cmt}${col && col !== label ? ` <code>${col}</code>` : ""}${table}</li>`;
+      }).join("");
+      el.innerHTML = `<h4>字段说明</h4><ul>${items}</ul><p class="legend" style="margin-top:6px">仅展示与本次问句相关的列，不铺开全部字段。</p>`;
+      return el;
+    }
+
+    function loadFeedbackMap() {
+      try {
+        feedbackByMsg = JSON.parse(localStorage.getItem(FEEDBACK_KEY + ":" + sessionId) || "{}") || {};
+      } catch {
+        feedbackByMsg = {};
+      }
+    }
+
+    function saveFeedbackMap() {
+      try {
+        localStorage.setItem(FEEDBACK_KEY + ":" + sessionId, JSON.stringify(feedbackByMsg || {}));
+      } catch {}
+    }
+
+    function buildFeedbackRow(msgId, meta) {
+      const el = document.createElement("div");
+      el.className = "feedback-row";
+      const key = String(msgId || meta.pending_id || meta.sql || lastQuestion || "").slice(0, 120);
+      const sent = feedbackByMsg[key];
+      if (sent === 1 || sent === -1) {
+        el.innerHTML = `<p class="feedback-ack">${sent === 1 ? "已标记为有用 · 感谢反馈" : "已标记为无用 · 已记入学习影子"}</p>`;
+        return el;
+      }
+      el.innerHTML = `<span>这轮回复有帮助吗？</span>
+        <button type="button" class="fb" data-fb="1">有用</button>
+        <button type="button" class="fb fb-neg" data-fb="-1">无用</button>`;
+      el.querySelectorAll("[data-fb]").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const score = Number(btn.getAttribute("data-fb"));
+          el.querySelectorAll("button").forEach((b) => { b.disabled = true; });
+          const res = await fetch("/api/feedback", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              question: lastQuestion || "（未知问句）",
+              score,
+              tenant: $("tenant").value,
+              session_id: sessionId,
+              message_id: String(msgId || "").trim(),
+              sql: (meta && meta.sql) || lastSql || "",
+              tables: (meta && meta.tables) || [],
+            }),
+          });
+          const body = await res.json().catch(() => ({}));
+          if (res.ok && body.ok) {
+            feedbackByMsg[key] = score;
+            saveFeedbackMap();
+            el.innerHTML = `<p class="feedback-ack">${escapeHtml(body.ack || (score === 1 ? "已标记为有用" : "已标记为无用"))}</p>`;
+          } else {
+            el.querySelectorAll("button").forEach((b) => { b.disabled = false; });
+            el.insertAdjacentHTML("beforeend", `<span style="color:#9a3412">反馈失败</span>`);
+          }
+        });
+      });
+      return el;
+    }
+
+    async function refreshAudit() {
+      const data = await fetch("/api/audit?limit=20").then((r) => r.json()).catch(() => ({ items: [] }));
+      $("auditList").innerHTML = (data.items || []).map((it) => `
+        <div class="audit-item">
+          <div class="q">${escapeHtml((it.question || "").slice(0, 72) || "（无问句）")}</div>
+          <span class="badge ${it.executed ? "ok" : "warn"}">${it.executed ? "已执行" : "仅预览"} · ${it.row_count || 0} 行</span>
+          <code>${escapeHtml(it.sql || "（尚无 SQL）")}</code>
+        </div>`).join("") || "<p class='legend'>还没有记录。</p>";
+    }
+
+    $("newChat").addEventListener("click", async () => {
+      sessionId = "";
+      localStorage.removeItem(SESSION_KEY);
+      await ensureSession();
+      await refreshSessions();
+      await loadThread();
+    });
+
+    document.querySelectorAll(".chip").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        $("q").value = btn.getAttribute("data-q") || "";
+        $("q").focus();
+      });
+    });
+
+    function setCost(c) {
+      if (!c) return;
+      $("cLlm").textContent = c.llm_calls ?? 0;
+      $("cEmb").textContent = c.embed_calls ?? 0;
+      $("cAns").textContent = c.answer_calls ?? 0;
+      $("cMs").textContent = c.elapsed_ms ?? 0;
+    }
+
+    async function readSSE(res, onEvent) {
+      const reader = res.body.getReader();
+      const dec = new TextDecoder();
+      let buf = "";
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        const chunks = buf.split("\n\n");
+        buf = chunks.pop();
+        for (const block of chunks) {
+          let ev = "message", data = "";
+          for (const line of block.split("\n")) {
+            if (line.startsWith("event:")) ev = line.slice(6).trim();
+            if (line.startsWith("data:")) data += line.slice(5).trim();
+          }
+          if (data) onEvent(ev, JSON.parse(data));
+        }
+      }
+    }
+
+    async function ask(payload, { userText } = {}) {
+      if (asking) return;
+      asking = true;
+      const isConfirm = !!(payload.confirm || payload.pending_id);
+      const keepPending = isConfirm ? pendingId : "";
+      const keepSql = isConfirm ? lastSql : "";
+      if (!isConfirm) {
+        pendingId = "";
+        lastSql = "";
+      }
+      $("go").disabled = true;
+      document.querySelectorAll(".msg-action-btn").forEach((b) => { b.disabled = true; });
+      if (userText && !isConfirm) {
+        lastQuestion = userText;
+        appendBubble("user", userText, {});
+      }
+      if (isConfirm) removeCheckpointCards();
+      const steps = defaultSteps(isConfirm ? "execute" : "preview");
+      setStep(steps, "retrieve", "running", isConfirm ? "沿用预览上下文…" : "正在检索目录…");
+      const liveState = {
+        steps,
+        tables: [],
+        sql: keepSql || "",
+        source: isConfirm ? "pending" : "",
+        checkpoint: false,
+        running: true,
+      };
+      liveCard = appendBubble("assistant", "", { running: true, steps, tables: [], sql: keepSql || "" });
+      paintLive(liveCard, liveState);
+
+      const res = await fetch("/api/ask/stream", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...payload,
+          session_id: sessionId,
+          pending_id: payload.pending_id || keepPending || "",
+          sql: payload.sql || keepSql || "",
+        }),
+      });
+      if (!res.ok) {
+        liveCard.innerHTML = `<div class="role">助手</div><div class="bubble">请求失败 ${res.status}</div>`;
+        $("go").disabled = false;
+        asking = false;
+        return;
+      }
+      let tables = [];
+      let rows = [];
+      let source = "";
+      let intent = "";
+      let reason = "";
+      let guardOk = null;
+      let executed = false;
+      let repair = false;
+      let execError = "";
+      await readSSE(res, (_, ev) => {
+        if (ev.event === "retrieve") {
+          tables = ev.tables || [];
+          liveState.tables = tables;
+          setStep(steps, "retrieve", "success", tables.length ? `命中 ${tables.length} 张表` : "未命中表");
+          advanceRunning(steps, "understand");
+          setStep(steps, "understand", "running", "正在理解问题…");
+          paintLive(liveCard, liveState);
+        }
+        if (ev.event === "understand") {
+          intent = ev.intent || "";
+          reason = ev.reason || "";
+          if (ev.tables && ev.tables.length) {
+            tables = ev.tables;
+            liveState.tables = tables;
+          }
+          setStep(steps, "understand", "success", [intent, reason].filter(Boolean).join(" · ") || "已完成");
+          advanceRunning(steps, "sql");
+          setStep(steps, "sql", "running", "正在生成 SQL…");
+          paintLive(liveCard, liveState);
+        }
+        if (ev.event === "sql") {
+          lastSql = ev.sql || "";
+          source = ev.source || "";
+          liveState.sql = lastSql;
+          liveState.source = source;
+          $("cSrc").textContent = source || "—";
+          const und = steps.find((x) => x.id === "understand");
+          if (und && (und.status === "running" || und.status === "pending")) {
+            setStep(steps, "understand", "success", isConfirm ? "沿用预览上下文" : "已就绪");
+          }
+          setStep(steps, "sql", lastSql ? "success" : "failed", sourceLabel(source));
+          advanceRunning(steps, "guard");
+          setStep(steps, "guard", "running", "检查只读与限额…");
+          paintLive(liveCard, liveState);
+        }
+        if (ev.event === "guard") {
+          guardOk = !!ev.ok;
+          if (ev.sql) {
+            lastSql = ev.sql;
+            liveState.sql = lastSql;
+          }
+          if (ev.tables && ev.tables.length) {
+            tables = ev.tables;
+            liveState.tables = tables;
+          }
+          setStep(steps, "guard", ev.ok ? "success" : "failed", ev.reason_text || ev.reason || "");
+          if (ev.ok) {
+            if (isConfirm) {
+              advanceRunning(steps, "execute");
+              setStep(steps, "execute", "running", "正在查库…");
+            } else {
+              advanceRunning(steps, "checkpoint");
+              setStep(steps, "checkpoint", "running", "准备确认闸门…");
+            }
+          }
+          paintLive(liveCard, liveState);
+        }
+        if (ev.event === "checkpoint") {
+          pendingId = ev.pending_id || "";
+          if (ev.sql) {
+            lastSql = ev.sql;
+            liveState.sql = lastSql;
+          }
+          setStep(steps, "checkpoint", "await", "等待你确认后再执行");
+          liveState.checkpoint = true;
+          liveState.running = false;
+          paintLive(liveCard, liveState);
+        }
+        if (ev.event === "repair") {
+          repair = true;
+          if (ev.sql) {
+            lastSql = ev.sql;
+            liveState.sql = lastSql;
+          }
+          setStep(steps, "sql", "success", (sourceLabel(source) + " · 执行失败后已修复").trim());
+          setStep(steps, "execute", "running", "用修复后的 SQL 重试…");
+          paintLive(liveCard, liveState);
+        }
+        if (ev.event === "execute") {
+          executed = !!ev.ok;
+          execError = ev.error || "";
+          $("cRows").textContent = ev.row_count ?? "—";
+          setStep(steps, "execute", ev.ok ? "success" : "failed",
+            ev.ok ? `${ev.row_count || 0} 行` : (ev.error || "执行失败"));
+          if (ev.ok) {
+            advanceRunning(steps, "answer");
+            setStep(steps, "answer", "running", "正在整理回复…");
+          }
+          paintLive(liveCard, liveState);
+        }
+        if (ev.event === "answer") {
+          const meta = {
+            sql: ev.sql || lastSql,
+            tables,
+            source,
+            intent,
+            reason,
+            guard_ok: guardOk,
+            executed: executed || (!!ev.rows && ev.rows.length > 0),
+            repair,
+            error: execError,
+            checkpoint: ev.checkpoint,
+            pending_id: ev.pending_id,
+            rows: ev.rows || [],
+            row_count: (ev.rows || []).length || (ev.cost && 0),
+            cost: ev.cost,
+          };
+          if (typeof ev.row_count === "number") meta.row_count = ev.row_count;
+          else meta.row_count = (ev.rows || []).length;
+          lastSql = meta.sql;
+          pendingId = ev.checkpoint ? (ev.pending_id || "") : "";
+          rows = ev.rows || [];
+          liveCard.remove();
+          // 统一从会话重载，拿到 message id（复制/编辑/撤回）并合并确认轮
+          setCost(ev.cost);
+        }
+      });
+      $("go").disabled = false;
+      asking = false;
+      await loadThread();
+      await refreshSessions();
+      await refreshAudit();
+      if (rows.length) $("cRows").textContent = rows.length;
+    }
+
+    async function promoteGolden(meta, btn) {
+      const q = String(lastQuestion || "").trim();
+      const sql = String((meta && meta.sql) || lastSql || "").trim();
+      if (!q || !sql || asking) return;
+      if (btn) btn.disabled = true;
+      const res = await fetch("/api/golden", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question: q,
+          sql,
+          tenant: $("tenant").value,
+          scene: $("scene").value,
+          tables: (meta && meta.tables) || [],
+        }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = (res.ok && body.ok) ? (body.deduped ? "已在黄金中" : "已收入") : "收入失败";
+        setTimeout(() => { btn.textContent = "收入黄金"; }, 1600);
+      }
+    }
+
+    async function confirmExec() {
+      if (!pendingId || asking) return;
+      await ask({
+        question: $("q").value.trim() || "确认执行",
+        tenant: $("tenant").value,
+        scene: $("scene").value,
+        pending_id: pendingId,
+        sql: lastSql,
+        confirm: true,
+      });
+    }
+
+    $("form").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const q = $("q").value.trim();
+      if (q.length > maxQuestion) return;
+      ask({
+        question: q,
+        tenant: $("tenant").value,
+        scene: $("scene").value,
+        confirm: false,
+      }, { userText: q });
+      $("q").value = "";
+    });
+    boot().catch((err) => { $("catalogStatus").textContent = "无法连接 API：" + err; });
+  </script>
+</body>
+</html>

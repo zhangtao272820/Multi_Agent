@@ -1,0 +1,49 @@
+{
+  "join_hints": [
+    {
+      "when_tables": ["Cultivate_Examination", "Cultivate_ExaminationItem"],
+      "join_only_if_question_needs": "试题/题目/选项",
+      "sql_hint": "ON Cultivate_Examination.ExaminationId = Cultivate_ExaminationItem.ExaminationId"
+    },
+    {
+      "when_tables": ["Cultivate_Examination", "Cultivate_ExaminationUser"],
+      "join_only_if_question_needs": "考试学生/谁参加",
+      "sql_hint": "ON Cultivate_Examination.ExaminationId = Cultivate_ExaminationUser.ExaminationId"
+    },
+    {
+      "when_tables": ["Cultivate_Examination", "Cultivate_ExaminationXQuestionBank"],
+      "join_only_if_question_needs": "绑定题库",
+      "sql_hint": "ON Cultivate_Examination.ExaminationId = Cultivate_ExaminationXQuestionBank.ExaminationId；再连 PC_QuestionBank.QuestionBankId"
+    },
+    {
+      "when_tables": ["PC_PersonGroup", "PC_PersonGroupItem"],
+      "join_only_if_question_needs": "团队成员/组内学生",
+      "sql_hint": "ON PC_PersonGroup.PersonGroupId = PC_PersonGroupItem.PersonGroupId"
+    },
+    {
+      "when_tables": ["PC_QuestionBank", "PC_Question"],
+      "join_only_if_question_needs": "题库里的题",
+      "sql_hint": "ON PC_QuestionBank.QuestionBankId = PC_Question.QuestionBankId"
+    },
+    {
+      "when_tables": ["Sys_Student", "Sys_User"],
+      "join_only_if_question_needs": "学生账号/登录名",
+      "sql_hint": "ON Sys_Student.UserId = Sys_User.User_Id；禁止 SELECT UserPwd"
+    },
+    {
+      "when_tables": ["Sys_User", "Sys_Role"],
+      "join_only_if_question_needs": "用户角色/权限角色",
+      "sql_hint": "ON Sys_User.Role_Id = Sys_Role.Role_Id"
+    },
+    {
+      "when_tables": ["PC_PersonGroupItem", "Sys_Student"],
+      "join_only_if_question_needs": "分组学生对照花名册",
+      "sql_hint": "ON PC_PersonGroupItem.StudentId = Sys_Student.Id"
+    },
+    {
+      "when_tables": ["PC_OldPeople", "Sys_Room"],
+      "join_only_if_question_needs": "老人房间/房号",
+      "sql_hint": "ON PC_OldPeople.RoomId = Sys_Room.ID"
+    }
+  ]
+}

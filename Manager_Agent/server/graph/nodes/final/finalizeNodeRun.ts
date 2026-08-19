@@ -104,6 +104,7 @@ import { CriticVerdictSchema, type CriticVerdict } from './schemas'
 import { mergeSynthFinalWithReportBody, appendDeferredReportBlockIfNeeded } from './helpers'
 import { pushOtlpTraceForRun } from '../../core/runtime/otelOtlpPush'
 import { emitRunFinalizeLog } from '../../core/runtime/structuredLog'
+import { recordAgentMorphologySnapshot } from '../../core/runtime/recordAgentMorphology'
 
 export function buildFinalizeNodeRun(deps: CreateFinalNodesDeps) {
     const {
@@ -769,6 +770,24 @@ export function buildFinalizeNodeRun(deps: CreateFinalNodesDeps) {
         void pushOtlpTraceForRun(opts.runId).catch(() => undefined)
         // P1b-2：结构化 JSON 行 → stdout → Promtail → Loki（按 run_id 检索）
         emitRunFinalizeLog(opts.runId)
+        void recordAgentMorphologySnapshot({
+          kind: 'final',
+          runId: opts.runId,
+          sessionId: opts.sessionId,
+          policyDir,
+          state: {
+            intent: state.intent,
+            allowedAgents: state.allowedAgents,
+            plan: state.plan,
+            taskPlan: state.taskPlan,
+            probe: state.probe,
+            evidence: state.evidence,
+            meta: {
+              ...((state.meta || {}) as Record<string, unknown>),
+              evidenceGate: { pass: evidenceGate.pass, reason: evidenceGate.reason }
+            }
+          }
+        }).catch(() => undefined)
 
         const appendUserTailLocal = (_bodyText: string) => ''
         if (String(state.final || '').trim() || String(state.meta?.synthStreamBody || '').trim()) {

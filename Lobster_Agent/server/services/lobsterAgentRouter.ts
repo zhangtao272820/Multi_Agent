@@ -64,7 +64,11 @@ async function assertDesktopReady(params: RunParams) {
   if (!isLobsterDesktopMcpEnabled()) {
     throw new Error('lobster_desktop_mcp_disabled: 请设置 LOBSTER_DESKTOP_MCP_ENABLED=1')
   }
-  const probe = await probeLobsterDesktopReady()
+  // uvx windows-mcp serve 冷启动常 >8s；过短会 timeout → 总管当成「连接异常」重试后 aborted
+  const probeMs = Number(process.env.LOBSTER_DESKTOP_MCP_PROBE_MS ?? 90_000)
+  const probe = await probeLobsterDesktopReady(
+    Number.isFinite(probeMs) && probeMs >= 15_000 ? Math.min(180_000, Math.floor(probeMs)) : 90_000,
+  )
   if (!probe.ok) {
     throw new Error(`lobster_desktop_mcp_not_ready: ${probe.error || 'no_tools'}`)
   }
@@ -86,7 +90,10 @@ async function assertEngineReadyOrThrow(engine: LobsterEngineId): Promise<void> 
   if (engine === 'classic') return
   if (engine === 'desktop') {
     if (!isLobsterDesktopMcpEnabled()) throw new Error('lobster_desktop_mcp_disabled')
-    const probe = await probeLobsterDesktopReady()
+    const probeMs = Number(process.env.LOBSTER_DESKTOP_MCP_PROBE_MS ?? 90_000)
+    const probe = await probeLobsterDesktopReady(
+      Number.isFinite(probeMs) && probeMs >= 15_000 ? Math.min(180_000, Math.floor(probeMs)) : 90_000,
+    )
     if (!probe.ok) throw new Error(`lobster_desktop_mcp_not_ready: ${probe.error || 'no_tools'}`)
     return
   }

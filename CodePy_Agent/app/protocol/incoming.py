@@ -20,6 +20,8 @@ class ManagerCodeTask:
     must_outputs: list[str] = field(default_factory=list)
     hint_files: list[str] = field(default_factory=list)
     write_allowed: bool | None = None
+    blast_radius: str = ""
+    confirm_token: str = ""
     root: str = ""
     raw: dict[str, Any] = field(default_factory=dict)
 
@@ -80,9 +82,24 @@ def parse_manager_task(raw: str | dict[str, Any] | None) -> ManagerCodeTask:
         must_outputs=_as_list_str(data.get("must_outputs") or data.get("mustOutputs")),
         hint_files=_as_list_str(data.get("hint_files") or data.get("hintFiles")),
         write_allowed=None if data.get("write_allowed") is None else bool(data.get("write_allowed")),
+        blast_radius=str(data.get("blast_radius") or "").strip().lower(),
+        confirm_token=str(data.get("confirm_token") or "").strip(),
         root=str(data.get("root") or "").strip(),
         raw=data,
     )
+
+
+def write_apply_allowed(manager: ManagerCodeTask, *, task_kind: str) -> bool:
+    """E1：T2 无 confirm_token 或 write_allowed=false 时禁止落盘。"""
+    if str(task_kind or "").strip().lower() != "edit":
+        return False
+    if manager.write_allowed is False:
+        return False
+    if str(manager.blast_radius or "").strip().lower() == "t2" and not str(manager.confirm_token or "").strip():
+        return False
+    if manager.write_allowed is True:
+        return True
+    return False
 
 
 def resolve_task_kind(

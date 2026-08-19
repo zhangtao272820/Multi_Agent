@@ -9,10 +9,11 @@ import type {
   ManagerRagTaskPayload,
   TurnScopePayload,
 } from "./managerSubAgentProtocol.ts";
+import type { BlastRadius } from "./blastRadius.ts";
 
 export const MANAGER_TASK_ENVELOPE_VERSION = "2" as const;
 export const MANAGER_PROTOCOL_VERSION_HEADER = "x-agent-protocol";
-
+export type { BlastRadius };
 export type ManagerTaskTargetAgent =
   | "db"
   | "rag"
@@ -126,6 +127,10 @@ export type ManagerTaskEnvelope = {
   /** 自然语言摘要，供子 Agent LLM */
   utterance: string;
   payload: ManagerTaskEnvelopePayload;
+  /** E1：爆炸半径 t0/t1/t2 */
+  blast_radius?: BlastRadius;
+  /** E1：T2 HITL 确认凭证（mintHitlConfirmToken） */
+  confirm_token?: string;
   /** 可选：直调 MCP tool，跳过子 Agent 全图 */
   mcp?: { server: string; tool: string; arguments: Record<string, unknown> };
 };
@@ -141,6 +146,8 @@ export function buildManagerTaskEnvelope(input: {
   utterance: string;
   turn_scope?: TurnScopePayload | null;
   payload: ManagerTaskEnvelopePayload;
+  blast_radius?: BlastRadius | null;
+  confirm_token?: string | null;
   mcp?: ManagerTaskEnvelope["mcp"];
 }): ManagerTaskEnvelope {
   const turn_scope = input.turn_scope ?? undefined;
@@ -148,6 +155,12 @@ export function buildManagerTaskEnvelope(input: {
     turn_scope && input.payload.data && typeof input.payload.data === "object"
       ? { ...input.payload.data, turn_scope }
       : input.payload.data;
+
+  const blast =
+    input.blast_radius === "t0" || input.blast_radius === "t1" || input.blast_radius === "t2"
+      ? input.blast_radius
+      : undefined;
+  const confirm = String(input.confirm_token || "").trim();
 
   return {
     version: MANAGER_TASK_ENVELOPE_VERSION,
@@ -158,6 +171,8 @@ export function buildManagerTaskEnvelope(input: {
     ...(turn_scope ? { turn_scope } : {}),
     utterance: String(input.utterance || "").trim(),
     payload: { ...input.payload, data } as ManagerTaskEnvelopePayload,
+    ...(blast ? { blast_radius: blast } : {}),
+    ...(confirm ? { confirm_token: confirm } : {}),
     ...(input.mcp ? { mcp: input.mcp } : {}),
   };
 }
@@ -201,6 +216,12 @@ export function parseManagerTaskEnvelope(
         ? (obj.turn_scope as TurnScopePayload)
         : undefined,
     payload: { kind, data } as ManagerTaskEnvelopePayload,
+    ...(obj.blast_radius === "t0" || obj.blast_radius === "t1" || obj.blast_radius === "t2"
+      ? { blast_radius: obj.blast_radius as BlastRadius }
+      : {}),
+    ...(String(obj.confirm_token || "").trim()
+      ? { confirm_token: String(obj.confirm_token).trim() }
+      : {}),
     ...(obj.mcp && typeof obj.mcp === "object"
       ? { mcp: obj.mcp as ManagerTaskEnvelope["mcp"] }
       : {}),
@@ -210,7 +231,13 @@ export function parseManagerTaskEnvelope(
 /** v2 envelope → v1 managerTask 对象（子 Agent 渐进迁移） */
 export function envelopeToV1ManagerTask(envelope: ManagerTaskEnvelope): Record<string, unknown> | null {
   const p = envelope.payload;
-  if (p.kind === "code") return { ...p.data };
+  if (p.kind === "code") {
+    return {
+      ...p.data,
+      ...(envelope.blast_radius ? { blast_radius: envelope.blast_radius } : {}),
+      ...(envelope.confirm_token ? { confirm_token: envelope.confirm_token } : {}),
+    };
+  }
   if (p.kind === "gui") {
     const d = p.data;
     return {

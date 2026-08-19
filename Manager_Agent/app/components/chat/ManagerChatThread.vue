@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import AmapReplyCards from '~/components/AmapReplyCards.vue'
 import CosmicMidiPlayer from '~/components/CosmicMidiPlayer.vue'
+import ManagerTurnActivity from '~/components/chat/ManagerTurnActivity.vue'
 import type { TurnGroup } from '~/composables/managerChatTypes'
 import { MANAGER_CHAT_THREAD_KEY } from '~/composables/managerChatThreadContext'
 import { FEEDBACK_PENDING_ACK } from '~/composables/useManagerSession'
@@ -32,13 +33,17 @@ const {
   submitEditResend,
   withdrawTurn,
   regenerateTurn,
-  hasAgentPipeline,
+  hasTurnActivity,
   turnAgentPipelineSteps,
   turnAgentPipelineDoneCount,
   turnRouteCap,
   turnCollaborationPosture,
   turnPostureNote,
-  planAgentLabel,
+  turnSuggestedPosture,
+  turnAwaitingPlanConfirm,
+  turnHitlInfo,
+  pendingPlanPreview,
+  workbenchMode,
   agentPipelineStatusLabel,
   turnRoutePlanCard,
   previewText,
@@ -230,91 +235,52 @@ watch(streamingSynthText, async () => {
             </div>
           </div>
 
-          <!-- Agent 任务编排 · 独立于思考过程，用户可见 -->
-          <div
-            v-if="hasAgentPipeline(t)"
-            class="turn-agent-pipeline chat-agent-stack"
-            :class="{ 'is-running': isTurnRunning(t) }"
-            aria-label="任务执行"
+          <!-- Cursor 式活动时间线：模式 / 计划 / 专才步骤 -->
+          <ManagerTurnActivity
+            v-if="hasTurnActivity(t)"
+            :turn="t"
+            :workbench-mode="workbenchMode"
+            :running="isTurnRunning(t)"
+            :steps="turnAgentPipelineSteps(t)"
+            :done-count="turnAgentPipelineDoneCount(t)"
+            :route-agents="turnRouteCap(t)?.agents"
+            :posture="turnCollaborationPosture(t)"
+            :posture-note="turnPostureNote(t)"
+            :suggested-posture="turnSuggestedPosture(t)"
+            :awaiting-plan-confirm="turnAwaitingPlanConfirm(t)"
+            :plan-step-count="pendingPlanPreview?.steps.filter((s) => s.enabled).length"
+            :hitl-title="turnHitlInfo(t).title"
+            :hitl-agent="turnHitlInfo(t).agent"
+            :has-user-posture-badge="!!turnCollaborationPosture(t)"
+            :clause-texts="
+              workbenchMode === 'professional'
+                ? (turnRoutePlanCard(t)?.clauses || []).map((c) => previewText(c.text, thoughtViewMode === 'user' ? 72 : 120))
+                : []
+            "
+            :status-label="agentPipelineStatusLabel"
+          />
+
+          <details
+            v-if="thoughtViewMode === 'developer' && hasTurnActivity(t) && turnRoutePlanCard(t)"
+            class="turn-agent-pipeline-dev chat-agent-stack"
           >
-            <div class="turn-agent-pipeline-inner">
-              <header class="turn-agent-pipeline-head">
-                <span class="turn-agent-pipeline-icon" aria-hidden="true">⬡</span>
-                <span class="turn-agent-pipeline-title">任务执行</span>
-                <span
-                  v-if="turnCollaborationPosture(t)"
-                  class="pipeline-posture-badge"
-                  :class="`is-${turnCollaborationPosture(t)}`"
-                >{{ turnCollaborationPosture(t) }}</span>
-                <span v-if="turnAgentPipelineSteps(t).length" class="turn-agent-pipeline-count"
-                  >{{ turnAgentPipelineDoneCount(t) }}/{{ turnAgentPipelineSteps(t).length }} 步</span
-                >
-                <span v-if="isTurnRunning(t)" class="turn-agent-pipeline-live">进行中</span>
-              </header>
-              <p v-if="turnPostureNote(t)" class="turn-posture-note" role="status">{{ turnPostureNote(t) }}</p>
-
-              <div v-if="turnRouteCap(t)?.agents?.length" class="turn-agent-route-flow">
-                <span
-                  v-for="(a, ai) in turnRouteCap(t)!.agents"
-                  :key="`flow-${a}`"
-                  class="turn-agent-route-node"
-                  :class="`agent-tone-${String(a).toLowerCase()}`"
-                >
-                  <span class="turn-agent-route-label">{{ planAgentLabel(a) }}</span>
-                  <span v-if="ai < (turnRouteCap(t)!.agents.length - 1)" class="turn-agent-route-arrow" aria-hidden="true">→</span>
-                </span>
-              </div>
-
-              <ol class="turn-agent-step-list">
-                <li
-                  v-for="(step, si) in turnAgentPipelineSteps(t)"
-                  :key="step.id"
-                  class="turn-agent-step"
-                  :class="[`is-${step.status}`, `agent-tone-${step.agent}`]"
-                >
-                  <span class="turn-agent-step-marker" aria-hidden="true">
-                    <span class="turn-agent-step-idx">{{ si + 1 }}</span>
-                  </span>
-                  <div class="turn-agent-step-body">
-                    <div class="turn-agent-step-head">
-                      <span class="turn-agent-step-label">{{ step.label }}</span>
-                      <span class="turn-agent-step-status">{{ agentPipelineStatusLabel(step.status) }}</span>
-                    </div>
-                    <p v-if="step.query" class="turn-agent-step-query">{{ step.query }}</p>
-                    <p v-if="step.summary" class="turn-agent-step-summary">{{ step.summary }}</p>
-                  </div>
-                </li>
-              </ol>
-
-              <div v-if="turnRoutePlanCard(t)?.clauses?.length" class="turn-agent-clauses">
-                <div class="turn-agent-clauses-title">任务要点</div>
-                <ul class="turn-agent-clause-list">
-                  <li v-for="c in turnRoutePlanCard(t)!.clauses" :key="c.id">
-                    <span class="turn-agent-clause-text">{{ previewText(c.text, thoughtViewMode === 'user' ? 72 : 120) }}</span>
-                  </li>
-                </ul>
-              </div>
-
-              <details v-if="thoughtViewMode === 'developer' && turnRoutePlanCard(t)" class="turn-agent-pipeline-dev">
-                <summary>编排技术详情</summary>
-                <div v-if="turnRoutePlanCard(t)?.dataSources?.length" class="turn-agent-dev-row">
-                  <span class="turn-agent-dev-k">数据面</span>
-                  <span>{{ turnRoutePlanCard(t)!.dataSources!.join(' + ') }}</span>
-                </div>
-                <div v-if="turnRoutePlanCard(t)?.blueprintDag" class="turn-agent-dev-row">
-                  <span class="turn-agent-dev-k">蓝图</span>
-                  <code class="turn-agent-dev-code">{{ turnRoutePlanCard(t)!.blueprintDag }}</code>
-                </div>
-                <div v-if="turnPlanOutline(t)?.dag" class="turn-agent-dev-row">
-                  <span class="turn-agent-dev-k">DAG</span>
-                  <code class="turn-agent-dev-code">{{ turnPlanOutline(t)!.dag }}</code>
-                </div>
-                <ul v-if="turnRoutePlanCard(t)?.lintIssues?.length" class="turn-agent-dev-lint">
-                  <li v-for="(issue, li) in turnRoutePlanCard(t)!.lintIssues!.slice(0, 4)" :key="li">{{ issue }}</li>
-                </ul>
-              </details>
+            <summary>编排技术详情</summary>
+            <div v-if="turnRoutePlanCard(t)?.dataSources?.length" class="turn-agent-dev-row">
+              <span class="turn-agent-dev-k">数据面</span>
+              <span>{{ turnRoutePlanCard(t)!.dataSources!.join(' + ') }}</span>
             </div>
-          </div>
+            <div v-if="turnRoutePlanCard(t)?.blueprintDag" class="turn-agent-dev-row">
+              <span class="turn-agent-dev-k">蓝图</span>
+              <code class="turn-agent-dev-code">{{ turnRoutePlanCard(t)!.blueprintDag }}</code>
+            </div>
+            <div v-if="turnPlanOutline(t)?.dag" class="turn-agent-dev-row">
+              <span class="turn-agent-dev-k">DAG</span>
+              <code class="turn-agent-dev-code">{{ turnPlanOutline(t)!.dag }}</code>
+            </div>
+            <ul v-if="turnRoutePlanCard(t)?.lintIssues?.length" class="turn-agent-dev-lint">
+              <li v-for="(issue, li) in turnRoutePlanCard(t)!.lintIssues!.slice(0, 4)" :key="li">{{ issue }}</li>
+            </ul>
+          </details>
 
           <details
             v-if="hasThoughtContent(t)"

@@ -1,0 +1,899 @@
+[
+  {
+    "question": "老人一共有多少人",
+    "sql": "SELECT COUNT(*) AS count FROM person_info WHERE deleted = 0",
+    "tables": [
+      "person_info"
+    ]
+  },
+  {
+    "question": "库里有多少老人",
+    "sql": "SELECT COUNT(*) AS count FROM person_info WHERE deleted = 0",
+    "tables": [
+      "person_info"
+    ]
+  },
+  {
+    "question": "性别分布",
+    "sql": "SELECT CASE WHEN is_gender = 1 THEN '男' WHEN is_gender = 2 THEN '女' ELSE '未知' END AS gender, COUNT(*) AS count FROM person_info WHERE deleted = 0 GROUP BY gender ORDER BY count DESC",
+    "tables": [
+      "person_info"
+    ]
+  },
+  {
+    "question": "男女比例怎么样",
+    "sql": "SELECT CASE WHEN is_gender = 1 THEN '男' WHEN is_gender = 2 THEN '女' ELSE '未知' END AS gender, COUNT(*) AS count FROM person_info WHERE deleted = 0 GROUP BY gender ORDER BY count DESC",
+    "tables": [
+      "person_info"
+    ]
+  },
+  {
+    "question": "足底压力测了多少次",
+    "sql": "SELECT COUNT(*) AS count FROM remote_activity_foot_log WHERE deleted = 0",
+    "tables": [
+      "remote_activity_foot_log"
+    ]
+  },
+  {
+    "question": "情绪识别有多少条记录",
+    "sql": "SELECT COUNT(*) AS count FROM remote_psychology_mood WHERE deleted = 0",
+    "tables": [
+      "remote_psychology_mood"
+    ]
+  },
+  {
+    "question": "有健康档案的老人有多少",
+    "sql": "SELECT COUNT(DISTINCT phr.person_id) AS count FROM person_health_records phr INNER JOIN person_info p ON p.id = phr.person_id WHERE phr.deleted = 0 AND p.deleted = 0",
+    "tables": [
+      "person_info",
+      "person_health_records"
+    ]
+  },
+  {
+    "question": "列出老人姓名和年龄",
+    "sql": "SELECT name, age, CASE WHEN is_gender = 1 THEN '男' WHEN is_gender = 2 THEN '女' ELSE '未知' END AS gender FROM person_info WHERE deleted = 0 ORDER BY id LIMIT 50",
+    "tables": [
+      "person_info"
+    ]
+  },
+  {
+    "question": "bed_info有多少",
+    "sql": "SELECT COUNT(*) AS count FROM bed_info",
+    "tables": [
+      "bed_info"
+    ]
+  },
+  {
+    "question": "资源目录有多少",
+    "sql": "SELECT COUNT(*) AS count FROM cultivate_catalog",
+    "tables": [
+      "cultivate_catalog"
+    ]
+  },
+  {
+    "question": "资源目录有哪些",
+    "sql": "SELECT Name, Code FROM cultivate_catalog",
+    "tables": [
+      "cultivate_catalog"
+    ]
+  },
+  {
+    "question": "课程资源有多少",
+    "sql": "SELECT COUNT(*) AS count FROM cultivate_resource",
+    "tables": [
+      "cultivate_resource"
+    ]
+  },
+  {
+    "question": "课程资源有哪些",
+    "sql": "SELECT Name FROM cultivate_resource",
+    "tables": [
+      "cultivate_resource"
+    ]
+  },
+  {
+    "question": "资源上传记录有多少",
+    "sql": "SELECT COUNT(*) AS count FROM cultivate_resourceupload",
+    "tables": [
+      "cultivate_resourceupload"
+    ]
+  },
+  {
+    "question": "报警信息有多少",
+    "sql": "SELECT COUNT(*) AS count FROM device_alarm_info",
+    "tables": [
+      "device_alarm_info"
+    ]
+  },
+  {
+    "question": "报警规则有多少",
+    "sql": "SELECT COUNT(*) AS count FROM device_alarm_rule",
+    "tables": [
+      "device_alarm_rule"
+    ]
+  },
+  {
+    "question": "设备-智能血压仪-数据接收记录有多少",
+    "sql": "SELECT COUNT(*) AS count FROM device_bp_log",
+    "tables": [
+      "device_bp_log"
+    ]
+  },
+  {
+    "question": "设备-智能血压仪（脉搏波）-数据接收记录有多少",
+    "sql": "SELECT COUNT(*) AS count FROM device_bp_maibobo_log",
+    "tables": [
+      "device_bp_maibobo_log"
+    ]
+  },
+  {
+    "question": "设备分类有多少",
+    "sql": "SELECT COUNT(*) AS count FROM device_classify",
+    "tables": [
+      "device_classify"
+    ]
+  },
+  {
+    "question": "设备分类有哪些",
+    "sql": "SELECT name FROM device_classify",
+    "tables": [
+      "device_classify"
+    ]
+  },
+  {
+    "question": "设备类型有多少",
+    "sql": "SELECT COUNT(*) AS count FROM device_command_temp",
+    "tables": [
+      "device_command_temp"
+    ]
+  },
+  {
+    "question": "设备-驰通达-手动按钮报警器-数据接收记录有多少",
+    "sql": "SELECT COUNT(*) AS count FROM device_ctd_child_button_log",
+    "tables": [
+      "device_ctd_child_button_log"
+    ]
+  },
+  {
+    "question": "设备-驰通达-人体存在雷达-数据接收记录有多少",
+    "sql": "SELECT COUNT(*) AS count FROM device_ctd_exist_log",
+    "tables": [
+      "device_ctd_exist_log"
+    ]
+  },
+  {
+    "question": "设备-驰通达-拉绳网关报警器-数据接收记录有多少",
+    "sql": "SELECT COUNT(*) AS count FROM device_ctd_host_log",
+    "tables": [
+      "device_ctd_host_log"
+    ]
+  },
+  {
+    "question": "设备-驰通达-一氧化碳报警器-数据接收记录有多少",
+    "sql": "SELECT COUNT(*) AS count FROM device_ctd_jm_log",
+    "tables": [
+      "device_ctd_jm_log"
+    ]
+  },
+  {
+    "question": "设备-驰通达-燃气报警器-数据接收记录有多少",
+    "sql": "SELECT COUNT(*) AS count FROM device_ctd_jt_log",
+    "tables": [
+      "device_ctd_jt_log"
+    ]
+  },
+  {
+    "question": "设备-驰通达-拉绳报警器-数据接收记录有多少",
+    "sql": "SELECT COUNT(*) AS count FROM device_ctd_rope_log",
+    "tables": [
+      "device_ctd_rope_log"
+    ]
+  },
+  {
+    "question": "设备信息-驰通达睡眠雷达-睡眠记录有多少",
+    "sql": "SELECT COUNT(*) AS count FROM device_ctd_sleep_log",
+    "tables": [
+      "device_ctd_sleep_log"
+    ]
+  },
+  {
+    "question": "设备-驰通达-烟雾报警器-数据接收记录有多少",
+    "sql": "SELECT COUNT(*) AS count FROM device_ctd_smoke_log",
+    "tables": [
+      "device_ctd_smoke_log"
+    ]
+  },
+  {
+    "question": "设备-驰通达-水浸报警器-数据接收记录有多少",
+    "sql": "SELECT COUNT(*) AS count FROM device_ctd_water_log",
+    "tables": [
+      "device_ctd_water_log"
+    ]
+  },
+  {
+    "question": "设备-智能手环-数据接收记录有多少",
+    "sql": "SELECT COUNT(*) AS count FROM device_gear_fit_log",
+    "tables": [
+      "device_gear_fit_log"
+    ]
+  },
+  {
+    "question": "设备信息有多少",
+    "sql": "SELECT COUNT(*) AS count FROM device_info",
+    "tables": [
+      "device_info"
+    ]
+  },
+  {
+    "question": "设备信息有哪些",
+    "sql": "SELECT name FROM device_info",
+    "tables": [
+      "device_info"
+    ]
+  },
+  {
+    "question": "设备信息-智能拐杖有多少",
+    "sql": "SELECT COUNT(*) AS count FROM device_info_crutch",
+    "tables": [
+      "device_info_crutch"
+    ]
+  },
+  {
+    "question": "设备信息-驰通达胸牌有多少",
+    "sql": "SELECT COUNT(*) AS count FROM device_info_ctd_badge",
+    "tables": [
+      "device_info_ctd_badge"
+    ]
+  },
+  {
+    "question": "设备信息-驰通达报警主机有多少",
+    "sql": "SELECT COUNT(*) AS count FROM device_info_ctd_host",
+    "tables": [
+      "device_info_ctd_host"
+    ]
+  },
+  {
+    "question": "设备信息-驰通达一氧化碳报警器有多少",
+    "sql": "SELECT COUNT(*) AS count FROM device_info_ctd_jm",
+    "tables": [
+      "device_info_ctd_jm"
+    ]
+  },
+  {
+    "question": "设备信息-驰通达燃气报警器有多少",
+    "sql": "SELECT COUNT(*) AS count FROM device_info_ctd_jt",
+    "tables": [
+      "device_info_ctd_jt"
+    ]
+  },
+  {
+    "question": "设备信息-驰通达睡眠雷达有多少",
+    "sql": "SELECT COUNT(*) AS count FROM device_info_ctd_sleep",
+    "tables": [
+      "device_info_ctd_sleep"
+    ]
+  },
+  {
+    "question": "设备信息-智能手环有多少",
+    "sql": "SELECT COUNT(*) AS count FROM device_info_gear_fit",
+    "tables": [
+      "device_info_gear_fit"
+    ]
+  },
+  {
+    "question": "设备信息-智能床垫有多少",
+    "sql": "SELECT COUNT(*) AS count FROM device_info_mattress",
+    "tables": [
+      "device_info_mattress"
+    ]
+  },
+  {
+    "question": "设备信息-钛极智能床垫有多少",
+    "sql": "SELECT COUNT(*) AS count FROM device_info_tigear",
+    "tables": [
+      "device_info_tigear"
+    ]
+  },
+  {
+    "question": "涂鸦中控有多少",
+    "sql": "SELECT COUNT(*) AS count FROM device_info_tuya_central",
+    "tables": [
+      "device_info_tuya_central"
+    ]
+  },
+  {
+    "question": "涂鸦智能门锁有多少",
+    "sql": "SELECT COUNT(*) AS count FROM device_info_tuya_doorlock",
+    "tables": [
+      "device_info_tuya_doorlock"
+    ]
+  },
+  {
+    "question": "涂鸦智能电表有多少",
+    "sql": "SELECT COUNT(*) AS count FROM device_info_tuya_meter",
+    "tables": [
+      "device_info_tuya_meter"
+    ]
+  },
+  {
+    "question": "设备信息-智能床垫-睡眠记录有多少",
+    "sql": "SELECT COUNT(*) AS count FROM device_mattress_log",
+    "tables": [
+      "device_mattress_log"
+    ]
+  },
+  {
+    "question": "设备类型有哪些",
+    "sql": "SELECT name FROM device_model",
+    "tables": [
+      "device_model"
+    ]
+  },
+  {
+    "question": "设备类型菜单项有多少",
+    "sql": "SELECT COUNT(*) AS count FROM device_model_menu",
+    "tables": [
+      "device_model_menu"
+    ]
+  },
+  {
+    "question": "设备类型菜单项有哪些",
+    "sql": "SELECT name FROM device_model_menu",
+    "tables": [
+      "device_model_menu"
+    ]
+  },
+  {
+    "question": "设备信息-钛极智能床垫-睡眠记录有多少",
+    "sql": "SELECT COUNT(*) AS count FROM device_tigear_log",
+    "tables": [
+      "device_tigear_log"
+    ]
+  },
+  {
+    "question": "钛极睡眠报告记录有多少",
+    "sql": "SELECT COUNT(*) AS count FROM device_tigear_report_log",
+    "tables": [
+      "device_tigear_report_log"
+    ]
+  },
+  {
+    "question": "设备-涂鸦门锁-历史记录有多少",
+    "sql": "SELECT COUNT(*) AS count FROM device_tuya_doorlock_log",
+    "tables": [
+      "device_tuya_doorlock_log"
+    ]
+  },
+  {
+    "question": "设备-涂鸦人存-数据接收记录有多少",
+    "sql": "SELECT COUNT(*) AS count FROM device_tuya_exist_log",
+    "tables": [
+      "device_tuya_exist_log"
+    ]
+  },
+  {
+    "question": "设备-涂鸦电表-数据接收记录有多少",
+    "sql": "SELECT COUNT(*) AS count FROM device_tuya_meter_log",
+    "tables": [
+      "device_tuya_meter_log"
+    ]
+  },
+  {
+    "question": "elderly_info有多少",
+    "sql": "SELECT COUNT(*) AS count FROM elderly_info",
+    "tables": [
+      "elderly_info"
+    ]
+  },
+  {
+    "question": "elderly_info有哪些",
+    "sql": "SELECT name FROM elderly_info",
+    "tables": [
+      "elderly_info"
+    ]
+  },
+  {
+    "question": "floor_info有多少",
+    "sql": "SELECT COUNT(*) AS count FROM floor_info",
+    "tables": [
+      "floor_info"
+    ]
+  },
+  {
+    "question": "floor_info有哪些",
+    "sql": "SELECT name FROM floor_info",
+    "tables": [
+      "floor_info"
+    ]
+  },
+  {
+    "question": "智能血压计数据表有多少",
+    "sql": "SELECT COUNT(*) AS count FROM iot_receive_bp_log",
+    "tables": [
+      "iot_receive_bp_log"
+    ]
+  },
+  {
+    "question": "物联网智能拐杖实时数据有多少",
+    "sql": "SELECT COUNT(*) AS count FROM iot_receive_crutch_log",
+    "tables": [
+      "iot_receive_crutch_log"
+    ]
+  },
+  {
+    "question": "物联网智能拐杖实时数据有哪些",
+    "sql": "SELECT name FROM iot_receive_crutch_log",
+    "tables": [
+      "iot_receive_crutch_log"
+    ]
+  },
+  {
+    "question": "驰通达报警消息处理记录有多少",
+    "sql": "SELECT COUNT(*) AS count FROM iot_receive_ctd_alarm_handle_log",
+    "tables": [
+      "iot_receive_ctd_alarm_handle_log"
+    ]
+  },
+  {
+    "question": "驰通达报警记录有多少",
+    "sql": "SELECT COUNT(*) AS count FROM iot_receive_ctd_alarm_log",
+    "tables": [
+      "iot_receive_ctd_alarm_log"
+    ]
+  },
+  {
+    "question": "智能手环实时数据有多少",
+    "sql": "SELECT COUNT(*) AS count FROM iot_receive_gear_fit_log",
+    "tables": [
+      "iot_receive_gear_fit_log"
+    ]
+  },
+  {
+    "question": "物联网智能床垫报警记录有多少",
+    "sql": "SELECT COUNT(*) AS count FROM iot_receive_mattress_alarm_log",
+    "tables": [
+      "iot_receive_mattress_alarm_log"
+    ]
+  },
+  {
+    "question": "物联网设备指标数据表有多少",
+    "sql": "SELECT COUNT(*) AS count FROM iot_receive_mattress_log",
+    "tables": [
+      "iot_receive_mattress_log"
+    ]
+  },
+  {
+    "question": "物联网睡眠报告推送记录有多少",
+    "sql": "SELECT COUNT(*) AS count FROM iot_receive_mattress_report_log",
+    "tables": [
+      "iot_receive_mattress_report_log"
+    ]
+  },
+  {
+    "question": "钛极床垫接收记录有多少",
+    "sql": "SELECT COUNT(*) AS count FROM iot_receive_tigear_log",
+    "tables": [
+      "iot_receive_tigear_log"
+    ]
+  },
+  {
+    "question": "物联网设备上报数据表有多少",
+    "sql": "SELECT COUNT(*) AS count FROM iot_receive_tuya_log",
+    "tables": [
+      "iot_receive_tuya_log"
+    ]
+  },
+  {
+    "question": "监测房间管理有多少",
+    "sql": "SELECT COUNT(*) AS count FROM monitor_room",
+    "tables": [
+      "monitor_room"
+    ]
+  },
+  {
+    "question": "监测房间管理有哪些",
+    "sql": "SELECT name FROM monitor_room",
+    "tables": [
+      "monitor_room"
+    ]
+  },
+  {
+    "question": "监测房间-课程有多少",
+    "sql": "SELECT COUNT(*) AS count FROM monitor_room_cohort",
+    "tables": [
+      "monitor_room_cohort"
+    ]
+  },
+  {
+    "question": "监测房间-课程有哪些",
+    "sql": "SELECT name FROM monitor_room_cohort",
+    "tables": [
+      "monitor_room_cohort"
+    ]
+  },
+  {
+    "question": "监测房间设备管理有多少",
+    "sql": "SELECT COUNT(*) AS count FROM monitor_room_device",
+    "tables": [
+      "monitor_room_device"
+    ]
+  },
+  {
+    "question": "实训室使用记录有多少",
+    "sql": "SELECT COUNT(*) AS count FROM monitor_room_use_log",
+    "tables": [
+      "monitor_room_use_log"
+    ]
+  },
+  {
+    "question": "空间管理-房间类型有多少",
+    "sql": "SELECT COUNT(*) AS count FROM org_room_type",
+    "tables": [
+      "org_room_type"
+    ]
+  },
+  {
+    "question": "空间管理-房间类型有哪些",
+    "sql": "SELECT name FROM org_room_type",
+    "tables": [
+      "org_room_type"
+    ]
+  },
+  {
+    "question": "空间结构表（楼栋/楼层/房间/床位）有多少",
+    "sql": "SELECT COUNT(*) AS count FROM org_space",
+    "tables": [
+      "org_space"
+    ]
+  },
+  {
+    "question": "空间结构表（楼栋/楼层/房间/床位）有哪些",
+    "sql": "SELECT name FROM org_space",
+    "tables": [
+      "org_space"
+    ]
+  },
+  {
+    "question": "人员管理-自理分类有多少",
+    "sql": "SELECT COUNT(*) AS count FROM person_crowd_type",
+    "tables": [
+      "person_crowd_type"
+    ]
+  },
+  {
+    "question": "人员管理-自理分类有哪些",
+    "sql": "SELECT name FROM person_crowd_type",
+    "tables": [
+      "person_crowd_type"
+    ]
+  },
+  {
+    "question": "人员信息-紧急联系人信息有多少",
+    "sql": "SELECT COUNT(*) AS count FROM person_emergency_contact",
+    "tables": [
+      "person_emergency_contact"
+    ]
+  },
+  {
+    "question": "人员信息-个人健康数据记录表有多少",
+    "sql": "SELECT COUNT(*) AS count FROM person_health_records",
+    "tables": [
+      "person_health_records"
+    ]
+  },
+  {
+    "question": "人员基本信息有多少",
+    "sql": "SELECT COUNT(*) AS count FROM person_info",
+    "tables": [
+      "person_info"
+    ]
+  },
+  {
+    "question": "人员基本信息有哪些",
+    "sql": "SELECT name FROM person_info",
+    "tables": [
+      "person_info"
+    ]
+  },
+  {
+    "question": "人员管理-生活情况有多少",
+    "sql": "SELECT COUNT(*) AS count FROM person_life_conditions",
+    "tables": [
+      "person_life_conditions"
+    ]
+  },
+  {
+    "question": "人员管理-生活情况有哪些",
+    "sql": "SELECT name FROM person_life_conditions",
+    "tables": [
+      "person_life_conditions"
+    ]
+  },
+  {
+    "question": "人员信息-生活习惯有多少",
+    "sql": "SELECT COUNT(*) AS count FROM person_lifestyle_habits",
+    "tables": [
+      "person_lifestyle_habits"
+    ]
+  },
+  {
+    "question": "人员管理-居住情况有多少",
+    "sql": "SELECT COUNT(*) AS count FROM person_live_conditions",
+    "tables": [
+      "person_live_conditions"
+    ]
+  },
+  {
+    "question": "人员管理-居住情况有哪些",
+    "sql": "SELECT name FROM person_live_conditions",
+    "tables": [
+      "person_live_conditions"
+    ]
+  },
+  {
+    "question": "人员信息-遗传病史有多少",
+    "sql": "SELECT COUNT(*) AS count FROM person_medical_history",
+    "tables": [
+      "person_medical_history"
+    ]
+  },
+  {
+    "question": "人员信息-身体状况有多少",
+    "sql": "SELECT COUNT(*) AS count FROM person_physical",
+    "tables": [
+      "person_physical"
+    ]
+  },
+  {
+    "question": "人员管理-自理情况有多少",
+    "sql": "SELECT COUNT(*) AS count FROM person_selfcare_conditions",
+    "tables": [
+      "person_selfcare_conditions"
+    ]
+  },
+  {
+    "question": "人员管理-自理情况有哪些",
+    "sql": "SELECT name FROM person_selfcare_conditions",
+    "tables": [
+      "person_selfcare_conditions"
+    ]
+  },
+  {
+    "question": "实训室102-康乐活动策划-足底压力-检测记录有多少",
+    "sql": "SELECT COUNT(*) AS count FROM remote_activity_foot_log",
+    "tables": [
+      "remote_activity_foot_log"
+    ]
+  },
+  {
+    "question": "实训室102-康乐活动策划-足底压力-检测记录有哪些",
+    "sql": "SELECT person_name FROM remote_activity_foot_log",
+    "tables": [
+      "remote_activity_foot_log"
+    ]
+  },
+  {
+    "question": "实训室102-康乐活动策划-足底压力-检测记录-区域信息有多少",
+    "sql": "SELECT COUNT(*) AS count FROM remote_activity_foot_measure_log",
+    "tables": [
+      "remote_activity_foot_measure_log"
+    ]
+  },
+  {
+    "question": "实训室203~206-智慧人力考评室（驾驶舱）-项目记录有多少",
+    "sql": "SELECT COUNT(*) AS count FROM remote_cockpit_project_log",
+    "tables": [
+      "remote_cockpit_project_log"
+    ]
+  },
+  {
+    "question": "实训室107-智慧健康管理-骨密度仪测量记录有多少",
+    "sql": "SELECT COUNT(*) AS count FROM remote_health_bone_log",
+    "tables": [
+      "remote_health_bone_log"
+    ]
+  },
+  {
+    "question": "实训室107-智慧健康管理-骨密度仪测量记录有哪些",
+    "sql": "SELECT person_name FROM remote_health_bone_log",
+    "tables": [
+      "remote_health_bone_log"
+    ]
+  },
+  {
+    "question": "实训室108-中医科普馆-就诊记录有多少",
+    "sql": "SELECT COUNT(*) AS count FROM remote_medicine_patient_log",
+    "tables": [
+      "remote_medicine_patient_log"
+    ]
+  },
+  {
+    "question": "实训室120-老年护理-慢性病检测记录有多少",
+    "sql": "SELECT COUNT(*) AS count FROM remote_nursing_chronic",
+    "tables": [
+      "remote_nursing_chronic"
+    ]
+  },
+  {
+    "question": "实训室120-老年护理-慢性病检测记录有哪些",
+    "sql": "SELECT cus_name FROM remote_nursing_chronic",
+    "tables": [
+      "remote_nursing_chronic"
+    ]
+  },
+  {
+    "question": "实训室104-智慧心理护理-情绪识别仪检测记录有多少",
+    "sql": "SELECT COUNT(*) AS count FROM remote_psychology_mood",
+    "tables": [
+      "remote_psychology_mood"
+    ]
+  },
+  {
+    "question": "实训室104-智慧心理护理-情绪识别仪检测记录有哪些",
+    "sql": "SELECT name FROM remote_psychology_mood",
+    "tables": [
+      "remote_psychology_mood"
+    ]
+  },
+  {
+    "question": "sys_department有多少",
+    "sql": "SELECT COUNT(*) AS count FROM sys_department",
+    "tables": [
+      "sys_department"
+    ]
+  },
+  {
+    "question": "sys_department有哪些",
+    "sql": "SELECT DepartmentName FROM sys_department",
+    "tables": [
+      "sys_department"
+    ]
+  },
+  {
+    "question": "部门表有多少",
+    "sql": "SELECT COUNT(*) AS count FROM sys_dept",
+    "tables": [
+      "sys_dept"
+    ]
+  },
+  {
+    "question": "sys_menu有多少",
+    "sql": "SELECT COUNT(*) AS count FROM sys_menu",
+    "tables": [
+      "sys_menu"
+    ]
+  },
+  {
+    "question": "sys_menu有哪些",
+    "sql": "SELECT MenuName FROM sys_menu",
+    "tables": [
+      "sys_menu"
+    ]
+  },
+  {
+    "question": "sys_role有多少",
+    "sql": "SELECT COUNT(*) AS count FROM sys_role",
+    "tables": [
+      "sys_role"
+    ]
+  },
+  {
+    "question": "sys_role有哪些",
+    "sql": "SELECT RoleName FROM sys_role",
+    "tables": [
+      "sys_role"
+    ]
+  },
+  {
+    "question": "sys_user有多少",
+    "sql": "SELECT COUNT(*) AS count FROM sys_user",
+    "tables": [
+      "sys_user"
+    ]
+  },
+  {
+    "question": "sys_user有哪些",
+    "sql": "SELECT UserTrueName, RoleName FROM sys_user",
+    "tables": [
+      "sys_user"
+    ]
+  },
+  {
+    "question": "教学-课程明细有多少",
+    "sql": "SELECT COUNT(*) AS count FROM teaching_course_details",
+    "tables": [
+      "teaching_course_details"
+    ]
+  },
+  {
+    "question": "教学-课程有多少",
+    "sql": "SELECT COUNT(*) AS count FROM teaching_course_info",
+    "tables": [
+      "teaching_course_info"
+    ]
+  },
+  {
+    "question": "教学-课程用户有多少",
+    "sql": "SELECT COUNT(*) AS count FROM teaching_course_user",
+    "tables": [
+      "teaching_course_user"
+    ]
+  },
+  {
+    "question": "教学-课程用户-观后感有多少",
+    "sql": "SELECT COUNT(*) AS count FROM teaching_course_user_thought",
+    "tables": [
+      "teaching_course_user_thought"
+    ]
+  },
+  {
+    "question": "教学-考试有多少",
+    "sql": "SELECT COUNT(*) AS count FROM teaching_exam_info",
+    "tables": [
+      "teaching_exam_info"
+    ]
+  },
+  {
+    "question": "教学-考试-题目有多少",
+    "sql": "SELECT COUNT(*) AS count FROM teaching_exam_title",
+    "tables": [
+      "teaching_exam_title"
+    ]
+  },
+  {
+    "question": "教学-考试-题目-选项有多少",
+    "sql": "SELECT COUNT(*) AS count FROM teaching_exam_title_option",
+    "tables": [
+      "teaching_exam_title_option"
+    ]
+  },
+  {
+    "question": "教学-考试-用户有多少",
+    "sql": "SELECT COUNT(*) AS count FROM teaching_exam_user",
+    "tables": [
+      "teaching_exam_user"
+    ]
+  },
+  {
+    "question": "教学-资源目录有多少",
+    "sql": "SELECT COUNT(*) AS count FROM teaching_material_catalogue",
+    "tables": [
+      "teaching_material_catalogue"
+    ]
+  },
+  {
+    "question": "教学-资源信息有多少",
+    "sql": "SELECT COUNT(*) AS count FROM teaching_material_info",
+    "tables": [
+      "teaching_material_info"
+    ]
+  },
+  {
+    "question": "教学-资源上传记录有多少",
+    "sql": "SELECT COUNT(*) AS count FROM teaching_material_log",
+    "tables": [
+      "teaching_material_log"
+    ]
+  },
+  {
+    "question": "教学-题库有多少",
+    "sql": "SELECT COUNT(*) AS count FROM teaching_problem_info",
+    "tables": [
+      "teaching_problem_info"
+    ]
+  },
+  {
+    "question": "教学-题库-题目有多少",
+    "sql": "SELECT COUNT(*) AS count FROM teaching_problem_title",
+    "tables": [
+      "teaching_problem_title"
+    ]
+  },
+  {
+    "question": "教学-题库-题目-选项有多少",
+    "sql": "SELECT COUNT(*) AS count FROM teaching_problem_title_option",
+    "tables": [
+      "teaching_problem_title_option"
+    ]
+  }
+]

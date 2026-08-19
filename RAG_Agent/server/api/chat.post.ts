@@ -6,6 +6,10 @@ import { createAgent } from "../utils/agent";
 import { sanitizeIncomingQuestion, looksLikeManagerRetrievalTask, parseManagerRagTaskFromJson } from "../utils/incoming_question";
 import { isRagTurnScopeLlmEnabled, resolveRagStandaloneTurnScope } from "../utils/ragTurnScope";
 import { createRagChatOpenAI } from "../utils/rag_chat_openai";
+import {
+  isRagUnifiedUnderstandEnabled,
+  judgeRagUnifiedUnderstand,
+} from "../utils/rag_unified_understand";
 import { listPromptPatches } from "../utils/prompt_evolution";
 import { getRagAgentEnv } from "../utils/rag_agent_env";
 import { setRagChatRetrievalMode } from "../utils/rag_agentic_mode";
@@ -25,6 +29,7 @@ import {
   setManagerRagTask,
   setRetrievalCondenseContext,
   setRagMergedUnderstand,
+  setRagPrefetchedUnderstand,
 } from "../utils/retrieval_context";
 import { mergeRagMultiTurnUnderstand } from "../utils/rag_merged_understand";
 import {
@@ -319,36 +324,6 @@ export default defineEventHandler(async (event) => {
       normalizedHistory,
     );
 
-    let standaloneHistory = mergedHistory;
-    let standaloneTurnScope = managerTask?.turn_scope ?? null;
-    if (!isManagerOrchestrated && !isManagerStepSession && !managerTask?.turn_scope) {
-      const turnScopeModel = isRagTurnScopeLlmEnabled()
-        ? createRagChatOpenAI({
-            modelName: process.env.CONDENSE_MODEL ?? env.condenseModel,
-            maxTokens: 220,
-            jsonTask: true,
-          })
-        : null;
-      standaloneTurnScope = await resolveRagStandaloneTurnScope({
-        question: sanitizedMessage,
-        chatHistory: mergedHistory,
-        managerTurnScope: null,
-        model: turnScopeModel,
-      });
-      if (standaloneTurnScope.suppress_history && !standaloneTurnScope.narrow_output_followup) {
-        standaloneHistory = [];
-      } else if (standaloneTurnScope.narrow_output_followup) {
-        standaloneHistory = mergedHistory.slice(-2);
-      }
-    }
-
-    const effectiveHistory = isManagerOrchestrated
-      ? orchestratedHistory
-      : isManagerStepSession
-        ? []
-        : standaloneHistory;
-    const historyMessages = historyToMessages(effectiveHistory).slice(-12);
-
     let session =
       providedSessionId && env.enableLayeredSessionMemory && !isManagerOrchestrated && !isManagerStepSession
         ? getSessionMemory(sessionId)
@@ -364,9 +339,10 @@ export default defineEventHandler(async (event) => {
       session = { ...session, topics };
     }
 
-    const hasDialogContext =
-      historyMessages.length > 0 || Boolean(String(session.summary || "").trim());
-    const dialogPreview = formatDialogPreview(historyMessages);
+    const sessionRetrievalAnchor =
+      !isManagerOrchestrated && !isManagerStepSession && providedSessionId
+        ? getRagSessionRetrievalAnchor(sessionId)
+        : null;
 
     const userKey = resolveUserKeyFromRequest({
       userId: await resolveAgentUserId({
@@ -386,34 +362,81 @@ export default defineEventHandler(async (event) => {
     }
     setRetrievalUserKey(userKey);
 
-    const sessionRetrievalAnchor =
-      !isManagerOrchestrated && !isManagerStepSession && providedSessionId
-        ? getRagSessionRetrievalAnchor(sessionId)
+    const docsForScope = await getUploadedDocuments();
+    const standaloneEligible =
+      !isManagerOrchestrated && !isManagerStepSession && !managerTask?.turn_scope;
+    const unifiedBundle =
+      standaloneEligible && isRagUnifiedUnderstandEnabled()
+        ? await judgeRagUnifiedUnderstand({
+            question: sanitizedMessage,
+            historyPreview: formatDialogPreview(historyToMessages(mergedHistory).slice(-12)),
+            sessionSummary: session.summary,
+            sessionAnchor: sessionRetrievalAnchor?.coalescedTask,
+            uploadedDocs: docsForScope,
+          })
         : null;
 
-    const [docsForScope, mergedUnderstand] = await Promise.all([
-      getUploadedDocuments(),
-      mergeRagMultiTurnUnderstand({
-        messages: historyMessages,
-        lastUser: sanitizedMessage,
-        summary: [session.summary, formatSessionRetrievalAnchorBlock(sessionRetrievalAnchor)]
-          .filter(Boolean)
-          .join("\n"),
-        sessionAnchor: sessionRetrievalAnchor,
-        skipMerge:
-          (isManagerOrchestrated && !allowsOrchestratedDialogMerge(managerTask?.turn_scope ?? null)) ||
-          isManagerStepSession ||
-          Boolean(standaloneTurnScope?.suppress_history && !standaloneTurnScope?.narrow_output_followup),
-        suppressAnchor:
-          Boolean(managerTask?.turn_scope?.suppress_anchor) ||
-          Boolean(standaloneTurnScope?.suppress_anchor),
-        turnKind:
-          managerTask?.turn_scope?.turn_kind ||
-          standaloneTurnScope?.turn_kind ||
-          null,
-      }),
-    ]);
+    let standaloneHistory = mergedHistory;
+    let standaloneTurnScope = managerTask?.turn_scope ?? null;
+    if (unifiedBundle) {
+      standaloneTurnScope = unifiedBundle.turnScope;
+    } else if (standaloneEligible) {
+      const turnScopeModel = isRagTurnScopeLlmEnabled()
+        ? createRagChatOpenAI({
+            modelName: process.env.CONDENSE_MODEL ?? env.condenseModel,
+            maxTokens: 220,
+            jsonTask: true,
+          })
+        : null;
+      standaloneTurnScope = await resolveRagStandaloneTurnScope({
+        question: sanitizedMessage,
+        chatHistory: mergedHistory,
+        managerTurnScope: null,
+        model: turnScopeModel,
+      });
+    }
+    if (standaloneTurnScope?.suppress_history && !standaloneTurnScope?.narrow_output_followup) {
+      standaloneHistory = [];
+    } else if (standaloneTurnScope?.narrow_output_followup) {
+      standaloneHistory = mergedHistory.slice(-2);
+    }
+
+    const effectiveHistory = isManagerOrchestrated
+      ? orchestratedHistory
+      : isManagerStepSession
+        ? []
+        : standaloneHistory;
+    const historyMessages = historyToMessages(effectiveHistory).slice(-12);
+
+    const hasDialogContext =
+      historyMessages.length > 0 || Boolean(String(session.summary || "").trim());
+    const dialogPreview = formatDialogPreview(historyMessages);
+
+    const mergedUnderstand = unifiedBundle
+      ? unifiedBundle.merged
+      : await mergeRagMultiTurnUnderstand({
+          messages: historyMessages,
+          lastUser: sanitizedMessage,
+          summary: [session.summary, formatSessionRetrievalAnchorBlock(sessionRetrievalAnchor)]
+            .filter(Boolean)
+            .join("\n"),
+          sessionAnchor: sessionRetrievalAnchor,
+          skipMerge:
+            (isManagerOrchestrated && !allowsOrchestratedDialogMerge(managerTask?.turn_scope ?? null)) ||
+            isManagerStepSession ||
+            Boolean(standaloneTurnScope?.suppress_history && !standaloneTurnScope?.narrow_output_followup),
+          suppressAnchor:
+            Boolean(managerTask?.turn_scope?.suppress_anchor) ||
+            Boolean(standaloneTurnScope?.suppress_anchor),
+          turnKind:
+            managerTask?.turn_scope?.turn_kind ||
+            standaloneTurnScope?.turn_kind ||
+            null,
+        });
     setRagMergedUnderstand(mergedUnderstand);
+    setRagPrefetchedUnderstand(
+      unifiedBundle ? { plan: unifiedBundle.plan, leanQuery: unifiedBundle.leanQuery } : null,
+    );
 
     const queryForPipeline =
       mergedUnderstand.effectiveQuery || sanitizedMessage;
@@ -421,12 +444,14 @@ export default defineEventHandler(async (event) => {
     const preflightStartedAt = Date.now();
     sendData({ type: "phase", phase: "preflight", content: "理解问题意图…", startedAt: preflightStartedAt });
     const [ragPreflight, summaryInjection] = await Promise.all([
-      judgeRagPreflight({
-        query: queryForPipeline,
-        uploadedDocs: docsForScope,
-        hasDialogContext,
-        dialogPreview,
-      }),
+      unifiedBundle
+        ? Promise.resolve(unifiedBundle.intent)
+        : judgeRagPreflight({
+            query: queryForPipeline,
+            uploadedDocs: docsForScope,
+            hasDialogContext,
+            dialogPreview,
+          }),
       !isManagerOrchestrated && !isManagerStepSession && providedSessionId
         ? buildFilteredAgentSummaryInjection(session, sanitizedMessage)
         : Promise.resolve(""),
@@ -446,7 +471,7 @@ export default defineEventHandler(async (event) => {
       getRagAgentEnv().enableAgenticToolLoop &&
       ragPreflight.route_action === "document_query" &&
       !ragPreflight.is_chitchat &&
-      (ragPreflight.retrieval_mode === "agentic" || ragPreflight.is_completeness_query);
+      ragPreflight.is_completeness_query;
     setRagRequestIntent(ragPreflight);
     setRagChatRetrievalMode(wantAgentic ? "agentic" : "pipeline");
     sendData({

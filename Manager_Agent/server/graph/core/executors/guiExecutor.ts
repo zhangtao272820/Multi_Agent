@@ -8,8 +8,11 @@ import {
   buildManagerTaskEnvelope,
   isManagerTaskEnvelopeV2Enabled,
   serializeManagerTaskEnvelope,
-  type ManagerGuiTaskPayload
+  type ManagerGuiTaskPayload,
+  type ManagerTaskEnvelope
 } from '#agent-shared/managerTaskEnvelope'
+import { resolveBlastRadius } from '#agent-shared/blastRadius'
+import { gateManagerEnvelopeBlastRadius } from '#agent-shared/envelopeBlastGate'
 import { callLobsterGuiMcpTask, callLobsterDesktopMcpTask, callCodeAssistMcpTask } from '../../../utils/mcp/managerMcpHost'
 import { enrichGuiLobsterMeta } from '#agent-shared/guiSiteRecipesLite'
 import { executeMcpToolStep } from './mcpToolExecutor'
@@ -189,6 +192,7 @@ async function maybeHumanConfirmAndRetryMcpGui(input: {
   browserProfile?: 'managed' | 'user'
   managerTask?: Record<string, unknown>
   managerTaskEnvelope?: string
+  envelope?: ManagerTaskEnvelope | null
   guiTimeoutMs: number
   runId?: string
   handoffAlreadyAttempted?: boolean
@@ -226,6 +230,9 @@ async function maybeHumanConfirmAndRetryMcpGui(input: {
     sendThinking: input.sendThinking,
     sendEvent: input.sendEvent,
     timeoutMs: input.guiTimeoutMs,
+    onConfirmToken: (tok) => {
+      if (input.envelope) input.envelope.confirm_token = tok
+    },
   })
   if (!approved) {
     return { mcpOut: input.mcpOut, parsed: input.parsed, cancelled: true, handoffAttempted: true }
@@ -253,7 +260,9 @@ async function maybeHumanConfirmAndRetryMcpGui(input: {
     browserProfile: input.browserProfile,
     timeoutMs: input.guiTimeoutMs,
     managerTask: input.managerTask,
-    managerTaskEnvelope: input.managerTaskEnvelope,
+    managerTaskEnvelope: input.envelope
+      ? serializeManagerTaskEnvelope(input.envelope)
+      : input.managerTaskEnvelope,
     handoffContext: 'post_human_confirm',
     callbacks: {
       sendThinking: input.sendThinking,
@@ -471,6 +480,9 @@ export async function executeGuiStep(
     ...(lobsterMeta ? { lobster: lobsterMeta } : {}),
     ...(turn_scope ? { turn_scope } : {}),
   }
+  const guiConfirmToken = String(
+    (input.state.meta as { hitlConfirmToken?: string } | undefined)?.hitlConfirmToken || ''
+  ).trim()
   const envelope =
     isManagerTaskEnvelopeV2Enabled()
       ? buildManagerTaskEnvelope({
@@ -479,9 +491,22 @@ export async function executeGuiStep(
           session_id: opts.sessionId || opts.runId,
           utterance: task,
           turn_scope,
+          blast_radius: resolveBlastRadius({ agent: 'gui', actionKind: 'gui_write' }),
+          confirm_token: guiConfirmToken || undefined,
           payload: { kind: 'gui', data: guiPayload }
         })
       : null
+
+  if (envelope) {
+    const gate = gateManagerEnvelopeBlastRadius(envelope, {
+      auto_confirm: false,
+      allow_t2_auto: false
+    })
+    if (!gate.ok && !guiConfirmToken) {
+      // 首轮无 confirm：仍允许 Lobster 规划/探路；真正副作用由 GUI HITL / handoff 路径带 token
+      input.sendThinking(`GUI：${gate.reason}`)
+    }
+  }
 
   const runOnce = async (
     hint?: string,
@@ -674,6 +699,7 @@ export async function executeGuiStep(
           browserProfile,
           managerTask: guiPayload,
           managerTaskEnvelope: envelope ? serializeManagerTaskEnvelope(envelope) : undefined,
+          envelope,
           guiTimeoutMs,
           runId: opts.runId,
           handoffAlreadyAttempted,
@@ -877,6 +903,9 @@ export async function executeGuiStep(
         sendThinking: input.sendThinking,
         sendEvent: opts.sendEvent,
         timeoutMs: guiTimeoutMs,
+        onConfirmToken: (tok) => {
+          if (envelope) envelope.confirm_token = tok
+        },
       })
       if (!approved) {
         const blockedMsg = buildGuiFailureUserMessage({

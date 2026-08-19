@@ -39,12 +39,23 @@ install_auth_config_route(app)
 
 
 def _check_internal_token(request: Request) -> None:
+    """E5.2：接受 x-agent-service-token 与兼容的 x-clawhive-internal-token。"""
     settings = get_settings()
-    token = settings.clawhive_internal_token
+    token = (
+        str(os.getenv("AGENT_SERVICE_TOKEN") or "").strip()
+        or str(settings.clawhive_internal_token or "").strip()
+        or str(os.getenv("AGENT_INTERNAL_TOKEN") or "").strip()
+        or str(os.getenv("MANAGER_OPS_TOKEN") or "").strip()
+    )
+    mode = str(os.getenv("AGENT_SERVICE_AUTH") or os.getenv("MANAGER_AGENT_SERVICE_AUTH") or "").strip().lower()
+    require = mode in ("1", "true", "on", "yes", "require", "required")
     if not token:
+        if require:
+            raise HTTPException(status_code=503, detail="agent_service_token_not_configured")
         return
     got = (
-        request.headers.get("x-clawhive-internal-token")
+        request.headers.get("x-agent-service-token")
+        or request.headers.get("x-clawhive-internal-token")
         or request.headers.get("x-internal-token")
         or ""
     ).strip()

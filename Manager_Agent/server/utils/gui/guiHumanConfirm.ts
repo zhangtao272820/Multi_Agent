@@ -1,6 +1,7 @@
 import type { AgentResult } from '../agents/types'
 import { waitGuiConfirm } from './guiConfirmBridge'
 import { gateCopy, resolveRiskExecutionPolicy } from '../../graph/core/policy/riskExecutionPolicy'
+import { mintHitlConfirmToken } from '#agent-shared/agentServiceAuth'
 
 const GUI_SCREENSHOT_MAX_CHARS = 400_000
 
@@ -370,15 +371,24 @@ export async function requestGuiHumanConfirm(input: {
   sendThinking?: (t: string) => void
   sendEvent?: (event: { event: string; data?: unknown; from?: string }) => void
   timeoutMs?: number
+  onConfirmToken?: (token: string) => void
 }): Promise<boolean> {
   const riskPolicy = resolveRiskExecutionPolicy({
     actionKind: 'gui_write',
     meta: input.meta
   })
-  if (guiAutoConfirmEnabled() && riskPolicy.allowAutoConfirm) return true
   const runId = String(input.runId || '').trim()
+  const emitToken = (confirmId: string) => {
+    const token = mintHitlConfirmToken(runId || 'gui-auto', confirmId)
+    if (token) input.onConfirmToken?.(token)
+  }
+  if (guiAutoConfirmEnabled() && riskPolicy.allowAutoConfirm) {
+    emitToken('gui-auto-confirm')
+    return true
+  }
   if (!runId) return false
   const confirmId = crypto.randomUUID()
+  const confirmToken = mintHitlConfirmToken(runId, confirmId)
   const copy = buildGuiHumanConfirmMessage(input)
   const screenshotDataUrl = normalizeGuiScreenshotDataUrl(input.screenshotDataUrl)
   const pageUrl = String(input.finalUrl || '').trim() || undefined
@@ -397,20 +407,22 @@ export async function requestGuiHumanConfirm(input: {
         agent: 'gui',
         badge: gateCopy('dry_run'),
         message: copy.message.slice(0, 600),
-        riskPolicy
+        riskPolicy,
+        blast_radius: riskPolicy.blast_radius
       },
       from: 'manager'
     })
   }
   input.sendThinking?.(
     screenshotDataUrl
-      ? `GUI Agent：${gateCopy('action')}，已附带浏览器截图，等待您确认…`
-      : `GUI Agent：${gateCopy('action')}，等待您确认…`
+      ? `GUI Agent：${gateCopy('action')}（${riskPolicy.blast_radius.toUpperCase()}），已附带浏览器截图，等待您确认…`
+      : `GUI Agent：${gateCopy('action')}（${riskPolicy.blast_radius.toUpperCase()}），等待您确认…`
   )
   input.sendEvent?.({
     event: 'human_confirm_request',
     data: {
       confirmId,
+      confirm_token: confirmToken,
       title: copy.title,
       message: `${gateCopy('action')}\n${copy.message}`,
       agent: 'gui',
@@ -418,9 +430,12 @@ export async function requestGuiHumanConfirm(input: {
       pageUrl,
       screenshotDataUrl,
       lobsterRunId: input.lobsterRunId,
-      riskTier: riskPolicy.tier
+      riskTier: riskPolicy.tier,
+      blast_radius: riskPolicy.blast_radius
     },
     from: 'manager',
   })
-  return waitGuiConfirm(runId, confirmId, input.timeoutMs ?? 300_000)
+  const approved = await waitGuiConfirm(runId, confirmId, input.timeoutMs ?? 300_000)
+  if (approved && confirmToken) input.onConfirmToken?.(confirmToken)
+  return approved
 }

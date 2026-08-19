@@ -1,0 +1,34 @@
+id: p2026
+title: 智慧养老实训本地库（与 DB_Agent 同库）
+mysql:
+  host: ${P2026_MYSQL_HOST}
+  port: ${P2026_MYSQL_PORT}
+  user: ${P2026_MYSQL_USER}
+  password_env: P2026_MYSQL_PASSWORD
+  database: p2026
+# 与 DB_Agent domain p2026 对齐的业务前缀；排除 gen_/工作流/杂日志
+table_whitelist_prefixes:
+  - person_
+  - remote_
+  - elderly_
+  - bed_
+  - floor_
+  - org_
+  - monitor_
+  - teaching_
+  - cultivate_
+  - device_
+  - iot_
+table_whitelist:
+  - sys_user
+  - sys_role
+  - sys_dept
+  - sys_department
+  - sys_menu
+skip_list_tables:
+  - device_command_temp
+  - formcollectionobject
+  - formdesignoptions
+  - dify_knowledge_doc
+  - dify_knowledge_doc_segment
+  - dify_knowledge_type

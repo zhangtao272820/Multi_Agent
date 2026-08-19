@@ -7,11 +7,11 @@ import {
   experienceSyncSource,
   experienceSyncSourcePlane,
   mayRecallExperienceRow
-} from '../../../../shared/experienceBridgeContract'
+} from '#agent-shared/experienceBridgeContract'
 import {
   resolveExperienceSourcePlane,
   shouldRecallExperienceForPlane
-} from '../../../../shared/experienceRecallPolicy'
+} from '#agent-shared/experienceRecallPolicy'
 
 function main() {
   const fedSource = experienceSyncSource({ force: true })

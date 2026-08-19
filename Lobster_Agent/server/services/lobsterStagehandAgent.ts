@@ -836,6 +836,8 @@ export async function runLobsterStagehandAgent(params: RunParams) {
           taskKind: params.taskSpec?.task_kind,
           goals: params.taskSpec?.goals,
           plan_steps: planSteps,
+          runId: params.runId,
+          sessionId: params.sessionId,
         })
       } catch {
         /* playbook 写入失败不影响主路径 */

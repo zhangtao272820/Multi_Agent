@@ -11,9 +11,13 @@ import {
 import type { LobsterPlanStep, LobsterTaskGoals, LobsterTaskKind } from './lobsterTaskUnderstandSchema'
 
 export type PlaybookShadowRecord = PlaybookRecord & {
-  status: 'shadow' | 'active' | 'rejected'
+  status: 'shadow' | 'active' | 'rejected' | 'voided'
   promotedAt?: number
   previousActive?: PlaybookRecord | null
+  runId?: string
+  sessionId?: string
+  voidedAt?: number
+  voidReason?: string
 }
 
 function evoEnabled(): boolean {
@@ -113,12 +117,16 @@ export function savePlaybookEvolved(input: {
   taskKind?: LobsterTaskKind | string | null
   goals?: LobsterTaskGoals | null
   plan_steps: LobsterPlanStep[]
+  runId?: string
+  sessionId?: string
 }): PlaybookShadowRecord | null {
   if (!evoEnabled()) return null
   const host = hostFromUrl(input.startUrl)
   const steps = normalizeSteps(input.plan_steps)
   if (!host || !steps.length) return null
   const key = playbookCacheKey(input)
+  const runId = String(input.runId || '').trim() || undefined
+  const sessionId = String(input.sessionId || '').trim() || undefined
   const base: PlaybookShadowRecord = {
     key,
     host,
@@ -128,6 +136,8 @@ export function savePlaybookEvolved(input: {
     savedAt: Date.now(),
     hits: 0,
     status: 'shadow',
+    ...(runId ? { runId } : {}),
+    ...(sessionId ? { sessionId } : {}),
   }
   // goalsFp 与 cache 一致：复用 lookup 键
   const keyed = { ...base, key }
@@ -136,7 +146,7 @@ export function savePlaybookEvolved(input: {
   if (!gate.ok) return null
 
   if (autoPromoteAllowed()) {
-    const actives = readJsonl(activePath()).filter((r) => r.key !== key)
+    const actives = readJsonl(activePath()).filter((r) => r.key !== key && r.status !== 'voided')
     const active: PlaybookShadowRecord = {
       ...keyed,
       status: 'active',
@@ -147,16 +157,59 @@ export function savePlaybookEvolved(input: {
     return active
   }
 
-  const shadows = readJsonl(shadowPath()).filter((r) => r.key !== key)
+  const shadows = readJsonl(shadowPath()).filter((r) => r.key !== key && r.status !== 'voided')
   shadows.push(keyed)
   writeJsonl(shadowPath(), shadows)
   return keyed
 }
 
+/**
+ * 停止/取消任务：作废该 run（或同 session）写下的 playbook 影子学习，不进 lookup/promote。
+ * 对齐总管「撤回/重生不作废进学习」——Lobster 无聊天轮次，以 runId 为粒度。
+ */
+export function supersedePlaybooksForRun(input: {
+  runId?: string
+  sessionId?: string
+  reason?: string
+}): { voided: number } {
+  const rid = String(input.runId || '').trim()
+  const sid = String(input.sessionId || '').trim()
+  if (!rid && !sid) return { voided: 0 }
+  const reason = String(input.reason || 'cancel').slice(0, 64)
+  const now = Date.now()
+  let voided = 0
+
+  const voidFile = (file: string) => {
+    const rows = readJsonl(file)
+    let changed = false
+    const next = rows.map((r) => {
+      if (r.status === 'voided' || r.status === 'rejected') return r
+      const hit =
+        (rid && String(r.runId || '') === rid) ||
+        (!rid && sid && String(r.sessionId || '') === sid)
+      if (!hit) return r
+      voided += 1
+      changed = true
+      return {
+        ...r,
+        status: 'voided' as const,
+        voidedAt: now,
+        voidReason: reason,
+      }
+    })
+    if (changed) writeJsonl(file, next)
+  }
+
+  voidFile(shadowPath())
+  voidFile(activePath())
+  return { voided }
+}
+
 export function listPlaybookShadows(status: 'shadow' | 'active' | 'all' = 'shadow'): PlaybookShadowRecord[] {
-  if (status === 'active') return readJsonl(activePath()).filter((r) => r.status !== 'rejected')
-  if (status === 'all') return [...readJsonl(shadowPath()), ...readJsonl(activePath())]
-  return readJsonl(shadowPath()).filter((r) => r.status === 'shadow' || !r.status)
+  const live = (r: PlaybookShadowRecord) => r.status !== 'rejected' && r.status !== 'voided'
+  if (status === 'active') return readJsonl(activePath()).filter((r) => live(r) && (r.status === 'active' || !r.status))
+  if (status === 'all') return [...readJsonl(shadowPath()), ...readJsonl(activePath())].filter(live)
+  return readJsonl(shadowPath()).filter((r) => live(r) && (r.status === 'shadow' || !r.status))
 }
 
 export async function promotePlaybookShadow(key: string): Promise<{
@@ -170,6 +223,7 @@ export async function promotePlaybookShadow(key: string): Promise<{
   const shadows = readJsonl(shadowPath())
   const hit = shadows.find((r) => r.key === k)
   if (!hit) return { ok: false, reason: 'shadow_not_found' }
+  if (hit.status === 'voided') return { ok: false, reason: 'shadow_voided' }
   const gate = verifyLobsterPlaybookStructure(hit)
   if (!gate.ok) return { ok: false, reason: 'verify_failed', verify: { ok: false, reason: 'structure', gate: 'structure' } }
 
@@ -247,7 +301,9 @@ export function lookupEvolvedOrCache(input: {
 }): PlaybookRecord | null {
   if (evoEnabled()) {
     const key = playbookCacheKey(input)
-    const active = readJsonl(activePath()).find((r) => r.key === key && r.status === 'active')
+    const active = readJsonl(activePath()).find(
+      (r) => r.key === key && r.status === 'active' && r.status !== 'voided'
+    )
     if (active?.plan_steps?.length) return active
   }
   return input.legacyLookup()

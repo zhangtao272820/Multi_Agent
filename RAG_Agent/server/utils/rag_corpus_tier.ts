@@ -44,7 +44,8 @@ const TIER_S: RagCorpusTierPreset = {
   vectorSearchTopK: 10,
   maxRetrievalQueries: 3,
   maxRerankCandidates: 8,
-  maxContextSnippets: 5,
+  maxContextChars: 4800,
+  maxContextSnippets: 4,
   smallCorpusTurboMaxDocs: 50,
   docRoutingTopN: 5,
   docRoutingMinConfidence: 2,
@@ -74,7 +75,8 @@ const TIER_M: RagCorpusTierPreset = {
   vectorSearchTopK: 12,
   maxRetrievalQueries: 4,
   maxRerankCandidates: 10,
-  maxContextSnippets: 6,
+  maxContextChars: 4800,
+  maxContextSnippets: 4,
   smallCorpusTurboMaxDocs: 8,
   docRoutingTopN: 8,
   docRoutingMinConfidence: 2,
@@ -106,8 +108,8 @@ const TIER_L: RagCorpusTierPreset = {
   maxRetrievalQueries: 3,
   maxRerankCandidates: 8,
   rerankDocPreviewChars: 350,
-  maxContextChars: 5500,
-  maxContextSnippets: 6,
+  maxContextChars: 4800,
+  maxContextSnippets: 4,
   smallCorpusTurboMaxDocs: 8,
   docRoutingTopN: 12,
   docRoutingMinConfidence: 3,
@@ -160,6 +162,8 @@ export function parseRagCorpusTierEnv(raw: unknown): RagCorpusTierId | "auto" | 
   if (["s", "small", "小", "小库"].includes(s)) return "s";
   if (["m", "medium", "中", "中库"].includes(s)) return "m";
   if (["l", "large", "大", "大库"].includes(s)) return "l";
+  // 历史误写 standard（检索档位名）时按规模自动套用，避免档位预设静默失效
+  if (["standard", "default", "normal"].includes(s)) return "auto";
   return null;
 }
 

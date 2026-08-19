@@ -176,8 +176,8 @@ function normalizeRetrieveFirstOk(j: RagIntentJudgment, docCount: number): RagIn
   if (j.missing_documents.length > 0) {
     return { ...j, retrieve_first_ok: false, retrieval_mode: j.retrieval_mode || "pipeline" };
   }
-  // 穷尽/跨文档综合 → agentic，且不走 retrieve-first
-  if (j.is_completeness_query || j.retrieval_mode === "agentic") {
+  // 穷尽列全才走 LangGraph agentic；其余固定 retrieve-first 管线
+  if (j.is_completeness_query) {
     return {
       ...j,
       retrieve_first_ok: false,
@@ -187,7 +187,7 @@ function normalizeRetrieveFirstOk(j: RagIntentJudgment, docCount: number): RagIn
   return {
     ...j,
     retrieve_first_ok: true,
-    retrieval_mode: j.retrieval_mode === "agentic" ? "agentic" : "pipeline",
+    retrieval_mode: "pipeline",
   };
 }
 

@@ -1,0 +1,59 @@
+# 独立 Vanna 库问数栈。不注册 Manager，不改 DB_AGENT_HTTP_URL。
+# 重建请用 up -d --force-recreate，禁止 down -v。
+services:
+  vanna_db_agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: clawhive/vanna_db_agent:local
+    container_name: vanna_db_agent
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      VANNA_PORT: "13121"
+      VANNA_DATA_DIR: /app/.data
+      ANONYMIZED_TELEMETRY: "False"
+      VANNA_CHECKPOINT_DEFAULT: "true"
+      VANNA_SCENE_DETECT: "false"
+      VANNA_POLISH: "true"
+      VANNA_MAX_LLM_CALLS: "2"
+      VANNA_MAX_EMBED_CALLS: "1"
+      VANNA_MAX_INGEST_EMBED_CALLS: "500"
+      VANNA_MAX_REPAIR_LLM_CALLS: "1"
+      VANNA_MAX_ANSWER_LLM_CALLS: "1"
+      VANNA_MAX_PROMPT_CHARS: "6000"
+      VANNA_MAX_QUESTION_CHARS: "400"
+    volumes:
+      - vanna_db_agent_data:/app/.data
+    ports:
+      - "13121:13121"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:13121/api/ready')\"",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 90s
+    restart: unless-stopped
+
+  vanna_db_web:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    image: clawhive/vanna_db_web:local
+    container_name: vanna_db_web
+    ports:
+      - "13120:80"
+    depends_on:
+      vanna_db_agent:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  vanna_db_agent_data:

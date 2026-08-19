@@ -1,0 +1,33 @@
+{
+  "metrics": [
+    {
+      "id": "old_people_count",
+      "title": "老人库人数",
+      "description": "PC_OldPeople 行数（非签约表）",
+      "match_hints": ["老人库有多少", "多少老人", "几个老人", "老人总数"],
+      "tables": ["PC_OldPeople"],
+      "sql": "SELECT COUNT(*) AS count FROM PC_OldPeople"
+    },
+    {
+      "id": "company_count",
+      "title": "养老机构数",
+      "match_hints": ["多少家机构", "几个养老机构", "机构总数"],
+      "tables": ["PC_Company"],
+      "sql": "SELECT COUNT(*) AS count FROM PC_Company"
+    },
+    {
+      "id": "student_archive_count",
+      "title": "学生档案人数",
+      "match_hints": ["多少学生", "几个学生", "学生人数", "学生总数", "学生档案"],
+      "tables": ["Sys_Student"],
+      "sql": "SELECT COUNT(*) AS count FROM Sys_Student"
+    },
+    {
+      "id": "sys_user_count",
+      "title": "系统用户数",
+      "match_hints": ["多少用户", "几个账号", "用户总数", "多少账号"],
+      "tables": ["Sys_User"],
+      "sql": "SELECT COUNT(*) AS count FROM Sys_User"
+    }
+  ]
+}

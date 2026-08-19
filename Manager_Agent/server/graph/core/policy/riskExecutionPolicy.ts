@@ -7,6 +7,7 @@ import {
   postureForcesReadOnly,
   resolveCollaborationPosture
 } from '../../../utils/platform/collaborationPosture'
+import { riskTierToBlastRadius } from '#agent-shared/blastRadius'
 
 export type RiskActionKind =
   | 'readonly'
@@ -22,6 +23,8 @@ export type ActionGatePolicy = 'none' | 'dry_run_then_confirm' | 'require_confir
 
 export type RiskPolicyDecision = {
   tier: RiskTier
+  /** E1：与 tier 对齐的爆炸半径（契约字段） */
+  blast_radius: 't0' | 't1' | 't2'
   actionKind: RiskActionKind
   posture: CollaborationPosture
   planGate: PlanGatePolicy
@@ -65,6 +68,10 @@ function maxTier(a: RiskTier, b: RiskTier): RiskTier {
   return rank[a] >= rank[b] ? a : b
 }
 
+function withBlast(decision: Omit<RiskPolicyDecision, 'blast_radius'>): RiskPolicyDecision {
+  return { ...decision, blast_radius: riskTierToBlastRadius(decision.tier) }
+}
+
 /**
  * 统一策略表：输出可写入 meta.riskPolicyDecision 供审计。
  * Ask/Debug 姿态强制只读时，写动作仍标高档且禁 auto（调用方应先被姿态门禁拦住）。
@@ -78,7 +85,7 @@ export function resolveRiskExecutionPolicy(input: RiskPolicyInput): RiskPolicyDe
   }
 
   if (postureForcesReadOnly(posture) && kind !== 'readonly') {
-    return {
+    return withBlast({
       tier: 'high',
       actionKind: kind,
       posture,
@@ -88,11 +95,11 @@ export function resolveRiskExecutionPolicy(input: RiskPolicyInput): RiskPolicyDe
       preferDryRun: false,
       reason: `姿态 ${posture} 为只读合同，写/副作用路径禁止无保护 Auto`,
       decidedAt: new Date().toISOString()
-    }
+    })
   }
 
   if (posture === 'plan') {
-    return {
+    return withBlast({
       tier: maxTier(tier, 'medium'),
       actionKind: kind,
       posture,
@@ -109,11 +116,11 @@ export function resolveRiskExecutionPolicy(input: RiskPolicyInput): RiskPolicyDe
       preferDryRun: tier === 'medium' && (kind === 'admin_write' || kind === 'gui_write'),
       reason: 'Plan 姿态：批准前强制计划确认',
       decidedAt: new Date().toISOString()
-    }
+    })
   }
 
   if (tier === 'low') {
-    return {
+    return withBlast({
       tier,
       actionKind: kind,
       posture,
@@ -123,12 +130,12 @@ export function resolveRiskExecutionPolicy(input: RiskPolicyInput): RiskPolicyDe
       preferDryRun: false,
       reason: '低风险只读/快路径：计划免审',
       decidedAt: new Date().toISOString()
-    }
+    })
   }
 
   if (tier === 'medium') {
     const writeish = kind === 'admin_write' || kind === 'gui_write' || kind === 'code_edit'
-    return {
+    return withBlast({
       tier,
       actionKind: kind,
       posture,
@@ -138,10 +145,10 @@ export function resolveRiskExecutionPolicy(input: RiskPolicyInput): RiskPolicyDe
       preferDryRun: writeish,
       reason: writeish ? '中风险写路径：先 dry-run 再人批' : '中风险多源汇总：计划预览',
       decidedAt: new Date().toISOString()
-    }
+    })
   }
 
-  return {
+  return withBlast({
     tier: 'high',
     actionKind: kind,
     posture,
@@ -151,7 +158,7 @@ export function resolveRiskExecutionPolicy(input: RiskPolicyInput): RiskPolicyDe
     preferDryRun: false,
     reason: '高风险写/不可逆：强制 Plan 确认 + 必须人批，禁止 Auto',
     decidedAt: new Date().toISOString()
-  }
+  })
 }
 
 export function inferActionKindFromAgent(

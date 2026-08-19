@@ -314,24 +314,65 @@
 }
 
 .spring-root.cursor-workbench .turn-agent-route-node.agent-tone-db .turn-agent-route-label {
-  border-color: rgba(59, 130, 246, 0.45) !important;
-  background: rgba(59, 130, 246, 0.12) !important;
-  color: #1e4a8c !important;
+  border-color: var(--agent-db-border) !important;
+  background: var(--agent-db-bg) !important;
+  color: var(--agent-db-fg) !important;
+}
+.spring-root.cursor-workbench .turn-agent-route-node.agent-tone-rag .turn-agent-route-label {
+  border-color: var(--agent-rag-border) !important;
+  background: var(--agent-rag-bg) !important;
+  color: var(--agent-rag-fg) !important;
+}
+.spring-root.cursor-workbench .turn-agent-route-node.agent-tone-crawler .turn-agent-route-label {
+  border-color: var(--agent-crawler-border) !important;
+  background: var(--agent-crawler-bg) !important;
+  color: var(--agent-crawler-fg) !important;
 }
 .spring-root.cursor-workbench .turn-agent-route-node.agent-tone-clean .turn-agent-route-label {
-  border-color: rgba(31, 122, 92, 0.4) !important;
-  background: rgba(31, 122, 92, 0.1) !important;
-  color: #146048 !important;
+  border-color: var(--agent-clean-border) !important;
+  background: var(--agent-clean-bg) !important;
+  color: var(--agent-clean-fg) !important;
 }
 .spring-root.cursor-workbench .turn-agent-route-node.agent-tone-code .turn-agent-route-label {
-  border-color: rgba(184, 106, 26, 0.4) !important;
-  background: rgba(184, 106, 26, 0.1) !important;
-  color: #8a4e10 !important;
+  border-color: var(--agent-code-border) !important;
+  background: var(--agent-code-bg) !important;
+  color: var(--agent-code-fg) !important;
 }
 .spring-root.cursor-workbench .turn-agent-route-node.agent-tone-visualize .turn-agent-route-label {
-  border-color: rgba(20, 120, 130, 0.4) !important;
-  background: rgba(20, 120, 130, 0.1) !important;
-  color: #0e5c66 !important;
+  border-color: var(--agent-visualize-border) !important;
+  background: var(--agent-visualize-bg) !important;
+  color: var(--agent-visualize-fg) !important;
+}
+.spring-root.cursor-workbench .turn-agent-route-node.agent-tone-report .turn-agent-route-label {
+  border-color: var(--agent-report-border) !important;
+  background: var(--agent-report-bg) !important;
+  color: var(--agent-report-fg) !important;
+}
+.spring-root.cursor-workbench .turn-agent-route-node.agent-tone-admin .turn-agent-route-label {
+  border-color: var(--agent-admin-border) !important;
+  background: var(--agent-admin-bg) !important;
+  color: var(--agent-admin-fg) !important;
+}
+.spring-root.cursor-workbench .turn-agent-route-node.agent-tone-gui .turn-agent-route-label,
+.spring-root.cursor-workbench .turn-agent-route-node.agent-tone-lobster .turn-agent-route-label {
+  border-color: var(--agent-gui-border) !important;
+  background: var(--agent-gui-bg) !important;
+  color: var(--agent-gui-fg) !important;
+}
+.spring-root.cursor-workbench .turn-agent-route-node.agent-tone-multimodal .turn-agent-route-label {
+  border-color: var(--agent-multimodal-border) !important;
+  background: var(--agent-multimodal-bg) !important;
+  color: var(--agent-multimodal-fg) !important;
+}
+.spring-root.cursor-workbench .turn-agent-route-node.agent-tone-music .turn-agent-route-label {
+  border-color: var(--agent-music-border) !important;
+  background: var(--agent-music-bg) !important;
+  color: var(--agent-music-fg) !important;
+}
+.spring-root.cursor-workbench .turn-agent-route-node.agent-tone-video .turn-agent-route-label {
+  border-color: var(--agent-video-border) !important;
+  background: var(--agent-video-bg) !important;
+  color: var(--agent-video-fg) !important;
 }
 
 .spring-root.cursor-workbench .turn-agent-step {

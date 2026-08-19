@@ -92,6 +92,30 @@ def main() -> None:
         summary = get_prompt_evolution_summary()
         assert_true(summary.get("evolvedHintCount", 0) >= 1, "evolved count")
 
+        # 撤回/重生：反馈影子补丁作废，不进学习面
+        from app.core.prompt_evolution import supersede_prompt_patches_for_revision
+
+        append_prompt_patch(
+            stage="planning",
+            text="用户标记无用：日程写错了",
+            source="feedback",
+            session_id="adm-sess-1",
+            user_message_index=2,
+        )
+        voided = supersede_prompt_patches_for_revision(
+            session_id="adm-sess-1",
+            user_message_index=2,
+            reason="regenerate",
+        )
+        assert_true(int(voided.get("voided") or 0) >= 1, "feedback patch voided on regen")
+        assert_true(
+            not any(
+                p.get("session_id") == "adm-sess-1" and p.get("user_message_index") == 2
+                for p in list_prompt_patches()
+            ),
+            "voided feedback patch excluded from list",
+        )
+
     from app.core.audit_learning import scan_audit_logs, get_audit_learning_summary
 
     stats = scan_audit_logs(limit=10)

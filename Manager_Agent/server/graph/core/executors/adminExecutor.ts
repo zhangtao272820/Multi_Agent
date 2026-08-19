@@ -19,6 +19,7 @@ import {
   inferActionKindFromAgent,
   resolveRiskExecutionPolicy
 } from '../policy/riskExecutionPolicy'
+import { mintHitlConfirmToken } from '#agent-shared/agentServiceAuth'
 import { resolveManagerAgentSessionId } from '../runtime/sessionBridge'
 import {
   adminResponseSignalsPendingConfirm,
@@ -81,7 +82,8 @@ function buildManagerAdminWsMessage(
 
 function buildPendingDecideClientContext(
   scopedAction: string,
-  managerTask: ReturnType<typeof buildManagerAdminTaskPayload>
+  managerTask: ReturnType<typeof buildManagerAdminTaskPayload>,
+  extra?: { confirm_token?: string; blast_radius?: string }
 ): Record<string, unknown> | undefined {
   return {
     manager_orchestrated: true,
@@ -89,8 +91,12 @@ function buildPendingDecideClientContext(
       source: 'manager',
       action_text: scopedAction,
       ...(managerTask.source_user_task ? { source_user_task: managerTask.source_user_task } : {}),
-      ...(managerTask.read_only ? { read_only: true } : {})
-    }
+      ...(managerTask.read_only ? { read_only: true } : {}),
+      ...(extra?.confirm_token ? { confirm_token: extra.confirm_token } : {}),
+      ...(extra?.blast_radius ? { blast_radius: extra.blast_radius } : {})
+    },
+    ...(extra?.confirm_token ? { confirm_token: extra.confirm_token } : {}),
+    ...(extra?.blast_radius ? { blast_radius: extra.blast_radius } : {})
   }
 }
 
@@ -266,6 +272,7 @@ export async function executeAdminStep(
         }
       }
       const confirmId = crypto.randomUUID()
+      const confirmToken = mintHitlConfirmToken(opts.runId, confirmId)
       const ops = adminPendingOpLabels(adminText, agentResult)
       const opLine = ops.length ? ops.join('、') : '个人事务写操作'
       if (riskPolicy.preferDryRun || riskPolicy.actionGate === 'dry_run_then_confirm') {
@@ -277,20 +284,25 @@ export async function executeAdminStep(
             badge: gateCopy('dry_run'),
             message: `拟执行（未写入）：${opLine}`,
             preview: String(adminText || '').slice(0, 1200),
-            riskPolicy
+            riskPolicy,
+            blast_radius: riskPolicy.blast_radius
           },
           from: 'manager'
         })
       }
-      input.sendThinking(`个人助手：${gateCopy('action')}，任务已暂停，等待您确认…`)
+      input.sendThinking(
+        `个人助手：${gateCopy('action')}（${riskPolicy.blast_radius.toUpperCase()}），任务已暂停，等待您确认…`
+      )
       opts.sendEvent({
         event: 'human_confirm_request',
         data: {
           confirmId,
+          confirm_token: confirmToken,
           title: '个人事务写操作待确认',
           message: `${gateCopy('action')}\n待执行：${opLine}`,
           agent: 'admin',
-          riskTier: riskPolicy.tier
+          riskTier: riskPolicy.tier,
+          blast_radius: riskPolicy.blast_radius
         },
         from: 'manager'
       })
@@ -306,7 +318,10 @@ export async function executeAdminStep(
         }
       }
       const pendingRows = extractAdminPendingActions(agentResult)
-      const decideClientContext = buildPendingDecideClientContext(scopedAction, managerTask)
+      const decideClientContext = buildPendingDecideClientContext(scopedAction, managerTask, {
+        confirm_token: confirmToken,
+        blast_radius: riskPolicy.blast_radius
+      })
       if (pendingRows.length) {
         let decideText = adminText
         let decideResult: AgentResult | undefined = agentResult

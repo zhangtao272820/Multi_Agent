@@ -19,6 +19,7 @@ const {
   rollbackPlaybookActive,
   lookupEvolvedOrCache,
   verifyLobsterPlaybookStructure,
+  supersedePlaybooksForRun,
 } = await import('../server/services/lobsterPlaybookEvolution')
 
 const steps = [
@@ -34,11 +35,26 @@ const shadow = savePlaybookEvolved({
   startUrl: 'https://example.com/app',
   taskKind: 'export',
   plan_steps: steps as any,
+  runId: 'run-smoke-1',
+  sessionId: 'sess-smoke-1',
 })
 assert.ok(shadow)
 assert.equal(shadow!.status, 'shadow')
+assert.equal(shadow!.runId, 'run-smoke-1')
 assert.equal(listPlaybookShadows('shadow').length, 1)
 assert.equal(listPlaybookShadows('active').length, 0)
+
+const voided = supersedePlaybooksForRun({ runId: 'run-smoke-1', reason: 'cancel' })
+assert.equal(voided.voided >= 1, true)
+assert.equal(listPlaybookShadows('shadow').length, 0, 'voided shadow excluded from list')
+
+const shadow2 = savePlaybookEvolved({
+  startUrl: 'https://example.com/app',
+  taskKind: 'export',
+  plan_steps: steps as any,
+  runId: 'run-smoke-2',
+})
+assert.ok(shadow2)
 
 // 未晋级时 lookup 应走 legacy（此处返回 null）
 const before = lookupEvolvedOrCache({
@@ -48,7 +64,7 @@ const before = lookupEvolvedOrCache({
 })
 assert.equal(before, null)
 
-const promoted = await promotePlaybookShadow(shadow!.key)
+const promoted = await promotePlaybookShadow(shadow2!.key)
 assert.equal(promoted.ok, true, promoted.reason || 'promote failed')
 assert.ok(promoted.verify?.ok !== false)
 assert.equal(listPlaybookShadows('active').length, 1)
@@ -59,11 +75,11 @@ const after = lookupEvolvedOrCache({
   legacyLookup: () => null,
 })
 assert.ok(after)
-assert.equal(after!.key, shadow!.key)
+assert.equal(after!.key, shadow2!.key)
 
-const rb = rollbackPlaybookActive(shadow!.key)
+const rb = rollbackPlaybookActive(shadow2!.key)
 assert.equal(rb.ok, true)
-assert.ok(listPlaybookShadows('shadow').some((r) => r.key === shadow!.key))
+assert.ok(listPlaybookShadows('shadow').some((r) => r.key === shadow2!.key))
 
 fs.rmSync(dir, { recursive: true, force: true })
 console.log('smoke-playbook-evolution: ok')

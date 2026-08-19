@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import ManagerChatThread from '~/components/chat/ManagerChatThread.vue'
 import ManagerChatComposer from '~/components/chat/ManagerChatComposer.vue'
+import ManagerAgentCapabilityMap from '~/components/chat/ManagerAgentCapabilityMap.vue'
 import { inject, ref, watch } from 'vue'
 import type { CollaborationPosture, TurnGroup } from '~/composables/managerChatTypes'
 import { MANAGER_CHAT_RAIL_KEY } from '~/composables/managerChatRailContext'
@@ -58,12 +59,15 @@ watch(localLogEl, (el) => {
 <template>
   <div class="chat-rail-stack" :class="{ 'has-plan-preview': !!pendingPlanPreview }">
     <div
-      v-if="lastPostureHint && workbenchMode === 'professional'"
+      v-if="lastPostureHint"
       class="posture-gate-card"
-      :class="{ 'is-ask': String(lastPostureHint.reason || '').includes('write') || lastPostureHint.reason === 'ask_read_only' }"
+      :class="{
+        'is-ask': String(lastPostureHint.reason || '').includes('write') || lastPostureHint.reason === 'ask_read_only',
+        'is-compact': workbenchMode === 'chat'
+      }"
       role="status"
     >
-      <span class="posture-gate-card-title">协作姿态门禁</span>
+      <span class="posture-gate-card-title">{{ workbenchMode === 'chat' ? '姿态提示' : '协作姿态门禁' }}</span>
       <p>{{ lastPostureHint.text }}</p>
       <div class="conv-plan-preview-actions" style="margin-top: 8px; border: none; padding: 0">
         <button
@@ -107,6 +111,19 @@ watch(localLogEl, (el) => {
           <span class="conv-plan-preview-meta"
             >{{ enabledPlanPreviewCount }}/{{ pendingPlanPreview.steps.length }} 步</span
           >
+        </div>
+        <div class="plan-mode-progress" aria-hidden="true">
+          <div class="plan-mode-progress-track">
+            <div
+              class="plan-mode-progress-fill"
+              :style="{
+                width: `${Math.max(
+                  8,
+                  Math.round((enabledPlanPreviewCount / Math.max(1, pendingPlanPreview.steps.length)) * 100)
+                )}%`
+              }"
+            />
+          </div>
         </div>
       </div>
       <div class="conv-plan-preview-body">
@@ -263,9 +280,20 @@ watch(localLogEl, (el) => {
           <p class="cosmic-chat-empty-title">{{ workbenchMode === 'professional' ? '专业工作台就绪' : '开始对话' }}</p>
           <p class="cosmic-chat-empty-hint">
             {{ workbenchMode === 'professional'
-              ? '输入领域任务，总管将读题分析、冻结能力集合并分步编排执行；进展会显示在下方「正在思考」面板。'
-              : '像 ChatGPT 一样自由对话：闲聊、联网搜索、写代码均可；输入问题或展开快捷示例即可开始。' }}
+              ? '输入领域任务，总管将读题分析、冻结能力集合并分步编排执行；进展会显示在下方活动时间线与「正在思考」面板。'
+              : '像成熟 Agent 一样：下方切换 Ask / Plan / Agent / Debug；总管会按姿态调度专才。' }}
           </p>
+          <div class="empty-posture-tips" aria-label="协作姿态说明">
+            <span class="empty-posture-chip is-ask">Ask 只读</span>
+            <span class="empty-posture-chip is-plan">Plan 先批蓝图</span>
+            <span class="empty-posture-chip is-agent">Agent 自主</span>
+            <span class="empty-posture-chip is-debug">Debug 重验</span>
+          </div>
+          <ManagerAgentCapabilityMap
+            class="empty-cap-map"
+            density="compact"
+            title="可调度专才"
+          />
         </div>
         <div v-else-if="!visibleTurnGroups.length" class="cosmic-chat-empty cosmic-chat-empty-compact">
           <p class="cosmic-chat-empty-title">暂无可见对话</p>

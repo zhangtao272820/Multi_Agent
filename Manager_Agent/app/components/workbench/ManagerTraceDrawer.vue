@@ -22,6 +22,19 @@ const emit = defineEmits<{
 const copyAck = ref(false)
 let copyTimer: ReturnType<typeof setTimeout> | null = null
 const deepLinks = ref<{ langfuseUrl: string | null; tempoUrl: string | null } | null>(null)
+const morphology = ref<{
+  kind: string
+  intent?: string
+  taskIntent?: string
+  taskForm?: string
+  allowedAgents: string[]
+  plan: Array<{ agent: string; dependsOn?: string[]; blast_radius?: string }>
+  outcome?: string
+  sourceCommitment?: string
+  turnScopeMode?: string
+  blast_radius?: string
+  flags?: { needsClarify?: boolean; needsHumanConfirm?: boolean }
+} | null>(null)
 
 async function copyTrace() {
   const id = String(props.traceId || '').trim()
@@ -42,6 +55,7 @@ async function loadDeepLinks() {
   const id = String(props.runId || props.traceId || '').trim()
   if (!id) {
     deepLinks.value = null
+    morphology.value = null
     return
   }
   try {
@@ -55,6 +69,42 @@ async function loadDeepLinks() {
     }
   } catch {
     deepLinks.value = null
+  }
+  try {
+    const morph = await $fetch<{
+      records?: Array<{
+        kind: string
+        intent?: string
+        taskIntent?: string
+        taskForm?: string
+        allowedAgents?: string[]
+        plan?: Array<{ agent: string; dependsOn?: string[]; blast_radius?: string }>
+        outcome?: string
+        sourceCommitment?: string
+        turnScopeMode?: string
+        blast_radius?: string
+        flags?: { needsClarify?: boolean; needsHumanConfirm?: boolean }
+      }>
+    }>('/api/metrics/agent-morphology', { query: { runId: id } })
+    const rows = Array.isArray(morph.records) ? morph.records : []
+    const pick = rows.find((r) => r.kind === 'final') || rows[0] || null
+    morphology.value = pick
+      ? {
+          kind: pick.kind,
+          intent: pick.intent,
+          taskIntent: pick.taskIntent,
+          taskForm: pick.taskForm,
+          allowedAgents: Array.isArray(pick.allowedAgents) ? pick.allowedAgents : [],
+          plan: Array.isArray(pick.plan) ? pick.plan : [],
+          outcome: pick.outcome,
+          sourceCommitment: pick.sourceCommitment,
+          turnScopeMode: pick.turnScopeMode,
+          blast_radius: pick.blast_radius,
+          flags: pick.flags
+        }
+      : null
+  } catch {
+    morphology.value = null
   }
 }
 
@@ -113,6 +163,41 @@ onBeforeUnmount(() => {
               rel="noopener noreferrer"
             >打开 Tempo</a>
           </div>
+        </section>
+
+        <section v-if="morphology" class="mgr-trace-drawer-section">
+          <div class="mgr-trace-drawer-label">本轮 Agent 形态</div>
+          <p class="mgr-trace-meta">
+            {{ morphology.kind }}
+            <template v-if="morphology.outcome"> · {{ morphology.outcome }}</template>
+            <template v-if="morphology.intent"> · intent {{ morphology.intent }}</template>
+          </p>
+          <p v-if="morphology.taskIntent || morphology.taskForm" class="mgr-trace-meta">
+            <template v-if="morphology.taskIntent">taskIntent {{ morphology.taskIntent }}</template>
+            <template v-if="morphology.taskForm"> · taskForm {{ morphology.taskForm }}</template>
+          </p>
+          <p v-if="morphology.allowedAgents.length" class="mgr-trace-meta">
+            专家 {{ morphology.allowedAgents.join(' → ') }}
+          </p>
+          <p v-if="morphology.plan.length > 1" class="mgr-trace-meta">
+            DAG
+            {{
+              morphology.plan
+                .map((s) => {
+                  const dep = s.dependsOn?.length ? `←${s.dependsOn.join(',')}` : ''
+                  const br = s.blast_radius ? `:${s.blast_radius}` : ''
+                  return `${s.agent}${br}${dep}`
+                })
+                .join(' · ')
+            }}
+          </p>
+          <p v-if="morphology.blast_radius" class="mgr-trace-meta">
+            爆炸半径 {{ morphology.blast_radius.toUpperCase() }}
+          </p>
+          <p v-if="morphology.sourceCommitment || morphology.turnScopeMode" class="mgr-trace-meta">
+            <template v-if="morphology.sourceCommitment">source {{ morphology.sourceCommitment }}</template>
+            <template v-if="morphology.turnScopeMode"> · scope {{ morphology.turnScopeMode }}</template>
+          </p>
         </section>
 
         <section v-if="phaseTimeline?.length" class="mgr-trace-drawer-section">

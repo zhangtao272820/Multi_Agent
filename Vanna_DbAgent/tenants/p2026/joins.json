@@ -1,0 +1,32 @@
+[
+  {
+    "when": "按姓名查健康指标/体检/生命体征",
+    "sql": "person_health_records.person_id = person_info.id",
+    "tables": ["person_info", "person_health_records"]
+  },
+  {
+    "when": "足底压力区域/分区/重心明细",
+    "sql": "remote_activity_foot_measure_log.foot_log_id = remote_activity_foot_log.id",
+    "tables": ["remote_activity_foot_log", "remote_activity_foot_measure_log"]
+  },
+  {
+    "when": "床位与老人",
+    "sql": "bed_info.elderly_id = elderly_info.id",
+    "tables": ["bed_info", "elderly_info"]
+  },
+  {
+    "when": "床位与楼层",
+    "sql": "bed_info.floor_id = floor_info.id",
+    "tables": ["bed_info", "floor_info"]
+  },
+  {
+    "when": "人员紧急联系人",
+    "sql": "person_emergency_contact.person_id = person_info.id",
+    "tables": ["person_info", "person_emergency_contact"]
+  },
+  {
+    "when": "人员生活自理/居住/生活条件",
+    "sql": "person_info.selfcare_conditions_id = person_selfcare_conditions.id",
+    "tables": ["person_info", "person_selfcare_conditions"]
+  }
+]

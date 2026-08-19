@@ -57,6 +57,23 @@ def main() -> None:
         "auto_confirm skips HITL but cannot invent slots — caller must clarify first",
     )
 
+    assert_true(
+        not requires_risky_hitl(
+            "add_event",
+            auto_confirm_risky=False,
+            confirm_token="hitl-ok",
+        ),
+        "HITL confirm_token skips second pending",
+    )
+    assert_true(
+        requires_risky_hitl(
+            "send_email",
+            auto_confirm_risky=False,
+            blast_radius="t2",
+        ),
+        "T2 RISKY without token still HITL",
+    )
+
     print("smoke_admin_risky_hitl: ok")
 
 

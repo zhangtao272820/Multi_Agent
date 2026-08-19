@@ -37,6 +37,22 @@ const serialized = serializeManagerTaskEnvelope(envelope)
 const parsed = parseManagerTaskEnvelope(serialized)
 assert(parsed?.payload.kind === 'code', 'roundtrip parse')
 assert((parsed?.payload.data as { task_kind?: string }).task_kind === 'edit', 'task_kind')
+assert(parsed?.blast_radius === undefined, 'default envelope no blast unless set')
+
+const blastEnv = buildManagerTaskEnvelope({
+  target_agent: 'code',
+  trace_id: 'trace-blast',
+  session_id: 'sess-blast',
+  utterance: codePayload.refined_question,
+  blast_radius: 't2',
+  confirm_token: 'tok-1',
+  payload: { kind: 'code', data: codePayload },
+})
+const blastParsed = parseManagerTaskEnvelope(serializeManagerTaskEnvelope(blastEnv))
+assert(blastParsed?.blast_radius === 't2', 'blast_radius roundtrip')
+assert(blastParsed?.confirm_token === 'tok-1', 'confirm_token roundtrip')
+const blastV1 = envelopeToV1ManagerTask(blastEnv)
+assert((blastV1 as { blast_radius?: string })?.blast_radius === 't2', 'v1 carries blast_radius')
 
 const v1 = envelopeToV1ManagerTask(envelope)
 assert(v1 && (v1 as { task_kind?: string }).task_kind === 'edit', 'v1 convert')

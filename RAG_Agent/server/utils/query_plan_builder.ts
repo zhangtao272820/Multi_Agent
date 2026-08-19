@@ -38,7 +38,10 @@ export function shouldUseCatalogLlmPlan(opts: {
   heuristicConfidence?: number;
   subQueryCount?: number;
   intent?: string;
+  /** 统一理解 / 上游已给出 plan 时不再打 catalog LLM */
+  prefetched?: boolean;
 }): boolean {
+  if (opts.prefetched) return false;
   if (!isCatalogGroundedPlanEnabled()) return false;
   const env = getRagAgentEnv({ docCount: opts.docCount });
   const skipSmall = envBool(process.env.RAG_SKIP_CATALOG_LLM_SMALL_CORPUS, true);

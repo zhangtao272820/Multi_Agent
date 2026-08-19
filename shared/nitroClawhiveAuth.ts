@@ -1,5 +1,5 @@
 /**
- * Nitro：浏览器 JWT 或 ClawHive internal token 二选一。
+ * Nitro：浏览器 JWT 或 Agent 服务身份（E5.2）二选一。
  * health/ready/metrics 由调用方自行跳过；本函数只做门禁。
  */
 
@@ -9,6 +9,14 @@ import {
   resolveBrowserUser,
   type ClawhiveUser
 } from './clawhiveJwt'
+import {
+  AGENT_SERVICE_TOKEN_HEADER,
+  CLAWHIVE_INTERNAL_TOKEN_HEADER,
+  getAgentServiceAuthConfigStatus,
+  resolveAgentServiceAuthMode,
+  resolveAgentServiceToken,
+  verifyAgentServiceAuth
+} from './agentServiceAuth'
 
 export type AuthEventLike = {
   node?: { req?: { headers?: Record<string, string | string[] | undefined> } }
@@ -24,20 +32,29 @@ function headerValue(
   return String(Array.isArray(raw) ? raw[0] : raw || '').trim()
 }
 
+function headersAsRecord(event: AuthEventLike): Record<string, string> {
+  const headers = event?.node?.req?.headers || {}
+  const out: Record<string, string> = {}
+  for (const [k, v] of Object.entries(headers)) {
+    out[k] = String(Array.isArray(v) ? v[0] : v || '')
+  }
+  return out
+}
+
 export function extractInternalToken(event: AuthEventLike): string {
   const headers = event?.node?.req?.headers || {}
   return (
-    headerValue(headers, 'x-clawhive-internal-token') ||
+    headerValue(headers, AGENT_SERVICE_TOKEN_HEADER) ||
+    headerValue(headers, CLAWHIVE_INTERNAL_TOKEN_HEADER) ||
     headerValue(headers, 'x-internal-token') ||
     ''
   )
 }
 
 export function isInternalTokenValid(event: AuthEventLike, env: NodeJS.ProcessEnv = process.env): boolean {
-  const expected = String(env.CLAWHIVE_INTERNAL_TOKEN || env.AGENT_INTERNAL_TOKEN || '').trim()
-  if (!expected) return false
   const got = extractInternalToken(event)
-  return Boolean(got && got === expected)
+  if (!got) return false
+  return verifyAgentServiceAuth(headersAsRecord(event), env).ok
 }
 
 /** 与浏览器 localStorage / document.cookie 同名，供同域 $fetch 自动携带 */
@@ -82,23 +99,38 @@ export function extractBrowserToken(event: AuthEventLike, bodyToken?: string): s
 
 /**
  * @returns { mode, user? }
- * - internal：Manager 调度
+ * - internal：Manager 调度（服务身份）
  * - browser：终端用户 JWT
- * 未启用 AGENT_BROWSER_AUTH 且无 internal 要求时：放行 anonymous（兼容本地 smoke）
+ * - open：本地未开鉴权
  */
 export function requireBrowserOrInternalAuth(
   event: AuthEventLike,
-  opts?: { bodyToken?: string; env?: NodeJS.ProcessEnv; createError?: (input: { statusCode: number; statusMessage: string }) => never }
+  opts?: {
+    bodyToken?: string
+    env?: NodeJS.ProcessEnv
+    createError?: (input: { statusCode: number; statusMessage: string }) => never
+  }
 ): { mode: 'internal' | 'browser' | 'open'; user?: ClawhiveUser } {
   const env = opts?.env || process.env
   const fail =
     opts?.createError ||
     ((input: { statusCode: number; statusMessage: string }) => {
-      throw Object.assign(new Error(input.statusMessage), { statusCode: input.statusCode, statusMessage: input.statusMessage })
+      throw Object.assign(new Error(input.statusMessage), {
+        statusCode: input.statusCode,
+        statusMessage: input.statusMessage
+      })
     })
 
-  if (isInternalTokenValid(event, env)) {
-    return { mode: 'internal' }
+  const hdrs = headersAsRecord(event)
+  const mode = resolveAgentServiceAuthMode(env)
+  const hasServiceHeader = Boolean(extractInternalToken(event))
+
+  if (hasServiceHeader || mode === 'require') {
+    const v = verifyAgentServiceAuth(hdrs, env)
+    if (v.ok) return { mode: 'internal' }
+    if (mode === 'require' || hasServiceHeader) {
+      return fail({ statusCode: 401, statusMessage: v.reason || 'unauthorized' })
+    }
   }
 
   const browserEnabled = isAgentBrowserAuthEnabled(env)
@@ -120,8 +152,7 @@ export function requireBrowserOrInternalAuth(
 }
 
 /**
- * AGENT_BROWSER_AUTH=1 时必须配置 internal token，否则 Manager 调度 /api/plan|/api/retrieve 会 401。
- * 供 /api/ready 暴露，避免「进程 healthy 但业务 API 全拒」。
+ * AGENT_BROWSER_AUTH=1 或 AGENT_SERVICE_AUTH=require 时须配置服务 token。
  */
 export function resolveInternalAuthReady(env: NodeJS.ProcessEnv = process.env): {
   browserAuthEnabled: boolean
@@ -130,9 +161,18 @@ export function resolveInternalAuthReady(env: NodeJS.ProcessEnv = process.env): 
   detail?: string
 } {
   const browserAuthEnabled = isAgentBrowserAuthEnabled(env)
-  const internalTokenConfigured = Boolean(
-    String(env.CLAWHIVE_INTERNAL_TOKEN || env.AGENT_INTERNAL_TOKEN || '').trim()
-  )
+  const serviceMode = resolveAgentServiceAuthMode(env)
+  const cfg = getAgentServiceAuthConfigStatus(env)
+  const internalTokenConfigured = Boolean(resolveAgentServiceToken(env)) || cfg.hasToken
+
+  if (serviceMode === 'require' && !internalTokenConfigured) {
+    return {
+      browserAuthEnabled,
+      internalTokenConfigured,
+      ok: false,
+      detail: cfg.detail || 'agent_service_token_required_but_missing'
+    }
+  }
   if (!browserAuthEnabled) {
     return { browserAuthEnabled, internalTokenConfigured, ok: true }
   }

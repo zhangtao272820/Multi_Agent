@@ -20,6 +20,7 @@ assert(low.tier === 'low', 'readonly is low')
 assert(low.planGate === 'skip', 'low plan skip')
 assert(low.actionGate === 'none', 'low action none')
 assert(low.allowAutoConfirm, 'low allows auto')
+assert(low.blast_radius === 't0', 'readonly blast t0')
 
 const mid = resolveRiskExecutionPolicy({
   actionKind: 'multi_aggregate',
@@ -39,6 +40,7 @@ assert(highAdmin.tier === 'high', 'admin_write is high')
 assert(highAdmin.actionGate === 'require_confirm', 'high require confirm')
 assert(!highAdmin.allowAutoConfirm, 'high ban auto')
 assert(!highAdmin.preferDryRun, 'high no dry-run prefer')
+assert(highAdmin.blast_radius === 't2', 'admin_write blast t2')
 
 const codeDry = resolveRiskExecutionPolicy({
   actionKind: 'code_edit',
@@ -50,6 +52,7 @@ assert(codeDry.tier === 'medium', 'code_edit base medium')
 assert(codeDry.preferDryRun, 'code_edit prefers dry-run')
 assert(codeDry.actionGate === 'dry_run_then_confirm', 'code_edit dry-run then confirm')
 assert(!codeDry.allowAutoConfirm, 'code_edit no auto')
+assert(codeDry.blast_radius === 't1', 'code_edit blast t1')
 
 assert(inferActionKindFromAgent('db') === 'readonly', 'db readonly')
 assert(inferActionKindFromAgent('admin') === 'admin_write', 'admin write')

@@ -13,6 +13,12 @@ import { resolveRenderableEchartsOptionFromText } from '#agent-shared/codeAuthor
 import { isRenderableChartOption, readChartTitle, readPanelCount, suggestChartContainerHeight } from '#agent-shared/chartOption'
 import { buildChartPngExportMeta } from '#agent-shared/chartExportMeta'
 import {
+  planAgentLabel as planAgentLabelFromDisplay,
+  planAgentLabelProfessional,
+  agentObsColor,
+  agentDisplayLabel as formatAgentDisplayLabel
+} from '~/composables/managerAgentDisplay'
+import {
   EMPTY_MEDIA,
   type CollabAgent,
   type CollabStatus,
@@ -383,23 +389,23 @@ export function useManagerChatPage() {
   })
   
   const OBS_AGENT_COLORS: Record<string, string> = {
-    manager_llm: '#38bdf8',
-    manager: '#38bdf8',
-    db: '#3b82f6',
-    rag: '#a78bfa',
-    crawler: '#fb923c',
-    code: '#fbbf24',
-    clean: '#34d399',
-    visualize: '#2dd4bf',
-    report: '#818cf8',
-    admin: '#f472b6',
-    gui: '#94a3b8',
-    multimodal: '#c084fc',
-    music: '#e879f9',
-    video: '#f87171',
-    synth: '#22d3ee',
-    planner: '#6366f1',
-    route: '#0ea5e9'
+    manager_llm: agentObsColor('manager'),
+    manager: agentObsColor('manager'),
+    db: agentObsColor('db'),
+    rag: agentObsColor('rag'),
+    crawler: agentObsColor('crawler'),
+    code: agentObsColor('code'),
+    clean: agentObsColor('clean'),
+    visualize: agentObsColor('visualize'),
+    report: agentObsColor('report'),
+    admin: agentObsColor('admin'),
+    gui: agentObsColor('gui'),
+    multimodal: agentObsColor('multimodal'),
+    music: agentObsColor('music'),
+    video: agentObsColor('video'),
+    synth: agentObsColor('synth'),
+    planner: agentObsColor('planner'),
+    route: agentObsColor('route')
   }
   const logEl = ref<HTMLElement | null>(null)
   const chatRailStackEl = ref<HTMLElement | null>(null)
@@ -503,6 +509,7 @@ export function useManagerChatPage() {
     constraints?: string
     approveTier?: 'auto' | 'plan' | 'strict'
     riskScore?: number
+    suggestedPosture?: CollaborationPosture
     routePlan?: RoutePlanCardData | null
     steps: Array<{
       id: string
@@ -538,24 +545,14 @@ export function useManagerChatPage() {
     }
   }
   
-  const PLAN_AGENT_LABELS: Record<string, string> = {
-    db: '查数据库',
-    rag: '检索知识库',
-    crawler: '采集网页',
-    code: '计算数据',
-    clean: '清洗数据',
-    visualize: '生成图表',
-    report: '撰写报告',
-    admin: '个人助手（事务/地图）',
-    gui: '浏览器操作',
-    multimodal: '理解附件',
-    music: '生成音乐',
-    video: '生成视频',
-    multi: '多步执行'
-  }
-  
   function planAgentLabel(agent: string) {
-    return PLAN_AGENT_LABELS[String(agent || '').toLowerCase()] || agent || '步骤'
+    return planAgentLabelFromDisplay(agent)
+  }
+
+  function planAgentLabelForMode(agent: string) {
+    return workbenchMode.value === 'professional'
+      ? planAgentLabelProfessional(agent)
+      : planAgentLabelFromDisplay(agent)
   }
   
   function userPhaseLabel(phase: string): string {
@@ -1230,6 +1227,55 @@ export function useManagerChatPage() {
     return true
   }
 
+  function turnSuggestedPosture(t: TurnGroup): CollaborationPosture | undefined {
+    const fromProcess = t.process.find((p) => p.suggestedPosture)?.suggestedPosture
+    if (fromProcess === 'ask' || fromProcess === 'plan' || fromProcess === 'agent' || fromProcess === 'debug') {
+      return fromProcess
+    }
+    const pending = pendingPlanPreview.value
+    const runId = t.user?.runId || t.process.find((p) => p.runId)?.runId
+    if (pending?.suggestedPosture && (!runId || pending.runId === runId)) {
+      return pending.suggestedPosture
+    }
+    return undefined
+  }
+
+  function turnAwaitingPlanConfirm(t: TurnGroup): boolean {
+    const pending = pendingPlanPreview.value
+    if (!pending) return false
+    const runId = t.user?.runId || t.process.find((p) => p.runId)?.runId
+    if (runId && pending.runId !== runId) return false
+    if (!runId && !isTurnRunning(t) && !isTurnLive(t)) return false
+    return true
+  }
+
+  function turnHitlInfo(t: TurnGroup): { title?: string; agent?: string } {
+    if (pendingHumanConfirm.value && (isTurnRunning(t) || isTurnLive(t))) {
+      return {
+        title: pendingHumanConfirm.value.title || '需要人工确认',
+        agent: pendingHumanConfirm.value.agent
+      }
+    }
+    const action = (t.userFacing?.actions || []).find(
+      (a) => String(a.status || '').toLowerCase() === 'pending' || String(a.status || '').toLowerCase() === 'awaiting'
+    )
+    if (action) {
+      return { title: action.title || '需要确认', agent: undefined }
+    }
+    return {}
+  }
+
+  function hasTurnActivity(t: TurnGroup): boolean {
+    if (hasAgentPipeline(t)) return true
+    if (turnPostureNote(t)) return true
+    const posture = turnCollaborationPosture(t)
+    if (posture && posture !== 'agent') return true
+    if (turnSuggestedPosture(t)) return true
+    if (turnAwaitingPlanConfirm(t)) return true
+    if (turnHitlInfo(t).title) return true
+    return false
+  }
+
   /** 用户视图弱化：仅个人助理单步（或等价单 agent admin） */
   function isSimpleAdminOnlyPipeline(t: TurnGroup): boolean {
     const steps = turnAgentPipelineSteps(t)
@@ -1282,7 +1328,7 @@ export function useManagerChatPage() {
         return {
           id: step.id || `plan-${i}`,
           agent,
-          label: planAgentLabel(agent),
+          label: planAgentLabelForMode(agent),
           query: previewText(String(step.query || ''), queryLen),
           summary:
             sr?.status === 'failed' && sr.error
@@ -1304,7 +1350,7 @@ export function useManagerChatPage() {
         return {
           id: `cap-${i}`,
           agent,
-          label: planAgentLabel(agent),
+          label: planAgentLabelForMode(agent),
           query: sr?.query ? previewText(sr.query, queryLen) : undefined,
           summary: sr?.title ? previewText(sr.title, 80) : undefined,
           status: sr
@@ -4937,6 +4983,7 @@ export function useManagerChatPage() {
       | 'routePlanCard'
       | 'planOutline'
       | 'collaborationPosture'
+      | 'suggestedPosture'
       | 'postureBlocked'
       | 'postureReadOnly'
     >
@@ -5577,11 +5624,17 @@ export function useManagerChatPage() {
     withdrawTurn,
     regenerateTurn,
     hasAgentPipeline,
+    hasTurnActivity,
     turnAgentPipelineSteps,
     turnAgentPipelineDoneCount,
     turnRouteCap,
     turnCollaborationPosture,
     turnPostureNote,
+    turnSuggestedPosture,
+    turnAwaitingPlanConfirm,
+    turnHitlInfo,
+    pendingPlanPreview,
+    workbenchMode,
     planAgentLabel,
     agentPipelineStatusLabel,
     turnRoutePlanCard,
@@ -5661,6 +5714,11 @@ export function useManagerChatPage() {
 
   provide(MANAGER_WORKBENCH_SIDEBAR_KEY, {
     sidebarOpen,
+    collaborationPosture,
+    planStepsTodo,
+    planStepsDoneCount,
+    routeCapLive,
+    agentDisplayLabel: (agent: string, professional = true) => formatAgentDisplayLabel(agent, professional),
     taskConstraintsLive,
     runObservabilityLive,
     formatObsMs,

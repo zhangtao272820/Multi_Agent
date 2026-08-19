@@ -19,8 +19,9 @@ process.env.PORT = port
 process.env.NITRO_PORT = port
 process.env.NUXT_PORT = port
 
-// 保证子进程能找到 uvx（%USERPROFILE%\.local\bin）
-const uvBin = path.join(process.env.USERPROFILE || process.env.HOME || '', '.local', 'bin')
+// 保证子进程能找到 uvx（%USERPROFILE%\.local\bin）；profile 为空时跳过
+const homeDir = String(process.env.USERPROFILE || process.env.HOME || '').trim()
+const uvBin = homeDir ? path.join(homeDir, '.local', 'bin') : ''
 const pathKey = process.env.Path !== undefined ? 'Path' : 'PATH'
 const curPath = String(process.env[pathKey] || '')
 if (uvBin && fs.existsSync(uvBin) && !curPath.toLowerCase().includes(uvBin.toLowerCase())) {

@@ -1578,6 +1578,9 @@ def create_agent_graph():
         understanding = state.get("understanding") or {}
         risky_tools = set(RISKY_TOOLS)
         auto_confirm_risky = bool(state.get("auto_confirm_risky"))
+        manager_task = client_context.get("manager_task") if isinstance(client_context.get("manager_task"), dict) else {}
+        blast_radius = str(client_context.get("blast_radius") or manager_task.get("blast_radius") or "").strip()
+        confirm_token = str(client_context.get("confirm_token") or manager_task.get("confirm_token") or "").strip()
 
         def _normalize_tool_output(name: str, res: Any) -> Dict[str, Any]:
             """
@@ -1743,7 +1746,12 @@ def create_agent_graph():
             if name in AVAILABLE_TOOLS:
                 try:
                     # 高风险工具：默认先生成待确认 action；编排器可传 auto_confirm_risky=true 直接执行
-                    if requires_risky_hitl(name, auto_confirm_risky=auto_confirm_risky):
+                    if requires_risky_hitl(
+                        name,
+                        auto_confirm_risky=auto_confirm_risky,
+                        blast_radius=blast_radius or None,
+                        confirm_token=confirm_token or None,
+                    ):
                         processed_args = prepare_time_sensitive_tool_args(
                             name, processed_args, user_message, understanding
                         )

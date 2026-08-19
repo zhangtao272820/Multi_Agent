@@ -1,0 +1,16 @@
+{
+  "data_domain_tables": {
+    "person_basic": ["Sys_Student", "PC_OldPeople", "PC_PersonGroupItem"],
+    "person_health": ["PC_OldPeople"]
+  },
+  "search_boost_tables": [
+    "Cultivate_Examination",
+    "PC_OldPeople",
+    "PC_Company",
+    "Sys_Student",
+    "Sys_User",
+    "Sys_Role",
+    "Sys_Menu",
+    "Sys_Room"
+  ]
+}

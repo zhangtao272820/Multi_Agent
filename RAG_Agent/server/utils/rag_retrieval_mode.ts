@@ -164,7 +164,7 @@ export function shouldUseDocumentRagPipeline(params: {
   if (!params.intent) return false;
   if (params.intent.is_chitchat) return false;
   if (params.intent.route_action !== "document_query") return false;
-  if (params.intent.retrieval_mode === "agentic" || params.intent.is_completeness_query) return false;
+  if (params.intent.is_completeness_query) return false;
   if (params.intent.retrieve_first_ok === false) return false;
   return true;
 }

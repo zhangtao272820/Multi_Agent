@@ -4,6 +4,8 @@
  * 优先级：单项 env 显式设置 > MODE 档位预设 > 代码 legacy 默认。
  */
 
+import { existsSync } from 'node:fs'
+
 export type ManagerRouteMode = 'convergence' | /** @deprecated B4: 仅 smoke/迁移；主路径用 convergence */ 'legacy' | /** @deprecated B4: 仅 smoke/实验；主路径用 convergence */ 'heuristic'
 /** gated = 可写可看板、路由 hint 默认不注入编排（防污染折中） */
 export type ManagerEvolutionMode = 'convergence' | 'learning' | 'gated' | 'off'
@@ -135,7 +137,15 @@ export function resolveManagerRuntimeMode(env: NodeJS.ProcessEnv = process.env):
 export function isManagerDockerRuntime(env: NodeJS.ProcessEnv = process.env): boolean {
   const mode = resolveManagerRuntimeMode(env)
   if (mode) return mode === 'docker'
-  return isEnvOnToken(env.MANAGER_DOCKER)
+  if (isEnvOnToken(env.MANAGER_DOCKER)) return true
+  if (isEnvOffToken(env.MANAGER_DOCKER)) return false
+  // 容器内常漏配 MANAGER_DOCKER=1；未显式关闭时用 /.dockerenv 推断，否则 GUI/Hands 会被短 deadline 误杀
+  try {
+    if (existsSync('/.dockerenv')) return true
+  } catch {
+    /* ignore */
+  }
+  return false
 }
 
 export function isManagerWsAuthRequired(env: NodeJS.ProcessEnv = process.env): boolean {

@@ -101,6 +101,9 @@ assert(scope.suppress_history === true, "oral care after ratio → suppress hist
 assert(scope.mode === "topic_shift" || scope.mode === "current_only", "must isolate, not continuation");
 assert(scope.turn_kind === "new_task", "turn_kind new_task");
 
+const emptyHist = classifyRagTurnScopeStructural("口腔护理频次是多少", []);
+assert(emptyHist.mode === "current_only", "no history → current_only without LLM");
+
 const sticky = buildRagMultiTurnQueryText({
   messages: historyRatio,
   lastUser: oralCare,

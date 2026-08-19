@@ -1,10 +1,16 @@
 import type { ComputedRef, InjectionKey, Ref } from 'vue'
+import type { CollaborationPosture, PlanStepTodo } from './managerChatTypes'
 
 export type SidebarRunPhaseItem = { phase?: string; agent?: string; ms: number }
 export type TaskStatus = 'active' | 'paused' | 'done' | string
 
 export type ManagerWorkbenchSidebarContext = {
   sidebarOpen: Ref<boolean>
+  collaborationPosture: Ref<CollaborationPosture>
+  planStepsTodo: Ref<PlanStepTodo[]>
+  planStepsDoneCount: ComputedRef<number>
+  routeCapLive: Ref<{ intent: string; agents: string[]; capLabel: string; dag?: string } | null>
+  agentDisplayLabel: (agent: string, professional?: boolean) => string
   taskConstraintsLive: Ref<{
     timeHints?: string[]
     subjectHints?: string[]

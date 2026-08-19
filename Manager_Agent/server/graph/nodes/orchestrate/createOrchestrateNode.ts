@@ -30,6 +30,7 @@ import {
 import { resolveUnifiedOrchestration } from '../../orchestrate/unifiedOrchestrate'
 import { resolveOrchestratorRoutingContext } from '../../orchestrate/unifiedRouting'
 import { buildRouteAuthorityChain } from '../../orchestrate/routeAuthorityChain'
+import { recordAgentMorphologySnapshot } from '../../core/runtime/recordAgentMorphology'
 import { buildTurnScopePayload } from '#agent-shared/turnScope'
 import type { OrchestratorDecision } from '../../orchestrate/orchestratorInvariants'
 import type { OrchestratorPipelineResult } from '../../orchestrate/orchestratorPipeline'
@@ -62,6 +63,8 @@ function finishOrchestrateTurn(input: {
   orchestratorMetaBase?: Record<string, unknown>
   mergeMeta: CreateOrchestrateNodeDeps['mergeMeta']
   opts: CreateOrchestrateNodeDeps['opts']
+  sessionId?: string
+  policyDir?: string
 }) {
   const { state, turnScope, decision, orchestratorSource, pipelineResult, mergeMeta, opts } = input
   const judgeAccept =
@@ -99,7 +102,7 @@ function finishOrchestrateTurn(input: {
           decision.coalescedTask,
           decision.allowedAgents.filter((a) => ['rag', 'db', 'crawler'].includes(String(a))).map(String)
         )
-  return {
+  const next = {
     intent: decision.intent,
     allowedAgents: decision.allowedAgents,
     routedQuery: decision.routedQuery,
@@ -132,6 +135,26 @@ function finishOrchestrateTurn(input: {
       })
     })
   }
+  void recordAgentMorphologySnapshot({
+    kind: 'planned',
+    runId: opts.runId,
+    sessionId: input.sessionId,
+    policyDir: input.policyDir,
+    state: {
+      intent: next.intent,
+      allowedAgents: next.allowedAgents,
+      plan: Array.isArray((decision as { planBlueprint?: { steps?: unknown[] } }).planBlueprint?.steps)
+        ? (decision as { planBlueprint: { steps: unknown[] } }).planBlueprint.steps
+        : undefined,
+      probe: state.probe,
+      meta: {
+        ...(next.meta as Record<string, unknown>),
+        orchestratorRaw: (decision as { raw?: Record<string, unknown> }).raw ?? undefined,
+        needsClarify: Boolean((decision as { needsClarify?: boolean }).needsClarify)
+      }
+    }
+  }).catch(() => undefined)
+  return next
 }
 
 export function createOrchestrateNode(deps: CreateOrchestrateNodeDeps) {
@@ -372,7 +395,9 @@ export function createOrchestrateNode(deps: CreateOrchestrateNodeDeps) {
           ...(postureForcesReadOnly(effectivePosture) ? { postureReadOnly: true } : {})
         },
         mergeMeta,
-        opts
+        opts,
+        sessionId,
+        policyDir
       })
     } catch (e) {
       const detail = e instanceof Error ? e.message : String(e)

@@ -388,6 +388,13 @@ export function getLobsterRuntimeMetrics() {
 export function stopRun(runId: string) {
   const r = runs.get(runId)
   if (!r) return false
+  const sessionId = String((r as any).__sessionId || '').trim() || undefined
+  // 取消/停止：作废该 run 已写入的 playbook 影子学习（对齐总管：作废不进学习）
+  void import('./lobsterPlaybookEvolution')
+    .then(({ supersedePlaybooksForRun }) =>
+      supersedePlaybooksForRun({ runId, sessionId, reason: 'cancel' })
+    )
+    .catch(() => {})
   if (r.status === 'queued') {
     r.status = 'canceled'
     r.endedAt = Date.now()

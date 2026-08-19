@@ -1,0 +1,754 @@
+[
+  {
+    "question": "目前突发事件有几个，分别是什么",
+    "sql": "SELECT Name, Type FROM Cultivate_Examination",
+    "tables": [
+      "Cultivate_Examination"
+    ]
+  },
+  {
+    "question": "目前有几个突发事件，分别是什么",
+    "sql": "SELECT Name, Type FROM Cultivate_Examination",
+    "tables": [
+      "Cultivate_Examination"
+    ]
+  },
+  {
+    "question": "突发事件分别是什么",
+    "sql": "SELECT Name, Type FROM Cultivate_Examination",
+    "tables": [
+      "Cultivate_Examination"
+    ]
+  },
+  {
+    "question": "老人库有多少人",
+    "sql": "SELECT COUNT(*) AS count FROM PC_OldPeople",
+    "tables": [
+      "PC_OldPeople"
+    ]
+  },
+  {
+    "question": "老人库有哪些人",
+    "sql": "SELECT Name, Age, Sex, Nursinglevel FROM PC_OldPeople",
+    "tables": [
+      "PC_OldPeople"
+    ]
+  },
+  {
+    "question": "签约老人有多少",
+    "sql": "SELECT COUNT(*) AS count FROM PC_SignedOldPeople",
+    "tables": [
+      "PC_SignedOldPeople"
+    ]
+  },
+  {
+    "question": "学生档案有多少人",
+    "sql": "SELECT COUNT(*) AS count FROM Sys_Student",
+    "tables": [
+      "Sys_Student"
+    ]
+  },
+  {
+    "question": "系统有多少用户",
+    "sql": "SELECT COUNT(*) AS count FROM Sys_User",
+    "tables": [
+      "Sys_User"
+    ]
+  },
+  {
+    "question": "有多少家养老机构",
+    "sql": "SELECT COUNT(*) AS count FROM PC_Company",
+    "tables": [
+      "PC_Company"
+    ]
+  },
+  {
+    "question": "每个分组里有哪些学生",
+    "sql": "SELECT g.Name AS group_name, i.StudentName, i.StudentCode FROM PC_PersonGroup g JOIN PC_PersonGroupItem i ON g.PersonGroupId = i.PersonGroupId",
+    "tables": [
+      "PC_PersonGroup",
+      "PC_PersonGroupItem"
+    ]
+  },
+  {
+    "question": "分组里有哪些学生",
+    "sql": "SELECT g.Name AS group_name, i.StudentName, i.StudentCode FROM PC_PersonGroup g JOIN PC_PersonGroupItem i ON g.PersonGroupId = i.PersonGroupId",
+    "tables": [
+      "PC_PersonGroup",
+      "PC_PersonGroupItem"
+    ]
+  },
+  {
+    "question": "各组有哪些成员",
+    "sql": "SELECT g.Name AS group_name, i.StudentName, i.StudentCode FROM PC_PersonGroup g JOIN PC_PersonGroupItem i ON g.PersonGroupId = i.PersonGroupId",
+    "tables": [
+      "PC_PersonGroup",
+      "PC_PersonGroupItem"
+    ]
+  },
+  {
+    "question": "每个分组有多少学生",
+    "sql": "SELECT g.Name AS group_name, COUNT(*) AS student_count FROM PC_PersonGroup g JOIN PC_PersonGroupItem i ON g.PersonGroupId = i.PersonGroupId GROUP BY g.PersonGroupId, g.Name",
+    "tables": [
+      "PC_PersonGroup",
+      "PC_PersonGroupItem"
+    ]
+  },
+  {
+    "question": "分组学生对照花名册",
+    "sql": "SELECT g.Name AS group_name, s.Name AS student_name, s.Code FROM PC_PersonGroup g JOIN PC_PersonGroupItem i ON g.PersonGroupId = i.PersonGroupId JOIN Sys_Student s ON i.StudentId = s.Id",
+    "tables": [
+      "PC_PersonGroup",
+      "PC_PersonGroupItem",
+      "Sys_Student"
+    ]
+  },
+  {
+    "question": "突发事件绑定了哪些题库",
+    "sql": "SELECT e.Name AS examination, b.Name AS question_bank FROM Cultivate_Examination e JOIN Cultivate_ExaminationXQuestionBank x ON e.ExaminationId = x.ExaminationId JOIN PC_QuestionBank b ON x.QuestionBankId = b.QuestionBankId",
+    "tables": [
+      "Cultivate_Examination",
+      "Cultivate_ExaminationXQuestionBank",
+      "PC_QuestionBank"
+    ]
+  },
+  {
+    "question": "考试绑定了什么题库",
+    "sql": "SELECT e.Name AS examination, b.Name AS question_bank FROM Cultivate_Examination e JOIN Cultivate_ExaminationXQuestionBank x ON e.ExaminationId = x.ExaminationId JOIN PC_QuestionBank b ON x.QuestionBankId = b.QuestionBankId",
+    "tables": [
+      "Cultivate_Examination",
+      "Cultivate_ExaminationXQuestionBank",
+      "PC_QuestionBank"
+    ]
+  },
+  {
+    "question": "题库分别绑了哪些突发事件",
+    "sql": "SELECT b.Name AS question_bank, e.Name AS examination FROM PC_QuestionBank b JOIN Cultivate_ExaminationXQuestionBank x ON b.QuestionBankId = x.QuestionBankId JOIN Cultivate_Examination e ON e.ExaminationId = x.ExaminationId",
+    "tables": [
+      "PC_QuestionBank",
+      "Cultivate_ExaminationXQuestionBank",
+      "Cultivate_Examination"
+    ]
+  },
+  {
+    "question": "题库里有哪些试题",
+    "sql": "SELECT b.Name AS question_bank, q.Description, q.Type FROM PC_QuestionBank b JOIN PC_Question q ON b.QuestionBankId = q.QuestionBankId",
+    "tables": [
+      "PC_QuestionBank",
+      "PC_Question"
+    ]
+  },
+  {
+    "question": "突发事件有哪些试题",
+    "sql": "SELECT e.Name AS examination, i.QuestionDescription, i.QuestionType FROM Cultivate_Examination e JOIN Cultivate_ExaminationItem i ON e.ExaminationId = i.ExaminationId",
+    "tables": [
+      "Cultivate_Examination",
+      "Cultivate_ExaminationItem"
+    ]
+  },
+  {
+    "question": "系统用户分别是什么角色",
+    "sql": "SELECT u.UserTrueName, u.UserName, r.RoleName FROM Sys_User u JOIN Sys_Role r ON u.Role_Id = r.Role_Id",
+    "tables": [
+      "Sys_User",
+      "Sys_Role"
+    ]
+  },
+  {
+    "question": "用户都是什么角色",
+    "sql": "SELECT u.UserTrueName, u.UserName, r.RoleName FROM Sys_User u JOIN Sys_Role r ON u.Role_Id = r.Role_Id",
+    "tables": [
+      "Sys_User",
+      "Sys_Role"
+    ]
+  },
+  {
+    "question": "老人住在哪个房间",
+    "sql": "SELECT o.Name, r.RoomName FROM PC_OldPeople o LEFT JOIN Sys_Room r ON o.RoomId = r.ID",
+    "tables": [
+      "PC_OldPeople",
+      "Sys_Room"
+    ]
+  },
+  {
+    "question": "老人的房间号",
+    "sql": "SELECT o.Name, r.RoomName FROM PC_OldPeople o LEFT JOIN Sys_Room r ON o.RoomId = r.ID",
+    "tables": [
+      "PC_OldPeople",
+      "Sys_Room"
+    ]
+  },
+  {
+    "question": "谁参加了突发事件考试",
+    "sql": "SELECT e.Name AS examination, u.StudentTrueName, u.StudentName FROM Cultivate_Examination e JOIN Cultivate_ExaminationUser u ON e.ExaminationId = u.ExaminationId",
+    "tables": [
+      "Cultivate_Examination",
+      "Cultivate_ExaminationUser"
+    ]
+  },
+  {
+    "question": "谁报名或参加了「测试视频类」？把姓名和学号列出来。",
+    "sql": "SELECT u.StudentTrueName AS 姓名, u.StudentName AS 学号 FROM Cultivate_Examination e JOIN Cultivate_ExaminationUser u ON e.ExaminationId = u.ExaminationId WHERE e.Name = '测试视频类'",
+    "tables": [
+      "Cultivate_Examination",
+      "Cultivate_ExaminationUser"
+    ]
+  },
+  {
+    "question": "视频类突发事件都有谁考过，列个名单。",
+    "sql": "SELECT e.Name AS examination, u.StudentTrueName, u.StudentName FROM Cultivate_Examination e JOIN Cultivate_ExaminationUser u ON e.ExaminationId = u.ExaminationId WHERE e.Type = 2",
+    "tables": [
+      "Cultivate_Examination",
+      "Cultivate_ExaminationUser"
+    ]
+  },
+  {
+    "question": "学生的登录名是什么",
+    "sql": "SELECT s.Name, s.Code, u.UserName FROM Sys_Student s JOIN Sys_User u ON s.UserId = u.User_Id",
+    "tables": [
+      "Sys_Student",
+      "Sys_User"
+    ]
+  },
+  {
+    "question": "老人护理级别分布",
+    "sql": "SELECT Nursinglevel, COUNT(*) AS count FROM PC_OldPeople GROUP BY Nursinglevel",
+    "tables": [
+      "PC_OldPeople"
+    ]
+  },
+  {
+    "question": "护理级别分别有多少人",
+    "sql": "SELECT Nursinglevel, COUNT(*) AS count FROM PC_OldPeople GROUP BY Nursinglevel",
+    "tables": [
+      "PC_OldPeople"
+    ]
+  },
+  {
+    "question": "各机构有多少床位",
+    "sql": "SELECT c.Name AS company, b.TotalBedSpace FROM PC_Company c JOIN PC_CompanyBuild b ON c.CompanyId = b.CompanyId",
+    "tables": [
+      "PC_Company",
+      "PC_CompanyBuild"
+    ]
+  },
+  {
+    "question": "养老机构床位数",
+    "sql": "SELECT c.Name AS company, b.TotalBedSpace FROM PC_Company c JOIN PC_CompanyBuild b ON c.CompanyId = b.CompanyId",
+    "tables": [
+      "PC_Company",
+      "PC_CompanyBuild"
+    ]
+  },
+  {
+    "question": "人员分组现在是什么状态",
+    "sql": "SELECT Name, Status FROM PC_PersonGroup",
+    "tables": [
+      "PC_PersonGroup"
+    ]
+  },
+  {
+    "question": "突发事件有多少",
+    "sql": "SELECT COUNT(*) AS count FROM Cultivate_Examination",
+    "tables": [
+      "Cultivate_Examination"
+    ]
+  },
+  {
+    "question": "突发事件有哪些",
+    "sql": "SELECT Name, Type FROM Cultivate_Examination",
+    "tables": [
+      "Cultivate_Examination"
+    ]
+  },
+  {
+    "question": "突发事件答题记录有多少",
+    "sql": "SELECT COUNT(*) AS count FROM Cultivate_ExaminationAnswerRecord",
+    "tables": [
+      "Cultivate_ExaminationAnswerRecord"
+    ]
+  },
+  {
+    "question": "突发事件试题有多少",
+    "sql": "SELECT COUNT(*) AS count FROM Cultivate_ExaminationItem",
+    "tables": [
+      "Cultivate_ExaminationItem"
+    ]
+  },
+  {
+    "question": "Cultivate_ExaminationReport有多少",
+    "sql": "SELECT COUNT(*) AS count FROM Cultivate_ExaminationReport",
+    "tables": [
+      "Cultivate_ExaminationReport"
+    ]
+  },
+  {
+    "question": "Cultivate_ExaminationReport有哪些",
+    "sql": "SELECT StudentName FROM Cultivate_ExaminationReport",
+    "tables": [
+      "Cultivate_ExaminationReport"
+    ]
+  },
+  {
+    "question": "考试学生有多少",
+    "sql": "SELECT COUNT(*) AS count FROM Cultivate_ExaminationUser",
+    "tables": [
+      "Cultivate_ExaminationUser"
+    ]
+  },
+  {
+    "question": "考试学生有哪些",
+    "sql": "SELECT RoleName, StudentName, StudentTrueName FROM Cultivate_ExaminationUser",
+    "tables": [
+      "Cultivate_ExaminationUser"
+    ]
+  },
+  {
+    "question": "题库和突发事件关系对照表有多少",
+    "sql": "SELECT COUNT(*) AS count FROM Cultivate_ExaminationXQuestionBank",
+    "tables": [
+      "Cultivate_ExaminationXQuestionBank"
+    ]
+  },
+  {
+    "question": "仿真实验练习记录有多少",
+    "sql": "SELECT COUNT(*) AS count FROM Cultivate_ExperimentalExerciseRecord",
+    "tables": [
+      "Cultivate_ExperimentalExerciseRecord"
+    ]
+  },
+  {
+    "question": "仿真实验练习记录有哪些",
+    "sql": "SELECT UserTrueName, ExperimentalName FROM Cultivate_ExperimentalExerciseRecord",
+    "tables": [
+      "Cultivate_ExperimentalExerciseRecord"
+    ]
+  },
+  {
+    "question": "虚拟仿真实验记录明显有多少",
+    "sql": "SELECT COUNT(*) AS count FROM Cultivate_ExperimentalExerciseRecordItem",
+    "tables": [
+      "Cultivate_ExperimentalExerciseRecordItem"
+    ]
+  },
+  {
+    "question": "虚拟仿真实验记录明显有哪些",
+    "sql": "SELECT UserTrueName FROM Cultivate_ExperimentalExerciseRecordItem",
+    "tables": [
+      "Cultivate_ExperimentalExerciseRecordItem"
+    ]
+  },
+  {
+    "question": "PC_BankInfo有多少",
+    "sql": "SELECT COUNT(*) AS count FROM PC_BankInfo",
+    "tables": [
+      "PC_BankInfo"
+    ]
+  },
+  {
+    "question": "PC_BankInfo有哪些",
+    "sql": "SELECT Name FROM PC_BankInfo",
+    "tables": [
+      "PC_BankInfo"
+    ]
+  },
+  {
+    "question": "PC_ClassHourRecord有多少",
+    "sql": "SELECT COUNT(*) AS count FROM PC_ClassHourRecord",
+    "tables": [
+      "PC_ClassHourRecord"
+    ]
+  },
+  {
+    "question": "PC_ClassHourRecord有哪些",
+    "sql": "SELECT Name FROM PC_ClassHourRecord",
+    "tables": [
+      "PC_ClassHourRecord"
+    ]
+  },
+  {
+    "question": "养老机构有多少",
+    "sql": "SELECT COUNT(*) AS count FROM PC_Company",
+    "tables": [
+      "PC_Company"
+    ]
+  },
+  {
+    "question": "养老机构有哪些",
+    "sql": "SELECT Name FROM PC_Company",
+    "tables": [
+      "PC_Company"
+    ]
+  },
+  {
+    "question": "养老机构建造信息有多少",
+    "sql": "SELECT COUNT(*) AS count FROM PC_CompanyBuild",
+    "tables": [
+      "PC_CompanyBuild"
+    ]
+  },
+  {
+    "question": "PC_CompanyItem有多少",
+    "sql": "SELECT COUNT(*) AS count FROM PC_CompanyItem",
+    "tables": [
+      "PC_CompanyItem"
+    ]
+  },
+  {
+    "question": "老年人口与养老机构统计表有多少",
+    "sql": "SELECT COUNT(*) AS count FROM PC_ElderlyCareStatistics",
+    "tables": [
+      "PC_ElderlyCareStatistics"
+    ]
+  },
+  {
+    "question": "老年人口与养老机构统计明细表有多少",
+    "sql": "SELECT COUNT(*) AS count FROM PC_ElderlyCareStatisticsItem",
+    "tables": [
+      "PC_ElderlyCareStatisticsItem"
+    ]
+  },
+  {
+    "question": "数据存储有多少",
+    "sql": "SELECT COUNT(*) AS count FROM PC_Info",
+    "tables": [
+      "PC_Info"
+    ]
+  },
+  {
+    "question": "数值相关（声望值）有多少",
+    "sql": "SELECT COUNT(*) AS count FROM PC_Number",
+    "tables": [
+      "PC_Number"
+    ]
+  },
+  {
+    "question": "数值修改记录有多少",
+    "sql": "SELECT COUNT(*) AS count FROM PC_NumberLog",
+    "tables": [
+      "PC_NumberLog"
+    ]
+  },
+  {
+    "question": "老人库有多少",
+    "sql": "SELECT COUNT(*) AS count FROM PC_OldPeople",
+    "tables": [
+      "PC_OldPeople"
+    ]
+  },
+  {
+    "question": "老人库有哪些",
+    "sql": "SELECT Name FROM PC_OldPeople",
+    "tables": [
+      "PC_OldPeople"
+    ]
+  },
+  {
+    "question": "运营周期列表有多少",
+    "sql": "SELECT COUNT(*) AS count FROM PC_OperatingCycle",
+    "tables": [
+      "PC_OperatingCycle"
+    ]
+  },
+  {
+    "question": "运营周期字典有多少",
+    "sql": "SELECT COUNT(*) AS count FROM PC_OperatingCycleDic",
+    "tables": [
+      "PC_OperatingCycleDic"
+    ]
+  },
+  {
+    "question": "运营周期字典有哪些",
+    "sql": "SELECT OperatingCycleName FROM PC_OperatingCycleDic",
+    "tables": [
+      "PC_OperatingCycleDic"
+    ]
+  },
+  {
+    "question": "运营周期明细有多少",
+    "sql": "SELECT COUNT(*) AS count FROM PC_OperatingCycleItem",
+    "tables": [
+      "PC_OperatingCycleItem"
+    ]
+  },
+  {
+    "question": "运营周期明细有哪些",
+    "sql": "SELECT Name FROM PC_OperatingCycleItem",
+    "tables": [
+      "PC_OperatingCycleItem"
+    ]
+  },
+  {
+    "question": "人员分组有多少",
+    "sql": "SELECT COUNT(*) AS count FROM PC_PersonGroup",
+    "tables": [
+      "PC_PersonGroup"
+    ]
+  },
+  {
+    "question": "人员分组有哪些",
+    "sql": "SELECT Name, GroupKey FROM PC_PersonGroup",
+    "tables": [
+      "PC_PersonGroup"
+    ]
+  },
+  {
+    "question": "人员分组明细有多少",
+    "sql": "SELECT COUNT(*) AS count FROM PC_PersonGroupItem",
+    "tables": [
+      "PC_PersonGroupItem"
+    ]
+  },
+  {
+    "question": "人员分组明细有哪些",
+    "sql": "SELECT StudentName FROM PC_PersonGroupItem",
+    "tables": [
+      "PC_PersonGroupItem"
+    ]
+  },
+  {
+    "question": "试题有多少",
+    "sql": "SELECT COUNT(*) AS count FROM PC_Question",
+    "tables": [
+      "PC_Question"
+    ]
+  },
+  {
+    "question": "试题有哪些",
+    "sql": "SELECT ExperimentalName FROM PC_Question",
+    "tables": [
+      "PC_Question"
+    ]
+  },
+  {
+    "question": "题库有多少",
+    "sql": "SELECT COUNT(*) AS count FROM PC_QuestionBank",
+    "tables": [
+      "PC_QuestionBank"
+    ]
+  },
+  {
+    "question": "题库有哪些",
+    "sql": "SELECT Name FROM PC_QuestionBank",
+    "tables": [
+      "PC_QuestionBank"
+    ]
+  },
+  {
+    "question": "题库资源（视频和VR资源）有多少",
+    "sql": "SELECT COUNT(*) AS count FROM PC_QuestionResource",
+    "tables": [
+      "PC_QuestionResource"
+    ]
+  },
+  {
+    "question": "题库资源（视频和VR资源）有哪些",
+    "sql": "SELECT Name, Code FROM PC_QuestionResource",
+    "tables": [
+      "PC_QuestionResource"
+    ]
+  },
+  {
+    "question": "区域养老行业概况主表有多少",
+    "sql": "SELECT COUNT(*) AS count FROM PC_RegionOverview",
+    "tables": [
+      "PC_RegionOverview"
+    ]
+  },
+  {
+    "question": "具体地块养老项目明细表有多少",
+    "sql": "SELECT COUNT(*) AS count FROM PC_RegionOverviewItem",
+    "tables": [
+      "PC_RegionOverviewItem"
+    ]
+  },
+  {
+    "question": "具体地块养老项目明细表有哪些",
+    "sql": "SELECT PlotName FROM PC_RegionOverviewItem",
+    "tables": [
+      "PC_RegionOverviewItem"
+    ]
+  },
+  {
+    "question": "具体地块养老项目明细表和团队对照表有多少",
+    "sql": "SELECT COUNT(*) AS count FROM PC_RegionOverviewItemPersonGroup",
+    "tables": [
+      "PC_RegionOverviewItemPersonGroup"
+    ]
+  },
+  {
+    "question": "教学学期表有多少",
+    "sql": "SELECT COUNT(*) AS count FROM PC_Semester",
+    "tables": [
+      "PC_Semester"
+    ]
+  },
+  {
+    "question": "教学学期表有哪些",
+    "sql": "SELECT Name FROM PC_Semester",
+    "tables": [
+      "PC_Semester"
+    ]
+  },
+  {
+    "question": "已签约老人库有多少",
+    "sql": "SELECT COUNT(*) AS count FROM PC_SignedOldPeople",
+    "tables": [
+      "PC_SignedOldPeople"
+    ]
+  },
+  {
+    "question": "已签约老人库有哪些",
+    "sql": "SELECT Name FROM PC_SignedOldPeople",
+    "tables": [
+      "PC_SignedOldPeople"
+    ]
+  },
+  {
+    "question": "人才库有多少",
+    "sql": "SELECT COUNT(*) AS count FROM PC_SignedTalent",
+    "tables": [
+      "PC_SignedTalent"
+    ]
+  },
+  {
+    "question": "人才库有哪些",
+    "sql": "SELECT Name FROM PC_SignedTalent",
+    "tables": [
+      "PC_SignedTalent"
+    ]
+  },
+  {
+    "question": "学生表现有多少",
+    "sql": "SELECT COUNT(*) AS count FROM PC_StudentPerformance",
+    "tables": [
+      "PC_StudentPerformance"
+    ]
+  },
+  {
+    "question": "学生表现有哪些",
+    "sql": "SELECT StudentName, SemesterName FROM PC_StudentPerformance",
+    "tables": [
+      "PC_StudentPerformance"
+    ]
+  },
+  {
+    "question": "Sys_BaseInfo有多少",
+    "sql": "SELECT COUNT(*) AS count FROM Sys_BaseInfo",
+    "tables": [
+      "Sys_BaseInfo"
+    ]
+  },
+  {
+    "question": "Sys_Department有多少",
+    "sql": "SELECT COUNT(*) AS count FROM Sys_Department",
+    "tables": [
+      "Sys_Department"
+    ]
+  },
+  {
+    "question": "Sys_Department有哪些",
+    "sql": "SELECT DepartmentName FROM Sys_Department",
+    "tables": [
+      "Sys_Department"
+    ]
+  },
+  {
+    "question": "Sys_Dictionary有多少",
+    "sql": "SELECT COUNT(*) AS count FROM Sys_Dictionary",
+    "tables": [
+      "Sys_Dictionary"
+    ]
+  },
+  {
+    "question": "Sys_Dictionary有哪些",
+    "sql": "SELECT DicName FROM Sys_Dictionary",
+    "tables": [
+      "Sys_Dictionary"
+    ]
+  },
+  {
+    "question": "Sys_DictionaryList有多少",
+    "sql": "SELECT COUNT(*) AS count FROM Sys_DictionaryList",
+    "tables": [
+      "Sys_DictionaryList"
+    ]
+  },
+  {
+    "question": "Sys_DictionaryList有哪些",
+    "sql": "SELECT DicName FROM Sys_DictionaryList",
+    "tables": [
+      "Sys_DictionaryList"
+    ]
+  },
+  {
+    "question": "Sys_Menu有多少",
+    "sql": "SELECT COUNT(*) AS count FROM Sys_Menu",
+    "tables": [
+      "Sys_Menu"
+    ]
+  },
+  {
+    "question": "Sys_Menu有哪些",
+    "sql": "SELECT MenuName FROM Sys_Menu",
+    "tables": [
+      "Sys_Menu"
+    ]
+  },
+  {
+    "question": "Sys_Role有多少",
+    "sql": "SELECT COUNT(*) AS count FROM Sys_Role",
+    "tables": [
+      "Sys_Role"
+    ]
+  },
+  {
+    "question": "Sys_Role有哪些",
+    "sql": "SELECT RoleName FROM Sys_Role",
+    "tables": [
+      "Sys_Role"
+    ]
+  },
+  {
+    "question": "房间信息表有多少",
+    "sql": "SELECT COUNT(*) AS count FROM Sys_Room",
+    "tables": [
+      "Sys_Room"
+    ]
+  },
+  {
+    "question": "房间信息表有哪些",
+    "sql": "SELECT RoomName FROM Sys_Room",
+    "tables": [
+      "Sys_Room"
+    ]
+  },
+  {
+    "question": "学生档案有多少",
+    "sql": "SELECT COUNT(*) AS count FROM Sys_Student",
+    "tables": [
+      "Sys_Student"
+    ]
+  },
+  {
+    "question": "学生档案有哪些",
+    "sql": "SELECT Name, Code FROM Sys_Student",
+    "tables": [
+      "Sys_Student"
+    ]
+  },
+  {
+    "question": "Sys_User有多少",
+    "sql": "SELECT COUNT(*) AS count FROM Sys_User",
+    "tables": [
+      "Sys_User"
+    ]
+  },
+  {
+    "question": "Sys_User有哪些",
+    "sql": "SELECT UserTrueName, RoleName FROM Sys_User",
+    "tables": [
+      "Sys_User"
+    ]
+  }
+]

@@ -15,6 +15,11 @@ export type RagLearningSignal = {
   path?: string;
   source?: string;
   at: string;
+  sessionId?: string;
+  userMessageIndex?: number;
+  runId?: string;
+  superseded?: boolean;
+  learnEligible?: boolean;
 };
 
 export type RagRetrievalPreferences = {
@@ -193,11 +198,15 @@ export function getLearningHintsForQuestion(question: string): {
   return { boostedSources, similarPositiveQueries, sourceScoreAdjust };
 }
 
-export function recordLearningSignal(sig: Omit<RagLearningSignal, "at" | "question_norm"> & { question: string }) {
+export function recordLearningSignal(
+  sig: Omit<RagLearningSignal, "at" | "question_norm"> & { question: string }
+) {
   const row: RagLearningSignal = {
     ...sig,
     question_norm: normalizeQuestionKey(sig.question),
     at: new Date().toISOString(),
+    learnEligible: sig.learnEligible !== false,
+    superseded: sig.superseded === true,
   };
   void persistRagLearningSignal(row);
   cachedPrefs = null;

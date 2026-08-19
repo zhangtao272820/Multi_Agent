@@ -10,7 +10,7 @@ from typing import Any
 from app.config import get_settings
 from app.llm.dashscope import chat_messages
 from app.protocol.agent_result import build_code_edit_agent_result, build_code_fail_agent_result
-from app.protocol.incoming import ManagerCodeTask, parse_manager_task, resolve_task_kind
+from app.protocol.incoming import ManagerCodeTask, parse_manager_task, resolve_task_kind, write_apply_allowed
 from app.runtime.playbook import edit_system_prompt
 from app.tools.fs_sandbox import SandboxError, list_dir, read_file, search_in_files
 from app.tools.search_replace import apply_search_replace, preview_search_replace
@@ -82,7 +82,14 @@ async def _emit(send: SendFn | None, event: dict[str, Any]) -> None:
         await r  # type: ignore[misc]
 
 
-def _tool_result(name: str, args: dict[str, Any], *, root: str | None, task_kind: str) -> dict[str, Any]:
+def _tool_result(
+    name: str,
+    args: dict[str, Any],
+    *,
+    root: str | None,
+    task_kind: str,
+    manager: ManagerCodeTask,
+) -> dict[str, Any]:
     settings = get_settings()
     try:
         if name == "list_dir":
@@ -101,7 +108,7 @@ def _tool_result(name: str, args: dict[str, Any], *, root: str | None, task_kind
             return {"ok": True, "hits": hits}
         if name == "propose_patch":
             patch = str(args.get("patch") or "")
-            apply = bool(args.get("apply")) and task_kind == "edit"
+            apply = bool(args.get("apply")) and write_apply_allowed(manager, task_kind=task_kind)
             if apply and settings.write_tool_enabled:
                 return apply_search_replace(patch, root_override=root, require_write_enabled=True)
             return preview_search_replace(patch, root_override=root)
@@ -188,9 +195,15 @@ async def run_edit_loop(
                 args = json.loads(fn.get("arguments") or "{}")
             except json.JSONDecodeError:
                 args = {}
-            if name == "propose_patch" and auto_apply and task_kind == "edit":
+            if name == "propose_patch" and auto_apply and write_apply_allowed(manager, task_kind=task_kind):
                 args = {**args, "apply": True}
-            result = _tool_result(name, args if isinstance(args, dict) else {}, root=root_override, task_kind=task_kind)
+            result = _tool_result(
+                name,
+                args if isinstance(args, dict) else {},
+                root=root_override,
+                task_kind=task_kind,
+                manager=manager,
+            )
             if name == "propose_patch" and result.get("ok"):
                 files = [str(x) for x in (result.get("files") or result.get("files_touched") or [])]
                 files_touched.extend(files)

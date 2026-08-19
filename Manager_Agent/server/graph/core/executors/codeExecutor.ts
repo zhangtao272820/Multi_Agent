@@ -20,6 +20,8 @@ import {
   serializeManagerTaskEnvelope,
   type ManagerCodeTaskPayload
 } from '#agent-shared/managerTaskEnvelope'
+import { resolveBlastRadius } from '#agent-shared/blastRadius'
+import { gateManagerEnvelopeBlastRadius } from '#agent-shared/envelopeBlastGate'
 import { callCodeAssistMcpTask } from '../../../utils/mcp/managerMcpHost'
 import {
   extractCodeEditPreview,
@@ -141,9 +143,43 @@ export async function executeCodeStep(
             session_id: opts.sessionId || opts.threadId,
             utterance: question,
             turn_scope,
+            blast_radius: resolveBlastRadius({
+              agent: 'code',
+              writeAllowed: Boolean((managerTaskPayload as ManagerCodeTaskPayload).write_allowed),
+              actionKind:
+                resolvedTaskKind === 'edit' || resolvedTaskKind === 'script' ? 'code_edit' : 'code_compute',
+              dryRun: !Boolean((managerTaskPayload as ManagerCodeTaskPayload).write_allowed)
+            }),
+            confirm_token: String(
+              (input.state.meta as { hitlConfirmToken?: string } | undefined)?.hitlConfirmToken || ''
+            ).trim() || undefined,
             payload: { kind: 'code', data: managerTaskPayload as ManagerCodeTaskPayload }
           })
         : null
+
+    if (envelope && managerTaskPayload) {
+      const writeAllowed = Boolean((managerTaskPayload as ManagerCodeTaskPayload).write_allowed)
+      const gate = gateManagerEnvelopeBlastRadius(envelope, {
+        writeAllowed,
+        auto_confirm: false,
+        allow_t2_auto: false
+      })
+      if (!gate.ok && writeAllowed) {
+        // T2 无 confirm_token：出站前剥掉 write_allowed（payload 可能是 envelope 浅拷贝，两边都写）
+        ;(managerTaskPayload as ManagerCodeTaskPayload).write_allowed = false
+        if (envelope.payload.kind === 'code') {
+          envelope.payload.data.write_allowed = false
+        }
+        envelope.blast_radius = resolveBlastRadius({
+          agent: 'code',
+          writeAllowed: false,
+          actionKind: 'code_edit',
+          dryRun: true
+        })
+        delete envelope.confirm_token
+        input.sendThinking(`Code：${gate.reason}（已降为预览，write_allowed=0）`)
+      }
+    }
 
     if (resolvedTaskKind !== 'compute') {
       input.sendThinking(`Code：task_kind=${resolvedTaskKind}（工程执行模式）`)

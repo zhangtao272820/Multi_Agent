@@ -11,7 +11,13 @@ from app.core.config import settings
 
 
 def _expected_token() -> str:
-    return str(os.getenv("CLAWHIVE_INTERNAL_TOKEN") or os.getenv("AGENT_INTERNAL_TOKEN") or "").strip()
+    return str(
+        os.getenv("AGENT_SERVICE_TOKEN")
+        or os.getenv("CLAWHIVE_INTERNAL_TOKEN")
+        or os.getenv("AGENT_INTERNAL_TOKEN")
+        or os.getenv("MANAGER_OPS_TOKEN")
+        or ""
+    ).strip()
 
 
 def _public_web_ws_enabled() -> bool:
@@ -79,7 +85,8 @@ def accept_websocket_connection(websocket: WebSocket) -> bool:
 
     expected = _expected_token()
     got = str(
-        websocket.headers.get("x-clawhive-internal-token")
+        websocket.headers.get("x-agent-service-token")
+        or websocket.headers.get("x-clawhive-internal-token")
         or websocket.headers.get("x-internal-token")
         or ""
     ).strip()
@@ -102,13 +109,18 @@ def accept_websocket_connection(websocket: WebSocket) -> bool:
 
 
 def verify_internal_token(
+    x_agent_service_token: str | None = Header(default=None, alias="x-agent-service-token"),
     x_clawhive_internal_token: str | None = Header(default=None, alias="x-clawhive-internal-token"),
     x_internal_token: str | None = Header(default=None, alias="x-internal-token"),
 ) -> None:
     expected = _expected_token()
+    mode = str(os.getenv("AGENT_SERVICE_AUTH") or os.getenv("MANAGER_AGENT_SERVICE_AUTH") or "").strip().lower()
+    require = mode in ("1", "true", "on", "yes", "require", "required")
     if not expected:
+        if require:
+            raise HTTPException(status_code=503, detail="agent_service_token_not_configured")
         return
-    got = str(x_clawhive_internal_token or x_internal_token or "").strip()
+    got = str(x_agent_service_token or x_clawhive_internal_token or x_internal_token or "").strip()
     if not got or got != expected:
         raise HTTPException(status_code=401, detail="invalid internal token")
 

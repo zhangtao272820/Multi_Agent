@@ -1,0 +1,32 @@
+[
+  {
+    "name": "老人总数",
+    "aliases": ["老人一共有多少人", "库里有多少老人", "人员有多少", "一共多少人"],
+    "sql": "SELECT COUNT(*) AS count FROM person_info WHERE deleted = 0",
+    "tables": ["person_info"]
+  },
+  {
+    "name": "性别分布",
+    "aliases": ["男女比例", "性别分别有多少", "男女人数"],
+    "sql": "SELECT CASE WHEN is_gender = 1 THEN '男' WHEN is_gender = 2 THEN '女' ELSE '未知' END AS gender, COUNT(*) AS count FROM person_info WHERE deleted = 0 GROUP BY gender ORDER BY count DESC",
+    "tables": ["person_info"]
+  },
+  {
+    "name": "足压检测次数",
+    "aliases": ["足底压力测了多少次", "足压有多少条"],
+    "sql": "SELECT COUNT(*) AS count FROM remote_activity_foot_log WHERE deleted = 0",
+    "tables": ["remote_activity_foot_log"]
+  },
+  {
+    "name": "情绪识别记录数",
+    "aliases": ["情绪识别有多少条", "心理检测多少条"],
+    "sql": "SELECT COUNT(*) AS count FROM remote_psychology_mood WHERE deleted = 0",
+    "tables": ["remote_psychology_mood"]
+  },
+  {
+    "name": "健康记录总数",
+    "aliases": ["健康档案有多少条", "健康数据多少"],
+    "sql": "SELECT COUNT(*) AS count FROM person_health_records WHERE deleted = 0",
+    "tables": ["person_health_records"]
+  }
+]

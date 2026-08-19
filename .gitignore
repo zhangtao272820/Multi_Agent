@@ -76,6 +76,9 @@ Manage-platform_Agent/.local/
 # Ad-hoc temp scripts / dumps (never commit)
 **/_tmp*
 **/*_tmp_*
+**/.tmp-*.log
+**/.rebuild-*.log
+.tmp-docker-rebuild*
 
 # RAG_Agent local acceptance fixtures (upload-only; do not commit)
 RAG_Agent/data/testdata/

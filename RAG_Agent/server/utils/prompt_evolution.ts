@@ -20,6 +20,12 @@ export type RagPromptPatch = {
   hits: number;
   promotedAt?: string;
   promotedHintId?: string;
+  sessionId?: string;
+  userMessageIndex?: number;
+  /** 撤回/重生作废，不进学习 */
+  voided?: boolean;
+  voidedAt?: string;
+  voidReason?: string;
 };
 
 type PatchStore = { patches: RagPromptPatch[] };
@@ -49,15 +55,21 @@ export function appendRagPromptPatch(input: {
   stage: RagPromptPatch["stage"];
   text: string;
   source: RagPromptPatch["source"];
+  sessionId?: string;
+  userMessageIndex?: number;
 }) {
   if (!isAgentEvolutionStageAllowed("rag", input.stage)) return;
   const t = String(input.text ?? "").trim().slice(0, 200);
   if (!t) return;
   const store = loadStore();
-  const dup = store.patches.find((p) => !p.promotedAt && p.stage === input.stage && p.text === t);
+  const dup = store.patches.find(
+    (p) => !p.promotedAt && !p.voided && p.stage === input.stage && p.text === t
+  );
   if (dup) {
     dup.hits += 1;
     dup.ts = new Date().toISOString();
+    if (input.sessionId) dup.sessionId = input.sessionId;
+    if (typeof input.userMessageIndex === "number") dup.userMessageIndex = input.userMessageIndex;
   } else {
     store.patches.push({
       id: `rp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
@@ -66,6 +78,8 @@ export function appendRagPromptPatch(input: {
       text: t,
       source: input.source,
       hits: 1,
+      sessionId: input.sessionId,
+      userMessageIndex: input.userMessageIndex,
     });
   }
   saveStore(store);
@@ -85,7 +99,7 @@ export function getRagPromptPatchesForStage(
 ): string {
   const evolved = abVariant === "treatment" ? listEvolvedHints(stage) : [];
   const shadow = loadStore()
-    .patches.filter((p) => !p.promotedAt && p.stage === stage)
+    .patches.filter((p) => !p.promotedAt && !p.voided && p.stage === stage)
     .sort((a, b) => b.hits - a.hits)
     .slice(0, max);
   const lines: string[] = [];
@@ -99,32 +113,84 @@ export function getRagPromptPatchesForStage(
   return `[进化提示·${stage}]\n${lines.join("\n")}`;
 }
 
-export function evolveFromNegativeFeedback(question: string, comment?: string) {
+export function evolveFromNegativeFeedback(
+  question: string,
+  comment?: string,
+  opts?: { sessionId?: string; userMessageIndex?: number }
+) {
   const q = String(question ?? "").trim();
   if (!q) return;
+  const sessionId = opts?.sessionId;
+  const userMessageIndex = opts?.userMessageIndex;
   if (comment?.includes("来源")) {
     appendRagPromptPatch({
       stage: "retrieval",
       text: "负反馈涉及来源不准：优先核对文档路由与关键词召回，必要时扩大 sub_queries。",
       source: "feedback",
+      sessionId,
+      userMessageIndex,
     });
   } else {
     appendRagPromptPatch({
       stage: "expansion",
       text: `类似「${q.slice(0, 40)}」的问法需生成更多同义检索词以提高召回。`,
       source: "feedback",
+      sessionId,
+      userMessageIndex,
     });
   }
 }
 
+export function supersedeRagPromptPatchesForRevision(input: {
+  sessionId: string;
+  userMessageIndex?: number | null;
+  fromUserMessageIndex?: number | null;
+  reason: "regenerate" | "edit_resend" | "withdraw";
+}): { voided: number } {
+  const sid = String(input.sessionId || "").trim();
+  if (!sid) return { voided: 0 };
+  const uidx =
+    typeof input.userMessageIndex === "number" && Number.isFinite(input.userMessageIndex)
+      ? Math.floor(input.userMessageIndex)
+      : null;
+  const fromIdx =
+    typeof input.fromUserMessageIndex === "number" && Number.isFinite(input.fromUserMessageIndex)
+      ? Math.floor(input.fromUserMessageIndex)
+      : input.reason === "withdraw" && uidx != null
+        ? uidx
+        : null;
+  const store = loadStore();
+  let voided = 0;
+  const now = new Date().toISOString();
+  for (const p of store.patches) {
+    if (p.voided || p.promotedAt) continue;
+    if (String(p.sessionId || "") !== sid) continue;
+    if (p.source !== "feedback") continue;
+    const sigIdx =
+      typeof p.userMessageIndex === "number" && Number.isFinite(p.userMessageIndex)
+        ? Math.floor(p.userMessageIndex)
+        : null;
+    const sameTurn = uidx != null && sigIdx === uidx;
+    const fromTurn = fromIdx != null && sigIdx != null && sigIdx >= fromIdx;
+    const withdrawLegacy = input.reason === "withdraw" && fromIdx != null && sigIdx == null;
+    if (!sameTurn && !fromTurn && !withdrawLegacy) continue;
+    p.voided = true;
+    p.voidedAt = now;
+    p.voidReason = input.reason;
+    voided += 1;
+  }
+  if (voided > 0) saveStore(store);
+  return { voided };
+}
+
 export function listPromptPatches() {
-  return loadStore().patches;
+  return loadStore().patches.filter((p) => !p.voided);
 }
 
 export function listPromotablePatches(minHits?: number) {
   const env = getRagAgentEnv();
   const threshold = minHits ?? env.promptPromoteMinHits;
-  return loadStore().patches.filter((p) => !p.promotedAt && p.hits >= threshold);
+  return loadStore().patches.filter((p) => !p.promotedAt && !p.voided && p.hits >= threshold);
 }
 
 export function promotePromptPatch(
@@ -133,6 +199,7 @@ export function promotePromptPatch(
   const store = loadStore();
   const patch = store.patches.find((p) => p.id === patchId);
   if (!patch) return { ok: false, reason: "patch_not_found" };
+  if (patch.voided) return { ok: false, reason: "patch_voided" };
   if (patch.promotedAt) return { ok: false, reason: "already_promoted" };
 
   const hintId = `evolved_${patch.stage}_${patch.id.slice(-8)}`;
@@ -158,6 +225,7 @@ export async function promotePromptPatchVerified(
   const store = loadStore();
   const patch = store.patches.find((p) => p.id === patchId);
   if (!patch) return { ok: false, reason: "patch_not_found" };
+  if (patch.voided) return { ok: false, reason: "patch_voided" };
   if (patch.promotedAt) return { ok: false, reason: "already_promoted" };
 
   const hintId = `evolved_${patch.stage}_${patch.id.slice(-8)}`;

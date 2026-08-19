@@ -15,7 +15,8 @@ const props = defineProps<{
   pendingAttachment: PendingAttachment | null
 }>()
 
-const showPosture = computed(() => props.workbenchMode !== 'chat')
+/** 对话用分段；专业用下拉（信息量更大） */
+const useSegmentedPosture = computed(() => props.workbenchMode !== 'professional')
 
 const emit = defineEmits<{
   setCollaborationPosture: [mode: CollaborationPosture]
@@ -58,6 +59,25 @@ function selectPosture(mode: CollaborationPosture) {
   postureMenuOpen.value = false
 }
 
+/** Cursor 式：Shift+Tab 轮转 Ask → Plan → Agent → Debug */
+function cyclePosture(backward = false) {
+  const ids = COLLABORATION_POSTURE_OPTIONS.map((p) => p.id)
+  const idx = Math.max(0, ids.indexOf(props.collaborationPosture))
+  const next = backward
+    ? ids[(idx - 1 + ids.length) % ids.length]
+    : ids[(idx + 1) % ids.length]
+  selectPosture(next)
+}
+
+function onTextareaKeydown(e: KeyboardEvent) {
+  if (e.key === 'Tab' && e.shiftKey) {
+    e.preventDefault()
+    cyclePosture(false)
+    return
+  }
+  emit('inputKeydown', e)
+}
+
 function onDocPointerDown(e: PointerEvent) {
   if (!postureMenuOpen.value) return
   const root = postureWrapEl.value
@@ -98,7 +118,7 @@ function onPaste(e: ClipboardEvent) {
 }
 
 function onDragEnter(e: DragEvent) {
-  if (!propsHavePayload(e.dataTransfer)) return
+  if (!filesHavePayload(e.dataTransfer)) return
   e.preventDefault()
   dragDepth += 1
   dragOver.value = true
@@ -155,7 +175,9 @@ defineExpose({ resetFileInput })
   >
     <div class="spring-input-col">
       <div class="cosmic-input-head">
-        <span class="cosmic-input-hint">{{ isRunActive ? 'Esc 或点击取消停止' : 'Enter 发送' }}</span>
+        <span class="cosmic-input-hint">{{
+          isRunActive ? 'Esc 或点击取消停止' : 'Enter 发送 · Shift+Tab 切换姿态'
+        }}</span>
       </div>
 
       <div v-if="pendingAttachment" class="attach-pending">
@@ -188,13 +210,33 @@ defineExpose({ resetFileInput })
         class="spring-input-field spring-input-area"
         placeholder="输入问题，或粘贴/拖拽/上传图片后提问（Enter 发送）"
         rows="3"
-        @keydown="emit('inputKeydown', $event)"
+        @keydown="onTextareaKeydown"
         @paste="onPaste"
       />
 
       <div class="composer-toolbar">
         <div class="composer-toolbar-left">
-          <div v-if="showPosture" ref="postureWrapEl" class="composer-posture-wrap">
+          <div
+            v-if="useSegmentedPosture"
+            class="composer-posture-seg"
+            role="group"
+            aria-label="协作姿态"
+          >
+            <button
+              v-for="p in COLLABORATION_POSTURE_OPTIONS"
+              :key="p.id"
+              type="button"
+              class="composer-posture-seg-btn"
+              :class="{ 'is-active': collaborationPosture === p.id }"
+              :title="p.title"
+              :aria-pressed="collaborationPosture === p.id"
+              @click="selectPosture(p.id)"
+            >
+              {{ p.label }}
+            </button>
+          </div>
+
+          <div v-else ref="postureWrapEl" class="composer-posture-wrap">
             <button
               type="button"
               class="composer-posture-trigger"
@@ -242,7 +284,7 @@ defineExpose({ resetFileInput })
           </button>
 
           <span
-            v-if="showPosture && postureHint"
+            v-if="postureHint"
             class="composer-posture-inline-hint"
             :class="`is-${collaborationPosture}`"
             role="status"

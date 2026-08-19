@@ -83,7 +83,7 @@ async function main() {
   for (const name of ["kb_catalog", "retrieve", "retrieve_scoped", "document_query", "document_list"]) {
     assert.ok(agentSrc.includes(`name: "${name}"`), `missing tool ${name}`);
   }
-  assert.ok(agentSrc.includes('agent: "agent"') || agentSrc.includes("agent: \"agent\"") || agentSrc.includes("return \"agent\""));
+  assert.ok(agentSrc.includes('return { messages: [new AIMessage({ content: raw })] }'), "present_tool passthrough");
 
   console.log("[smoke:agentic-jk] ok");
 }

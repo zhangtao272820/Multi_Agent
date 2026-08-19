@@ -78,7 +78,9 @@ export async function classifyRagTurnScopeByLlm(
   if (!model || !isRagTurnScopeLlmEnabled()) return null
   const q = String(question || '').trim()
   if (!q) return null
+  if (!history?.length) return null
   const prev = lastHumanBefore(q, history)
+  if (!prev) return null
   const histSnippet = (history || [])
     .slice(-6)
     .map((m) => `${m.role || '?'}: ${String(m.content || '').slice(0, 160)}`)
@@ -118,6 +120,9 @@ export async function resolveRagStandaloneTurnScope(input: {
   model?: BaseChatModel | null
 }): Promise<TurnScopePayload> {
   if (input.managerTurnScope) return input.managerTurnScope
+  if (!input.chatHistory?.length) {
+    return classifyRagTurnScopeStructural(input.question, [])
+  }
   const llm = await classifyRagTurnScopeByLlm(input.model ?? null, input.question, input.chatHistory)
   if (llm) return llm
   return classifyRagTurnScopeStructural(input.question, input.chatHistory)

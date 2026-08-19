@@ -1523,6 +1523,73 @@ services:
       - "${CLAWHIVE_DEX_PORT:-5556}:5556"
     restart: unless-stopped
 
+  # 独立 Vanna 库问数：不注册 Manager、不改 DB_AGENT_HTTP_URL
+  vanna_db_agent:
+    build:
+      context: ../Vanna_DbAgent
+      dockerfile: Dockerfile
+      args:
+        PYTHON_BASE_IMAGE: ${VANNA_PYTHON_IMAGE:-docker.m.daocloud.io/library/python:3.11-slim-bookworm}
+        PIP_INDEX_URL: ${VANNA_PIP_INDEX_URL:-https://pypi.tuna.tsinghua.edu.cn/simple}
+    image: clawhive/vanna_db_agent:${CLAWHIVE_IMAGE_TAG:-prod}
+    container_name: vanna_db_agent
+    env_file:
+      - path: ../Vanna_DbAgent/.env
+        required: false
+      - path: .env.agents-lan
+        required: false
+    environment:
+      VANNA_PORT: "13121"
+      VANNA_DATA_DIR: /app/.data
+      VANNA_CHECKPOINT_DEFAULT: "true"
+      VANNA_SCENE_DETECT: "false"
+      VANNA_POLISH: "true"
+      VANNA_MAX_LLM_CALLS: "2"
+      VANNA_MAX_EMBED_CALLS: "1"
+      VANNA_MAX_INGEST_EMBED_CALLS: "500"
+      VANNA_MAX_REPAIR_LLM_CALLS: "1"
+      VANNA_MAX_ANSWER_LLM_CALLS: "1"
+      VANNA_MAX_PROMPT_CHARS: "6000"
+      VANNA_MAX_QUESTION_CHARS: "400"
+      VANNA_DEFAULT_TENANT: p2026
+      P2026_MYSQL_HOST: ${DB_AGENT_MYSQL_HOST:-host.docker.internal}
+      P2026_MYSQL_PORT: ${DB_AGENT_MYSQL_PORT:-3306}
+      P2026_MYSQL_USER: ${DB_AGENT_MYSQL_USER:-root}
+      P2026_MYSQL_PASSWORD: ${DB_AGENT_MYSQL_PASSWORD:-123456}
+      P2026_MYSQL_DATABASE: ${DB_AGENT_MYSQL_DATABASE:-p2026}
+      AGENT_SERVICE_AUTH: "off"
+      EVO_ALLOW_EXPERT_AUTO_PROMOTE: "false"
+    volumes:
+      - vanna_db_agent_data:/app/.data
+    ports:
+      - "${VANNA_PORT:-13121}:13121"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:13121/api/ready')\"",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 40s
+    restart: unless-stopped
+
+  vanna_db_web:
+    build:
+      context: ../Vanna_DbAgent
+      dockerfile: frontend/Dockerfile
+    image: clawhive/vanna_db_web:${CLAWHIVE_IMAGE_TAG:-prod}
+    container_name: vanna_db_web
+    ports:
+      - "${VANNA_WEB_PORT:-13120}:80"
+    depends_on:
+      vanna_db_agent:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   clawhive_pg_data:
   clawhive_redis_data:
@@ -1554,3 +1621,4 @@ volumes:
   db_agent_nuxt:
   admin_mcp_memory:
   admin_mcp_cron:
+  vanna_db_agent_data:

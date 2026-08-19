@@ -1,0 +1,26 @@
+id: p2604
+title: 智慧养老机构运营管理 ERP
+mysql:
+  host: 192.168.88.99
+  port: 3388
+  user: root
+  password_env: P2604_MYSQL_PASSWORD
+  database: P2604
+table_whitelist_prefixes:
+  - PC_
+  - Cultivate_
+table_whitelist:
+  - Sys_Student
+  - Sys_User
+  - Sys_Role
+  - Sys_Menu
+  - Sys_Department
+  - Sys_Room
+  - Sys_Dictionary
+  - Sys_DictionaryList
+  - Sys_BaseInfo
+skip_list_tables:
+  - Cultivate_ExaminationAnswerRecord
+  - Cultivate_ExaminationItem
+  - PC_Info
+  - Sys_BaseInfo

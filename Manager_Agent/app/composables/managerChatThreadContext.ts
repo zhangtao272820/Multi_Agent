@@ -1,5 +1,5 @@
 import type { ComputedRef, InjectionKey, Ref } from 'vue'
-import type { CollaborationPosture, LogItem, SearchSourceItem, StepResultItem, ThoughtViewMode, TurnGroup, MediaBundles } from './managerChatTypes'
+import type { CollaborationPosture, LogItem, SearchSourceItem, StepResultItem, ThoughtViewMode, TurnGroup, MediaBundles, WorkbenchMode } from './managerChatTypes'
 
 export type ManagerChatThreadContext = {
   editingTurnId: Ref<number | null>
@@ -26,6 +26,7 @@ export type ManagerChatThreadContext = {
   withdrawTurn: (turnId: number) => void | Promise<void>
   regenerateTurn: (turn: TurnGroup) => void | Promise<void>
   hasAgentPipeline: (t: TurnGroup) => boolean
+  hasTurnActivity: (t: TurnGroup) => boolean
   turnAgentPipelineSteps: (t: TurnGroup) => Array<{
     id: string
     agent: string
@@ -38,6 +39,15 @@ export type ManagerChatThreadContext = {
   turnRouteCap: (t: TurnGroup) => { intent: string; agents: string[]; capLabel?: string } | null
   turnCollaborationPosture: (t: TurnGroup) => CollaborationPosture | undefined
   turnPostureNote: (t: TurnGroup) => string
+  turnSuggestedPosture: (t: TurnGroup) => CollaborationPosture | undefined
+  turnAwaitingPlanConfirm: (t: TurnGroup) => boolean
+  turnHitlInfo: (t: TurnGroup) => { title?: string; agent?: string }
+  pendingPlanPreview: Ref<{
+    runId: string
+    steps: Array<{ enabled: boolean }>
+    suggestedPosture?: CollaborationPosture
+  } | null>
+  workbenchMode: Ref<WorkbenchMode>
   planAgentLabel: (agent: string) => string
   agentPipelineStatusLabel: (status: string) => string
   turnRoutePlanCard: (t: TurnGroup) => import('./managerChatTypes').RoutePlanCardData | null

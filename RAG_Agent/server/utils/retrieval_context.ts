@@ -3,11 +3,19 @@ import type { BaseMessage } from "@langchain/core/messages";
 import type { ManagerRagTaskPayload } from "#agent-shared/managerSubAgentProtocol";
 import { setRagRequestIntent } from "./doc_scope_judge";
 import type { RagMergedUnderstandResult } from "./rag_merged_understand";
+import type { RagQueryPlan } from "./query_plan";
 
 let currentUserKey: string | undefined;
 let orchestratedByManager = false;
 let managerRagTask: ManagerRagTaskPayload | null = null;
 let mergedUnderstand: RagMergedUnderstandResult | null = null;
+
+export type RagPrefetchedUnderstand = {
+  plan: RagQueryPlan;
+  leanQuery: string;
+};
+
+let prefetchedUnderstand: RagPrefetchedUnderstand | null = null;
 
 export type RetrievalCondenseContext = {
   summary?: string;
@@ -59,11 +67,20 @@ export function getRagMergedUnderstand(): RagMergedUnderstandResult | null {
   return mergedUnderstand;
 }
 
+export function setRagPrefetchedUnderstand(value: RagPrefetchedUnderstand | null | undefined) {
+  prefetchedUnderstand = value ?? null;
+}
+
+export function getRagPrefetchedUnderstand(): RagPrefetchedUnderstand | null {
+  return prefetchedUnderstand;
+}
+
 export function clearRetrievalUserKey() {
   currentUserKey = undefined;
   orchestratedByManager = false;
   managerRagTask = null;
   mergedUnderstand = null;
+  prefetchedUnderstand = null;
   condenseContext = { summary: "", messages: [] };
   setRagRequestIntent(null);
 }

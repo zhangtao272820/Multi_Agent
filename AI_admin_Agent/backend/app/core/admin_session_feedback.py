@@ -167,6 +167,32 @@ def user_message_feedback_key(user_message_index: int) -> str:
     return f"umidx:{int(user_message_index)}"
 
 
+def list_run_ids_for_revision(
+    session_id: str,
+    *,
+    user_message_index: int | None = None,
+    from_user_index: int | None = None,
+    at_index_only: bool = False,
+) -> list[str]:
+    """撤回/重生前收集 run_id，便于作废工具经验。"""
+    items = list_session_feedback(session_id)
+    out: list[str] = []
+    for it in items:
+        um = it.get("userMessageIndex")
+        rid = str(it.get("runId") or "").strip()
+        if not rid:
+            continue
+        if at_index_only and user_message_index is not None:
+            if um == int(user_message_index):
+                out.append(rid)
+        elif from_user_index is not None:
+            if isinstance(um, int) and um >= int(from_user_index):
+                out.append(rid)
+        elif user_message_index is not None and um == int(user_message_index):
+            out.append(rid)
+    return list(dict.fromkeys(out))
+
+
 def delete_feedback_at_user_index(session_id: str, user_message_index: int) -> int:
     if not _pg_ready():
         return 0

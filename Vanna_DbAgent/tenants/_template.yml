@@ -1,0 +1,12 @@
+# 复制为 tenants/<id>.yml，改连接与表白名单。文件名不要以下划线开头。
+id: example
+title: 示例租户
+mysql:
+  host: 127.0.0.1
+  port: 3306
+  user: readonly
+  password_env: EXAMPLE_MYSQL_PASSWORD
+  database: EXAMPLE
+table_whitelist_prefixes: []
+table_whitelist: []
+skip_list_tables: []

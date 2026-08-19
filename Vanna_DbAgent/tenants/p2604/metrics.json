@@ -1,0 +1,32 @@
+[
+  {
+    "name": "老人库人数",
+    "aliases": ["老人库有多少人", "老人有多少"],
+    "sql": "SELECT COUNT(*) AS count FROM PC_OldPeople",
+    "tables": ["PC_OldPeople"]
+  },
+  {
+    "name": "签约人数",
+    "aliases": ["签约老人有多少", "已入住老人有多少"],
+    "sql": "SELECT COUNT(*) AS count FROM PC_SignedOldPeople",
+    "tables": ["PC_SignedOldPeople"]
+  },
+  {
+    "name": "护理级别分布",
+    "aliases": ["护理级别分别有多少人", "各护理级别多少人"],
+    "sql": "SELECT Nursinglevel, COUNT(*) AS count FROM PC_OldPeople GROUP BY Nursinglevel",
+    "tables": ["PC_OldPeople"]
+  },
+  {
+    "name": "突发事件场次",
+    "aliases": ["突发事件有几个", "目前突发事件有几个"],
+    "sql": "SELECT COUNT(*) AS count FROM Cultivate_Examination",
+    "tables": ["Cultivate_Examination"]
+  },
+  {
+    "name": "分组人数",
+    "aliases": ["每个分组有多少学生", "各组有多少人"],
+    "sql": "SELECT g.Name AS group_name, COUNT(*) AS student_count FROM PC_PersonGroup g JOIN PC_PersonGroupItem i ON g.PersonGroupId = i.PersonGroupId GROUP BY g.PersonGroupId, g.Name",
+    "tables": ["PC_PersonGroup", "PC_PersonGroupItem"]
+  }
+]

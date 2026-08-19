@@ -1,18 +1,33 @@
-/** 校验 ClawHive 内部服务令牌（未配置时跳过，便于本机开发）。 */
+/** 校验 Agent 服务身份（E5.2）。未配置 token 时跳过（LAN 开发）；AGENT_SERVICE_AUTH=require 时必验。 */
+import {
+  resolveAgentServiceAuthMode,
+  resolveAgentServiceToken,
+  verifyAgentServiceAuth
+} from '#agent-shared/agentServiceAuth'
 
-export function ensureInternalAgentAccess(event: { node?: { req?: { headers?: Record<string, string | string[] | undefined> } } }) {
-  const expected = String(
-    process.env.CLAWHIVE_INTERNAL_TOKEN || process.env.AGENT_INTERNAL_TOKEN || ''
-  ).trim()
-  if (!expected) return
+function headersAsRecord(
+  headers: Record<string, string | string[] | undefined> | undefined
+): Record<string, string> {
+  const out: Record<string, string> = {}
+  for (const [k, v] of Object.entries(headers || {})) {
+    out[k] = String(Array.isArray(v) ? v[0] : v || '')
+  }
+  return out
+}
 
-  const headers = event?.node?.req?.headers || {}
-  const raw =
-    headers['x-clawhive-internal-token'] ||
-    headers['x-internal-token'] ||
-    ''
-  const got = String(Array.isArray(raw) ? raw[0] : raw || '').trim()
-  if (!got || got !== expected) {
-    throw createError({ statusCode: 401, statusMessage: 'invalid internal token' })
+export function ensureInternalAgentAccess(event: {
+  node?: { req?: { headers?: Record<string, string | string[] | undefined> } }
+}) {
+  const mode = resolveAgentServiceAuthMode()
+  const expected = resolveAgentServiceToken()
+  if (!expected) {
+    if (mode === 'require') {
+      throw createError({ statusCode: 503, statusMessage: 'agent_service_token_not_configured' })
+    }
+    return
+  }
+  const v = verifyAgentServiceAuth(headersAsRecord(event?.node?.req?.headers))
+  if (!v.ok) {
+    throw createError({ statusCode: 401, statusMessage: v.reason || 'invalid internal token' })
   }
 }

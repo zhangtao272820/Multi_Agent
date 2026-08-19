@@ -730,7 +730,14 @@ async def post_feedback(body: FeedbackRequest):
         try:
             from app.core.prompt_evolution import append_prompt_patch
 
-            append_prompt_patch(stage="router", text=str(body.comment).strip()[:200], source="feedback")
+            append_prompt_patch(
+                stage="planning",
+                text=str(body.comment).strip()[:200],
+                source="feedback",
+                session_id=session_id,
+                user_message_index=body.user_message_index,
+                run_id=str(body.run_id or "").strip(),
+            )
         except Exception:
             pass
     return {"ok": True, "persisted": saved, "artifactAction": artifact_action}
@@ -910,11 +917,14 @@ async def update_session_meta(body: SessionMetaRequest):
 
 @app.post("/api/session-truncate")
 async def truncate_session(body: SessionTruncateRequest):
+    from app.core.admin_artifact_feedback import revoke_admin_artifacts
     from app.core.admin_session_feedback import (
         delete_feedback_at_user_index,
         delete_feedback_from_turn,
         delete_feedback_from_user_index,
+        list_run_ids_for_revision,
     )
+    from app.core.prompt_evolution import supersede_prompt_patches_for_revision
     from app.core.session_dialogue import truncate_session_from_user_index
 
     sid = str(body.session_id or "").strip()
@@ -932,19 +942,40 @@ async def truncate_session(body: SessionTruncateRequest):
     if not result.get("ok"):
         raise HTTPException(status_code=404, detail="找不到对应用户消息，无法截断会话")
     resolved_idx = int(result.get("resolved_user_index") or body.from_user_index or 0)
+    is_regen_or_edit = bool(body.replace_user_text is not None and str(body.replace_user_text).strip())
+    run_ids = list_run_ids_for_revision(
+        sid,
+        user_message_index=resolved_idx,
+        from_user_index=None if is_regen_or_edit else resolved_idx,
+        at_index_only=is_regen_or_edit,
+    )
     feedback_deleted = 0
-    if body.replace_user_text is not None and str(body.replace_user_text).strip():
+    if is_regen_or_edit:
         feedback_deleted = delete_feedback_at_user_index(sid, resolved_idx)
     else:
         feedback_deleted = delete_feedback_from_user_index(sid, resolved_idx)
         if body.from_turn_id is not None:
             feedback_deleted += delete_feedback_from_turn(sid, int(body.from_turn_id))
+
+    reason = "regenerate" if is_regen_or_edit else "withdraw"
+    learning = supersede_prompt_patches_for_revision(
+        session_id=sid,
+        user_message_index=resolved_idx,
+        from_user_message_index=None if is_regen_or_edit else resolved_idx,
+        reason=reason,
+    )
+    experience_revoked = 0
+    for rid in run_ids:
+        experience_revoked += int(revoke_admin_artifacts(rid) or 0)
+
     return {
         "ok": True,
         "session_id": sid,
         "user_message_count": result.get("user_message_count", 0),
         "message_count": result.get("message_count", 0),
         "feedback_deleted": feedback_deleted,
+        "learning_voided": int(learning.get("voided") or 0),
+        "experience_revoked": experience_revoked,
         "resolved_user_index": resolved_idx,
     }
 
@@ -1206,10 +1237,23 @@ async def websocket_endpoint(websocket: WebSocket):
                         )
                         continue
                     try:
-                        from app.core.admin_session_feedback import delete_feedback_at_user_index
+                        from app.core.admin_artifact_feedback import revoke_admin_artifacts
+                        from app.core.admin_session_feedback import (
+                            delete_feedback_at_user_index,
+                            list_run_ids_for_revision,
+                        )
+                        from app.core.prompt_evolution import supersede_prompt_patches_for_revision
 
-                        delete_feedback_at_user_index(
-                            session_id, int(trunc.get("resolved_user_index") or 0)
+                        resolved = int(trunc.get("resolved_user_index") or 0)
+                        for rid in list_run_ids_for_revision(
+                            session_id, user_message_index=resolved, at_index_only=True
+                        ):
+                            revoke_admin_artifacts(rid)
+                        delete_feedback_at_user_index(session_id, resolved)
+                        supersede_prompt_patches_for_revision(
+                            session_id=session_id,
+                            user_message_index=resolved,
+                            reason="regenerate",
                         )
                     except Exception:
                         pass

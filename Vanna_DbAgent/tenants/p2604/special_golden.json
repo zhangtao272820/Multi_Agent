@@ -1,0 +1,162 @@
+[
+  {
+    "question": "目前突发事件有几个，分别是什么",
+    "sql": "SELECT Name, Type FROM Cultivate_Examination",
+    "tables": ["Cultivate_Examination"]
+  },
+  {
+    "question": "目前有几个突发事件，分别是什么",
+    "sql": "SELECT Name, Type FROM Cultivate_Examination",
+    "tables": ["Cultivate_Examination"]
+  },
+  {
+    "question": "突发事件分别是什么",
+    "sql": "SELECT Name, Type FROM Cultivate_Examination",
+    "tables": ["Cultivate_Examination"]
+  },
+  {
+    "question": "老人库有多少人",
+    "sql": "SELECT COUNT(*) AS count FROM PC_OldPeople",
+    "tables": ["PC_OldPeople"]
+  },
+  {
+    "question": "老人库有哪些人",
+    "sql": "SELECT Name, Age, Sex, Nursinglevel FROM PC_OldPeople",
+    "tables": ["PC_OldPeople"]
+  },
+  {
+    "question": "签约老人有多少",
+    "sql": "SELECT COUNT(*) AS count FROM PC_SignedOldPeople",
+    "tables": ["PC_SignedOldPeople"]
+  },
+  {
+    "question": "学生档案有多少人",
+    "sql": "SELECT COUNT(*) AS count FROM Sys_Student",
+    "tables": ["Sys_Student"]
+  },
+  {
+    "question": "系统有多少用户",
+    "sql": "SELECT COUNT(*) AS count FROM Sys_User",
+    "tables": ["Sys_User"]
+  },
+  {
+    "question": "有多少家养老机构",
+    "sql": "SELECT COUNT(*) AS count FROM PC_Company",
+    "tables": ["PC_Company"]
+  },
+  {
+    "question": "每个分组里有哪些学生",
+    "sql": "SELECT g.Name AS group_name, i.StudentName, i.StudentCode FROM PC_PersonGroup g JOIN PC_PersonGroupItem i ON g.PersonGroupId = i.PersonGroupId",
+    "tables": ["PC_PersonGroup", "PC_PersonGroupItem"]
+  },
+  {
+    "question": "分组里有哪些学生",
+    "sql": "SELECT g.Name AS group_name, i.StudentName, i.StudentCode FROM PC_PersonGroup g JOIN PC_PersonGroupItem i ON g.PersonGroupId = i.PersonGroupId",
+    "tables": ["PC_PersonGroup", "PC_PersonGroupItem"]
+  },
+  {
+    "question": "各组有哪些成员",
+    "sql": "SELECT g.Name AS group_name, i.StudentName, i.StudentCode FROM PC_PersonGroup g JOIN PC_PersonGroupItem i ON g.PersonGroupId = i.PersonGroupId",
+    "tables": ["PC_PersonGroup", "PC_PersonGroupItem"]
+  },
+  {
+    "question": "每个分组有多少学生",
+    "sql": "SELECT g.Name AS group_name, COUNT(*) AS student_count FROM PC_PersonGroup g JOIN PC_PersonGroupItem i ON g.PersonGroupId = i.PersonGroupId GROUP BY g.PersonGroupId, g.Name",
+    "tables": ["PC_PersonGroup", "PC_PersonGroupItem"]
+  },
+  {
+    "question": "分组学生对照花名册",
+    "sql": "SELECT g.Name AS group_name, s.Name AS student_name, s.Code FROM PC_PersonGroup g JOIN PC_PersonGroupItem i ON g.PersonGroupId = i.PersonGroupId JOIN Sys_Student s ON i.StudentId = s.Id",
+    "tables": ["PC_PersonGroup", "PC_PersonGroupItem", "Sys_Student"]
+  },
+  {
+    "question": "突发事件绑定了哪些题库",
+    "sql": "SELECT e.Name AS examination, b.Name AS question_bank FROM Cultivate_Examination e JOIN Cultivate_ExaminationXQuestionBank x ON e.ExaminationId = x.ExaminationId JOIN PC_QuestionBank b ON x.QuestionBankId = b.QuestionBankId",
+    "tables": ["Cultivate_Examination", "Cultivate_ExaminationXQuestionBank", "PC_QuestionBank"]
+  },
+  {
+    "question": "考试绑定了什么题库",
+    "sql": "SELECT e.Name AS examination, b.Name AS question_bank FROM Cultivate_Examination e JOIN Cultivate_ExaminationXQuestionBank x ON e.ExaminationId = x.ExaminationId JOIN PC_QuestionBank b ON x.QuestionBankId = b.QuestionBankId",
+    "tables": ["Cultivate_Examination", "Cultivate_ExaminationXQuestionBank", "PC_QuestionBank"]
+  },
+  {
+    "question": "题库分别绑了哪些突发事件",
+    "sql": "SELECT b.Name AS question_bank, e.Name AS examination FROM PC_QuestionBank b JOIN Cultivate_ExaminationXQuestionBank x ON b.QuestionBankId = x.QuestionBankId JOIN Cultivate_Examination e ON e.ExaminationId = x.ExaminationId",
+    "tables": ["PC_QuestionBank", "Cultivate_ExaminationXQuestionBank", "Cultivate_Examination"]
+  },
+  {
+    "question": "题库里有哪些试题",
+    "sql": "SELECT b.Name AS question_bank, q.Description, q.Type FROM PC_QuestionBank b JOIN PC_Question q ON b.QuestionBankId = q.QuestionBankId",
+    "tables": ["PC_QuestionBank", "PC_Question"]
+  },
+  {
+    "question": "突发事件有哪些试题",
+    "sql": "SELECT e.Name AS examination, i.QuestionDescription, i.QuestionType FROM Cultivate_Examination e JOIN Cultivate_ExaminationItem i ON e.ExaminationId = i.ExaminationId",
+    "tables": ["Cultivate_Examination", "Cultivate_ExaminationItem"]
+  },
+  {
+    "question": "系统用户分别是什么角色",
+    "sql": "SELECT u.UserTrueName, u.UserName, r.RoleName FROM Sys_User u JOIN Sys_Role r ON u.Role_Id = r.Role_Id",
+    "tables": ["Sys_User", "Sys_Role"]
+  },
+  {
+    "question": "用户都是什么角色",
+    "sql": "SELECT u.UserTrueName, u.UserName, r.RoleName FROM Sys_User u JOIN Sys_Role r ON u.Role_Id = r.Role_Id",
+    "tables": ["Sys_User", "Sys_Role"]
+  },
+  {
+    "question": "老人住在哪个房间",
+    "sql": "SELECT o.Name, r.RoomName FROM PC_OldPeople o LEFT JOIN Sys_Room r ON o.RoomId = r.ID",
+    "tables": ["PC_OldPeople", "Sys_Room"]
+  },
+  {
+    "question": "老人的房间号",
+    "sql": "SELECT o.Name, r.RoomName FROM PC_OldPeople o LEFT JOIN Sys_Room r ON o.RoomId = r.ID",
+    "tables": ["PC_OldPeople", "Sys_Room"]
+  },
+  {
+    "question": "谁参加了突发事件考试",
+    "sql": "SELECT e.Name AS examination, u.StudentTrueName, u.StudentName FROM Cultivate_Examination e JOIN Cultivate_ExaminationUser u ON e.ExaminationId = u.ExaminationId",
+    "tables": ["Cultivate_Examination", "Cultivate_ExaminationUser"]
+  },
+  {
+    "question": "谁报名或参加了「测试视频类」？把姓名和学号列出来。",
+    "sql": "SELECT u.StudentTrueName AS 姓名, u.StudentName AS 学号 FROM Cultivate_Examination e JOIN Cultivate_ExaminationUser u ON e.ExaminationId = u.ExaminationId WHERE e.Name = '测试视频类'",
+    "tables": ["Cultivate_Examination", "Cultivate_ExaminationUser"]
+  },
+  {
+    "question": "视频类突发事件都有谁考过，列个名单。",
+    "sql": "SELECT e.Name AS examination, u.StudentTrueName, u.StudentName FROM Cultivate_Examination e JOIN Cultivate_ExaminationUser u ON e.ExaminationId = u.ExaminationId WHERE e.Type = 2",
+    "tables": ["Cultivate_Examination", "Cultivate_ExaminationUser"]
+  },
+  {
+    "question": "学生的登录名是什么",
+    "sql": "SELECT s.Name, s.Code, u.UserName FROM Sys_Student s JOIN Sys_User u ON s.UserId = u.User_Id",
+    "tables": ["Sys_Student", "Sys_User"]
+  },
+  {
+    "question": "老人护理级别分布",
+    "sql": "SELECT Nursinglevel, COUNT(*) AS count FROM PC_OldPeople GROUP BY Nursinglevel",
+    "tables": ["PC_OldPeople"]
+  },
+  {
+    "question": "护理级别分别有多少人",
+    "sql": "SELECT Nursinglevel, COUNT(*) AS count FROM PC_OldPeople GROUP BY Nursinglevel",
+    "tables": ["PC_OldPeople"]
+  },
+  {
+    "question": "各机构有多少床位",
+    "sql": "SELECT c.Name AS company, b.TotalBedSpace FROM PC_Company c JOIN PC_CompanyBuild b ON c.CompanyId = b.CompanyId",
+    "tables": ["PC_Company", "PC_CompanyBuild"]
+  },
+  {
+    "question": "养老机构床位数",
+    "sql": "SELECT c.Name AS company, b.TotalBedSpace FROM PC_Company c JOIN PC_CompanyBuild b ON c.CompanyId = b.CompanyId",
+    "tables": ["PC_Company", "PC_CompanyBuild"]
+  },
+  {
+    "question": "人员分组现在是什么状态",
+    "sql": "SELECT Name, Status FROM PC_PersonGroup",
+    "tables": ["PC_PersonGroup"]
+  }
+]

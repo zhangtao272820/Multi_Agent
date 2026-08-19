@@ -278,6 +278,7 @@ export async function understandRagQuery(input: {
       heuristicConfidence: heuristicRagQueryPlan(effectiveQuery).confidence,
       subQueryCount: structuralSubs.length,
       intent: heuristicRagQueryPlan(effectiveQuery).intent,
+      prefetched: Boolean(input.prefetchedPlan),
     })
   ) {
     const grounded = await buildCatalogGroundedQueryPlan(effectiveQuery, {
@@ -364,6 +365,7 @@ export async function understandRagQuery(input: {
   if (
     resolveRagNluMode() === "full" &&
     !input.probeMode &&
+    !input.prefetchedPlan &&
     plan.retrieval_keywords.length < 2 &&
     effectiveQuery.length >= 4 &&
     planSource !== "heuristic" &&

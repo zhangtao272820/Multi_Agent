@@ -44,7 +44,6 @@ SCAN_PLAYBOOK_ROOTS = [
     "Video_Agent/skills",
     "Multimodal_Agent/skills",
     "AI_Agent/skills",
-    "Companion_Agent/skills",
     "Lobster_Agent/skills",
     "Tavern_Agent/skills",
 ]
@@ -62,7 +61,6 @@ PATH_AGENT_MAP = {
     "Video_Agent": "Video_Agent",
     "Multimodal_Agent": "Multimodal_Agent",
     "AI_Agent": "AI_Agent",
-    "Companion_Agent": "Companion_Agent",
     "Lobster_Agent": "Lobster_Agent",
     "Tavern_Agent": "Tavern_Agent",
 }

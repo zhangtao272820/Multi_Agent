@@ -430,6 +430,11 @@ export function handleManagerWsInboundMessage(evt: MessageEvent, ctx: ManagerWsI
       const p = data?.data && typeof data.data === 'object' ? (data.data as Record<string, unknown>) : null
       if (p && Array.isArray(p.steps)) {
         const rid = runId || String(p.runId || '')
+        const suggestedRaw = String(p.suggestedPosture || '').trim().toLowerCase()
+        const suggestedPosture =
+          suggestedRaw === 'ask' || suggestedRaw === 'plan' || suggestedRaw === 'agent' || suggestedRaw === 'debug'
+            ? suggestedRaw
+            : undefined
         ctx.pendingPlanPreview.value = {
           runId: rid,
           previewId: String(p.previewId || ''),
@@ -439,6 +444,7 @@ export function handleManagerWsInboundMessage(evt: MessageEvent, ctx: ManagerWsI
             ? String(p.approveTier)
             : 'plan') as 'auto' | 'plan' | 'strict',
           riskScore: Number(p.riskScore || 0) || 0,
+          ...(suggestedPosture ? { suggestedPosture } : {}),
           routePlan:
             p.routePlan && typeof p.routePlan === 'object'
               ? ctx.parseRoutePlanCardPayload(p.routePlan as Record<string, unknown>)
@@ -455,6 +461,16 @@ export function handleManagerWsInboundMessage(evt: MessageEvent, ctx: ManagerWsI
               : 'none') as 'hitl' | 'auto_confirm' | 'none',
             confirmReason: String(s.confirmReason || '') || undefined
           }))
+        }
+        if (suggestedPosture) {
+          ctx.add(
+            'status',
+            `编排建议：切换到 ${suggestedPosture === 'plan' ? 'Plan' : suggestedPosture === 'ask' ? 'Ask' : suggestedPosture === 'debug' ? 'Debug' : 'Agent'}`,
+            data.from,
+            turn,
+            rid,
+            { suggestedPosture }
+          )
         }
         ctx.applyPlanStepsPayload(p)
         ctx.planPreviewSending.value = false

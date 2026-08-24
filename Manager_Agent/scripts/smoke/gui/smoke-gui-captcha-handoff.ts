@@ -197,5 +197,62 @@ assert.ok(isGuiIncompleteFailure('success_criteria_unmet'))
 assert.ok(isGuiIncompleteFailure('element_not_found'))
 assert.ok(isGuiIncompleteFailure('step_budget_exceeded'))
 
+// S2.L1：登录墙 / 列表 / 表单 verify 离线加厚
+const loginWallVerify = verifyLobsterRunResult({
+  task: '打开门户订单列表并提取第一条订单号',
+  status: 'done',
+  result: {
+    answer: '请先登录后继续访问',
+    finalUrl: 'https://portal.example.com/login',
+    pageTitle: '登录',
+  },
+})
+assert.equal(loginWallVerify.ok, false, 'login wall must not verify ok')
+assert.equal(loginWallVerify.reason, 'task_blocked')
+assert.equal(loginWallVerify.failureType, 'need_login')
+
+const loginCopy = buildGuiHumanConfirmMessage({
+  failureType: 'need_login',
+  task: '打开门户订单列表',
+  finalUrl: 'https://portal.example.com/login',
+})
+assert(loginCopy.title.includes('登录') || loginCopy.message.includes('登录'), 'login HITL copy')
+
+const listOk = verifyLobsterRunResult({
+  task: '打开订单列表页并提取前三条订单',
+  status: 'done',
+  result: {
+    answer: '订单1\n订单2\n订单3',
+    finalUrl: 'https://portal.example.com/orders?page=1',
+    items: [{ id: '1' }, { id: '2' }, { id: '3' }],
+  },
+})
+assert.equal(listOk.ok, true, 'list extract with items verifies')
+
+const formFakeOk = verifyLobsterRunResult({
+  task: '打开 https://httpbin.org/forms/post ，填写 custname 为张三',
+  status: 'done',
+  result: {
+    answer: '标题：httpbin forms',
+    finalUrl: 'https://httpbin.org/forms/post',
+    pageTitle: 'httpbin forms',
+    task_kind: 'form_fill',
+  },
+})
+assert.equal(formFakeOk.ok, false, 'form without filled evidence must fail')
+
+const formOk = verifyLobsterRunResult({
+  task: '打开 https://httpbin.org/forms/post ，填写 custname 为张三',
+  status: 'done',
+  result: {
+    answer: '已填写 custname=张三',
+    finalUrl: 'https://httpbin.org/forms/post',
+    task_kind: 'form_fill',
+    filled: [{ name: 'custname', value: '张三' }],
+    filledCount: 1,
+  },
+})
+assert.equal(formOk.ok, true, 'form with filled evidence verifies')
+
 console.log('smoke: gui captcha handoff protocol ok')
 

@@ -76,6 +76,7 @@ def load_special_goldens(folder: Path) -> list[dict[str, Any]]:
                 "question": q,
                 "sql": sql,
                 "tables": [str(t) for t in tables] if isinstance(tables, list) else [],
+                "source": "special",
             }
         )
     return out
@@ -110,6 +111,7 @@ def template_goldens(tables: list[dict[str, Any]], skip_list: set[str]) -> list[
                     "question": count_q,
                     "sql": f"SELECT COUNT(*) AS count FROM {name}",
                     "tables": [name],
+                    "source": "template",
                 }
             )
         cols = _list_cols(table)
@@ -124,6 +126,7 @@ def template_goldens(tables: list[dict[str, Any]], skip_list: set[str]) -> list[
                 "question": list_q,
                 "sql": f"SELECT {', '.join(cols)} FROM {name}",
                 "tables": [name],
+                "source": "template",
             }
         )
     return out
@@ -132,12 +135,16 @@ def template_goldens(tables: list[dict[str, Any]], skip_list: set[str]) -> list[
 def merge_goldens(special: list[dict[str, Any]], templates: list[dict[str, Any]]) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
     seen: set[str] = set()
-    for item in special + templates:
+    for item, default_src in [(x, "special") for x in special] + [(x, "template") for x in templates]:
         q = str(item.get("question") or "").strip()
         if not q or q in seen:
             continue
         seen.add(q)
-        out.append(item)
+        row = dict(item)
+        src = str(row.get("source") or "").strip().lower()
+        if src not in {"special", "template"}:
+            row["source"] = default_src
+        out.append(row)
     return out
 
 

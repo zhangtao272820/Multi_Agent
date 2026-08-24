@@ -47,9 +47,21 @@ def learning_summary(tenant: Tenant) -> dict[str, Any]:
     active = [p for p in live if str(p.get("status") or "") == "active"]
     goldens = load_golden(tenant)
     special = load_special_goldens(tenant_folder(tenant))
+    n_special = sum(1 for g in goldens if str(g.get("source") or "") == "special")
+    n_template = max(0, len(goldens) - n_special)
     return {
-        "learning": {"golden": len(goldens), "special": len(special), "agent": "db"},
-        "metrics": {"golden": len(goldens)},
+        "learning": {
+            "golden": len(goldens),
+            "golden_special": n_special,
+            "golden_template": n_template,
+            "special": len(special),
+            "agent": "db",
+        },
+        "metrics": {
+            "golden": len(goldens),
+            "golden_special": n_special,
+            "golden_template": n_template,
+        },
         "promptPatches": live[-12:],
         "promotablePatches": shadow,
         "evolution": {
@@ -58,7 +70,11 @@ def learning_summary(tenant: Tenant) -> dict[str, Any]:
             "activeCount": len(active),
             "autoPromote": False,
         },
-        "sqlTemplates": {"golden": len(goldens)},
+        "sqlTemplates": {
+            "golden": len(goldens),
+            "golden_special": n_special,
+            "golden_template": n_template,
+        },
         "experienceVectors": {"hits": 0},
         "userPreferences": {},
     }

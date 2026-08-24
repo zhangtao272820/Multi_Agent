@@ -1,6 +1,6 @@
 /**
- * E4：扩展门禁 — Code 结构 + Extractor gate 脚本存在 + Lobster regression 入口。
- * 不跑浏览器在线；结构/脚本存在即过。
+ * E4：扩展门禁 — CodePy 离线 smoke + Extractor gate 脚本存在 + Lobster regression 入口。
+ * 不跑浏览器在线；结构/脚本存在 + 契约 smoke。
  */
 import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url'
 
 const managerRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const repoRoot = path.resolve(managerRoot, '..')
+const codePyRoot = path.join(repoRoot, 'CodePy_Agent')
 
 function mustExist(p, label) {
   if (!fs.existsSync(p)) {
@@ -17,7 +18,10 @@ function mustExist(p, label) {
   }
 }
 
-mustExist(path.join(repoRoot, 'code_assistent_Agent/scripts/gate-code-offline.mjs'), 'code gate')
+mustExist(path.join(codePyRoot, 'scripts/smoke_protocol.py'), 'CodePy smoke_protocol')
+mustExist(path.join(codePyRoot, 'scripts/smoke_fs.py'), 'CodePy smoke_fs')
+mustExist(path.join(codePyRoot, 'scripts/smoke_compute.py'), 'CodePy smoke_compute')
+mustExist(path.join(managerRoot, 'scripts/smoke/protocol/smoke-code-edit-hitl.ts'), 'code edit HITL smoke')
 mustExist(path.join(repoRoot, 'Extractor_Agent/package.json'), 'extractor pkg')
 mustExist(path.join(repoRoot, 'Lobster_Agent/scripts/regression-smoke.mjs'), 'lobster regression')
 mustExist(path.join(repoRoot, 'Lobster_Agent/scripts/smoke-agent-result-trust.ts'), 'lobster J3 agent-result trust')
@@ -38,7 +42,8 @@ const gSmokes = [
   ['smoke:redact', 'G3'],
   ['smoke:latency-baseline', 'G4'],
   ['smoke:evidence-freshness', 'G5'],
-  ['smoke:ws-stream-order', 'G6']
+  ['smoke:ws-stream-order', 'G6'],
+  ['smoke:code-edit-hitl', 'CodeEditHITL']
 ]
 for (const [script, label] of gSmokes) {
   const r = spawnSync('npm', ['run', script], {
@@ -54,17 +59,36 @@ for (const [script, label] of gSmokes) {
   }
 }
 
-const codeGate = spawnSync(process.execPath, ['scripts/gate-code-offline.mjs'], {
-  cwd: path.join(repoRoot, 'code_assistent_Agent'),
-  encoding: 'utf8',
-  shell: false
-})
-if (codeGate.status !== 0) {
-  console.error(codeGate.stdout || '')
-  console.error(codeGate.stderr || '')
-  console.error('gate-e4: code offline gate failed')
-  process.exit(codeGate.status || 1)
+function runPythonSmoke(scriptRel, label) {
+  const scriptPath = path.join(codePyRoot, scriptRel)
+  const pyCandidates = process.platform === 'win32' ? ['python', 'py'] : ['python3', 'python']
+  let last = null
+  for (const py of pyCandidates) {
+    const r = spawnSync(py, [scriptPath], {
+      cwd: codePyRoot,
+      encoding: 'utf8',
+      shell: false,
+      env: { ...process.env, PYTHONUTF8: '1' }
+    })
+    last = r
+    if (r.error && r.error.code === 'ENOENT') continue
+    if (r.status === 0) {
+      console.log(`gate-e4: ${label} ok`)
+      return
+    }
+    console.error(r.stdout || '')
+    console.error(r.stderr || '')
+    console.error(`gate-e4: ${label} failed (${py} ${scriptRel})`)
+    process.exit(r.status || 1)
+  }
+  console.error(last?.error || 'python not found')
+  console.error(`gate-e4: ${label} failed (no python)`)
+  process.exit(1)
 }
+
+runPythonSmoke('scripts/smoke_protocol.py', 'CodePy protocol')
+runPythonSmoke('scripts/smoke_fs.py', 'CodePy fs')
+runPythonSmoke('scripts/smoke_compute.py', 'CodePy compute')
 
 const extPkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'Extractor_Agent/package.json'), 'utf8'))
 if (!extPkg.scripts?.['eval:extractor:gate']) {

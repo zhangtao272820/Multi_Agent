@@ -175,6 +175,18 @@ export async function composeManagerPromptContext(
         if (experienceReplay.scenarioKey) metaPatch.experienceReplayScenarioKey = experienceReplay.scenarioKey
         if (experienceReplay.items?.length > 0) metaPatch.experienceReplayItems = experienceReplay.items.slice(0, 3)
         if (experienceReplay.vectorRecall) metaPatch.experienceVectorRecall = true
+        metaPatch.memoryRecallExplain = {
+          count: experienceReplay.count,
+          injected: (experienceReplay.items || []).slice(0, 3).map((it) => ({
+            id: it.id,
+            type: it.type,
+            score: it.score,
+            scenarioKey: it.scenarioKey,
+            intent: it.intent,
+          })),
+          negativeCount: experienceReplay.negativeCount || 0,
+          vectorRecall: Boolean(experienceReplay.vectorRecall),
+        }
       }
       if (experienceReplay.negativeCount > 0 && !metaPatch.experienceReplayNegativeCount) {
         metaPatch.experienceReplayNegativeCount = experienceReplay.negativeCount

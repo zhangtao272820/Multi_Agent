@@ -299,14 +299,26 @@ export default defineEventHandler(async (event) => {
 
   if (action === 'user_profile_prefs') {
     const userId = String(body?.userId || '').trim()
+    const decision = String(body?.decision || body?.mode || 'set').trim().toLowerCase()
+    const policyDir = resolveManagerPolicyDir(body?.tenantId ? String(body.tenantId) : undefined)
+    const tenantId = body?.tenantId ? String(body.tenantId) : undefined
+    if (decision === 'confirm') {
+      const { confirmPendingUserPrefs } = await import('../../graph/core/memory/userProfile')
+      const profile = await confirmPendingUserPrefs(policyDir, userId, tenantId)
+      return { ok: Boolean(profile), profile, decision: 'confirm' }
+    }
+    if (decision === 'reject') {
+      const { rejectPendingUserPrefs } = await import('../../graph/core/memory/userProfile')
+      const profile = await rejectPendingUserPrefs(policyDir, userId, tenantId)
+      return { ok: Boolean(profile), profile, decision: 'reject' }
+    }
     const prefs = (body?.prefs && typeof body.prefs === 'object' ? body.prefs : {}) as {
       timezone?: string
       preferredAgents?: string[]
       refusePreference?: string
     }
-    const policyDir = resolveManagerPolicyDir(body?.tenantId ? String(body.tenantId) : undefined)
-    const profile = await updateUserProfilePrefs(policyDir, userId, prefs, body?.tenantId ? String(body.tenantId) : undefined)
-    return { ok: Boolean(profile), profile }
+    const profile = await updateUserProfilePrefs(policyDir, userId, prefs, tenantId)
+    return { ok: Boolean(profile), profile, decision: 'set' }
   }
 
   if (action === 'tool_memory_stats') {

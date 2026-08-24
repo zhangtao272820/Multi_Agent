@@ -1,8 +1,20 @@
 from __future__ import annotations
 
+import os
+
 from openai import OpenAI
 
 from app.settings import get_settings
+
+
+def _forbid_live_model() -> None:
+    """契约 smoke 禁止真调模型/向量（省 token）。测试须 mock。"""
+    flag = str(os.getenv("VANNA_SMOKE") or os.getenv("VANNA_FORBID_LLM") or "").strip().lower()
+    if flag in {"1", "true", "yes", "on"}:
+        raise RuntimeError(
+            "llm_forbidden_in_smoke: set VANNA_SMOKE=0 only for intentional live calls; "
+            "contract tests must patch chat_json/run_router/embed_texts"
+        )
 
 
 class LlmMeter:
@@ -106,6 +118,7 @@ def embed_texts(texts: list[str], meter: LlmMeter | None = None) -> list[list[fl
         return []
     if meter and meter.embed_calls >= meter.embed_cap():
         return []
+    _forbid_live_model()
     s = get_settings()
     # 百炼兼容：单请求 batch 过大返回 400 InvalidParameter
     max_batch = 10
@@ -133,6 +146,7 @@ def chat_text(
     answer: bool = False,
 ) -> str:
     _check_llm_budget(meter, answer=answer)
+    _forbid_live_model()
     s = get_settings()
     resp = client().chat.completions.create(
         model=s.openai_model,
@@ -156,6 +170,7 @@ def chat_json(
     repair: bool = False,
 ) -> str:
     _check_llm_budget(meter, repair=repair)
+    _forbid_live_model()
     s = get_settings()
     kwargs = {
         "model": s.openai_model,

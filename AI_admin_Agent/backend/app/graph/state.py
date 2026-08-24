@@ -1845,6 +1845,37 @@ def create_agent_graph():
                                 "thoughts": state["thoughts"],
                                 "pending_actions": state.get("pending_actions") or [],
                             }
+                        elif name in ("send_email", "reply_email", "forward_email", "delete_email"):
+                            from app.core.mail_pending_preview import format_mail_pending_preview
+
+                            action_id = create_pending_action(
+                                session_id, name, processed_args, user_message, understanding
+                            )
+                            preview = format_mail_pending_preview(name, processed_args)
+                            title = str(preview.get("title") or name)
+                            msg = str(preview.get("message") or "【待确认】邮件操作。")
+                            state["thoughts"].append(
+                                f"已阻止高风险工具直接执行，等待确认：{name} [{action_id}] {title}"
+                            )
+                            pending_row = {
+                                "id": int(action_id),
+                                "tool": name,
+                                "title": title,
+                                "time": None,
+                            }
+                            state["pending_actions"] = list(state.get("pending_actions") or []) + [
+                                pending_row
+                            ]
+                            tool_results_by_step[step_index] = action_id
+                            tool_results_last_by_name[name] = action_id
+                            state["verification_result"] = msg
+                            clear_tool_context()
+                            return {
+                                "next_node": "verifying",
+                                "verification_result": state["verification_result"],
+                                "thoughts": state["thoughts"],
+                                "pending_actions": state.get("pending_actions") or [],
+                            }
                         else:
                             action_id = create_pending_action(
                                 session_id, name, processed_args, user_message, understanding

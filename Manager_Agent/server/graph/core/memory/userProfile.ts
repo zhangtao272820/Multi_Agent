@@ -14,6 +14,11 @@ export type UserProfilePrefs = {
   refusePreference?: string
 }
 
+export type PendingUserProfilePrefs = UserProfilePrefs & {
+  proposedAt: string
+  source?: string
+}
+
 export type UserProfile = {
   sessionId: string
   userId?: string
@@ -30,6 +35,8 @@ export type UserProfile = {
   prefersDb?: boolean
   /** 弱 CRM 结构化偏好 */
   prefs?: UserProfilePrefs
+  /** S1.1：热路径提议的 prefs，须显式确认后才写入 prefs */
+  pendingPrefs?: PendingUserProfilePrefs | null
 }
 
 /** Wave6：热路径反馈 → 弱 prefs（不得改 cap） */
@@ -72,7 +79,95 @@ export async function applyHotPathPrefsFromSignal(
   if (!uid) return null
   const patch = prefsPatchFromFeedbackSignal(signal)
   if (!patch) return null
-  return updateUserProfilePrefs(policyDir, uid, patch, signal.tenantId)
+  // S1.1：热路径只提议，不直接写入 prefs
+  return proposeUserProfilePrefs(policyDir, uid, patch, signal.tenantId, 'hot_path_signal')
+}
+
+/** 将 prefs 补丁记为 pending（不合并进正式 prefs） */
+export async function proposeUserProfilePrefs(
+  policyDir: string,
+  userId: string,
+  prefs: UserProfilePrefs,
+  tenantId?: string,
+  source = 'ops'
+): Promise<UserProfile | null> {
+  const uid = sanitizeUserId(userId)
+  if (!uid) return null
+  const prev = await loadUserProfile(policyDir, '', uid, tenantId)
+  const pending: PendingUserProfilePrefs = {
+    ...prefs,
+    preferredAgents: prefs.preferredAgents,
+    proposedAt: new Date().toISOString(),
+    source,
+  }
+  const next: UserProfile = {
+    sessionId: prev?.sessionId || '',
+    userId: uid,
+    updatedAt: new Date().toISOString(),
+    runCount: prev?.runCount || 1,
+    successCount: prev?.successCount || 0,
+    intentCounts: prev?.intentCounts || {},
+    recentSuccessSummaries: prev?.recentSuccessSummaries || [],
+    lastIntent: prev?.lastIntent,
+    lastPath: prev?.lastPath,
+    lastScenarioKey: prev?.lastScenarioKey,
+    prefersRag: prev?.prefersRag,
+    prefersDb: prev?.prefersDb,
+    prefs: prev?.prefs,
+    pendingPrefs: pending,
+  }
+  return persistUserProfile(policyDir, uid, next, tenantId)
+}
+
+/** 显式确认：pending → prefs，并清空 pending */
+export async function confirmPendingUserPrefs(
+  policyDir: string,
+  userId: string,
+  tenantId?: string
+): Promise<UserProfile | null> {
+  const uid = sanitizeUserId(userId)
+  if (!uid) return null
+  const prev = await loadUserProfile(policyDir, '', uid, tenantId)
+  const pending = prev?.pendingPrefs
+  if (!pending) return prev
+  const { proposedAt: _a, source: _s, ...prefsPatch } = pending
+  const merged = await updateUserProfilePrefs(policyDir, uid, prefsPatch, tenantId)
+  if (!merged) return null
+  const cleared: UserProfile = { ...merged, pendingPrefs: null }
+  return persistUserProfile(policyDir, uid, cleared, tenantId)
+}
+
+/** 拒绝提议：清空 pending，不改 prefs */
+export async function rejectPendingUserPrefs(
+  policyDir: string,
+  userId: string,
+  tenantId?: string
+): Promise<UserProfile | null> {
+  const uid = sanitizeUserId(userId)
+  if (!uid) return null
+  const prev = await loadUserProfile(policyDir, '', uid, tenantId)
+  if (!prev) return null
+  if (!prev.pendingPrefs) return prev
+  const next: UserProfile = { ...prev, pendingPrefs: null, updatedAt: new Date().toISOString() }
+  return persistUserProfile(policyDir, uid, next, tenantId)
+}
+
+async function persistUserProfile(
+  policyDir: string,
+  uid: string,
+  next: UserProfile,
+  tenantId?: string
+): Promise<UserProfile> {
+  const backend = profileStorageBackend()
+  if (shouldWritePostgres(backend)) {
+    await savePgUserProfile(uid, next, tenantId)
+  }
+  if (shouldWriteFile(backend) || !isPgProfileEnabled()) {
+    const all = await readProfiles(policyDir)
+    all[userKey(uid)] = next
+    await writeProfiles(policyDir, all)
+  }
+  return next
 }
 
 /** Trace / ops 可读的弱画像摘要（非 CRM 产品） */
@@ -84,7 +179,8 @@ export function summarizeWeakProfileForTrace(profile: UserProfile | null): Recor
     lastIntent: profile.lastIntent || null,
     prefersRag: Boolean(profile.prefersRag),
     prefersDb: Boolean(profile.prefersDb),
-    prefs: profile.prefs || null
+    prefs: profile.prefs || null,
+    pendingPrefs: profile.pendingPrefs || null,
   }
 }
 
@@ -148,6 +244,23 @@ function coerceProfile(raw: unknown, fallbackSessionId = ''): UserProfile | null
           : undefined,
       }
     : undefined
+  const pendingRaw =
+    o.pendingPrefs && typeof o.pendingPrefs === 'object' ? (o.pendingPrefs as Record<string, unknown>) : null
+  const pendingPrefs: PendingUserProfilePrefs | null | undefined = pendingRaw
+    ? {
+        timezone: pendingRaw.timezone ? String(pendingRaw.timezone).slice(0, 64) : undefined,
+        preferredAgents: Array.isArray(pendingRaw.preferredAgents)
+          ? pendingRaw.preferredAgents.map((x) => String(x || '').trim()).filter(Boolean).slice(0, 8)
+          : undefined,
+        refusePreference: pendingRaw.refusePreference
+          ? String(pendingRaw.refusePreference).slice(0, 200)
+          : undefined,
+        proposedAt: String(pendingRaw.proposedAt || new Date().toISOString()),
+        source: pendingRaw.source ? String(pendingRaw.source).slice(0, 64) : undefined,
+      }
+    : o.pendingPrefs === null
+      ? null
+      : undefined
   return {
     sessionId: String(o.sessionId || fallbackSessionId || ''),
     userId: o.userId ? String(o.userId) : undefined,
@@ -162,6 +275,7 @@ function coerceProfile(raw: unknown, fallbackSessionId = ''): UserProfile | null
     prefersRag: Boolean(o.prefersRag),
     prefersDb: Boolean(o.prefersDb),
     prefs,
+    pendingPrefs,
   }
 }
 
@@ -233,7 +347,7 @@ function mergeProfiles(session: UserProfile | null, user: UserProfile | null): U
   }
 }
 
-/** 更新弱 CRM prefs（不改路由 cap；仅注入 composer hint） */
+/** 更新弱 CRM prefs（不改路由 cap；仅注入 composer hint）；显式 set 时保留 pending */
 export async function updateUserProfilePrefs(
   policyDir: string,
   userId: string,
@@ -261,17 +375,9 @@ export async function updateUserProfilePrefs(
       ...prefs,
       preferredAgents: prefs.preferredAgents ?? prev?.prefs?.preferredAgents,
     },
+    pendingPrefs: prev?.pendingPrefs ?? null,
   }
-  const backend = profileStorageBackend()
-  if (shouldWritePostgres(backend)) {
-    await savePgUserProfile(uid, next, tenantId)
-  }
-  if (shouldWriteFile(backend) || !isPgProfileEnabled()) {
-    const all = await readProfiles(policyDir)
-    all[userKey(uid)] = next
-    await writeProfiles(policyDir, all)
-  }
-  return next
+  return persistUserProfile(policyDir, uid, next, tenantId)
 }
 
 function applyRunToProfile(
@@ -307,6 +413,7 @@ function applyRunToProfile(
     prefersRag: Boolean(run.probeRagHits && run.probeRagHits > 0) || prev?.prefersRag,
     prefersDb: Boolean(run.probeDbMatched) || prev?.prefersDb,
     prefs: prev?.prefs,
+    pendingPrefs: prev?.pendingPrefs ?? null,
   }
 
   if (score >= 0.75) {

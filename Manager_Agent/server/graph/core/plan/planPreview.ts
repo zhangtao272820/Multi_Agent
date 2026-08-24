@@ -14,6 +14,7 @@ import { planAgentLabel } from '../runtime/phaseLabels'
 import { buildRoutePlanCardFromState, type RoutePlanCardPayload } from '../routing/routePlanCard'
 import { llmUpgradeRequiresPlanPreview } from './planUpgrade'
 import { resolveAdminAutoConfirmDecision } from '../executors/autoConfirmAudit'
+import { codeEditAutoConfirmEnabled, isCodeEditHitlEnabled } from '../../../utils/code/codeHumanConfirm'
 
 export type PlanPreviewStepItem = {
   id: string
@@ -58,8 +59,30 @@ export function planPreviewMinSteps(): number {
   return Number.isFinite(n) && n >= 2 ? Math.min(12, Math.floor(n)) : 3
 }
 
+/** code 步是否写盘意图（taskForm / task_kind，非用户原话 regex） */
+export function isCodeWriteSideStep(step: {
+  agent?: string
+  taskForm?: string
+  task_kind?: string
+  taskKind?: string
+  writeAllowed?: boolean
+}): boolean {
+  const ag = String(step?.agent || '').toLowerCase()
+  if (ag !== 'code') return false
+  const form = String(step.taskForm || '').toLowerCase()
+  const kind = String(step.task_kind || step.taskKind || '').toLowerCase()
+  if (Boolean(step.writeAllowed)) return true
+  if (kind === 'edit' || kind === 'script') return true
+  if (form.includes('edit') || form.includes('write') || form.includes('patch')) return true
+  return false
+}
+
 export function planHasWriteSideEffects(steps: Step[]): boolean {
-  return (Array.isArray(steps) ? steps : []).some((s) => WRITE_SIDE_AGENTS.has(String(s?.agent || '').toLowerCase()))
+  return (Array.isArray(steps) ? steps : []).some((s) => {
+    const ag = String(s?.agent || '').toLowerCase()
+    if (WRITE_SIDE_AGENTS.has(ag)) return true
+    return isCodeWriteSideStep(s as { agent?: string; taskForm?: string })
+  })
 }
 
 /**
@@ -80,7 +103,14 @@ export function resolvePlanApproveTier(state: {
   const writeSide = planHasWriteSideEffects(steps)
   if (writeSide || risk >= 0.65 || posture === 'clarify_first') return 'strict'
   const readOnlyAgents = new Set(['db', 'rag', 'code', 'clean', 'visualize', 'report', 'crawler', 'multimodal'])
-  const allReadOnly = steps.length > 0 && steps.every((s) => readOnlyAgents.has(String(s.agent || '').toLowerCase()))
+  const allReadOnly =
+    steps.length > 0 &&
+    steps.every((s) => {
+      const ag = String(s.agent || '').toLowerCase()
+      if (!readOnlyAgents.has(ag)) return false
+      if (isCodeWriteSideStep(s as { agent?: string; taskForm?: string })) return false
+      return true
+    })
   const min = planPreviewMinSteps()
   if (allReadOnly && risk < 0.4 && steps.length < min) return 'auto'
   if (allReadOnly && risk < 0.35 && steps.length <= min && posture === 'aggressive') return 'auto'
@@ -161,6 +191,18 @@ export function buildPlanPreviewPayload(
       if (ag === 'gui' && !(state?.meta as { allowRiskyWrites?: boolean } | undefined)?.allowRiskyWrites) {
         confirmMode = 'hitl'
         confirmReason = confirmReason || 'gui_default_hitl'
+      }
+    } else if (isCodeWriteSideStep({ ...(s as object), agent } as { agent?: string; taskForm?: string })) {
+      if (codeEditAutoConfirmEnabled()) {
+        confirmMode = 'auto_confirm'
+        confirmReason = 'code_edit_auto_confirm'
+      } else if (isCodeEditHitlEnabled()) {
+        confirmMode = 'hitl'
+        confirmReason = 'code_edit_hitl'
+      } else {
+        // 写盘意图：预览层仍标 hitl 预告，实际执行仍受 MANAGER_CODE_EDIT_HITL / write_allowed 约束
+        confirmMode = 'hitl'
+        confirmReason = 'code_edit_default_preview_hitl'
       }
     }
     const taskForm = String((s as { taskForm?: string }).taskForm || '').trim().slice(0, 40)

@@ -1,4 +1,8 @@
-"""契约 smoke：不调 LLM、不连业务库、不发副作用。"""
+"""契约 smoke：不调 LLM、不连业务库、不发副作用。
+
+默认 VANNA_SMOKE=1：app.llm 拒绝真实 chat/embed，漏 mock 会立刻失败而非烧 token。
+联机脚本：scripts/live_p2026_manager_cases.py（须显式 VANNA_SMOKE=0）。
+"""
 from __future__ import annotations
 
 import os
@@ -7,6 +11,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+os.environ["VANNA_SMOKE"] = "1"
 os.environ["VANNA_AUTO_INGEST"] = "false"
 os.environ["VANNA_CHECKPOINT_DEFAULT"] = "true"
 os.environ["VANNA_POLISH"] = "true"
@@ -38,6 +43,58 @@ def sample_tenant() -> Tenant:
         table_whitelist_prefixes=["PC_", "Cultivate_"],
         table_whitelist=["Sys_Student", "Sys_User"],
     )
+
+
+_P2604_GOLDEN_Q = "目前突发事件有几个，分别是什么"
+_P2604_GOLDEN_SQL = (
+    "SELECT Name, Type FROM Cultivate_Examination WHERE deleted = 0 ORDER BY id LIMIT 50"
+)
+
+
+def _p2604_golden_route() -> dict:
+    return {
+        "path": "golden",
+        "intent": "list",
+        "data_domain": "general",
+        "tables": ["Cultivate_Examination"],
+        "entities": {"names": [], "locations": []},
+        "filters": {"time_range": {"relative": "", "start": "", "end": ""}, "slots": []},
+        "join_needed": False,
+        "golden_ok": True,
+        "confidence": 0.95,
+        "reason": "smoke mock golden",
+        "clarify": "",
+        "need_clarify": False,
+    }
+
+
+def _p2604_golden_hit() -> dict:
+    return {
+        "kind": "golden",
+        "score": 1.0,
+        "document": _P2604_GOLDEN_Q,
+        "sql": _P2604_GOLDEN_SQL,
+        "tables": ["Cultivate_Examination"],
+        "source": "special",
+    }
+
+
+def _patch_ask_no_llm():
+    """HTTP ask / mcp preview 共用：禁止真 LLM/embed。"""
+    from contextlib import contextmanager
+    from unittest.mock import patch
+
+    @contextmanager
+    def _ctx():
+        with (
+            patch("app.engine.retrieve", return_value=[_p2604_golden_hit()]),
+            patch("app.engine.run_router", return_value=_p2604_golden_route()),
+            patch("app.engine.catalog_nonempty", return_value=True),
+            patch("app.engine.pick_golden_sql", return_value=_p2604_golden_hit()),
+        ):
+            yield
+
+    return _ctx()
 
 
 def test_guard() -> None:
@@ -107,7 +164,26 @@ def test_scenes() -> None:
     assert_true(get_scene("saas").id == "embed", "saas alias")
 
 
+def _mock_golden_route(*, tables: list[str] | None = None, intent: str = "count") -> dict:
+    return {
+        "path": "golden",
+        "intent": intent,
+        "data_domain": "general",
+        "tables": tables or ["Cultivate_Examination"],
+        "entities": {"names": [], "locations": []},
+        "filters": {"time_range": {"relative": "", "start": "", "end": ""}, "slots": []},
+        "join_needed": intent == "join",
+        "golden_ok": True,
+        "confidence": 0.95,
+        "reason": "语义一致",
+        "clarify": "",
+        "need_clarify": False,
+    }
+
+
 def test_stub_and_checkpoint() -> None:
+    from unittest.mock import patch
+
     tenant = sample_tenant()
     stub_events = list(
         run_turn(tenant=tenant, scene=get_scene("embed"), question="按商户查老人", confirm=False)
@@ -118,23 +194,25 @@ def test_stub_and_checkpoint() -> None:
     assert_true("建设中" in str(answer.get("text") or ""), "stub message")
     assert_true(answer.get("cost", {}).get("llm_calls", 1) == 0, "stub uses no LLM")
 
-    events = list(
-        run_turn(
-            tenant=tenant,
-            scene=get_scene("assistant"),
-            question="目前突发事件有几个，分别是什么",
-            confirm=False,
+    with patch("app.engine.run_router", return_value=_mock_golden_route()) as mock_route:
+        events = list(
+            run_turn(
+                tenant=tenant,
+                scene=get_scene("assistant"),
+                question="目前突发事件有几个，分别是什么",
+                confirm=False,
+            )
         )
-    )
+    assert_true(mock_route.called, "Understand runs before golden SQL")
     kinds = [e.get("event") for e in events]
     sql_ev = next(e for e in events if e.get("event") == "sql")
     answer = next(e for e in events if e.get("event") == "answer")
     assert_true("checkpoint" in kinds, "checkpoint must block execute")
     assert_true("execute" not in kinds, "must not execute before confirm")
-    assert_true(sql_ev.get("source") == "golden", "golden SQL without LLM")
+    assert_true(sql_ev.get("source") == "golden", "golden SQL after Understand")
     assert_true("Cultivate_Examination" in str(sql_ev.get("sql") or ""), "emergency table")
     assert_true(answer.get("checkpoint") is True, "answer flags checkpoint")
-    assert_true(answer.get("cost", {}).get("llm_calls", 1) == 0, "golden path llm_calls=0")
+    assert_true(answer.get("cost", {}).get("llm_calls", 1) == 0, "smoke mocks Understand (no real LLM)")
     assert_true(bool(answer.get("pending_id")), "pending id issued")
 
     from app.catalog import exact_golden, pick_golden_sql, retrieve, schema_table_hits
@@ -150,29 +228,37 @@ def test_stub_and_checkpoint() -> None:
         "particle strip equals golden",
     )
 
-    polite_events = list(
-        run_turn(
-            tenant=tenant,
-            scene=get_scene("assistant"),
-            question="请问目前突发事件有几个，分别是什么呢",
-            confirm=False,
+    with patch("app.engine.run_router", return_value=_mock_golden_route()) as mock_polite:
+        polite_events = list(
+            run_turn(
+                tenant=tenant,
+                scene=get_scene("assistant"),
+                question="请问目前突发事件有几个，分别是什么呢",
+                confirm=False,
+            )
         )
-    )
+    assert_true(mock_polite.called, "polite question still runs Understand")
     polite_sql = next(e for e in polite_events if e.get("event") == "sql")
     polite_ans = next(e for e in polite_events if e.get("event") == "answer")
-    assert_true(polite_sql.get("source") == "golden", "polite question stays golden 0-LLM")
-    assert_true(polite_ans.get("cost", {}).get("llm_calls", 1) == 0, "polite golden uses no llm")
+    assert_true(polite_sql.get("source") == "golden", "polite question golden after Understand")
+    assert_true(polite_ans.get("cost", {}).get("llm_calls", 1) == 0, "smoke mocks Understand")
 
-    join_ev = list(
-        run_turn(
-            tenant=tenant,
-            scene=get_scene("assistant"),
-            question="分组里有哪些学生",
-            confirm=False,
+    with patch(
+        "app.engine.run_router",
+        return_value=_mock_golden_route(
+            tables=["PC_PersonGroup", "PC_PersonGroupItem"], intent="join"
+        ),
+    ):
+        join_ev = list(
+            run_turn(
+                tenant=tenant,
+                scene=get_scene("assistant"),
+                question="分组里有哪些学生",
+                confirm=False,
+            )
         )
-    )
     join_sql = next(e for e in join_ev if e.get("event") == "sql")
-    assert_true(join_sql.get("source") == "golden", "join golden exact")
+    assert_true(join_sql.get("source") == "golden", "join golden after Understand")
     assert_true("JOIN" in str(join_sql.get("sql") or "").upper(), "join golden has JOIN")
 
     mixed = retrieve(tenant, "人员分组有哪些以及每个分组的学生", LlmMeter())
@@ -224,15 +310,16 @@ def test_api_ready() -> None:
         assert_true(len(meta.get("scenes") or []) >= 7, "meta scenes")
         page = client.get("/")
         assert_true(page.status_code == 200 and "Vanna" in page.text, "frontend index")
-        ask = client.post(
-            "/api/ask",
-            json={
-                "question": "目前突发事件有几个，分别是什么",
-                "tenant": "p2604",
-                "scene": "assistant",
-                "confirm": False,
-            },
-        )
+        with _patch_ask_no_llm():
+            ask = client.post(
+                "/api/ask",
+                json={
+                    "question": _P2604_GOLDEN_Q,
+                    "tenant": "p2604",
+                    "scene": "assistant",
+                    "confirm": False,
+                },
+            )
         body = ask.json()
         events = [e.get("event") for e in body.get("events") or []]
         assert_true("checkpoint" in events, "ask checkpoint")
@@ -245,7 +332,7 @@ def test_api_ready() -> None:
         assert_true(ar.get("ok") is True, "preview still ok")
         health = client.get("/api/health").json()
         assert_true(health.get("ok") is True, "health")
-        bad_db = client.post("/api/ask", json={"question": "目前突发事件有几个，分别是什么", "dbId": "no-such-tenant"})
+        bad_db = client.post("/api/ask", json={"question": _P2604_GOLDEN_Q, "dbId": "no-such-tenant"})
         assert_true(bad_db.status_code == 400, "unknown dbId is 400")
         sess = client.post("/api/sessions", json={"tenant": "p2604", "scene": "assistant"})
         assert_true(sess.status_code == 200 and sess.json().get("id"), "create session")
@@ -254,16 +341,17 @@ def test_api_ready() -> None:
         assert_true(any(x.get("id") == sid for x in listed.get("items") or []), "session listed")
         got = client.get(f"/api/sessions/{sid}").json()
         assert_true(got.get("messages") == [], "new session empty")
-        ask_mem = client.post(
-            "/api/ask",
-            json={
-                "question": "目前突发事件有几个，分别是什么",
-                "tenant": "p2604",
-                "scene": "assistant",
-                "session_id": sid,
-                "confirm": False,
-            },
-        )
+        with _patch_ask_no_llm():
+            ask_mem = client.post(
+                "/api/ask",
+                json={
+                    "question": _P2604_GOLDEN_Q,
+                    "tenant": "p2604",
+                    "scene": "assistant",
+                    "session_id": sid,
+                    "confirm": False,
+                },
+            )
         body_mem = ask_mem.json()
         assert_true("checkpoint" in [e.get("event") for e in body_mem.get("events") or []], "session ask checkpoint")
         stored = client.get(f"/api/sessions/{sid}").json()
@@ -291,17 +379,17 @@ def test_api_ready() -> None:
         assert_true(cut.status_code == 200, "truncate ok")
         empty = client.get(f"/api/sessions/{sid}").json()
         assert_true((empty.get("messages") or []) == [], "truncate clears from user")
-        # truncate_from_message 契约
-        append_again = client.post(
-            "/api/ask",
-            json={
-                "question": "目前突发事件有几个，分别是什么",
-                "tenant": "p2604",
-                "scene": "assistant",
-                "session_id": sid,
-                "confirm": False,
-            },
-        )
+        with _patch_ask_no_llm():
+            append_again = client.post(
+                "/api/ask",
+                json={
+                    "question": _P2604_GOLDEN_Q,
+                    "tenant": "p2604",
+                    "scene": "assistant",
+                    "session_id": sid,
+                    "confirm": False,
+                },
+            )
         assert_true(append_again.status_code == 200, "re-ask after truncate")
         again = client.get(f"/api/sessions/{sid}").json().get("messages") or []
         assert_true(len(again) >= 2, "messages after re-ask")
@@ -417,18 +505,20 @@ def test_budget_and_ui() -> None:
 
 
 def test_not_in_manager() -> None:
+    """总管已切 Vanna：compose 指向 vanna_db_agent；契约 smoke 仍禁止烧 token。"""
     repo = ROOT.parent
-    endpoints = (repo / "Manager_Agent/server/utils/platform/agentEndpoints.ts").read_text(encoding="utf-8")
-    assert_true("13121" not in endpoints, "Manager must not point at Vanna")
-    assert_true("vanna" not in endpoints.lower(), "Manager endpoints must not name vanna")
     compose = (repo / "Manage-platform_Agent/docker-compose.agents-lan.yml").read_text(encoding="utf-8")
-    # Manager service still uses old db_agent; Vanna is an extra independent service
-    mgr_block = compose.split("manager_agent:")[1].split("\n  ")[0] if "manager_agent:" in compose else compose
-    assert_true("DB_AGENT_HTTP_URL: http://db_agent:13101" in compose, "old db agent url stays")
-    assert_true("vanna_db_agent" in compose, "vanna attached as independent compose service")
+    assert_true("vanna_db_agent:13121" in compose, "manager DB leg points at vanna")
+    assert_true("MANAGER_DB_ID: ${MANAGER_DB_ID:-p2026}" in compose or "MANAGER_DB_ID:-p2026" in compose, "default dbId p2026")
+    assert_true("vanna_db_agent" in compose, "vanna service present")
     assert_true("VANNA_MAX_INGEST_EMBED_CALLS" in compose, "compose splits ingest embed budget")
     assert_true("VANNA_MAX_REPAIR_LLM_CALLS" in compose, "compose allows execute-fail repair")
-    _ = mgr_block
+    # 勿用 split("manager_agent:")：image 行也含该子串
+    start = compose.find("\n  manager_agent:\n")
+    end = compose.find("\n  multimodal_agent:\n", start + 1) if start >= 0 else -1
+    mgr = compose[start:end] if start >= 0 and end > start else ""
+    assert_true("DB_AGENT_HTTP_URL: http://vanna_db_agent:13121" in mgr, "manager env uses vanna http")
+    assert_true("db_agent:13101" not in mgr, "manager env must not use old db_agent")
 
 
 def test_ingest_embed_budget() -> None:
@@ -805,15 +895,97 @@ def test_empty_clarify_zero_llm() -> None:
     assert_true(understand.get("reason") == "empty_catalog", "empty_catalog reason")
 
 
+def test_understand_always_for_exact_golden() -> None:
+    """精确黄金问句也必须先走 Understand LLM，禁止 0-LLM exact_golden 短路。"""
+    from unittest.mock import patch
+
+    tenant = sample_tenant()
+    golden_hit = {
+        "kind": "golden",
+        "score": 1.0,
+        "document": "老人库有多少人",
+        "sql": "SELECT COUNT(*) AS count FROM PC_OldPeople",
+        "tables": ["PC_OldPeople"],
+    }
+    route = {
+        "path": "golden",
+        "intent": "count",
+        "data_domain": "general",
+        "tables": ["PC_OldPeople"],
+        "entities": {"names": [], "locations": []},
+        "filters": {"time_range": {"relative": "", "start": "", "end": ""}, "slots": []},
+        "join_needed": False,
+        "golden_ok": True,
+        "reason": "语义一致",
+        "clarify": "",
+        "need_clarify": False,
+    }
+    with (
+        patch("app.engine.retrieve", return_value=[golden_hit]),
+        patch("app.engine.run_router", return_value=route) as mock_route,
+        patch("app.engine.catalog_nonempty", return_value=True),
+        patch("app.engine.run_select", return_value=[{"count": 922}]),
+        patch("app.engine.chat_text", return_value="老人库共有 922 人。"),
+    ):
+        events = list(
+            run_turn(
+                tenant=tenant,
+                scene=get_scene("assistant"),
+                question="老人库有多少人",
+                confirm=True,
+            )
+        )
+    assert_true(mock_route.called, "Understand must run even for exact golden")
+    answer = next(e for e in events if e.get("event") == "answer")
+    sql_ev = next(e for e in events if e.get("event") == "sql")
+    assert_true(sql_ev.get("source") == "golden", "golden path after Understand")
+
+
+def test_plan_slots_in_sql_prompt() -> None:
+    """Understand 槽位必须注入 SQL prompt 的必须过滤块。"""
+    from app.engine import _sql_prompt
+    from app.scenes import get_scene
+
+    tenant = sample_tenant()
+    route = {
+        "path": "llm_sql",
+        "intent": "list",
+        "data_domain": "person_health",
+        "tables": ["person_info", "person_health_records"],
+        "entities": {"names": ["龙奶奶"], "locations": []},
+        "filters": {
+            "time_range": {"relative": "最近一周", "start": "", "end": ""},
+            "slots": [{"field_hint": "姓名", "value": "龙奶奶", "sql_match_value": "龙奶奶"}],
+        },
+        "join_needed": True,
+    }
+    from app.router import plan_to_must_filters
+
+    prompt = _sql_prompt(
+        tenant,
+        get_scene("assistant"),
+        "龙奶奶最近一周健康指标怎么样",
+        [],
+        must_filters=plan_to_must_filters(route),
+    )
+    assert_true("必须过滤" in prompt, "must_filters block present")
+    assert_true("龙奶奶" in prompt, "name slot in prompt")
+    assert_true("最近一周" in prompt, "time range in prompt")
+
+
 def test_weak_schema_link_uses_router() -> None:
-    """词表链不上「二层组」时仍走 LLM Router 读表目录，再裁剪卡片写 SQL；禁止 no_schema_link。"""
+    """词表链不上时仍走 LLM Understand，再裁剪卡片写 SQL；禁止 no_schema_link。"""
     from unittest.mock import patch
 
     tenant = sample_tenant()
     route = {
         "path": "llm_sql",
         "intent": "list",
+        "data_domain": "general",
         "tables": ["PC_PersonGroup", "PC_PersonGroupItem"],
+        "entities": {"names": [], "locations": []},
+        "filters": {"time_range": {"relative": "", "start": "", "end": ""}, "slots": []},
+        "join_needed": True,
         "golden_ok": False,
         "reason": "口语二层组→人员分组",
         "clarify": "",
@@ -917,6 +1089,10 @@ def test_manager_path_skips_checkpoint() -> None:
 
     tenant = sample_tenant()
     with (
+        patch("app.engine.retrieve", return_value=[_p2604_golden_hit()]),
+        patch("app.engine.run_router", return_value=_p2604_golden_route()),
+        patch("app.engine.catalog_nonempty", return_value=True),
+        patch("app.engine.pick_golden_sql", return_value=_p2604_golden_hit()),
         patch("app.engine.run_select", return_value=[{"Name": "事件A"}]),
         patch("app.engine.chat_text", return_value="目前有 1 场突发事件。"),
     ):
@@ -1065,21 +1241,22 @@ def test_mcp_and_learning_http() -> None:
             names == {"schema_search", "preview_sql", "confirm_sql", "promote_golden"},
             f"four mcp tools, got {names}",
         )
-        preview = client.post(
-            "/api/mcp",
-            json={
-                "method": "tools/call",
-                "id": 2,
-                "params": {
-                    "name": "preview_sql",
-                    "arguments": {
-                        "question": "目前突发事件有几个，分别是什么",
-                        "tenant": "p2604",
+        with _patch_ask_no_llm():
+            preview = client.post(
+                "/api/mcp",
+                json={
+                    "method": "tools/call",
+                    "id": 2,
+                    "params": {
+                        "name": "preview_sql",
+                        "arguments": {
+                            "question": _P2604_GOLDEN_Q,
+                            "tenant": "p2604",
+                        },
                     },
                 },
-            },
-        ).json()
-        result = preview.get("result") or {}
+            )
+        result = preview.json().get("result") or {}
         assert_true(result.get("checkpoint") is True, "mcp preview still checkpoints")
         assert_true(bool(result.get("pending_id")), "mcp preview pending")
         assert_true("Cultivate_Examination" in str(result.get("sql") or ""), "mcp preview sql")
@@ -1092,14 +1269,15 @@ def test_mcp_and_learning_http() -> None:
         assert_true(bad.status_code == 400, "promote without id rejected")
         plan = client.post(
             "/api/plan",
-            json={"question": "目前突发事件有几个，分别是什么", "tenant": "p2604"},
+            json={"question": _P2604_GOLDEN_Q, "tenant": "p2604"},
         ).json()
-        assert_true(plan.get("path") == "golden", "plan golden 0-LLM")
+        assert_true(plan.get("path") == "golden", "plan golden candidate")
         probe = client.post(
             "/api/probe",
-            json={"question": "目前突发事件有几个，分别是什么", "tenant": "p2604"},
+            json={"question": _P2604_GOLDEN_Q, "tenant": "p2604"},
         ).json()
-        assert_true(probe.get("llm") is False and probe.get("golden") is True, "probe 0-LLM")
+        assert_true(probe.get("golden") is True, "probe golden hit")
+        assert_true(probe.get("llm") is True, "full ask path needs Understand LLM")
 
 
 def test_experience_no_pg() -> None:
@@ -1169,6 +1347,7 @@ def test_manager_ask_fixture() -> None:
 
     with TestClient(app) as client:
         with (
+            _patch_ask_no_llm(),
             patch("app.engine.run_select", return_value=[{"Name": "事件A"}]),
             patch("app.engine.chat_text", return_value="目前有 1 场。"),
         ):
@@ -1180,7 +1359,7 @@ def test_manager_ask_fixture() -> None:
                     "dbId": "p2604",
                     "managerTask": {
                         "source": "manager",
-                        "refined_question": "目前突发事件有几个，分别是什么",
+                        "refined_question": _P2604_GOLDEN_Q,
                         "turn_scope": {
                             "mode": "current_only",
                             "suppress_history": True,
@@ -1198,6 +1377,94 @@ def test_manager_ask_fixture() -> None:
         assert_true(ar.get("agent") == "db", "manager agentResult db")
 
 
+def test_filter_gate_and_router_confidence() -> None:
+    from app.filter_gate import assert_plan_filters
+    from app.router import parse_router
+
+    plan = {
+        "path": "llm_sql",
+        "filters": {
+            "time_range": {"relative": "最近一周", "start": "", "end": ""},
+            "slots": [{"field_hint": "姓名", "value": "陈明宇", "sql_match_value": "陈明宇"}],
+        },
+        "entities": {"names": ["陈明宇"], "locations": []},
+    }
+    ok = assert_plan_filters(
+        "SELECT * FROM remote_activity_foot_log WHERE person_name='陈明宇' "
+        "AND create_time >= DATE_SUB(NOW(), INTERVAL 7 DAY)",
+        plan,
+    )
+    assert_true(ok.ok, "ok sql passes person gate")
+    bad = assert_plan_filters("SELECT COUNT(*) FROM remote_activity_foot_log", plan)
+    assert_true(not bad.ok, "missing name fails gate")
+    assert_true(any("陈明宇" in m for m in bad.missing), "missing name reported")
+    # 年龄/枚举不硬拦：模型主导写 SQL
+    soft = assert_plan_filters(
+        "SELECT is_gender, COUNT(*) FROM person_info WHERE age BETWEEN 70 AND 79 GROUP BY is_gender",
+        {
+            "filters": {
+                "slots": [
+                    {"field_hint": "年龄", "sql_match_value": "70,79"},
+                    {"field_hint": "性别", "sql_match_value": "1"},
+                ],
+                "time_range": {},
+            },
+            "entities": {"names": []},
+        },
+    )
+    assert_true(soft.ok, "age/gender slots are not hard-gated")
+
+    demoted = parse_router(
+        {
+            "path": "golden",
+            "intent": "count",
+            "tables": ["person_info"],
+            "confidence": 0.5,
+            "golden_ok": True,
+            "filters": {"time_range": {}, "slots": []},
+            "entities": {"names": [], "locations": []},
+        },
+        tenant=None,
+    )
+    assert_true(demoted["path"] == "llm_sql", "low confidence demotes golden")
+    clarify = parse_router(
+        {
+            "path": "llm_sql",
+            "intent": "list",
+            "tables": [],
+            "confidence": 0.1,
+            "filters": {"time_range": {}, "slots": []},
+            "entities": {"names": [], "locations": []},
+        },
+        tenant=None,
+    )
+    assert_true(clarify["path"] == "clarify", "low conf empty tables → clarify")
+
+
+def test_nl_eval_contract() -> None:
+    import importlib.util
+
+    path = ROOT / "scripts" / "eval_nl_contract.py"
+    spec = importlib.util.spec_from_file_location("eval_nl_contract", path)
+    assert_true(spec is not None and spec.loader is not None, "eval_nl_contract loadable")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    fails = mod.run_nl_eval("p2026")
+    assert_true(not fails, "nl_eval failures: " + "; ".join(fails[:5]))
+
+
+def test_golden_source_metering() -> None:
+    from app.bootstrap import merge_goldens
+
+    merged = merge_goldens(
+        [{"question": "a", "sql": "SELECT 1", "tables": ["t"], "source": "special"}],
+        [{"question": "b", "sql": "SELECT 2", "tables": ["t"]}],
+    )
+    by_q = {g["question"]: g for g in merged}
+    assert_true(by_q["a"]["source"] == "special", "special tagged")
+    assert_true(by_q["b"]["source"] == "template", "template tagged")
+
+
 def main() -> None:
     test_guard()
     test_scenes()
@@ -1210,10 +1477,15 @@ def main() -> None:
     test_present_from_comments()
     test_samples_on_cards()
     test_skills_metrics_prompt()
+    test_understand_always_for_exact_golden()
+    test_plan_slots_in_sql_prompt()
     test_empty_clarify_zero_llm()
     test_weak_schema_link_uses_router()
     test_promote_golden_dedup()
     test_manager_path_skips_checkpoint()
+    test_filter_gate_and_router_confidence()
+    test_nl_eval_contract()
+    test_golden_source_metering()
     test_chart_types()
     test_fk_seed_joins_and_template()
     test_protocol_envelope()

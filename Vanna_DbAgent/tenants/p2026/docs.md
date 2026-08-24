@@ -108,8 +108,12 @@
 
 ## 常用 JOIN
 
-- ：`bed_info`, `elderly_info`。`bed_info.elderly_id = elderly_info.id`
-- ：`bed_info`, `floor_info`。`bed_info.floor_id = floor_info.id`
+- 按姓名查健康指标/体检/生命体征：`person_info`, `person_health_records`。`person_health_records.person_id = person_info.id`
+- 足底压力区域/分区/重心明细：`remote_activity_foot_log`, `remote_activity_foot_measure_log`。`remote_activity_foot_measure_log.foot_log_id = remote_activity_foot_log.id`
+- 床位与老人：`bed_info`, `elderly_info`。`bed_info.elderly_id = elderly_info.id`
+- 床位与楼层：`bed_info`, `floor_info`。`bed_info.floor_id = floor_info.id`
+- 人员紧急联系人：`person_info`, `person_emergency_contact`。`person_emergency_contact.person_id = person_info.id`
+- 人员生活自理/居住/生活条件：`person_info`, `person_selfcare_conditions`。`person_info.selfcare_conditions_id = person_selfcare_conditions.id`
 
 ## 不在默认范围
 

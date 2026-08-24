@@ -1,32 +1,56 @@
 [
   {
     "name": "老人总数",
-    "aliases": ["老人一共有多少人", "库里有多少老人", "人员有多少", "一共多少人"],
+    "aliases": ["老人一共有多少人", "库里有多少老人", "人员有多少", "一共多少人", "几个老人"],
     "sql": "SELECT COUNT(*) AS count FROM person_info WHERE deleted = 0",
     "tables": ["person_info"]
   },
   {
     "name": "性别分布",
-    "aliases": ["男女比例", "性别分别有多少", "男女人数"],
+    "aliases": ["男女比例", "性别分别有多少", "男女人数", "男性女性"],
     "sql": "SELECT CASE WHEN is_gender = 1 THEN '男' WHEN is_gender = 2 THEN '女' ELSE '未知' END AS gender, COUNT(*) AS count FROM person_info WHERE deleted = 0 GROUP BY gender ORDER BY count DESC",
     "tables": ["person_info"]
   },
   {
+    "name": "年龄分布",
+    "aliases": ["年龄分布", "年龄段", "岁数分布"],
+    "sql": "SELECT CASE WHEN age IS NULL OR age < 0 THEN '未知' WHEN age < 60 THEN '<60' WHEN age BETWEEN 60 AND 69 THEN '60-69' WHEN age BETWEEN 70 AND 79 THEN '70-79' WHEN age BETWEEN 80 AND 89 THEN '80-89' ELSE '90+' END AS age_bucket, COUNT(*) AS count FROM person_info WHERE deleted = 0 GROUP BY age_bucket ORDER BY age_bucket",
+    "tables": ["person_info"]
+  },
+  {
     "name": "足压检测次数",
-    "aliases": ["足底压力测了多少次", "足压有多少条"],
+    "aliases": ["足底压力测了多少次", "足压有多少条", "足压检测几次"],
     "sql": "SELECT COUNT(*) AS count FROM remote_activity_foot_log WHERE deleted = 0",
     "tables": ["remote_activity_foot_log"]
   },
   {
+    "name": "足压检测人数",
+    "aliases": ["多少人做过足压", "足压检测人数"],
+    "sql": "SELECT COUNT(DISTINCT person_name) AS count FROM remote_activity_foot_log WHERE deleted = 0",
+    "tables": ["remote_activity_foot_log"]
+  },
+  {
     "name": "情绪识别记录数",
-    "aliases": ["情绪识别有多少条", "心理检测多少条"],
+    "aliases": ["情绪识别有多少条", "心理检测多少条", "情绪识别记录"],
     "sql": "SELECT COUNT(*) AS count FROM remote_psychology_mood WHERE deleted = 0",
     "tables": ["remote_psychology_mood"]
   },
   {
     "name": "健康记录总数",
-    "aliases": ["健康档案有多少条", "健康数据多少"],
+    "aliases": ["健康档案有多少条", "健康数据多少", "健康记录"],
     "sql": "SELECT COUNT(*) AS count FROM person_health_records WHERE deleted = 0",
     "tables": ["person_health_records"]
+  },
+  {
+    "name": "骨密度检测次数",
+    "aliases": ["骨密度检测多少次", "骨密度有多少条"],
+    "sql": "SELECT COUNT(*) AS count FROM remote_health_bone_log WHERE deleted = 0",
+    "tables": ["remote_health_bone_log"]
+  },
+  {
+    "name": "有健康档案的老人数",
+    "aliases": ["有健康档案", "多少人有健康记录", "有健康档案的老人有多少"],
+    "sql": "SELECT COUNT(DISTINCT phr.person_id) AS count FROM person_health_records phr INNER JOIN person_info p ON p.id = phr.person_id WHERE phr.deleted = 0 AND p.deleted = 0",
+    "tables": ["person_info", "person_health_records"]
   }
 ]

@@ -26,6 +26,8 @@ $validServices = @(
     "langfuse",
     "litellm",
     "db_agent",
+    "vanna_db_agent",
+    "vanna_db_web",
     "rag_agent",
     "code_assistent_agent",
     "extractor_agent",

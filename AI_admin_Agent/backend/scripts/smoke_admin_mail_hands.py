@@ -91,6 +91,51 @@ def main() -> None:
     snap = mail_metrics_snapshot()
     assert_true(snap.get("mail_list", 0) >= 1, "metrics mail_list")
 
+    # AM-4：发信 pending 预览含 to/subject/from，不再套日程模板
+    from app.core.mail_pending_preview import format_mail_pending_preview
+
+    send_prev = format_mail_pending_preview(
+        "send_email",
+        {
+            "user_id": "smoke_hands_u",
+            "to": "friend@example.com",
+            "cc": "cc@example.com",
+            "subject": "报销进度",
+            "content": "张三你好，报销已提交。",
+            "attachment_paths": [".data/a.pdf"],
+        },
+        from_address="hands@qq.com",
+    )
+    msg = str(send_prev.get("message") or "")
+    assert_true("friend@example.com" in msg, "preview to")
+    assert_true("报销进度" in msg, "preview subject")
+    assert_true("hands@qq.com" in msg, "preview from")
+    assert_true("cc@example.com" in msg, "preview cc")
+    assert_true("a.pdf" in msg, "preview attachment")
+    assert_true("将添加「" not in msg, "not calendar template")
+
+    reply_prev = format_mail_pending_preview(
+        "reply_email",
+        {
+            "user_id": "smoke_hands_u",
+            "email_id": 2,
+            "content": "收到，谢谢。",
+            "to": "boss@example.com",
+            "subject": "周报",
+        },
+        from_address="hands@qq.com",
+    )
+    rmsg = str(reply_prev.get("message") or "")
+    assert_true("回复" in rmsg and "boss@example.com" in rmsg, "reply preview")
+    assert_true("Re: 周报" in rmsg or "周报" in rmsg, "reply subject")
+
+    del_prev = format_mail_pending_preview(
+        "delete_email",
+        {"user_id": "smoke_hands_u", "email_id": 9, "subject": "广告"},
+        from_address="hands@qq.com",
+    )
+    assert_true("废纸篓" in str(del_prev.get("message") or ""), "delete trash semantics")
+
     delete_binding("smoke_hands_u")
     print("smoke_admin_mail_hands: OK")
 

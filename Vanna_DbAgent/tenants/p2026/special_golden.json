@@ -38,5 +38,15 @@
     "question": "列出老人姓名和年龄",
     "sql": "SELECT name, age, CASE WHEN is_gender = 1 THEN '男' WHEN is_gender = 2 THEN '女' ELSE '未知' END AS gender FROM person_info WHERE deleted = 0 ORDER BY id LIMIT 50",
     "tables": ["person_info"]
+  },
+  {
+    "question": "陈明宇最近一周做过足压吗",
+    "sql": "SELECT person_name, create_time FROM remote_activity_foot_log WHERE deleted = 0 AND person_name = '陈明宇' AND create_time >= DATE_SUB(NOW(), INTERVAL 7 DAY) ORDER BY create_time DESC LIMIT 20",
+    "tables": ["remote_activity_foot_log"]
+  },
+  {
+    "question": "龙奶奶的健康指标有哪些",
+    "sql": "SELECT p.name, phr.* FROM person_info p INNER JOIN person_health_records phr ON phr.person_id = p.id WHERE p.deleted = 0 AND phr.deleted = 0 AND p.name = '龙奶奶' LIMIT 50",
+    "tables": ["person_info", "person_health_records"]
   }
 ]

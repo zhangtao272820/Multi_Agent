@@ -5,7 +5,7 @@
  *   npx tsx scripts/smoke-route-matrix.ts
  *
  * 联机 probe（Docker agents-lan 运行时）：
- *   MANAGER_SMOKE_LAN=1 DB_AGENT_HTTP_URL=http://127.0.0.1:13101 RAG_AGENT_HTTP_URL=http://127.0.0.1:13102 npx tsx scripts/smoke-route-matrix.ts
+ *   MANAGER_SMOKE_LAN=1 DB_AGENT_HTTP_URL=http://127.0.0.1:13121 RAG_AGENT_HTTP_URL=http://127.0.0.1:13102 MANAGER_DB_ID=p2026 npx tsx scripts/smoke/route/smoke-route-matrix.ts
  *
  * 真实编排 LLM（验证总管路由/拆解，需 OPENAI_API_KEY）：
  *   npx tsx scripts/smoke-route-matrix-orchestrate.ts
@@ -45,10 +45,11 @@ async function probeRag(base: string, query: string) {
 }
 
 async function probeDb(base: string, question: string) {
+  const dbId = String(process.env.MANAGER_DB_ID || process.env.DB_AGENT_DB_ID || 'p2026').trim()
   const r = await fetch(`${base.replace(/\/+$/, '')}/api/probe`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ question, dbId: 'default' })
+    body: JSON.stringify({ question, dbId })
   })
   return r.json() as Promise<{ matched?: boolean; tables?: string[] }>
 }

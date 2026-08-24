@@ -384,22 +384,33 @@ export function detectLobsterSemanticBlock(input: {
     return { blocked: true, reason: 'task_blocked', failureType }
   }
 
-  const task = String(input.task || '').trim()
-  if (hasMeaningfulTaskOutput(task, input.result)) return null
-
   const finalUrl = String(row.finalUrl || row.url || '').trim()
   const blob = [input.text, collectResultText(input.result), finalUrl].filter(Boolean).join('\n')
+
+  // 先判拦截信号：禁止「有 http finalUrl 就算有产出」掩盖登录墙/验证码
   if (CAPTCHA_URL_RE.test(finalUrl) || /wappass\./i.test(blob)) {
     return { blocked: true, reason: 'task_blocked', failureType: 'captcha' }
   }
-  if (!SEMANTIC_BLOCK_TEXT_RE.test(blob)) return null
-  if (CAPTCHA_SIGNAL_RE.test(blob)) {
-    return { blocked: true, reason: 'task_blocked', failureType: 'captcha' }
+  if (SEMANTIC_BLOCK_TEXT_RE.test(blob)) {
+    if (CAPTCHA_SIGNAL_RE.test(blob)) {
+      return { blocked: true, reason: 'task_blocked', failureType: 'captcha' }
+    }
+    if (/登录|login|sign[\s_-]?in|授权/i.test(blob)) {
+      return { blocked: true, reason: 'task_blocked', failureType: 'need_login' }
+    }
+    return { blocked: true, reason: 'task_blocked', failureType: 'need_human' }
   }
-  if (/登录|login|sign[\s_-]?in|授权/i.test(blob)) {
-    return { blocked: true, reason: 'task_blocked', failureType: 'need_login' }
+  // URL 路径像登录墙且无列表/抽取证据
+  if (/\/login\b|\/signin\b|\/sso\b/i.test(finalUrl) && collectResultItems(input.result).length === 0) {
+    const answer = String(row.answer || row.summary || '').trim()
+    if (!answer || /登录|login|sign[\s_-]?in|请先|未授权|unauthorized/i.test(answer)) {
+      return { blocked: true, reason: 'task_blocked', failureType: 'need_login' }
+    }
   }
-  return { blocked: true, reason: 'task_blocked', failureType: 'need_human' }
+
+  const task = String(input.task || '').trim()
+  if (hasMeaningfulTaskOutput(task, input.result)) return null
+  return null
 }
 
 /** 结果是否已含可用浏览证据（finalUrl / 实质 answer / items） */

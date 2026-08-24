@@ -35,6 +35,8 @@ class Settings(BaseSettings):
     vanna_max_prompt_chars: int = 6000
     vanna_router_max_tables: int = 4
     vanna_sql_card_tables: int = 6
+    vanna_router_min_confidence_golden: float = 0.72
+    vanna_router_min_confidence: float = 0.35
     vanna_max_question_chars: int = 400
     vanna_history_turns: int = 6
     vanna_mcp_token: str = ""

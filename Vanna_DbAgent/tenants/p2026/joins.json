@@ -5,7 +5,7 @@
     "tables": ["person_info", "person_health_records"]
   },
   {
-    "when": "足底压力区域/分区/重心明细",
+    "when": "足底压力区域/分区/重心/左右脚/足弓/前掌/后跟/热力明细",
     "sql": "remote_activity_foot_measure_log.foot_log_id = remote_activity_foot_log.id",
     "tables": ["remote_activity_foot_log", "remote_activity_foot_measure_log"]
   },

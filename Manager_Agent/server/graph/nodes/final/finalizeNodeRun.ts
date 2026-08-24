@@ -545,6 +545,16 @@ export function buildFinalizeNodeRun(deps: CreateFinalNodesDeps) {
           if (weakSummary) {
             state.meta = { ...(state.meta || {}), weakUserProfile: weakSummary }
           }
+          if (weakProfile?.pendingPrefs) {
+            state.meta = {
+              ...(state.meta || {}),
+              pendingPrefsProposal: {
+                ...weakProfile.pendingPrefs,
+                userId: opts.userId || null,
+                note: 'prefs_require_explicit_confirm',
+              },
+            }
+          }
           await recordLayeredMemoryFromRun(policyDir, {
             sessionId: opts.sessionId,
             tenantId: String(state.tenantId || state.meta?.tenantId || opts.tenantId || ''),

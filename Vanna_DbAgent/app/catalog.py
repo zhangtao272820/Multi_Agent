@@ -32,6 +32,16 @@ def load_golden(tenant: Tenant) -> list[dict[str, Any]]:
     raw = json.loads(tenant.golden_path.read_text(encoding="utf-8"))
     if isinstance(raw, dict):
         raw = raw.get("items") or raw.get("golden") or []
+    special_qs: set[str] = set()
+    try:
+        from app.bootstrap import load_special_goldens, tenant_folder
+
+        for g in load_special_goldens(tenant_folder(tenant)):
+            qn = str(g.get("question") or "").strip()
+            if qn:
+                special_qs.add(qn)
+    except Exception:
+        special_qs = set()
     out: list[dict[str, Any]] = []
     for item in raw or []:
         if not isinstance(item, dict):
@@ -41,11 +51,15 @@ def load_golden(tenant: Tenant) -> list[dict[str, Any]]:
         if not q or not sql:
             continue
         tables = item.get("tables") or []
+        src = str(item.get("source") or "").strip().lower()
+        if src not in {"special", "template"}:
+            src = "special" if q in special_qs else "template"
         out.append(
             {
                 "question": q,
                 "sql": sql,
                 "tables": [str(t) for t in tables] if isinstance(tables, list) else [],
+                "source": src,
             }
         )
     return out
@@ -134,6 +148,7 @@ def ingest_tenant(tenant: Tenant, *, skip_if_ready: bool = False) -> dict[str, A
                 "tenant": tenant.id,
                 "sql": g["sql"],
                 "tables": ",".join(g.get("tables") or []),
+                "source": str(g.get("source") or "template"),
             }
         )
 
@@ -263,7 +278,7 @@ def _hit(kind: str, document: str, score: float, meta: dict[str, Any] | None = N
     tables = [t for t in str(tables_raw).split(",") if t] if tables_raw else []
     if meta.get("table"):
         tables = [str(meta["table"])]
-    return {
+    out = {
         "kind": kind,
         "document": document,
         "score": round(float(score), 4),
@@ -271,6 +286,10 @@ def _hit(kind: str, document: str, score: float, meta: dict[str, Any] | None = N
         "tables": tables,
         "table": str(meta.get("table") or ""),
     }
+    src = str(meta.get("source") or "").strip()
+    if src:
+        out["source"] = src
+    return out
 
 
 def exact_golden(tenant: Tenant, question: str) -> dict[str, Any] | None:
@@ -297,7 +316,11 @@ def exact_golden(tenant: Tenant, question: str) -> dict[str, Any] | None:
                 _KIND_GOLDEN,
                 g["question"],
                 1.0,
-                {"sql": g["sql"], "tables": ",".join(g.get("tables") or [])},
+                {
+                    "sql": g["sql"],
+                    "tables": ",".join(g.get("tables") or []),
+                    "source": str(g.get("source") or "template"),
+                },
             )
     return None
 
@@ -472,6 +495,7 @@ def prune_hits_for_sql(
     question: str,
     hits: list[dict[str, Any]],
     router_tables: list[str],
+    plan: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     """写 SQL 只带 Router 点名表 + JOIN 一跳卡片，禁止整库 fallback。"""
     cap = max(2, int(get_settings().vanna_sql_card_tables))
@@ -491,6 +515,8 @@ def prune_hits_for_sql(
                 names.append(t)
             if len(names) >= cap:
                 break
+    # plan 仅保留签名兼容；扩表由 joins.when + Router tables 决定
+    _ = plan
     names = expand_join_tables(tenant, question, names)[:cap]
     out = ddl_for_tables(tenant, names)
     # 附带少量相关黄金示例（含 SQL），控数量

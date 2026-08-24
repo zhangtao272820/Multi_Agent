@@ -125,6 +125,7 @@
     "smoke:observability": "npx --yes tsx scripts/smoke/misc/smoke-observability.ts",
     "smoke:agent-morphology": "npx --yes tsx --tsconfig tsconfig.smoke.json scripts/smoke/misc/smoke-agent-morphology.ts",
     "smoke:blast-radius": "npx --yes tsx --tsconfig tsconfig.smoke.json scripts/smoke/protocol/smoke-blast-radius.ts",
+    "smoke:code-edit-hitl": "npx --yes tsx --tsconfig tsconfig.smoke.json scripts/smoke/protocol/smoke-code-edit-hitl.ts",
     "smoke:envelope-auth": "npx --yes tsx --tsconfig tsconfig.smoke.json scripts/smoke/protocol/smoke-envelope-auth.ts",
     "smoke:conversation-compact": "npx --yes tsx scripts/smoke/misc/smoke-conversation-compact.ts",
     "smoke:capability-cost": "npx --yes tsx scripts/smoke/misc/smoke-capability-cost.ts",

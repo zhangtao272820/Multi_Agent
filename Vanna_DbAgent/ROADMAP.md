@@ -4,7 +4,7 @@
 
 ## 本波已交付（契约对齐，未切总管）
 
-引擎仍是黄金 SQL + schema 卡片 + **0–1 次 LLM**（失败才修；成功可另 1 次口吻）。独立 UI 仍 **SQL 预览 → 确认**。
+引擎是 **Retrieve → Understand（Router）→ 可选 SQL LLM** + schema 卡片（失败才修；成功可另 1 次口吻）。独立 UI 仍 **SQL 预览 → 确认**。问句理解能力评估见 [docs/nlu-capability-assessment.md](docs/nlu-capability-assessment.md)。
 
 - 列值样例进入 schema 卡片与打分（`samples=`）。
 - 场景/领域 Skill + `tenants/<id>/metrics.json` 注入 prompt / ingest；指标名精确命中走黄金 SQL。
@@ -17,27 +17,31 @@
 - 总管路径（`source=manager`、内部令牌、`x-agent-protocol`、或 dbClient `messages`）跳过预览，guard 通过后只读执行。
 - `turn_scope` 抑制会话/经验；`db_query_experience` 无 PG 时空召回不抛。独立面只在黄金收录时写经验。
 - `GET /api/learning` + `curate` / `promote` / `reset` 对齐 Evolution Hub 形状；curate 默认不晋级。
+- **NLU 短板升级**：SQL `filter_gate` 约束硬闸；Router `confidence` 降级；golden `special`/`template` 分计量；`tenants/p2026/nl_eval.json` 离线契约评测。
 
-**本波不改生产切流**：Manager `DB_AGENT_HTTP_URL` 仍是 `http://db_agent:13101`。
+**本波已切总管 DB 腿**：Manager / Admin 的 `DB_AGENT_HTTP_URL` → `http://vanna_db_agent:13121`，`MANAGER_DB_ID` / `DB_AGENT_DB_ID` 默认 **p2026**。旧 `db_agent:13101` 仍可在 compose 中保留回滚。
 
 ## 现在就能用（对照验收）
 
-- 打开 http://127.0.0.1:13120 ，租户 `p2604`，场景「后台助手」。
+- 打开 http://127.0.0.1:13120 ，租户 `p2026`（或已 ingest 的租户），场景「后台助手」。
+- 总管 http://127.0.0.1:13106 ：`cap=db` 打 Vanna；联机用例脚本：`python scripts/live_p2026_manager_cases.py`
 - 黄金问句：白名单表计数/名单 + 手工 JOIN。执行成功后可点「收入黄金」（不自动晋级）。
-- **零次 LLM**：问句归一化后精确命中黄金或指标别名。未命中才 **1 次理解 JSON**。
-- Docker：`vanna_db_web:13120`、`vanna_db_agent:13121`。旧 `db_agent:13101` 仍是总管生产库问数。
+- **LLM 次数**：ask 主路径 **始终 1 次 Understand**；`path=golden` 时省第二次 SQL LLM；`path=llm_sql` 再加 1 次写 SQL（失败可修）。精确黄金/指标别名经归一化后仍走 Understand，由 Router 确认 `path=golden`。
+- Docker：`vanna_db_web:13120`、`vanna_db_agent:13121`（总管 DB）；旧 `db_agent:13101` 仅回滚用。
 
-真实问句清单：[docs/p2604-real-questions.md](docs/p2604-real-questions.md)。
+真实问句清单：[docs/p2604-real-questions.md](docs/p2604-real-questions.md)（内容为 **p2026**）。  
+NLU / 快路径 / 约束评估：[docs/nlu-capability-assessment.md](docs/nlu-capability-assessment.md)。
 
 换库：复制 `tenants/_template.yml` 为 `tenants/<id>.yml`（文件名不要 `_` 开头）+ 目录文件夹，然后  
 `python scripts/bootstrap_tenant.py --tenant <id> --live`（或已有 snapshot 时 `--from-snapshot`），再 `POST /api/ingest?tenant=<id>`。
 
-## 下一波：总管切流（未做）
+## 总管切流（已做）
 
-- 把 `DB_AGENT_HTTP_URL` 指到 `http://vanna_db_agent:13121`（先 dual-run 旧 `13101`，再切）。
-- Evolution Hub 的 db 腿改打 Vanna `/api/learning`。
-- 切流验收：probe/plan/ask/ws、Envelope `refined_question`、空结果 `error_code`、T2 仍走旧 HITL 策略。
-- **禁止** `docker compose down -v`。
+- `DB_AGENT_HTTP_URL` / `DB_AGENT_WS_URL` → `vanna_db_agent:13121`；`MANAGER_DB_ID=p2026`
+- Evolution Hub db 腿打 Vanna `/api/learning`（随 URL 切换）
+- 验收：probe/plan/ask（manager 路径跳过 checkpoint）、真实域 A1–A5 / D1 / D3 联机脚本
+- **禁止** `docker compose down -v`
+- 回滚：compose 两行 URL 改回 `db_agent:13101`，`--force-recreate manager_agent`
 
 ## 场景：入口已通，深度未填
 
@@ -59,7 +63,6 @@
 
 ## 明确不做（除非另开需求）
 
-- 本波不注册 Manager `cap=db`，不改 `DB_AGENT_HTTP_URL`。
 - 不把旧 LangGraph 十三段 LLM 搬过来。
 - 不对 P2604 做写库 / DDL。
 - 不 `docker compose down -v`。

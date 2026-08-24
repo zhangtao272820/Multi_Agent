@@ -4,15 +4,17 @@ import time
 from typing import Any, Iterator
 
 from app.audit import write_audit
-from app.catalog import is_exact_golden_hit, pick_golden_sql, prune_hits_for_sql, retrieve
+from app.catalog import pick_golden_sql, prune_hits_for_sql, retrieve
 from app.chart import infer_chart
 from app.db import apply_value_maps, run_select
+from app.domain_patch import blueprint_prompt_block
+from app.filter_gate import assert_plan_filters, values_from_must_filter_lines
 from app.format_answer import format_answer
 from app.llm import LlmMeter, chat_json, chat_text
 from app.metrics_catalog import metrics_prompt_block
 from app.pending import drop_pending, save_pending
 from app.present import empty_message, present_rows, select_hint
-from app.router import catalog_nonempty, run_router
+from app.router import catalog_nonempty, plan_to_must_filters, run_router
 from app.scenes import Scene, get_scene
 from app.schema_link import cards_for, join_prompt_for
 from app.settings import get_settings
@@ -21,31 +23,29 @@ from app.sql_guard import GUARD_REASONS, guard_sql
 from app.tenants import Tenant
 from app.understand import parse_plan
 
-_PLAN_SYS = """你是只读数据库助手。先理解用户问题，再写一条 MySQL SELECT/WITH。
+_PLAN_SYS = """你是只读数据库助手。先理解用户问题与「查询计划/必须过滤」，再写一条 MySQL SELECT/WITH。
 只输出 JSON：
-{"intent":"count|list|aggregate|join|clarify|chitchat|meta","tables":["表名"],"need_clarify":false,"clarify":"","reason":"一句话","sql":"SELECT ..."}
+{"intent":"count|list|aggregate|join|trend|clarify|chitchat|meta","tables":["表名"],"need_clarify":false,"clarify":"","reason":"一句话","sql":"SELECT ..."}
 规则：
-- intent：计数 count；名单 list；分组/同比/分布 aggregate；两表以上 join；缺关键对象 clarify；闲聊 chitchat；库结构 meta。
+- intent：计数 count；名单 list；分组/同比/分布 aggregate；趋势 trend；两表以上 join；缺关键对象 clarify；闲聊 chitchat；库结构 meta。
 - 只用「库表元数据」里出现的表和列，表名大小写一致。列含义以注释为准。
-- 选出的列必须是注释上可展示的业务字段（姓名、学号、名称、类型、级别等）；不要 SELECT 主键、创建人/修改时间、密码证件。
+- 「必须过滤 / 查询计划」里的每一条（姓名、时间、枚举 sql_match_value）必须写入 WHERE 或 JOIN，禁止忽略。
+- 人名用卡片注释标明的姓名列；枚举/编码以领域蓝图或列注释为准。
+- 时间条件必须用卡片注释标明的时间列（如 create_time）；相对时间按「最近一周/本月」写成区间。
+- 选出的列必须是注释上可展示的业务字段；不要 SELECT 主键、创建人/修改时间、密码证件。
 - 涉及两个业务对象必须 JOIN，JOIN 只能用提供的关系，禁止无 ON 的笛卡尔积。
-- 问谁/哪些人/报名/参加/名单时必须 JOIN 人员或考试学生表，用注释为姓名、学号的列；禁止只查事件/考试主表的 Name/Type。
-- 问某场考试的名称时用考试表 Name 等值过滤，不要用 IsOpen/IsClosed 代替「这场叫什么」。
 - 禁止 INSERT/UPDATE/DELETE/DDL、多语句、INTO OUTFILE、SLEEP、UserPwd/password/id_card。
-- 问数量且问分别是什么/叫什么/是文本还是视频时：对主表 SELECT 名称列与类型列（或 COUNT+名称），不要只 COUNT，也不要 clarify。
-- 不要把可空时间列的 NULL 当成「当前没有」。
-- need_clarify=true 的唯一条件：你通读了库表元数据/技能/文档后，仍找不到任何可对上的业务表。口语别称也要映射（如「二层组/各组/组里有谁」→ 人员分组及相关成员表）；禁止因检索没命中或说法不标准就澄清。
-- 元数据里出现多张相关表时，优先用注释最贴合主对象的那张主表；不要因为旁边还有试题/学生/题库旁支表就 clarify。
-- 问某组/二层组有谁：对分组表按名称（或年级/轮次等注释字段）过滤，并 JOIN 分组成员表列出姓名学号；不要 clarify。
+- need_clarify=true 的唯一条件：通读元数据后仍找不到任何可对上的业务表。禁止因说法不标准就澄清。
 - 闲聊/天气等与库无关：intent=chitchat，sql 为空，clarify 里用中文直接回答。
-- 若提供「必须过滤 / 提示表」，写入 WHERE 或 JOIN，不要忽略。
 """
 
-_REPAIR_SYS = """你是只读 SQL 修复器。根据 MySQL 报错改写一条 SELECT/WITH。
+_REPAIR_SYS = """你是只读 SQL 修复器。根据 MySQL 报错或「缺失过滤」提示改写一条 SELECT/WITH。
 只输出 JSON：{"sql":"SELECT ...","reason":"一句话"}
 规则：
 - 只用提供的表和列，表名大小写一致。
 - JOIN 必须有 ON，禁止笛卡尔积。
+- 若提示缺失过滤值，必须把这些字面量写入 WHERE/JOIN。
+- 相对时间须写成 DATE_SUB / INTERVAL / 日期区间。
 - 禁止写操作、多语句、INTO OUTFILE、SLEEP、敏感列。
 - 不要编造不存在的列。报错是未知列就换成 DDL 里的列。
 """
@@ -122,6 +122,7 @@ def _sql_prompt(
         f"租户 {tenant.id} {tenant.title}\n"
         f"场景 {scene.id}：{scene.prompt_extra}\n"
         f"表白名单前缀/表：{allow}\n\n"
+        f"{blueprint_prompt_block(tenant)}"
         f"{(skill_block + chr(10) + chr(10)) if skill_block else ''}"
         f"{(metric_block + chr(10) + chr(10)) if metric_block else ''}"
         f"{(chr(10).join(mgr_bits) + chr(10) + chr(10)) if mgr_bits else ''}"
@@ -339,6 +340,7 @@ def run_turn(
     hits: list[dict[str, Any]] = []
     source = "llm"
     sql = ""
+    plan: dict[str, Any] = {}
 
     if pending:
         sql = str(sql_override or pending.get("sql") or "").strip()
@@ -386,16 +388,8 @@ def run_turn(
             "sql": "",
             "path": "",
         }
-        # 精确黄金（score≈1）0-LLM；其余一律走廉价 Router（读表目录元数据）再写 SQL。
-        if is_exact_golden_hit(golden):
-            sql = str(golden.get("sql") or "")
-            source = "golden"
-            plan["path"] = "golden"
-            plan["intent"] = "join" if " join " in sql.lower() else "list"
-            plan["sql"] = sql
-            plan["reason"] = "exact_golden"
-            plan["tables"] = list(golden.get("tables") or tables_hit)
-        elif not catalog_nonempty(tenant):
+        route: dict[str, Any] | None = None
+        if not catalog_nonempty(tenant):
             text = "没有在当前租户目录里找到对应的表。请说明要查的对象（例如老人、分组、突发事件），或换一个说法。"
             yield {
                 "event": "understand",
@@ -462,17 +456,30 @@ def run_turn(
             path = str(route.get("path") or "llm_sql")
             plan["path"] = path
             plan["intent"] = route.get("intent") or plan["intent"]
+            plan["data_domain"] = route.get("data_domain") or "general"
+            plan["filters"] = route.get("filters") or {}
+            plan["entities"] = route.get("entities") or {}
+            plan["join_needed"] = bool(route.get("join_needed"))
             plan["tables"] = list(route.get("tables") or tables_hit)
             plan["reason"] = str(route.get("reason") or "")
             plan["clarify"] = str(route.get("clarify") or "")
             plan["need_clarify"] = bool(route.get("need_clarify"))
+            plan["confidence"] = float(route.get("confidence") or 0.6)
+            slots = (plan.get("filters") or {}).get("slots") or []
             yield {
                 "event": "route",
                 "path": path,
                 "intent": plan["intent"],
+                "data_domain": plan.get("data_domain"),
                 "tables": plan["tables"],
                 "golden_ok": bool(route.get("golden_ok")),
+                "confidence": plan["confidence"],
                 "reason": plan["reason"],
+                "slots": [
+                    {"field_hint": s.get("field_hint"), "value": s.get("value")}
+                    for s in slots
+                    if isinstance(s, dict)
+                ][:8],
             }
             if path == "chitchat" or path == "clarify":
                 text = plan["clarify"] or plan["reason"] or (
@@ -516,8 +523,15 @@ def run_turn(
                 plan["sql"] = sql
                 plan["intent"] = "join" if " join " in sql.lower() else (plan.get("intent") or "list")
             else:
-                # llm_sql：只喂 Router 点名表 + JOIN 一跳卡片
-                sql_hits = prune_hits_for_sql(tenant, q, hits, list(plan.get("tables") or []))
+                # llm_sql：只喂 Understand 点名表 + JOIN 一跳卡片；槽位强制进 SQL prompt
+                plan_filters = plan_to_must_filters(route)
+                combined_filters: list[str] = list(must_filters or [])
+                for line in plan_filters:
+                    if line not in combined_filters:
+                        combined_filters.append(line)
+                sql_hits = prune_hits_for_sql(
+                    tenant, q, hits, list(plan.get("tables") or []), plan=route
+                )
                 if hint_tables:
                     from app.catalog import ddl_for_tables
 
@@ -539,7 +553,7 @@ def run_turn(
                             history=history,
                             hint_tables=hint_tables,
                             hint_fields=hint_fields,
-                            must_filters=must_filters,
+                            must_filters=combined_filters or None,
                             experience_block=experience_block,
                         ),
                         meter,
@@ -592,6 +606,12 @@ def run_turn(
             "reason": plan.get("reason") or "",
             "need_clarify": bool(plan.get("need_clarify")),
             "path": plan.get("path") or source,
+            "data_domain": plan.get("data_domain"),
+            "slots": [
+                {"field_hint": s.get("field_hint"), "value": s.get("value")}
+                for s in ((plan.get("filters") or {}).get("slots") or [])
+                if isinstance(s, dict)
+            ][:8],
         }
         if plan.get("need_clarify") or (plan.get("intent") == "chitchat" and not sql):
             text = str(plan.get("clarify") or plan.get("reason") or "问题不够明确，请补充要查的对象（表/名单/时间）。")
@@ -621,6 +641,81 @@ def run_turn(
 
     if sql_override and not pending:
         sql = sql_override
+
+    # 约束硬闸：仅人名漏写时拦（年龄/枚举/时间交给 SQL 模型）；pending 跳过
+    if sql and not pending:
+        extra_vals = values_from_must_filter_lines(must_filters)
+        gate = assert_plan_filters(sql, plan or None, extra_values=extra_vals)
+        if not gate.ok:
+            yield {
+                "event": "filter_gate",
+                "ok": False,
+                "missing": gate.missing,
+                "sql": sql,
+            }
+            plan_filters = plan_to_must_filters(plan) if plan else []
+            combined: list[str] = list(must_filters or [])
+            for line in plan_filters:
+                if line not in combined:
+                    combined.append(line)
+            miss_msg = "缺失人名过滤：" + "、".join(gate.missing)
+            fixed = repair_sql(
+                tenant=tenant,
+                scene=scene,
+                question=q,
+                sql=sql,
+                error=miss_msg,
+                hits=hits,
+                meter=meter,
+                hint_tables=hint_tables,
+                hint_fields=hint_fields,
+                must_filters=combined or None,
+                experience_block=experience_block,
+            )
+            if fixed:
+                yield {
+                    "event": "repair",
+                    "sql": fixed["sql"],
+                    "reason": fixed.get("reason") or "filter_gate",
+                    "error": miss_msg,
+                }
+                gate2 = assert_plan_filters(fixed["sql"], plan or None, extra_values=extra_vals)
+                gate = gate2
+                if gate2.ok:
+                    sql = fixed["sql"]
+                    source = "repair"
+                    yield {
+                        "event": "filter_gate",
+                        "ok": True,
+                        "missing": [],
+                        "sql": sql,
+                    }
+            if not gate.ok:
+                text = (
+                    "查询未写入必要人名条件（"
+                    + "、".join(gate.missing)
+                    + "）。请改写问题后再试。"
+                )
+                yield _answer_event(
+                    text=text,
+                    sql=sql,
+                    meter=meter,
+                    started=started,
+                    error_code="business",
+                )
+                _audit(
+                    tenant=tenant,
+                    scene=scene,
+                    question=q,
+                    sql=sql,
+                    executed=False,
+                    row_count=0,
+                    meter=meter,
+                    started=started,
+                    tables=list((plan or {}).get("tables") or _tables_from_hits(hits)),
+                    error="filter_gate",
+                )
+                return
 
     guarded = guard_sql(
         sql,

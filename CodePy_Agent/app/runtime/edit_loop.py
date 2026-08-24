@@ -17,7 +17,7 @@ from app.tools.search_replace import apply_search_replace, preview_search_replac
 
 SendFn = Callable[[dict[str, Any]], Awaitable[None] | None]
 
-TOOLS = [
+_READ_TOOLS = [
     {
         "type": "function",
         "function": {
@@ -56,22 +56,38 @@ TOOLS = [
             },
         },
     },
-    {
-        "type": "function",
-        "function": {
-            "name": "propose_patch",
-            "description": "提交 SEARCH/REPLACE 补丁预览（首行路径 + SEARCH/REPLACE 块）",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "patch": {"type": "string"},
-                    "apply": {"type": "boolean", "description": "true 时尝试写盘（需 WRITE_TOOL_ENABLED）"},
-                },
-                "required": ["patch"],
+]
+
+_WRITE_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "propose_patch",
+        "description": "提交 SEARCH/REPLACE 补丁预览（首行路径 + SEARCH/REPLACE 块）",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "patch": {"type": "string"},
+                "apply": {"type": "boolean", "description": "true 时尝试写盘（需 WRITE_TOOL_ENABLED）"},
             },
+            "required": ["patch"],
         },
     },
-]
+}
+
+
+def tools_for_task_kind(task_kind: str) -> list[dict[str, Any]]:
+    """S2.C2：按 task_kind 子集暴露工具；inspect 只读，edit/script 才挂 propose_patch。"""
+    kind = str(task_kind or "auto").strip().lower()
+    if kind in ("inspect", "compute"):
+        return list(_READ_TOOLS)
+    if kind in ("edit", "script"):
+        return [*_READ_TOOLS, _WRITE_TOOL]
+    # auto：允许预览补丁，写盘仍受 write_apply_allowed 约束
+    return [*_READ_TOOLS, _WRITE_TOOL]
+
+
+# 兼容旧引用
+TOOLS = tools_for_task_kind("edit")
 
 
 async def _emit(send: SendFn | None, event: dict[str, Any]) -> None:
@@ -107,6 +123,8 @@ def _tool_result(
             hits = search_in_files(str(args.get("query") or ""), root_override=root)
             return {"ok": True, "hits": hits}
         if name == "propose_patch":
+            if task_kind in ("inspect", "compute"):
+                return {"ok": False, "error": "propose_patch not available for inspect/compute"}
             patch = str(args.get("patch") or "")
             apply = bool(args.get("apply")) and write_apply_allowed(manager, task_kind=task_kind)
             if apply and settings.write_tool_enabled:
@@ -141,8 +159,18 @@ async def run_edit_loop(
     question = (manager.refined_question or message or "").strip()
     root_override = root or manager.root or None
     hints = manager.hint_files
+    tools = tools_for_task_kind(task_kind)
 
-    await _emit(send, {"type": "meta", "payload": {"task_kind": task_kind}})
+    await _emit(
+        send,
+        {
+            "type": "meta",
+            "payload": {
+                "task_kind": task_kind,
+                "tools": [t["function"]["name"] for t in tools],
+            },
+        },
+    )
 
     if not settings.openai_api_key:
         ms = int((time.time() - started) * 1000)
@@ -153,7 +181,7 @@ async def run_edit_loop(
             "ok": False,
             "answer": err,
             "ms": ms,
-            "meta": {"task_kind": task_kind},
+            "meta": {"task_kind": task_kind, "tools": [t["function"]["name"] for t in tools]},
             "agentResult": build_code_fail_agent_result(error_code="business", answer=err, trace_id=trace_id, ms=ms),
         }
 
@@ -174,7 +202,7 @@ async def run_edit_loop(
     final_text = ""
 
     for _round in range(settings.edit_max_rounds):
-        msg = await chat_messages(messages=messages, tools=TOOLS, max_tokens=settings.llm_json_max_tokens)
+        msg = await chat_messages(messages=messages, tools=tools, max_tokens=settings.llm_json_max_tokens)
         if not msg:
             break
         messages.append(msg)

@@ -218,6 +218,10 @@ onBeforeUnmount(() => {
               看 meta.routeAuthorityChain（sourceCommitment / turnScopeMode / 单源透传）与路由卡片。
             </li>
             <li>
+              <strong>记忆注入？</strong>
+              看 meta.memoryRecallExplain（本轮注入条数 / id / type / score）；pendingPrefsProposal 需显式确认才写入 prefs。
+            </li>
+            <li>
               <strong>执行错？</strong>
               看失败专家卡片的错误码（超时 / 熔断 / 5xx / 业务）；对照本时间线 phase。
             </li>

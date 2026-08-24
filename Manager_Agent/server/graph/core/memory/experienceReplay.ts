@@ -14,6 +14,12 @@ import type { ManagerInteractionMode } from '../../../utils/platform/managerInte
 import { isEvolutionRoutingHintEnabled } from '../evolution/evolutionRoutingGate'
 
 export type ExperienceReplayItem = {
+  /** 稳定 id，便于 Trace 一眼对照是否注入 */
+  id: string
+  /** 记忆类型 */
+  type: 'experience'
+  /** 本轮排序分（含衰减/向量加权） */
+  score: number
   user: string
   intent: string
   path: string[]
@@ -221,7 +227,15 @@ export async function buildExperienceReplayForRouting(
     const clauseN = Number(h.clauseCount ?? 0) || 0
     const clauseBoost = clauseN >= 2 && q.split(/[；;\n]/).length >= 2 ? 0.06 : 0
     const snippet = user.replace(/\s+/g, ' ').slice(0, 120)
+    const rankScore = score + clauseBoost
+    const rawId = String(h.id || h.memoryId || h.ts || '').trim()
+    const id =
+      rawId ||
+      `exp_${hScenario.slice(0, 24)}_${Buffer.from(snippet).toString('base64url').slice(0, 16)}`
     const item: ExperienceReplayItem = {
+      id,
+      type: 'experience',
+      score: Number(rankScore.toFixed(4)),
       user,
       intent,
       path: pathArr,
@@ -234,8 +248,8 @@ export async function buildExperienceReplayForRouting(
       explanation: `intent=${intent}; path=${pathStr}; run质量≈${succRaw.toFixed(2)}（时效加权≈${succ.toFixed(2)}）${clauseN >= 2 ? `; 子句≈${clauseN}` : ''}; 问法摘要: ${snippet}`
     }
     scored.push({
-      score: score + clauseBoost,
-      line: `- ${item.explanation}`,
+      score: rankScore,
+      line: `- [${id}] score=${rankScore.toFixed(3)} ${item.explanation}`,
       dedupe: snippet.slice(0, 72),
       item
     })

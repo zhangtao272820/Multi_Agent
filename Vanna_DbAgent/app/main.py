@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field
 
 from app.audit import read_audit
 from app.catalog import collection_count, exact_golden, ingest_tenant, load_golden, schema_table_hits
+from app.router import catalog_nonempty
 from app.engine import run_turn
 from app.experience import experience_prompt_block, recall_experience, write_standalone_experience
 from app.golden_store import promote_golden
@@ -404,6 +405,7 @@ def probe(body: ProbeBody, request: Request) -> dict[str, Any]:
     q = str(body.question or "").strip()
     gold = exact_golden(tenant, q) if q else None
     linked = [t.get("name") for t in link_tables(tenant, q, n=4)] if q else []
+    needs_llm = bool(q) and catalog_nonempty(tenant)
     return {
         "ok": True,
         "ready": True,
@@ -412,7 +414,7 @@ def probe(body: ProbeBody, request: Request) -> dict[str, Any]:
         "golden": bool(gold),
         "tables": linked,
         "can_answer": bool(gold or linked or load_golden(tenant)),
-        "llm": False,
+        "llm": needs_llm,
     }
 
 

@@ -622,8 +622,8 @@ services:
       EVO_VERIFY_BEFORE_PROMOTE: ${EVO_VERIFY_BEFORE_PROMOTE:-1}
       EVO_AGENT_PROMPT_EXECUTION_ONLY: ${EVO_AGENT_PROMPT_EXECUTION_ONLY:-1}
       EVO_PROMOTE_REQUIRES_VERIFY: ${EVO_PROMOTE_REQUIRES_VERIFY:-1}
-      DB_AGENT_HTTP_URL: http://db_agent:13101
-      DB_AGENT_DB_ID: ${DB_AGENT_DB_ID:-default}
+      DB_AGENT_HTTP_URL: http://vanna_db_agent:13121
+      DB_AGENT_DB_ID: ${DB_AGENT_DB_ID:-p2026}
       LOBSTER_AGENT_HTTP_URL: ${LOBSTER_AGENT_HTTP_URL:-http://lobster_agent:13108}
       SEARXNG_BASE_URL: ${SEARXNG_BASE_URL:-http://searxng:8080}
       ADMIN_SEARCH_PROVIDER: ${ADMIN_SEARCH_PROVIDER:-auto}
@@ -648,6 +648,8 @@ services:
         condition: service_healthy
       searxng:
         condition: service_started
+      vanna_db_agent:
+        condition: service_healthy
     restart: unless-stopped
 
   # 自建云抓取（CRW，Firecrawl 兼容 API）：Extractor MCP_* 指向此服务，免商业配额
@@ -774,8 +776,8 @@ services:
       MANAGER_PRO_MODE: ${MANAGER_PRO_MODE:-strong}
       EVO_MODE: ${EVO_MODE:-convergence}
       ARTIFACT_FEEDBACK_MODE: ${ARTIFACT_FEEDBACK_MODE:-strict}
-      DB_AGENT_WS_URL: ws://db_agent:13101/api/chat.ws
-      DB_AGENT_HTTP_URL: http://db_agent:13101
+      DB_AGENT_WS_URL: ws://vanna_db_agent:13121/api/chat.ws
+      DB_AGENT_HTTP_URL: http://vanna_db_agent:13121
       RAG_AGENT_HTTP_URL: http://rag_agent:13102
       CODE_AGENT_WS_URL: ws://code_assistent_agent:13103/_ws
       CODE_AGENT_HTTP_URL: http://code_assistent_agent:13103
@@ -828,7 +830,7 @@ services:
       MANAGER_PREFETCH_DB_PLAN: ${MANAGER_PREFETCH_DB_PLAN:-1}
       MANAGER_STREAM_DELTA: ${MANAGER_STREAM_DELTA:-1}
       LANGSMITH_TRACING: ${LANGSMITH_TRACING:-false}
-      MANAGER_DB_ID: ${MANAGER_DB_ID:-default}
+      MANAGER_DB_ID: ${MANAGER_DB_ID:-p2026}
       CLAWHIVE_BACKEND_URL: http://clawhive_backend:8000
       JWT_SECRET: ${CLAWHIVE_JWT_SECRET:-change-this-secret}
       AGENT_BROWSER_AUTH: ${AGENT_BROWSER_AUTH:-1}
@@ -903,7 +905,7 @@ services:
         condition: service_healthy
       clawhive_redis:
         condition: service_healthy
-      db_agent:
+      vanna_db_agent:
         condition: service_healthy
       rag_agent:
         condition: service_healthy
@@ -1523,7 +1525,7 @@ services:
       - "${CLAWHIVE_DEX_PORT:-5556}:5556"
     restart: unless-stopped
 
-  # 独立 Vanna 库问数：不注册 Manager、不改 DB_AGENT_HTTP_URL
+  # 总管 DB 腿：Vanna 库问数（p2026）；旧 db_agent:13101 保留便于回滚，总管不再依赖
   vanna_db_agent:
     build:
       context: ../Vanna_DbAgent

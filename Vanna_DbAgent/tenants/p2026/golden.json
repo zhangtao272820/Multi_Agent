@@ -57,6 +57,21 @@
     ]
   },
   {
+    "question": "陈明宇最近一周做过足压吗",
+    "sql": "SELECT person_name, create_time FROM remote_activity_foot_log WHERE deleted = 0 AND person_name = '陈明宇' AND create_time >= DATE_SUB(NOW(), INTERVAL 7 DAY) ORDER BY create_time DESC LIMIT 20",
+    "tables": [
+      "remote_activity_foot_log"
+    ]
+  },
+  {
+    "question": "龙奶奶的健康指标有哪些",
+    "sql": "SELECT p.name, phr.* FROM person_info p INNER JOIN person_health_records phr ON phr.person_id = p.id WHERE p.deleted = 0 AND phr.deleted = 0 AND p.name = '龙奶奶' LIMIT 50",
+    "tables": [
+      "person_info",
+      "person_health_records"
+    ]
+  },
+  {
     "question": "bed_info有多少",
     "sql": "SELECT COUNT(*) AS count FROM bed_info",
     "tables": [

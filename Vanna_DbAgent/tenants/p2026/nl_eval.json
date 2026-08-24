@@ -1,0 +1,159 @@
+{
+  "version": 1,
+  "tenant": "p2026",
+  "cases": [
+    {
+      "id": "G1",
+      "question": "老人一共有多少人",
+      "mock_router": {
+        "path": "golden",
+        "intent": "count",
+        "data_domain": "person_basic",
+        "tables": ["person_info"],
+        "entities": {"names": [], "locations": []},
+        "filters": {"time_range": {"relative": "", "start": "", "end": ""}, "slots": []},
+        "join_needed": false,
+        "golden_ok": true,
+        "confidence": 0.92,
+        "reason": "精确对齐人数黄金"
+      },
+      "expect_path": "golden",
+      "sample_sql_ok": "SELECT COUNT(*) AS count FROM person_info WHERE deleted = 0"
+    },
+    {
+      "id": "G1_paraphrase",
+      "question": "请问库里有多少老人呢",
+      "mock_router": {
+        "path": "golden",
+        "intent": "count",
+        "data_domain": "person_basic",
+        "tables": ["person_info"],
+        "entities": {"names": [], "locations": []},
+        "filters": {"time_range": {"relative": "", "start": "", "end": ""}, "slots": []},
+        "join_needed": false,
+        "golden_ok": true,
+        "confidence": 0.85,
+        "reason": "语气词归一后仍是人数"
+      },
+      "expect_path": "golden"
+    },
+    {
+      "id": "L5_slots_force_llm",
+      "question": "陈明宇最近一周做过足压吗",
+      "mock_router": {
+        "path": "golden",
+        "intent": "list",
+        "data_domain": "device",
+        "tables": ["remote_activity_foot_log"],
+        "entities": {"names": ["陈明宇"], "locations": []},
+        "filters": {
+          "time_range": {"relative": "最近一周", "start": "", "end": ""},
+          "slots": [{"field_hint": "姓名", "value": "陈明宇", "sql_match_value": "陈明宇"}]
+        },
+        "join_needed": false,
+        "golden_ok": true,
+        "confidence": 0.9,
+        "reason": "有姓名时间不可偷无参黄金"
+      },
+      "expect_path": "llm_sql",
+      "sample_sql_ok": "SELECT person_name, create_time FROM remote_activity_foot_log WHERE deleted = 0 AND person_name = '陈明宇' AND create_time >= DATE_SUB(NOW(), INTERVAL 7 DAY) LIMIT 20",
+      "sample_sql_bad": "SELECT COUNT(*) AS count FROM remote_activity_foot_log WHERE deleted = 0"
+    },
+    {
+      "id": "L2_name_gate",
+      "question": "陈明宇做过足压没有",
+      "mock_router": {
+        "path": "llm_sql",
+        "intent": "list",
+        "data_domain": "device",
+        "tables": ["remote_activity_foot_log"],
+        "entities": {"names": ["陈明宇"], "locations": []},
+        "filters": {
+          "time_range": {"relative": "", "start": "", "end": ""},
+          "slots": [{"field_hint": "姓名", "value": "陈明宇", "sql_match_value": "陈明宇"}]
+        },
+        "join_needed": false,
+        "golden_ok": false,
+        "confidence": 0.8,
+        "reason": "按姓名过滤足压"
+      },
+      "expect_path": "llm_sql",
+      "sample_sql_ok": "SELECT * FROM remote_activity_foot_log WHERE person_name = '陈明宇' AND deleted = 0 LIMIT 20",
+      "sample_sql_bad": "SELECT * FROM remote_activity_foot_log WHERE deleted = 0 LIMIT 20"
+    },
+    {
+      "id": "low_conf_golden",
+      "question": "大概有多少人吧",
+      "mock_router": {
+        "path": "golden",
+        "intent": "count",
+        "data_domain": "person_basic",
+        "tables": ["person_info"],
+        "entities": {"names": [], "locations": []},
+        "filters": {"time_range": {"relative": "", "start": "", "end": ""}, "slots": []},
+        "join_needed": false,
+        "golden_ok": true,
+        "confidence": 0.5,
+        "reason": "语义勉强"
+      },
+      "expect_path": "llm_sql"
+    },
+    {
+      "id": "low_conf_empty_tables",
+      "question": "那个东西怎么样",
+      "mock_router": {
+        "path": "llm_sql",
+        "intent": "list",
+        "data_domain": "general",
+        "tables": [],
+        "entities": {"names": [], "locations": []},
+        "filters": {"time_range": {"relative": "", "start": "", "end": ""}, "slots": []},
+        "join_needed": false,
+        "golden_ok": false,
+        "confidence": 0.2,
+        "reason": "完全不清楚"
+      },
+      "expect_path": "clarify"
+    },
+    {
+      "id": "J2_join_name",
+      "question": "龙奶奶的健康指标看看",
+      "mock_router": {
+        "path": "llm_sql",
+        "intent": "join",
+        "data_domain": "person_health",
+        "tables": ["person_info", "person_health_records"],
+        "entities": {"names": ["龙奶奶"], "locations": []},
+        "filters": {
+          "time_range": {"relative": "", "start": "", "end": ""},
+          "slots": [{"field_hint": "姓名", "value": "龙奶奶", "sql_match_value": "龙奶奶"}]
+        },
+        "join_needed": true,
+        "golden_ok": false,
+        "confidence": 0.88,
+        "reason": "姓名定位再 JOIN 健康表"
+      },
+      "expect_path": "llm_sql",
+      "sample_sql_ok": "SELECT p.name, phr.* FROM person_info p INNER JOIN person_health_records phr ON phr.person_id = p.id WHERE p.deleted = 0 AND phr.deleted = 0 AND p.name = '龙奶奶' LIMIT 50",
+      "sample_sql_bad": "SELECT * FROM person_health_records WHERE deleted = 0 LIMIT 50"
+    },
+    {
+      "id": "chitchat",
+      "question": "今天天气怎么样",
+      "mock_router": {
+        "path": "chitchat",
+        "intent": "chitchat",
+        "data_domain": "general",
+        "tables": [],
+        "entities": {"names": [], "locations": []},
+        "filters": {"time_range": {"relative": "", "start": "", "end": ""}, "slots": []},
+        "join_needed": false,
+        "golden_ok": false,
+        "confidence": 0.95,
+        "clarify": "我是库问数助手，查不了天气。",
+        "reason": "与库无关"
+      },
+      "expect_path": "chitchat"
+    }
+  ]
+}

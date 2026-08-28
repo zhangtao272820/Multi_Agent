@@ -47,10 +47,7 @@ import { extractSearchRunMetrics, searchMetricsForLearning } from '../../../util
 import { buildSerpDirectSynthBlock } from '../../../utils/search/managerWebDirectSynth'
 import { formatChatWebSynthHint, shouldForceChatWebDirectSynth } from '../../../utils/chat/managerChatWeb'
 import { buildEchartsOptionBlock, ensureVisualizeBlocksInFinal } from '../../core/output/finalOutputBlocks'
-import {
-  appendStructuredReportIfNeeded,
-  buildStructuredRunReport
-} from '../../core/output/structuredRunReport'
+import { buildStructuredRunReport } from '../../core/output/structuredRunReport'
 import { extractTaggedBlockFull, wrapTaggedBlock } from '../../../utils/shared/outputMarkers'
 import { CODE_AUTHORITY_CRITIC_RULE, CODE_AUTHORITY_SYNTH_RULE, REPORT_SYNTH_ALIGNMENT_CRITIC_RULE, REPORT_SYNTH_ALIGNMENT_SYNTH_RULE, hasCodeInResults } from '#agent-shared/codeFirstAuthority'
 import { parseCleanPayload } from '#agent-shared/cleanPayload'
@@ -105,6 +102,10 @@ import { mergeSynthFinalWithReportBody, appendDeferredReportBlockIfNeeded } from
 import { pushOtlpTraceForRun } from '../../core/runtime/otelOtlpPush'
 import { emitRunFinalizeLog } from '../../core/runtime/structuredLog'
 import { recordAgentMorphologySnapshot } from '../../core/runtime/recordAgentMorphology'
+import {
+  runMemoryMetaIntentCapture,
+  memoryCaptureProposalLabel,
+} from '../../core/memory/runMemoryMetaIntentCapture'
 
 export function buildFinalizeNodeRun(deps: CreateFinalNodesDeps) {
     const {
@@ -546,13 +547,18 @@ export function buildFinalizeNodeRun(deps: CreateFinalNodesDeps) {
             state.meta = { ...(state.meta || {}), weakUserProfile: weakSummary }
           }
           if (weakProfile?.pendingPrefs) {
+            const conflictNote = String(weakProfile.pendingPrefs.conflictNote || '').trim()
             state.meta = {
               ...(state.meta || {}),
               pendingPrefsProposal: {
                 ...weakProfile.pendingPrefs,
                 userId: opts.userId || null,
-                note: 'prefs_require_explicit_confirm',
+                note: conflictNote
+                  ? `prefs_require_explicit_confirm; ${conflictNote}`
+                  : 'prefs_require_explicit_confirm',
+                conflictNote: conflictNote || undefined,
               },
+              ...(conflictNote ? { pendingPrefsConflict: conflictNote } : {}),
             }
           }
           await recordLayeredMemoryFromRun(policyDir, {
@@ -776,6 +782,59 @@ export function buildFinalizeNodeRun(deps: CreateFinalNodesDeps) {
           await maybeCurateManagerMemory(policyDir).catch(() => undefined)
         }
 
+        // Wave 8：元意图冷路径（不阻塞 final；失败静默）
+        if (opts.sessionId) {
+          const metaObj = (state.meta || {}) as Record<string, unknown>
+          const memCapture = await runMemoryMetaIntentCapture(
+            {
+              policyDir,
+              runId: opts.runId,
+              sessionId: opts.sessionId,
+              userId: opts.userId,
+              tenantId: String(state.tenantId || state.meta?.tenantId || opts.tenantId || ''),
+              messages: Array.isArray(state.messages) ? state.messages : [],
+              businessQuestion: question,
+              answer: String(state.final || '').trim(),
+              intent: String(state.intent || ''),
+              planAgents,
+              successScore,
+              needsClarify: Boolean(state.meta?.needsClarify),
+              failureCategory: failure.category,
+              scenarioKey,
+              feedbackScore: fb?.score ?? null,
+              probeDbMatched: Boolean(experienceEntry.probeDbMatched),
+              probeRagHits: Number(experienceEntry.probeRagHits ?? 0) || 0,
+              preParsed: metaObj.memoryMetaIntentParsed as any,
+              businessQuestionOverride: String(metaObj.hotGateBusinessQuestion || '').trim() || undefined,
+              answerOverride: String(metaObj.hotGateAnswerSnippet || '').trim() || undefined,
+              intentOverride: String(metaObj.hotGateIntent || '').trim() || undefined,
+              pathOverride: Array.isArray(metaObj.hotGatePlanAgents)
+                ? (metaObj.hotGatePlanAgents as string[])
+                : undefined,
+              turnScopeMode: metaObj.turnScopeMode as any,
+              turnKind: metaObj.turnKind as any,
+              meta: metaObj,
+            },
+            process.env
+          ).catch(() => ({ proposal: null, detail: 'error' }))
+          if (memCapture.proposal) {
+            state.meta = {
+              ...(state.meta || {}),
+              memoryCaptureProposal: memCapture.proposal,
+            }
+            opts.sendEvent({
+              event: 'memory_capture_proposal',
+              data: memCapture.proposal,
+              from: 'manager',
+            })
+            opts.sendEvent({
+              event: 'thinking',
+              data: memoryCaptureProposalLabel(memCapture.proposal),
+              from: 'manager',
+            })
+          }
+        }
+
         // P1b-1：run 结束推一次 OTLP → Tempo（失败不阻断主路径）
         void pushOtlpTraceForRun(opts.runId).catch(() => undefined)
         // P1b-2：结构化 JSON 行 → stdout → Promtail → Loki（按 run_id 检索）
@@ -820,7 +879,12 @@ export function buildFinalizeNodeRun(deps: CreateFinalNodesDeps) {
           void reportBody
           return {
             final: finalText,
-            meta: mergeMeta(state, { synthStreamBody: String(state.meta?.synthStreamBody ?? finalText).trim() }),
+            meta: mergeMeta(state, {
+              synthStreamBody: String(state.meta?.synthStreamBody ?? finalText).trim(),
+              ...(state.meta?.memoryCaptureProposal
+                ? { memoryCaptureProposal: state.meta.memoryCaptureProposal }
+                : {}),
+            }),
             messages: [new AIMessage(redactSecrets(`${finalText}${appendUserTailLocal(finalText)}`))]
           }
         }
@@ -915,7 +979,7 @@ export function buildFinalizeNodeRun(deps: CreateFinalNodesDeps) {
         from: 'manager'
       })
     }
-    body = appendStructuredReportIfNeeded(body, structured)
+    // 执行摘要仅走 run_report 事件 / composeFinal 审计文本；勿并入用户面 final，避免气泡泄漏与流式预览错位
     return polishFinalPayload(
       stripLatexMath(normalizeFinalUserText(sanitizeVisionIfNeeded(String(body || '').trim(), state)))
     )

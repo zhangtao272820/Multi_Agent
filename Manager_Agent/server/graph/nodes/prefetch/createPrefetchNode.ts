@@ -12,6 +12,8 @@ import { effectiveUserTask, lastUserText } from '../../core/text'
 import { resolveDbPrefetchQuestionFromState } from '../../core/db/dbStepQuestion'
 import { groundFollowupQuery, shouldGroundFollowupQuery } from '#agent-shared/followupQueryGrounding'
 import { sessionIntentAnchorFromMeta } from '../../core/memory/multiTurnIntent'
+import { prefetchClarifySuppressMetaPatch } from '../../orchestrate/clarifyProbeGate'
+import { isSingleSourceRagTask } from '../../core/routing/subAgentPassthrough'
 
 function resolveRagPrefetchQuestion(state: any, lastUser: string, question: string): string {
   const blueprint = (state.meta?.planBlueprint as { steps?: Array<{ agent?: string; queryFocus?: string }> } | undefined)
@@ -61,10 +63,29 @@ export function createPrefetchNode(deps: CreatePrefetchNodeDeps) {
         routedQuery: String(state.routedQuery || question),
         messages: state.messages
       }, lastUser, question)
-    const wantRag = targets.rag && String(opts.ragAgentHttpUrl ?? '').trim()
+    const skipRagPrefetch = isSingleSourceRagTask({
+      ...(state.meta || {}),
+      allowedAgents: state.allowedAgents,
+      intent: state.intent,
+    })
+    const wantRag =
+      targets.rag && String(opts.ragAgentHttpUrl ?? '').trim() && !skipRagPrefetch
 
     if (!wantDb && !wantRag) {
-      return { meta: mergeMeta(state, { prefetchMode: 'skip' as const, prefetchTargets: targets }) }
+      if (skipRagPrefetch && targets.rag) {
+        opts.sendEvent({
+          event: 'thinking',
+          data: '预取：单源 RAG 跳过 retrieve（执行步直连 /api/chat）',
+          from: 'manager',
+        })
+      }
+      return {
+        meta: mergeMeta(state, {
+          prefetchMode: skipRagPrefetch && targets.rag ? ('single_source_rag_skip' as const) : ('skip' as const),
+          prefetchTargets: targets,
+          ...(skipRagPrefetch && targets.rag ? { ragPrefetchSkipped: 'single_source_direct_chat' } : {}),
+        }),
+      }
     }
 
     const ragPrefetchQuestion = resolveRagPrefetchQuestion(state, lastUser, question)
@@ -76,6 +97,7 @@ export function createPrefetchNode(deps: CreatePrefetchNodeDeps) {
     const labels: string[] = []
     if (wantDb) labels.push('DB plan')
     if (wantRag) labels.push('RAG retrieve')
+    else if (skipRagPrefetch && targets.rag) labels.push('RAG 预取跳过（单源直连）')
 
     opts.sendEvent({ event: 'phase', data: 'prefetch', from: 'manager' })
     const mode =
@@ -205,6 +227,19 @@ export function createPrefetchNode(deps: CreatePrefetchNodeDeps) {
         : `预取完成（${Date.now() - t0}ms）`,
       from: 'manager'
     })
+
+    const clarifyKill = prefetchClarifySuppressMetaPatch(
+      { ...(state.meta || {}), ...metaPatch } as Record<string, unknown>,
+      ragRes
+    )
+    if (clarifyKill) {
+      Object.assign(metaPatch, clarifyKill)
+      opts.sendEvent({
+        event: 'thinking',
+        data: '预取已命中文档证据，取消 slot 澄清，继续执行检索专家。',
+        from: 'manager'
+      })
+    }
 
     return { meta: mergeMeta(state, metaPatch) }
   }

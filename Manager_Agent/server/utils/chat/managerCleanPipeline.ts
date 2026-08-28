@@ -32,8 +32,9 @@ export async function tryCleanPipeline(
   extractPayload: ExtractPayloadFn,
   question: string,
   model?: ChatOpenAI | null,
-  llmOpts?: { openaiApiKey?: string; openaiBaseUrl?: string; modelName?: string }
+  llmOpts?: { openaiApiKey?: string; openaiBaseUrl?: string; modelName?: string; codePlanned?: boolean }
 ): Promise<CleanPipelineResult | null> {
+  const structuralOpts = { codeDownstream: Boolean(llmOpts?.codePlanned) }
   const fromDb = tryDeterministicCleanFromDbResults(results, extractPayload)
   if (fromDb) {
     return { output: fromDb, mode: 'db_deterministic' }
@@ -52,7 +53,7 @@ export async function tryCleanPipeline(
 
   if (isCleanStructuralFirstEnabled()) {
     const structural = assembleCleanPayloadStructural(snapshots)
-    if (structural && isStructuralCleanSufficient(structural)) {
+    if (structural && isStructuralCleanSufficient(structural, structuralOpts)) {
       return {
         output: serializeCleanPayload(structural),
         mode: 'multi_source_structural',

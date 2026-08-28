@@ -666,6 +666,17 @@ export function useManagerSession(host: ManagerSessionHost) {
     return resolveTurnFeedbackState(t).key
   }
 
+  /** 与 sendFeedback / 模板 disabled 对齐的稳定主键 */
+  function feedbackKeyForTurn(t: TurnGroup): string {
+    const uidx = feedbackUserIndexForTurn(t)
+    if (uidx != null && uidx >= 0) return umidxFeedbackKey(uidx)
+    return turnFeedbackKey(t)
+  }
+
+  function isFeedbackPendingForTurn(t: TurnGroup): boolean {
+    return isFeedbackPendingForKey(feedbackKeyForTurn(t))
+  }
+
   function sessionFeedbackStorageKey() {
     return `manager_session_feedback:${sessionId.value || 'default'}`
   }
@@ -686,6 +697,14 @@ export function useManagerSession(host: ManagerSessionHost) {
     } catch {}
   }
 
+  function clearStaleFeedbackPending(scores: Record<string, 0 | 1>, acks: Record<string, string>) {
+    for (const [key, ack] of Object.entries(acks)) {
+      if (ack !== FEEDBACK_PENDING_ACK) continue
+      delete scores[key]
+      delete acks[key]
+    }
+  }
+
   function restoreSessionFeedback() {
     if (typeof window === 'undefined' || !sessionId.value) return
     try {
@@ -696,13 +715,17 @@ export function useManagerSession(host: ManagerSessionHost) {
         feedbackByUserIndex.value = {}
         feedbackAckByUserIndex.value = {}
         routeFeedbackByUserIndex.value = {}
+        feedbackSendingRunId.value = null
         return
       }
       const parsed = JSON.parse(raw)
-      feedbackByRunId.value =
+      const scores =
         parsed?.scores && typeof parsed.scores === 'object' ? { ...parsed.scores } : {}
-      feedbackAckByRunId.value =
+      const acks =
         parsed?.acks && typeof parsed.acks === 'object' ? { ...parsed.acks } : {}
+      clearStaleFeedbackPending(scores, acks)
+      feedbackByRunId.value = scores
+      feedbackAckByRunId.value = acks
       feedbackByUserIndex.value =
         parsed?.byUserIndex && typeof parsed.byUserIndex === 'object' ? { ...parsed.byUserIndex } : {}
       feedbackAckByUserIndex.value =
@@ -711,6 +734,7 @@ export function useManagerSession(host: ManagerSessionHost) {
           : {}
       routeFeedbackByUserIndex.value =
         parsed?.routeWrong && typeof parsed.routeWrong === 'object' ? { ...parsed.routeWrong } : {}
+      feedbackSendingRunId.value = null
       migrateLegacyFeedbackToUserIndex()
     } catch {
       feedbackByRunId.value = {}
@@ -718,6 +742,7 @@ export function useManagerSession(host: ManagerSessionHost) {
       feedbackByUserIndex.value = {}
       feedbackAckByUserIndex.value = {}
       routeFeedbackByUserIndex.value = {}
+      feedbackSendingRunId.value = null
     }
   }
 
@@ -784,6 +809,7 @@ export function useManagerSession(host: ManagerSessionHost) {
       feedbackByUserIndex.value = byUser
       feedbackAckByUserIndex.value = ackByUser
       routeFeedbackByUserIndex.value = routeWrong
+      feedbackSendingRunId.value = null
       persistSessionFeedback()
     } catch {}
   }
@@ -1362,6 +1388,8 @@ export function useManagerSession(host: ManagerSessionHost) {
     reconcileTurnFeedbackKeys,
     feedbackUserIndexForTurn,
     turnFeedbackKey,
+    feedbackKeyForTurn,
+    isFeedbackPendingForTurn,
     turnFeedbackSubmitted,
     turnFeedbackAckText,
     routeFeedbackSubmitted,

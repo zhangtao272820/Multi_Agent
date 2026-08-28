@@ -236,6 +236,8 @@ def build_db_agent_result(
     latency_ms: int = 0,
     usage: dict[str, Any] | None = None,
     tables: list[str] | None = None,
+    rows: list[dict[str, Any]] | None = None,
+    field_details: list[dict[str, str]] | None = None,
     experience_hits: int = 0,
 ) -> dict[str, Any]:
     if needs_clarify:
@@ -261,6 +263,10 @@ def build_db_agent_result(
         structured["executed_sql"] = executed_sql
     if tables:
         structured["tables"] = tables[:12]
+    if rows:
+        structured["rows"] = rows[:30]
+    if field_details:
+        structured["field_details"] = field_details[:12]
     structured["evolutionApplied"] = {
         "promptPatches": 0,
         "experienceHits": max(0, int(experience_hits)),

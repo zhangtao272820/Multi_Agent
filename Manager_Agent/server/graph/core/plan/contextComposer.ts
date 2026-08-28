@@ -183,9 +183,14 @@ export async function composeManagerPromptContext(
             score: it.score,
             scenarioKey: it.scenarioKey,
             intent: it.intent,
+            path: it.path,
           })),
           negativeCount: experienceReplay.negativeCount || 0,
           vectorRecall: Boolean(experienceReplay.vectorRecall),
+          pathConflictDropped: Number(experienceReplay.pathConflictDropped || 0) || 0,
+        }
+        if (Number(experienceReplay.pathConflictDropped || 0) > 0) {
+          metaPatch.experiencePathConflictDropped = experienceReplay.pathConflictDropped
         }
       }
       if (experienceReplay.negativeCount > 0 && !metaPatch.experienceReplayNegativeCount) {
@@ -213,7 +218,9 @@ export async function composeManagerPromptContext(
     const longMemory = skipLongMemoryForRoute
       ? { text: '', items: [], counts: { success: 0, failure: 0, similar: 0 } }
       : isLayeredMemoryEnabled()
-        ? await buildLayeredMemoryRecall(policyDir, heuristicsText, sessionId, userId).catch(() => ({
+        ? await buildLayeredMemoryRecall(policyDir, heuristicsText, sessionId, userId, {
+            skipClarifyLessons: Number(state?.probe?.rag?.hits ?? 0) > 0
+          }).catch(() => ({
             text: '',
             items: [],
             counts: { success: 0, failure: 0, similar: 0 },

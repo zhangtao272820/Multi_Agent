@@ -1,6 +1,7 @@
 import { hasCodeInResults } from '#agent-shared/codeFirstAuthority'
 import { assessEvidenceGate, hasDbEvidenceInRun, taskNeedsExternalSources } from '../db/evidenceGate'
 import { isMediaOnlyPlanAgents } from '../shared'
+import { resolveOrchestrationThickness } from '../routing/orchestrationThickness'
 
 const FAST_PATH_BLOCK_AGENTS = new Set(['code', 'crawler', 'admin', 'visualize', 'report'])
 
@@ -68,6 +69,12 @@ export function shouldSkipCriticLlm(input: {
     hasDbEvidenceInRun({ results: input.results, evidence: input.evidence })
   ) {
     return { skip: true, reason: 'db_only_success' }
+  }
+
+  if (resolveOrchestrationThickness({ meta: input.meta, intent: input.intent }) === 'single_source') {
+    if (!criticFastPathBlocked(input)) {
+      return { skip: true, reason: 'single_source_thin' }
+    }
   }
 
   const isHighConf = (input.routeConfidence ?? 0) > 0.9

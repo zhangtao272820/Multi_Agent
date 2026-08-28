@@ -85,6 +85,8 @@ export function buildRetrieveFirstToolOutput(result: DocumentRetrievalResult): s
     experienceHits: result.experienceHits ?? 0,
     abVariant: result.abVariant,
     banditArm: result.banditArm,
+    retrievalLanes: result.retrievalLanes ?? ["hybrid"],
+    needs_graph: Boolean(result.plan?.needs_graph),
     ms: result.ms,
   };
   let out = String(result.output ?? "").trim();
@@ -92,6 +94,12 @@ export function buildRetrieveFirstToolOutput(result: DocumentRetrievalResult): s
     out = `${out}\n\n[evidence_json]\n${JSON.stringify({ evidence: result.evidence }, null, 2)}`;
   }
   return `${out}\n[retrieval_meta]\n${JSON.stringify(meta)}`;
+}
+
+function formatRetrievalLanesLabel(lanes: string[] | undefined): string {
+  const xs = (lanes || []).map((x) => String(x || "").trim()).filter(Boolean);
+  if (!xs.length) return "hybrid";
+  return xs.join("+");
 }
 
 export type RetrieveFirstChatInput = {
@@ -116,6 +124,8 @@ export type RetrieveFirstChatResult = {
   clarifyOnly?: boolean;
   /** H4 / I2：检索失败可解释枚举 */
   retrievalFailureMode?: string;
+  /** L/M：hybrid | hyde | graph */
+  retrievalLanes?: string[];
 };
 
 function resolvePreflight(input: RetrieveFirstChatInput): RagIntentJudgment | null {
@@ -323,7 +333,7 @@ export async function runRetrieveFirstChatStream(
   onEvent({
     type: "phase",
     phase: "workflow_route",
-    content: `工作流：${modeWorkflowLabel(initialMode)}（${docs.length} 份文档，RAGFlow 检索+重排+引用）`,
+    content: `工作流：${modeWorkflowLabel(initialMode)}（${docs.length} 份文档，Hybrid 主路径；制度图按问句门控辅佐）`,
     detail: { initialMode, modesToTry, corpusSize: docs.length },
   });
 
@@ -338,7 +348,7 @@ export async function runRetrieveFirstChatStream(
     onEvent({
       type: "phase",
       phase: "retrieval_start",
-      content: `${modeWorkflowLabel(mode)}：向量+词法融合${mode === "standard" ? "+ CE 重排" : ""}`,
+      content: `${modeWorkflowLabel(mode)}：向量+词法融合${mode === "standard" ? "+ CE 重排" : ""}（图车道门控中）`,
       detail: { mode, ...runParams },
     });
 
@@ -371,6 +381,7 @@ export async function runRetrieveFirstChatStream(
             mode,
             evidenceCount: result.evidence.length,
             subQueries: subQueriesFinal.length,
+            retrievalLanes: result.retrievalLanes,
           },
         });
         retrieval = result;
@@ -379,16 +390,25 @@ export async function runRetrieveFirstChatStream(
       }
       retrieval = result;
       usedMode = mode;
+      const lanes = formatRetrievalLanesLabel(result.retrievalLanes);
+      const graphAssist =
+        (result.retrievalLanes || []).includes("graph")
+          ? "；制度图已并入 RRF"
+          : result.plan?.needs_graph
+            ? "；已开图门控但无图命中"
+            : "；未开图门控";
       onEvent({
         type: "phase",
         phase: "retrieval_done",
-        content: `${modeWorkflowLabel(mode)} 命中 ${result.evidence.length} 条证据，重排 ${result.rerankMode || "lexical"}`,
+        content: `${modeWorkflowLabel(mode)} 命中 ${result.evidence.length} 条 · 车道 ${lanes}${graphAssist} · 重排 ${result.rerankMode || "lexical"}`,
         ms: result.ms ?? Date.now() - attemptStartedAt,
         detail: {
           mode,
           evidenceCount: result.evidence.length,
           rerankMode: result.rerankMode,
           routingMode: result.routingMode,
+          retrievalLanes: result.retrievalLanes,
+          needs_graph: result.plan?.needs_graph,
         },
       });
       break;
@@ -431,6 +451,7 @@ export async function runRetrieveFirstChatStream(
       workflowMode: usedMode,
       clarifyOnly: true,
       retrievalFailureMode: retrieval.retrievalFailureMode || retrieval.clarifyReason || "weak_evidence",
+      retrievalLanes: retrieval.retrievalLanes ?? ["hybrid"],
     };
   }
 
@@ -681,5 +702,6 @@ export async function runRetrieveFirstChatStream(
       falseNegativeRetried && answerLooksLikeRetrievalMiss(answer)
         ? "false_negative_miss"
         : retrieval.retrievalFailureMode || retrieval.clarifyReason,
+    retrievalLanes: retrieval.retrievalLanes ?? ["hybrid"],
   };
 }

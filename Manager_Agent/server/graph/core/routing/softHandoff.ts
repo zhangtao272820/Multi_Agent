@@ -56,7 +56,7 @@ export function softHandoffToSpecialist(h: SoftHandoffRecord): SpecialistHandoff
 /** continuation 编排 Human：只拼锚点级软交接，禁止整段历史 */
 export function formatSoftHandoffsForContinuation(
   records: SoftHandoffRecord[] | null | undefined,
-  max = 4
+  max = 3
 ): string {
   const rows = (Array.isArray(records) ? records : []).slice(-Math.max(1, max))
   if (!rows.length) return ''

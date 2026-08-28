@@ -7,6 +7,7 @@ import type { ManagerGraphState } from './state'
 import { isUnifiedOrchestratorEnabled } from '../llm/taskOrchestrator'
 import { isManagerMcpToolNodeEnabled, resolveMcpDirectCallFromMeta } from '../../utils/mcp/resolveMcpDirectCall'
 import { shouldRequirePlanPreview } from '../core/plan/planPreview'
+import { resolvePostPrefetchRoute } from '../core/routing/orchestrationThickness'
 
 type GraphStateSlice = ManagerGraphState & {
   resumeAdminConfirm?: boolean
@@ -32,7 +33,24 @@ function routeAfterPrefetch(s: GraphStateSlice) {
   if (Boolean(s?.meta?.needsClarify)) return 'clarify'
   if (Boolean(s?.meta?.directChitchatSynth)) return 'synth'
   if (shouldRouteToWebSearch(s)) return 'web_search'
-  return s.intent === 'multi' ? 'planner' : s.intent
+  return resolvePostPrefetchRoute({
+    intent: s.intent,
+    meta: s.meta,
+    allowedAgents: s.allowedAgents,
+  })
+}
+
+function routeAfterMetaIntentGate(s: GraphStateSlice) {
+  if (Boolean(s?.meta?.metaIntentHotGate) && Boolean(s?.meta?.directChitchatSynth)) return 'synth'
+  return 'probe_node'
+}
+
+function routeAfterSynth(s: GraphStateSlice) {
+  const meta = s?.meta
+  if (Boolean(meta?.directChitchatSynth)) return 'finalize'
+  if (meta?.orchestrationThickness === 'single_source') return 'finalize'
+  if (meta?.orchestrationThickness === 'memory_capture') return 'finalize'
+  return 'evaluator_node'
 }
 
 type NodeFn = (state: GraphStateSlice) => Partial<GraphStateSlice> | Promise<Partial<GraphStateSlice>>
@@ -41,6 +59,7 @@ type ManagerGraphNodes = {
   resourceNode: NodeFn
   toolHealthNode: NodeFn
   turnScopeNode: NodeFn
+  metaIntentGateNode: NodeFn
   probeNode: NodeFn
   metacogNode: NodeFn
   securityNode: NodeFn
@@ -97,6 +116,7 @@ export function compileManagerGraph(
     .addNode('resource_node', nodes.resourceNode)
     .addNode('tool_health', nodes.toolHealthNode)
     .addNode('turn_scope', nodes.turnScopeNode)
+    .addNode('meta_intent_gate', nodes.metaIntentGateNode)
     .addNode('probe_node', nodes.probeNode)
     .addNode('metacog_node', nodes.metacogNode)
     .addNode('security_gate', nodes.securityNode)
@@ -139,7 +159,12 @@ export function compileManagerGraph(
     .addEdge(START, 'resource_node')
     .addEdge('resource_node', 'tool_health')
     .addEdge('tool_health', 'turn_scope')
-    .addEdge('turn_scope', 'probe_node')
+    .addEdge('turn_scope', 'meta_intent_gate')
+    .addConditionalEdges(
+      'meta_intent_gate',
+      routeAfterMetaIntentGate,
+      ['synth', 'probe_node']
+    )
     .addEdge('probe_node', 'metacog_node')
     .addConditionalEdges(
       'metacog_node',
@@ -201,8 +226,13 @@ export function compileManagerGraph(
       (s: any) => {
         if (Boolean(s?.meta?.needsClarify)) return 'clarify'
         if (s?.meta?.webDirectSynth === true && s?.meta?.requiresAgentPipeline !== true) return 'synth'
-        if (s?.meta?.requiresAgentPipeline === true || s.intent === 'multi') return 'planner'
-        return s.intent
+        const thinRoute = resolvePostPrefetchRoute({
+          intent: s.intent,
+          meta: s.meta,
+          allowedAgents: s.allowedAgents,
+        })
+        if (thinRoute !== 'planner') return thinRoute
+        return 'planner'
       },
       ['clarify', 'planner', 'db', 'rag', 'code', 'crawler', 'gui', 'admin', 'clean', 'visualize', 'report', 'multimodal', 'music', 'video', 'synth']
     )
@@ -242,7 +272,7 @@ export function compileManagerGraph(
     .addConditionalEdges('multi', afterExecution, ['clarify', 'synth', 'finalize'])
     .addConditionalEdges(
       'synth',
-      (s: any) => (Boolean(s?.meta?.directChitchatSynth) ? 'finalize' : 'evaluator_node'),
+      routeAfterSynth,
       ['finalize', 'evaluator_node'] as any
     )
     .addEdge('evaluator_node', 'critic')

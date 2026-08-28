@@ -52,6 +52,7 @@ async function main() {
 
   const joined = messages.map((m) => String((m as { content?: string }).content || '')).join('\n')
   assert(/ALPHA-24/.test(joined) || /ALPHA-23/.test(joined), 'recent ALPHA code must survive in window')
+  assert(/锚:/.test(joined), 'older user anchors should appear in summary block')
   assert(messages.length < turns.length, 'message count after compact must shrink')
 
   console.log(

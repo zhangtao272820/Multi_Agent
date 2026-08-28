@@ -54,7 +54,12 @@ async function readLayeredMemoryRows(
   return readJsonlTail(path.join(policyDir, file), maxLines)
 }
 
-async function buildReflectionBlock(policyDir: string, queryText: string, scenarioKey: string): Promise<string> {
+async function buildReflectionBlock(
+  policyDir: string,
+  queryText: string,
+  scenarioKey: string,
+  opts?: { skipClarifyLessons?: boolean }
+): Promise<string> {
   const rows = await readLayeredMemoryRows(policyDir, 'reflection', maxReflectionLines())
   const qBag = tokenBag(queryText)
   const scored = rows
@@ -71,6 +76,7 @@ async function buildReflectionBlock(policyDir: string, queryText: string, scenar
       }
     })
     .filter((x) => x.lesson && x.score >= 0.12)
+    .filter((x) => !(opts?.skipClarifyLessons && x.category === 'clarify_needed'))
     .sort((a, b) => b.score - a.score)
     .slice(0, 4)
 
@@ -136,7 +142,8 @@ export async function buildLayeredMemoryRecall(
   policyDir: string,
   queryText: string,
   sessionId?: string,
-  userId?: string
+  userId?: string,
+  opts?: { skipClarifyLessons?: boolean }
 ): Promise<LayeredMemoryRecall> {
   if (!isLayeredMemoryEnabled()) {
     const base = await buildLongMemoryRecall(policyDir, queryText, sessionId, userId)
@@ -160,7 +167,9 @@ export async function buildLayeredMemoryRecall(
   const semantic = await buildSemanticBlock(policyDir, q, scenarioKey)
   if (semantic) blocks.push(semantic)
 
-  const reflection = await buildReflectionBlock(policyDir, q, scenarioKey)
+  const reflection = await buildReflectionBlock(policyDir, q, scenarioKey, {
+    skipClarifyLessons: opts?.skipClarifyLessons === true
+  })
   if (reflection) blocks.push(reflection)
 
   const experience = await buildLongMemoryRecall(policyDir, q, sessionId, userId)

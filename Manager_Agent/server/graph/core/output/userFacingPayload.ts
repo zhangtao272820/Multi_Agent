@@ -14,11 +14,14 @@ import {
   looksLikeTruncatedSummary,
   stripPhaseStepLabels,
   stripStructuredExecReport,
-  stripSynthPromptLeakage
+  stripSynthPromptLeakage,
+  isReportTierSummaryTooThin
 } from '#agent-shared/synthOutputSanitize'
 
 import type { SpecialistHandoff } from '../../../utils/agents/types'
 import { buildActionCardsFromHumanConfirm } from './actionCard'
+import { buildMemoryCaptureAckText } from '../routing/orchestrationThickness'
+import type { MemoryMetaIntentParsed } from '../memory/memoryMetaIntent'
 
 export { looksLikeStepDumpSummary, looksLikeTruncatedSummary, stripPhaseStepLabels }
 export { looksLikeExecAuditDump, stripStructuredExecReport }
@@ -58,8 +61,21 @@ export type UserFacingSource = {
   kind?: 'web' | 'rag' | 'db' | 'doc'
 }
 
-/** 用户态回复文体档位（由 plan/results/meta 确定性推导） */
-export type ReplyTier = 'lite' | 'standard' | 'report'
+import {
+  applyPresentationToSlots,
+  isPresentationPlanActive,
+  presentationPlanFromMeta,
+  resolveEffectiveReplyTier,
+  shouldIncludeReportAppendix,
+  shouldShowHeadline,
+  shouldShowSources,
+  type PresentationPlan,
+  type PresentationReplyTier
+} from '#agent-shared/presentationPlan'
+import { buildReplyArtifactSlots } from '#agent-shared/presentationSurfaces'
+
+/** 用户态回复文体档位（Presentation Plan LLM 优先，结构信号兜底） */
+export type ReplyTier = PresentationReplyTier
 
 export type UserFacingPayload = {
   summary: string
@@ -78,6 +94,23 @@ export type UserFacingPayload = {
   badgeLabel?: string
   /** 本轮用户态回复档位（可选，供前端/观测） */
   replyTier?: ReplyTier
+  /** Cursor 式 follow-up chips（来自 Presentation Plan LLM） */
+  suggestions?: string[]
+  /** Cursor 式展示编排 SSOT（供前端按模块渲染） */
+  presentationPlan?: PresentationPlan
+  /** Cursor Artifact 面板 slot 描述（chart/table/report + surface） */
+  artifacts?: Array<{
+    id: string
+    kind: 'chart' | 'table' | 'report'
+    title: string
+    surface: 'inline' | 'artifact_panel'
+    collapsed?: boolean
+  }>
+  /** Canvas 中用户已编辑并应用报告 */
+  reportEdited?: boolean
+  reportEditedAt?: string
+  /** 气泡内短注（与 appendix 分离，幂等） */
+  reportRevisionNote?: string
 }
 
 const DEVELOPER_JARGON_RE =
@@ -291,8 +324,12 @@ export function resolveReplyTier(input: {
   chatWebReply?: boolean
   hasGuiResult?: boolean
   hasDbResult?: boolean
+  presentationPlan?: PresentationPlan | null
 }): ReplyTier {
   const meta = input.meta && typeof input.meta === 'object' ? input.meta : {}
+  const plan =
+    input.presentationPlan ??
+    presentationPlanFromMeta(meta)
   const steps = Array.isArray(input.planSteps) ? input.planSteps : []
   const agents = steps.map((s) => String(s?.agent || '').trim()).filter(Boolean)
   const bag = input.results && typeof input.results === 'object' ? input.results : {}
@@ -322,23 +359,100 @@ export function resolveReplyTier(input: {
     agents.every((a) => !a || a === 'admin') &&
     !['db', 'rag', 'crawler', 'code'].some((k) => String(bag[k] ?? '').trim())
 
-  if (adminOnly) return 'lite'
+  let structural: ReplyTier = 'standard'
+  if (adminOnly) {
+    structural = 'lite'
+  } else {
+    const guiOnly =
+      Boolean(input.hasGuiResult) &&
+      !Boolean(input.hasDbResult) &&
+      !multi &&
+      !hasHeavyAux &&
+      agents.length > 0 &&
+      agents.every((a) => a === 'gui')
+    if (guiOnly) structural = 'lite'
+    else if (multi || hasHeavyAux) structural = 'report'
+  }
 
-  const guiOnly =
-    Boolean(input.hasGuiResult) &&
-    !Boolean(input.hasDbResult) &&
-    !multi &&
-    !hasHeavyAux &&
-    agents.length > 0 &&
-    agents.every((a) => a === 'gui')
-  if (guiOnly) return 'lite'
-
-  if (multi || hasHeavyAux) return 'report'
-  return 'standard'
+  return resolveEffectiveReplyTier(plan, structural)
 }
 
 const SYNTH_MISSING_HINT = '汇总未生成可用正文，请重试本轮任务。'
 const LIGHT_MISSING_HINT = '暂无结论。可查看上方进展，或换个说法再试一次。'
+
+/** 复杂任务已有图表/指标但 Synth 正文被拒：从 Code answer/facts 或已解析指标拼最小可读结论 */
+function buildHeavyAuxSummaryFallback(input: {
+  results?: Record<string, unknown>
+  metrics?: UserFacingMetric[]
+  chart?: { title?: string }
+}): string {
+  const parts: string[] = []
+  const codeRaw = String(input.results?.code ?? '').trim()
+  if (codeRaw.startsWith('{')) {
+    try {
+      const obj = JSON.parse(codeRaw) as {
+        answer?: string
+        facts?: Array<{ label?: string; key?: string; value?: unknown }>
+      }
+      const ans = stripPhaseStepLabels(stripDeveloperJargon(String(obj.answer ?? '').trim()))
+      if (ans && !looksLikeDeveloperDump(ans) && !looksLikeHandoffStubOrBlob(ans)) {
+        parts.push(ans)
+      } else {
+        const facts = Array.isArray(obj.facts) ? obj.facts : []
+        const lines = facts
+          .slice(0, 8)
+          .map((f) => {
+            const label = String(f.label ?? f.key ?? '').trim()
+            const value = String(f.value ?? '').trim()
+            if (!label || !value) return ''
+            return `- **${humanizeFieldKey(label)}**：${value}`
+          })
+          .filter(Boolean)
+        if (lines.length) parts.push(['### 关键数据', ...lines].join('\n'))
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+  if (!parts.length && input.metrics?.length) {
+    const lines = input.metrics
+      .slice(0, 8)
+      .map((m) => `- **${m.label}**：${m.value}`)
+      .filter(Boolean)
+    if (lines.length) parts.push(['### 关键指标', ...lines].join('\n'))
+  }
+  if (!parts.length && input.chart?.title) {
+    parts.push(`已生成「${String(input.chart.title).slice(0, 60)}」，详见下方图表。`)
+  }
+  return parts.join('\n\n').trim()
+}
+
+/** 寒暄/记忆/确认类轻路径：禁止「暂无结论」占位，须给用户自然语言答复 */
+function resolveConversationalFallback(meta?: Record<string, unknown>): string | null {
+  const m = meta && typeof meta === 'object' ? meta : {}
+  const proposal = m.memoryCaptureProposal as { kind?: string; title?: string } | undefined
+  if (proposal?.kind && proposal.kind !== 'none') {
+    return buildMemoryCaptureAckText({
+      kind: proposal.kind as MemoryMetaIntentParsed['kind'],
+      title: proposal.title,
+      confidence: 1,
+    })
+  }
+  const parsed = m.memoryMetaIntentParsed as MemoryMetaIntentParsed | undefined
+  if (parsed?.kind && parsed.kind !== 'none') {
+    return buildMemoryCaptureAckText(parsed)
+  }
+  if (
+    m.memoryCaptureSynth === true ||
+    m.chitchatSynth === true ||
+    m.directChitchatSynth === true ||
+    m.orchestrationThickness === 'memory_capture' ||
+    m.metaIntentHotGate === true
+  ) {
+    return '好的，收到。还有什么我可以帮你的？'
+  }
+  return null
+}
 
 /** handoff 回退：去掉阶段标签后取可用短结论；仍像 dump 则空 */
 function normalizeHandoffFallback(joined: string): string {
@@ -584,14 +698,17 @@ function collectModuleSlots(input: {
     )
     if (headers.length && rows.length) table = dropSystemAuditColumns({ headers, rows })
   }
-  // 单行 ORM 实体宽表（无指标/测值/状态）不进用户看板——那是库表回显，不是对照分析表
+  // 单行 ORM 实体宽表：多源对照任务过滤；单源 DB 查数必须展示完整结果表
   if (table) {
     const headers = table.headers
+    const singleSourceDb =
+      String(input.meta?.orchestrationThickness || '') === 'single_source' &&
+      Boolean(String(input.results?.db ?? '').trim())
     const looksLikeEntityDump =
       table.rows.length <= 2 &&
       headers.length >= 3 &&
       !headers.some((h) => /指标|测值|测量|参考|状态|标准|结论/.test(String(h)))
-    if (!looksLikeEntityDump) out.table = table
+    if (!looksLikeEntityDump || singleSourceDb) out.table = table
   }
 
   return out
@@ -840,6 +957,7 @@ export function buildUserFacingPayload(input: {
     planSteps: input.planSteps,
     meta
   })
+  const presentationPlan = presentationPlanFromMeta(meta)
   const replyTier = resolveReplyTier({
     intent: input.intent,
     results: input.results,
@@ -853,7 +971,8 @@ export function buildUserFacingPayload(input: {
         input.planSteps.some((s) => String(s?.agent || '') === 'admin')),
     hasGuiResult: Boolean(String(input.results?.gui ?? '').trim()),
     hasDbResult: Boolean(String(input.results?.db ?? '').trim()),
-    chatWebReply: Boolean(meta.chatWebOnly) || String(meta.webExecutionMode || '') === 'search_chat'
+    chatWebReply: Boolean(meta.chatWebOnly) || String(meta.webExecutionMode || '') === 'search_chat',
+    presentationPlan
   })
 
   let summary = fromSynth
@@ -883,7 +1002,7 @@ export function buildUserFacingPayload(input: {
         meta,
         results: input.results
       })
-      summary = normalizeHandoffFallback(handoffs.join('\n\n')) || LIGHT_MISSING_HINT
+      summary = normalizeHandoffFallback(handoffs.join('\n\n')) || resolveConversationalFallback(meta) || LIGHT_MISSING_HINT
     }
   }
 
@@ -891,8 +1010,21 @@ export function buildUserFacingPayload(input: {
     stripStructuredExecReport(stripDeveloperJargon(stripSynthPromptLeakage(summary)))
   )
   summary = stripPhaseStepLabels(summary)
+  // report 档过短：若完整 synth 更长且含分段，回升（避免 Code answer 一句带过）
+  if (
+    replyTier === 'report' &&
+    isReportTierSummaryTooThin(summary, replyTier) &&
+    synth &&
+    !isReportTierSummaryTooThin(stripPhaseStepLabels(synth), replyTier)
+  ) {
+    summary = stripSystemAuditColumnsFromMarkdown(
+      stripStructuredExecReport(
+        stripDeveloperJargon(stripSynthPromptLeakage(stripPhaseStepLabels(synth)))
+      )
+    )
+  }
   if (!summary) {
-    summary = heavy ? SYNTH_MISSING_HINT : LIGHT_MISSING_HINT
+    summary = heavy ? SYNTH_MISSING_HINT : resolveConversationalFallback(meta) || LIGHT_MISSING_HINT
   }
   // 截断 dump：若完整 synth 更长，回升到 synth（与流式预览对齐）
   if (
@@ -906,10 +1038,32 @@ export function buildUserFacingPayload(input: {
   }
 
   const outcome = resolveOutcome(meta)
-  const sources = collectUnifiedSources({ evidence: input.evidence, meta, max: 12 })
+  const sources = shouldShowSources(presentationPlan)
+    ? collectUnifiedSources({ evidence: input.evidence, meta, max: 12 })
+    : []
 
-  const slots = collectModuleSlots({ results: input.results, meta, synth })
+  const slots = applyPresentationToSlots(
+    collectModuleSlots({ results: input.results, meta, synth }),
+    presentationPlan
+  )
   const actions = resolveActions({ meta, actions: input.actions })
+
+  if (
+    (summary === SYNTH_MISSING_HINT || !String(summary || '').trim()) &&
+    heavy &&
+    (slots.metrics?.length || slots.chart || slots.table)
+  ) {
+    const auxFallback = buildHeavyAuxSummaryFallback({
+      results: input.results,
+      metrics: slots.metrics,
+      chart: slots.chart
+    })
+    if (auxFallback) {
+      summary = stripSystemAuditColumnsFromMarkdown(
+        stripStructuredExecReport(stripDeveloperJargon(stripSynthPromptLeakage(auxFallback)))
+      )
+    }
+  }
 
   const cleanAppendix = appendix
     ? stripSystemAuditColumnsFromMarkdown(stripStructuredExecReport(appendix))
@@ -920,7 +1074,12 @@ export function buildUserFacingPayload(input: {
     outcomeLabel: outcomeLabelZh(outcome),
     replyTier
   }
-  const headline = extractUserFacingHeadline(summary, replyTier)
+  if (presentationPlan && isPresentationPlanActive(presentationPlan)) {
+    payload.presentationPlan = presentationPlan
+  }
+  const headline = shouldShowHeadline(presentationPlan, replyTier)
+    ? extractUserFacingHeadline(summary, replyTier)
+    : undefined
   if (headline) payload.headline = headline
   if (meta.evidenceGatePassed === false) {
     payload.badge = 'evidence_rejected'
@@ -934,7 +1093,7 @@ export function buildUserFacingPayload(input: {
   }
   // 执行摘要类 dump / lite·standard / 与正文重复 → 不进用户附录
   const allowAppendix =
-    replyTier === 'report' &&
+    shouldIncludeReportAppendix(presentationPlan, replyTier) &&
     cleanAppendix &&
     cleanAppendix.length >= 40 &&
     !looksLikeExecAuditDump(cleanAppendix) &&
@@ -947,6 +1106,20 @@ export function buildUserFacingPayload(input: {
   if (slots.chart) payload.chart = slots.chart
   if (slots.table) payload.table = slots.table
   if (actions?.length) payload.actions = actions
+  if (
+    presentationPlan?.suggestions?.length &&
+    isPresentationPlanActive(presentationPlan)
+  ) {
+    payload.suggestions = presentationPlan.suggestions.slice(0, 4)
+  }
+  const artifactSlots = buildReplyArtifactSlots({
+    plan: presentationPlan,
+    chartTitle: slots.chart?.title,
+    hasChart: Boolean(slots.chart),
+    hasTable: Boolean(slots.table),
+    hasReport: Boolean(allowAppendix && cleanAppendix)
+  })
+  if (artifactSlots.length) payload.artifacts = artifactSlots
   return payload
 }
 

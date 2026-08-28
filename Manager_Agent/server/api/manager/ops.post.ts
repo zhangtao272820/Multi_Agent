@@ -236,6 +236,74 @@ export default defineEventHandler(async (event) => {
     return { ok: true, skillId }
   }
 
+  if (action === 'rule_candidates_list') {
+    const { listRuleCandidates } = await import('../../graph/core/memory/ruleCandidateStore')
+    const statusRaw = body?.status != null ? String(body.status).trim() : 'draft'
+    const rows = await listRuleCandidates(dir, {
+      limit: Number(body?.limit ?? 50),
+      status:
+        statusRaw === 'all'
+          ? undefined
+          : (statusRaw as 'draft' | 'promoted' | 'rejected'),
+    })
+    return { ok: true, ruleCandidates: rows }
+  }
+
+  if (action === 'rule_candidate_promote') {
+    const ruleId = String(body?.ruleCandidateId || body?.skillId || body?.key || '').trim()
+    if (!ruleId) return { ok: false, message: 'missing ruleCandidateId' }
+    const verify = await verifyBeforePromote('manager')
+    if (!verify.ok) return { ok: false, message: verify.reason || 'verify_failed', verify }
+    const { setRuleCandidateStatus } = await import('../../graph/core/memory/ruleCandidateStore')
+    const out = await setRuleCandidateStatus(dir, ruleId, 'promoted')
+    return { ok: out.ok, ...out, verify }
+  }
+
+  if (action === 'rule_candidate_reject') {
+    const ruleId = String(body?.ruleCandidateId || body?.skillId || body?.key || '').trim()
+    if (!ruleId) return { ok: false, message: 'missing ruleCandidateId' }
+    const { setRuleCandidateStatus } = await import('../../graph/core/memory/ruleCandidateStore')
+    const out = await setRuleCandidateStatus(dir, ruleId, 'rejected')
+    return { ok: out.ok, ...out }
+  }
+
+  if (action === 'experience_candidates_list') {
+    const { listExperienceCandidates } = await import('../../graph/core/memory/experienceCandidateStore')
+    const statusRaw = body?.status != null ? String(body.status).trim() : 'draft'
+    const rows = await listExperienceCandidates(dir, {
+      limit: Number(body?.limit ?? 50),
+      status:
+        statusRaw === 'all'
+          ? undefined
+          : (statusRaw as 'draft' | 'promoted' | 'rejected'),
+    })
+    return { ok: true, experienceCandidates: rows }
+  }
+
+  if (action === 'experience_candidate_promote') {
+    const candidateId = String(body?.experienceCandidateId || body?.skillId || body?.key || '').trim()
+    if (!candidateId) return { ok: false, message: 'missing experienceCandidateId' }
+    const verify = await verifyBeforePromote('manager')
+    if (!verify.ok) return { ok: false, message: verify.reason || 'verify_failed', verify }
+    const { promoteExperienceCandidateById } = await import('../../graph/core/unifiedLearning/promoteFromFeedback')
+    const out = await promoteExperienceCandidateById(dir, candidateId)
+    return { ok: out.ok, ...out, verify }
+  }
+
+  if (action === 'experience_candidate_reject') {
+    const candidateId = String(body?.experienceCandidateId || body?.skillId || body?.key || '').trim()
+    if (!candidateId) return { ok: false, message: 'missing experienceCandidateId' }
+    const { setExperienceCandidateStatus } = await import('../../graph/core/memory/experienceCandidateStore')
+    const out = await setExperienceCandidateStatus(dir, candidateId, 'rejected')
+    return { ok: out.ok, ...out }
+  }
+
+  if (action === 'pending_prefs_list') {
+    const { listPendingPrefsProfiles } = await import('../../graph/core/memory/userProfile')
+    const rows = await listPendingPrefsProfiles(dir, { limit: Number(body?.limit ?? 40) })
+    return { ok: true, pendingPrefs: rows }
+  }
+
   if (action === 'skill_playbook_reload') {
     clearPlaybookCache()
     return { ok: true, message: 'playbook cache cleared' }

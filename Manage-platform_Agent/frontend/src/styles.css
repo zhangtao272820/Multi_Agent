@@ -1078,6 +1078,67 @@ body {
   letter-spacing: 0.02em;
 }
 
+.evo-badge--explicit {
+  background: rgba(14, 116, 144, 0.25);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  color: #7dd3fc;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+}
+
+.evo-row-explicit {
+  background: rgba(14, 116, 144, 0.08);
+}
+
+.evo-row-conflict {
+  background: rgba(180, 83, 9, 0.12);
+}
+
+.evo-badge--warn {
+  background: rgba(180, 83, 9, 0.22);
+  color: #fcd34d;
+  border: 1px solid rgba(251, 191, 36, 0.35);
+}
+
+.evo-conflict-note {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: #fcd34d;
+  line-height: 1.45;
+}
+
+.evo-review-guide {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.evo-review-guide ul {
+  margin: 8px 0 0;
+  padding-left: 1.2rem;
+}
+
+.evo-review-guide li + li {
+  margin-top: 4px;
+}
+
+.evo-prefs-compare {
+  display: grid;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.evo-prefs-compare strong {
+  display: block;
+  font-size: 11px;
+  margin-bottom: 4px;
+  opacity: 0.85;
+}
+
 .evo-flow {
   list-style: none;
   margin: 0 0 12px;
@@ -1169,6 +1230,46 @@ body {
 .evo-tabs__btn.is-active {
   border-color: rgba(125, 206, 160, 0.45);
   background: rgba(46, 160, 100, 0.12);
+}
+
+.evo-rules-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(220px, 0.9fr);
+  gap: 12px;
+  align-items: start;
+}
+
+@media (max-width: 960px) {
+  .evo-rules-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.evo-rules-layout .table-wrap tr {
+  cursor: pointer;
+}
+
+.evo-rules-layout .table-wrap tr.is-selected {
+  background: rgba(46, 160, 100, 0.12);
+}
+
+.evo-rule-preview {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: rgba(0, 0, 0, 0.22);
+  min-height: 180px;
+}
+
+.evo-rule-preview__md {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 12px;
+  line-height: 1.45;
+  max-height: 420px;
+  overflow: auto;
+  color: rgba(230, 237, 243, 0.92);
 }
 
 .evo-tab-panel__toolbar {

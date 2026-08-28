@@ -5,6 +5,7 @@ import { buildRagRefocusMessage, isRagRelevanceJudgeEnabled, refineRagAnswerIfIr
 import type { ManagerGraphState } from '../../state/state'
 import { resolveLeanRagQuery } from '../probe/retrieverPlan'
 import { isManagerRagRetrieveFirstEnabled, shouldSkipRagRelevanceRefine, shouldTreatRagAsMiss } from '../rag/ragRetrievePolicy'
+import { resolveRagPassthroughText } from '#agent-shared/deterministicPassthrough'
 import { isSingleSourceRagTask, isTrueMultiTask, resolveSubAgentStepSessionId } from '../routing/subAgentPassthrough'
 import { classifyAndDetectHard } from '../runtime/expertFailure'
 import { buildRagHistoryFromState } from '../runtime/sessionBridge'
@@ -48,6 +49,114 @@ export function isRagMcpFirstEnabled(env: NodeJS.ProcessEnv = process.env): bool
   return String(env.MANAGER_RAG_MCP_FIRST ?? '0').trim() === '1'
 }
 
+/** 单源 RAG ≡ 独立端 /api/chat：禁 MCP / retrieve 兜底 / 相关性裁判 */
+async function executeSingleSourceRagDirectChat(
+  deps: AgentExecutorDeps,
+  opts: AgentExecutorOpts,
+  input: {
+    state: ManagerGraphState
+    question: string
+    chatMessage: string
+    timeoutMs: number
+    sendThinking: (t: string) => void
+    sendDelta?: (d: string) => void
+    revisionSkipCache: boolean
+    turnScopeMode: string | null
+    turnKind: string | null
+  }
+): Promise<AgentStepOutcome> {
+  let ragEvidence: Record<string, unknown> | null = null
+  let ragAgentResult: AgentResult | undefined
+  const chatMessage = String(input.chatMessage || input.question || '').trim()
+  const ragConversationId = resolveSubAgentStepSessionId({
+    runId: opts.runId,
+    agent: 'rag',
+    stepId: String((input.state.meta as { currentStepId?: string } | null)?.currentStepId || '').trim() || undefined,
+  })
+
+  input.sendThinking('RAG Agent：单源直连独立端 /api/chat（用户原问透传）')
+
+  const callRag = (message: string, timeoutMs: number, extra?: { skipCache?: boolean }) =>
+    deps.callRagAgent({
+      ragAgentHttpUrl: opts.ragAgentHttpUrl,
+      timeoutMs,
+      message,
+      retrievalQuery: chatMessage,
+      history: [],
+      conversationId: ragConversationId,
+      userId: opts.userId,
+      traceId: opts.runId,
+      skipCache: extra?.skipCache ?? input.revisionSkipCache,
+      sendThinking: input.sendThinking,
+      sendDelta: (d: string) => {
+        input.sendDelta?.(d)
+        opts.sendEvent({ event: 'delta', data: d, from: 'rag' })
+      },
+      signal: opts.signal,
+      onEvidence: (e: unknown) => {
+        ragEvidence = (e as Record<string, unknown>) || null
+      },
+      onAgentResult: (ar) => {
+        ragAgentResult = ar
+      },
+    })
+
+  try {
+    const ragCall = await callRag(chatMessage, input.timeoutMs)
+    let ragOut = unwrapAgentCall(ragCall as string | AgentCallResult).answer.trim()
+    if (unwrapAgentCall(ragCall as string | AgentCallResult).agentResult) {
+      ragAgentResult = unwrapAgentCall(ragCall as string | AgentCallResult).agentResult
+    }
+    if (ragAgentResult?.ok === false) {
+      const code = String(ragAgentResult.error_code || '').trim()
+      const detected = classifyAndDetectHard({ agentResult: ragAgentResult, error: ragOut })
+      if (detected.hard || code === 'vector_not_ready') {
+        return ragHardFailOutcome({
+          query: chatMessage,
+          errorCode: code || detected.code,
+          detail: ragOut,
+          agentResult: ragAgentResult,
+        })
+      }
+    }
+    const ragClarify = parseRagClarifyPayload(ragOut)
+    const evidenceUnits = countRagEvidenceUnits(ragEvidence, null)
+    const clarifyQuestions = mergeRagClarifyQuestions(
+      ragOut,
+      ragClarify,
+      evidenceUnits,
+      Boolean(ragAgentResult?.needs_clarify)
+    )
+    const evidenceArr = ragEvidence ? [{ kind: 'rag', ...(ragEvidence as Record<string, unknown>) }] : []
+    const normalizedOut = resolveRagPassthroughText({ text: ragOut, evidence: evidenceArr })
+    if (normalizedOut && normalizedOut !== ragOut) {
+      ragOut = normalizedOut
+      input.sendThinking('RAG Agent：已有检索证据，已去掉开头「未找到」误导表述')
+    }
+    return {
+      ok: true,
+      agent: 'rag',
+      output: ragOut,
+      query: chatMessage,
+      parsed: extractStructuredPayload(ragOut),
+      evidence: ragEvidence ? { ...ragEvidence } : undefined,
+      clarifyQuestions,
+      meta: ragAgentResult ? { agentResult: ragAgentResult } : undefined,
+    }
+  } catch (e: unknown) {
+    const err = String((e as Error)?.message || e || 'unknown error')
+    const detected = classifyAndDetectHard({ error: e })
+    if (detected.hard) {
+      return ragHardFailOutcome({
+        query: chatMessage,
+        errorCode: detected.code,
+        detail: err,
+      })
+    }
+    throw e instanceof Error ? e : new Error(err || 'single_source_rag_failed')
+  }
+}
+
 export async function executeRagStep(
   deps: AgentExecutorDeps,
   opts: AgentExecutorOpts,
@@ -67,6 +176,8 @@ export async function executeRagStep(
   let ragAgentResult: import('../../utils/agents/types').AgentResult | undefined
   const revisionSkipCache = isChatRevisionMeta(input.state.meta)
   let probeRag = input.state.probe?.rag
+  const lastUser = String(input.question || '').trim()
+  const singleRag = isSingleSourceRagTask(input.state.meta)
   const leanForProbe = resolveLeanRagQuery(String(input.baseQuery || input.question || ''), String(input.question || ''))
 
   const metaHard = (input.state.meta as { expertHardDown?: Record<string, string> } | null)?.expertHardDown
@@ -82,7 +193,7 @@ export async function executeRagStep(
     })
   }
 
-  if (Number(probeRag?.hits ?? 0) <= 0 && leanForProbe) {
+  if (!singleRag && Number(probeRag?.hits ?? 0) <= 0 && leanForProbe) {
     try {
       const freshProbe = await callRagProbe({
         ragAgentHttpUrl: opts.ragAgentHttpUrl,
@@ -112,8 +223,6 @@ export async function executeRagStep(
     }
   }
 
-  const lastUser = String(input.question || '').trim()
-  const singleRag = isSingleSourceRagTask(input.state.meta)
   const turnScopeMode =
     String((input.state.meta as { turnScopeMode?: string } | null)?.turnScopeMode || '').trim() || null
   const turnKind = String((input.state.meta as { turnKind?: string } | null)?.turnKind || '').trim() || null
@@ -122,20 +231,29 @@ export async function executeRagStep(
   let leanRagQuery: string
   let ragMessage: string
   if (singleRag && lastUser.length >= 4) {
-    // 协议：单源 ≡ 独立端 /api/chat，禁止 lean/queryFocus 改写
-    // 例外：output_followup / 短 continuation 必须锚定上轮任务，禁止「再详细一点」裸检索
     if (shouldGroundFollowupQuery({ turnKind, lastUser, anchorTask: sessionAnchorTask })) {
       leanRagQuery = groundFollowupQuery({
         lastUser,
         turnKind,
         anchorTask: sessionAnchorTask,
-        candidate: String(input.baseQuery || '').trim() || lastUser
+        candidate: String(input.baseQuery || '').trim() || lastUser,
       })
       ragMessage = leanRagQuery
     } else {
       leanRagQuery = lastUser
       ragMessage = lastUser
     }
+    return executeSingleSourceRagDirectChat(deps, opts, {
+      state: input.state,
+      question: input.question,
+      chatMessage: ragMessage,
+      timeoutMs: input.timeoutMs,
+      sendThinking: input.sendThinking,
+      sendDelta: input.sendDelta,
+      revisionSkipCache,
+      turnScopeMode,
+      turnKind,
+    })
   } else if (isTrueMultiTask(input.state.meta)) {
     const scoped =
       pickSubAgentScopeSync(collectSubAgentScopeCandidates('rag', input.state.meta, input.baseQuery)) ||
@@ -306,7 +424,7 @@ export async function executeRagStep(
       userId: opts.userId,
       traceId: opts.runId,
       skipCache: extra?.skipCache ?? revisionSkipCache,
-      deferStreamDelta: probeHitCount > 0,
+      deferStreamDelta: true,
       sendThinking: input.sendThinking,
       sendDelta: (d: string) => {
         input.sendDelta?.(d)
@@ -323,6 +441,12 @@ export async function executeRagStep(
 
   try {
     const chatMessage = singleRag && lastUser.length >= 4 ? lastUser : leanRagQuery || ragMessage
+    const displayQuery = String(input.question || leanRagQuery || chatMessage || '').trim()
+    if (displayQuery) {
+      input.sendThinking(
+        `RAG Agent：检索问题「${displayQuery.length > 96 ? `${displayQuery.slice(0, 96)}…` : displayQuery}」`
+      )
+    }
     if (lastUser && chatMessage && lastUser !== chatMessage) {
       input.sendThinking(
         `RAG 出站问句与用户末轮不同（len ${lastUser.length}→${chatMessage.length}）；multi 子句切分属预期`
@@ -411,6 +535,14 @@ export async function executeRagStep(
     }
     const agentNeedsClarify = Boolean(ragAgentResult?.needs_clarify)
     const clarifyQuestions = mergeRagClarifyQuestions(ragOut, ragClarify, evidenceUnits, agentNeedsClarify)
+    const normalizedOut = resolveRagPassthroughText({
+      text: ragOut,
+      evidence: ragEvidence ? [{ kind: 'rag', ...(ragEvidence as Record<string, unknown>) }] : [],
+    })
+    if (normalizedOut && normalizedOut !== ragOut) {
+      ragOut = normalizedOut
+      input.sendThinking('RAG Agent：已有检索证据，已去掉开头「未找到」误导表述')
+    }
     return {
       ok: true,
       agent: 'rag',

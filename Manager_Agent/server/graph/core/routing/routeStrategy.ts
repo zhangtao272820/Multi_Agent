@@ -202,7 +202,7 @@ export async function buildRouteStrategyAdvice(
         suppressCanary ? '- 本会话已暂停策略/Prompt/Planner 金丝雀试验，优先稳定路径。' : '',
         forceLowCostMode ? '- 本会话倾向低成本模型与精简链路。' : '',
         preferClarifyBoost > 0
-          ? '- 近期质量/满意度偏低：仅在缺少执行必需信息时倾向澄清，不因 Agent 延迟单独拦截。'
+          ? '- 近期质量/满意度偏低：仅在确无任何数据面证据时才澄清；probe/文档已命中则必须先执行检索再答。'
           : '',
         deprioritizeAgents.length ? `- 尽量避免或后置：${deprioritizeAgents.join('、')}` : ''
       ]

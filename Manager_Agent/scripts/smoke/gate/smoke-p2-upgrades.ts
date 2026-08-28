@@ -69,6 +69,48 @@ const stillOrphan = assessCodeDownstreamConsistencyStructural({
 })
 assert(!stillOrphan.pass && String(stillOrphan.reason || '').includes('9999'), 'fabricated number still fails with db present')
 
+// P2-1c: ECharts 样式常数（fontSize/top 等）不得触发孤儿数字门禁
+const echartsViz = [
+  '图表已生成',
+  '<!--ECHARTS_OPTION-->',
+  JSON.stringify({
+    title: [{ text: '个人月度财务', left: 'center', top: 6, textStyle: { fontSize: 14, fontWeight: 600 } }],
+    series: [{ type: 'bar', data: [6000, 5000, 1000] }]
+  }),
+  '<!--/ECHARTS_OPTION-->'
+].join('\n')
+const echartsOrphan = assessDownstreamOrphanNumbers(
+  {
+    answer: '财务对比',
+    facts: [
+      { key: 'income', value: 6000, label: '收入' },
+      { key: 'expense', value: 5000, label: '支出' },
+      { key: 'balance', value: 1000, label: '结余' }
+    ],
+    data: {},
+    raw: ''
+  },
+  [echartsViz]
+)
+assert(echartsOrphan.pass, 'echarts styling numbers must not trigger orphan gate')
+
+const echartsStructural = assessCodeDownstreamConsistencyStructural({
+  results: {
+    code: JSON.stringify({
+      answer: '财务对比',
+      facts: [
+        { key: 'income', value: 6000 },
+        { key: 'expense', value: 5000 },
+        { key: 'balance', value: 1000 }
+      ],
+      data: {}
+    }),
+    visualize: echartsViz
+  },
+  evidence: [{ kind: 'visualize', mode: 'code_authority_deterministic' }]
+})
+assert(echartsStructural.pass, 'code authority visualize skips echarts styling orphan audit')
+
 // P2-2: report evidence 校验
 const goodPlan = {
   title: '区域销售',

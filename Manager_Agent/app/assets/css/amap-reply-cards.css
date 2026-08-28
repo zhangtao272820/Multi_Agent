@@ -259,3 +259,105 @@
   color: rgba(255, 255, 255, 0.45);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
+
+.amap-map-preview {
+  margin: 0 0 12px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(56, 189, 248, 0.18);
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.amap-map-preview__img {
+  display: block;
+  width: 100%;
+  max-height: 220px;
+  object-fit: cover;
+}
+
+.amap-steps-toggle {
+  margin: 4px 0 10px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #7dd3fc;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.amap-steps-toggle:hover {
+  color: #bae6fd;
+  text-decoration: underline;
+}
+
+.amap-card--compare .amap-compare-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0 0 12px;
+}
+
+.amap-compare-tab {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.72);
+  cursor: pointer;
+  text-align: left;
+}
+
+.amap-compare-tab:hover {
+  border-color: rgba(56, 189, 248, 0.35);
+  background: rgba(56, 189, 248, 0.06);
+}
+
+.amap-compare-tab.is-active {
+  border-color: rgba(56, 189, 248, 0.55);
+  background: rgba(56, 189, 248, 0.12);
+}
+
+.amap-compare-tab__icon {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.amap-compare-tab__label {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.amap-compare-tab__meta {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.58);
+  line-height: 1.35;
+}
+
+.amap-compare-tab__badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #052e16;
+  background: #86efac;
+}
+
+.amap-compare-unavailable {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.62);
+}
+
+@media (max-width: 720px) {
+  .amap-card--compare .amap-compare-tabs {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
+import threading
 from pathlib import Path
 from typing import Any
 
 os.environ.setdefault("ANONYMIZED_TELEMETRY", "False")
+
+log = logging.getLogger("vanna.catalog")
 
 from app.llm import LlmMeter, embed_texts
 from app.schema_link import (
@@ -108,11 +112,76 @@ def _client():
     return _CHROMA
 
 
+def _collection_name(tenant_id: str) -> str:
+    return f"vanna_{tenant_id}"
+
+
+def _collection_meta(*, dim: int | None = None) -> dict[str, str]:
+    meta: dict[str, str] = {
+        "hnsw:space": "cosine",
+        "embedding_model": get_settings().embedding_model,
+    }
+    if dim is not None:
+        meta["embedding_dim"] = str(dim)
+    return meta
+
+
+def _collection_stale(tenant_id: str, *, dim: int | None = None) -> bool:
+    try:
+        coll = _client().get_collection(_collection_name(tenant_id))
+    except Exception:
+        return False
+    meta = coll.metadata or {}
+    want = _collection_meta(dim=dim)
+    if not str(meta.get("embedding_model") or ""):
+        return int(coll.count() or 0) > 0
+    if str(meta.get("embedding_model") or "") != want["embedding_model"]:
+        return True
+    if dim is not None:
+        stored = str(meta.get("embedding_dim") or "")
+        if stored and stored != str(dim):
+            return True
+    return False
+
+
+def _reset_collection(tenant_id: str, *, dim: int | None = None):
+    client = _client()
+    name = _collection_name(tenant_id)
+    try:
+        client.delete_collection(name)
+    except Exception:
+        pass
+    return client.create_collection(name, metadata=_collection_meta(dim=dim))
+
+
+def _ensure_collection(tenant_id: str, *, dim: int | None = None):
+    if _collection_stale(tenant_id, dim=dim):
+        log.info(
+            "reset chroma %s model=%s dim=%s",
+            tenant_id,
+            get_settings().embedding_model,
+            dim,
+        )
+        return _reset_collection(tenant_id, dim=dim)
+    try:
+        return _client().get_collection(_collection_name(tenant_id))
+    except Exception:
+        return _client().create_collection(_collection_name(tenant_id), metadata=_collection_meta(dim=dim))
+
+
 def _collection(tenant_id: str):
-    return _client().get_or_create_collection(
-        name=f"vanna_{tenant_id}",
-        metadata={"hnsw:space": "cosine"},
-    )
+    return _ensure_collection(tenant_id)
+
+
+def _schedule_reingest(tenant: Tenant) -> None:
+    def _job() -> None:
+        try:
+            out = ingest_tenant(tenant, skip_if_ready=False)
+            log.info("background reingest %s %s", tenant.id, out)
+        except Exception as exc:
+            log.warning("background reingest %s failed: %s", tenant.id, exc)
+
+    threading.Thread(target=_job, name=f"reingest-{tenant.id}", daemon=True).start()
 
 
 def collection_count(tenant_id: str) -> int:
@@ -123,7 +192,7 @@ def collection_count(tenant_id: str) -> int:
 
 
 def ingest_tenant(tenant: Tenant, *, skip_if_ready: bool = False) -> dict[str, Any]:
-    if skip_if_ready and collection_count(tenant.id) > 0:
+    if skip_if_ready and collection_count(tenant.id) > 0 and not _collection_stale(tenant.id):
         return {"ok": True, "skipped": True, "count": collection_count(tenant.id)}
     try:
         _client()
@@ -254,11 +323,8 @@ def ingest_tenant(tenant: Tenant, *, skip_if_ready: bool = False) -> dict[str, A
             }
         embeddings.extend(vecs)
 
-    coll = _collection(tenant.id)
-    existing = coll.get()
-    old_ids = list(existing.get("ids") or [])
-    if old_ids:
-        coll.delete(ids=old_ids)
+    embed_dim = len(embeddings[0]) if embeddings else 0
+    coll = _ensure_collection(tenant.id, dim=embed_dim or None)
     coll.add(ids=ids, documents=docs, metadatas=metas, embeddings=embeddings)
     return {
         "ok": True,
@@ -268,6 +334,8 @@ def ingest_tenant(tenant: Tenant, *, skip_if_ready: bool = False) -> dict[str, A
         "docs": sum(1 for m in metas if m.get("kind") == _KIND_DOC),
         "golden": sum(1 for m in metas if m.get("kind") == _KIND_GOLDEN),
         "ddl_error": ddl_err,
+        "embedding_model": get_settings().embedding_model,
+        "embedding_dim": embed_dim,
         "meter": meter.as_dict(),
     }
 
@@ -435,29 +503,38 @@ def retrieve(tenant: Tenant, question: str, meter: LlmMeter, n: int = 8) -> list
     if vecs:
         vec = vecs[0]
         coll = _collection(tenant.id)
-        res = coll.query(
-            query_embeddings=[vec],
-            n_results=max(12, n),
-            include=["documents", "metadatas", "distances"],
-        )
-        docs = (res.get("documents") or [[]])[0]
-        metas = (res.get("metadatas") or [[]])[0]
-        dists = (res.get("distances") or [[]])[0]
-        seen_sql = {h.get("sql") for h in hits if h.get("sql")}
-        seen_table = {h.get("table") for h in hits if h.get("table")}
-        for doc, meta, dist in zip(docs, metas, dists):
-            score = 1.0 - float(dist or 0)
-            kind = str((meta or {}).get("kind") or _KIND_DOC)
-            item = _hit(kind, str(doc or ""), score, dict(meta or {}))
-            if item.get("sql") and item.get("sql") in seen_sql:
-                continue
-            if item.get("table") and item.get("table") in seen_table and kind == _KIND_DDL:
-                continue
-            hits.append(item)
-            if item.get("sql"):
-                seen_sql.add(item.get("sql"))
-            if item.get("table"):
-                seen_table.add(item.get("table"))
+        try:
+            res = coll.query(
+                query_embeddings=[vec],
+                n_results=max(12, n),
+                include=["documents", "metadatas", "distances"],
+            )
+        except Exception as exc:
+            low = str(exc).lower()
+            if "dimension" in low or "invalidargument" in low.replace(" ", ""):
+                log.warning("vector retrieve skipped for %s: %s", tenant.id, exc)
+                _schedule_reingest(tenant)
+            else:
+                raise
+        else:
+            docs = (res.get("documents") or [[]])[0]
+            metas = (res.get("metadatas") or [[]])[0]
+            dists = (res.get("distances") or [[]])[0]
+            seen_sql = {h.get("sql") for h in hits if h.get("sql")}
+            seen_table = {h.get("table") for h in hits if h.get("table")}
+            for doc, meta, dist in zip(docs, metas, dists):
+                score = 1.0 - float(dist or 0)
+                kind = str((meta or {}).get("kind") or _KIND_DOC)
+                item = _hit(kind, str(doc or ""), score, dict(meta or {}))
+                if item.get("sql") and item.get("sql") in seen_sql:
+                    continue
+                if item.get("table") and item.get("table") in seen_table and kind == _KIND_DDL:
+                    continue
+                hits.append(item)
+                if item.get("sql"):
+                    seen_sql.add(item.get("sql"))
+                if item.get("table"):
+                    seen_table.add(item.get("table"))
     hits.sort(key=lambda x: float(x.get("score") or 0), reverse=True)
     tables = []
     seen_t: set[str] = set()

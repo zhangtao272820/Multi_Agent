@@ -28,6 +28,9 @@ export type RagQueryMetricEvent = {
   rerank_mode?: string;
   ab_variant?: string;
   bandit_arm?: string;
+  /** L/M：hybrid | hyde | graph */
+  retrieval_lanes?: string[];
+  needs_graph?: boolean;
   /** R2 */
   trace_id?: string;
   error_code?: string;

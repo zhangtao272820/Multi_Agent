@@ -133,7 +133,10 @@
   overscroll-behavior: contain;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
+  padding-right: 2px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(47, 127, 209, 0.4) rgba(232, 242, 252, 0.6);
 }
 
 .spring-root.cursor-workbench .chat-rail-stack > .cosmic-chat-stage {
@@ -208,6 +211,9 @@
   margin-bottom: 0;
   overflow: visible;
   overscroll-behavior: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .spring-root.cursor-workbench .conv-plan-preview-list::-webkit-scrollbar {
@@ -231,12 +237,6 @@
   background: linear-gradient(180deg, rgba(129, 140, 248, 0.7), rgba(56, 189, 248, 0.6));
 }
 
-.spring-root.cursor-workbench .conv-plan-preview-item {
-  grid-template-columns: auto minmax(0, 1fr) !important;
-  align-items: start !important;
-  gap: 12px !important;
-}
-
 .spring-root.cursor-workbench .conv-plan-preview-check {
   min-width: 0;
   max-width: 100%;
@@ -257,15 +257,6 @@
   width: 100%;
   min-width: 0;
   box-sizing: border-box;
-  resize: vertical;
-  border: 1px solid rgba(148, 163, 184, 0.28);
-  border-radius: 8px;
-  background: rgba(15, 23, 42, 0.45);
-  color: inherit;
-  font: inherit;
-  font-size: 12px;
-  line-height: 1.45;
-  padding: 8px 10px;
 }
 
 .spring-root.cursor-workbench .conv-plan-preview-query-edit:disabled,
@@ -280,17 +271,21 @@
   margin: 0 0 10px;
 }
 
-.spring-root.cursor-workbench .conv-plan-preview-constraints-label,
-.spring-root.cursor-workbench .conv-plan-preview-optional {
+.spring-root.cursor-workbench .conv-plan-preview-constraints-label {
   font-size: 11px;
-  opacity: 0.72;
+  opacity: 0.85;
+  color: var(--hitl-text-secondary, #1e3a52);
 }
 
 .spring-root.cursor-workbench .conv-plan-preview-optional {
-  margin-left: 6px;
-  padding: 1px 6px;
+  margin-left: 0;
+  padding: 2px 7px;
   border-radius: 999px;
-  border: 1px solid rgba(148, 163, 184, 0.28);
+  border: 1px solid rgba(100, 150, 200, 0.4);
+  font-size: var(--hitl-font-meta);
+  font-weight: 650;
+  color: var(--hitl-text-muted);
+  background: rgba(232, 242, 252, 0.9);
 }
 
 /* Plan Mode / Run Todo 视觉 SSOT → manager-hitl-panels.css；此处仅布局网格 */
@@ -314,9 +309,6 @@
 }
 
 .spring-root.cursor-workbench .conv-plan-preview-item {
-  grid-template-columns: 22px auto minmax(0, 1fr) !important;
-  align-items: start !important;
-  gap: 10px !important;
   transition: opacity 0.2s ease, border-color 0.2s ease;
 }
 
@@ -549,23 +541,27 @@
   width: calc(100% - var(--mgr-scroll-inset)) !important;
   margin-right: var(--mgr-scroll-inset) !important;
   scrollbar-width: thin;
-  scrollbar-color: rgba(56, 189, 248, 0.55) var(--mgr-scroll-track);
+  scrollbar-color: rgba(47, 127, 209, 0.38) rgba(232, 242, 252, 0.65);
 }
 
 .spring-root.cursor-workbench .conv-plan-preview-body::-webkit-scrollbar {
-  width: var(--mgr-scroll-size-nested);
+  width: 6px;
 }
 
 .spring-root.cursor-workbench .conv-plan-preview-body::-webkit-scrollbar-track {
-  background: var(--mgr-scroll-track);
+  background: rgba(232, 242, 252, 0.65);
   border-radius: 999px;
-  margin: 3px 0;
+  margin: 4px 0;
 }
 
 .spring-root.cursor-workbench .conv-plan-preview-body::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, rgba(56, 189, 248, 0.58), rgba(99, 102, 241, 0.45));
+  background: rgba(47, 127, 209, 0.38);
   border-radius: 999px;
-  border: 1px solid rgba(8, 12, 32, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+.spring-root.cursor-workbench .conv-plan-preview-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(47, 127, 209, 0.55);
 }
 
 .spring-root.cursor-workbench .cursor-thought-panel .process-step {

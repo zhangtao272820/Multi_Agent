@@ -19,7 +19,93 @@
           </div>
         </div>
 
-        <div class="rag-sidebar__section">
+        <!-- 知识库管理（置顶） -->
+        <div class="rag-sidebar__section rag-sidebar__section--kb">
+          <div class="rag-kb-header">
+            <div class="rag-kb-header__title">
+              <h3 class="brand-section-label" style="margin:0">知识库</h3>
+              <span class="rag-kb-count">{{ documents.length }} 份</span>
+            </div>
+            <div class="rag-kb-header__actions">
+              <button
+                type="button"
+                class="brand-btn brand-btn--ghost rag-btn-compact"
+                title="刷新文档列表"
+                @click="fetchDocuments"
+              >
+                刷新
+              </button>
+              <button
+                type="button"
+                class="brand-btn brand-btn--primary rag-btn-compact"
+                :disabled="isUploading"
+                @click="triggerUpload"
+              >
+                {{ isUploading ? '解析中…' : '上传' }}
+              </button>
+            </div>
+          </div>
+          <input
+            type="file"
+            ref="fileInput"
+            class="hidden"
+            accept=".pdf,.txt,.doc,.docx,.md,.csv,.json,.zip,.png,.jpg,.jpeg,.bmp,.tiff,.gif,.webp"
+            @change="handleFileUpload"
+          />
+          <div class="rag-upload-hint rag-upload-hint--compact">
+            PDF · Word · TXT · MD · CSV · JSON · ZIP · 图片
+          </div>
+          <div class="rag-sidebar__docs">
+            <ul class="rag-doc-list">
+              <li
+                v-for="doc in documents"
+                :key="doc.name"
+                :id="`doc-item-${sanitizeDomId(doc.name)}`"
+                :class="['brand-list-row rag-doc-item', highlightedDocName === doc.name ? 'is-active' : '']"
+              >
+                <div class="rag-doc-item__head">
+                  <button
+                    type="button"
+                    class="rag-doc-item__name rag-doc-item__name-btn"
+                    :title="doc.summary || doc.name"
+                    @click="openDocFromList(doc.name)"
+                  >
+                    <div :class="['rag-doc-dot', getDocColor(doc.type)]"></div>
+                    <span class="brand-list-row__title">{{ doc.name }}</span>
+                  </button>
+                  <button
+                    @click="confirmDelete(doc.name)"
+                    class="rag-doc-delete"
+                    type="button"
+                    title="从知识库删除"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                </div>
+                <div v-if="docMetaLine(doc)" class="brand-list-row__meta">{{ docMetaLine(doc) }}</div>
+                <div v-else-if="doc.summary" class="brand-list-row__meta rag-doc-summary">{{ doc.summary }}</div>
+              </li>
+              <li v-if="documents.length === 0" class="brand-empty rag-doc-empty">
+                暂无文档。点击「上传」添加 PDF、Word、MD 等资料。
+              </li>
+            </ul>
+            <button
+              v-if="documents.length > 0"
+              type="button"
+              class="brand-btn brand-btn--ghost rag-btn-compact rag-btn-block rag-btn-danger rag-kb-clear"
+              :disabled="kbDeletingAll"
+              @click="confirmDeleteAllDocs"
+            >
+              {{ kbDeletingAll ? '清空中…' : '清空知识库' }}
+            </button>
+          </div>
+        </div>
+
+        <details class="rag-intel-details">
+          <summary class="rag-intel-details__summary">检索学习 · 运维</summary>
+        <div class="rag-sidebar__section rag-sidebar__section--intel">
           <h3 class="brand-section-label">检索学习</h3>
           <div class="brand-stat-grid">
             <div class="brand-stat">
@@ -122,60 +208,7 @@
             刷新学习状态
           </button>
         </div>
-
-        <div class="rag-sidebar__section">
-          <h3 class="brand-section-label">我能帮你</h3>
-          <div class="rag-help-list">
-            <div class="rag-help-item"><span class="rag-help-dot" aria-hidden="true"></span>上传并索引文档</div>
-            <div class="rag-help-item"><span class="rag-help-dot" aria-hidden="true"></span>根据资料回答问题</div>
-            <div class="rag-help-item"><span class="rag-help-dot" aria-hidden="true"></span>查看知识库文档列表</div>
-          </div>
-        </div>
-
-        <div class="rag-sidebar__section rag-sidebar__section--flush">
-          <button
-            @click="triggerUpload"
-            class="brand-btn brand-btn--primary rag-upload-btn"
-            :disabled="isUploading"
-          >
-            <span v-if="isUploading" class="animate-spin mr-2">⏳</span>
-            {{ isUploading ? '解析中...' : '上传非结构化文档' }}
-          </button>
-          <div class="rag-upload-hint">支持 PDF, TXT, DOC, DOCX, MD, CSV, JSON, ZIP, 图片 (PNG, JPG...)</div>
-          <input
-            type="file"
-            ref="fileInput"
-            class="hidden"
-            accept=".pdf,.txt,.doc,.docx,.md,.csv,.json,.zip,.png,.jpg,.jpeg,.bmp,.tiff,.gif,.webp"
-            @change="handleFileUpload"
-          />
-        </div>
-
-        <div class="rag-sidebar__docs flex-1 overflow-y-auto">
-          <h3 class="brand-section-label">知识库</h3>
-          <ul class="rag-doc-list">
-            <li
-              v-for="doc in documents"
-              :key="doc.name"
-              :id="`doc-item-${sanitizeDomId(doc.name)}`"
-              :class="['brand-list-row rag-doc-item', highlightedDocName === doc.name ? 'is-active' : '']"
-            >
-              <div class="rag-doc-item__head">
-                <div class="rag-doc-item__name">
-                  <div :class="['rag-doc-dot', getDocColor(doc.type)]"></div>
-                  <span class="brand-list-row__title">{{ doc.name }}</span>
-                </div>
-                <button @click="confirmDelete(doc.name)" class="rag-doc-delete" type="button" title="删除">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </button>
-              </div>
-              <div v-if="doc.summary" class="brand-list-row__meta">{{ doc.summary }}</div>
-            </li>
-            <li v-if="documents.length === 0" class="brand-empty">暂无文档库内容</li>
-          </ul>
-        </div>
+        </details>
       </div>
 
       <!-- 历史会话侧栏（Checkpointer 式） -->
@@ -498,6 +531,13 @@
                     </div>
                     <div class="rag-footer-actions">
                       <span
+                        v-if="msg.retrievalMeta?.retrievalLanes?.length"
+                        class="rag-strategy-hint rag-lanes-hint"
+                        :title="retrievalLanesTitle(msg.retrievalMeta)"
+                      >
+                        {{ shortRetrievalLanesLabel(msg.retrievalMeta.retrievalLanes) }}
+                      </span>
+                      <span
                         v-if="msg.retrievalMeta?.rerankMode"
                         class="rag-strategy-hint"
                         :title="msg.retrievalMeta.rerankMode"
@@ -605,6 +645,29 @@
         </div>
       </div>
     </div>
+
+    <!-- 上传解析全屏遮罩：禁止其它操作直至完成 -->
+    <Teleport to="body">
+      <div
+        v-if="isUploading"
+        class="rag-upload-blocker"
+        role="alertdialog"
+        aria-modal="true"
+        aria-busy="true"
+        aria-label="正在解析文档"
+        @keydown.capture.prevent
+        @click.prevent
+      >
+        <div class="rag-upload-blocker__card">
+          <div class="rag-upload-blocker__spinner" aria-hidden="true" />
+          <h3 class="rag-upload-blocker__title">正在解析并入库</h3>
+          <p class="rag-upload-blocker__name">{{ uploadFileName || '文档' }}</p>
+          <p class="rag-upload-blocker__hint">
+            切分 · 向量化 · 制度图抽取中，请稍候。完成前请勿操作页面。
+          </p>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -669,6 +732,7 @@ useHead({
 
 const fileInput = ref(null);
 const isUploading = ref(false);
+const uploadFileName = ref('');
 const isLoading = ref(false);
 const liveProcessMs = ref(0);
 const turnSeq = ref(0);
@@ -736,6 +800,7 @@ const intel = ref({
 });
 const intelCurating = ref(false);
 const intelResetting = ref(false);
+const kbDeletingAll = ref(false);
 
 let highlightTimer = null;
 
@@ -1597,6 +1662,14 @@ const onAppModalConfirm = async (inputValue) => {
     } else {
       void fetchServerSessionHistory();
     }
+    return;
+  }
+  if (action?.type === 'delete_doc') {
+    await deleteDocumentByName(action.fileName, { silent: false });
+    return;
+  }
+  if (action?.type === 'delete_all_docs') {
+    await deleteAllDocuments();
   }
 };
 
@@ -1737,7 +1810,32 @@ const shortRerankLabel = (mode = '') => {
   if (m.includes('embedding')) return '向量重排';
   if (m.includes('bm25')) return 'BM25';
   if (m.includes('lexical')) return '词法重排';
+  if (m.includes('local_rerank')) return '本地重排';
   return m.length > 10 ? `${m.slice(0, 8)}…` : m;
+};
+
+const shortRetrievalLanesLabel = (lanes) => {
+  const xs = (Array.isArray(lanes) ? lanes : [])
+    .map((x) => String(x || '').trim())
+    .filter(Boolean);
+  if (!xs.length) return 'Hybrid';
+  const labels = xs.map((lane) => {
+    if (lane === 'hybrid') return 'Hybrid';
+    if (lane === 'graph') return 'Graph';
+    if (lane === 'hyde') return 'HyDE';
+    return lane;
+  });
+  return labels.join('+');
+};
+
+const retrievalLanesTitle = (meta) => {
+  const lanes = shortRetrievalLanesLabel(meta?.retrievalLanes);
+  const graphOn = meta?.needs_graph === true;
+  if ((meta?.retrievalLanes || []).includes('graph')) {
+    return `检索车道：${lanes}（制度图已并入 RRF，辅佐 Hybrid）`;
+  }
+  if (graphOn) return `检索车道：${lanes}（已开图门控，本次无图命中）`;
+  return `检索车道：${lanes}`;
 };
 
 const toggleEvidence = (msg) => {
@@ -2286,26 +2384,105 @@ const fetchDocuments = async () => {
     documents.value = res?.documents ?? [];
   } catch (error) {
     console.error('Failed to fetch documents:', error);
+    openModal('加载失败', '无法获取知识库文档列表，请确认服务在线后点「刷新」重试。', 'error');
   }
 };
 
-const confirmDelete = async (fileName) => {
-  if (confirm(`确定要从向量数据库中删除文档 "${fileName}" 吗？`)) {
-    const previous = documents.value;
-    documents.value = documents.value.filter(d => d.name !== fileName);
-    try {
-      const res = await $fetch('/api/delete', {
-        method: 'POST',
-        body: { fileName }
-      });
-      if (!res?.success) throw new Error(res?.message || 'Delete failed');
-      fetchDocuments();
-      openModal('删除成功', `已删除文档：${fileName}\n当前文档数：${documents.value.length}`, 'success');
-    } catch (err) {
-      console.error('Delete failed:', err);
-      documents.value = previous;
-      openModal('删除失败', '删除操作失败，请查看控制台日志。', 'error');
+const docMetaLine = (doc) => {
+  if (!doc) return '';
+  const parts = [];
+  if (doc.chunk_count != null && Number(doc.chunk_count) > 0) {
+    parts.push(`${doc.chunk_count} 块`);
+  }
+  if (doc.ingest_at) {
+    const d = new Date(doc.ingest_at);
+    if (!Number.isNaN(d.getTime())) {
+      parts.push(d.toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }));
     }
+  }
+  if (doc.parser && doc.parser !== 'local_text') parts.push(doc.parser);
+  return parts.join(' · ');
+};
+
+const openDocFromList = async (docName) => {
+  const name = String(docName || '').trim();
+  if (!name) return;
+  setHighlightedDoc(name);
+  await scrollDocIntoView(name);
+  openSourceDrawer(name, name, null);
+};
+
+const deleteDocumentByName = async (fileName, opts = {}) => {
+  const name = String(fileName || '').trim();
+  if (!name) return false;
+  const previous = documents.value;
+  documents.value = documents.value.filter((d) => d.name !== name);
+  if (highlightedDocName.value === name) highlightedDocName.value = '';
+  if (sourceDrawer.value.docName === name) closeSourceDrawer();
+  try {
+    const res = await $fetch('/api/delete', {
+      method: 'POST',
+      body: { fileName: name },
+    });
+    if (!res?.success) throw new Error(res?.message || 'Delete failed');
+    await fetchDocuments();
+    if (!opts.silent) {
+      openModal('删除成功', `已从知识库移除：${name}\n当前文档数：${documents.value.length}`, 'success');
+    }
+    return true;
+  } catch (err) {
+    console.error('Delete failed:', err);
+    documents.value = previous;
+    if (!opts.silent) {
+      openModal('删除失败', err instanceof Error ? err.message : '删除操作失败，请稍后重试。', 'error');
+    }
+    return false;
+  }
+};
+
+const confirmDelete = (fileName) => {
+  appModal.value = {
+    open: true,
+    mode: 'confirm',
+    title: '删除文档',
+    message: `确定从知识库删除「${fileName}」？\n将向量、制度图节点一并清除，不可恢复。`,
+    inputValue: '',
+    inputPlaceholder: '',
+    pendingAction: { type: 'delete_doc', fileName },
+  };
+};
+
+const confirmDeleteAllDocs = () => {
+  if (!documents.value.length) return;
+  appModal.value = {
+    open: true,
+    mode: 'confirm',
+    title: '清空知识库',
+    message: `确定删除全部 ${documents.value.length} 份文档？\n向量索引与制度图将一并清空，不可恢复。`,
+    inputValue: '',
+    inputPlaceholder: '',
+    pendingAction: { type: 'delete_all_docs' },
+  };
+};
+
+const deleteAllDocuments = async () => {
+  if (!documents.value.length || kbDeletingAll.value) return;
+  kbDeletingAll.value = true;
+  const names = documents.value.map((d) => d.name);
+  let ok = 0;
+  let fail = 0;
+  for (const name of names) {
+    const done = await deleteDocumentByName(name, { silent: true });
+    if (done) ok += 1;
+    else fail += 1;
+  }
+  kbDeletingAll.value = false;
+  await fetchDocuments();
+  closeSourceDrawer();
+  if (fail === 0) {
+    openModal('清空完成', `已删除 ${ok} 份文档。`, 'success');
+  } else {
+    openModal('部分失败', `成功 ${ok} 份，失败 ${fail} 份。请刷新列表后重试未删项。`, 'error');
   }
 };
 
@@ -2337,6 +2514,7 @@ const handleFileUpload = async (event) => {
   const file = event.target.files[0];
   if (!file) return;
 
+  uploadFileName.value = file.name;
   isUploading.value = true;
   const formData = new FormData();
   formData.append('file', file);
@@ -2358,6 +2536,7 @@ const handleFileUpload = async (event) => {
     openModal('上传失败', '文件上传失败，请检查控制台日志。', 'error');
   } finally {
     isUploading.value = false;
+    uploadFileName.value = '';
     event.target.value = '';
   }
 };
@@ -2474,10 +2653,13 @@ const sendMessage = async (overrideText, opts = {}) => {
               output: toolText 
             });
             const meta = data.name === 'document_query' ? parseRetrievalMeta(toolText) : null;
+            const laneSuffix = meta?.retrievalLanes?.length
+              ? ` · ${shortRetrievalLanesLabel(meta.retrievalLanes)}`
+              : '';
             const toolLabel =
               data.name === 'document_query'
                 ? meta?.evidenceCount
-                  ? `文档检索完成（${meta.evidenceCount} 条${meta.rerankMode ? `，${meta.rerankMode}` : ''}${meta.ms ? `，${formatElapsedMs(meta.ms)}` : ''}）`
+                  ? `文档检索完成（${meta.evidenceCount} 条${meta.rerankMode ? `，${shortRerankLabel(meta.rerankMode)}` : ''}${laneSuffix}${meta.ms ? `，${formatElapsedMs(meta.ms)}` : ''}）`
                   : '文档检索完成'
                 : `工具 ${data.name} 返回结果`;
             appendProcessStep(assistantMsg, {
@@ -2494,6 +2676,13 @@ const sendMessage = async (overrideText, opts = {}) => {
             const ar = data.agentResult;
             if (Array.isArray(ar?.sources)) {
               assistantMsg.agentSources = ar.sources.filter((s) => s?.ref);
+            }
+            const lanes = ar?.structured?.retrieval_lanes;
+            if (Array.isArray(lanes) && lanes.length) {
+              assistantMsg.retrievalMeta = {
+                ...(assistantMsg.retrievalMeta || {}),
+                retrievalLanes: lanes,
+              };
             }
             if (Array.isArray(data.evidence) && data.evidence.length) {
               mergeEvidenceIntoMsg(assistantMsg, data.evidence);

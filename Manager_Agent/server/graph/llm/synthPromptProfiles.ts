@@ -15,6 +15,7 @@ export const SYNTH_PACK_MARKERS = {
   multi_source: 'SYNTH_PACK:multi_source',
   chart_report: 'SYNTH_PACK:chart_report',
   db_interpret: 'SYNTH_PACK:db_interpret',
+  rag_knowledge: 'SYNTH_PACK:rag_knowledge',
   code_authority: 'SYNTH_PACK:code_authority',
   gui_web: 'SYNTH_PACK:gui_web'
 } as const
@@ -29,10 +30,13 @@ export type SynthPromptAssembleInput = {
   codeAuthoritative: boolean
   hasGuiResult: boolean
   hasDbResult: boolean
+  hasRagResult?: boolean
   chatWebReply: boolean
   chatWebHint?: string
   /** lite 短确认 / standard DeepSeek 分段 / report 对照分析 */
   replyTier?: ReplyTier
+  /** Cursor 式展示计划提示（注入 synth system） */
+  presentationHint?: string
 }
 
 /**
@@ -40,10 +44,10 @@ export type SynthPromptAssembleInput = {
  * 这是根因层约束；后处理剥离只是兜底。
  */
 const USER_FACING_OUTPUT_CONTRACT = [
-  '【输出合同·必守】你是面向终端用户的产品助手（文风像 DeepSeek），不是运维日志、不是 Agent 执行报告器。',
-  '读者是普通用户：只写 TA 能直接看懂的结论、依据要点与建议；写完即止。',
+  '【输出合同·必守】你是面向终端用户的产品助手（文风像 Cursor / DeepSeek 对话），不是运维日志、不是 Agent 执行报告器。',
+  '读者是普通用户：写足 TA 能直接用的结论、解释、例子与可接着问的方向；禁止缩成一句干巴巴总结。',
   '严禁输出（标题或正文任一出现即违规）：',
-  '· 「执行摘要」「已执行步骤」「目标·结果·判定」、审计义的「后续建议」「关于数据来源的说明」；',
+  '· 「执行摘要」「已执行步骤」「目标·结果·判定」、审计义的「关于数据来源的说明」；',
   '· 管线回显：rag: / db: / crawler: / clean: / code: / report: / admin: / gui: / agent_result / facts(N) / [CTX] / [HANDOFF] / s2 (clean)；',
   '· 库表审计/ORM 字段：逻辑删除、逻辑删除标志、创建人、创建时间、修改人、修改时间、del_flag、create_by、tenant_id 等；',
   '· 把单条库记录所有列摊成宽表；对照表只能是「指标 | 测值 | 参考 | 状态」（或同类用户可读列）。',
@@ -53,24 +57,26 @@ const USER_FACING_OUTPUT_CONTRACT = [
   '【分题·必守】用户一句含多个独立诉求时，用独立 ### 分段作答（如健康对照与出行时长分节）；禁止把无关子问塞进主主题段尾。'
 ].join('\n')
 
-/** report 档：DeepSeek 式展开 + 数据对照（仍是用户可读，不是执行报告） */
+/** report 档：复杂/多源 — Cursor 式完整对话 */
 const USER_DATA_REPORT_STRUCTURE = [
-  '结构（report 档，仍像 DeepSeek 对话，只是数据更完整）：',
-  '1) 首段 1～3 句：整体判断 + 对用户意味着什么（开门见山）。',
-  '2) ### 关键发现：3～5 条要点；异常/偏高/偏低优先，正常项可一句带过。可用 **加粗** 标数字。要点只写结论，勿把表内每一格再抄一遍。',
-  '3) 对照数据：Markdown 表（指标 | 测值 | 参考 | 状态）**或**交给下方图表展示，二者择一为主；若用表则状态用「正常 / 略高 / 略低 / 需关注」。异常项可另起短段解读，勿再列一遍全表。',
-  '4) ### 建议：1～3 条可执行建议；无依据不编造。',
-  '多独立诉求时按主题分 ###（例：### 健康对照、### 出行），写完即止。',
-  '写完「建议」立即结束。禁止再写执行摘要、已执行步骤、管线 agent 列表或「如需深挖」审计套话。'
+  '结构（report 档，复杂问题 / 多源 / 图表，像 Cursor 深度回答）：',
+  '1) 首段 2～4 句：整体判断 + 对用户意味着什么（开门见山，不要只写摘要）。',
+  '2) ### 关键发现：3～6 条要点；异常优先；每条写清「是什么 + 为什么重要」；可用 **加粗** 标数字。',
+  '3) 需要时 ### 对照 / ### 细节 / ### 注意：Markdown 表或分主题 ###；多独立诉求必须分节。',
+  '4) ### 建议：1～4 条可执行建议；测试方案/流程类可写步骤或示例表；无依据不编造。',
+  '5) 可选 ### 拓展 或末段 1～2 句：用户可接着问什么（如「如果你需要，我可以…」）；禁止空泛套话。',
+  '图表任务：图表含义 ≤2 句；表与图择一为主。禁止执行摘要、管线 agent 列表。'
 ].join('\n')
 
-/** standard 档：DeepSeek 式对话分段 */
+/** standard 档：DeepSeek / Cursor 式对话分段 + 可接着问的拓展 */
 const USER_DATA_STANDARD_STRUCTURE = [
-  '结构（standard 档，像 DeepSeek）：',
-  '1) 首段 2～3 句直接给结论或定义，开门见山。',
-  '2) 需要展开时用 2～4 个 ### 小标题分段；对比/推荐优先 Markdown 表（一张即可，勿要点+表重复）。',
-  '3) 正文用 [1][2] 角标；末段一句小结或建议即可。',
-  '4) 简单事实题 2～8 句答完，勿硬套多级标题；无强制大表。',
+  '结构（standard 档，像 DeepSeek / Cursor 对话助手）：',
+  '1) 首段 2～4 句直接给结论或定义，开门见山，不要只写一句摘要。',
+  '2) 需要展开时用 2～5 个 ### 小标题分段（如 ### 要点、### 对照、### 注意）；对比/清单优先 Markdown 表（一张即可，勿要点+表重复）。',
+  '3) 知识讲解、测试方案、流程说明类：写足用户能直接用的细节（例子、步骤、字段含义），不要缩成干巴巴结论。',
+  '4) 正文用 [1][2] 角标；有依据时可写 ### 建议（1～3 条可执行项）。',
+  '5) 可选拓展（Cursor 风）：末段 1～2 句自然语气，提供用户可接着问的方向（如「如果你需要，我可以…」「你还可以继续问…」）；须与本轮主题相关，禁止空泛套话；纯确认/寒暄题可省略。',
+  '6) 简单事实题也至少 3～6 句；勿硬套多级标题；无强制大表。',
   '禁止执行摘要、管线腔、库表审计字段。'
 ].join('\n')
 
@@ -108,9 +114,10 @@ const PROFILE_ADMIN_ACK = [
 
 const PROFILE_CHART_REPORT = [
   SYNTH_PACK_MARKERS.chart_report,
-  '本任务含图表/报告附属输出：正文写清对比结论与关键数字；图表含义 ≤2 句，勿用长文复述柱上每一格。',
-  '已有 visualize/report 子输出时：正文仍须覆盖关键结论；与 <!--REPORT--> 对同一事实须一致，但勿把附录整段粘进正文。',
-  '若正文下方将展示 ECharts，禁止写「可视化已跳过/熔断/未生成图表」；无完整收支数据时勿在图表中填 0 冒充支出/结余。',
+  '本任务含图表/报告：正文像 Cursor 分析报告——结论 → 关键发现 → 对照 → 建议 → 可选拓展。',
+  '写清对比结论与关键数字；图表含义 ≤2 句；勿把正文缩成空摘要。',
+  '已有 visualize/report 子输出时：正文须覆盖关键结论；与 <!--REPORT--> 一致但勿粘贴附录。',
+  '若正文下方将展示 ECharts，禁止写「图表未生成」；无完整数据时勿用 0 冒充。',
   REPORT_SYNTH_ALIGNMENT_SYNTH_RULE
 ].join('\n')
 
@@ -124,33 +131,44 @@ const PROFILE_CHART_REPORT_WITH_ADMIN = [
 
 const PROFILE_MULTI_SOURCE = [
   SYNTH_PACK_MARKERS.multi_source,
-  '多源任务：用用户能懂的话对照各源结论与采信口径，异常优先。',
-  'DB/库内数值与联网公开参考区间须分开展示并说明采信口径；禁止把 DB 个人数据标成「联网检索摘要」。',
-  '有联网参考时：写出公开标准/区间/指南要点并与 DB 对照；可写「详见下方来源」，不得只复述 DB。',
-  '多独立诉求分 ### 作答，禁止把无关子问粘在主主题段尾。',
-  '无 Code 时：有冲突可一句说明采信哪边。'
+  '复杂/多源任务（面向用户，像 Cursor 深度解答）：',
+  '· 对照各源结论与采信口径；有冲突必须写清采信哪边、为什么。',
+  '· DB 个人数据 vs 联网公开标准：分开展示并对照（是否在参考范围内）。',
+  '· 探索/测试/方案类：用 ### + 表或步骤清单，写足例子与「别踩坑」注意点。',
+  '· 禁止只列 agent 输出或一句总结；多独立诉求分 ### 作答。',
+  '· 末段 1～2 句拓展：可接着验证、补测、换问法的方向（须紧扣本轮）。'
+].join('\n')
+
+const PROFILE_RAG_KNOWLEDGE = [
+  '本任务为知识库检索问答（面向终端用户，像 Cursor 文档助手）：',
+  '· 先给可直接用的答案（数字、条款、标准须完整保留），再按需展开背景或对照。',
+  '· 探索/测试/方案类问法：用 ### 分段写清步骤、示例、注意点；可用 Markdown 表归纳对照项。',
+  '· 禁止只写一句总结；禁止「暂未找到」类表述（专家原文已有答案时）。',
+  '· 末段可 1～2 句自然拓展：用户接下来可以问什么、还能帮你做什么（须紧扣本轮主题）。'
 ].join('\n')
 
 const PROFILE_DB_INTERPRET = [
   SYNTH_PACK_MARKERS.db_interpret,
-  '单源查数也要给出解读与建议，勿只报数字；轻量问数用短文，指标对照用完整结构。',
-  '若 RAG/知识库标明未命中，禁止编造该部分私人数字；应说明知识库未返回。',
-  '证据中未出现的字段/数值/阈值禁止编造；缺列时说明「依据当前结果无法计算」。',
-  '无 Code 时：有冲突可一句说明采信哪边。'
+  '数据库查数（面向用户，像 Cursor 解读数据）：',
+  '· 你只写**解读/对照/建议**（含义、是否异常、与问题的关系）；完整查询结果表由系统在正文下方**确定性追加**，勿自行造「指标|测值」小表替代全量数据。',
+  '· 简单计数也要 3～6 句解释「说明了什么」。',
+  '· 禁止库表审计字段、「查数据库：」前缀；勿重复罗列已在结果表中出现的全部数字。',
+  '· 未命中/缺列时说明缺口，禁止编造。',
+  '· 末段 1～2 句拓展：用户还能问什么、需补哪些条件。'
 ].join('\n')
 
 const PROFILE_CODE_AUTHORITY = [
   SYNTH_PACK_MARKERS.code_authority,
   CODE_AUTHORITY_SYNTH_RULE,
-  '有 Code 时：正文与图表数字**仅**来自 Code 的 income/expense/balance（结余=收入−支出）；五险一金等写在说明里，不得与柱图结余混谈。',
-  '写代码/脚本：用 ```python 或 ```javascript 围栏给完整可运行示例；先 1～2 句说明再贴代码。'
+  'Code 计算结果：像 Cursor 解释数据——先结论，再 ### 口径/对照/建议，末段可拓展。',
+  '正文与图表数字**仅**来自 Code 的 income/expense/balance；写代码时给完整可运行示例 + 1～2 句说明。'
 ].join('\n')
 
 const PROFILE_GUI_ONLY = [
   SYNTH_PACK_MARKERS.gui_web,
-  '有 GUI 时：正文基于 GUI 子步骤（页面操作结论、抽取到的标题/链接/文本）；短列表优先，勿灌水。',
-  '禁止声称「系统限制网页操作」。',
-  '若 agentResult.ok=false 或 navigation_unverified / incomplete：如实说明失败原因；禁止编造成功标题。'
+  'GUI/网页操作结果（面向用户）：说明页面上看到了什么、操作是否成功、关键字段含义。',
+  '用 ### 分段；短列表 + 解读；末段可 1 句拓展（还需点哪里、补什么信息）。',
+  '禁止声称「系统限制网页操作」；失败时如实说明，禁止编造成功。'
 ].join('\n')
 
 const PROFILE_GUI_WITH_DB = [
@@ -161,9 +179,9 @@ const PROFILE_GUI_WITH_DB = [
 
 const PROFILE_CHAT_WEB = [
   SYNTH_PACK_MARKERS.gui_web,
-  '联网/知识讲解（DeepSeek 风）：短开篇（2～3 句）→ 2～4 个 ### 分段 → 列表或一张对照表 → 末段一句小结。',
-  '对比/推荐优先 Markdown 表；正文 [1][2] 角标；信息不足时说明缺口；勿要点与表重复同一事实。',
-  '简单事实题：2～8 句直接答完。'
+  '联网/开放域讲解（Cursor 风）：2～4 句开篇 → 2～5 个 ### 分段 → 表或清单 → ### 建议（可选）→ 1～2 句拓展。',
+  '测试方案/对比类：优先 Markdown 表；写足例子与注意点；正文 [1][2] 角标。',
+  '简单事实题也至少 3～6 句，勿一句带过。'
 ].join('\n')
 
 const PROFILE_NO_ADMIN_FABRICATE = [
@@ -198,6 +216,8 @@ export function selectSynthPromptProfiles(input: SynthPromptAssembleInput): Synt
     ids.push('chart_report')
   } else if (input.multiSourceSynth) {
     ids.push('multi_source')
+  } else if (input.hasRagResult && !input.hasDbResult) {
+    ids.push('rag_knowledge')
   } else {
     ids.push('db_interpret')
   }
@@ -224,6 +244,8 @@ function packBody(id: SynthPromptProfileId, input: SynthPromptAssembleInput, tie
       return `${PROFILE_MULTI_SOURCE}\n${structure}`
     case 'db_interpret':
       return `${PROFILE_DB_INTERPRET}\n${structure}`
+    case 'rag_knowledge':
+      return `${PROFILE_RAG_KNOWLEDGE}\n${structure}`
     case 'code_authority':
       return input.multiSourceSynth
         ? [SYNTH_PACK_MARKERS.code_authority, CODE_AUTHORITY_SYNTH_RULE].join('\n')
@@ -246,6 +268,7 @@ export function assembleSynthSystemPrompt(input: SynthPromptAssembleInput): stri
   const tier = resolveTier(input)
   const profiles = selectSynthPromptProfiles(input)
   const parts: string[] = [BASE_SYNTH_SYSTEM, `本轮回复档位：${tier}。`]
+  if (input.presentationHint?.trim()) parts.push(String(input.presentationHint).trim())
   if (input.chatWebHint?.trim()) parts.push(String(input.chatWebHint).trim())
 
   for (const id of profiles) {

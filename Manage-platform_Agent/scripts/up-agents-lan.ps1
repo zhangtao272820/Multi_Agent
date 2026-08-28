@@ -86,7 +86,9 @@ if (-not $SkipHealthGate) {
 
 Write-Host ""
 Write-Host "Done. Access from other LAN devices via:" -ForegroundColor Green
-Write-Host "http://${lanHost}:13101  DB_Agent"
+Write-Host "http://${lanHost}:13120  Vanna_DbAgent UI"
+Write-Host "http://${lanHost}:13121  Vanna_DbAgent API"
+Write-Host "http://${lanHost}:13101  DB_Agent (legacy rollback)"
 Write-Host "http://${lanHost}:13102  RAG_Agent"
 Write-Host "http://${lanHost}:13103  CodePy_Agent (service code_assistent_agent)"
 Write-Host "http://${lanHost}:13104  Extractor_Agent"

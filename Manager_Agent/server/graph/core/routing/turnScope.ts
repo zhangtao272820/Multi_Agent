@@ -48,6 +48,18 @@ export function shouldDirectChitchatSynth(input: {
   turnScopeLlm?: TurnScopeLlmResult | null
   turnScope?: TurnRoutingScope | null
 }): boolean {
+  const scope = input.turnScope
+  const llm = input.turnScopeLlm ?? turnScopeLlmFromMeta(input.meta)
+  // 话题切换 / 独立新任务不得继承上轮 directChitchatSynth（已在 turn_scope 清 meta，此处为双保险）
+  if (scope?.mode === 'topic_shift') return false
+  if (scope?.turnKind === 'new_task' && scope.mode !== 'chitchat') {
+    if (llm && llm.confidence >= LLM_CONF_FLOOR && llm.mode === 'chitchat') {
+      // LLM 仍判寒暄则允许
+    } else {
+      return false
+    }
+  }
+
   const meta = input.meta as { directChitchatSynth?: boolean } | null | undefined
   if (meta?.directChitchatSynth === true) return true
   if (input.turnScope?.directChitchatSynth || input.turnScope?.mode === 'chitchat') return true
@@ -57,7 +69,6 @@ export function shouldDirectChitchatSynth(input: {
   ) {
     return true
   }
-  const llm = input.turnScopeLlm
   return Boolean(llm && llm.confidence >= LLM_CONF_FLOOR && llm.mode === 'chitchat')
 }
 

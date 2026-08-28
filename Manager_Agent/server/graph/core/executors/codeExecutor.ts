@@ -273,7 +273,7 @@ export async function executeCodeStep(
     })
     const codeClarify = parseCodeClarifyFromMeta(meta)
     const supplemented = supplementCodeOutputFromUpstream(answer, mergedResults)
-    const skipEnrich = String(process.env.MANAGER_CODE_SKIP_ENRICH ?? '0').trim() === '1'
+    const skipEnrich = String(process.env.MANAGER_CODE_SKIP_ENRICH ?? '1').trim() !== '0'
     const enrichedAnswer = skipEnrich
       ? supplemented
       : await normalizeCodeOutputAsync(codeModel, supplemented, extractStructuredPayload)

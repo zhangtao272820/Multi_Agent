@@ -74,6 +74,14 @@ export type AgentMorphologyRecord = {
   outcome?: 'completed' | 'failed' | 'needs_human' | 'clarify' | 'chitchat'
   /** E1：本轮计划步的最大爆炸半径 */
   blast_radius?: BlastRadius
+  /** 记忆治理可见性：path 冲突 / prefs 冲突 / 元意图提案（Trace 抽屉标签） */
+  memoryGovernance?: {
+    experienceReplayCount?: number
+    pathConflictDropped?: number
+    pendingPrefsConflict?: string
+    memoryCaptureKind?: string
+    memoryCaptureStatus?: string
+  }
 }
 
 function preview(text: unknown, max = 80): string | undefined {
@@ -306,6 +314,41 @@ export function buildAgentMorphologyFromState(
       ...(needsHumanConfirm ? { needsHumanConfirm: true } : {})
     }
   }
+
+  const recallExplain =
+    meta.memoryRecallExplain && typeof meta.memoryRecallExplain === 'object'
+      ? (meta.memoryRecallExplain as Record<string, unknown>)
+      : null
+  const pending =
+    meta.pendingPrefsProposal && typeof meta.pendingPrefsProposal === 'object'
+      ? (meta.pendingPrefsProposal as Record<string, unknown>)
+      : null
+  const capture =
+    meta.memoryCaptureProposal && typeof meta.memoryCaptureProposal === 'object'
+      ? (meta.memoryCaptureProposal as Record<string, unknown>)
+      : null
+  const pathDropped = Number(recallExplain?.pathConflictDropped ?? meta.experiencePathConflictDropped ?? 0)
+  const replayCount = Number(recallExplain?.count ?? meta.experienceReplayCount ?? 0)
+  const prefsConflict = String(pending?.conflictNote || meta.pendingPrefsConflict || '').trim()
+  const captureKind = String(capture?.kind || '').trim()
+  const captureStatus = String(capture?.status || '').trim()
+  if (
+    (Number.isFinite(pathDropped) && pathDropped > 0) ||
+    (Number.isFinite(replayCount) && replayCount > 0) ||
+    prefsConflict ||
+    (captureKind && captureKind !== 'none')
+  ) {
+    record.memoryGovernance = {
+      ...(Number.isFinite(replayCount) && replayCount > 0 ? { experienceReplayCount: Math.floor(replayCount) } : {}),
+      ...(Number.isFinite(pathDropped) && pathDropped > 0
+        ? { pathConflictDropped: Math.floor(pathDropped) }
+        : {}),
+      ...(prefsConflict ? { pendingPrefsConflict: prefsConflict.slice(0, 200) } : {}),
+      ...(captureKind && captureKind !== 'none' ? { memoryCaptureKind: captureKind.slice(0, 32) } : {}),
+      ...(captureStatus ? { memoryCaptureStatus: captureStatus.slice(0, 40) } : {})
+    }
+  }
+
   const outcome = inferMorphologyOutcome({
     kind: opts.kind,
     needsClarify,

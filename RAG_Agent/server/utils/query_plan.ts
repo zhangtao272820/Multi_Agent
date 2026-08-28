@@ -25,6 +25,10 @@ export type RagQueryPlan = {
   needs_clarification: boolean;
   clarification_questions: string[];
   confidence: number;
+  /** L 波：门控提示（可选；最终以 query_lane_gates 为准） */
+  use_hyde?: boolean;
+  use_multi_query?: boolean;
+  needs_graph?: boolean;
 };
 
 export function defaultRagQueryPlan(): RagQueryPlan {
@@ -37,6 +41,15 @@ export function defaultRagQueryPlan(): RagQueryPlan {
     clarification_questions: [],
     confidence: 0,
   };
+}
+
+function optionalBool(v: unknown): boolean | undefined {
+  if (v === undefined || v === null) return undefined;
+  if (typeof v === "boolean") return v;
+  const s = String(v).trim().toLowerCase();
+  if (["1", "true", "yes", "on"].includes(s)) return true;
+  if (["0", "false", "no", "off"].includes(s)) return false;
+  return undefined;
 }
 
 const intentSet = new Set<RagQueryIntent>([
@@ -158,6 +171,9 @@ export function parseRagQueryPlan(raw: unknown): RagQueryPlan {
     needs_clarification: Boolean(obj?.needs_clarification),
     clarification_questions: arr(obj?.clarification_questions).slice(0, 3),
     confidence: Number.isFinite(confidence) ? Math.max(0, Math.min(1, confidence)) : 0,
+    use_hyde: optionalBool(obj?.use_hyde),
+    use_multi_query: optionalBool(obj?.use_multi_query),
+    needs_graph: optionalBool(obj?.needs_graph),
   };
 }
 
@@ -189,6 +205,9 @@ export function mergeRagQueryPlans(primary: RagQueryPlan, fallback: RagQueryPlan
       ? primary.clarification_questions
       : fallback.clarification_questions,
     confidence: Math.max(primary.confidence, fallback.confidence),
+    use_hyde: primary.use_hyde ?? fallback.use_hyde,
+    use_multi_query: primary.use_multi_query ?? fallback.use_multi_query,
+    needs_graph: primary.needs_graph ?? fallback.needs_graph,
   };
 }
 
@@ -233,6 +252,15 @@ export function heuristicRagQueryPlan(question: string): RagQueryPlan {
   if (q.length < 4 && plan.entities.topics.length === 0) {
     plan.needs_clarification = true;
     plan.clarification_questions = ["请补充要查询的文档主题或关键词。"];
+  }
+
+  if (intent === "process") plan.needs_graph = true;
+  else if (intent === "multi_part" && plan.sub_queries.length >= 2) plan.needs_graph = true;
+  else if (
+    (intent === "multi_part" || intent === "comparison") &&
+    plan.entities.topics.length >= 2
+  ) {
+    plan.needs_graph = true;
   }
 
   return plan;

@@ -34,6 +34,13 @@ const morphology = ref<{
   turnScopeMode?: string
   blast_radius?: string
   flags?: { needsClarify?: boolean; needsHumanConfirm?: boolean }
+  memoryGovernance?: {
+    experienceReplayCount?: number
+    pathConflictDropped?: number
+    pendingPrefsConflict?: string
+    memoryCaptureKind?: string
+    memoryCaptureStatus?: string
+  }
 } | null>(null)
 
 async function copyTrace() {
@@ -84,6 +91,13 @@ async function loadDeepLinks() {
         turnScopeMode?: string
         blast_radius?: string
         flags?: { needsClarify?: boolean; needsHumanConfirm?: boolean }
+        memoryGovernance?: {
+          experienceReplayCount?: number
+          pathConflictDropped?: number
+          pendingPrefsConflict?: string
+          memoryCaptureKind?: string
+          memoryCaptureStatus?: string
+        }
       }>
     }>('/api/metrics/agent-morphology', { query: { runId: id } })
     const rows = Array.isArray(morph.records) ? morph.records : []
@@ -100,7 +114,8 @@ async function loadDeepLinks() {
           sourceCommitment: pick.sourceCommitment,
           turnScopeMode: pick.turnScopeMode,
           blast_radius: pick.blast_radius,
-          flags: pick.flags
+          flags: pick.flags,
+          memoryGovernance: pick.memoryGovernance
         }
       : null
   } catch {
@@ -198,6 +213,44 @@ onBeforeUnmount(() => {
             <template v-if="morphology.sourceCommitment">source {{ morphology.sourceCommitment }}</template>
             <template v-if="morphology.turnScopeMode"> · scope {{ morphology.turnScopeMode }}</template>
           </p>
+          <div
+            v-if="
+              morphology.memoryGovernance &&
+              (morphology.memoryGovernance.pathConflictDropped ||
+                morphology.memoryGovernance.pendingPrefsConflict ||
+                morphology.memoryGovernance.memoryCaptureKind ||
+                morphology.memoryGovernance.experienceReplayCount)
+            "
+            class="mgr-trace-memory-tags"
+          >
+            <span
+              v-if="morphology.memoryGovernance.experienceReplayCount"
+              class="mgr-trace-tag mgr-trace-tag-info"
+            >
+              经验回放 ×{{ morphology.memoryGovernance.experienceReplayCount }}
+            </span>
+            <span
+              v-if="morphology.memoryGovernance.pathConflictDropped"
+              class="mgr-trace-tag mgr-trace-tag-warn"
+              :title="`同场景矛盾 path 已仲裁丢弃 ${morphology.memoryGovernance.pathConflictDropped} 条`"
+            >
+              path 冲突 −{{ morphology.memoryGovernance.pathConflictDropped }}
+            </span>
+            <span
+              v-if="morphology.memoryGovernance.pendingPrefsConflict"
+              class="mgr-trace-tag mgr-trace-tag-warn"
+              :title="morphology.memoryGovernance.pendingPrefsConflict"
+            >
+              偏好冲突待确认
+            </span>
+            <span
+              v-if="morphology.memoryGovernance.memoryCaptureKind"
+              class="mgr-trace-tag mgr-trace-tag-info"
+              :title="morphology.memoryGovernance.memoryCaptureStatus || ''"
+            >
+              记忆提案 · {{ morphology.memoryGovernance.memoryCaptureKind }}
+            </span>
+          </div>
         </section>
 
         <section v-if="phaseTimeline?.length" class="mgr-trace-drawer-section">
@@ -219,7 +272,7 @@ onBeforeUnmount(() => {
             </li>
             <li>
               <strong>记忆注入？</strong>
-              看 meta.memoryRecallExplain（本轮注入条数 / id / type / score）；pendingPrefsProposal 需显式确认才写入 prefs。
+              看形态卡标签（经验回放 / path 冲突 / 偏好冲突）与 meta.memoryRecallExplain；pendingPrefs 需显式确认才写入 prefs；memoryCaptureProposal 为 Wave 8 记忆提案。
             </li>
             <li>
               <strong>执行错？</strong>
@@ -335,6 +388,36 @@ onBeforeUnmount(() => {
   margin: 6px 0 0;
   font-size: 11px;
   color: #64748b;
+}
+.mgr-trace-memory-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+.mgr-trace-tag {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mgr-trace-tag-info {
+  color: #c7d2fe;
+  background: rgba(79, 70, 229, 0.22);
+  border-color: rgba(129, 140, 248, 0.35);
+}
+.mgr-trace-tag-warn {
+  color: #fde68a;
+  background: rgba(180, 83, 9, 0.28);
+  border-color: rgba(251, 191, 36, 0.4);
 }
 .mgr-trace-stats {
   display: flex;

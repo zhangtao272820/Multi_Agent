@@ -125,6 +125,7 @@ export default defineEventHandler(async (event) => {
       evidence: result.evidence,
       trace_id: traceId,
       retrievalFailureMode: result.retrievalFailureMode || result.clarifyReason,
+      retrievalLanes: result.retrievalLanes,
     });
 
     // 成功/弱证据路径由 document_retrieval.finish 记账，此处避免双计
@@ -153,6 +154,7 @@ export default defineEventHandler(async (event) => {
       experience_hits: result.experienceHits ?? 0,
       ab_variant: result.abVariant,
       bandit_arm: result.banditArm,
+      retrieval_lanes: result.retrievalLanes ?? ["hybrid"],
       evidence: result.evidence,
       citations: result.evidence.map((e) => ({ source: e.source, quote: e.content })),
       agentResult,

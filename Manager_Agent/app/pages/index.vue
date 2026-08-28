@@ -60,6 +60,31 @@
         @close="closeTraceDrawer"
       />
 
+      <ManagerReplyArtifactDrawer
+        :open="artifactDrawerOpen"
+        :turn="artifactDrawerTurn"
+        :active-tab="artifactDrawerTab"
+        :report-draft="artifactDrawerReportDraft"
+        :build-turn-agent-results="buildTurnAgentResults"
+        :user-facing-chart-option="userFacingChartOption"
+        :user-facing-chart-title="userFacingChartTitle"
+        :user-facing-table-html="userFacingTableHtml"
+        :extract-echarts-option="extractEchartsOption"
+        :extract-table-data="extractTableData"
+        :render-table-data-html="renderTableDataHtml"
+        :resolve-report-body="resolveReportBody"
+        :render-report-markdown="renderReportMarkdown"
+        :init-chart-el="initChartEl"
+        :chart-container-class="chartContainerClass"
+        :chart-container-style="chartContainerStyle"
+        :download-echarts-png="downloadEchartsPng"
+        :download-markdown="downloadMarkdown"
+        @close="closeReplyArtifactDrawer"
+        @update:active-tab="setArtifactDrawerTab"
+        @apply-report="applyArtifactReportEdit"
+        @export-bundle="exportArtifactBundle"
+      />
+
       <ManagerHumanConfirmBar
         v-if="pendingHumanConfirm"
         :title="pendingHumanConfirm.title"
@@ -124,6 +149,7 @@
 import BrandMotif from '@brand/vue/BrandMotif.vue'
 import AppModal from '~/components/AppModal.vue'
 import ManagerTraceDrawer from '~/components/workbench/ManagerTraceDrawer.vue'
+import ManagerReplyArtifactDrawer from '~/components/workbench/ManagerReplyArtifactDrawer.vue'
 
 useHead({ title: '天机 · Manager' })
 
@@ -146,6 +172,28 @@ const {
   traceDrawerOpen,
   openTraceDrawer,
   closeTraceDrawer,
+  artifactDrawerOpen,
+  artifactDrawerTurn,
+  artifactDrawerTab,
+  artifactDrawerReportDraft,
+  closeReplyArtifactDrawer,
+  setArtifactDrawerTab,
+  applyArtifactReportEdit,
+  exportArtifactBundle,
+  buildTurnAgentResults,
+  extractEchartsOption,
+  userFacingChartOption,
+  userFacingChartTitle,
+  userFacingTableHtml,
+  extractTableData,
+  renderTableDataHtml,
+  resolveReportBody,
+  renderReportMarkdown,
+  initChartEl,
+  chartContainerClass,
+  chartContainerStyle,
+  downloadEchartsPng,
+  downloadMarkdown,
   runObservabilityLive,
   formatObsMs,
   formatTokenCount,

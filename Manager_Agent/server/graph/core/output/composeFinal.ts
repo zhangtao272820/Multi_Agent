@@ -19,6 +19,8 @@ import {
   looksLikeStepDumpSummary,
   type UserFacingPayload
 } from './userFacingPayload'
+import { resolveOrchestrationThickness } from '../routing/orchestrationThickness'
+import { resolveRagPassthroughText } from '#agent-shared/deterministicPassthrough'
 import { assessEvidenceGate } from '../db/evidenceGate'
 import type { Step } from '../../../utils/shared/taskPlan'
 
@@ -72,6 +74,8 @@ export function composeFinalBundleFromGraphResult(result: unknown): ComposeFinal
     routedQuery?: string
   }
   const bag = r?.results && typeof r.results === 'object' ? r.results : {}
+  const meta = { ...((r?.meta || {}) as Record<string, unknown>) }
+  const storedFinal = String(r?.final ?? '').trim()
   const mm = String(bag.multimodal ?? '').trim()
   const synth = resolveSynthStreamBody(r)
   const intent = String(r?.intent ?? '').trim()
@@ -102,13 +106,25 @@ export function composeFinalBundleFromGraphResult(result: unknown): ComposeFinal
       mediaPath = true
     } else if (synth) {
       rawBody = appendCrawlerSourcesIfMissing(synth, bag.crawler)
+    } else if (storedFinal && resolveOrchestrationThickness({ meta, intent }) === 'memory_capture') {
+      rawBody = storedFinal
+    } else if (
+      resolveOrchestrationThickness({ meta, intent }) === 'single_source' &&
+      String(bag.rag ?? '').trim().length >= 8
+    ) {
+      rawBody = appendCrawlerSourcesIfMissing(
+        resolveRagPassthroughText({
+          text: String(bag.rag).trim(),
+          evidence: Array.isArray(r?.evidence) ? (r.evidence as Array<Record<string, unknown>>) : [],
+        }),
+        bag.crawler
+      )
     } else {
       // D1：无 synth 时不把专才全文当正文；由 UserFacingPayload 用 handoff 组装
       rawBody = ''
     }
   }
 
-  const meta = { ...((r?.meta || {}) as Record<string, unknown>) }
   // U3：终局证据门写入 meta，供拒答徽章 / outcome
   if (meta.evidenceGatePassed == null) {
     const gate = assessEvidenceGate({

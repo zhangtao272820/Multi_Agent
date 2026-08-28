@@ -74,7 +74,8 @@ def get_agents_lan_config() -> dict[str, Any]:
         "recreate_hint": [
             "manager_agent",
             "clawhive_backend",
-            "db_agent",
+            "vanna_db_agent",
+            "vanna_db_web",
             "rag_agent",
         ],
     }

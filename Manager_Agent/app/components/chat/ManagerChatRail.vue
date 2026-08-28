@@ -194,7 +194,7 @@ watch(localLogEl, (el) => {
             <textarea
               v-model="step.query"
               class="conv-plan-preview-query-edit"
-              rows="2"
+              rows="3"
               maxlength="2000"
               :disabled="planPreviewSending || !step.enabled"
               :placeholder="`${planAgentLabel(step.agent)}任务描述`"

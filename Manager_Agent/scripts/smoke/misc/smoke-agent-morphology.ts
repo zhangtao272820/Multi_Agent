@@ -69,7 +69,11 @@ const finalRec = buildAgentMorphologyFromState(
     meta: {
       lastStepRecords: [{ agent: 'db', status: 'error', error_code: 'timeout' }],
       evidenceGate: { pass: false, reason: '查数任务未获得有效数据依据' },
-      needsClarify: false
+      needsClarify: false,
+      experienceReplayCount: 2,
+      memoryRecallExplain: { count: 2, pathConflictDropped: 1 },
+      pendingPrefsProposal: { conflictNote: '专家偏好冲突：现有=rag；新提议=admin' },
+      memoryCaptureProposal: { kind: 'save_preference', status: 'draft_pending_review' },
     }
   },
   { kind: 'final', runId: 'run-morph-2' }
@@ -77,6 +81,9 @@ const finalRec = buildAgentMorphologyFromState(
 assert(finalRec?.experts?.[0]?.error_code === 'timeout', 'expert error_code')
 assert(finalRec?.outcome === 'failed', 'failed outcome')
 assert(finalRec?.evidenceGate?.pass === false, 'evidence gate')
+assert(finalRec?.memoryGovernance?.pathConflictDropped === 1, 'path conflict in morphology')
+assert(finalRec?.memoryGovernance?.pendingPrefsConflict?.includes('专家偏好冲突'), 'prefs conflict tag')
+assert(finalRec?.memoryGovernance?.memoryCaptureKind === 'save_preference', 'capture kind')
 
 assert(
   inferMorphologyOutcome({ kind: 'final', needsClarify: true }) === 'clarify',

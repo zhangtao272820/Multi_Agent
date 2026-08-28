@@ -375,6 +375,12 @@ export const deleteDocument = async (fileName: string) => {
 
   const index = uploadedDocuments.findIndex((d) => d.name === fileName);
   await purgeVectorsBySource(fileName);
+  try {
+    const { purgeGraphBySource } = await import("./policy_graph_store");
+    purgeGraphBySource(fileName);
+  } catch (e) {
+    console.warn("[PolicyGraph] purge on delete skipped:", e);
+  }
   if (index !== -1) {
     uploadedDocuments.splice(index, 1);
   }
@@ -957,6 +963,25 @@ export async function upsertParsedDocuments(
     existingMeta.source_version = sourceVersion;
     existingMeta.chunk_count = existingCount;
     await saveToDisk();
+    // 嵌入幂等跳过时，若制度图缺失/脏骨架仍补抽，避免「加了图却永远是坏图」
+    try {
+      const { policyGraphNeedsRefresh } = await import("./policy_graph_store");
+      if (policyGraphNeedsRefresh(fileName)) {
+        const { extractAndUpsertPolicyGraph } = await import("./policy_graph_extract");
+        const graphRes = await extractAndUpsertPolicyGraph({
+          source: fileName,
+          content_hash: contentHash,
+          text: fullText,
+        });
+        if (graphRes.ok) {
+          console.log(
+            `[PolicyGraph] refresh ${fileName} nodes=${graphRes.nodeCount} edges=${graphRes.edgeCount} via=${graphRes.source}`
+          );
+        }
+      }
+    } catch (graphErr) {
+      console.warn(`[PolicyGraph] refresh skipped for ${fileName}:`, graphErr);
+    }
     return existingCount;
   }
 
@@ -1026,6 +1051,24 @@ export async function upsertParsedDocuments(
   }
 
   await saveToDisk();
+
+  // M2：制度图抽取（失败不阻断入库；hash 未变时上面已 early-return）
+  try {
+    const { extractAndUpsertPolicyGraph } = await import("./policy_graph_extract");
+    const graphRes = await extractAndUpsertPolicyGraph({
+      source: fileName,
+      content_hash: contentHash,
+      text: fullText,
+    });
+    if (graphRes.ok) {
+      console.log(
+        `[PolicyGraph] ${fileName} nodes=${graphRes.nodeCount} edges=${graphRes.edgeCount} via=${graphRes.source}`
+      );
+    }
+  } catch (graphErr) {
+    console.warn(`[PolicyGraph] extract skipped for ${fileName}:`, graphErr);
+  }
+
   return docsWithMetadata.length;
 }
 

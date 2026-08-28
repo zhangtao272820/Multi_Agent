@@ -64,8 +64,15 @@ import {
   shouldPassthroughAdminWriteOnly,
   shouldPassthroughDbOnly,
   shouldPassthroughDeterministicReport,
-  shouldPassthroughRagOnly
+  shouldPassthroughRagOnly,
+  resolveRagPassthroughText,
 } from '#agent-shared/deterministicPassthrough'
+import { shouldUseConversationalRagSynth, shouldUseConversationalDbSynth } from '../../core/routing/orchestrationThickness'
+import {
+  buildConversationalSynthAssembleInput,
+  invokeConversationalSynth,
+} from '../../core/output/conversationalSynth'
+import { mergeConversationalDbSynthWithDataBlock } from '../../core/output/dbExpertDataBlock'
 import { formatAdminWriteUserFacingReply } from '../../core/output/adminWriteUserReply'
 import { isMultiSourceDataPipeline } from '#agent-shared/dbPipelineDeterministic'
 import { resolveSynthShapeSignals } from '#agent-shared/synthShapePolicy'
@@ -92,14 +99,22 @@ import { buildCrawlerSourcesTaggedBlock, resolveCrawlerTableMarkdown, extractCra
 import { pickRicherNarrativeWithAuxBlocks, extractAuxBlocksStructural } from '#agent-shared/auxBlocks'
 import { polishFinalPayload } from '../../core/output/replyPolish'
 import { isReportDeferredToSynth } from '#agent-shared/reportSynthDefer'
-import { stripSynthPromptLeakage } from '#agent-shared/synthOutputSanitize'
+import { stripSynthPromptLeakage, isReportTierSummaryTooThin } from '#agent-shared/synthOutputSanitize'
+import {
+  formatPresentationPlanForSynth,
+  isPresentationPlanActive,
+  planHasModule,
+  shouldShowDbDataBlock
+} from '#agent-shared/presentationPlan'
+import { resolvePresentationPlanForRun } from '../../core/output/resolvePresentationPlanForRun'
 import { sanitizeVisionAnswer } from '../../../utils/media/managerVisionSanitize'
 import { formatAgentResultSourcesForSynth } from '../../../utils/agents/agentResult'
 import {
   formatHandoffsFromEvidence
 } from '../../../utils/agents/specialistHandoff'
 import { assessCodeDownstreamConsistencyAsync } from '../../../utils/code/managerCodeAuthorityNormalize'
-import { isManagerSynthStreamEnabled } from '../../core/runtime/runtime'
+import { emitSynthStreamChunks, isManagerSynthStreamEnabled } from '../../core/runtime/runtime'
+import { shouldSkipPostSynthAudit } from '../../core/routing/orchestrationThickness'
 import type { LlmInvokeOptions } from '../../core/shared/modelTier'
 import { resolveManagerInteractionMode } from '../../../utils/platform/managerInteractionMode'
 import { buildCodeFirstBundle } from '#agent-shared/codeFirstAuthority'
@@ -143,9 +158,22 @@ export function buildSynthNodeRun(deps: CreateFinalNodesDeps) {
 
     return async (state: any) => {
         ensureNotAborted()
-        // 审计路径由 emit_user_answer 回放；synth 仅寒暄捷径（跳过审计）对用户开流
+        // 审计路径由 emit_user_answer 回放；跳过审计的薄路径（寒暄 / single_source / memory）在此对用户开流
         const streamSynthEarly =
-          isManagerSynthStreamEnabled() && Boolean(state.meta?.directChitchatSynth)
+          isManagerSynthStreamEnabled() &&
+          (Boolean(state.meta?.directChitchatSynth) || shouldSkipPostSynthAudit(state.meta))
+        const emitEarlyStream = async (body: string) => {
+          if (!streamSynthEarly) return
+          const text = String(body || '').trim()
+          if (!text) return
+          await emitSynthStreamChunks(
+            text,
+            (delta) => {
+              if (delta) opts.sendEvent({ event: 'delta', data: delta, from: 'synth' })
+            },
+            ensureNotAborted
+          )
+        }
         if (streamSynthEarly) {
           opts.sendEvent({ event: 'phase', data: 'synth', from: 'manager' })
           opts.sendEvent({ event: 'phase', data: 'synth_stream', from: 'manager' })
@@ -156,6 +184,37 @@ export function buildSynthNodeRun(deps: CreateFinalNodesDeps) {
 
         if (Boolean(state.meta?.directChitchatSynth)) {
           const lastOnly = String(lastUserText(state.messages as any) || '').trim()
+          const hotParsed = state.meta?.memoryMetaIntentParsed as
+            | { kind?: string; title?: string }
+            | undefined
+          if (
+            String(state.meta?.orchestratorMode || '') === 'memory_capture' &&
+            String(state.meta?.orchestratorSource || '') === 'meta_intent_hot_gate' &&
+            hotParsed?.kind &&
+            hotParsed.kind !== 'none'
+          ) {
+            const { buildMemoryCaptureAckText } = await import('../../core/routing/orchestrationThickness')
+            const finalText = buildMemoryCaptureAckText(hotParsed as any)
+            opts.sendEvent({
+              event: 'thinking',
+              data: 'Synth：记忆轻路径 → 确认答复（不调子 Agent）',
+              from: 'manager',
+            })
+            await emitEarlyStream(finalText)
+            return {
+              final: finalText,
+              results: state.results || {},
+              evidence: state.evidence || [],
+              resources: state.resources,
+              meta: mergeMeta(state, {
+                directChitchatSynth: true,
+                lowCostMode: true,
+                memoryCaptureSynth: true,
+                chitchatSynth: false,
+                synthStreamBody: finalText,
+              }),
+            }
+          }
           opts.sendEvent({
             event: 'thinking',
             data: 'Synth：寒暄/确认 → 轻量对话回复（不引用历史任务或数据规划）',
@@ -178,7 +237,14 @@ export function buildSynthNodeRun(deps: CreateFinalNodesDeps) {
               ],
               { tier: 'light' }
             )
-            const finalText = polishFinalPayload(stripLatexMath(String(r.text ?? '').trim()))
+            const body = polishFinalPayload(stripLatexMath(String(r.text ?? '').trim()))
+            let finalText = body
+            if (!finalText && hotParsed?.kind && hotParsed.kind !== 'none') {
+              const { buildMemoryCaptureAckText } = await import('../../core/routing/orchestrationThickness')
+              finalText = buildMemoryCaptureAckText(hotParsed as any)
+            }
+            if (!finalText) finalText = '好的，收到。还有什么我可以帮你的？'
+            await emitEarlyStream(finalText)
             return {
               final: finalText,
               results: state.results || {},
@@ -188,16 +254,28 @@ export function buildSynthNodeRun(deps: CreateFinalNodesDeps) {
                 directChitchatSynth: true,
                 lowCostMode: true,
                 chitchatSynth: true,
-                sessionIntentAnchor: null
+                sessionIntentAnchor: null,
+                synthStreamBody: finalText
               })
             }
           } catch {
+            let fallback = '好的，收到。还有什么我可以帮你的？'
+            if (hotParsed?.kind && hotParsed.kind !== 'none') {
+              const { buildMemoryCaptureAckText } = await import('../../core/routing/orchestrationThickness')
+              fallback = buildMemoryCaptureAckText(hotParsed as any)
+            }
+            await emitEarlyStream(fallback)
             return {
-              final: '你好！有什么我可以帮你的？',
+              final: fallback,
               results: state.results || {},
               evidence: state.evidence || [],
               resources: state.resources,
-              meta: mergeMeta(state, { directChitchatSynth: true, chitchatSynth: true, sessionIntentAnchor: null })
+              meta: mergeMeta(state, {
+                directChitchatSynth: true,
+                chitchatSynth: true,
+                sessionIntentAnchor: null,
+                synthStreamBody: fallback
+              })
             }
           }
         }
@@ -231,8 +309,18 @@ export function buildSynthNodeRun(deps: CreateFinalNodesDeps) {
           ? await runAlwaysInternalCollaborators(state, question, existingResults, state.evidence || [])
           : { results: existingResults, evidence: state.evidence || [], resources: state.resources, meta: state.meta }
         const synthBlocks: string[] = []
-        const results = merged.results || {}
+        let results = merged.results || {}
         const evidences = merged.evidence || []
+
+        if (String(results.rag ?? '').trim()) {
+          const normalizedRag = resolveRagPassthroughText({
+            text: String(results.rag ?? ''),
+            evidence: evidences as Array<Record<string, unknown>>,
+          })
+          if (normalizedRag && normalizedRag !== String(results.rag ?? '').trim()) {
+            results = { ...results, rag: normalizedRag }
+          }
+        }
 
         const serpDirectBlock = buildSerpDirectSynthBlock(merged.meta as Record<string, unknown>)
         const chatWebReply = shouldForceChatWebDirectSynth(merged.meta as Record<string, unknown>)
@@ -247,6 +335,108 @@ export function buildSynthNodeRun(deps: CreateFinalNodesDeps) {
           synthBlocks.push(serpDirectBlock)
         }
 
+        const professionalMode = resolveManagerInteractionMode(state.meta) === 'professional'
+
+        const presentationPlan = await resolvePresentationPlanForRun({
+          question,
+          results,
+          evidence: evidences,
+          meta: (merged.meta || {}) as Record<string, unknown>,
+          planSteps: effectivePlanSteps,
+          intent: String(state.intent ?? ''),
+          llmInvoke,
+          state
+        })
+        // mergeMeta 第一参必须是含 .meta 的 state；误传 meta 对象会落到默认壳并冲掉编排字段
+        merged.meta = mergeMeta({ meta: merged.meta || state.meta }, { presentationPlan })
+        opts.sendEvent({
+          event: 'presentation_plan',
+          data: presentationPlan,
+          from: 'manager'
+        })
+
+        if (
+          shouldUseConversationalDbSynth({
+            meta: merged.meta,
+            intent: String(state.intent ?? ''),
+            results,
+          })
+        ) {
+          const dbSource = String(results.db || '').trim()
+          opts.sendEvent({
+            event: 'thinking',
+            data: 'Synth：单源 DB 对话式解读（standard 档，含拓展引导）',
+            from: 'manager',
+          })
+          try {
+            const dbReplyTier = resolveReplyTier({
+              intent: String(state.intent || ''),
+              results,
+              planSteps: effectivePlanSteps,
+              meta: merged.meta as Record<string, unknown>,
+              hasDbResult: true,
+              presentationPlan
+            })
+            const { body, resources } = await invokeConversationalSynth({
+              kind: 'db',
+              question,
+              sourceText: dbSource,
+              assemble: buildConversationalSynthAssembleInput({
+                kind: 'db',
+                hasDbResult: true,
+                replyTier: dbReplyTier,
+              }),
+              evidence: evidences,
+              meta: merged.meta as Record<string, unknown>,
+              llmInvoke,
+              state,
+              tier: dbReplyTier === 'report' ? 'max' : 'standard',
+            })
+            const refs = formatReferences(evidences)
+            const mergedBody = mergeConversationalDbSynthWithDataBlock({
+              synthBody: body || '',
+              sourceText: dbSource,
+              evidence: evidences,
+              includeDataBlock: shouldShowDbDataBlock(presentationPlan)
+            })
+            const finalText = polishFinalPayload(`${mergedBody || dbSource}${refs}`)
+            await emitEarlyStream(finalText)
+            return {
+              final: finalText,
+              results,
+              evidence: evidences,
+              resources: resources ?? merged.resources,
+              meta: mergeMeta(state, {
+                ...(merged.meta as Record<string, unknown>),
+                conversationalDbSynth: true,
+                orchestrationThickness: 'single_source',
+                presentationPlan,
+                synthStreamBody: finalText
+              }),
+            }
+          } catch {
+            const refs = formatReferences(evidences)
+            const mergedBody = mergeConversationalDbSynthWithDataBlock({
+              synthBody: '',
+              sourceText: dbSource,
+              evidence: evidences
+            })
+            const finalText = polishFinalPayload(`${mergedBody || dbSource}${refs}`)
+            await emitEarlyStream(finalText)
+            return {
+              final: finalText,
+              results,
+              evidence: evidences,
+              resources: merged.resources,
+              meta: mergeMeta(state, {
+                conversationalDbSynth: true,
+                conversationalDbSynthFallback: true,
+                synthStreamBody: finalText
+              }),
+            }
+          }
+        }
+
         if (
           shouldPassthroughDbOnly({
             intent: String(state.intent ?? ''),
@@ -254,7 +444,7 @@ export function buildSynthNodeRun(deps: CreateFinalNodesDeps) {
             results,
             evidence: evidences,
             meta: merged.meta,
-            professionalMode: resolveManagerInteractionMode(state.meta) === 'professional'
+            professionalMode,
           })
         ) {
           const dbText = String(results.db || '').trim()
@@ -265,7 +455,88 @@ export function buildSynthNodeRun(deps: CreateFinalNodesDeps) {
           })
           const refs = formatReferences(evidences)
           const finalText = polishFinalPayload(`${dbText}${refs}`)
-          return { final: finalText, results, evidence: evidences, resources: merged.resources, meta: merged.meta }
+          await emitEarlyStream(finalText)
+          return {
+            final: finalText,
+            results,
+            evidence: evidences,
+            resources: merged.resources,
+            meta: mergeMeta({ meta: merged.meta }, { synthStreamBody: finalText })
+          }
+        }
+
+        if (
+          shouldUseConversationalRagSynth({
+            meta: merged.meta,
+            intent: String(state.intent ?? ''),
+            results,
+          })
+        ) {
+          const ragSource = resolveRagPassthroughText({
+            text: String(results.rag || ''),
+            evidence: evidences as Array<Record<string, unknown>>,
+          })
+          opts.sendEvent({
+            event: 'thinking',
+            data: 'Synth：单源 RAG 对话式整理（standard 档，含拓展引导）',
+            from: 'manager',
+          })
+          try {
+            const ragReplyTier = resolveReplyTier({
+              intent: String(state.intent || ''),
+              results,
+              planSteps: effectivePlanSteps,
+              meta: merged.meta as Record<string, unknown>,
+              hasRagResult: true,
+              presentationPlan
+            })
+            const { body, resources } = await invokeConversationalSynth({
+              kind: 'rag',
+              question,
+              sourceText: ragSource,
+              assemble: buildConversationalSynthAssembleInput({
+                kind: 'rag',
+                hasRagResult: true,
+                replyTier: ragReplyTier,
+              }),
+              evidence: evidences,
+              meta: merged.meta as Record<string, unknown>,
+              llmInvoke,
+              state,
+              tier: ragReplyTier === 'report' ? 'max' : 'standard',
+            })
+            const refs = formatReferences(evidences)
+            const finalText = polishFinalPayload(`${body || ragSource}${refs}`)
+            await emitEarlyStream(finalText)
+            return {
+              final: finalText,
+              results,
+              evidence: evidences,
+              resources: resources ?? merged.resources,
+              meta: mergeMeta(state, {
+                ...(merged.meta as Record<string, unknown>),
+                conversationalRagSynth: true,
+                orchestrationThickness: 'single_source',
+                presentationPlan,
+                synthStreamBody: finalText
+              }),
+            }
+          } catch {
+            const refs = formatReferences(evidences)
+            const finalText = polishFinalPayload(`${ragSource}${refs}`)
+            await emitEarlyStream(finalText)
+            return {
+              final: finalText,
+              results,
+              evidence: evidences,
+              resources: merged.resources,
+              meta: mergeMeta(state, {
+                conversationalRagSynth: true,
+                conversationalRagSynthFallback: true,
+                synthStreamBody: finalText
+              }),
+            }
+          }
         }
 
         if (
@@ -275,10 +546,13 @@ export function buildSynthNodeRun(deps: CreateFinalNodesDeps) {
             results,
             evidence: evidences,
             meta: merged.meta,
-            professionalMode: resolveManagerInteractionMode(state.meta) === 'professional'
+            professionalMode,
           })
         ) {
-          const ragText = String(results.rag || '').trim()
+          const ragText = resolveRagPassthroughText({
+            text: String(results.rag || ''),
+            evidence: evidences as Array<Record<string, unknown>>,
+          })
           opts.sendEvent({
             event: 'thinking',
             data: 'Synth：单源 RAG 直通（跳过汇总 LLM，保留知识库原文）',
@@ -286,7 +560,14 @@ export function buildSynthNodeRun(deps: CreateFinalNodesDeps) {
           })
           const refs = formatReferences(evidences)
           const finalText = polishFinalPayload(`${ragText}${refs}`)
-          return { final: finalText, results, evidence: evidences, resources: merged.resources, meta: merged.meta }
+          await emitEarlyStream(finalText)
+          return {
+            final: finalText,
+            results,
+            evidence: evidences,
+            resources: merged.resources,
+            meta: mergeMeta({ meta: merged.meta }, { synthStreamBody: finalText })
+          }
         }
 
         if (
@@ -327,7 +608,8 @@ export function buildSynthNodeRun(deps: CreateFinalNodesDeps) {
             evidence: evidences,
             intent: String(state.intent ?? ''),
             question
-          })
+          }) &&
+          professionalMode
         ) {
           const directReport = String(results.report || '').trim()
           const body = (extractTaggedBlockFull(directReport, 'REPORT') || directReport)
@@ -614,8 +896,10 @@ export function buildSynthNodeRun(deps: CreateFinalNodesDeps) {
           adminSynthContext,
           chatWebReply,
           hasGuiResult,
-          hasDbResult
+          hasDbResult,
+          presentationPlan
         })
+        const presentationHint = formatPresentationPlanForSynth(presentationPlan)
         const citationSources = collectUnifiedSources({
           evidence: evidences,
           meta: merged.meta,
@@ -630,9 +914,11 @@ export function buildSynthNodeRun(deps: CreateFinalNodesDeps) {
           codeAuthoritative,
           hasGuiResult,
           hasDbResult,
+          hasRagResult: Boolean(String(results.rag ?? '').trim()) && !Boolean(String(results.db ?? '').trim()),
           chatWebReply,
           chatWebHint: chatWebHint || '',
-          replyTier
+          replyTier,
+          presentationHint
         })
         if (synthSystemText.length > promptBudgetSystemChars()) {
           opts.sendEvent({
@@ -645,8 +931,8 @@ export function buildSynthNodeRun(deps: CreateFinalNodesDeps) {
           replyTier === 'lite'
             ? '\n\n【最终指示】只输出给用户看的 2～8 句确认；禁止任何 ### 报告章节、执行摘要、管线 agent 回显。'
             : replyTier === 'report'
-              ? '\n\n【最终指示】像 DeepSeek 一样写给用户：首段结论 → ### 关键发现 → ### 详细说明（对照表）→ ### 建议；写完建议即止。严禁「执行摘要 / rag: / db: / agent_result / 逻辑删除」等开发内容。'
-              : '\n\n【最终指示】像 DeepSeek 一样对话作答：首段结论 → 按需 ### 分段 → [n] 引用；严禁执行摘要与管线回显。'
+              ? '\n\n【最终指示】像 Cursor 深度回答：首段结论 → ### 关键发现 → 对照/表 → ### 建议 → 1～2 句拓展；严禁执行摘要与管线回显。'
+              : '\n\n【最终指示】像 Cursor / DeepSeek 一样对话作答：首段结论 → 按需 ### 分段 → [n] 引用 → 可选 1～2 句拓展（用户可接着问的方向）；严禁执行摘要与管线回显。'
         const synthPrompt = [
           new SystemMessage(synthSystemText),
           new HumanMessage(
@@ -684,30 +970,83 @@ export function buildSynthNodeRun(deps: CreateFinalNodesDeps) {
           )
         ]
 
+        let synthText = ''
+        let llmResources = merged.resources
         try {
           // 主路径静默写 final；用户面 delta 由 emit_user_answer 在审计通过后回放
-          const r = await llmInvoke('synth', state, synthPrompt, {})
-          const synthText = stripSynthPromptLeakage(stripLatexMath(String(r.text ?? '')))
-          const extras: string[] = []
+          let r = await llmInvoke('synth', state, synthPrompt, {
+            tier: replyTier === 'report' ? 'max' : 'standard',
+          })
+          llmResources = r.resources ?? merged.resources
+          synthText = stripSynthPromptLeakage(stripLatexMath(String(r.text ?? '')))
+          if (replyTier === 'report' && isReportTierSummaryTooThin(synthText, 'report')) {
+            opts.sendEvent({
+              event: 'thinking',
+              data: 'Synth：report 正文过短，追加展开重写（一次）',
+              from: 'manager'
+            })
+            const retryPrompt = [
+              ...synthPrompt,
+              new HumanMessage(
+                '【重写】上一轮面向用户的正文过短，未按 report 结构展开。请重写：首段结论 → ### 关键发现（3～6 条，每条解释含义）→ ### 对照分析（rag 标准 vs db 实测）→ ### 建议 → 1～2 句拓展。禁止执行摘要与 agent 管线回显。'
+              )
+            ]
+            r = await llmInvoke('synth', state, retryPrompt, { tier: 'max' })
+            llmResources = r.resources ?? llmResources
+            synthText = stripSynthPromptLeakage(stripLatexMath(String(r.text ?? '')))
+          }
+        } catch (err) {
+          const detail = err instanceof Error ? err.message : String(err || 'unknown')
+          opts.sendEvent({
+            event: 'thinking',
+            data: `Synth：汇总 LLM 异常（${detail.slice(0, 160)}）`,
+            from: 'manager'
+          })
+        }
+
+        const extras: string[] = []
+        try {
+          const planActive = isPresentationPlanActive(presentationPlan)
           if (canShowAuxOutputs) {
-            if (directVisualize) {
-              const echartBlock = buildEchartsOptionBlock(directVisualize)
-              const tableBlock = extractTaggedBlockFull(directVisualize, 'TABLE_DATA')
+            if (
+              directVisualize &&
+              (!planActive ||
+                planHasModule(presentationPlan, 'chart') ||
+                planHasModule(presentationPlan, 'table'))
+            ) {
+              const echartBlock =
+                !planActive || planHasModule(presentationPlan, 'chart')
+                  ? buildEchartsOptionBlock(directVisualize)
+                  : ''
+              const tableBlock =
+                !planActive || planHasModule(presentationPlan, 'table')
+                  ? extractTaggedBlockFull(directVisualize, 'TABLE_DATA')
+                  : ''
               const parts: string[] = []
               if (echartBlock) parts.push(`\n\n${echartBlock}`)
               if (tableBlock) parts.push(`\n\n${tableBlock}`)
               if (parts.length) extras.push(parts.join(''))
             }
-            if (directReport) {
+            if (directReport && (!planActive || planHasModule(presentationPlan, 'report_appendix'))) {
               const tagged = extractTaggedBlockFull(directReport, 'REPORT')
               const body = (tagged || directReport).replace(/<!--\/?REPORT-->/gi, '').trim()
               if (body) extras.push(`\n\n${wrapTaggedBlock('REPORT', body)}`)
             }
           }
           const crawlerBlock = buildCrawlerSourcesTaggedBlock(results.crawler)
-          const crawlerExtra = crawlerBlock ? `\n\n${crawlerBlock}` : ''
-          // 流式 delta 为原始 LLM 正文；此处勿 polish，避免与流式预览不一致（polish 在 finalize 统一一次）
-          let mergedText = `${synthText}${extras.join('')}${crawlerExtra}`.trim()
+          if (crawlerBlock) extras.push(`\n\n${crawlerBlock}`)
+        } catch (err) {
+          const detail = err instanceof Error ? err.message : String(err || 'unknown')
+          opts.sendEvent({
+            event: 'thinking',
+            data: `Synth：附属块组装跳过（${detail.slice(0, 120)}）`,
+            from: 'manager'
+          })
+        }
+
+        // 流式 delta 为原始 LLM 正文；此处勿 polish，避免与流式预览不一致（polish 在 finalize 统一一次）
+        let mergedText = `${synthText}${extras.join('')}`.trim()
+        try {
           mergedText = appendDeferredReportBlockIfNeeded({
             body: mergedText,
             synthSource: synthText,
@@ -716,15 +1055,54 @@ export function buildSynthNodeRun(deps: CreateFinalNodesDeps) {
             plannedReport,
             shapeCtx: { meta: merged.meta, planSteps: effectivePlanSteps }
           })
+        } catch {
+          /* keep mergedText */
+        }
+
+        if (!String(synthText || '').trim()) {
+          const hasExpert =
+            Boolean(String(results.rag || '').trim()) ||
+            Boolean(String(results.db || '').trim()) ||
+            Boolean(String(results.code || '').trim()) ||
+            Boolean(String(results.clean || '').trim()) ||
+            Boolean(directVisualize) ||
+            Boolean(directReport)
+          const fallbackProse = hasExpert
+            ? '各步骤已完成。下方图表与数据已就绪；正文汇总暂不可用，可展开分析面板查看详情，或稍后重试生成报告。'
+            : '抱歉，报告生成过程中出现异常，请稍后重试。'
+          opts.sendEvent({
+            event: 'thinking',
+            data: hasExpert ? 'Synth：无可用正文，使用专家结果兜底说明' : 'Synth：无可用正文与专家结果',
+            from: 'manager'
+          })
+          const streamBody = fallbackProse
+          const finalBody = `${fallbackProse}${extras.join('')}`.trim()
           return {
-            final: mergedText,
+            final: finalBody,
             results,
             evidence: evidences,
-            resources: r.resources,
-            meta: mergeMeta(merged.meta || state.meta, { synthStreamBody: synthText })
+            resources: llmResources,
+            meta: mergeMeta(
+              { meta: merged.meta || state.meta },
+              {
+                synthStreamBody: streamBody,
+                presentationPlan,
+                uncertainty: 'high',
+                synthFallback: true
+              }
+            )
           }
-        } catch {
-          return { final: '抱歉，报告生成过程中出现异常，请稍后重试。', results, evidence: evidences, resources: merged.resources, meta: mergeMeta(state, { uncertainty: 'high' }) }
+        }
+
+        return {
+          final: mergedText,
+          results,
+          evidence: evidences,
+          resources: llmResources,
+          meta: mergeMeta(
+            { meta: merged.meta || state.meta },
+            { synthStreamBody: synthText, presentationPlan }
+          )
         }
       }
 }

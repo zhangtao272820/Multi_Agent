@@ -1,6 +1,7 @@
 import type { BaseMessage } from '@langchain/core/messages'
 import { classifyTurnScopeByLlm, isTurnScopeLlmEnabled } from '../../llm/turnScopeLlm'
 import { sessionIntentAnchorFromMeta } from '../../core/memory/multiTurnIntent'
+import { ephemeralTurnMetaClearPatch } from '../../core/routing/ephemeralTurnMeta'
 import type { LlmInvokeFn } from '../../llm/taskConstraintsLlm'
 
 import type { CreateTurnScopeNodeDeps } from './types'
@@ -11,6 +12,9 @@ export function createTurnScopeNode(deps: CreateTurnScopeNodeDeps) {
 
   return async (state: any) => {
     opts.sendEvent({ event: 'phase', data: 'turn_scope', from: 'manager' })
+
+    // 每轮先清上轮 ephemeral meta，避免记忆热路径/澄清标记污染新任务
+    state = { ...state, meta: mergeMeta(state, ephemeralTurnMetaClearPatch()) }
 
     const lastUser = String(lastUserText(state.messages as BaseMessage[]) || '').trim()
 

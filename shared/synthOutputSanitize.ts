@@ -39,9 +39,11 @@ export function stripStructuredExecReport(text: string): string {
   if (!s) return ''
 
   // 任意级别「执行摘要」起整段丢弃（含其后 ### 后续建议 / 管线回显）
-  const execCut = s.search(/(?:^|\n)#{1,3}\s*执行摘要(?:\s|$)/m)
+  // 兼容「--- ## 执行摘要 ---」同行装饰与「\n---\n\n## 执行摘要」分隔
+  const execCut = s.search(/(?:^|\n)(?:-{3,}\s*)?#{1,3}\s*执行摘要(?:\s|$)/m)
   if (execCut >= 0) {
     s = s.slice(0, execCut).trim()
+    s = s.replace(/(?:\n|^)-{3,}\s*$/g, '').trim()
     if (!s) return ''
   }
 
@@ -53,6 +55,10 @@ export function stripStructuredExecReport(text: string): string {
   let inAuditSection = false
   for (const line of lines) {
     const t = line.trim()
+    if (/^-{3,}\s*#{1,3}\s*执行摘要(?:\s|$)/.test(t) || /^#{1,3}\s*执行摘要(?:\s*-{3,})?\s*$/.test(t)) {
+      inAuditSection = true
+      continue
+    }
     if (AUDIT_SHELL_HEADING_RE.test(t)) {
       // 执行摘要已在上方整段裁掉；其余壳标题起吞到文末
       inAuditSection = true
@@ -98,6 +104,19 @@ export function looksLikeTruncatedSummary(text: string): boolean {
   if (!s) return false
   return /…\s*$/.test(s) || /\.\.\.\s*$/.test(s)
 }
+
+/** report 档 Synth 过短：缺 ### 分段且字数不足，不适合作为面向用户的复杂任务正文 */
+export function isReportTierSummaryTooThin(text: string, tier?: string): boolean {
+  if (tier !== 'report') return false
+  const s = String(text || '').trim()
+  if (!s || SYNTH_MISSING_HINT_RE.test(s)) return true
+  const hasSection = /(?:^|\n)#{2,3}\s+\S/m.test(s)
+  if (hasSection && s.length >= 180) return false
+  if (s.length >= 320) return false
+  return true
+}
+
+const SYNTH_MISSING_HINT_RE = /汇总未生成可用正文|暂无结论|未能生成|系统未找到足够/
 
 /**
  * 主列是否像「步骤 dump」拼接（composeFinal / 用户视图用来回退完整 synth）。

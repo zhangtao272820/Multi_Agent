@@ -11,6 +11,7 @@ import { ragRetrieveCallOptions } from '../rag/ragRetrievePolicy'
 import type { RagRetrieveAttemptMode } from '../rag/ragRetrievePolicy'
 import { isHardExpertFailureRaw } from '../runtime/expertFailure'
 import { extractStructuredPayload } from '../shared'
+import { resolveRagPassthroughText } from '#agent-shared/deterministicPassthrough'
 import { countRagEvidenceUnits, RAG_EMPTY_EVIDENCE_CLARIFY } from './sharedHelpers'
 import type { AgentExecutorOpts, AgentStepOutcome } from './types'
 
@@ -105,8 +106,15 @@ export function finishRagFastPath(
       meta: fast.agentResult ? { agentResult: fast.agentResult } : { agentResult: { ok: false, agent: 'rag', error_code: code } }
     }
   }
-  const answer = String(fast.answer || '')
+  const answerRaw = String(fast.answer || '')
+  const evidenceArr = fast.evidence
+    ? [{ kind: 'rag', ...(fast.evidence as Record<string, unknown>) }]
+    : []
+  const answer = resolveRagPassthroughText({ text: answerRaw, evidence: evidenceArr })
   input.sendThinking(label)
+  if (answer !== answerRaw.trim()) {
+    input.sendThinking('RAG Agent：已有检索证据，已去掉开头「未找到」误导表述')
+  }
   input.sendDelta?.(answer)
   opts.sendEvent({ event: 'delta', data: answer, from: 'rag' })
   const evidenceUnits = countRagEvidenceUnits(fast.evidence || {}, probeRag)

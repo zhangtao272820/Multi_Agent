@@ -57,6 +57,26 @@ export function estimateMessageListTokens(messages: BaseMessage[]): TokenEstimat
   return estimateTokensSync(text)
 }
 
+/** 从较早轮次提取最近 2 条用户话（缓解 Lost-in-the-Middle，无 LLM） */
+export function extractUserAnchorFromOlder(
+  older: SessionTurn[],
+  sanitize: (s: string) => string,
+  cfg: ConversationBudgetConfig
+): string {
+  if (!older.length) return ''
+  const users = older
+    .filter((m) => m.role === 'user')
+    .slice(-2)
+    .map((m) => {
+      const c = sanitize(m.content).replace(/\s+/g, ' ').trim()
+      if (!c) return ''
+      return c.length > cfg.clipPerMessage ? `${c.slice(0, cfg.clipPerMessage)}…` : c
+    })
+    .filter(Boolean)
+  if (!users.length) return ''
+  return users.map((u) => `锚: ${u}`).join('\n')
+}
+
 /** 规则摘要：将较早轮次压缩为 SystemMessage，供 LangGraph 路由/综合使用 */
 export function buildRuleBasedConversationSummary(
   older: SessionTurn[],
@@ -64,6 +84,7 @@ export function buildRuleBasedConversationSummary(
   cfg: ConversationBudgetConfig
 ): string {
   if (!older.length || !cfg.summarizeEnabled) return ''
+  const anchor = extractUserAnchorFromOlder(older, sanitize, cfg)
   const tail = older.slice(-cfg.maxOlderLines)
   const lines = tail
     .map((m) => {
@@ -76,8 +97,9 @@ export function buildRuleBasedConversationSummary(
     })
     .filter(Boolean)
   const body = lines.join('\n')
-  if (!body) return ''
-  return body.length > cfg.maxSummaryChars ? `${body.slice(0, cfg.maxSummaryChars)}…` : body
+  if (!body && !anchor) return ''
+  const merged = anchor && body ? `${anchor}\n\n${body}` : anchor || body
+  return merged.length > cfg.maxSummaryChars ? `${merged.slice(0, cfg.maxSummaryChars)}…` : merged
 }
 
 /**

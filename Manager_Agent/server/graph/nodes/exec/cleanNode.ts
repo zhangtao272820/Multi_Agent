@@ -29,6 +29,8 @@ export function buildCleanNode(deps: CreateExecutionNodesDeps) {
     const t0 = Date.now()
     emitTrace({ type: 'step_start', agent: 'clean', input: compactStepInput(question), at: new Date().toISOString() })
     const mergedForClean = (state.results || {}) as Record<string, unknown>
+    const planSteps = Array.isArray(state.plan) ? state.plan : Array.isArray(state.taskPlan?.steps) ? state.taskPlan.steps : []
+    const codePlanned = planSteps.some((s: { agent?: string }) => String(s?.agent || '') === 'code')
     const cleanModel = createCleanAlignLlmModel({
       openaiApiKey: opts.openaiApiKey,
       openaiBaseUrl: opts.openaiBaseUrl,
@@ -42,7 +44,8 @@ export function buildCleanNode(deps: CreateExecutionNodesDeps) {
       {
         openaiApiKey: opts.openaiApiKey,
         openaiBaseUrl: opts.openaiBaseUrl,
-        modelName: String(state.resources?.modelLowCost ?? opts.openaiModel ?? '')
+        modelName: String(state.resources?.modelLowCost ?? opts.openaiModel ?? ''),
+        codePlanned
       }
     )
     if (piped) {

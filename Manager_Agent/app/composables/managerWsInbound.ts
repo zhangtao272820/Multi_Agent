@@ -787,6 +787,15 @@ export function handleManagerWsInboundMessage(evt: MessageEvent, ctx: ManagerWsI
       }
       return
     }
+    if (event === 'presentation_plan') {
+      const payload = data?.data && typeof data.data === 'object' ? data.data : null
+      if (payload) {
+        ctx.add('presentation_plan', '展示编排', data.from || 'manager', turn, runId, {
+          presentationPlan: payload
+        })
+      }
+      return
+    }
     if (event === 'user_facing') {
       const payload = data?.data && typeof data.data === 'object' ? data.data : null
       if (payload) {
@@ -887,6 +896,21 @@ export function handleManagerWsInboundMessage(evt: MessageEvent, ctx: ManagerWsI
       const payload = data?.data && typeof data.data === 'object' ? data.data : {}
       const items = (payload as { stack?: { items?: unknown[] } }).stack?.items
       if (Array.isArray(items)) ctx.applyTaskStackFromServer(items)
+      return
+    }
+    if (event === 'memory_capture_proposal') {
+      const payload =
+        data?.data && typeof data.data === 'object' ? (data.data as Record<string, unknown>) : {}
+      const kind = String(payload.kind || '').trim()
+      if (!kind || kind === 'none') return
+      ctx.add(
+        'memory_capture',
+        JSON.stringify(payload),
+        data.from || 'manager',
+        turn,
+        runId,
+        { memoryCapture: payload as any }
+      )
       return
     }
     if (event === 'error') {

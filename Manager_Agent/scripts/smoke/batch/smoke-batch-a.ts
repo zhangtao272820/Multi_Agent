@@ -16,6 +16,11 @@ import {
   isClauseDecomposeForcedOff
 } from '../../../server/graph/core/routing/clauses'
 import {
+  dedupeRepeatedRagBlocks,
+  ragPassthroughHasSubstantiveAnswer,
+  resolveRagPassthroughText,
+} from '#agent-shared/deterministicPassthrough'
+import {
   listSkillDrafts,
   promoteSkillDraft,
   writeSkillDraft
@@ -46,6 +51,24 @@ delete process.env.MANAGER_DB_CHART_SHORTCUT
 // P1-7: RAG 假阴性治理
 assert(!shouldTreatRagAsMiss('暂未找到', 2), 'evidence blocks miss')
 assert(shouldTreatRagAsMiss('暂未找到', 0), 'no evidence still miss')
+const contradictoryRag =
+  '文档里暂未找到关于养老机构护理员补贴标准的具体信息。参考：制度文件.docx\n\n养老机构护理员岗位补贴标准为每人每月800元，夜班津贴60元。'
+const ragEvidence = [
+  {
+    kind: 'rag',
+    hits: 2,
+    citations: [{ source: '制度文件.docx', excerpt: '护理员岗位补贴标准为每人每月800元' }],
+  },
+]
+const normalized = resolveRagPassthroughText({ text: contradictoryRag, evidence: ragEvidence })
+assert(!normalized.includes('暂未找到'), 'strip miss lead when evidence exists')
+assert(normalized.includes('800'), 'keep substantive subsidy facts')
+assert(
+  ragPassthroughHasSubstantiveAnswer({ text: contradictoryRag, evidence: ragEvidence }),
+  'substantive after normalize'
+)
+const duped = `${normalized}\n\n${normalized}`
+assert(dedupeRepeatedRagBlocks(duped).split('\n\n').length === 1, 'dedupe repeated rag blocks')
 assert(
   shouldSkipRagRelevanceRefine(
     { hits: 1, citations: [{ title: 'a' }] },

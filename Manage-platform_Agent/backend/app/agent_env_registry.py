@@ -22,6 +22,7 @@ RUNTIME_SYNC_AGENTS = frozenset(
         "CodePy_Agent",
         "Extractor_Agent",
         "ExtractorPy_Agent",
+        "Vanna_DbAgent",
         "AI_admin_Agent",
         "Manager_Agent",
         "Multimodal_Agent",
@@ -40,6 +41,12 @@ AGENT_ENV_SPECS: dict[str, dict[str, Any]] = {
         "planner": ["OPENAI_ORCHESTRATION_MODEL", "OPENAI_NLU_MODEL"],
         "executor": ["OPENAI_AGENT_MODEL", "OPENAI_MODEL"],
         "embedding": ["EMBEDDING_MODEL", "OPENAI_EMBEDDING_MODEL"],
+    },
+    "Vanna_DbAgent": {
+        "env_file": "Vanna_DbAgent/.env",
+        "planner": ["OPENAI_MODEL"],
+        "executor": ["OPENAI_MODEL"],
+        "embedding": ["EMBEDDING_MODEL"],
     },
     "RAG_Agent": {
         "env_file": "RAG_Agent/.env",
@@ -64,6 +71,12 @@ AGENT_ENV_SPECS: dict[str, dict[str, Any]] = {
         "planner": ["QWEN_MODEL", "OPENAI_MODEL"],
         "executor": ["QWEN_MODEL", "OPENAI_MODEL", "OPENAI_EXECUTOR_MODEL"],
         "embedding": ["EMBEDDING_MODEL", "EXTRACTOR_EMBEDDING_MODEL"],
+    },
+    "ExtractorPy_Agent": {
+        "env_file": "ExtractorPy_Agent/.env",
+        "planner": ["QWEN_MODEL", "CAP_ROUTE"],
+        "executor": ["QWEN_MODEL"],
+        "embedding": [],
     },
     "AI_admin_Agent": {
         "env_file": "AI_admin_Agent/backend/.env",

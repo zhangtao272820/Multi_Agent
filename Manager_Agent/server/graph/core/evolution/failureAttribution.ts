@@ -7,6 +7,7 @@ import {
 } from '#agent-shared/textMarkers'
 
 import { extractSearchRunMetrics } from '../../../utils/search/managerSearchMetrics'
+import { ragPassthroughHasSubstantiveAnswer } from '#agent-shared/deterministicPassthrough'
 
 export type FailureAttribution = {
   category:
@@ -37,6 +38,11 @@ function collectResults(state: any) {
     .filter((x) => x.text.length > 0)
 }
 
+function resultLooksLikeAgentError(agent: string, text: string, evidence: any[]): boolean {
+  if (agent === 'rag' && ragPassthroughHasSubstantiveAnswer({ text, evidence })) return false
+  return looksLikeAgentError(text)
+}
+
 export function attributeFailure(state: any, opts?: { timeLeftMs?: number; finalText?: string }): FailureAttribution {
   const reasons: string[] = []
   const finalText = String(opts?.finalText ?? state?.final ?? '').trim()
@@ -59,7 +65,7 @@ export function attributeFailure(state: any, opts?: { timeLeftMs?: number; final
   if (retryCount > 0 && !finalText) reasons.push('has retry but no final text')
   if (routeConf < 0.45 && !hasText(state?.routedQuery)) reasons.push('low route confidence')
   if (plan.length > 0 && results.length === 0) reasons.push('plan exists but no agent results')
-  if (results.some((r) => looksLikeAgentError(r.text))) reasons.push('agent output contains error/timeout')
+  if (results.some((r) => resultLooksLikeAgentError(r.agent, r.text, evidence))) reasons.push('agent output contains error/timeout')
   if (evidenceKinds.size === 0) reasons.push('no evidence')
   if (unsupportedClaims.length > 0) reasons.push('unsupported claims present')
   if (finalText && !hasText(state?.results?.multimodal) && looksLikeFinalTextClaimsMissingMedia(finalText)) {
@@ -95,7 +101,7 @@ export function attributeFailure(state: any, opts?: { timeLeftMs?: number; final
   if (results.some((r) => textIncludesAny(r.agent, ['plan', '规划', '拆解'])) && textIncludesAny(finalText, PLAN_FAILURE_MARKERS)) {
     return { category: 'plan_error', severity: 'medium', reasons: reasons.length ? reasons : ['planning-related weakness'] }
   }
-  if (results.some((r) => looksLikeAgentError(r.text))) {
+  if (results.some((r) => resultLooksLikeAgentError(r.agent, r.text, evidence))) {
     return { category: 'tool_failure', severity: 'high', reasons: reasons.length ? reasons : ['one or more agent outputs indicate failure'] }
   }
   if (results.length > 0 && !finalText) {

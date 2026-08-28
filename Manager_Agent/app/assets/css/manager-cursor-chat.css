@@ -459,6 +459,13 @@
 .spring-root.cursor-workbench .turn-feedback-bar {
   padding: 4px 2px !important;
   opacity: 0.85;
+  position: relative;
+  z-index: 5;
+  pointer-events: auto !important;
+}
+
+.spring-root.cursor-workbench .turn-feedback-actions .message-action-btn {
+  pointer-events: auto !important;
 }
 
 /* ── 思考过程：运行中指示 ── */

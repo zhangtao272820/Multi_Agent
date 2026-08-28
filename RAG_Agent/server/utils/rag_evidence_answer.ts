@@ -45,6 +45,33 @@ export function answerLooksLikeRetrievalMiss(answer: string): boolean {
   return NEGATIVE_ANSWER_MARKERS.some((m) => a.includes(m));
 }
 
+/** 有证据时剥离开头假「未找到」句，保留实质回答（确定性，非用户原话 regex 路由） */
+export function stripContradictoryMissWhenEvidencePresent(
+  answer: string,
+  evidenceCount: number,
+): string {
+  const raw = String(answer ?? "").trim();
+  if (!raw || evidenceCount <= 0) return raw;
+  if (!answerLooksLikeRetrievalMiss(raw)) return raw;
+
+  const paragraphs = raw.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
+  if (paragraphs.length >= 2) {
+    const lead = paragraphs[0]!;
+    if (answerLooksLikeRetrievalMiss(lead) && lead.length < 180) {
+      const body = paragraphs.slice(1).join("\n\n").trim();
+      if (body.length >= 20 && !answerLooksLikeRetrievalMiss(body)) return body;
+    }
+  }
+
+  const sentences = raw.split(/(?<=[。！？!?])\s+/).map((s) => s.trim()).filter(Boolean);
+  if (sentences.length >= 2 && answerLooksLikeRetrievalMiss(sentences[0]!)) {
+    const rest = sentences.slice(1).join(" ").trim();
+    if (rest.length >= 20 && !answerLooksLikeRetrievalMiss(rest)) return rest;
+  }
+
+  return raw;
+}
+
 function scoreEvidenceItem(queries: string[], item: EvidenceItem): number {
   const content = String(item.content ?? "");
   const source = String(item.source ?? "");
@@ -279,6 +306,7 @@ export async function finalizeRagAnswerWithEvidenceGuard(input: {
 }): Promise<string> {
   let answer = String(input.draftAnswer ?? "").trim();
   if (!input.evidence.length) return answer;
+  answer = stripContradictoryMissWhenEvidencePresent(answer, input.evidence.length);
   if (answerLooksLikeRetrievalMiss(answer)) {
     try {
       const extracted = await extractAnswerFromEvidence({
@@ -316,7 +344,7 @@ export async function finalizeRagAnswerWithEvidenceGuard(input: {
   if (!grounded.ok) {
     return buildEvidenceOnlyFallback(input.question || input.effectiveQuery, input.evidence, grounded.missing);
   }
-  return answer;
+  return stripContradictoryMissWhenEvidencePresent(answer, input.evidence.length);
 }
 
 export function buildGenerateQuestionForRag(input: {

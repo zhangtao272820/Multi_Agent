@@ -436,11 +436,29 @@ export function maxCrossAgentFactKeyOverlap(
   return maxJ
 }
 
+export type StructuralCleanSufficiencyOpts = {
+  /** 计划含 Code 对照/计算步：异构多源键无交叠仍可由 Code 消费，跳过对齐 LLM */
+  codeDownstream?: boolean
+}
+
+function distinctFactSourceAgents(factList: Array<{ key?: string; source?: string }>): number {
+  const agents = new Set<string>()
+  for (const f of factList) {
+    agents.add(agentFromFactSource(String(f?.source ?? '')))
+  }
+  agents.delete('_')
+  return agents.size
+}
+
 /**
  * 结构层合并是否足够供下游消费。
  * 冲突过多、或异构多源（键几乎无交）时不算洗净——应交 LLM 对齐/过滤，避免把 30 项堆砌当清洗结果。
+ * 若下游有 Code 对照步，异构 rag+db 等可结构透传（由 Code 做对照，省 ~20s 对齐 LLM）。
  */
-export function isStructuralCleanSufficient(payload: CleanPayload): boolean {
+export function isStructuralCleanSufficient(
+  payload: CleanPayload,
+  opts?: StructuralCleanSufficiencyOpts
+): boolean {
   const factList = Array.isArray(payload.facts) ? payload.facts : []
   const facts = factList.length
   const conflicts = Array.isArray(payload.quality?.conflicts) ? payload.quality!.conflicts.length : 0
@@ -452,6 +470,9 @@ export function isStructuralCleanSufficient(payload: CleanPayload): boolean {
   const multi =
     sourceCount >= 2 || String((payload.data as { mode?: string } | undefined)?.mode || '') === 'multi_source_structural'
   if (multi) {
+    if (opts?.codeDownstream && distinctFactSourceAgents(factList) >= 2) {
+      return true
+    }
     const minOverlap = Number(process.env.MANAGER_CLEAN_STRUCTURAL_MIN_KEY_OVERLAP ?? 0.12)
     const threshold = Number.isFinite(minOverlap) ? Math.min(1, Math.max(0, minOverlap)) : 0.12
     if (maxCrossAgentFactKeyOverlap(factList) < threshold) return false

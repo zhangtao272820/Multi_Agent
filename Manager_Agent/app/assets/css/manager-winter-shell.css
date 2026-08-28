@@ -1148,12 +1148,71 @@
 .spring-root.cursor-workbench.cosmic-theme .chat-thread .amap-card,
 .spring-root.cursor-workbench.cosmic-theme .chat-thread .reply-attachments,
 .spring-root.cursor-workbench.cosmic-theme .chat-thread .action-card,
+.spring-root.cursor-workbench.cosmic-theme .chat-thread .memory-capture-card,
 .spring-root.cursor-workbench.cosmic-theme .chat-thread .report-block {
   background: rgba(255, 255, 255, 0.42) !important;
   border: 1px solid rgba(140, 185, 225, 0.4) !important;
   backdrop-filter: blur(10px) saturate(1.15) !important;
   -webkit-backdrop-filter: blur(10px) saturate(1.15) !important;
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.6) inset !important;
+}
+
+.spring-root.cursor-workbench.cosmic-theme .chat-thread .memory-capture-card__title {
+  color: #0e1f30 !important;
+}
+.spring-root.cursor-workbench.cosmic-theme .chat-thread .memory-capture-card__summary,
+.spring-root.cursor-workbench.cosmic-theme .chat-thread .memory-capture-card__status {
+  color: #3d5a73 !important;
+}
+.spring-root.cursor-workbench.cosmic-theme .chat-thread .memory-capture-card__badge {
+  color: #0c4a6e !important;
+  background: rgba(186, 230, 253, 0.65) !important;
+  border-color: rgba(56, 189, 248, 0.45) !important;
+}
+
+/* 高德卡片：冬景浅底上改深字，避免白字不可读 */
+.spring-root.cursor-workbench.cosmic-theme .chat-thread .amap-card__title,
+.spring-root.cursor-workbench.cosmic-theme .chat-thread .amap-card__route-endpoints,
+.spring-root.cursor-workbench.cosmic-theme .chat-thread .amap-stat-pill__value,
+.spring-root.cursor-workbench.cosmic-theme .chat-thread .amap-route-step__text,
+.spring-root.cursor-workbench.cosmic-theme .chat-thread .amap-place-item__name,
+.spring-root.cursor-workbench.cosmic-theme .chat-thread .amap-address-text {
+  color: #0e1f30 !important;
+}
+.spring-root.cursor-workbench.cosmic-theme .chat-thread .amap-card__subtitle,
+.spring-root.cursor-workbench.cosmic-theme .chat-thread .amap-stat-pill__label,
+.spring-root.cursor-workbench.cosmic-theme .chat-thread .amap-place-item__addr,
+.spring-root.cursor-workbench.cosmic-theme .chat-thread .amap-address-coord,
+.spring-root.cursor-workbench.cosmic-theme .chat-thread .amap-card__hint,
+.spring-root.cursor-workbench.cosmic-theme .chat-thread .amap-compare-unavailable {
+  color: #3d5a73 !important;
+}
+.spring-root.cursor-workbench.cosmic-theme .chat-thread .amap-card__badge {
+  color: #0c4a6e !important;
+  background: rgba(186, 230, 253, 0.65) !important;
+  border-color: rgba(56, 189, 248, 0.45) !important;
+}
+.spring-root.cursor-workbench.cosmic-theme .chat-thread .amap-map-link,
+.spring-root.cursor-workbench.cosmic-theme .chat-thread .amap-place-item__link,
+.spring-root.cursor-workbench.cosmic-theme .chat-thread .amap-steps-toggle {
+  color: #0369a1 !important;
+}
+.spring-root.cursor-workbench.cosmic-theme .chat-thread .amap-stat-pill,
+.spring-root.cursor-workbench.cosmic-theme .chat-thread .amap-place-item,
+.spring-root.cursor-workbench.cosmic-theme .chat-thread .amap-compare-tab {
+  background: rgba(255, 255, 255, 0.55) !important;
+  border-color: rgba(122, 168, 212, 0.35) !important;
+}
+.spring-root.cursor-workbench.cosmic-theme .chat-thread .amap-compare-tab.is-active {
+  background: rgba(186, 230, 253, 0.45) !important;
+  border-color: rgba(56, 189, 248, 0.5) !important;
+}
+.spring-root.cursor-workbench.cosmic-theme .chat-thread .amap-compare-tab__meta {
+  color: #3d5a73 !important;
+}
+.spring-root.cursor-workbench.cosmic-theme .chat-thread .amap-map-preview {
+  border-color: rgba(122, 168, 212, 0.4) !important;
+  background: rgba(255, 255, 255, 0.35) !important;
 }
 
 .spring-root.cursor-workbench.cosmic-theme .cosmic-chat-empty-title {

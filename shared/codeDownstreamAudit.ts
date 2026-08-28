@@ -3,9 +3,15 @@
  * LLM 审计见 managerCodeAuthorityLlm.assessCodeDownstreamConsistencyByLlm。
  */
 
+import { extractAuxBlocksStructural } from './auxBlocks'
 import type { ExtractPayloadFn } from './codeFirstAuthority'
 import type { CodeAuthorityPayload, CodeDownstreamConsistencyResult } from './codeAuthorityPayload'
 import { isMultiSourceDataPipeline } from './dbPipelineDeterministic'
+
+/** 孤儿数字审计只看叙事 prose；ECHARTS/REPORT 块内样式常数（fontSize/top 等）不得当业务数 */
+export function stripDownstreamAuxBlocksForOrphanAudit(text: string): string {
+  return extractAuxBlocksStructural(String(text ?? '')).narrative.trim()
+}
 
 function coerceChartNumericValue(value: unknown, display?: string): { value: number } | null {
   if (typeof value === 'number' && Number.isFinite(value)) return { value }
@@ -181,7 +187,11 @@ export function assessDownstreamOrphanNumbers(
   texts: string[],
   opts?: { extraAllowed?: Set<number> }
 ): CodeDownstreamConsistencyResult {
-  const combined = texts.filter(Boolean).join('\n')
+  const combined = texts
+    .filter(Boolean)
+    .map((t) => stripDownstreamAuxBlocksForOrphanAudit(t))
+    .filter(Boolean)
+    .join('\n')
   if (!combined.trim()) return { pass: true }
   const orphans = findOrphanNumbers(combined, payload, opts?.extraAllowed)
   if (!orphans.length) return { pass: true }

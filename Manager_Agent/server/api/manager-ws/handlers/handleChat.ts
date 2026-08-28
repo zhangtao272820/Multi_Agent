@@ -2,6 +2,7 @@ import type { WsHandlerContext, ParsedWsMessage } from './types'
 import { tryAcquireRunSlot, releaseRunSlot } from '../../../graph/core/runtime/backpressure'
 import { crypto, RunIdSchema, createManagerGraph, buildManagerGraphInvokeConfig, buildManagerTurnInvokeState, composeFinalBundleFromGraphResult, buildHumanConfirmCheckpoint, pickRicherFinalText, saveHumanConfirmCheckpoint, isSynthRejectingMedia, resolveManagerLlmConfig, resolveAgentEndpointsWithPlatform, buildCompactedHistoryWithStats, buildSummarizeWithLlmFn, graphAgentEndpoints, buildRagHistoryForRun, sanitizeHistoryText, detectClarifyFollowUp, clarifyReplanMetaPatch, ingestTaskStackFromUserMessage, withAgentTraceContext, emitRunObservability, emitAdminHumanConfirmRequest, shouldPauseForPostGraphAdminConfirm, pauseAdminConfirmMessage, loadTaskStack, path, runs, runMeta, sessionMeta, sessions, readSession, writeSession, buildUserContent, stripAttachmentSuffix, resolveUserMessageAnchor, pruneAutoUserTasksOnEditResend, policyDataDir, emitImplicitLearning, allowRate, nowMs, isRunAbortError, useRuntimeConfig } from './wsBarrel'
 import { takeRunProcessUiMeta, clearRunProcess } from '../../../utils/session/runProcessAccumulator'
+import { stripStructuredExecReport } from '#agent-shared/synthOutputSanitize'
 
 export async function handleChat(ctx: WsHandlerContext, payload: ParsedWsMessage) {
   const { peer, peerKey, send, sessionId, boundUserId, tenantId, explicitUserId, platformTraceId, payloadRaw } = ctx
@@ -305,6 +306,8 @@ if (!allowRate(`${peerKey}:chat`, 8, 30_000)) {
       finalText = mmOut
     }
     if (!finalText) finalText = '任务已结束，但未生成可展示的回复文本；请查看思考过程或重试。'
+    // WS final 面向用户气泡：剥离执行摘要审计块（完整审计仍在 composeBundle.text / run_report）
+    finalText = stripStructuredExecReport(finalText) || finalText
      // 写操作待确认：仅结构化 Admin pending；GUI 成功不得弹「个人事务」卡后整图重跑
     try {
       const rawMeta = ((result as any)?.meta ?? {}) as Record<string, unknown>

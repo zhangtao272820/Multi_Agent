@@ -27,6 +27,7 @@ export type SkillDraftRecord = {
   draftPath: string
   updatedAt: string
   sizeBytes: number
+  markdown?: string
 }
 
 function slugFromText(text: string): string {
@@ -70,6 +71,10 @@ export function buildSkillDraftMarkdown(signal: SkillSuccessSignal): { skillId: 
   sections.push('version: 0.1.0-draft')
   sections.push('stage: learned')
   sections.push(`owner: ${agent}`)
+  const hints = (signal.hints || []).map((h) => String(h || '').trim()).filter(Boolean)
+  if (hints.some((h) => h.includes('source=explicit_user_request'))) {
+    sections.push('capture_source: explicit_user_request')
+  }
   sections.push('---')
   sections.push('')
   sections.push('## When')
@@ -134,13 +139,19 @@ export async function listSkillDrafts(opts?: { draftsDir?: string }): Promise<Sk
         agent,
         draftPath,
         updatedAt: st.mtime.toISOString(),
-        sizeBytes: st.size
+        sizeBytes: st.size,
+        markdown: raw,
       })
     } catch {
       /* skip */
     }
   }
-  return out.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+  return out.sort((a, b) => {
+    const ae = isExplicitUserRequestSkillDraft(String(a.markdown || '')) ? 1 : 0
+    const be = isExplicitUserRequestSkillDraft(String(b.markdown || '')) ? 1 : 0
+    if (ae !== be) return be - ae
+    return b.updatedAt.localeCompare(a.updatedAt)
+  })
 }
 
 export type SkillDraftPgRow = {
@@ -150,6 +161,29 @@ export type SkillDraftPgRow = {
   successScore: number | null
   status: string
   updatedAt: string
+  sourceRunId?: string | null
+}
+
+/** Wave 8c：显式用户请求草稿优先展示 */
+export function isExplicitUserRequestSkillDraft(markdown: string): boolean {
+  const md = String(markdown || '')
+  return (
+    /capture_source:\s*explicit_user_request/i.test(md) ||
+    /source=explicit_user_request/i.test(md)
+  )
+}
+
+export function sortSkillDraftsExplicitFirst<T extends { markdown?: string; successScore?: number | null; success_score?: number | null }>(
+  rows: T[]
+): T[] {
+  return [...rows].sort((a, b) => {
+    const ae = isExplicitUserRequestSkillDraft(String(a.markdown || '')) ? 1 : 0
+    const be = isExplicitUserRequestSkillDraft(String(b.markdown || '')) ? 1 : 0
+    if (ae !== be) return be - ae
+    const as = Number(a.successScore ?? a.success_score ?? 0)
+    const bs = Number(b.successScore ?? b.success_score ?? 0)
+    return bs - as
+  })
 }
 
 export async function listSkillDraftsFromPg(
@@ -167,14 +201,15 @@ export async function listSkillDraftsFromPg(
     success_score: number | null
     status: string
     updated_at: Date | string
+    source_run_id: string | null
   }>(
     minScore > 0
-      ? `SELECT skill_id, agent, markdown, success_score, status, updated_at
+      ? `SELECT skill_id, agent, markdown, success_score, status, updated_at, source_run_id
          FROM mgr_skill_drafts
          WHERE status = $1 AND COALESCE(success_score, 0) >= $2
          ORDER BY success_score DESC NULLS LAST, updated_at ASC
          LIMIT $3`
-      : `SELECT skill_id, agent, markdown, success_score, status, updated_at
+      : `SELECT skill_id, agent, markdown, success_score, status, updated_at, source_run_id
          FROM mgr_skill_drafts
          WHERE status = $1
          ORDER BY updated_at ASC
@@ -182,14 +217,17 @@ export async function listSkillDraftsFromPg(
     minScore > 0 ? [status, minScore, limit] : [status, limit],
     env
   )
-  return (res?.rows ?? []).map((r) => ({
-    skillId: r.skill_id,
-    agent: r.agent,
-    markdown: r.markdown,
-    successScore: r.success_score == null ? null : Number(r.success_score),
-    status: r.status,
-    updatedAt: r.updated_at instanceof Date ? r.updated_at.toISOString() : String(r.updated_at)
-  }))
+  return sortSkillDraftsExplicitFirst(
+    (res?.rows ?? []).map((r) => ({
+      skillId: r.skill_id,
+      agent: r.agent,
+      markdown: r.markdown,
+      successScore: r.success_score == null ? null : Number(r.success_score),
+      status: r.status,
+      updatedAt: r.updated_at instanceof Date ? r.updated_at.toISOString() : String(r.updated_at),
+      sourceRunId: r.source_run_id,
+    }))
+  )
 }
 
 export async function markSkillDraftPgStatus(

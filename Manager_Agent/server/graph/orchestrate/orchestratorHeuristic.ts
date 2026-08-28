@@ -33,10 +33,23 @@ export function isOrchestratorStandardModelTier(env: NodeJS.ProcessEnv = process
 export function shouldSkipOrchestratorRagRecall(input: {
   probe?: { rag?: { hits?: number } } | null
   turnScopeMode?: string
+  /** Phase3：续轮 / 输出追问且上轮已有单数据面 → 跳过 intent RAG recall */
+  turnKind?: string
+  sessionAnchorAgents?: string[] | null
 }): boolean {
   if (String(process.env.MANAGER_ORCHESTRATOR_SKIP_RAG_RECALL ?? '1').trim() === '0') return false
   if (Number(input.probe?.rag?.hits ?? 0) > 0) return true
-  return String(input.turnScopeMode || '').trim() === 'current_only'
+  if (String(input.turnScopeMode || '').trim() === 'current_only') return true
+  const kind = String(input.turnKind || '').trim()
+  const agents = (input.sessionAnchorAgents ?? []).map(String).filter(Boolean)
+  const data = agents.filter((a) => a === 'db' || a === 'rag' || a === 'crawler')
+  if (
+    data.length === 1 &&
+    (kind === 'continuation' || kind === 'output_followup' || kind === 'slot_answer')
+  ) {
+    return true
+  }
+  return false
 }
 
 function probeConfirmsDataPlane(

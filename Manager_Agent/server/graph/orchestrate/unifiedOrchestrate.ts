@@ -138,7 +138,8 @@ export async function resolveUnifiedOrchestration(
       evolutionHint: input.evolutionHint,
       llmInvoke: input.llmInvoke,
       state: orchestratorState,
-      seedBundle
+      seedBundle,
+      onThinking: input.onThinking
     })
     orchestratorSource = pipelineResult.source
   } catch (e) {

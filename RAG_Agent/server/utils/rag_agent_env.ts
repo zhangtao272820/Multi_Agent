@@ -63,6 +63,13 @@ export const RAG_AGENT_DEFAULTS = {
   /** P-Data-2：进程内 BM25 词法通道（与向量 RRF 融合） */
   enableBm25Lexical: true,
   rrfBm25Weight: 0.85,
+  /** L1：HyDE 假想文档嵌入（默认关；门控开启） */
+  enableHyde: false,
+  rrfHydeWeight: 0.9,
+  /** M：企业制度知识图双车道 */
+  enablePolicyGraph: true,
+  rrfGraphWeight: 1.15,
+  policyGraphMaxHops: 2,
   preferDocumentQueryWhenDocsExist: true,
   /** 文档助手 UI：有文档时优先 retrieve-first，命中则直出回答，失败再走 LangGraph */
   enableRetrieveFirstChat: true,
@@ -266,6 +273,14 @@ export function getRagAgentEnv(opts?: { docCount?: number }): RagAgentEnv {
     rrfKeywordWeight: Math.max(0, envNum(process.env.RAG_RRF_KEYWORD_WEIGHT, d.rrfKeywordWeight)),
     enableBm25Lexical: envBool(process.env.RAG_ENABLE_BM25, d.enableBm25Lexical),
     rrfBm25Weight: Math.max(0, envNum(process.env.RAG_RRF_BM25_WEIGHT, d.rrfBm25Weight)),
+    enableHyde: envBool(process.env.RAG_ENABLE_HYDE, d.enableHyde),
+    rrfHydeWeight: Math.max(0, envNum(process.env.RAG_RRF_HYDE_WEIGHT, d.rrfHydeWeight)),
+    enablePolicyGraph: envBool(process.env.RAG_ENABLE_POLICY_GRAPH, d.enablePolicyGraph),
+    rrfGraphWeight: Math.max(0, envNum(process.env.RAG_RRF_GRAPH_WEIGHT, d.rrfGraphWeight)),
+    policyGraphMaxHops: Math.max(
+      1,
+      Math.min(2, Math.floor(envNum(process.env.RAG_POLICY_GRAPH_MAX_HOPS, d.policyGraphMaxHops)))
+    ),
     preferDocumentQueryWhenDocsExist: envBool(process.env.RAG_PREFER_DOCUMENT_QUERY_WHEN_DOCS_EXIST, d.preferDocumentQueryWhenDocsExist),
     enableRetrieveFirstChat: envBool(process.env.RAG_ENABLE_RETRIEVE_FIRST_CHAT, d.enableRetrieveFirstChat),
     retrieveFirstSkipLlmRerank: envBool(process.env.RAG_RETRIEVE_FIRST_SKIP_LLM_RERANK, d.retrieveFirstSkipLlmRerank),

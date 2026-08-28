@@ -1,4 +1,5 @@
 import crypto from 'node:crypto'
+import { resolveRagPassthroughText } from '#agent-shared/deterministicPassthrough'
 import { resolveLeanRagQuery } from '../../graph/core/probe/retrieverPlan'
 import { ragProbeTimeoutMs } from '../../graph/core/probe/probeConfig'
 import { withTimeout, LruCache } from './agentTransport'
@@ -446,12 +447,18 @@ export async function callRagAgent(params: {
         }
       }
     }
-    const finalAnswer = String(answer || donePayloadText || '').trim()
-    if (!finalAnswer) throw new Error('ragAgent returned empty streamed answer')
+    const rawFinal = String(answer || donePayloadText || '').trim()
+    if (!rawFinal) throw new Error('ragAgent returned empty streamed answer')
     const evidence = buildRagEvidence(leanQ, citations, agentResult)
     if (evidence) params.onEvidence?.(evidence)
+    const evidenceForNorm = evidence
+      ? [{ kind: 'rag', hits: evidence.hits, citations: evidence.citations, sources: evidence.sources }]
+      : []
+    const finalAnswer = resolveRagPassthroughText({ text: rawFinal, evidence: evidenceForNorm })
     if (deferStream && streamDelta && !isRagEmptyResult(finalAnswer, evidence, agentResult)) {
-      for (const t of tokenBuffer) streamDelta(t)
+      streamDelta(finalAnswer)
+    } else if (!deferStream && streamDelta && finalAnswer !== rawFinal && !isRagEmptyResult(finalAnswer, evidence, agentResult)) {
+      streamDelta(finalAnswer)
     }
     if (!params.skipCache && !isRagEmptyResult(finalAnswer, evidence, agentResult)) {
       ragCache.set(cacheKey, { answer: finalAnswer, evidence, agentResult })
@@ -465,7 +472,7 @@ export async function callRagAgent(params: {
     throw new Error(`ragAgent invalid response (expected json/sse): ${head || contentType || 'unknown'}`)
   }
   const data = (await res.json().catch(() => null)) as Record<string, unknown> | null
-  const answer = typeof data?.answer === 'string' ? data.answer : JSON.stringify(data ?? {})
+  const rawAnswer = typeof data?.answer === 'string' ? data.answer : JSON.stringify(data ?? {})
   const hits = typeof data?.hits === 'number' ? data.hits : undefined
   const citations: RagCitation[] = []
   if (Array.isArray(data?.citations)) {
@@ -489,6 +496,10 @@ export async function callRagAgent(params: {
     : undefined)
   if (evidence) params.onEvidence?.(evidence)
   if (agentResult) params.onAgentResult?.(agentResult)
+  const evidenceForNorm = evidence
+    ? [{ kind: 'rag', hits: evidence.hits, citations: evidence.citations, sources: evidence.sources }]
+    : []
+  const answer = resolveRagPassthroughText({ text: rawAnswer, evidence: evidenceForNorm })
   if (!params.skipCache && !isRagEmptyResult(answer, evidence, agentResult)) {
     ragCache.set(cacheKey, { answer, evidence, agentResult })
   }

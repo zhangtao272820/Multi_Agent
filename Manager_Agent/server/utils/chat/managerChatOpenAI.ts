@@ -15,9 +15,13 @@ export function createManagerChatOpenAI(input: {
   maxTokens?: number
   /** 轻量 JSON/对齐调用默认关思考，避免 qwen3 混合模型拖慢 */
   skipThinking?: boolean
+  /** 路由流式思考：须配合 stream + MANAGER_ROUTE_THOUGHT_STREAM */
+  enableThinking?: boolean
 }): ChatOpenAI {
   const modelName = String(input.modelName || '').trim()
-  const forceNoThinking = input.skipThinking === true || isQwen3HybridModel(modelName)
+  const enableThinking = input.enableThinking === true
+  const forceNoThinking =
+    !enableThinking && (input.skipThinking === true || isQwen3HybridModel(modelName))
   const base = withQwenModelKwargs(
     modelName,
     {
@@ -30,7 +34,7 @@ export function createManagerChatOpenAI(input: {
       timeout: readAgentLlmRequestTimeoutMs(),
       maxRetries: readAgentLlmMaxRetries()
     },
-    forceNoThinking ? { enableThinking: false } : undefined
+    forceNoThinking ? { enableThinking: false } : enableThinking ? { enableThinking: true } : undefined
   )
   return new ChatOpenAI(base as ConstructorParameters<typeof ChatOpenAI>[0])
 }

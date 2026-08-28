@@ -188,7 +188,7 @@ export default function ManagerObservability({ data, loading, onRefresh, apiBase
         <section className="card card--wide">
           <h2>自我进化</h2>
           <p className="muted" style={{ marginTop: 0 }}>
-            分区说明：上方<strong>待我审阅</strong>（日常工作）→ 中间<strong>学习是否在涨</strong>（看板）→ 底部
+            分区说明：上方<strong>待我审阅</strong>（含「用户记忆」Tab）→ 中间<strong>学习是否在涨</strong>（看板）→ 底部
             <strong>高级清除与回滚</strong>（危险，默认折叠）。默认不会自动改线上。
           </p>
 

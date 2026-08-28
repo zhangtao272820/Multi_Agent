@@ -47,6 +47,7 @@ import {
   dispatchPlanAgentStep,
   hasUsableFactsFromText
 } from '../../core/executors'
+import { hasRagPrefetchOrStepEvidence } from '../../orchestrate/clarifyProbeGate'
 import { resolveMultiDbEffectiveQuery, dbAnchorCtx } from '../../../utils/db/managerDbQuestionLlm'
 import { resolveDbStepQuestionSync } from '../../core/db/dbStepQuestion'
 import { adminScopedQueryFromMeta } from '../../../utils/admin/managerAdminTaskPayload'
@@ -1988,9 +1989,14 @@ export async function runMultiNodeBody(state: any, deps: any) {
       const allDataStepsFailed = Object.values(byId)
         .filter((s) => ['rag', 'db', 'crawler'].includes(String(s?.agent || '')))
         .every((s) => s?.status === 'error')
+      const prefetchOrEvidence = hasRagPrefetchOrStepEvidence({
+        meta: state.meta as Record<string, unknown> | null,
+        hasDataEvidence
+      })
       const dataNeedsClarify =
         uniqClarify.length > 0 &&
         !hasUsableDataResult &&
+        !prefetchOrEvidence &&
         !(hasTimeoutFailure && hasDataEvidence) &&
         (allDataStepsFailed || !hasDataEvidence)
       // admin 写澄清：即使问句稍后才从 output 回填，也必须 needsClarify
@@ -2004,7 +2010,9 @@ export async function runMultiNodeBody(state: any, deps: any) {
       if (!combinedNeedsClarify && uniqClarify.length > 0) {
         opts.sendEvent({
           event: 'thinking',
-          data: '已获取可用数据，忽略澄清信号并继续生成最终结果。',
+          data: prefetchOrEvidence
+            ? '已有文档预取/证据，忽略澄清信号并继续生成最终结果。'
+            : '已获取可用数据，忽略澄清信号并继续生成最终结果。',
           from: 'manager'
         })
       }

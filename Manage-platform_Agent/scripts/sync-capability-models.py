@@ -38,6 +38,7 @@ AGENTS_LAN_ENV = PLATFORM_DIR / ".env.agents-lan"
 # Docker compose 不在 services.environment 覆盖模型名；各 Agent 模型见各 Agent/.env
 AGENTS_LAN_DOCKER_MODEL_KEYS: dict[str, str] = {
     "MANAGER_MODEL_ROUTE": "reason",
+    "MANAGER_MODEL_ROUTE_MAX": "reason_max",
     "MANAGER_MODEL_PLAN": "route",
     "MANAGER_MODEL_SYNTH": "reason",
     "MANAGER_MODEL_CRITIC": "route",

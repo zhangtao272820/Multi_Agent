@@ -40,6 +40,12 @@ import {
   shouldSkipWebAlignLlm,
   stripUnboundCrawlerArtifacts
 } from './stripUnboundCrawler'
+import {
+  shouldSkipRouteReviewLlm,
+  buildRouteSkipsSnapshot,
+  estimateRouteLlmCalls,
+  type RouteReviewSkipDecision
+} from '../core/routing/routeSkipCascade'
 import { sortAgentsByPipelineOrder } from '../core/routing/clauses'
 import type { ExecutableAgent } from '../core/routing/routeFinalize'
 import { isLlmRateLimitError } from '../../utils/chat/llmRateLimit'
@@ -135,6 +141,9 @@ async function finalizeOrchestratorDecision(
     needsWebSearch: decision.needsWebSearch,
     sourceCommitmentRaw: decision.raw as unknown as Record<string, unknown>
   })
+  if (!skipWeb) {
+    input.onThinking?.('网页执行：判定抓取 / SERP / GUI 或无需公网…')
+  }
   const aligned = skipWeb
     ? decision
     : await alignOrchestratorWebExecutionMode({
@@ -172,6 +181,8 @@ export type OrchestratorPipelineInput = {
   state: unknown
   /** 仅 MANAGER_PRO_MODE=fast 快路径使用，LLM-First 失败时不作兜底 */
   seedBundle?: TaskOrchestratorBundle | null
+  /** 编排子阶段中文进展（thought_delta） */
+  onThinking?: (line: string) => void
 }
 
 export type OrchestratorPipelineResult = {
@@ -268,6 +279,7 @@ export async function resolveOrchestratorPipeline(
 
   let bundle: TaskOrchestratorBundle | null = null
 
+  input.onThinking?.('主路由：正在调用编排 LLM 判定能力组合…')
   const first = await resolveTaskOrchestrationByLlm({ ...llmBase, judgeFeedback: fixHint })
   bundle = first.bundle
   source = orchestratorSourceLabel(
@@ -285,6 +297,22 @@ export async function resolveOrchestratorPipeline(
     )
   }
 
+  const probeForCover =
+    (input.probe as { db?: unknown; rag?: unknown } | null | undefined) ??
+    (input.state as { probe?: { db?: unknown; rag?: unknown } } | null)?.probe ??
+    null
+
+  // Phase1：审查 skip 级联 SSOT（含 clear_sole / admin_only / probe 强单源；ambiguous 禁止跳）
+  const reviewSkip: RouteReviewSkipDecision = shouldSkipRouteReviewLlm({
+    allowedAgents: bundle.allowedAgents,
+    planShortcut: bundle.intentClassify?.planShortcut,
+    needsWeb: bundle.intentClassify?.needsWeb,
+    needsWebSearch: bundle.needsWebSearch,
+    sourceCommitmentRaw: bundle.raw as unknown as Record<string, unknown>,
+    meta,
+    probe: probeForCover as Parameters<typeof shouldSkipRouteReviewLlm>[0]['probe']
+  })
+  // 兼容：soleClear 仍可用于 source 标签后缀
   const soleClearNoWeb = isClearSolePlaneNoWeb({
     allowedAgents: bundle.allowedAgents,
     planShortcut: bundle.intentClassify?.planShortcut,
@@ -293,8 +321,8 @@ export async function resolveOrchestratorPipeline(
     sourceCommitmentRaw: bundle.raw as unknown as Record<string, unknown>
   })
 
-  // 清晰单数据面：跳过 align / planeCoverage LLM，避免单步路由连打 3～4 次 plus
-  if (isUserIntentAlignLlmEnabled() && !soleClearNoWeb) {
+  if (isUserIntentAlignLlmEnabled() && !reviewSkip.skipAlign) {
+    input.onThinking?.('对齐：审查 cap 是否与末轮语义一致…')
     const weakHints = [puHint, draftBinding].filter(Boolean).join('\n')
     const aligned = await alignOrchestratorBundleToUserIntent({
       lastUser: userTask,
@@ -310,16 +338,13 @@ export async function resolveOrchestratorPipeline(
       }
       source = `${source}_user_align`
     }
-  } else if (soleClearNoWeb) {
+  } else if (reviewSkip.skipAlign) {
     source = `${source}_skip_align`
   }
 
   // 库存存在性再判：单源 db↔rag 纠正（目录能答/不能答），禁止扩 multi
-  if (!soleClearNoWeb) {
-    const probeForCover =
-      (input.probe as { db?: unknown; rag?: unknown } | null | undefined) ??
-      (input.state as { probe?: { db?: unknown; rag?: unknown } } | null)?.probe ??
-      null
+  if (!reviewSkip.skipPlane) {
+    input.onThinking?.('平面覆盖：对照库存判断 db/rag 是否真能回答…')
     const covered = await rejudgePlaneCoverageByInventory({
       lastUser: userTask,
       bundle: bundle!,
@@ -354,8 +379,55 @@ export async function resolveOrchestratorPipeline(
     source = `${source}_skip_plane_cover`
   }
 
+  const skipWebAlign = shouldSkipWebAlignLlm({
+    allowedAgents: bundle.allowedAgents,
+    needsWeb: bundle.intentClassify?.needsWeb,
+    needsWebSearch: bundle.needsWebSearch,
+    sourceCommitmentRaw: bundle.raw as unknown as Record<string, unknown>
+  })
+  const routeSkips = buildRouteSkipsSnapshot({
+    skipAlign: reviewSkip.skipAlign,
+    skipPlane: reviewSkip.skipPlane,
+    skipWebAlign: reviewSkip.skipWebAlign || skipWebAlign,
+    plannerBypassed: false,
+    skipAudit: false
+  })
+  const routeLlmCalls = estimateRouteLlmCalls({
+    priorAuxCalls: Number((meta as Record<string, unknown> | undefined)?.routeAuxLlmCalls) || 0,
+    ranOrchestratorLlm: true,
+    skipAlign: routeSkips.align,
+    skipPlane: routeSkips.plane,
+    skipWebAlign: routeSkips.webAlign
+  })
+  // 写入 bundle.raw 旁路字段，供 decision metaPatch 合并（finishOrchestrateTurn）
+  if (bundle) {
+    bundle = {
+      ...bundle,
+      raw: {
+        ...bundle.raw,
+        routeSkips,
+        routeLlmCalls,
+        routeSkipReasons: reviewSkip.reasons,
+        soleClearNoWeb
+      }
+    }
+  }
+
   const maxRetries = orchestratorReflexMaxRetries()
   const judgeEnabled = isOrchestratorJudgeEnabled()
+
+  const attachRouteSkipMeta = (decision: OrchestratorDecision): OrchestratorDecision => ({
+    ...decision,
+    metaPatch: {
+      ...decision.metaPatch,
+      routeSkips,
+      routeLlmCalls,
+      routeSkipReasons: reviewSkip.reasons,
+      routeSkipAlign: routeSkips.align,
+      routeSkipPlane: routeSkips.plane,
+      routeSkipWebAlign: routeSkips.webAlign
+    }
+  })
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     if (attempt > 0 && fixHint) {
@@ -367,14 +439,16 @@ export async function resolveOrchestratorPipeline(
       }
     }
 
-    const decision = await finalizeOrchestratorDecision(
-      input,
-      applyOrchestratorInvariants({
-        bundle: bundle!,
-        turnScope: input.turnScope,
-        state: input.state as { meta?: unknown; probe?: unknown },
-        routerCapBaseline: bundle!.allowedAgents,
-      }),
+    const decision = attachRouteSkipMeta(
+      await finalizeOrchestratorDecision(
+        input,
+        applyOrchestratorInvariants({
+          bundle: bundle!,
+          turnScope: input.turnScope,
+          state: input.state as { meta?: unknown; probe?: unknown },
+          routerCapBaseline: bundle!.allowedAgents,
+        }),
+      )
     )
 
     lastLint = lintOrchestratorBundle({
@@ -402,6 +476,7 @@ export async function resolveOrchestratorPipeline(
       return { decision, source, judgeRetries, lintIssues: lastLint, judgeRationale, judgeAccept: true }
     }
 
+    input.onThinking?.('审查：校验编排结果结构是否自洽…')
     const judge = await judgeOrchestratorDecision({
       userTask,
       decision,
@@ -431,14 +506,16 @@ export async function resolveOrchestratorPipeline(
     }
   }
 
-  const decision = await finalizeOrchestratorDecision(
-    input,
-    applyOrchestratorInvariants({
-      bundle: bundle!,
-      turnScope: input.turnScope,
-      state: input.state as { meta?: unknown; probe?: unknown },
-      routerCapBaseline: bundle!.allowedAgents,
-    }),
+  const decision = attachRouteSkipMeta(
+    await finalizeOrchestratorDecision(
+      input,
+      applyOrchestratorInvariants({
+        bundle: bundle!,
+        turnScope: input.turnScope,
+        state: input.state as { meta?: unknown; probe?: unknown },
+        routerCapBaseline: bundle!.allowedAgents,
+      }),
+    )
   )
   return { decision, source, judgeRetries, lintIssues: lastLint, judgeRationale, judgeAccept: false }
 }

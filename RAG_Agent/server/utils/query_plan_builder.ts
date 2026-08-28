@@ -152,6 +152,7 @@ definition | process | comparison | fact_lookup | multi_part | quote | doc_list 
 - lean_query：一条可独立做向量检索的中文问句（去掉「从知识库检索/帮我查」等元指令，补全指代）
 - intent / sub_queries / entities.doc_names / entities.topics / entities.numbers / entities.time_hints
 - retrieval_keywords：2～8 个，优先来自目录文件名/摘要中的术语、同义表述、上下位词
+- needs_graph：boolean — 涉及部门归属、岗位职责、流程步骤、条款互引、多跳关系时为 true；纯单点事实/定义为 false
 - needs_clarification / clarification_questions / confidence(0～1)
 
 ## 通用规则（适用任意领域）
@@ -162,10 +163,11 @@ definition | process | comparison | fact_lookup | multi_part | quote | doc_list 
 5) 用户口语与文档术语不一致时，retrieval_keywords 应覆盖目录摘要中的实际表述；
 6) entities.doc_names：若目录中某文件名与问句明显相关，写入（不含扩展名亦可）；
 7) 目录为空时仅清洗问句；needs_clarification 仅在完全无法推断主题时为 true；
-8) 保留用户原话中的数字、时间、否定与关键实体。
+8) 保留用户原话中的数字、时间、否定与关键实体；
+9) 问「归哪个部门 / 哪些岗位 / 审批链 / 前置条件」等关系时 needs_graph=true（即使 intent=multi_part）。
 
 输出示例结构（勿照抄内容）：
-{"lean_query":"…","intent":"fact_lookup","sub_queries":["…"],"entities":{"doc_names":[],"topics":[],"numbers":[],"time_hints":[]},"retrieval_keywords":["…"],"needs_clarification":false,"clarification_questions":[],"confidence":0.82}`;
+{"lean_query":"…","intent":"fact_lookup","sub_queries":["…"],"entities":{"doc_names":[],"topics":[],"numbers":[],"time_hints":[]},"retrieval_keywords":["…"],"needs_graph":false,"needs_clarification":false,"clarification_questions":[],"confidence":0.82}`;
 
 const QUERY_PLAN_PROMPT = `你是「文档检索意图拆解器」。把用户问题拆成 JSON 查询计划，帮助 RAG 检索更准确。
 
@@ -187,19 +189,24 @@ const QUERY_PLAN_PROMPT = `你是「文档检索意图拆解器」。把用户�
 - sub_queries: 1～4 条可独立检索的子问句（复合问题必须拆分）
 - entities.doc_names / entities.topics / entities.numbers / entities.time_hints
 - retrieval_keywords: 同义词、上位词、相关术语（2～8 个）
+- needs_graph: 部门归属/岗位职责/流程步骤/条款互引/多跳关系 → true；单点事实 → false
 - needs_clarification / clarification_questions / confidence(0～1)
 
 ## 推理步骤（CoT，体现在 JSON 质量上，不要输出推理过程）
-1) 先判断 intent；2) 再拆 sub_queries 覆盖各字段；3) 补 entities 与 retrieval_keywords；4) 信息严重不足才 needs_clarification=true。
+1) 先判断 intent；2) 再拆 sub_queries 覆盖各字段；3) 补 entities 与 retrieval_keywords；4) 标 needs_graph；5) 信息严重不足才 needs_clarification=true。
 
 ## 示例
 用户：2023年销售提成和退货政策分别是什么？
-{"intent":"multi_part","sub_queries":["2023年销售提成政策","2023年退货政策"],"entities":{"doc_names":[],"topics":["销售提成","退货政策"],"numbers":["2023"],"time_hints":["2023年"]},"retrieval_keywords":["提成比例","退货规则"],"needs_clarification":false,"clarification_questions":[],"confidence":0.85}
+{"intent":"multi_part","sub_queries":["2023年销售提成政策","2023年退货政策"],"entities":{"doc_names":[],"topics":["销售提成","退货政策"],"numbers":["2023"],"time_hints":["2023年"]},"retrieval_keywords":["提成比例","退货规则"],"needs_graph":false,"needs_clarification":false,"clarification_questions":[],"confidence":0.85}
+
+用户：入职流程归哪个部门？需要哪些岗位？
+{"intent":"multi_part","sub_queries":["入职流程归属部门","入职流程参与岗位"],"entities":{"doc_names":[],"topics":["入职流程","人力资源部","HRBP"],"numbers":[],"time_hints":[]},"retrieval_keywords":["入职","部门","岗位"],"needs_graph":true,"needs_clarification":false,"clarification_questions":[],"confidence":0.86}
 
 规则：
 1) 保留用户原意，不编造文档里不存在的专有名词。
 2) 对比类、多字段类必须拆 sub_queries；元指令（「从知识库检索」等）不要进 sub_queries。
-3) 已有明确主题时 needs_clarification=false。`;
+3) 已有明确主题时 needs_clarification=false。
+4) 关系/流程归属类务必 needs_graph=true，以便制度图辅佐 Hybrid。`;
 
 function buildManagerHintsBlock(task?: ManagerRagTaskPayload | null): string {
   if (!task) return "";

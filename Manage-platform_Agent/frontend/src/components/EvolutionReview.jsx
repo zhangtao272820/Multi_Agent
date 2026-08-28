@@ -2,18 +2,24 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { fetchJsonSafe } from "../utils/api";
 
 /**
- * 待我审阅：流程说明 + 四队列 Tab。
+ * 待我审阅：流程说明 + 六队列 Tab（候选 / 用户记忆 / 技能 / 组织规则 / Prompt / GUI）。
  * 纪律：不自动上线；晋级必过人审 + verify。
  */
 export default function EvolutionReview({ apiBase, authToken, onRefresh }) {
   const [status, setStatus] = useState("pending");
-  const [activeTab, setActiveTab] = useState("candidates");
+  const [activeTab, setActiveTab] = useState("memory");
   const [candidates, setCandidates] = useState([]);
   const [drafts, setDrafts] = useState([]);
   const [pgDrafts, setPgDrafts] = useState([]);
   const [hub, setHub] = useState(null);
   const [promptShadow, setPromptShadow] = useState(null);
   const [lobsterItems, setLobsterItems] = useState([]);
+  const [ruleCandidates, setRuleCandidates] = useState([]);
+  const [experienceCandidates, setExperienceCandidates] = useState([]);
+  const [pendingPrefs, setPendingPrefs] = useState([]);
+  const [rulePreviewId, setRulePreviewId] = useState("");
+  const [expPreviewId, setExpPreviewId] = useState("");
+  const [prefsPreviewKey, setPrefsPreviewKey] = useState("");
   const [onlineEvalLatest, setOnlineEvalLatest] = useState(null);
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState("");
@@ -47,6 +53,11 @@ export default function EvolutionReview({ apiBase, authToken, onRefresh }) {
       setHub(opsRes.data.evolutionHub || null);
       setPromptShadow(opsRes.data.promptShadow || null);
       setLobsterItems(Array.isArray(opsRes.data.lobsterPlaybooks) ? opsRes.data.lobsterPlaybooks : []);
+      setRuleCandidates(Array.isArray(opsRes.data.ruleCandidates) ? opsRes.data.ruleCandidates : []);
+      setExperienceCandidates(
+        Array.isArray(opsRes.data.experienceCandidates) ? opsRes.data.experienceCandidates : []
+      );
+      setPendingPrefs(Array.isArray(opsRes.data.pendingPrefs) ? opsRes.data.pendingPrefs : []);
       setOnlineEvalLatest(opsRes.data.onlineEvalLatest || null);
     }
   }, [apiBase, authToken, status]);
@@ -170,14 +181,166 @@ export default function EvolutionReview({ apiBase, authToken, onRefresh }) {
     }
   }
 
-  const draftRows = pgDrafts.length
-    ? pgDrafts
-    : drafts.map((d) => ({
-        skillId: d.skillId,
-        agent: d.agent,
-        status: "draft",
-        success_score: null,
-      }));
+  async function ruleAction(action, ruleCandidateId) {
+    const verb = action === "rule_candidate_promote" ? "晋级" : "拒绝";
+    if (!window.confirm(`确认${verb}组织规则候选 ${ruleCandidateId}？`)) return;
+    const label = `${action}-${ruleCandidateId}`;
+    setBusy(label);
+    setMsg("");
+    try {
+      const { ok, error, data } = await fetchJsonSafe(`${apiBase}/api/manager/evolution/ops`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ action, ruleCandidateId }),
+      });
+      if (!ok) throw new Error(error || data?.message || data?.detail || "ops failed");
+      setMsg(`规则候选 ${ruleCandidateId} 已${verb}`);
+      await load();
+      onRefresh?.();
+    } catch (e) {
+      setMsg(String(e?.message || e));
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function experienceAction(action, experienceCandidateId) {
+    const verb = action === "experience_candidate_promote" ? "晋级" : "拒绝";
+    if (!window.confirm(`确认${verb}经验候选 ${experienceCandidateId}？晋级后才参与召回。`)) return;
+    const label = `${action}-${experienceCandidateId}`;
+    setBusy(label);
+    setMsg("");
+    try {
+      const { ok, error, data } = await fetchJsonSafe(`${apiBase}/api/manager/evolution/ops`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ action, experienceCandidateId }),
+      });
+      if (!ok) throw new Error(error || data?.message || data?.detail || data?.reason || "ops failed");
+      setMsg(`经验候选 ${experienceCandidateId} 已${verb}`);
+      await load();
+      onRefresh?.();
+    } catch (e) {
+      setMsg(String(e?.message || e));
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function prefsAction(decision, userId) {
+    const verb = decision === "confirm" ? "批准" : "拒绝";
+    if (!window.confirm(`确认${verb}用户 ${userId} 的待审偏好？`)) return;
+    const label = `prefs-${decision}-${userId}`;
+    setBusy(label);
+    setMsg("");
+    try {
+      const { ok, error, data } = await fetchJsonSafe(`${apiBase}/api/manager/evolution/ops`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ action: "user_profile_prefs", userId, decision }),
+      });
+      if (!ok) throw new Error(error || data?.message || data?.detail || "ops failed");
+      setMsg(`用户 ${userId} 偏好已${verb}`);
+      await load();
+      onRefresh?.();
+    } catch (e) {
+      setMsg(String(e?.message || e));
+    } finally {
+      setBusy("");
+    }
+  }
+
+  function prefsRowKey(r) {
+    return `${r.tenantId || "default"}:${r.userId}`;
+  }
+
+  function formatPrefsSource(source) {
+    const s = String(source || "").trim();
+    if (s === "hot_path_signal") return "热路径反馈（👍/高分 run）";
+    if (s === "explicit_user_request") return "用户口语";
+    if (s === "ops") return "管理员/ops";
+    return s || "—";
+  }
+
+  function formatPrefsSummary(r) {
+    if (r.summary && String(r.summary).trim() && !String(r.summary).startsWith("（无具体字段")) {
+      return String(r.summary).trim();
+    }
+    const agents = Array.isArray(r.preferredAgents) ? r.preferredAgents.join("、") : "";
+    const parts = [];
+    if (agents) parts.push(`常用专家 → ${agents}`);
+    if (r.refusePreference) parts.push(`拒答策略 → ${r.refusePreference}`);
+    if (r.timezone) parts.push(`时区 → ${r.timezone}`);
+    if (parts.length) return parts.join("；");
+    if (r.conflictNote) return `冲突：${String(r.conflictNote).slice(0, 160)}`;
+    return "（无具体字段，点击行查看详情）";
+  }
+
+  const draftRows = useMemo(() => {
+    const raw = pgDrafts.length
+      ? pgDrafts
+      : drafts.map((d) => ({
+          skillId: d.skillId,
+          agent: d.agent,
+          status: "draft",
+          success_score: null,
+          markdown: d.markdown || "",
+          source_run_id: d.sourceRunId || d.source_run_id,
+        }));
+    const isExplicit = (row) =>
+      /capture_source:\s*explicit_user_request/i.test(String(row.markdown || "")) ||
+      /source=explicit_user_request/i.test(String(row.markdown || ""));
+    return [...raw].sort((a, b) => {
+      const ae = isExplicit(a) ? 1 : 0;
+      const be = isExplicit(b) ? 1 : 0;
+      if (ae !== be) return be - ae;
+      const as = Number(a.success_score ?? a.successScore ?? 0);
+      const bs = Number(b.success_score ?? b.successScore ?? 0);
+      return bs - as;
+    });
+  }, [pgDrafts, drafts]);
+
+  const ruleRows = useMemo(
+    () =>
+      [...ruleCandidates].sort((a, b) =>
+        String(b.updatedAt || "").localeCompare(String(a.updatedAt || ""))
+      ),
+    [ruleCandidates]
+  );
+
+  const experienceRows = useMemo(
+    () =>
+      [...experienceCandidates].sort((a, b) => {
+        const ac = a.conflictNote ? 1 : 0;
+        const bc = b.conflictNote ? 1 : 0;
+        if (ac !== bc) return bc - ac;
+        return String(b.updatedAt || "").localeCompare(String(a.updatedAt || ""));
+      }),
+    [experienceCandidates]
+  );
+
+  const prefsRows = useMemo(
+    () =>
+      [...pendingPrefs].sort((a, b) => {
+        const ac = a.conflictNote ? 1 : 0;
+        const bc = b.conflictNote ? 1 : 0;
+        if (ac !== bc) return bc - ac;
+        return String(b.proposedAt || "").localeCompare(String(a.proposedAt || ""));
+      }),
+    [pendingPrefs]
+  );
+
+  useEffect(() => {
+    if (!prefsRows.length) {
+      setPrefsPreviewKey("");
+      return;
+    }
+    if (!prefsPreviewKey || !prefsRows.some((r) => prefsRowKey(r) === prefsPreviewKey)) {
+      setPrefsPreviewKey(prefsRowKey(prefsRows[0]));
+    }
+  }, [prefsRows, prefsPreviewKey]);
+
+  const memoryPendingCount = experienceRows.length + prefsRows.length;
 
   const expertPatches = useMemo(() => {
     const out = [];
@@ -220,15 +383,19 @@ export default function EvolutionReview({ apiBase, authToken, onRefresh }) {
     (promptShadow?.diff ? 1 : 0) + expertPatches.length + (promptShadow?.shadowPresent ? 1 : 0);
 
   const tabs = [
+    { id: "memory", label: "用户记忆", count: memoryPendingCount },
     { id: "candidates", label: "待审候选", count: candidates.length },
     { id: "skills", label: "技能草稿", count: draftRows.length },
+    { id: "rules", label: "组织规则", count: ruleRows.length },
     { id: "prompts", label: "Prompt 与专家补丁", count: expertPatches.length + (promptShadow?.diff ? 1 : 0) },
     { id: "lobster", label: "GUI 自动化剧本", count: lobsterItems.length },
   ];
 
   const pendingTotal =
+    memoryPendingCount +
     (status === "pending" ? candidates.length : 0) +
     draftRows.length +
+    ruleRows.length +
     expertPatches.length +
     lobsterShadowCount;
 
@@ -245,7 +412,7 @@ export default function EvolutionReview({ apiBase, authToken, onRefresh }) {
             <span className="evo-badge evo-badge--safe">不会自动上线</span>
           </h2>
           <p className="muted evo-panel__lead">
-            总管里点「有用 / 无用 / 路由不对」只产生学习信号；真正改线上要在这里人工批准。
+            用户说「记住 / 答得很好」、点「有用」、保存偏好与打法，均先入草稿队列；自我进化高危项须在此人工批准后才参与召回或弱 hint 注入。
           </p>
         </div>
         <div className="evo-panel__actions">
@@ -310,6 +477,228 @@ export default function EvolutionReview({ apiBase, authToken, onRefresh }) {
           </button>
         ))}
       </div>
+
+      {activeTab === "memory" ? (
+        <div className="evo-tab-panel" role="tabpanel">
+          <div className="evo-review-guide muted">
+            <strong>怎么审？</strong>
+            <ul>
+              <li>
+                <strong>保存的答案 / 👍</strong>：用户说「记住」或点有用 → 晋级后才参与经验召回；有「冲突」先看 path 是否矛盾。
+              </li>
+              <li>
+                <strong>待审用户偏好</strong>：弱 hint（常用专家、拒答策略），<em>不改路由 cap</em>；批准=写入偏好，拒绝=丢弃提议。
+              </li>
+              <li>点击表格行可在右侧看「提议 vs 现有」全文；冲突说明必须读完再批。</li>
+            </ul>
+          </div>
+
+          <h3 className="evo-subhead">保存的答案 / 👍 经验候选</h3>
+          <p className="muted evo-zone__hint" style={{ marginTop: 0 }}>
+            用户口语「记住」或点「有用」后写入候选；<strong>晋级前不参与经验召回</strong>。标红冲突项须先核对 path 再批准。
+          </p>
+          {!experienceRows.length ? (
+            <EmptyHint>暂无经验候选。用户在总管说「这个很好帮我记住」或点「有用」后会出现在这里。</EmptyHint>
+          ) : (
+            <div className="evo-rules-layout">
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>候选 ID</th>
+                      <th>来源</th>
+                      <th>场景</th>
+                      <th>path</th>
+                      <th>冲突</th>
+                      <th>操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {experienceRows.slice(0, 40).map((r) => {
+                      const eid = r.id;
+                      const hasConflict = Boolean(r.conflictNote);
+                      return (
+                        <tr
+                          key={String(eid)}
+                          className={`${expPreviewId === eid ? "is-selected" : ""}${hasConflict ? " evo-row-conflict" : " evo-row-explicit"}`}
+                          onClick={() => setExpPreviewId(String(eid))}
+                        >
+                          <td>{String(eid)}</td>
+                          <td>
+                            <span className="evo-badge evo-badge--explicit">
+                              {r.source === "explicit_feedback" ? "👍 有用" : "用户口语"}
+                            </span>
+                          </td>
+                          <td style={{ maxWidth: 160, fontSize: 11 }}>{String(r.scenarioKey || "—").slice(0, 24)}</td>
+                          <td>{Array.isArray(r.path) ? r.path.join("→") : "—"}</td>
+                          <td style={{ maxWidth: 200, fontSize: 11 }}>
+                            {hasConflict ? (
+                              <span className="evo-badge evo-badge--warn" title={r.conflictNote}>
+                                冲突
+                              </span>
+                            ) : (
+                              <span className="muted">—</span>
+                            )}
+                          </td>
+                          <td onClick={(e) => e.stopPropagation()}>
+                            <button
+                              type="button"
+                              className="btn btn--ghost"
+                              disabled={Boolean(busy)}
+                              onClick={() => void experienceAction("experience_candidate_promote", eid)}
+                            >
+                              晋级
+                            </button>{" "}
+                            <button
+                              type="button"
+                              className="btn btn--ghost"
+                              disabled={Boolean(busy)}
+                              onClick={() => void experienceAction("experience_candidate_reject", eid)}
+                            >
+                              拒绝
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <aside className="evo-rule-preview" aria-label="经验候选预览">
+                <h3 className="evo-subhead">问句与冲突说明</h3>
+                {expPreviewId ? (
+                  <>
+                    <p className="muted" style={{ fontSize: 12 }}>
+                      run: {experienceRows.find((x) => x.id === expPreviewId)?.sourceRunId || "—"}
+                    </p>
+                    <pre className="evo-rule-preview__md">
+                      {experienceRows.find((x) => x.id === expPreviewId)?.userText || "（无问句）"}
+                    </pre>
+                    {experienceRows.find((x) => x.id === expPreviewId)?.conflictNote ? (
+                      <p className="evo-conflict-note">⚠ {experienceRows.find((x) => x.id === expPreviewId)?.conflictNote}</p>
+                    ) : null}
+                  </>
+                ) : (
+                  <p className="muted">点击左侧一行查看问句全文与冲突说明</p>
+                )}
+              </aside>
+            </div>
+          )}
+
+          <h3 className="evo-subhead" style={{ marginTop: 24 }}>
+            待审用户偏好
+          </h3>
+          <p className="muted evo-zone__hint" style={{ marginTop: 0 }}>
+            弱偏好须管理员或用户确认后才写入；有冲突时优先在此处理。
+          </p>
+          {!prefsRows.length ? (
+            <EmptyHint>暂无待审偏好。用户说「我偏好用 RAG」等后会出现在这里或总管聊天卡片。</EmptyHint>
+          ) : (
+            <div className="evo-rules-layout">
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>用户</th>
+                      <th>来源</th>
+                      <th>新提议</th>
+                      <th>冲突</th>
+                      <th>操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {prefsRows.slice(0, 40).map((r) => {
+                      const uid = r.userId;
+                      const rowKey = prefsRowKey(r);
+                      const summary = formatPrefsSummary(r);
+                      return (
+                        <tr
+                          key={rowKey}
+                          className={`${prefsPreviewKey === rowKey ? "is-selected" : ""}${r.conflictNote ? " evo-row-conflict" : ""}`}
+                          onClick={() => setPrefsPreviewKey(rowKey)}
+                        >
+                          <td>{uid}</td>
+                          <td style={{ fontSize: 11, maxWidth: 120 }}>{formatPrefsSource(r.source)}</td>
+                          <td style={{ maxWidth: 280, fontSize: 12 }}>{summary.slice(0, 120)}</td>
+                          <td style={{ maxWidth: 200, fontSize: 11 }}>
+                            {r.conflictNote ? (
+                              <span className="evo-badge evo-badge--warn" title={r.conflictNote}>
+                                有冲突
+                              </span>
+                            ) : (
+                              <span className="muted">无</span>
+                            )}
+                          </td>
+                          <td onClick={(e) => e.stopPropagation()}>
+                            <button
+                              type="button"
+                              className="btn btn--ghost"
+                              disabled={Boolean(busy)}
+                              title="写入用户偏好（弱 hint，不改路由）"
+                              onClick={() => void prefsAction("confirm", uid)}
+                            >
+                              批准
+                            </button>{" "}
+                            <button
+                              type="button"
+                              className="btn btn--ghost"
+                              disabled={Boolean(busy)}
+                              title="丢弃本次提议，保留现有偏好"
+                              onClick={() => void prefsAction("reject", uid)}
+                            >
+                              拒绝
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <aside className="evo-rule-preview" aria-label="偏好审阅详情">
+                <h3 className="evo-subhead">偏好审阅详情</h3>
+                {prefsPreviewKey ? (
+                  (() => {
+                    const r = prefsRows.find((x) => prefsRowKey(x) === prefsPreviewKey);
+                    if (!r) return <p className="muted">未找到条目</p>;
+                    return (
+                      <>
+                        <p className="muted" style={{ fontSize: 12 }}>
+                          用户 {r.userId} · {formatPrefsSource(r.source)} · {r.proposedAt || "—"}
+                        </p>
+                        <div className="evo-prefs-compare">
+                          <div>
+                            <strong>新提议（待你批）</strong>
+                            <pre className="evo-rule-preview__md">{formatPrefsSummary(r)}</pre>
+                          </div>
+                          <div>
+                            <strong>当前已生效</strong>
+                            <pre className="evo-rule-preview__md">
+                              {r.currentSummary || "（尚无已生效偏好）"}
+                            </pre>
+                          </div>
+                        </div>
+                        {r.conflictNote ? (
+                          <p className="evo-conflict-note">⚠ 冲突说明：{r.conflictNote}</p>
+                        ) : (
+                          <p className="muted" style={{ fontSize: 12 }}>
+                            无冲突：批准后会覆盖/合并对应 prefs 字段。
+                          </p>
+                        )}
+                        <p className="muted" style={{ fontSize: 11, marginTop: 8 }}>
+                          批准 = 把「新提议」写入用户偏好；拒绝 = 清空 pending，线上不变。
+                        </p>
+                      </>
+                    );
+                  })()
+                ) : (
+                  <p className="muted">点击左侧一行查看「新提议 vs 现有偏好」与冲突全文</p>
+                )}
+              </aside>
+            </div>
+          )}
+        </div>
+      ) : null}
 
       {activeTab === "candidates" ? (
         <div className="evo-tab-panel" role="tabpanel">
@@ -395,7 +784,9 @@ export default function EvolutionReview({ apiBase, authToken, onRefresh }) {
                 <thead>
                   <tr>
                     <th>草稿 ID</th>
+                    <th>来源</th>
                     <th>路径</th>
+                    <th>run</th>
                     <th>分数</th>
                     <th>操作</th>
                   </tr>
@@ -403,10 +794,22 @@ export default function EvolutionReview({ apiBase, authToken, onRefresh }) {
                 <tbody>
                   {draftRows.slice(0, 40).map((d) => {
                     const sid = d.skillId || d.skill_id;
+                    const explicit =
+                      /capture_source:\s*explicit_user_request/i.test(String(d.markdown || "")) ||
+                      /source=explicit_user_request/i.test(String(d.markdown || ""));
+                    const runId = d.source_run_id || d.sourceRunId || "—";
                     return (
-                      <tr key={String(sid)}>
+                      <tr key={String(sid)} className={explicit ? "evo-row-explicit" : ""}>
                         <td>{String(sid)}</td>
+                        <td>
+                          {explicit ? (
+                            <span className="evo-badge evo-badge--explicit">用户显式</span>
+                          ) : (
+                            <span className="muted">隐式</span>
+                          )}
+                        </td>
                         <td>{d.agent || "—"}</td>
+                        <td style={{ maxWidth: 120, fontSize: 11 }}>{String(runId).slice(0, 16)}</td>
                         <td>{d.success_score ?? d.successScore ?? "—"}</td>
                         <td>
                           <button
@@ -431,6 +834,88 @@ export default function EvolutionReview({ apiBase, authToken, onRefresh }) {
                   })}
                 </tbody>
               </table>
+            </div>
+          )}
+        </div>
+      ) : null}
+
+      {activeTab === "rules" ? (
+        <div className="evo-tab-panel" role="tabpanel">
+          {!ruleRows.length ? (
+            <EmptyHint>
+              暂无组织规则候选。用户在总管说「写成规则 / 别再踩」后会出现在这里；晋级前不改路由 Prompt。
+            </EmptyHint>
+          ) : (
+            <div className="evo-rules-layout">
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>规则 ID</th>
+                      <th>来源</th>
+                      <th>范围</th>
+                      <th>摘要</th>
+                      <th>操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ruleRows.slice(0, 40).map((r) => {
+                      const rid = r.id;
+                      const explicit = String(r.source || "").includes("explicit") || Boolean(r.sourceRunId);
+                      const titleLine = String(r.markdown || "")
+                        .split("\n")
+                        .find((ln) => ln.startsWith("# "))
+                        ?.replace(/^#\s+/, "");
+                      return (
+                        <tr
+                          key={String(rid)}
+                          className={`${rulePreviewId === rid ? "is-selected" : ""}${explicit ? " evo-row-explicit" : ""}`}
+                          onClick={() => setRulePreviewId(String(rid))}
+                        >
+                          <td>{String(rid)}</td>
+                          <td>
+                            {explicit ? (
+                              <span className="evo-badge evo-badge--explicit">用户口语</span>
+                            ) : (
+                              <span className="muted">—</span>
+                            )}
+                          </td>
+                          <td>{r.scope || "manager"}</td>
+                          <td style={{ maxWidth: 280 }}>{(titleLine || r.sourceRunId || "—").slice(0, 80)}</td>
+                          <td onClick={(e) => e.stopPropagation()}>
+                            <button
+                              type="button"
+                              className="btn btn--ghost"
+                              disabled={Boolean(busy)}
+                              onClick={() => void ruleAction("rule_candidate_promote", rid)}
+                            >
+                              晋级
+                            </button>{" "}
+                            <button
+                              type="button"
+                              className="btn btn--ghost"
+                              disabled={Boolean(busy)}
+                              onClick={() => void ruleAction("rule_candidate_reject", rid)}
+                            >
+                              拒绝
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <aside className="evo-rule-preview" aria-label="规则正文预览">
+                <h3 className="evo-subhead">规则预览</h3>
+                {rulePreviewId ? (
+                  <pre className="evo-rule-preview__md">
+                    {ruleCandidates.find((x) => x.id === rulePreviewId)?.markdown || "（无正文）"}
+                  </pre>
+                ) : (
+                  <p className="muted">点击左侧一行查看 markdown 全文</p>
+                )}
+              </aside>
             </div>
           )}
         </div>

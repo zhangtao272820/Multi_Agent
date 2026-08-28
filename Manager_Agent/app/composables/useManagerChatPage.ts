@@ -7,11 +7,32 @@ import {
   stripStructuredExecReport,
   looksLikeExecAuditDump,
   looksLikeStepDumpSummary,
-  looksLikeTruncatedSummary
+  looksLikeTruncatedSummary,
+  isReportTierSummaryTooThin,
 } from '#agent-shared/synthOutputSanitize'
 import { resolveRenderableEchartsOptionFromText } from '#agent-shared/codeAuthorityPayload'
 import { isRenderableChartOption, readChartTitle, readPanelCount, suggestChartContainerHeight } from '#agent-shared/chartOption'
 import { buildChartPngExportMeta } from '#agent-shared/chartExportMeta'
+import {
+  formatReportRevisionNote,
+  mergeSummaryWithRevisionNote,
+  tableToCsv,
+  buildArtifactExportManifest,
+  buildZipStore,
+  base64PngToBytes
+} from '~/composables/managerArtifactExport'
+import {
+  artifactPanelSlots,
+  artifactTabLabel,
+  hasArtifactPanel,
+  pickDefaultArtifactTab,
+  shouldShowInlineChart,
+  shouldShowInlineReportAppendix,
+  shouldShowInlineTable,
+  shouldStripAuxBlocksDuringStream,
+  streamingArtifactHint,
+  turnHasEditedReport
+} from '~/composables/managerPresentationUi'
 import {
   planAgentLabel as planAgentLabelFromDisplay,
   planAgentLabelProfessional,
@@ -42,6 +63,7 @@ import { useManagerSession, FEEDBACK_PENDING_ACK, type ManagerSessionHost } from
 import { MANAGER_CHAT_THREAD_KEY } from '~/composables/managerChatThreadContext'
 import { MANAGER_WORKBENCH_SIDEBAR_KEY } from '~/composables/managerWorkbenchSidebarContext'
 import { MANAGER_CHAT_RAIL_KEY } from '~/composables/managerChatRailContext'
+import { extractAdminUiCardsFromTurn, turnMemoSignature } from '~/composables/managerTurnDisplayCache'
 import {
   buildClientDegradeMessage,
   errorCodeBadgeLabel,
@@ -287,6 +309,8 @@ export function useManagerChatPage() {
     reconcileTurnFeedbackKeys,
     feedbackUserIndexForTurn,
     turnFeedbackKey,
+    feedbackKeyForTurn,
+    isFeedbackPendingForTurn,
     turnFeedbackSubmitted,
     turnFeedbackAckText,
     routeFeedbackSubmitted,
@@ -647,6 +671,19 @@ export function useManagerChatPage() {
   
   function stepResultsForTurn(t: TurnGroup): StepResultItem[] {
     return stepResultsByTurn.value[t.id] || []
+  }
+
+  /** 执行步数（路由卡/步骤结果），区别于 process 日志条数 */
+  function executionStepCountForTurn(t: TurnGroup): number {
+    const results = stepResultsForTurn(t)
+    if (results.length) return results.length
+    const outline = turnPlanOutline(t)?.steps || []
+    if (outline.length) return outline.length
+    return 0
+  }
+
+  function thoughtLogCountForTurn(t: TurnGroup): number {
+    return t.process.length
   }
   
   function hasThoughtContent(t: TurnGroup): boolean {
@@ -1032,6 +1069,7 @@ export function useManagerChatPage() {
   function closeTraceDrawer() {
     traceDrawerOpen.value = false
   }
+
   const streamAgentLabel = ref('')
   
   const stepProgressLine = computed(() => {
@@ -1122,20 +1160,7 @@ export function useManagerChatPage() {
   
   function adminUiCardsFromTurn(turn?: TurnGroup): unknown[] {
     if (!turn) return []
-    if (Array.isArray(turn.adminUiCards) && turn.adminUiCards.length) return turn.adminUiCards
-    for (const p of turn.process || []) {
-      if (String(p.kind || '').toLowerCase() !== 'trace') continue
-      try {
-        const obj = JSON.parse(String(p.text || ''))
-        if (obj?.type === 'step_end' && obj?.agent === 'admin') {
-          const cards = obj?.evidence?.agentResult?.structured?.ui_cards
-          if (Array.isArray(cards) && cards.length) return cards
-        }
-      } catch {
-        /* ignore */
-      }
-    }
-    return []
+    return extractAdminUiCardsFromTurn(turn)
   }
   
   function turnCollaborationPosture(turn?: TurnGroup): CollaborationPosture | undefined {
@@ -1570,9 +1595,32 @@ export function useManagerChatPage() {
   }
   
   function replyHasInlineAnalytics(text: string, agentResults?: Record<string, string>, turn?: TurnGroup): boolean {
-    if (turn?.userFacing?.chart || turn?.userFacing?.table) return true
-    const t = String(text || '')
-    return !!(extractEchartsOption(t, agentResults) || extractTableData(t))
+    const hasChart = Boolean(userFacingChartOption(turn) || extractEchartsOption(text, agentResults))
+    const hasTable = Boolean(userFacingTableHtml(turn) || extractTableData(text))
+    return shouldShowInlineChart(turn, hasChart) || shouldShowInlineTable(turn, hasTable)
+  }
+
+  function shouldShowUserFacingMetrics(turn?: TurnGroup): boolean {
+    const metrics = turn?.userFacing?.metrics
+    if (!metrics?.length) return false
+    const plan = turn?.userFacing?.presentationPlan
+    if (plan && Number(plan.confidence ?? 0) >= 0.42) {
+      return (plan.modules || []).some((m) => m.type === 'metrics')
+    }
+    return true
+  }
+
+  function shouldShowUserFacingHeadline(turn?: TurnGroup): boolean {
+    if (!turn?.userFacing?.headline) return false
+    const plan = turn?.userFacing?.presentationPlan
+    if (plan && Number(plan.confidence ?? 0) >= 0.42) {
+      return (plan.modules || []).some((m) => m.type === 'headline')
+    }
+    return turn.userFacing.replyTier !== 'lite'
+  }
+
+  function applyFollowUpSuggestion(q: string) {
+    input.value = String(q || '').trim()
   }
 
   function userFacingChartOption(turn?: TurnGroup): unknown | null {
@@ -1723,14 +1771,16 @@ export function useManagerChatPage() {
       } else if (
         looksLikeStepDumpSummary(uf) ||
         looksLikeTruncatedSummary(uf) ||
+        (turn?.userFacing?.replyTier === 'report' && isReportTierSummaryTooThin(uf, 'report')) ||
         (finalText.length > uf.length * 1.15 && finalText.length >= 80)
       ) {
-        source = pickRicherNarrativeWithAuxBlocks(uf, finalText)
+        const cleanedFinal = stripStructuredExecReport(finalText)
+        source = pickRicherNarrativeWithAuxBlocks(uf, cleanedFinal || finalText)
         if (
           (looksLikeTruncatedSummary(source) || looksLikeStepDumpSummary(source)) &&
-          finalText.length > source.length
+          (cleanedFinal || finalText).length > source.length
         ) {
-          source = finalText
+          source = cleanedFinal || finalText
         }
       } else {
         source = uf
@@ -1754,12 +1804,19 @@ export function useManagerChatPage() {
     // 主气泡去掉结构化执行摘要（单独折叠展示）
     s = stripStructuredExecReport(s)
     if (thoughtViewMode.value === 'user') s = stripDeveloperJargonUi(s)
+    const revNote = String(turn?.userFacing?.reportRevisionNote || '').trim()
+    if (thoughtViewMode.value === 'user' && turn?.userFacing?.reportEdited && revNote) {
+      s = mergeSummaryWithRevisionNote(s, revNote)
+    }
     return s
   }
 
-  /** 用户视图：详细说明正文（过滤执行摘要 dump） */
+  /** 用户视图：详细说明正文（过滤执行摘要 dump；Artifact 面板已承载时去重） */
   function replyUserDetailAppendix(turn?: TurnGroup, replyText?: string): string {
-    const raw = String(turn?.userFacing?.appendix || resolveReportBody(String(replyText || ''), turn) || '').trim()
+    if (thoughtViewMode.value === 'user' && !shouldShowInlineReportAppendix(turn)) return ''
+    const raw = String(
+      turn?.userFacing?.appendix || resolveReportBody(String(replyText || ''), turn) || ''
+    ).trim()
     if (!raw) return ''
     if (thoughtViewMode.value === 'user' && looksLikeExecAuditDump(raw)) return ''
     const cleaned = stripStructuredExecReport(raw)
@@ -2493,6 +2550,36 @@ export function useManagerChatPage() {
           : renderMarkdownTextSegment(part.text, citeSources)
       )
       .join('')
+  }
+
+  const resultMarkdownHtmlCache = new Map<string, string>()
+  const streamingMarkdownHtml = ref('')
+
+  function cachedResultMarkdownHtml(text: string, turn: TurnGroup, resultIdx: number): string {
+    const body = replyMarkdownBody(text, turn)
+    if (!body) return ''
+    const cite = citeSourcesForMarkdown(turn)
+    const citeSig = cite.map((c) => c.url).join('|').slice(0, 120)
+    const key = `${thoughtViewMode.value}:${turn.id}:${resultIdx}:${body.length}:${body.slice(0, 80)}:${citeSig}`
+    const hit = resultMarkdownHtmlCache.get(key)
+    if (hit !== undefined) return hit
+    const html = renderAssistantMarkdown(body, cite)
+    resultMarkdownHtmlCache.set(key, html)
+    if (resultMarkdownHtmlCache.size > 240) {
+      const first = resultMarkdownHtmlCache.keys().next().value
+      if (first) resultMarkdownHtmlCache.delete(first)
+    }
+    return html
+  }
+
+  function turnRenderMemoKey(t: TurnGroup): string {
+    return turnMemoSignature(t, {
+      thoughtViewMode: thoughtViewMode.value,
+      editingTurnId: editingTurnId.value,
+      expandedProcessKeys: expandedProcessKeys.value,
+      feedbackRunId: feedbackSendingRunId.value,
+      copyAckTurnId: copyAckTurnId.value,
+    })
   }
 
   /** 报告附录专用渲染：先合并碎片化换行，再转 Markdown */
@@ -4170,13 +4257,47 @@ export function useManagerChatPage() {
         g.adminUiCards = m.adminUiCards
         continue
       }
+      if (k === 'presentation_plan' && m.presentationPlan && typeof m.presentationPlan === 'object') {
+        g.presentationPlan = m.presentationPlan as TurnGroup['presentationPlan']
+        if (g.userFacing) {
+          g.userFacing = {
+            ...g.userFacing,
+            presentationPlan: g.presentationPlan
+          }
+        }
+        continue
+      }
       if (k === 'user_facing' && m.userFacing && typeof m.userFacing === 'object') {
         g.userFacing = m.userFacing as import('./managerChatTypes').UserFacingPayload
+        if (g.presentationPlan && !g.userFacing.presentationPlan) {
+          g.userFacing = { ...g.userFacing, presentationPlan: g.presentationPlan }
+        }
+        continue
+      }
+      if (k === 'memory_capture') {
+        const payload =
+          m.memoryCapture && typeof m.memoryCapture === 'object'
+            ? m.memoryCapture
+            : (() => {
+                try {
+                  return JSON.parse(String(m.text || ''))
+                } catch {
+                  return null
+                }
+              })()
+        if (payload && typeof payload === 'object') {
+          g.memoryCapture = {
+            ...(payload as import('./managerChatTypes').MemoryCaptureProposal),
+            uiStatus:
+              (payload as import('./managerChatTypes').MemoryCaptureProposal).uiStatus || 'open',
+          }
+        }
         continue
       }
       if (isPlanStepsJsonLog(String(m.text || ''))) continue
       if (String(m.kind || '').toLowerCase() === 'thinking') {
         const txt = String(m.text || '').trim()
+        if (txt.startsWith('记忆提案')) continue
         if (
           txt.startsWith('路由：multi（置信度') &&
           txt.includes('用户需要分别检索两源公开信息并生成对比报告')
@@ -4192,6 +4313,10 @@ export function useManagerChatPage() {
         .map((p) => String(p?.text ?? ''))
         .join('\n')
       g.codePatches = extractPatchBlocks(codeText)
+      if (!g.adminUiCards?.length) {
+        const cards = extractAdminUiCardsFromTurn(g)
+        if (cards.length) g.adminUiCards = cards
+      }
     }
     const sorted = Array.from(groups.values()).sort((a, b) => a.id - b.id)
     for (let i = 1; i < sorted.length; i++) {
@@ -4217,6 +4342,8 @@ export function useManagerChatPage() {
           prev.ragEvidence = mergeRagEvidence(prev.ragEvidence, cur.ragEvidence)
         }
         if (cur.adminUiCards) prev.adminUiCards = cur.adminUiCards
+        if (cur.userFacing) prev.userFacing = cur.userFacing
+        if (cur.presentationPlan) prev.presentationPlan = cur.presentationPlan
         cur.results = []
         cur.process = []
         cur.errors = []
@@ -4228,7 +4355,179 @@ export function useManagerChatPage() {
   })
   
   const visibleTurnGroups = computed(() => turnGroups.value.filter((t) => !withdrawnTurns.value.has(t.id)))
-  
+
+  const artifactDrawerOpen = ref(false)
+  const artifactDrawerTurnId = ref<number | null>(null)
+  const artifactDrawerTab = ref<'chart' | 'table' | 'report'>('chart')
+  const artifactDrawerDismissedTurns = new Set<number>()
+  /** Canvas：本地编辑过的报告 Markdown（turnId → md） */
+  const artifactReportEdits = ref<Record<number, string>>({})
+
+  const artifactDrawerTurn = computed(
+    () => visibleTurnGroups.value.find((t) => t.id === artifactDrawerTurnId.value) || null
+  )
+
+  const artifactDrawerReportDraft = computed(() => {
+    const id = artifactDrawerTurnId.value
+    if (id == null) return ''
+    return String(artifactReportEdits.value[id] || '').trim()
+  })
+
+  function openReplyArtifactDrawer(turnId: number, tab?: 'chart' | 'table' | 'report') {
+    const turn = visibleTurnGroups.value.find((t) => t.id === turnId)
+    artifactDrawerTurnId.value = turnId
+    artifactDrawerTab.value = tab || pickDefaultArtifactTab(turn)
+    artifactDrawerOpen.value = true
+  }
+
+  function closeReplyArtifactDrawer() {
+    artifactDrawerOpen.value = false
+    if (artifactDrawerTurnId.value != null) {
+      artifactDrawerDismissedTurns.add(artifactDrawerTurnId.value)
+    }
+  }
+
+  function setArtifactDrawerTab(tab: 'chart' | 'table' | 'report') {
+    artifactDrawerTab.value = tab
+  }
+
+  function applyArtifactReportEdit(payload: { turnId: number; markdown: string }) {
+    const turnId = Number(payload.turnId)
+    const md = String(payload.markdown || '').trim()
+    if (!Number.isFinite(turnId) || !md) return
+    artifactReportEdits.value = { ...artifactReportEdits.value, [turnId]: md }
+    const editedAt = new Date().toISOString()
+    const note = formatReportRevisionNote(editedAt)
+    for (const m of logs.value as LogItem[]) {
+      if (m.turn !== turnId) continue
+      if (String(m.kind || '').toLowerCase() !== 'user_facing') continue
+      if (!m.userFacing || typeof m.userFacing !== 'object') continue
+      const prevSummary = String(m.userFacing.summary || '').trim()
+      m.userFacing = {
+        ...m.userFacing,
+        appendix: md,
+        reportEdited: true,
+        reportEditedAt: editedAt,
+        reportRevisionNote: note,
+        // summary 本体保留；修订注经 reportRevisionNote 注入气泡，避免重复污染
+        summary: prevSummary
+      }
+    }
+    resultMarkdownHtmlCache.clear()
+  }
+
+  function echartsOptionToPngDataUrl(option: unknown): string | null {
+    if (!option || typeof option !== 'object') return null
+    try {
+      const meta = buildChartPngExportMeta(option as object, { filenameHint: 'chart' })
+      const canvas = document.createElement('canvas')
+      canvas.width = meta.width
+      canvas.height = meta.height
+      renderEchartsToCanvas(canvas, option, meta.width, meta.height)
+      drawChartExportWatermark(canvas, meta.subtitle)
+      return canvas.toDataURL('image/png')
+    } catch {
+      return null
+    }
+  }
+
+  async function exportArtifactBundle(turnId: number) {
+    const turn = visibleTurnGroups.value.find((t) => t.id === turnId)
+    if (!turn) return
+    const resultText = String(turn.results?.[0]?.text || '')
+    const reportMd =
+      String(artifactReportEdits.value[turnId] || turn.userFacing?.appendix || '').trim() ||
+      resolveReportBody(resultText, turn)
+    const table = turn.userFacing?.table
+    const csv = tableToCsv(table)
+    const chartOpt =
+      userFacingChartOption(turn) ||
+      extractEchartsOption(resultText, buildTurnAgentResults(turn))
+    const pngUrl = chartOpt ? echartsOptionToPngDataUrl(chartOpt) : null
+    const pngBytes = pngUrl ? base64PngToBytes(pngUrl) : null
+
+    const zipFiles: Array<{ name: string; data: Uint8Array }> = []
+    if (reportMd.trim()) {
+      zipFiles.push({ name: 'report.md', data: new TextEncoder().encode(reportMd) })
+    }
+    if (csv.trim()) {
+      zipFiles.push({ name: 'table.csv', data: new TextEncoder().encode(csv) })
+    }
+    if (pngBytes?.length) {
+      zipFiles.push({ name: 'chart.png', data: pngBytes })
+    }
+    const title =
+      turn.userFacing?.headline ||
+      turn.userFacing?.summary?.split('\n')[0]?.slice(0, 48) ||
+      `turn_${turnId}`
+    zipFiles.push({
+      name: 'manifest.json',
+      data: new TextEncoder().encode(
+        buildArtifactExportManifest({
+          turnId,
+          title,
+          hasReport: Boolean(reportMd.trim()),
+          hasTable: Boolean(csv.trim()),
+          hasChart: Boolean(pngBytes?.length),
+          reportEdited: Boolean(turn.userFacing?.reportEdited)
+        })
+      )
+    })
+    if (zipFiles.length <= 1) return
+    const zip = buildZipStore(zipFiles)
+    const blob = new Blob([zip.buffer.slice(zip.byteOffset, zip.byteOffset + zip.byteLength)], {
+      type: 'application/zip'
+    })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `artifact_turn_${turnId}.zip`
+    a.click()
+    setTimeout(() => URL.revokeObjectURL(url), 1500)
+  }
+
+  function shouldShowArtifactLaunchBar(turn?: TurnGroup): boolean {
+    return hasArtifactPanel(turn)
+  }
+
+  function turnReportEditedBadge(turn?: TurnGroup): boolean {
+    return turnHasEditedReport(turn) || Boolean(turn?.id != null && artifactReportEdits.value[turn.id])
+  }
+
+  function streamingArtifactHintForTurn(turn?: TurnGroup): string {
+    return streamingArtifactHint(turn)
+  }
+
+  function stripStreamingAuxForPlan(text: string, turn?: TurnGroup): string {
+    const raw = String(text || '')
+    if (!shouldStripAuxBlocksDuringStream(turn)) return raw
+    try {
+      const { narrative } = extractAuxBlocksStructural(raw)
+      return String(narrative || raw).trim() || raw
+    } catch {
+      return raw
+        .replace(/<!--\s*ECHARTS_OPTION\s*-->[\s\S]*?<!--\s*\/ECHARTS_OPTION\s*-->/gi, '')
+        .replace(/<!--\s*TABLE_DATA\s*-->[\s\S]*?<!--\s*\/TABLE_DATA\s*-->/gi, '')
+        .replace(/<!--\s*REPORT\s*-->[\s\S]*?<!--\s*\/REPORT\s*-->/gi, '')
+        .trim()
+    }
+  }
+
+  watch(
+    visibleTurnGroups,
+    (groups) => {
+      const last = groups[groups.length - 1]
+      if (!last || artifactDrawerDismissedTurns.has(last.id)) return
+      if (last.userFacing?.replyTier !== 'report') return
+      if (!hasArtifactPanel(last)) return
+      if (artifactDrawerOpen.value && artifactDrawerTurnId.value === last.id) return
+      artifactDrawerTurnId.value = last.id
+      artifactDrawerTab.value = pickDefaultArtifactTab(last)
+      artifactDrawerOpen.value = true
+    },
+    { deep: true }
+  )
+
   function turnRunId(t: TurnGroup, r?: LogItem): string {
     if (r?.runId) return String(r.runId)
     if (t.user?.runId) return String(t.user.runId)
@@ -4551,7 +4850,7 @@ export function useManagerChatPage() {
     }
     if (k === 'thought_delta') {
       const cleaned = raw.replace(/^▸\s*/, '').replace(/\s+/g, ' ')
-      return cleaned.length > 220 ? `${cleaned.slice(0, 220)}…` : cleaned
+      return cleaned.length > 2400 ? `${cleaned.slice(0, 2400)}…` : cleaned
     }
     if (k === 'status') return raw.replace(/^▸\s*/, '')
     return raw
@@ -4560,50 +4859,61 @@ export function useManagerChatPage() {
   function userThoughtNarrative(t: TurnGroup): UserThoughtLine[] {
     const lines: UserThoughtLine[] = []
     const seen = new Set<string>()
-    const push = (text: string, opts: Partial<UserThoughtLine> = {}) => {
+    let streamBuf = ''
+
+    const pushLine = (text: string, opts: Partial<UserThoughtLine> = {}) => {
       const line = text.trim()
       if (!line || seen.has(line)) return
       seen.add(line)
       lines.push({ text: line, done: true, active: false, failed: false, ...opts })
     }
 
-    // 优先 thought_delta：连续中文进展流
-    const deltas = t.process.filter((p) => String(p.kind || '').toLowerCase() === 'thought_delta')
-    if (deltas.length) {
-      for (const p of deltas) {
-        const text = formatUserThoughtText(String(p.text || ''), 'thought_delta')
-        if (text) push(text, { done: !isTurnRunning(t) })
+    const flushStream = (active = false) => {
+      const formatted = formatUserThoughtText(streamBuf, 'thought_delta')
+      if (formatted) {
+        pushLine(formatted, { done: !active, active })
       }
-    } else {
-      for (const p of t.process) {
-        const k = String(p.kind || '').toLowerCase()
-        if (isDevProcessKind(k)) continue
-        if (k === 'trace') {
-          try {
-            const o = JSON.parse(String(p.text || '')) as Record<string, unknown>
-            const type = String(o.type || '')
-            if (type === 'step_start') {
-              push(`正在${planAgentLabel(String(o.agent || ''))}…`, { done: false })
-            } else if (type === 'step_end') {
-              const summary = String(o.outputSummary || '').trim()
-              if (summary && !isUserThoughtBoilerplate(summary)) {
-                push(previewText(summary, 160))
-              } else if (String(o.status) === 'success') {
-                push(`${planAgentLabel(String(o.agent || ''))}已完成`)
-              }
-            }
-          } catch {
-            /* skip non-json trace */
-          }
-          continue
-        }
-        if (!isUserVisibleProcessKind(k) || k === 'thought_delta') continue
-        const text = formatUserThoughtText(String(p.text || ''), k)
-        if (text) push(text, { done: !isTurnRunning(t) || k !== 'phase' })
-      }
+      streamBuf = ''
     }
 
-    if (t.ragEvidence.length) push(`查阅了 ${t.ragEvidence.length} 条知识库资料`)
+    for (const p of t.process) {
+      const k = String(p.kind || '').toLowerCase()
+      if (isDevProcessKind(k)) continue
+
+      if (k === 'thought_delta') {
+        streamBuf += String(p.text || '')
+        continue
+      }
+
+      flushStream(false)
+
+      if (k === 'trace') {
+        try {
+          const o = JSON.parse(String(p.text || '')) as Record<string, unknown>
+          const type = String(o.type || '')
+          if (type === 'step_start') {
+            pushLine(`正在${planAgentLabel(String(o.agent || ''))}…`, { done: false })
+          } else if (type === 'step_end') {
+            const summary = String(o.outputSummary || '').trim()
+            if (summary && !isUserThoughtBoilerplate(summary)) {
+              pushLine(previewText(summary, 160))
+            } else if (String(o.status) === 'success') {
+              pushLine(`${planAgentLabel(String(o.agent || ''))}已完成`)
+            }
+          }
+        } catch {
+          /* skip non-json trace */
+        }
+        continue
+      }
+      if (!isUserVisibleProcessKind(k)) continue
+      const text = formatUserThoughtText(String(p.text || ''), k)
+      if (text) pushLine(text, { done: !isTurnRunning(t) || k !== 'phase' })
+    }
+
+    flushStream(isTurnRunning(t))
+
+    if (t.ragEvidence.length) pushLine(`查阅了 ${t.ragEvidence.length} 条知识库资料`)
 
     if (isTurnRunning(t) && lines.length) {
       const last = lines[lines.length - 1]!
@@ -4986,6 +5296,7 @@ export function useManagerChatPage() {
       | 'suggestedPosture'
       | 'postureBlocked'
       | 'postureReadOnly'
+      | 'memoryCapture'
     >
   ) {
     const k = String(kind || '').toLowerCase()
@@ -5356,6 +5667,81 @@ export function useManagerChatPage() {
     respondHumanConfirm('cancel', cardId)
   }
 
+  const memoryCaptureBusy = ref(false)
+
+  function patchTurnMemoryCaptureUi(turnId: number, uiStatus: NonNullable<import('./managerChatTypes').MemoryCaptureProposal['uiStatus']>) {
+    for (const m of logs.value) {
+      if (m.turn !== turnId) continue
+      if (String(m.kind || '').toLowerCase() !== 'memory_capture') continue
+      if (m.memoryCapture && typeof m.memoryCapture === 'object') {
+        m.memoryCapture = { ...m.memoryCapture, uiStatus }
+      } else {
+        try {
+          const p = JSON.parse(String(m.text || ''))
+          m.memoryCapture = { ...p, uiStatus }
+          m.text = JSON.stringify(m.memoryCapture)
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+  }
+
+  function memoryCaptureKindLabel(kind: string): string {
+    const map: Record<string, string> = {
+      todo: '待办',
+      save_answer: '保存答案',
+      save_playbook: '保存打法',
+      save_preference: '保存偏好',
+      save_org_rule: '组织规则',
+    }
+    return map[kind] || kind
+  }
+
+  async function respondMemoryCapture(
+    turnId: number,
+    decision: 'ack' | 'confirm_prefs' | 'reject_prefs'
+  ) {
+    if (memoryCaptureBusy.value) return
+    const g = turnGroups.value.find((t) => t.id === turnId)
+    const proposal = g?.memoryCapture
+    if (!proposal) return
+    memoryCaptureBusy.value = true
+    patchTurnMemoryCaptureUi(turnId, 'sending')
+    try {
+      const data = await $fetch<{ ok?: boolean; message?: string }>('/api/manager/memory-capture', {
+        method: 'POST',
+        body: {
+          decision,
+          kind: proposal.kind,
+          userId: userId.value,
+          sessionId: sessionId.value,
+          runId: proposal.runId,
+        },
+      })
+      if (!data?.ok) throw new Error(data?.message || 'memory-capture failed')
+      const ui =
+        decision === 'confirm_prefs' ? 'confirmed' : decision === 'reject_prefs' ? 'rejected' : 'acked'
+      patchTurnMemoryCaptureUi(turnId, ui)
+      add(
+        'status',
+        decision === 'confirm_prefs'
+          ? '已确认偏好（将作为弱 hint，不改路由）'
+          : decision === 'reject_prefs'
+            ? '已拒绝偏好提案'
+            : '已确认：草稿待管理员在控制面审核',
+        'manager',
+        turnId,
+        proposal.runId
+      )
+    } catch (e) {
+      patchTurnMemoryCaptureUi(turnId, 'open')
+      add('error', `记忆提案操作失败：${e instanceof Error ? e.message : String(e)}`, undefined, turnId)
+    } finally {
+      memoryCaptureBusy.value = false
+    }
+  }
+
   function onHumanConfirmAck() {
     const id = lastHumanConfirmId
     const decision = lastHumanConfirmDecision
@@ -5434,53 +5820,82 @@ export function useManagerChatPage() {
   function sendRouteWrongFeedback(turn: TurnGroup) {
     if (routeFeedbackSubmitted(turn)) return
     const rid = turnRunId(turn)
+    const uidx = turn.user?.userMessageIndex
     ensureSessionId()
     ensureUserId()
     const routeCard = turnRoutePlanCard(turn)
     const cap = turnRouteCap(turn)
-    const payload = {
-      type: 'route_feedback',
+    const body = {
       sessionId: sessionId.value,
       userId: userId.value,
-      runId: rid,
+      kind: 'route_wrong' as const,
+      runId: rid || undefined,
       turnId: turn.id,
-      userMessageIndex: turn.user?.userMessageIndex,
+      userMessageIndex: uidx,
       userTask: turn.user?.text ? String(turn.user.text).slice(0, 2000) : undefined,
       cap: cap?.agents?.length ? cap.agents : routeCard?.agents,
       intent: cap?.intent || routeCard?.intent,
       orchestratorSource: routeCard?.orchestratorSource,
       lintIssues: routeCard?.lintIssues?.slice(0, 8)
     }
-    if (!ws || !connected.value || !isValidServerRunId(rid)) {
-      if (typeof turn.user?.userMessageIndex === 'number') {
-        routeFeedbackByUserIndex.value = {
-          ...routeFeedbackByUserIndex.value,
-          [turn.user.userMessageIndex]: true
-        }
-        persistSessionFeedback()
+
+    const markLocal = () => {
+      if (typeof uidx !== 'number') return
+      routeFeedbackByUserIndex.value = {
+        ...routeFeedbackByUserIndex.value,
+        [uidx]: true
       }
-      return
+      persistSessionFeedback()
     }
-    try {
-      ws.send(JSON.stringify(withManagerWsAuth(payload)))
-      if (typeof turn.user?.userMessageIndex === 'number') {
-        routeFeedbackByUserIndex.value = {
-          ...routeFeedbackByUserIndex.value,
-          [turn.user.userMessageIndex]: true
-        }
-        persistSessionFeedback()
+
+    void (async () => {
+      try {
+        await $fetch('/api/manager/session-feedback', { method: 'POST', body })
+        markLocal()
+        return
+      } catch {
+        /* HTTP 失败时回落 WS */
       }
-    } catch {
-      /* ignore */
-    }
+      if (!ws || !connected.value) {
+        markLocal()
+        return
+      }
+      try {
+        ws.send(
+          JSON.stringify(
+            withManagerWsAuth({
+              type: 'route_feedback',
+              sessionId: body.sessionId,
+              userId: body.userId,
+              runId: rid,
+              turnId: body.turnId,
+              userMessageIndex: uidx,
+              userTask: body.userTask,
+              cap: body.cap,
+              intent: body.intent,
+              orchestratorSource: body.orchestratorSource,
+              lintIssues: body.lintIssues
+            })
+          )
+        )
+        markLocal()
+      } catch {
+        markLocal()
+      }
+    })()
   }
-  
-  function sendFeedback(turn: TurnGroup, score: number) {
+
+  async function sendFeedback(turn: TurnGroup, score: number) {
     if (turnFeedbackSubmitted(turn)) return
     const uidx = turn.user?.userMessageIndex
-    const key = typeof uidx === 'number' ? `umidx:${uidx}` : turnFeedbackKey(turn)
+    const key = feedbackKeyForTurn(turn)
     const rid = turnRunId(turn)
-    if (feedbackSendingRunId.value === key) return
+
+    if (isFeedbackPendingForTurn(turn)) {
+      feedbackSendingRunId.value = null
+    } else if (feedbackSendingRunId.value === key) {
+      return
+    }
 
     ensureSessionId()
     ensureUserId()
@@ -5493,34 +5908,61 @@ export function useManagerChatPage() {
       applyTurnFeedback(key, score as 0 | 1, ack, uidx)
     }
 
-    if (!ws || !connected.value || !isValidServerRunId(rid)) {
-      finalizeLocal(score === 1 ? '已标记为有用 · 感谢反馈' : '已标记为无用 · 感谢反馈')
-      return
+    const httpBody = {
+      sessionId: sessionId.value,
+      userId: userId.value,
+      runId: rid || undefined,
+      turnId: turn.id,
+      userMessageIndex: uidx,
+      score: score as 0 | 1,
+      kind: 'score' as const,
+      ...(artifact ? { artifact } : {})
     }
 
     try {
-      ws.send(
-        JSON.stringify(
-          withManagerWsAuth({
-            type: 'feedback',
-            sessionId: sessionId.value,
-            userId: userId.value,
-            runId: rid,
-            turnId: turn.id,
-            userMessageIndex: turn.user?.userMessageIndex,
-            score,
-            ...(artifact ? { artifact } : {})
-          })
-        )
-      )
-      window.setTimeout(() => {
-        if (feedbackSendingRunId.value !== key) return
-        if (feedbackAckByRunId.value[key] !== FEEDBACK_PENDING_ACK) return
-        finalizeLocal('反馈提交超时，请重试')
-      }, 15000)
+      const res = await $fetch<{
+        ok?: boolean
+        feedbackScore?: 0 | 1
+        note?: string
+      }>('/api/manager/session-feedback', {
+        method: 'POST',
+        body: httpBody
+      })
+      const ackBase = res?.feedbackScore === 1 ? '已标记为有用' : '已标记为无用'
+      finalizeLocal(`${ackBase} · 感谢反馈（已同步）`)
+      return
     } catch {
-      finalizeLocal('反馈提交失败，请重试')
+      /* HTTP 失败 → WS 回落 */
     }
+
+    if (ws && connected.value && isValidServerRunId(rid)) {
+      try {
+        ws.send(
+          JSON.stringify(
+            withManagerWsAuth({
+              type: 'feedback',
+              sessionId: sessionId.value,
+              userId: userId.value,
+              runId: rid,
+              turnId: turn.id,
+              userMessageIndex: uidx,
+              score,
+              ...(artifact ? { artifact } : {})
+            })
+          )
+        )
+        window.setTimeout(() => {
+          if (feedbackSendingRunId.value !== key) return
+          if (feedbackAckByRunId.value[key] !== FEEDBACK_PENDING_ACK) return
+          finalizeLocal('反馈提交超时，请重试')
+        }, 15000)
+        return
+      } catch {
+        /* fall through */
+      }
+    }
+
+    finalizeLocal(score === 1 ? '已标记为有用 · 感谢反馈' : '已标记为无用 · 感谢反馈')
   }
   
   function onClearExperience() {
@@ -5607,6 +6049,7 @@ export function useManagerChatPage() {
     thoughtViewMode,
     streamingSynthText,
     streamingSynthDisplayText,
+    streamingMarkdownHtml,
     streamingReplyEl,
     copyAckTurnId,
     copyAckKey,
@@ -5645,6 +6088,8 @@ export function useManagerChatPage() {
     onThoughtPanelToggle,
     thoughtPanelLabel,
     stepResultsForTurn,
+    executionStepCountForTurn,
+    thoughtLogCountForTurn,
     userThoughtNarrative,
     turnGuiVisuals,
     thoughtPanelPreview,
@@ -5656,6 +6101,8 @@ export function useManagerChatPage() {
     isSynthPhaseActive,
     onReplyMarkdownClick,
     renderAssistantMarkdown,
+    cachedResultMarkdownHtml,
+    turnRenderMemoKey,
     renderReportMarkdown,
     resultItemClasses,
     resultKindLabel,
@@ -5675,6 +6122,15 @@ export function useManagerChatPage() {
     replyExecSummaryTone,
     turnExpertFailureCards,
     replyHasInlineAnalytics,
+    shouldShowUserFacingMetrics,
+    shouldShowUserFacingHeadline,
+    applyFollowUpSuggestion,
+    shouldShowArtifactLaunchBar,
+    artifactPanelSlots,
+    artifactTabLabel,
+    openReplyArtifactDrawer,
+    streamingArtifactHintForTurn,
+    turnReportEditedBadge,
     buildTurnAgentResults,
     extractEchartsOption,
     chartTitleFromText,
@@ -5690,6 +6146,9 @@ export function useManagerChatPage() {
     canConfirmActionCard,
     respondActionCardConfirm,
     respondActionCardCancel,
+    memoryCaptureBusy,
+    memoryCaptureKindLabel,
+    respondMemoryCapture,
     humanConfirmSending,
     resolveReportBody,
     replyUserDetailAppendix,
@@ -5702,6 +6161,8 @@ export function useManagerChatPage() {
     shouldShowTurnFeedback,
     turnFeedbackSubmitted,
     turnFeedbackKey,
+    feedbackKeyForTurn,
+    isFeedbackPendingForTurn,
     sendFeedback,
     routeFeedbackSubmitted,
     sendRouteWrongFeedback,
@@ -5823,6 +6284,31 @@ export function useManagerChatPage() {
     },
     { flush: 'post' }
   )
+
+  let streamingMarkdownTimer: ReturnType<typeof setTimeout> | null = null
+  watch(streamingSynthDisplayText, (text) => {
+    if (!text) {
+      streamingMarkdownHtml.value = ''
+      if (streamingMarkdownTimer) {
+        clearTimeout(streamingMarkdownTimer)
+        streamingMarkdownTimer = null
+      }
+      return
+    }
+    if (streamingMarkdownTimer) return
+    streamingMarkdownTimer = setTimeout(() => {
+      streamingMarkdownTimer = null
+      const liveId = findLatestOpenUserTurn()
+      const liveTurn =
+        liveId != null ? visibleTurnGroups.value.find((t) => t.id === liveId) : undefined
+      const cleaned = stripStreamingAuxForPlan(text, liveTurn)
+      streamingMarkdownHtml.value = renderAssistantMarkdown(cleaned)
+    }, 80)
+  })
+
+  watch(thoughtViewMode, () => {
+    resultMarkdownHtmlCache.clear()
+  })
 
   onMounted(() => {
     loadClawhiveAuth()
@@ -5952,6 +6438,29 @@ export function useManagerChatPage() {
     traceDrawerOpen,
     openTraceDrawer,
     closeTraceDrawer,
+    artifactDrawerOpen,
+    artifactDrawerTurn,
+    artifactDrawerTab,
+    artifactDrawerReportDraft,
+    closeReplyArtifactDrawer,
+    setArtifactDrawerTab,
+    openReplyArtifactDrawer,
+    applyArtifactReportEdit,
+    exportArtifactBundle,
+    buildTurnAgentResults,
+    extractEchartsOption,
+    userFacingChartOption,
+    userFacingChartTitle,
+    userFacingTableHtml,
+    resolveReportBody,
+    renderReportMarkdown,
+    initChartEl,
+    chartContainerClass,
+    chartContainerStyle,
+    downloadEchartsPng,
+    downloadMarkdown,
+    extractTableData,
+    renderTableDataHtml,
     runObservabilityLive,
     formatObsMs,
     formatTokenCount,
@@ -5974,6 +6483,9 @@ export function useManagerChatPage() {
     respondHumanConfirm,
     respondActionCardConfirm,
     respondActionCardCancel,
+    memoryCaptureBusy,
+    memoryCaptureKindLabel,
+    respondMemoryCapture,
     chatScrollHostEl,
     historyBackdropVisible,
     sessionId,

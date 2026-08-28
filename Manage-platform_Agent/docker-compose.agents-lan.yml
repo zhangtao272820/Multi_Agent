@@ -90,7 +90,8 @@ services:
       CLAWHIVE_FRONTEND_PORT: ${CLAWHIVE_FRONTEND_PORT:-18073}
       CLAWHIVE_BACKEND_PORT: ${CLAWHIVE_BACKEND_PORT:-18000}
       ALLOW_ORIGINS: ${CLAWHIVE_ALLOW_ORIGINS:-http://localhost:5173,http://localhost:18073,http://127.0.0.1:18073,http://localhost:18000,http://127.0.0.1:18000}
-      DB_AGENT_HOST: db_agent
+      # 总管 DB 腿已切 Vanna；平台学习/晋级/健康探活走 vanna_db_agent
+      DB_AGENT_HOST: vanna_db_agent
       RAG_AGENT_HOST: rag_agent
       CODE_AGENT_HOST: code_assistent_agent
       EXTRACTOR_AGENT_HOST: extractor_agent
@@ -107,7 +108,7 @@ services:
       JWT_SECRET: ${CLAWHIVE_JWT_SECRET:-change-this-secret}
       WORKSPACE_ROOT: ${CLAWHIVE_WORKSPACE_ROOT:-/workspace}
       RUNTIME_ROOT: ${CLAWHIVE_RUNTIME_ROOT:-/app/.local/runtime}
-      DB_PORT: ${DB_PORT:-13101}
+      DB_PORT: "13121"
       RAG_PORT: ${RAG_PORT:-13102}
       CODE_PORT: ${CODE_PORT:-13103}
       CRAWLER_PORT: ${CRAWLER_PORT:-13104}
@@ -314,6 +315,14 @@ services:
       RAG_HEAVY_PARSE_TIMEOUT_MS: ${RAG_HEAVY_PARSE_TIMEOUT_MS:-120000}
       RAG_ENABLE_AGENTIC_TOOL_LOOP: ${RAG_ENABLE_AGENTIC_TOOL_LOOP:-1}
       RAG_AGENTIC_TOOL_MAX_ROUNDS: ${RAG_AGENTIC_TOOL_MAX_ROUNDS:-4}
+      # L 波：门控 HyDE（默认关）+ 企业制度 Graph 双车道
+      RAG_ENABLE_HYDE: ${RAG_ENABLE_HYDE:-0}
+      RAG_RRF_HYDE_WEIGHT: ${RAG_RRF_HYDE_WEIGHT:-0.9}
+      RAG_ENABLE_MULTI_QUERY: ${RAG_ENABLE_MULTI_QUERY:-0}
+      RAG_ENABLE_POLICY_GRAPH: ${RAG_ENABLE_POLICY_GRAPH:-1}
+      RAG_RRF_GRAPH_WEIGHT: ${RAG_RRF_GRAPH_WEIGHT:-1.15}
+      RAG_POLICY_GRAPH_MAX_HOPS: ${RAG_POLICY_GRAPH_MAX_HOPS:-2}
+      RAG_POLICY_GRAPH_BACKEND: ${RAG_POLICY_GRAPH_BACKEND:-auto}
       AGENT_DATABASE_URL: postgresql://${CLAWHIVE_PG_USER:-postgres}:${CLAWHIVE_PG_PASSWORD:-postgres}@clawhive_postgres:5432/${CLAWHIVE_PG_DB:-clawhive}
       # dual：PG + rag_agent_data 文件镜像；重建容器勿 down -v
       RAG_AGENT_STORAGE_BACKEND: ${RAG_AGENT_STORAGE_BACKEND:-dual}
@@ -372,9 +381,10 @@ services:
     image: clawhive/code_assistent_agent:${CLAWHIVE_IMAGE_TAG:-prod}
     container_name: code_assistent_agent
     env_file:
-      - path: ../CodePy_Agent/.env
-        required: false
+      # 集群 overlay 先加载，CodePy/.env 后加载以便 OPENAI_MODEL 等不被 .env.agents-lan 覆盖
       - path: .env.agents-lan
+        required: false
+      - path: ../CodePy_Agent/.env
         required: false
     environment:
       PORT: ${CODE_PORT:-13103}
@@ -423,10 +433,11 @@ services:
     image: clawhive/extractor_agent:${CLAWHIVE_IMAGE_TAG:-prod}
     container_name: extractor_agent
     env_file:
-      - path: ../ExtractorPy_Agent/.env
-        required: true
+      # 集群 overlay 先加载，ExtractorPy/.env 后加载；模型键勿在 environment 写死覆盖
       - path: .env.agents-lan
         required: false
+      - path: ../ExtractorPy_Agent/.env
+        required: true
     environment:
       PORT: ${CRAWLER_PORT:-13104}
       CRAWLER_PORT: ${CRAWLER_PORT:-13104}
@@ -439,15 +450,8 @@ services:
       AGENT_BROWSER_AUTH: ${AGENT_BROWSER_AUTH:-1}
       CLAWHIVE_PUBLIC_URL: ${CLAWHIVE_PUBLIC_URL:-http://127.0.0.1:18000}
       NUXT_PUBLIC_CLAWHIVE_AUTH_URL: ${CLAWHIVE_PUBLIC_URL:-http://127.0.0.1:18000}
-      # CLAWHIVE_INTERNAL_TOKEN：由 env_file 注入。勿写 ${CLAWHIVE_INTERNAL_TOKEN:-}——
-      # 当 --env-file .env.agents-lan 无法插值（首行被压成单行/注释）时会注入空串并覆盖 .env 中的有效令牌。
+      # CLAWHIVE_INTERNAL_TOKEN / QWEN_* / CAP_* / QWEN_MODEL：仅由 ExtractorPy_Agent/.env 注入
       CLAWHIVE_CONFIG_SYNC: ${CLAWHIVE_CONFIG_SYNC:-1}
-      # QWEN_API_KEY / QWEN_BASE_URL：仅由 env_file（ExtractorPy_Agent/.env）注入，勿在此写空 ${QWEN_API_KEY:-} 覆盖
-      # T0 CAP_ROUTE（与 .env.capability-models 对齐）；抽取勿升 CAP_REASON
-      CAP_ROUTE: ${CAP_ROUTE:-qwen-turbo}
-      QWEN_MODEL: ${CAP_ROUTE:-qwen-turbo}
-      CAP_ENABLE_THINKING: ${CAP_ENABLE_THINKING:-off}
-      QWEN_ENABLE_THINKING: ${CAP_ENABLE_THINKING:-off}
       AGENT_LLM_JSON_MAX_TOKENS: ${AGENT_LLM_JSON_MAX_TOKENS:-512}
       EXTRACTOR_PLAN_MAX_TOKENS: ${EXTRACTOR_PLAN_MAX_TOKENS:-384}
       EXTRACTOR_TASK_MAX_CHARS: ${EXTRACTOR_TASK_MAX_CHARS:-2000}
@@ -494,10 +498,10 @@ services:
     container_name: extractor_agent_dev
     working_dir: /app
     env_file:
-      - path: ../ExtractorPy_Agent/.env
-        required: true
       - path: .env.agents-lan
         required: false
+      - path: ../ExtractorPy_Agent/.env
+        required: true
     volumes:
       - ../ExtractorPy_Agent:/app
     environment:
@@ -512,12 +516,7 @@ services:
       AGENT_BROWSER_AUTH: ${AGENT_BROWSER_AUTH:-1}
       CLAWHIVE_PUBLIC_URL: ${CLAWHIVE_PUBLIC_URL:-http://127.0.0.1:18000}
       NUXT_PUBLIC_CLAWHIVE_AUTH_URL: ${CLAWHIVE_PUBLIC_URL:-http://127.0.0.1:18000}
-      # CLAWHIVE_INTERNAL_TOKEN：由 env_file 注入。勿写 ${CLAWHIVE_INTERNAL_TOKEN:-}——
-      # 当 --env-file .env.agents-lan 无法插值（首行被压成单行/注释）时会注入空串并覆盖 .env 中的有效令牌。
-      CAP_ROUTE: ${CAP_ROUTE:-qwen-turbo}
-      QWEN_MODEL: ${CAP_ROUTE:-qwen-turbo}
-      CAP_ENABLE_THINKING: ${CAP_ENABLE_THINKING:-off}
-      QWEN_ENABLE_THINKING: ${CAP_ENABLE_THINKING:-off}
+      # 模型键仅 ExtractorPy_Agent/.env
       AGENT_LLM_JSON_MAX_TOKENS: ${AGENT_LLM_JSON_MAX_TOKENS:-512}
       EXTRACTOR_LLM_MAX_PAGES: ${EXTRACTOR_LLM_MAX_PAGES:-3}
       EXTRACTOR_LLM_PAGE_CHARS: ${EXTRACTOR_LLM_PAGE_CHARS:-1200}
@@ -830,7 +829,9 @@ services:
       MANAGER_PREFETCH_DB_PLAN: ${MANAGER_PREFETCH_DB_PLAN:-1}
       MANAGER_STREAM_DELTA: ${MANAGER_STREAM_DELTA:-1}
       LANGSMITH_TRACING: ${LANGSMITH_TRACING:-false}
+      # 总管 DB 腿默认 p2026（本地 MySQL via vanna）；勿回退到旧 db_agent 的 default 库 id
       MANAGER_DB_ID: ${MANAGER_DB_ID:-p2026}
+      DB_AGENT_DB_ID: ${DB_AGENT_DB_ID:-p2026}
       CLAWHIVE_BACKEND_URL: http://clawhive_backend:8000
       JWT_SECRET: ${CLAWHIVE_JWT_SECRET:-change-this-secret}
       AGENT_BROWSER_AUTH: ${AGENT_BROWSER_AUTH:-1}
@@ -1536,9 +1537,10 @@ services:
     image: clawhive/vanna_db_agent:${CLAWHIVE_IMAGE_TAG:-prod}
     container_name: vanna_db_agent
     env_file:
-      - path: ../Vanna_DbAgent/.env
-        required: false
+      # 集群 overlay 先加载，Vanna/.env 后加载以便 OPENAI_MODEL/EMBEDDING_MODEL 对齐 CAP_CODER/CAP_EMBEDDING
       - path: .env.agents-lan
+        required: false
+      - path: ../Vanna_DbAgent/.env
         required: false
     environment:
       VANNA_PORT: "13121"
@@ -1560,6 +1562,9 @@ services:
       P2026_MYSQL_PASSWORD: ${DB_AGENT_MYSQL_PASSWORD:-123456}
       P2026_MYSQL_DATABASE: ${DB_AGENT_MYSQL_DATABASE:-p2026}
       AGENT_SERVICE_AUTH: "off"
+      AGENT_BROWSER_AUTH: "1"
+      JWT_SECRET: ${CLAWHIVE_JWT_SECRET:-change-this-secret}
+      CLAWHIVE_BACKEND_URL: http://clawhive_backend:8000
       EVO_ALLOW_EXPERT_AUTO_PROMOTE: "false"
     volumes:
       - vanna_db_agent_data:/app/.data

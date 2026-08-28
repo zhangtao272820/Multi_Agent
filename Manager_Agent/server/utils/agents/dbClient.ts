@@ -71,15 +71,36 @@ export async function fetchDbTaskPlan(params: {
 function finalizeDbResult(
   raw: Omit<DbResult, 'agentResult'>,
   traceId?: string,
-  serverAgentResult?: unknown
+  serverAgentResult?: unknown,
+  extraStructured?: Record<string, unknown>
 ): DbResult {
   const trace_id = String(traceId || raw.trace_id || '').trim() || undefined
   const base = { ...raw, trace_id }
-  const agentResult =
+  let agentResult =
     serverAgentResult && typeof serverAgentResult === 'object'
       ? (serverAgentResult as DbResult['agentResult'])
       : wrapDbResult(base, trace_id)
+  if (extraStructured && agentResult) {
+    agentResult = {
+      ...agentResult,
+      structured: { ...(agentResult.structured || {}), ...extraStructured }
+    }
+  }
   return { ...base, agentResult }
+}
+
+function structuredFromVannaPayload(data: Record<string, unknown> | null | undefined): Record<string, unknown> {
+  const out: Record<string, unknown> = {}
+  const rows = Array.isArray(data?.rows) ? data!.rows : []
+  const fieldDetails = Array.isArray(data?.field_details)
+    ? data!.field_details
+    : Array.isArray((data?.agentResult as { structured?: { field_details?: unknown[] } } | undefined)?.structured
+        ?.field_details)
+      ? (data!.agentResult as { structured: { field_details: unknown[] } }).structured.field_details
+      : []
+  if (rows.length) out.rows = rows
+  if (fieldDetails.length) out.field_details = fieldDetails
+  return out
 }
 
 export async function callDbAgent(params: {
@@ -150,7 +171,8 @@ export async function callDbAgent(params: {
     return finalizeDbResult(
       { answer, empty, reason, run_id, transport: 'http' as const },
       trace_id,
-      data?.agentResult
+      data?.agentResult,
+      structuredFromVannaPayload(data)
     )
   }
 
@@ -296,7 +318,11 @@ export async function callDbAgent(params: {
           ...(executedSql ? { executed_sql: executedSql } : {}),
           ...(errorCode ? { error_code: errorCode } : {}),
           ...(typeof meta?.path === 'string' && meta.path ? { path: String(meta.path) } : {}),
-          ...(explain.length ? { explain_preflight: explain } : {})
+          ...(explain.length ? { explain_preflight: explain } : {}),
+          ...(Array.isArray(meta?.rows) && meta.rows.length ? { rows: meta.rows } : {}),
+          ...(Array.isArray(meta?.field_details) && meta.field_details.length
+            ? { field_details: meta.field_details }
+            : {})
         },
         needs_clarify: Boolean(meta?.needs_clarification),
         error_code: errorCode,

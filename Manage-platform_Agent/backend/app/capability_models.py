@@ -34,9 +34,9 @@ GLOBAL_CAPABILITY_ENV_SYNC: dict[str, str] = {
 }
 
 DEFAULT_CAPABILITY_MODELS: dict[str, str] = {
-    "route": "qwen3.5-flash-2026-02-23",
-    "reason": "qwen-plus-2025-09-11",
-    "reason_max": "qwen-max-latest",
+    "route": "qwen-plus-2025-07-28",
+    "reason": "qwen-plus-2025-07-28",
+    "reason_max": "qwen-max",
     "coder": "qwen3-coder-flash",
     "vision": "qwen-vl-plus",
     "gui": "gui-plus-2026-02-26",
@@ -53,9 +53,12 @@ DEFAULT_CAPABILITY_MODELS: dict[str, str] = {
 AGENT_PROFILE_FROM_CAPABILITY: dict[str, dict[str, str]] = {
     "Manager_Agent": {"planner": "route", "executor": "reason", "embedding": ""},
     "DB_Agent": {"planner": "route", "executor": "coder", "embedding": "embedding"},
+    "Vanna_DbAgent": {"planner": "route", "executor": "coder", "embedding": "embedding"},
     "RAG_Agent": {"planner": "route", "executor": "reason", "embedding": "embedding_rag"},
     "code_assistent_Agent": {"planner": "route", "executor": "coder", "embedding": "embedding"},
+    "CodePy_Agent": {"planner": "route", "executor": "coder", "embedding": "embedding"},
     "Extractor_Agent": {"planner": "route", "executor": "route", "embedding": "embedding"},
+    "ExtractorPy_Agent": {"planner": "route", "executor": "route", "embedding": ""},
     "AI_admin_Agent": {"planner": "route", "executor": "route", "embedding": ""},
     "Multimodal_Agent": {"planner": "route", "executor": "route", "embedding": ""},
     "Music_Agent": {"planner": "route", "executor": "route", "embedding": ""},
@@ -88,6 +91,10 @@ AGENT_CAPABILITY_ENV_BINDINGS: dict[str, dict[str, str]] = {
         "OPENAI_AGENT_MODEL": "coder",
         "EMBEDDING_MODEL": "embedding",
     },
+    "Vanna_DbAgent": {
+        "OPENAI_MODEL": "coder",
+        "EMBEDDING_MODEL": "embedding",
+    },
     "RAG_Agent": {
         "CONDENSE_MODEL": "route",
         "QUERY_PLAN_MODEL": "route",
@@ -103,10 +110,19 @@ AGENT_CAPABILITY_ENV_BINDINGS: dict[str, dict[str, str]] = {
         "OPENAI_MODEL": "coder",
         "OPENAI_EMBEDDING_MODEL": "embedding",
     },
+    "CodePy_Agent": {
+        "OPENAI_MODEL": "coder",
+        "QWEN_MODEL": "coder",
+        "OPENAI_EMBEDDING_MODEL": "embedding",
+    },
     "Extractor_Agent": {
         "QWEN_MODEL": "route",
         "QWEN_VL_MODEL": "vision",
         "EXTRACTOR_EMBEDDING_MODEL": "embedding",
+    },
+    "ExtractorPy_Agent": {
+        "QWEN_MODEL": "route",
+        "CAP_ROUTE": "route",
     },
     "AI_admin_Agent": {
         "MODEL_NAME": "route",

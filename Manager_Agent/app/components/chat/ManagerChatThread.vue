@@ -17,6 +17,7 @@ const {
   thoughtViewMode,
   streamingSynthText,
   streamingSynthDisplayText,
+  streamingMarkdownHtml,
   copyAckTurnId,
   copyAckKey,
   feedbackSendingRunId,
@@ -53,6 +54,8 @@ const {
   onThoughtPanelToggle,
   thoughtPanelLabel,
   stepResultsForTurn,
+  executionStepCountForTurn,
+  thoughtLogCountForTurn,
   userThoughtNarrative,
   turnGuiVisuals,
   thoughtPanelPreview,
@@ -64,6 +67,8 @@ const {
   isSynthPhaseActive,
   onReplyMarkdownClick,
   renderAssistantMarkdown,
+  cachedResultMarkdownHtml,
+  turnRenderMemoKey,
   renderReportMarkdown,
   resultItemClasses,
   resultKindLabel,
@@ -83,6 +88,15 @@ const {
   replyExecSummaryTone,
   turnExpertFailureCards,
   replyHasInlineAnalytics,
+  shouldShowUserFacingMetrics,
+  shouldShowUserFacingHeadline,
+  applyFollowUpSuggestion,
+  shouldShowArtifactLaunchBar,
+  artifactPanelSlots,
+  artifactTabLabel,
+  openReplyArtifactDrawer,
+  streamingArtifactHintForTurn,
+  turnReportEditedBadge,
   buildTurnAgentResults,
   extractEchartsOption,
   chartTitleFromText,
@@ -98,6 +112,9 @@ const {
   canConfirmActionCard,
   respondActionCardConfirm,
   respondActionCardCancel,
+  memoryCaptureBusy,
+  memoryCaptureKindLabel,
+  respondMemoryCapture,
   humanConfirmSending,
   resolveReportBody,
   replyUserDetailAppendix,
@@ -110,6 +127,8 @@ const {
   shouldShowTurnFeedback,
   turnFeedbackSubmitted,
   turnFeedbackKey,
+  feedbackKeyForTurn,
+  isFeedbackPendingForTurn,
   sendFeedback,
   routeFeedbackSubmitted,
   sendRouteWrongFeedback,
@@ -164,17 +183,26 @@ function bindStreamingReplyEl(el: Element | ComponentPublicInstance | null) {
   streamingReplyEl.value = root instanceof HTMLElement ? root : null
 }
 
+let lastStreamScrollAt = 0
 watch(streamingSynthText, async () => {
   if (!streamingSynthText.value) return
+  const now = Date.now()
+  if (now - lastStreamScrollAt < 280) return
+  lastStreamScrollAt = now
   await nextTick()
   const node = resolveScrollTarget(streamingReplyEl.value)
-  node?.scrollIntoView?.({ behavior: 'smooth', block: 'nearest' })
+  node?.scrollIntoView?.({ behavior: 'auto', block: 'nearest' })
 })
 </script>
 
 <template>
   <div class="chat-thread chat-messenger">
-        <div v-for="t in turns" :key="t.id" class="spring-turn">
+        <div
+          v-for="t in turns"
+          :key="t.id"
+          v-memo="[turnRenderMemoKey(t), isTurnLive(t) ? streamingSynthText : '']"
+          class="spring-turn"
+        >
           <div
             v-if="t.user"
             class="spring-log-item chat-user-row"
@@ -301,9 +329,14 @@ watch(streamingSynthText, async () => {
                 <span v-if="isTurnRunning(t)" class="cursor-thought-spinner" aria-hidden="true"></span>
                 <div class="process-panel-summary-meta">
                   <template v-if="thoughtViewMode === 'developer'">
-                    <span v-if="stepResultsForTurn(t).length || t.process.length" class="process-panel-badge">{{
-                      stepResultsForTurn(t).length || t.process.length
-                    }} 日志</span>
+                    <span
+                      v-if="executionStepCountForTurn(t) || thoughtLogCountForTurn(t)"
+                      class="process-panel-badge"
+                    >
+                      <template v-if="executionStepCountForTurn(t)">{{ executionStepCountForTurn(t) }} 步</template>
+                      <template v-if="executionStepCountForTurn(t) && thoughtLogCountForTurn(t)"> · </template>
+                      <template v-if="thoughtLogCountForTurn(t)">{{ thoughtLogCountForTurn(t) }} 日志</template>
+                    </span>
                     <span v-if="t.ragEvidence.length" class="process-panel-badge process-panel-badge-muted"
                       >RAG {{ t.ragEvidence.length }}</span
                     >
@@ -484,9 +517,23 @@ watch(streamingSynthText, async () => {
                   v-if="streamingSynthText"
                   class="reply-summary md-body reply-chat reply-streaming-body"
                   @click="onReplyMarkdownClick"
-                  v-html="renderAssistantMarkdown(streamingSynthDisplayText)"
+                  v-html="streamingMarkdownHtml || renderAssistantMarkdown(streamingSynthDisplayText)"
                 ></div>
                 <p v-else class="reply-stream-placeholder">正在整理结论…</p>
+                <p
+                  v-if="streamingArtifactHintForTurn(t)"
+                  class="reply-stream-artifact-hint"
+                  role="status"
+                >
+                  <button
+                    type="button"
+                    class="reply-stream-artifact-hint-btn"
+                    @click="openReplyArtifactDrawer(t.id)"
+                  >
+                    {{ streamingArtifactHintForTurn(t) }}
+                    <span class="reply-stream-artifact-hint-cta">打开面板</span>
+                  </button>
+                </p>
               </div>
             </div>
           </div>
@@ -597,28 +644,67 @@ watch(streamingSynthText, async () => {
                 </div>
               </div>
 
-              <AmapReplyCards v-if="adminUiCardsFromTurn(t).length" :cards="adminUiCardsFromTurn(t) as any" />
+              <AmapReplyCards v-if="t.adminUiCards?.length" :cards="(t.adminUiCards || []) as any" />
 
               <!-- 正文：headline 置顶 + DeepSeek 式文章体 -->
               <p
-                v-if="thoughtViewMode === 'user' && t.userFacing?.headline"
+                v-if="thoughtViewMode === 'user' && shouldShowUserFacingHeadline(t)"
                 class="reply-headline"
               >{{ t.userFacing.headline }}</p>
               <section v-if="replyMarkdownBody(r.text, t)" class="reply-primary-section reply-article" aria-label="回复正文">
                 <div
                   class="reply-summary md-body reply-chat"
-                  v-html="renderAssistantMarkdown(replyMarkdownBody(r.text, t), citeSourcesForMarkdown(t))"
+                  v-html="cachedResultMarkdownHtml(r.text, t, idx)"
                 ></div>
               </section>
 
-              <ul v-if="t.userFacing?.metrics?.length" class="reply-metrics">
+              <ul v-if="shouldShowUserFacingMetrics(t)" class="reply-metrics">
                 <li v-for="(m, mi) in t.userFacing.metrics" :key="`metric-${mi}`">
                   <span class="reply-metric-label">{{ m.label }}</span>
                   <span class="reply-metric-value">{{ m.value }}</span>
                 </li>
               </ul>
 
-              <!-- 图表/表格：可折叠，默认展开 -->
+              <!-- Cursor Artifact 面板入口（report 档 chart/table/report 不进气泡） -->
+              <div
+                v-if="thoughtViewMode === 'user' && turnReportEditedBadge(t)"
+                class="reply-revision-banner"
+                role="status"
+              >
+                <span class="reply-revision-banner-text">{{
+                  t.userFacing?.reportRevisionNote || '报告已在分析面板修订'
+                }}</span>
+                <button
+                  type="button"
+                  class="reply-revision-banner-btn"
+                  @click="openReplyArtifactDrawer(t.id, 'report')"
+                >
+                  查看修订版
+                </button>
+              </div>
+              <div
+                v-if="thoughtViewMode === 'user' && shouldShowArtifactLaunchBar(t)"
+                class="reply-artifact-launch"
+                aria-label="分析面板"
+              >
+                <button
+                  v-for="slot in artifactPanelSlots(t)"
+                  :key="slot.id"
+                  type="button"
+                  class="reply-artifact-launch-btn"
+                  @click="openReplyArtifactDrawer(t.id, slot.kind)"
+                >
+                  <span class="reply-artifact-launch-label">{{ artifactTabLabel(slot.kind) }}</span>
+                  <span class="reply-artifact-launch-title">{{ slot.title }}</span>
+                  <span
+                    v-if="slot.kind === 'report' && turnReportEditedBadge(t)"
+                    class="reply-artifact-edited-chip"
+                    >已编辑</span
+                  >
+                </button>
+              </div>
+
+              <!-- 图表/表格：inline 模块才在气泡内展示 -->
               <details
                 v-if="replyHasInlineAnalytics(r.text, buildTurnAgentResults(t), t)"
                 class="chart-details reply-inline-analytics"
@@ -694,6 +780,22 @@ watch(streamingSynthText, async () => {
                 </div>
               </details>
 
+              <div
+                v-if="thoughtViewMode === 'user' && t.userFacing?.suggestions?.length"
+                class="reply-suggestions"
+                aria-label="可接着问"
+              >
+                <button
+                  v-for="(s, si) in t.userFacing.suggestions"
+                  :key="`suggest-${t.id}-${si}`"
+                  type="button"
+                  class="reply-suggestion-chip"
+                  @click="applyFollowUpSuggestion(s)"
+                >
+                  {{ s }}
+                </button>
+              </div>
+
               <div v-if="t.userFacing?.actions?.length" class="reply-action-cards">
                 <div
                   v-for="a in t.userFacing.actions"
@@ -745,6 +847,72 @@ watch(streamingSynthText, async () => {
                   <p v-else-if="a.status === 'done'" class="action-card-status">已确认</p>
                   <p v-else-if="a.status === 'cancelled'" class="action-card-status">已取消</p>
                 </div>
+              </div>
+
+              <!-- Wave 8：记忆提案轻确认 -->
+              <div
+                v-if="t.memoryCapture && t.memoryCapture.kind && t.memoryCapture.kind !== 'none'"
+                class="memory-capture-card"
+                :class="`memory-capture-${t.memoryCapture.uiStatus || 'open'}`"
+                role="status"
+              >
+                <div class="memory-capture-card__badge">{{ memoryCaptureKindLabel(t.memoryCapture.kind) }}</div>
+                <div class="memory-capture-card__body">
+                  <div class="memory-capture-card__title">
+                    {{ t.memoryCapture.title || '已为你起草记忆提案' }}
+                  </div>
+                  <p class="memory-capture-card__summary">
+                    {{
+                      t.memoryCapture.summary ||
+                      (t.memoryCapture.kind === 'save_preference'
+                        ? '确认后写入偏好（弱 hint，不改路由）'
+                        : t.memoryCapture.kind === 'todo'
+                          ? '待办已交由任务栈处理'
+                          : '草稿已生成，管理员在控制面审核后才会生效')
+                    }}
+                  </p>
+                  <p v-if="t.memoryCapture.skillId || t.memoryCapture.ruleCandidateId || t.memoryCapture.experienceCandidateId" class="memory-capture-card__meta">
+                    <span v-if="t.memoryCapture.skillId">技能草稿 {{ t.memoryCapture.skillId }}</span>
+                    <span v-if="t.memoryCapture.ruleCandidateId">规则 {{ t.memoryCapture.ruleCandidateId }}</span>
+                    <span v-if="t.memoryCapture.experienceCandidateId">经验候选 {{ t.memoryCapture.experienceCandidateId }}</span>
+                  </p>
+                </div>
+                <div
+                  v-if="(t.memoryCapture.uiStatus || 'open') === 'open' || t.memoryCapture.uiStatus === 'sending'"
+                  class="memory-capture-card__actions"
+                >
+                  <template v-if="t.memoryCapture.kind === 'save_preference'">
+                    <button
+                      type="button"
+                      class="action-card-btn action-card-btn-confirm"
+                      :disabled="memoryCaptureBusy"
+                      @click="respondMemoryCapture(t.id, 'confirm_prefs')"
+                    >
+                      确认偏好
+                    </button>
+                    <button
+                      type="button"
+                      class="action-card-btn action-card-btn-cancel"
+                      :disabled="memoryCaptureBusy"
+                      @click="respondMemoryCapture(t.id, 'reject_prefs')"
+                    >
+                      不用了
+                    </button>
+                  </template>
+                  <template v-else-if="t.memoryCapture.kind !== 'todo'">
+                    <button
+                      type="button"
+                      class="action-card-btn action-card-btn-confirm"
+                      :disabled="memoryCaptureBusy"
+                      @click="respondMemoryCapture(t.id, 'ack')"
+                    >
+                      知道了，待审核
+                    </button>
+                  </template>
+                </div>
+                <p v-else-if="t.memoryCapture.uiStatus === 'confirmed'" class="memory-capture-card__status">已确认偏好</p>
+                <p v-else-if="t.memoryCapture.uiStatus === 'rejected'" class="memory-capture-card__status">已拒绝偏好</p>
+                <p v-else-if="t.memoryCapture.uiStatus === 'acked'" class="memory-capture-card__status">已提交控制面审核</p>
               </div>
 
               <!-- U2：专家失败可解释卡片（超时/熔断/5xx/业务） -->
@@ -922,28 +1090,30 @@ watch(streamingSynthText, async () => {
             <template v-if="!turnFeedbackSubmitted(t)">
               <span class="turn-feedback-label">这轮回复有帮助吗？</span>
               <div class="turn-feedback-actions">
-                <span v-if="feedbackSendingRunId === turnFeedbackKey(t)" class="turn-feedback-pending">{{ FEEDBACK_PENDING_ACK }}</span>
+                <span v-if="isFeedbackPendingForTurn(t)" class="turn-feedback-pending">{{ FEEDBACK_PENDING_ACK }}</span>
                 <button
                   type="button"
                   class="message-action-btn message-action-btn-fb"
-                  :disabled="!connected || feedbackSendingRunId === turnFeedbackKey(t)"
-                  @click="sendFeedback(t, 1)"
+                  :disabled="isFeedbackPendingForTurn(t)"
+                  :title="connected ? undefined : '离线也可标记，联网后将同步到服务端'"
+                  @click.stop="void sendFeedback(t, 1)"
                 >
                   有用
                 </button>
                 <button
                   type="button"
                   class="message-action-btn message-action-btn-fb"
-                  :disabled="!connected || feedbackSendingRunId === turnFeedbackKey(t)"
-                  @click="sendFeedback(t, 0)"
+                  :disabled="isFeedbackPendingForTurn(t)"
+                  :title="connected ? undefined : '离线也可标记，联网后将同步到服务端'"
+                  @click.stop="void sendFeedback(t, 0)"
                 >
                   无用
                 </button>
                 <button
                   type="button"
                   class="message-action-btn message-action-btn-fb"
-                  :disabled="!connected || feedbackSendingRunId === turnFeedbackKey(t) || routeFeedbackSubmitted(t)"
-                  @click="sendRouteWrongFeedback(t)"
+                  :disabled="isFeedbackPendingForTurn(t) || routeFeedbackSubmitted(t)"
+                  @click.stop="sendRouteWrongFeedback(t)"
                 >
                   {{ routeFeedbackSubmitted(t) ? '已记录路由问题' : '路由不对' }}
                 </button>

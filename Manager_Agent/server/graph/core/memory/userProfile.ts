@@ -17,6 +17,37 @@ export type UserProfilePrefs = {
 export type PendingUserProfilePrefs = UserProfilePrefs & {
   proposedAt: string
   source?: string
+  /** 与现有 prefs 冲突时供 Trace/控制面展示；不注入路由 */
+  conflictNote?: string
+}
+
+export function detectPrefsConflictNote(
+  existing: UserProfilePrefs | undefined,
+  incoming: UserProfilePrefs
+): string | undefined {
+  const notes: string[] = []
+  const norm = (xs?: string[]) =>
+    (xs || [])
+      .map((a) => String(a || '').trim().toLowerCase())
+      .filter(Boolean)
+      .sort()
+      .join(',')
+  const ea = norm(existing?.preferredAgents)
+  const ia = norm(incoming.preferredAgents)
+  if (ea && ia && ea !== ia) {
+    notes.push(`专家偏好冲突：现有=${ea}；新提议=${ia}`)
+  }
+  if (
+    existing?.refusePreference &&
+    incoming.refusePreference &&
+    existing.refusePreference !== incoming.refusePreference
+  ) {
+    notes.push('拒答偏好与新提议不一致')
+  }
+  if (existing?.timezone && incoming.timezone && existing.timezone !== incoming.timezone) {
+    notes.push(`时区冲突：现有=${existing.timezone}；新=${incoming.timezone}`)
+  }
+  return notes.length ? notes.join('；') : undefined
 }
 
 export type UserProfile = {
@@ -94,11 +125,13 @@ export async function proposeUserProfilePrefs(
   const uid = sanitizeUserId(userId)
   if (!uid) return null
   const prev = await loadUserProfile(policyDir, '', uid, tenantId)
+  const conflictNote = detectPrefsConflictNote(prev?.prefs, prefs)
   const pending: PendingUserProfilePrefs = {
     ...prefs,
     preferredAgents: prefs.preferredAgents,
     proposedAt: new Date().toISOString(),
     source,
+    conflictNote,
   }
   const next: UserProfile = {
     sessionId: prev?.sessionId || '',
@@ -152,6 +185,114 @@ export async function rejectPendingUserPrefs(
   return persistUserProfile(policyDir, uid, next, tenantId)
 }
 
+export type PendingPrefsReviewRow = {
+  userId: string
+  tenantId?: string
+  proposedAt: string
+  source?: string
+  conflictNote?: string
+  preferredAgents?: string[]
+  refusePreference?: string
+  timezone?: string
+  /** 当前已生效 prefs（对比用） */
+  currentPreferredAgents?: string[]
+  currentRefusePreference?: string
+  currentTimezone?: string
+  /** 人读摘要 */
+  summary?: string
+  currentSummary?: string
+}
+
+/** 控制面：列出待审用户偏好（pendingPrefs） */
+export async function listPendingPrefsProfiles(
+  policyDir: string,
+  opts?: { limit?: number },
+  env: NodeJS.ProcessEnv = process.env
+): Promise<PendingPrefsReviewRow[]> {
+  const limit = Math.min(100, Math.max(1, opts?.limit ?? 40))
+  const rows: PendingPrefsReviewRow[] = []
+  const seen = new Set<string>()
+
+  const pushRow = (userId: string, profile: UserProfile, tenantId?: string) => {
+    const pending = profile.pendingPrefs
+    if (!pending) return
+    const uid = sanitizeUserId(userId)
+    if (!uid) return
+    const key = `${tenantId || 'default'}:${uid}`
+    if (seen.has(key)) return
+    seen.add(key)
+    const summaryParts: string[] = []
+    if (pending.preferredAgents?.length) {
+      summaryParts.push(`常用专家 → ${pending.preferredAgents.join('、')}`)
+    }
+    if (pending.refusePreference) {
+      summaryParts.push(`拒答策略 → ${pending.refusePreference}`)
+    }
+    if (pending.timezone) {
+      summaryParts.push(`时区 → ${pending.timezone}`)
+    }
+    const currentParts: string[] = []
+    const cur = profile.prefs
+    if (cur?.preferredAgents?.length) {
+      currentParts.push(`常用专家 → ${cur.preferredAgents.join('、')}`)
+    }
+    if (cur?.refusePreference) {
+      currentParts.push(`拒答策略 → ${cur.refusePreference}`)
+    }
+    if (cur?.timezone) {
+      currentParts.push(`时区 → ${cur.timezone}`)
+    }
+    rows.push({
+      userId: uid,
+      tenantId,
+      proposedAt: pending.proposedAt,
+      source: pending.source,
+      conflictNote: pending.conflictNote,
+      preferredAgents: pending.preferredAgents,
+      refusePreference: pending.refusePreference,
+      timezone: pending.timezone,
+      currentPreferredAgents: cur?.preferredAgents,
+      currentRefusePreference: cur?.refusePreference,
+      currentTimezone: cur?.timezone,
+      summary: summaryParts.length ? summaryParts.join('；') : '（无具体字段，请查看冲突说明）',
+      currentSummary: currentParts.length ? currentParts.join('；') : '（尚无已生效偏好）',
+    })
+  }
+
+  const fileProfiles = await readProfiles(policyDir)
+  for (const [k, profile] of Object.entries(fileProfiles)) {
+    if (!profile?.pendingPrefs) continue
+    const uid = k.startsWith('user:') ? k.slice(5) : profile.userId || k
+    pushRow(uid, profile)
+  }
+
+  if (isPgProfileEnabled(env)) {
+    const res = await agentPgQuery<{ user_key: string; tenant_id: string; payload: unknown }>(
+      `SELECT user_key, tenant_id, payload FROM mgr_user_profiles
+       WHERE payload->'pendingPrefs' IS NOT NULL
+       ORDER BY updated_at DESC
+       LIMIT $1`,
+      [limit * 2],
+      env
+    ).catch(() => null)
+    for (const row of res?.rows || []) {
+      const profile = coerceProfile(row.payload)
+      if (!profile?.pendingPrefs) continue
+      const uid = String(row.user_key || profile.userId || '').replace(/^user:/, '')
+      pushRow(uid, profile, row.tenant_id)
+    }
+  }
+
+  return rows
+    .sort((a, b) => {
+      const ac = a.conflictNote ? 1 : 0
+      const bc = b.conflictNote ? 1 : 0
+      if (ac !== bc) return bc - ac
+      return String(b.proposedAt).localeCompare(String(a.proposedAt))
+    })
+    .slice(0, limit)
+}
+
 async function persistUserProfile(
   policyDir: string,
   uid: string,
@@ -181,6 +322,7 @@ export function summarizeWeakProfileForTrace(profile: UserProfile | null): Recor
     prefersDb: Boolean(profile.prefersDb),
     prefs: profile.prefs || null,
     pendingPrefs: profile.pendingPrefs || null,
+    pendingPrefsConflict: profile.pendingPrefs?.conflictNote || null,
   }
 }
 
@@ -257,6 +399,9 @@ function coerceProfile(raw: unknown, fallbackSessionId = ''): UserProfile | null
           : undefined,
         proposedAt: String(pendingRaw.proposedAt || new Date().toISOString()),
         source: pendingRaw.source ? String(pendingRaw.source).slice(0, 64) : undefined,
+        conflictNote: pendingRaw.conflictNote
+          ? String(pendingRaw.conflictNote).slice(0, 240)
+          : undefined,
       }
     : o.pendingPrefs === null
       ? null

@@ -26,7 +26,11 @@ const hetero: SourceSnapshot[] = [
 
 const heteroStructural = assembleCleanPayloadStructural(hetero)
 assert(heteroStructural?.data.mode === 'multi_source_structural', 'hetero structural assemble')
-assert(!isStructuralCleanSufficient(heteroStructural!), 'hetero multi-source must NOT skip clean LLM')
+assert(!isStructuralCleanSufficient(heteroStructural!), 'hetero multi-source must NOT skip clean LLM without code downstream')
+assert(
+  isStructuralCleanSufficient(heteroStructural!, { codeDownstream: true }),
+  'hetero multi-source may skip align LLM when code step is planned'
+)
 
 const overlap: SourceSnapshot[] = [
   {

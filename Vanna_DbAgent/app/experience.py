@@ -87,6 +87,94 @@ def may_recall_row(row: dict[str, Any], *, manager_path: bool) -> bool:
     return True
 
 
+def _source_trust_weight(source: Any) -> float:
+    s = str(source or "").strip().lower()
+    if "explicit_user_request" in s:
+        return 0.95
+    if "hitl" in s or "confirmed" in s:
+        return 0.88
+    if "feedback" in s or "federation" in s or "manager_finalize" in s:
+        return 0.85
+    if "shadow" in s:
+        return 0.4
+    return 0.5
+
+
+def _path_key(row: dict[str, Any]) -> str:
+    path = str(row.get("path") or "").strip().lower()
+    return path or "—"
+
+
+def _ts_ms(row: dict[str, Any]) -> float:
+    raw = row.get("ts")
+    if raw is None:
+        return 0.0
+    try:
+        from datetime import datetime
+
+        if hasattr(raw, "timestamp"):
+            return float(raw.timestamp()) * 1000.0
+        s = str(raw).strip()
+        if not s:
+            return 0.0
+        # tolerate trailing Z
+        if s.endswith("Z"):
+            s = s[:-1] + "+00:00"
+        return datetime.fromisoformat(s).timestamp() * 1000.0
+    except Exception:
+        return 0.0
+
+
+def _compare_memory_trust(a: dict[str, Any], b: dict[str, Any]) -> float:
+    """正值表示 a 比 b 更可信（与 shared/agentMemoryRecall.compareMemoryTrust 对齐）。"""
+    wa = _source_trust_weight(a.get("source"))
+    wb = _source_trust_weight(b.get("source"))
+    if abs(wa - wb) > 0.08:
+        return wa - wb
+    ta = _ts_ms(a)
+    tb = _ts_ms(b)
+    if ta != tb:
+        return ta - tb
+    return 0.0
+
+
+def resolve_experience_path_conflicts(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """
+    同 question_norm 下不同 path 只保留更可信的一条。
+    无新存储；纯召回后处理。与 Manager resolveExperiencePathConflicts 同口径。
+    """
+    if len(rows) <= 1:
+        return list(rows)
+    by_q: dict[str, list[dict[str, Any]]] = {}
+    no_q: list[dict[str, Any]] = []
+    for row in rows:
+        qn = str(row.get("question_norm") or "").strip()
+        if not qn:
+            no_q.append(row)
+            continue
+        by_q.setdefault(qn, []).append(row)
+
+    out: list[dict[str, Any]] = list(no_q)
+    for group in by_q.values():
+        if len(group) == 1:
+            out.append(group[0])
+            continue
+        by_path: dict[str, dict[str, Any]] = {}
+        for row in group:
+            pk = _path_key(row)
+            prev = by_path.get(pk)
+            if prev is None or _compare_memory_trust(row, prev) > 0:
+                by_path[pk] = row
+        paths = list(by_path.values())
+        if len(paths) == 1:
+            out.append(paths[0])
+            continue
+        paths.sort(key=lambda r: (_source_trust_weight(r.get("source")), _ts_ms(r)), reverse=True)
+        out.append(paths[0])
+    out.sort(key=lambda r: (_source_trust_weight(r.get("source")), _ts_ms(r)), reverse=True)
+    return out
+
+
 def recall_experience(
     question: str,
     *,
@@ -117,21 +205,20 @@ def recall_experience(
                     ORDER BY ts DESC
                     LIMIT %s
                     """,
-                    (tenant_id or "default", nq, f"%{nq[:40]}%", max(1, limit * 3)),
+                    (tenant_id or "default", nq, f"%{nq[:40]}%", max(1, limit * 6)),
                 )
                 rows = [dict(r) for r in (cur.fetchall() or [])]
         finally:
             conn.close()
     except Exception:
         return []
-    out: list[dict[str, Any]] = []
+    candidates: list[dict[str, Any]] = []
     for row in rows:
         if not may_recall_row(row, manager_path=manager_path):
             continue
-        out.append(row)
-        if len(out) >= limit:
-            break
-    return out
+        candidates.append(row)
+    resolved = resolve_experience_path_conflicts(candidates)
+    return resolved[: max(1, limit)]
 
 
 def experience_prompt_block(rows: list[dict[str, Any]]) -> str:

@@ -69,14 +69,15 @@ assert.equal(
       messages: msgs,
       lastUser: '有哪些免费的搜索 API',
       turnScopeLlm: {
-        mode: 'continuation',
+        mode: 'topic_shift',
         directChitchatSynth: false,
         confidence: 0.9,
-        rationale: 'wrong'
+        rationale: '公网 API 与上轮知识库无关'
       }
     })
   }),
-  true
+  false,
+  'stale directChitchatSynth must not override topic_shift'
 )
 
 // Wave6 K1：continuation vs topic_shift 黄金集（无 LLM 时靠 intentBreak，禁关键词改 cap）

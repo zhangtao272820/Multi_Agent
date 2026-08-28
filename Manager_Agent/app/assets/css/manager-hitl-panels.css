@@ -199,22 +199,104 @@
 
 .spring-root.cursor-workbench .conv-plan-preview-query-edit,
 .spring-root.cursor-workbench .conv-plan-preview-constraints-input {
-  background: rgba(255, 255, 255, 0.78) !important;
-  border: 1px solid rgba(100, 150, 200, 0.4) !important;
-  color: var(--hitl-text) !important;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  resize: none;
+  border: 1px solid rgba(100, 150, 200, 0.48) !important;
   border-radius: 10px !important;
+  background: rgba(248, 252, 255, 0.98) !important;
+  color: var(--hitl-text) !important;
+  font-size: var(--hitl-font-body) !important;
+  line-height: 1.55 !important;
+  padding: 10px 12px !important;
+  min-height: 3.25em;
+  max-height: 7.5em;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(47, 127, 209, 0.42) rgba(232, 242, 252, 0.95);
+  box-shadow: inset 0 1px 2px rgba(40, 70, 110, 0.06);
+}
+
+.spring-root.cursor-workbench .conv-plan-preview-query-edit::placeholder,
+.spring-root.cursor-workbench .conv-plan-preview-constraints-input::placeholder {
+  color: #5a738c !important;
+  opacity: 1 !important;
+}
+
+.spring-root.cursor-workbench .conv-plan-preview-query-edit::-webkit-scrollbar,
+.spring-root.cursor-workbench .conv-plan-preview-constraints-input::-webkit-scrollbar {
+  width: 5px;
+}
+
+.spring-root.cursor-workbench .conv-plan-preview-query-edit::-webkit-scrollbar-track,
+.spring-root.cursor-workbench .conv-plan-preview-constraints-input::-webkit-scrollbar-track {
+  background: rgba(232, 242, 252, 0.95);
+  border-radius: 999px;
+  margin: 4px 0;
+}
+
+.spring-root.cursor-workbench .conv-plan-preview-query-edit::-webkit-scrollbar-thumb,
+.spring-root.cursor-workbench .conv-plan-preview-constraints-input::-webkit-scrollbar-thumb {
+  background: rgba(47, 127, 209, 0.38);
+  border-radius: 999px;
+}
+
+.spring-root.cursor-workbench .conv-plan-preview-query-edit::-webkit-scrollbar-thumb:hover,
+.spring-root.cursor-workbench .conv-plan-preview-constraints-input::-webkit-scrollbar-thumb:hover {
+  background: rgba(47, 127, 209, 0.58);
+}
+
+.spring-root.cursor-workbench .conv-plan-preview-query-edit:focus-visible,
+.spring-root.cursor-workbench .conv-plan-preview-constraints-input:focus-visible {
+  outline: none;
+  border-color: rgba(47, 127, 209, 0.65) !important;
+  box-shadow:
+    inset 0 1px 2px rgba(40, 70, 110, 0.06),
+    0 0 0 3px rgba(47, 127, 209, 0.14);
 }
 
 .spring-root.cursor-workbench .conv-plan-preview-item {
-  background: rgba(255, 255, 255, 0.65) !important;
-  border: 1px solid rgba(100, 150, 200, 0.32) !important;
+  display: grid !important;
+  grid-template-columns: 26px minmax(0, 1fr) !important;
+  grid-template-rows: auto auto !important;
+  align-items: start !important;
+  gap: 8px 10px !important;
+  padding: 10px 12px !important;
+  background: rgba(255, 255, 255, 0.88) !important;
+  border: 1px solid rgba(100, 150, 200, 0.38) !important;
   border-radius: var(--hitl-radius-sm) !important;
   color: var(--hitl-text) !important;
 }
 
+.spring-root.cursor-workbench .conv-plan-preview-item .plan-step-index {
+  grid-row: 1 / span 2;
+  align-self: start;
+  margin-top: 2px;
+}
+
+.spring-root.cursor-workbench .conv-plan-preview-check {
+  grid-column: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  min-width: 0;
+  font-size: var(--hitl-font-body) !important;
+  color: var(--hitl-text) !important;
+  cursor: pointer;
+}
+
+.spring-root.cursor-workbench .conv-plan-preview-item .conv-plan-preview-query-edit {
+  grid-column: 2;
+}
+
 .spring-root.cursor-workbench .conv-plan-preview-agent {
   color: #1e4a78 !important;
-  font-weight: 650;
+  font-weight: 700 !important;
+  font-size: var(--hitl-font-body) !important;
 }
 
 /* Run Todo · 霜白冰蓝 */

@@ -8,6 +8,8 @@ $Script:SyncConvergenceModesScript = Join-Path $PSScriptRoot "sync-convergence-m
 
 $Script:ManagerStack = @(
     "db_agent",
+    "vanna_db_agent",
+    "vanna_db_web",
     "rag_agent",
     "code_assistent_agent",
     "extractor_agent",
@@ -36,11 +38,13 @@ $Script:ExtendedOnlyServices = @(
 
 # Agent name -> docker-compose service (matches backend/app/managed_agents.py)
 $Script:AgentDockerServiceMap = @{
-    "DB_Agent"             = "db_agent"
+    "DB_Agent"             = "vanna_db_agent"
+    "Vanna_DbAgent"        = "vanna_db_agent"
     "RAG_Agent"            = "rag_agent"
     "code_assistent_Agent" = "code_assistent_agent"
     "CodePy_Agent"         = "code_assistent_agent"
     "Extractor_Agent"      = "extractor_agent"
+    "ExtractorPy_Agent"    = "extractor_agent"
     "AI_admin_Agent"       = "ai_admin_agent"
     "Manager_Agent"        = "manager_agent"
     "Multimodal_Agent"     = "multimodal_agent"
@@ -53,6 +57,8 @@ $Script:AgentDockerServiceMap = @{
 
 $Script:AllCapabilityServices = @(
     "db_agent",
+    "vanna_db_agent",
+    "vanna_db_web",
     "rag_agent",
     "code_assistent_agent",
     "extractor_agent",

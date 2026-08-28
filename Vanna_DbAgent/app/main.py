@@ -14,6 +14,12 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from app.audit import read_audit
+from app.browser_auth import (
+    ClawhiveAuthError,
+    ClawhiveBrowserAuthMiddleware,
+    auth_from_websocket,
+    install_auth_config_route,
+)
 from app.catalog import collection_count, exact_golden, ingest_tenant, load_golden, schema_table_hits
 from app.router import catalog_nonempty
 from app.engine import run_turn
@@ -28,6 +34,7 @@ from app.learning import (
     reset_learning,
 )
 from app.pending import load_pending, save_pending
+from app.manager_compat import build_unified_task_plan, resolve_manager_session_id
 from app.protocol import (
     build_db_agent_result,
     is_manager_request,
@@ -273,6 +280,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+# 浏览器需 ClawHive JWT；总管/内部腿靠 x-clawhive-internal-token 放行
+app.add_middleware(ClawhiveBrowserAuthMiddleware)
+install_auth_config_route(app)
 
 
 @app.get("/api/ready")
@@ -428,20 +438,23 @@ def plan(body: PlanBody, request: Request) -> dict[str, Any]:
         raise HTTPException(400, "question required")
     gold = exact_golden(tenant, q)
     if gold:
+        tables = [str(t or "").strip() for t in (gold.get("tables") or []) if str(t or "").strip()]
         return {
             "ok": True,
             "path": "golden",
-            "tables": gold.get("tables") or [],
+            "tables": tables,
             "sql": gold.get("sql") or "",
             "question": q,
+            "unified_task_plan": build_unified_task_plan(question=q, tables=tables),
         }
     hits = schema_table_hits(tenant, q, n=6)
-    tables = [h.get("table") for h in hits if h.get("table")]
+    tables = [str(h.get("table") or "").strip() for h in hits if h.get("table")]
     return {
         "ok": True,
         "path": "cards" if tables else "clarify",
         "tables": tables,
         "question": q,
+        "unified_task_plan": build_unified_task_plan(question=q, tables=tables, hits=hits),
     }
 
 
@@ -624,6 +637,8 @@ def ask(body: AskBody, request: Request) -> dict[str, Any]:
             "actual": True,
         },
         tables=list(next((e.get("tables") for e in events if e.get("event") == "guard"), []) or []),
+        rows=list(answer_ev.get("rows") or [])[:30],
+        field_details=list(answer_ev.get("field_details") or [])[:12],
         experience_hits=int(getattr(body, "_experience_hits", 0) or 0),
     )
     sid = str(body.session_id or body.sessionId or "")
@@ -642,13 +657,45 @@ def ask(body: AskBody, request: Request) -> dict[str, Any]:
     }
 
 
+def _friendly_stream_error(exc: Exception) -> str:
+    msg = str(exc)
+    low = msg.lower()
+    if "dimension" in low:
+        return "向量目录与当前 Embedding 模型维度不一致，正在后台重建；请 10～30 秒后重试。"
+    if "llm_budget" in low:
+        return "本轮模型调用已达上限，请缩短问题或稍后重试。"
+    if "403" in msg or "quota" in low or "permissiondenied" in low.replace(" ", ""):
+        return "模型 API 配额或权限不足，请检查百炼控制台余额与 API Key。"
+    return f"处理失败：{msg[:240]}"
+
+
 @app.post("/api/ask/stream")
 def ask_stream(body: AskBody, request: Request) -> StreamingResponse:
     _require_auth(request)
 
     def gen() -> Iterator[str]:
-        for ev in _run(body, headers=_headers_dict(request)):
-            yield f"event: {ev.get('event')}\ndata: {json.dumps(ev, ensure_ascii=False, default=str)}\n\n"
+        try:
+            for ev in _run(body, headers=_headers_dict(request)):
+                yield f"event: {ev.get('event')}\ndata: {json.dumps(ev, ensure_ascii=False, default=str)}\n\n"
+        except HTTPException:
+            raise
+        except Exception as exc:
+            log.exception("ask stream failed")
+            err = {
+                "event": "answer",
+                "text": _friendly_stream_error(exc),
+                "error_code": "internal",
+                "rows": [],
+                "sql": "",
+                "cost": {
+                    "llm_calls": 0,
+                    "embed_calls": 0,
+                    "repair_calls": 0,
+                    "answer_calls": 0,
+                    "elapsed_ms": 0,
+                },
+            }
+            yield f"event: answer\ndata: {json.dumps(err, ensure_ascii=False, default=str)}\n\n"
 
     return StreamingResponse(
         gen(),
@@ -673,6 +720,12 @@ async def chat_ws(ws: WebSocket) -> None:
         await ws.send_json({"event": "error", "data": reason or "unauthorized"})
         await ws.close()
         return
+    try:
+        auth_from_websocket(ws)
+    except ClawhiveAuthError as exc:
+        await ws.send_json({"event": "error", "data": exc.code})
+        await ws.close()
+        return
     body = AskBody.model_validate(payload if isinstance(payload, dict) else {})
     trace_id = str(body.trace_id or body.traceId or payload.get("trace_id") or "")
     try:
@@ -691,6 +744,8 @@ async def chat_ws(ws: WebSocket) -> None:
             "needs_clarification": needs_clarify,
             "path": next((e.get("source") for e in events if e.get("event") == "sql"), ""),
             "fail_reason": "ok" if not empty and not needs_clarify else (answer_ev.get("error_code") or "no_data_or_unmatched"),
+            "rows": list(answer_ev.get("rows") or [])[:30],
+            "field_details": list(answer_ev.get("field_details") or [])[:12],
         }
         await ws.send_json({"event": "meta", "data": meta})
         await ws.send_json({"event": "message", "data": text})
@@ -747,6 +802,12 @@ def _run(
         force_manager=force_manager,
     )
     session_id = str(body.session_id or body.sessionId or (pending or {}).get("session_id") or "").strip()
+    session_exists = bool(session_id and load_session(session_id))
+    session_id = resolve_manager_session_id(
+        session_id,
+        manager_path=manager_path,
+        exists=session_exists,
+    )
     if session_id and not load_session(session_id):
         raise HTTPException(404, "session not found")
     suppress_history = bool(mgr.turn_scope and mgr.turn_scope.suppress_history)

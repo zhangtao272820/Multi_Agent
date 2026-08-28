@@ -9,6 +9,8 @@ import {
   blendRecallScore,
   filterActiveMemoryPayloads,
   rankRecallCandidates,
+  resolveExperiencePathConflicts,
+  compareMemoryTrust,
   timeDecayScore,
 } from '../../../agent-repo-shared/agentMemoryRecall'
 import { ampRecallDecayLambdaPerDay } from '../../../agent-repo-shared/agentMemoryPolicy'
@@ -167,6 +169,63 @@ async function main() {
     { minCluster: 3, maxUniqueIntents: 3 }
   )
   assert(!badGate.ok && badGate.reason === 'intent_conflict', 'conflict intents rejected')
+
+  // path 冲突：同 scenario 不同 path 只保留更可信的一条
+  const resolved = resolveExperiencePathConflicts([
+    {
+      scenarioKey: 'care_ratio',
+      pathKey: 'rag',
+      score: 0.82,
+      ts: '2026-01-01T00:00:00.000Z',
+      source: 'implicit',
+      feedbackScore: 0.7,
+    },
+    {
+      scenarioKey: 'care_ratio',
+      pathKey: 'db→rag',
+      score: 0.8,
+      ts: '2026-08-01T00:00:00.000Z',
+      source: 'explicit_user_request',
+      feedbackScore: 0.9,
+    },
+  ])
+  assert(resolved.length === 1, 'path conflict collapses to one row')
+  assert(resolved[0]?.pathKey === 'db→rag', 'explicit newer path wins conflict')
+  assert(
+    compareMemoryTrust(
+      { score: 0.8, ts: '2026-08-01T00:00:00.000Z', source: 'explicit_user_request', feedbackScore: 0.9 },
+      { score: 0.82, ts: '2026-01-01T00:00:00.000Z', source: 'implicit', feedbackScore: 0.7 }
+    ) > 0,
+    'compareMemoryTrust prefers explicit'
+  )
+
+  const { proposeUserProfilePrefs, detectPrefsConflictNote } = await import(
+    '../../../server/graph/core/memory/userProfile'
+  )
+  const conflictNote = detectPrefsConflictNote(
+    { preferredAgents: ['rag', 'db'], timezone: 'Asia/Shanghai' },
+    { preferredAgents: ['admin'], timezone: 'Asia/Tokyo' }
+  )
+  assert(conflictNote?.includes('专家偏好冲突'), 'prefs conflict detected')
+  assert(conflictNote?.includes('时区冲突'), 'timezone conflict detected')
+  const conflictTmp = await fs.mkdtemp(path.join(os.tmpdir(), 'mem-conflict-'))
+  const conflictProfile = await proposeUserProfilePrefs(
+    conflictTmp,
+    'user_conflict_1',
+    { preferredAgents: ['admin'] },
+    'default',
+    'explicit_user_request'
+  )
+  await updateUserProfilePrefs(conflictTmp, 'user_conflict_1', { preferredAgents: ['rag'] }, 'default')
+  const conflictProfile2 = await proposeUserProfilePrefs(
+    conflictTmp,
+    'user_conflict_1',
+    { preferredAgents: ['admin'] },
+    'default',
+    'explicit_user_request'
+  )
+  assert(conflictProfile2?.pendingPrefs?.conflictNote?.includes('专家偏好冲突'), 'pending stores conflictNote')
+  await fs.rm(conflictTmp, { recursive: true, force: true }).catch(() => undefined)
 
   await fs.rm(tmp, { recursive: true, force: true }).catch(() => undefined)
   console.log('smoke-memory-lifecycle: OK')

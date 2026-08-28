@@ -3,7 +3,15 @@ import path from 'node:path'
 import { readManagerExperienceHistory } from '../runtime/runtimePersistence'
 import type { BaseMessage } from '@langchain/core/messages'
 import { deriveScenarioKey, shouldSkipRouteHistoryBias } from '../text'
-import { blendRecallScore, isVectorMemoryEnabled, vectorScoresForUsers } from './vectorMemory'
+import {
+  blendRecallScore,
+  isVectorMemoryEnabled,
+  vectorScoresForUsers
+} from './vectorMemory'
+import {
+  pathKeyFromAgents,
+  resolveExperiencePathConflicts
+} from '#agent-shared/agentMemoryRecall'
 import { shouldSuppressExperienceReplay } from '#agent-shared/turnScope'
 import {
   interactionModeFromMeta,
@@ -118,6 +126,8 @@ export type ExperienceReplayRoutingResult = {
   items: ExperienceReplayItem[]
   /** 是否使用了向量召回 */
   vectorRecall?: boolean
+  /** 同 scenario 不同 path 被仲裁丢掉的候选数（治理可见性） */
+  pathConflictDropped?: number
 }
 
 /**
@@ -147,10 +157,26 @@ export async function buildExperienceReplayForRouting(
   }
 ): Promise<ExperienceReplayRoutingResult> {
   if (!isExperienceReplayRoutingEnabled()) {
-    return { text: '', count: 0, scenarioKey: '', negativeText: '', negativeCount: 0, items: [] }
+    return {
+      text: '',
+      count: 0,
+      scenarioKey: '',
+      negativeText: '',
+      negativeCount: 0,
+      items: [],
+      pathConflictDropped: 0
+    }
   }
   if (shouldSuppressExperienceReplay(opts?.turnScopeMode)) {
-    return { text: '', count: 0, scenarioKey: '', negativeText: '', negativeCount: 0, items: [] }
+    return {
+      text: '',
+      count: 0,
+      scenarioKey: '',
+      negativeText: '',
+      negativeCount: 0,
+      items: [],
+      pathConflictDropped: 0
+    }
   }
   const lastTurn = String(opts?.lastTurnOnly || '').trim()
   if (lastTurn && shouldSkipRouteHistoryBias(lastTurn, opts?.attachment ?? null, opts?.messages)) {
@@ -160,13 +186,22 @@ export async function buildExperienceReplayForRouting(
       scenarioKey: deriveScenarioKey(lastTurn || queryText),
       negativeText: '',
       negativeCount: 0,
-      items: []
+      items: [],
+      pathConflictDropped: 0
     }
   }
   /** 相似度只对「本轮问句」算，不用拼接了历史的 heuristicsText */
   const q = String(opts?.lastTurnOnly || queryText || '').trim()
   if (q.length < 8) {
-    return { text: '', count: 0, scenarioKey: deriveScenarioKey(q), negativeText: '', negativeCount: 0, items: [] }
+    return {
+      text: '',
+      count: 0,
+      scenarioKey: deriveScenarioKey(q),
+      negativeText: '',
+      negativeCount: 0,
+      items: [],
+      pathConflictDropped: 0
+    }
   }
   const scenarioKey = deriveScenarioKey(q)
   const history = await readManagerExperienceHistory(policyDir, 520)
@@ -185,7 +220,17 @@ export async function buildExperienceReplayForRouting(
     ? await vectorScoresForUsers(policyDir, q, candidateUsers).catch(() => new Map<string, number>())
     : new Map<string, number>()
 
-  type Scored = { score: number; line: string; dedupe: string; item: ExperienceReplayItem }
+  type Scored = {
+    score: number
+    line: string
+    dedupe: string
+    item: ExperienceReplayItem
+    scenarioKey: string
+    pathKey: string
+    ts?: string
+    source?: string
+    feedbackScore?: number | null
+  }
   const scored: Scored[] = []
 
   for (const h of history) {
@@ -227,7 +272,10 @@ export async function buildExperienceReplayForRouting(
     const clauseN = Number(h.clauseCount ?? 0) || 0
     const clauseBoost = clauseN >= 2 && q.split(/[；;\n]/).length >= 2 ? 0.06 : 0
     const snippet = user.replace(/\s+/g, ' ').slice(0, 120)
-    const rankScore = score + clauseBoost
+    const source = String(h.source || '').trim() || undefined
+    const sourceBoost =
+      source === 'explicit_user_request' ? 0.12 : source === 'explicit_feedback' ? 0.06 : 0
+    const rankScore = score + clauseBoost + sourceBoost
     const rawId = String(h.id || h.memoryId || h.ts || '').trim()
     const id =
       rawId ||
@@ -251,15 +299,22 @@ export async function buildExperienceReplayForRouting(
       score: rankScore,
       line: `- [${id}] score=${rankScore.toFixed(3)} ${item.explanation}`,
       dedupe: snippet.slice(0, 72),
-      item
+      item,
+      scenarioKey: hScenario,
+      pathKey: pathKeyFromAgents(pathArr),
+      ts: typeof h.ts === 'string' ? h.ts : undefined,
+      source,
+      feedbackScore: fb
     })
   }
 
   scored.sort((a, b) => b.score - a.score)
+  const conflictResolved = resolveExperiencePathConflicts(scored)
+  const pathConflictDropped = Math.max(0, scored.length - conflictResolved.length)
   const seen = new Set<string>()
   const lines: string[] = []
   const items: ExperienceReplayItem[] = []
-  for (const row of scored) {
+  for (const row of conflictResolved) {
     if (seen.has(row.dedupe)) continue
     seen.add(row.dedupe)
     lines.push(row.line)
@@ -268,9 +323,11 @@ export async function buildExperienceReplayForRouting(
   }
 
   const recallLabel = useVector && vectorSims.size > 0 ? '向量+关键词' : '关键词'
+  const conflictNote =
+    pathConflictDropped > 0 ? `；已仲裁丢弃 ${pathConflictDropped} 条同场景矛盾 path` : ''
   const text = lines.length
     ? [
-        `### 历史相似任务（${recallLabel}召回；仅当与【当前用户输入】问法相近时参考；点过「有用」的历史轮次不会自动复用到无关新问句；路由 intent/allowedAgents 必须以本轮输入为准，勿照搬下列 path）`,
+        `### 历史相似任务（${recallLabel}召回；仅当与【当前用户输入】问法相近时参考；点过「有用」的历史轮次不会自动复用到无关新问句；路由 intent/allowedAgents 必须以本轮输入为准，勿照搬下列 path${conflictNote}）`,
         ...lines
       ].join('\n')
     : ''
@@ -340,6 +397,7 @@ export async function buildExperienceReplayForRouting(
     negativeText,
     negativeCount,
     items,
-    vectorRecall: useVector && vectorSims.size > 0
+    vectorRecall: useVector && vectorSims.size > 0,
+    pathConflictDropped
   }
 }

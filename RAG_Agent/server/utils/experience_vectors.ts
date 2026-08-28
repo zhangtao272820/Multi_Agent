@@ -10,6 +10,12 @@ import {
   loadRagExperienceVectorsFromPg,
   upsertRagExperienceVectorPg,
 } from "../../utils/rag_experience_vector_store";
+import {
+  extractRagExperiencePathKey,
+  resolveRagExperiencePathConflicts,
+} from "./ragExperiencePathConflict";
+
+export { extractRagExperiencePathKey, resolveRagExperiencePathConflicts } from "./ragExperiencePathConflict";
 
 export type RagExperienceRow = {
   id: string;
@@ -148,6 +154,7 @@ export type RagExperienceRecall = {
   hint: string;
   sources?: string[];
   score: number;
+  pathKey?: string;
 };
 
 export async function recallRagExperience(question: string, limit = 3): Promise<RagExperienceRecall[]> {
@@ -170,15 +177,22 @@ export async function recallRagExperience(question: string, limit = 3): Promise<
     .sort((a, b) => b.s - a.s);
 
   const seen = new Set<string>();
-  const out: RagExperienceRecall[] = [];
+  const candidates: RagExperienceRecall[] = [];
   for (const { r, s } of scored) {
     const k = r.hint;
     if (seen.has(k)) continue;
     seen.add(k);
-    out.push({ question: r.question, hint: r.hint, sources: r.sources, score: s });
-    if (out.length >= limit) break;
+    candidates.push({
+      question: r.question,
+      hint: r.hint,
+      sources: r.sources,
+      score: s,
+      pathKey: extractRagExperiencePathKey(r.hint, r.sources),
+    });
+    if (candidates.length >= Math.max(limit * 4, 8)) break;
   }
-  return out;
+  const resolved = resolveRagExperiencePathConflicts(candidates);
+  return resolved.slice(0, limit);
 }
 
 export function getRagExperienceSummary() {

@@ -79,7 +79,8 @@ export async function executeInternalStep(
         {
           openaiApiKey: input.llm?.openaiApiKey,
           openaiBaseUrl: input.llm?.openaiBaseUrl,
-          modelName: input.llm?.openaiModel
+          modelName: input.llm?.openaiModel,
+          codePlanned
         }
       )
       if (piped) {

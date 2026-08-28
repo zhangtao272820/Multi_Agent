@@ -18,6 +18,7 @@ os.environ["VANNA_POLISH"] = "true"
 os.environ["AGENT_DATABASE_URL"] = ""
 os.environ["CLAWHIVE_DATABASE_URL"] = ""
 os.environ["DATABASE_URL"] = ""
+os.environ["AGENT_BROWSER_AUTH"] = "0"
 os.environ["EVO_ALLOW_EXPERT_AUTO_PROMOTE"] = "0"
 os.environ.setdefault("VANNA_DATA_DIR", str(ROOT / ".data" / "smoke"))
 
@@ -513,12 +514,22 @@ def test_not_in_manager() -> None:
     assert_true("vanna_db_agent" in compose, "vanna service present")
     assert_true("VANNA_MAX_INGEST_EMBED_CALLS" in compose, "compose splits ingest embed budget")
     assert_true("VANNA_MAX_REPAIR_LLM_CALLS" in compose, "compose allows execute-fail repair")
+    assert_true("AGENT_BROWSER_AUTH: \"1\"" in compose or "AGENT_BROWSER_AUTH: '1'" in compose, "vanna browser auth on")
+    assert_true("DB_AGENT_HOST: vanna_db_agent" in compose, "platform backend probes vanna")
+    lan_ex = (repo / "Manage-platform_Agent/.env.agents-lan.example").read_text(encoding="utf-8")
+    assert_true("MANAGER_DB_ID=p2026" in lan_ex, "agents-lan example pins manager dbId p2026")
     # 勿用 split("manager_agent:")：image 行也含该子串
     start = compose.find("\n  manager_agent:\n")
     end = compose.find("\n  multimodal_agent:\n", start + 1) if start >= 0 else -1
     mgr = compose[start:end] if start >= 0 and end > start else ""
     assert_true("DB_AGENT_HTTP_URL: http://vanna_db_agent:13121" in mgr, "manager env uses vanna http")
     assert_true("db_agent:13101" not in mgr, "manager env must not use old db_agent")
+    assert_true("MANAGER_DB_ID: ${MANAGER_DB_ID:-p2026}" in mgr or "MANAGER_DB_ID:-p2026" in mgr, "manager service dbId p2026")
+    nginx = (ROOT / "frontend/nginx.conf").read_text(encoding="utf-8")
+    assert_true("resolver 127.0.0.11" in nginx, "web nginx re-resolves docker DNS")
+    assert_true("$vanna_upstream" in nginx, "proxy_pass uses variable upstream")
+    managed = (repo / "Manage-platform_Agent/backend/app/managed_agents.py").read_text(encoding="utf-8")
+    assert_true('docker_service": "vanna_db_agent"' in managed, "console manages vanna_db_agent")
 
 
 def test_ingest_embed_budget() -> None:
@@ -1219,6 +1230,68 @@ def test_protocol_envelope() -> None:
     assert_true(clar.get("needs_clarify") is True and clar.get("error_code") == "needs_clarify", "clarify code")
 
 
+def test_manager_compat_session_and_plan() -> None:
+    from unittest.mock import patch
+
+    from fastapi.testclient import TestClient
+
+    from app.main import app
+    from app.manager_compat import build_unified_task_plan, resolve_manager_session_id
+
+    assert_true(
+        resolve_manager_session_id("mgr-run1-db-step1", manager_path=True, exists=False) == "",
+        "unknown mgr session -> stateless",
+    )
+    assert_true(
+        resolve_manager_session_id("real-session", manager_path=True, exists=True) == "real-session",
+        "existing session kept",
+    )
+    assert_true(
+        resolve_manager_session_id("missing-ui", manager_path=False, exists=False) == "missing-ui",
+        "standalone missing session unchanged for caller 404",
+    )
+    plan = build_unified_task_plan(
+        question="查王建国的慢性病检测记录",
+        tables=["remote_nursing_chronic"],
+        hits=[{"document": "TABLE remote_nursing_chronic -- 慢病检测"}],
+    )
+    assert_true(plan.get("intent") == "db", "unified intent db")
+    hints = plan.get("hints") or {}
+    assert_true("remote_nursing_chronic" in (hints.get("suggested_tables") or []), "unified tables")
+    assert_true(plan.get("prefetch_ready") is True, "prefetch_ready when tables")
+
+    with TestClient(app) as client:
+        plan_res = client.post(
+            "/api/plan",
+            json={"question": _P2604_GOLDEN_Q, "tenant": "p2604"},
+        ).json()
+        assert_true(bool(plan_res.get("unified_task_plan")), "plan returns unified_task_plan")
+        utp = plan_res.get("unified_task_plan") or {}
+        assert_true(
+            isinstance(utp.get("hints"), dict) and isinstance(utp.get("entities"), dict),
+            "unified_task_plan shape",
+        )
+        with (
+            patch("app.engine.retrieve", return_value=[_p2604_golden_hit()]),
+            patch("app.engine.run_router", return_value=_p2604_golden_route()),
+            patch("app.engine.catalog_nonempty", return_value=True),
+            patch("app.engine.pick_golden_sql", return_value=_p2604_golden_hit()),
+            patch("app.engine.run_select", return_value=[{"Name": "事件A"}]),
+            patch("app.engine.chat_text", return_value="目前有 1 场突发事件。"),
+        ):
+            ask = client.post(
+                "/api/ask",
+                json={
+                    "messages": [{"role": "user", "content": _P2604_GOLDEN_Q}],
+                    "session_id": "mgr-smoke-run-db-step1",
+                    "tenant": "p2604",
+                    "confirm": False,
+                },
+            )
+        assert_true(ask.status_code == 200, f"manager ephemeral session ask: {ask.text}")
+        assert_true(bool(ask.json().get("answer")), "manager ephemeral session answer")
+
+
 def test_mcp_and_learning_http() -> None:
     from fastapi.testclient import TestClient
 
@@ -1283,12 +1356,31 @@ def test_mcp_and_learning_http() -> None:
 def test_experience_no_pg() -> None:
     from unittest.mock import patch
 
-    from app.experience import recall_experience
+    from app.experience import recall_experience, resolve_experience_path_conflicts
     from app.learning import record_feedback
 
     with patch("app.experience._database_url", return_value=""):
         rows = recall_experience("目前突发事件有几个，分别是什么", tenant_id="p2604")
     assert_true(rows == [], "no pg returns empty")
+
+    resolved = resolve_experience_path_conflicts(
+        [
+            {
+                "question_norm": "突发事件个数",
+                "path": "sql_direct",
+                "source": "shadow",
+                "ts": "2026-01-01T00:00:00+00:00",
+            },
+            {
+                "question_norm": "突发事件个数",
+                "path": "golden",
+                "source": "manager_finalize_sync|feedback",
+                "ts": "2026-08-01T00:00:00+00:00",
+            },
+        ]
+    )
+    assert_true(len(resolved) == 1, "path conflict collapses to one")
+    assert_true(resolved[0].get("path") == "golden", "confirmed/newer path wins")
 
     bad = record_feedback(question="", score=1)
     assert_true(not bad.get("ok"), "feedback needs question")
@@ -1489,6 +1581,7 @@ def main() -> None:
     test_chart_types()
     test_fk_seed_joins_and_template()
     test_protocol_envelope()
+    test_manager_compat_session_and_plan()
     test_mcp_and_learning_http()
     test_experience_no_pg()
     test_feedback_void_on_withdraw()

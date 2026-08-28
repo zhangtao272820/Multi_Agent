@@ -3,6 +3,7 @@ import OpsOverview from "./components/OpsOverview";
 import AdminShell from "./components/AdminShell";
 import EnterpriseMonitorPanel from "./components/EnterpriseMonitorPanel";
 import ManagerObservability from "./components/ManagerObservability";
+import EvolutionReview from "./components/EvolutionReview";
 import AgentConfigPanel from "./components/AgentConfigPanel";
 import AgentControlPanel from "./components/AgentControlPanel";
 import UsersRolesPanel from "./components/UsersRolesPanel";
@@ -28,6 +29,7 @@ const APP_ROUTES = [
   "users",
   "tenants",
   "audit",
+  "evolution",
   "secrets",
   "settings",
   "deploy",
@@ -2672,6 +2674,22 @@ export default function App() {
             onMessage={setControlMessage}
             section="audit"
           />
+        </div>
+      ) : null}
+
+      {appRoute === "evolution" ? (
+        <div className="page-stack page-stack--scroll admin-page">
+          <section className="admin-card admin-card--wide">
+            <h3 className="admin-card__title">记忆与进化审阅</h3>
+            <p className="admin-card__desc muted">
+              用户说「记住 / 答得很好」、点「有用」、保存偏好与打法，均先入草稿；在此人工批准后才参与召回或弱 hint 注入。与左侧「审计」不同——审计记操作日志，这里审记忆与进化产物。
+            </p>
+            <EvolutionReview
+              apiBase={API_BASE}
+              authToken={token}
+              onRefresh={fetchManagerObservability}
+            />
+          </section>
         </div>
       ) : null}
 

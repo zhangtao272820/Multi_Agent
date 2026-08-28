@@ -32,7 +32,7 @@ function hasViableEmbeddedChartPlan(data: Record<string, unknown> | undefined): 
 }
 
 export function shouldEnrichCodeByLlm(codeRaw: string): boolean {
-  if (String(process.env.MANAGER_CODE_SKIP_ENRICH ?? '0').trim() === '1') return false
+  if (String(process.env.MANAGER_CODE_SKIP_ENRICH ?? '1').trim() === '1') return false
   if (!isCodeAuthorityLlmEnabled() || !isCodePrefillChartPlanEnabled()) return false
   const txt = String(codeRaw ?? '').trim()
   if (!txt.startsWith('{')) return false

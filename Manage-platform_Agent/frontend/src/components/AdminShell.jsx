@@ -7,7 +7,7 @@ const NAV_GROUPS = [
     label: "运维",
     items: [
       { id: "overview", label: "总览", desc: "健康探活 · 集群状态 · 编排指标" },
-      { id: "manager", label: "总管 & 子 Agent", desc: "Token 消耗 · 阶段耗时 · 调用流水" },
+      { id: "manager", label: "总管 & 子 Agent", desc: "Token · 进化审阅 · 用户记忆审核" },
       { id: "tasks", label: "任务编排", desc: "Manager WebSocket 转发执行" },
     ],
   },
@@ -46,8 +46,9 @@ const NAV_GROUPS = [
       { id: "users", label: "用户与角色", desc: "账号 · 三角色 · RBAC 矩阵" },
       { id: "tenants", label: "租户与配额", desc: "租户实体 · Token 硬配额" },
       { id: "audit", label: "审计", desc: "敏感清单 · 筛选导出" },
+      { id: "evolution", label: "记忆与进化审阅", desc: "用户记忆 · 技能草稿 · 组织规则人审" },
       { id: "secrets", label: "密钥与通知", desc: "Vault · webhook · Fernet 写回" },
-      { id: "settings", label: "系统设置", desc: "环境快照 · 进化审核入口" },
+      { id: "settings", label: "系统设置", desc: "环境快照 · 治理入口（进化审阅见「总管 & 子 Agent」）" },
     ],
   },
 ];
@@ -66,7 +67,7 @@ const GROUP_BY_ROUTE = Object.fromEntries(
 );
 
 const WIDE_ROUTES = new Set(["monitor"]);
-const FILL_ROUTES = new Set(["monitor", "config", "agents", "deploy", "maintain", "users", "tenants", "audit", "secrets"]);
+const FILL_ROUTES = new Set(["monitor", "config", "agents", "deploy", "maintain", "users", "tenants", "audit", "evolution", "secrets"]);
 
 export default function AdminShell({
   route,

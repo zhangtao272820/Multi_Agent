@@ -32,6 +32,14 @@ import { resolveOrchestratorRoutingContext } from '../../orchestrate/unifiedRout
 import { buildRouteAuthorityChain } from '../../orchestrate/routeAuthorityChain'
 import { recordAgentMorphologySnapshot } from '../../core/runtime/recordAgentMorphology'
 import { buildTurnScopePayload } from '#agent-shared/turnScope'
+import { resolveOrchestrationThickness, resolveIntentForOrchestrationThickness } from '../../core/routing/orchestrationThickness'
+import {
+  formatSessionAnchorCoalesceHint
+} from '../../core/routing/routeSkipCascade'
+import {
+  resolveContinuationRouteBypass,
+  buildContinuationBypassDecision
+} from '../../core/routing/continuationRouteBypass'
 import type { OrchestratorDecision } from '../../orchestrate/orchestratorInvariants'
 import type { OrchestratorPipelineResult } from '../../orchestrate/orchestratorPipeline'
 
@@ -102,8 +110,41 @@ function finishOrchestrateTurn(input: {
           decision.coalescedTask,
           decision.allowedAgents.filter((a) => ['rag', 'db', 'crawler'].includes(String(a))).map(String)
         )
-  const next = {
+  const thickness = resolveOrchestrationThickness({
+    meta: {
+      ...(input.orchestratorMetaBase ?? {}),
+      ...decision.metaPatch,
+      allowedAgents: decision.allowedAgents,
+    },
     intent: decision.intent,
+    allowedAgents: decision.allowedAgents,
+  })
+  const priorSkips =
+    decision.metaPatch?.routeSkips && typeof decision.metaPatch.routeSkips === 'object'
+      ? (decision.metaPatch.routeSkips as Record<string, boolean>)
+      : {}
+  const routeSkips = {
+    align: Boolean(priorSkips.align ?? decision.metaPatch?.routeSkipAlign),
+    plane: Boolean(priorSkips.plane ?? decision.metaPatch?.routeSkipPlane),
+    webAlign: Boolean(priorSkips.webAlign ?? decision.metaPatch?.routeSkipWebAlign),
+    planner: thickness === 'single_source',
+    audit: thickness === 'single_source' || thickness === 'memory_capture'
+  }
+  const routeLlmCalls =
+    typeof decision.metaPatch?.routeLlmCalls === 'number'
+      ? Number(decision.metaPatch.routeLlmCalls)
+      : undefined
+  const routedIntent = resolveIntentForOrchestrationThickness({
+    meta: {
+      ...(input.orchestratorMetaBase ?? {}),
+      ...decision.metaPatch,
+      allowedAgents: decision.allowedAgents,
+    },
+    intent: decision.intent,
+    allowedAgents: decision.allowedAgents,
+  })
+  const next = {
+    intent: routedIntent,
     allowedAgents: decision.allowedAgents,
     routedQuery: decision.routedQuery,
     entities: [],
@@ -122,11 +163,20 @@ function finishOrchestrateTurn(input: {
       turn_scope: buildTurnScopePayload(turnScope.mode, turnScope.turnKind),
       sessionIntentAnchor: nextAnchor,
       useLegacyRoute: false,
+      orchestrationThickness: thickness,
+      lowCostMode: thickness === 'single_source' || thickness === 'memory_capture' ? true : state.meta?.lowCostMode,
+      plannerBypassed: thickness === 'single_source' ? true : undefined,
+      routeSkips,
+      ...(routeLlmCalls != null ? { routeLlmCalls } : {}),
       routeAuthorityChain: buildRouteAuthorityChain({
         meta: {
           ...(input.orchestratorMetaBase ?? {}),
           ...decision.metaPatch,
-          allowedAgents: decision.allowedAgents
+          allowedAgents: decision.allowedAgents,
+          orchestrationThickness: thickness,
+          orchestratorSource,
+          routeSkips,
+          ...(routeLlmCalls != null ? { routeLlmCalls } : {})
         },
         raw: (decision as { raw?: Record<string, unknown> }).raw ?? null,
         turnScopeMode: turnScope.mode,
@@ -154,6 +204,13 @@ function finishOrchestrateTurn(input: {
       }
     }
   }).catch(() => undefined)
+  if (thickness === 'single_source' && !state?.meta?.lowCostMode) {
+    opts.sendEvent({
+      event: 'thinking',
+      data: `轻编排：单源 ${routedIntent}，跳过 Planner → 直连专才`,
+      from: 'manager',
+    })
+  }
   return next
 }
 
@@ -193,8 +250,11 @@ export function createOrchestrateNode(deps: CreateOrchestrateNodeDeps) {
           ? `（编排建议 ${postureLabelZh(effectivePosture)}）`
           : ''
       opts.sendEvent({
-        event: 'thinking',
-        data: `编排工作台：${workbenchMode === 'professional' ? '专业（PU-Stack·域任务）' : '对话（闲聊/联网/代码）'} · 姿态 ${postureLabelZh(collaborationPosture)}${postureNote}`,
+        event: 'thought_delta',
+        data: {
+          text: `编排工作台：${workbenchMode === 'professional' ? '专业（PU-Stack·域任务）' : '对话（闲聊/联网/代码）'} · 姿态 ${postureLabelZh(collaborationPosture)}${postureNote}`,
+          done: false
+        },
         from: 'manager'
       })
     }
@@ -267,14 +327,23 @@ export function createOrchestrateNode(deps: CreateOrchestrateNodeDeps) {
       turnScope.turnKind === 'output_followup' && sessionAnchor?.lastExecutedAgents?.length
         ? `【输出追问·窄 cap】上轮数据面=${sessionAnchor.lastExecutedAgents.join('+')}；allowedAgents 不得超出此集合（可直连 synth）。`
         : '',
+      formatSessionAnchorCoalesceHint({
+        turnKind: turnScope.turnKind,
+        turnScopeMode: turnScope.mode,
+        coalescedTask: sessionAnchor?.coalescedTask,
+        lastExecutedAgents: sessionAnchor?.lastExecutedAgents
+      }),
       metaObj.clarifyReplan === true ? '【澄清补答】已合并原问与补答，禁止二次 clarify。' : ''
     ]
       .filter(Boolean)
       .join('\n\n')
     if (clarifyReplan) {
       opts.sendEvent({
-        event: 'thinking',
-        data: `clarify→replan：合并原问与补答后重编排（${clarifyMerged.slice(0, 72)}${clarifyMerged.length > 72 ? '…' : ''}）`,
+        event: 'thought_delta',
+        data: {
+          text: `clarify→replan：合并原问与补答后重编排（${clarifyMerged.slice(0, 72)}${clarifyMerged.length > 72 ? '…' : ''}）`,
+          done: false
+        },
         from: 'manager'
       })
     }
@@ -285,7 +354,12 @@ export function createOrchestrateNode(deps: CreateOrchestrateNodeDeps) {
       isIntentRagRecallEnabled() &&
       !turnScope.suppressSessionAnchor &&
       turnScope.mode !== 'topic_shift' &&
-      !shouldSkipOrchestratorRagRecall({ probe: state.probe, turnScopeMode: turnScope.mode })
+      !shouldSkipOrchestratorRagRecall({
+        probe: state.probe,
+        turnScopeMode: turnScope.mode,
+        turnKind: turnScope.turnKind,
+        sessionAnchorAgents: sessionAnchor?.lastExecutedAgents
+      })
     ) {
       const ragQuery = buildIntentRagQueryText({
         messages: state.messages as any,
@@ -310,21 +384,19 @@ export function createOrchestrateNode(deps: CreateOrchestrateNodeDeps) {
     const evolutionHint = await summarizeEvolutionHintsForOrchestrator({
       policyDir,
       sessionId,
-      toolHealth: state.toolHealth
+      toolHealth: state.toolHealth,
+      probeRagHits: Number(state.probe?.rag?.hits ?? 0) || 0
     }).catch(() => '')
 
     const onThinking = (line: string) => {
-      if (!state?.meta?.lowCostMode) {
-        opts.sendEvent({ event: 'thinking', data: line, from: 'manager' })
-        const t = String(line || '').trim()
-        if (t && !t.includes('置信度') && !t.startsWith('{')) {
-          opts.sendEvent({
-            event: 'thought_delta',
-            data: { text: t.length > 160 ? `${t.slice(0, 160)}…` : t, done: false },
-            from: 'manager'
-          })
-        }
-      }
+      if (state?.meta?.lowCostMode) return
+      const text = String(line || '').trim()
+      if (!text) return
+      opts.sendEvent({
+        event: 'thought_delta',
+        data: { text, done: false },
+        from: 'manager'
+      })
     }
 
     const orchInput = {
@@ -341,6 +413,56 @@ export function createOrchestrateNode(deps: CreateOrchestrateNodeDeps) {
       llmInvoke,
       mergeMeta,
       onThinking
+    }
+
+    // Phase2：续轮单源 cap 复用 — 跳过编排 LLM（probe 冲突则降级全量）
+    const contBypass = resolveContinuationRouteBypass({
+      turnScope,
+      sessionAnchor: turnScope.suppressSessionAnchor ? null : sessionAnchor,
+      lastUser: lastOnly,
+      probe: state.probe,
+      meta: state.meta
+    })
+    if (contBypass.ok) {
+      const decision = buildContinuationBypassDecision({
+        bypass: contBypass,
+        turnScope,
+        lastUser: lastOnly
+      })
+      const filteredAgents = filterAgentsForPosture(decision.allowedAgents as string[], effectivePosture)
+      const finalDecision =
+        filteredAgents.length !== decision.allowedAgents.length
+          ? { ...decision, allowedAgents: filteredAgents as typeof decision.allowedAgents }
+          : decision
+      if (!state?.meta?.lowCostMode) {
+        opts.sendEvent({
+          event: 'thought_delta',
+          data: {
+            text: `续轮复用上轮 cap：${finalDecision.allowedAgents.join('→')}（跳过编排 LLM）`,
+            done: false
+          },
+          from: 'manager'
+        })
+      }
+      return finishOrchestrateTurn({
+        state,
+        turnScope,
+        decision: finalDecision,
+        orchestratorSource: 'continuation_cap_reuse',
+        pipelineResult: null,
+        orchestratorMetaBase: {
+          unifiedOrchestrator: true,
+          llmFirstRoute: true,
+          collaborationPosture,
+          effectivePosture,
+          continuationCapReuse: true,
+          ...(postureForcesReadOnly(effectivePosture) ? { postureReadOnly: true } : {})
+        },
+        mergeMeta,
+        opts,
+        sessionId,
+        policyDir
+      })
     }
 
     try {
@@ -372,8 +494,8 @@ export function createOrchestrateNode(deps: CreateOrchestrateNodeDeps) {
           decision.intentClassify?.needsWeb ? '含公网腿' : '无公网腿'
         ].join('｜')
         opts.sendEvent({
-          event: 'thinking',
-          data: summary,
+          event: 'thought_delta',
+          data: { text: summary, done: false },
           from: 'manager'
         })
         onThinking(

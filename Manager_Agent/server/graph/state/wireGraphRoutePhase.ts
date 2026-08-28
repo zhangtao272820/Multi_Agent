@@ -64,6 +64,7 @@ import { createRouterNode } from '../nodes/router'
 import { createDecomposeNode } from '../nodes/decompose'
 import { createIntentClassifyNode } from '../nodes/intentClassify'
 import { createOrchestrateNode } from '../nodes/orchestrate'
+import { createMetaIntentGateNode } from '../nodes/metaIntentGate'
 import { createWebSearchNode } from '../nodes/search'
 import { createPrefetchNode } from '../nodes/prefetch'
 import { createPlanNode } from '../nodes/plan'
@@ -176,6 +177,18 @@ export function wireGraphRoutePhase(ctx: WireCtx) {
     lastUserText,
     llmInvoke,
     mergeMeta
+  })
+
+  const metaIntentGateNode = createMetaIntentGateNode({
+    opts: {
+      sendEvent: opts.sendEvent,
+      runId: opts.runId,
+      openaiApiKey: opts.openaiApiKey,
+      openaiModel: opts.openaiModel,
+      openaiBaseUrl: opts.openaiBaseUrl,
+    },
+    lastUserText,
+    mergeMeta,
   })
 
   const probeNode = createProbeNode({
@@ -341,6 +354,7 @@ export function wireGraphRoutePhase(ctx: WireCtx) {
     securityNode,
     clarifyNode,
     turnScopeNode,
+    metaIntentGateNode,
     probeNode,
     decomposeNode,
     intentClassifyNode,

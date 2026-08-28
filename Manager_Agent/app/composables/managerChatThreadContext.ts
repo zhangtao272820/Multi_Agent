@@ -9,6 +9,7 @@ export type ManagerChatThreadContext = {
   thoughtViewMode: Ref<ThoughtViewMode>
   streamingSynthText: Ref<string>
   streamingSynthDisplayText: ComputedRef<string>
+  streamingMarkdownHtml: Ref<string>
   streamingReplyEl: Ref<HTMLElement | null>
   copyAckTurnId: Ref<number | null>
   copyAckKey: Ref<string | null>
@@ -58,6 +59,8 @@ export type ManagerChatThreadContext = {
   onThoughtPanelToggle: (t: TurnGroup, e: Event) => void
   thoughtPanelLabel: () => string
   stepResultsForTurn: (t: TurnGroup) => StepResultItem[]
+  executionStepCountForTurn: (t: TurnGroup) => number
+  thoughtLogCountForTurn: (t: TurnGroup) => number
   userThoughtNarrative: (t: TurnGroup) => Array<{
     text: string
     done?: boolean
@@ -74,6 +77,8 @@ export type ManagerChatThreadContext = {
   isSynthPhaseActive: () => boolean
   onReplyMarkdownClick: (e: MouseEvent) => void
   renderAssistantMarkdown: (text: string, sources?: SearchSourceItem[]) => string
+  cachedResultMarkdownHtml: (text: string, turn: TurnGroup, resultIdx: number) => string
+  turnRenderMemoKey: (t: TurnGroup) => string
   renderReportMarkdown: (text: string) => string
   resultItemClasses: (r: LogItem) => string | Record<string, boolean> | Array<string | Record<string, boolean>>
   resultKindLabel: (r: LogItem) => string
@@ -105,6 +110,20 @@ export type ManagerChatThreadContext = {
   }>
   replyExecSummaryTone: (text: string, t?: TurnGroup) => 'ok' | 'fail' | 'human' | ''
   replyHasInlineAnalytics: (text: string, agentResults?: unknown, turn?: TurnGroup) => boolean
+  shouldShowUserFacingMetrics: (turn?: TurnGroup) => boolean
+  shouldShowUserFacingHeadline: (turn?: TurnGroup) => boolean
+  applyFollowUpSuggestion: (q: string) => void
+  shouldShowArtifactLaunchBar: (turn?: TurnGroup) => boolean
+  artifactPanelSlots: (turn?: TurnGroup) => Array<{
+    id: string
+    kind: 'chart' | 'table' | 'report'
+    title: string
+    surface: string
+  }>
+  artifactTabLabel: (kind: 'chart' | 'table' | 'report') => string
+  openReplyArtifactDrawer: (turnId: number, tab?: 'chart' | 'table' | 'report') => void
+  streamingArtifactHintForTurn: (turn?: TurnGroup) => string
+  turnReportEditedBadge: (turn?: TurnGroup) => boolean
   buildTurnAgentResults: (t: TurnGroup) => unknown
   extractEchartsOption: (text: string, agentResults?: unknown) => unknown
   chartTitleFromText: (text: string, agentResults?: unknown) => string
@@ -120,6 +139,9 @@ export type ManagerChatThreadContext = {
   canConfirmActionCard: (cardId: string) => boolean
   respondActionCardConfirm: (cardId: string) => void
   respondActionCardCancel: (cardId: string) => void
+  memoryCaptureBusy: Ref<boolean>
+  memoryCaptureKindLabel: (kind: string) => string
+  respondMemoryCapture: (turnId: number, decision: 'ack' | 'confirm_prefs' | 'reject_prefs') => void | Promise<void>
   humanConfirmSending: Ref<boolean>
   resolveReportBody: (text: string, t: TurnGroup) => string
   replyUserDetailAppendix: (t?: TurnGroup, replyText?: string) => string
@@ -132,7 +154,9 @@ export type ManagerChatThreadContext = {
   shouldShowTurnFeedback: (t: TurnGroup) => boolean
   turnFeedbackSubmitted: (t: TurnGroup) => boolean
   turnFeedbackKey: (t: TurnGroup) => string
-  sendFeedback: (turn: TurnGroup, score: 0 | 1) => void
+  feedbackKeyForTurn: (t: TurnGroup) => string
+  isFeedbackPendingForTurn: (t: TurnGroup) => boolean
+  sendFeedback: (turn: TurnGroup, score: 0 | 1) => void | Promise<void>
   routeFeedbackSubmitted: (t: TurnGroup) => boolean
   sendRouteWrongFeedback: (turn: TurnGroup) => void
   turnFeedbackAckText: (t: TurnGroup) => string

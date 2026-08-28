@@ -20,6 +20,8 @@ export async function summarizeEvolutionHintsForOrchestrator(input: {
   policyDir: string
   sessionId?: string
   toolHealth?: unknown
+  /** probe RAG 已命中时剥离「倾向澄清」文案，避免误导编排 */
+  probeRagHits?: number
 }): Promise<string> {
   if (!isEvolutionHintsForOrchestratorEnabled()) return ''
   const parts: string[] = []
@@ -40,5 +42,13 @@ export async function summarizeEvolutionHintsForOrchestrator(input: {
     }
   }
   if (!parts.length) return ''
-  return parts.join('\n')
+  let text = parts.join('\n')
+  if (Number(input.probeRagHits ?? 0) > 0) {
+    text = text
+      .split('\n')
+      .filter((line) => !/倾向澄清|先澄清|clarify/i.test(line))
+      .join('\n')
+      .trim()
+  }
+  return text
 }

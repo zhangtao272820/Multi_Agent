@@ -2,6 +2,7 @@ import { callRagProbe, callRagRetrieve } from '../../../utils/agents/ragClient'
 import { isManagerDockerRuntime } from '../../../utils/platform/managerEnvModes'
 import { classifyAndDetectHard, isHardExpertFailureRaw } from '../runtime/expertFailure'
 import { resolvePrefetchTargets, type PrefetchGateState } from '../probe/prefetchGate'
+import { isSingleSourceRagTask } from '../routing/subAgentPassthrough'
 import {
   resolveLeanRagQuery,
   resolveRagPrefetchLeanQuery
@@ -33,6 +34,15 @@ export function shouldSkipRagEvidenceSelect() {
 /** route 后、planner 前是否预取 RAG /api/retrieve */
 export function shouldPrefetchRagRetrieve(state: PrefetchGateState): boolean {
   if (String(process.env.MANAGER_PREFETCH_RAG_RETRIEVE ?? '1').trim() === '0') return false
+  if (
+    isSingleSourceRagTask({
+      ...(state.meta && typeof state.meta === 'object' ? state.meta : {}),
+      allowedAgents: state.allowedAgents,
+      intent: state.intent,
+    })
+  ) {
+    return false
+  }
   return resolvePrefetchTargets(state).rag
 }
 

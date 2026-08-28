@@ -3,6 +3,39 @@ import { resolveDbPrefetchQuestionFromState } from './dbStepQuestion'
 import { resolvePrefetchTargets, type PrefetchGateState } from '../probe/prefetchGate'
 import type { Step } from '../../../utils/shared/taskPlan'
 
+type VannaPlanResponse = {
+  ok?: boolean
+  path?: string
+  tables?: string[]
+  question?: string
+  unified_task_plan?: Record<string, unknown> | null
+}
+
+/** 将 Vanna /api/plan 响应适配为 Manager prefetch 契约（兼容未升级的 DB Agent） */
+export function normalizeDbPlanPrefetchResponse(res: VannaPlanResponse | null | undefined): {
+  unified_task_plan?: Record<string, unknown> | null
+} | null {
+  if (!res || typeof res !== 'object') return null
+  if (res.unified_task_plan && typeof res.unified_task_plan === 'object') return res
+  const tables = (Array.isArray(res.tables) ? res.tables : [])
+    .map((t) => String(t ?? '').trim())
+    .filter(Boolean)
+  if (!tables.length) return res
+  return {
+    ...res,
+    unified_task_plan: {
+      intent: 'db',
+      entities: { names: [], records: [], locations: [], dates: [] },
+      hints: {
+        suggested_tables: tables,
+        suggested_fields: [],
+        evidence: ''
+      },
+      prefetch_ready: true
+    }
+  }
+}
+
 export type DbPlanPrefetchResult = {
   ok: boolean
   ms: number
@@ -57,11 +90,12 @@ export async function prefetchDbTaskPlan(params: {
       dbId: params.dbId,
       traceId: params.traceId
     })
+    const normalized = normalizeDbPlanPrefetchResponse(res as VannaPlanResponse | null)
     return {
-      ok: Boolean(res?.unified_task_plan),
+      ok: Boolean(normalized?.unified_task_plan),
       ms: Date.now() - t0,
       question: String(params.question ?? '').trim(),
-      unified_task_plan: (res?.unified_task_plan as Record<string, unknown>) ?? null
+      unified_task_plan: (normalized?.unified_task_plan as Record<string, unknown>) ?? null
     }
   } catch (e: unknown) {
     return {

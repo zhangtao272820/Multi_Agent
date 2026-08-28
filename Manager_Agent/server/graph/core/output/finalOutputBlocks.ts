@@ -6,9 +6,14 @@ import {
 import { resolveRenderableEchartsOptionFromText } from '#agent-shared/codeAuthorityPayload'
 
 export function buildEchartsOptionBlock(raw: string): string {
-  const normalized = resolveRenderableEchartsOptionFromText(String(raw || ''))
-  if (!normalized) return ''
-  return wrapTaggedBlock('ECHARTS_OPTION', JSON.stringify(normalized, null, 2))
+  try {
+    const normalized = resolveRenderableEchartsOptionFromText(String(raw || ''))
+    if (!normalized) return ''
+    return wrapTaggedBlock('ECHARTS_OPTION', JSON.stringify(normalized, null, 2))
+  } catch {
+    // 图表 option 不可序列化时不得拖垮整轮 synth
+    return ''
+  }
 }
 
 /** 在 final 正文末尾补齐 visualize 的图表/表格块 */

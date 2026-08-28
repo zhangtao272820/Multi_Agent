@@ -166,17 +166,19 @@ export function createManagerGraph(opts: {
     })
     return wrapped()
   }
-  const getModel = (modelName: string, temperature = 0) => {
+  const getModel = (modelName: string, temperature = 0, modelOpts?: { enableThinking?: boolean }) => {
     const name = String(modelName || '').trim()
     if (!name) throw new Error('missing modelName')
-    const key = `${name}|${temperature}`
+    const thinking = modelOpts?.enableThinking === true
+    const key = `${name}|${temperature}|think:${thinking ? 1 : 0}`
     const cached = modelCache.get(key)
     if (cached) return cached
     const m = createManagerChatOpenAI({
       apiKey: opts.openaiApiKey,
       modelName: name,
       openaiBaseUrl: opts.openaiBaseUrl,
-      temperature
+      temperature,
+      enableThinking: thinking
     })
     modelCache.set(key, m)
     return m
@@ -318,6 +320,7 @@ export function createManagerGraph(opts: {
     resourceNode,
     toolHealthNode,
     turnScopeNode,
+    metaIntentGateNode,
     probeNode,
     metacogNode,
     securityNode,
@@ -364,6 +367,7 @@ export function createManagerGraph(opts: {
     resourceNode,
     toolHealthNode,
     turnScopeNode,
+    metaIntentGateNode,
     probeNode,
     metacogNode,
     securityNode,

@@ -57,6 +57,8 @@ export function buildRagAgentResult(params: {
   usage?: { tokens?: number; usd?: number; actual?: boolean };
   /** H4 / I2：检索失败可解释枚举 */
   retrievalFailureMode?: string;
+  /** L/M：hybrid | hyde | graph */
+  retrievalLanes?: string[];
   evolutionApplied?: {
     promptPatches?: Array<{ id?: string; stage?: string; hits?: number }> | number;
     experienceHits?: number;
@@ -112,6 +114,9 @@ export function buildRagAgentResult(params: {
       ...(params.detail ? { detail: params.detail } : {}),
       ...(error_code ? { error_code } : {}),
       ...(failureMode ? { retrieval_failure_mode: failureMode } : {}),
+      ...(params.retrievalLanes?.length
+        ? { retrieval_lanes: params.retrievalLanes }
+        : {}),
       ...(params.evolutionApplied
         ? {
             evolutionApplied: {

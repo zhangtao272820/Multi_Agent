@@ -27,6 +27,11 @@ export type ManagerSliSnapshot = {
   routeSingleSourceRate: number | null
   routeTrueMultiRate: number | null
   routeCommitmentClearRate: number | null
+  /** Phase0 成熟化：审查 skip / 路由 LLM 次数 */
+  routeSkipAlignRate: number | null
+  routeSkipPlaneRate: number | null
+  routeAvgLlmCalls: number | null
+  routeByThickness: Record<string, number>
 }
 
 export function aggregateManagerSli(
@@ -46,6 +51,11 @@ export function aggregateManagerSli(
   let routeSingleSource = 0
   let routeTrueMulti = 0
   let routeClear = 0
+  let skipAlign = 0
+  let skipPlane = 0
+  let llmCallsSum = 0
+  let llmCallsN = 0
+  const routeByThickness: Record<string, number> = {}
 
   for (const raw of metricRows) {
     const runId = String(raw?.runId ?? '').trim()
@@ -70,6 +80,19 @@ export function aggregateManagerSli(
       if (extra.singleSourcePassthrough === true) routeSingleSource += 1
       if (extra.trueMulti === true) routeTrueMulti += 1
       if (String(extra.sourceCommitment || '') === 'clear') routeClear += 1
+      const skips =
+        extra.routeSkips && typeof extra.routeSkips === 'object'
+          ? (extra.routeSkips as Record<string, unknown>)
+          : null
+      if (skips?.align === true) skipAlign += 1
+      if (skips?.plane === true) skipPlane += 1
+      const calls = Number(extra.routeLlmCalls)
+      if (Number.isFinite(calls) && calls >= 0) {
+        llmCallsSum += calls
+        llmCallsN += 1
+      }
+      const th = String(extra.orchestrationThickness || 'unknown').trim() || 'unknown'
+      routeByThickness[th] = (routeByThickness[th] || 0) + 1
     }
 
     const agent = resolveMetricAgentFromEntry({
@@ -129,7 +152,17 @@ export function aggregateManagerSli(
       : null,
     routeCommitmentClearRate: routeAuthoritySamples
       ? Math.round((routeClear / routeAuthoritySamples) * 1000) / 1000
-      : null
+      : null,
+    routeSkipAlignRate: routeAuthoritySamples
+      ? Math.round((skipAlign / routeAuthoritySamples) * 1000) / 1000
+      : null,
+    routeSkipPlaneRate: routeAuthoritySamples
+      ? Math.round((skipPlane / routeAuthoritySamples) * 1000) / 1000
+      : null,
+    routeAvgLlmCalls: llmCallsN
+      ? Math.round((llmCallsSum / llmCallsN) * 100) / 100
+      : null,
+    routeByThickness
   }
 }
 

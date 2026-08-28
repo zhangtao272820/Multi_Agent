@@ -154,5 +154,19 @@
     "tags": ["conflict", "policy"],
     "expect_clarify_or_cite": true,
     "notes": "G5：知识不一致应澄清或引用最新 source_version"
+  },
+  {
+    "id": "hyde_paraphrase_hallucination",
+    "question": "模型老是胡说八道怎么少一点？",
+    "expect_intent": "definition",
+    "tags": ["hyde", "rewrite_style", "expression_gap"],
+    "notes": "L1：口语表达鸿沟；有 HyDE 门控时应用制度/技术书面体检索"
+  },
+  {
+    "id": "graph_relation_onboard_role",
+    "question": "入职审批流程归哪个部门、需要什么角色？",
+    "expect_intent": "process",
+    "tags": ["graph_relation", "process", "policy"],
+    "notes": "M：关系问优先 needs_graph；答案须落到原文条款 citation"
   }
 ]

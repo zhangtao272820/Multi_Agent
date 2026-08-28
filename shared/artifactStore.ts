@@ -61,6 +61,26 @@ export async function upsertMgrRunArtifact(
   return Boolean(res)
 }
 
+/** Wave 8c：显式保存 / 👍 后标记联邦 shadow 来源（仅 metadata，不改 cap） */
+export async function tagMgrRunArtifactCaptureSource(
+  runId: string,
+  captureSource: 'explicit_user_request' | 'explicit_feedback',
+  env: NodeJS.ProcessEnv = process.env
+): Promise<boolean> {
+  if (!isAgentPgConfigured(env)) return false
+  const rid = String(runId || '').slice(0, 80)
+  if (!rid) return false
+  const res = await agentPgQuery(
+    `UPDATE mgr_run_artifacts
+     SET federation_payload = COALESCE(federation_payload, '{}'::jsonb) || $2::jsonb,
+         updated_at = NOW()
+     WHERE run_id = $1`,
+    [rid, JSON.stringify({ captureSource })],
+    env
+  )
+  return (res?.rowCount ?? 0) > 0
+}
+
 export async function getMgrRunArtifact(
   runId: string,
   env: NodeJS.ProcessEnv = process.env

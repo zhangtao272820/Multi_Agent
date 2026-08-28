@@ -41,6 +41,7 @@ import {
   shouldSkipAdminApiCrawlerRematerialize,
   sourceCommitmentFromRaw
 } from './sourceCommitment'
+import { applyRagProbeClarifySuppress, applyDbProbeClarifySuppress } from './clarifyProbeGate'
 import { inferPipelineHintsStructural } from '../llm/pipelineHintsLlm'
 import {
   adminExplicitlyRequested,
@@ -255,6 +256,24 @@ export function shouldClearClarifyForSingleSourceRag(input: {
   return planes.length === 1 && planes[0] === 'rag'
 }
 
+/** 单源 DB 面：禁止编排前因缺时间/字段误澄清；先查库，无数据再 graceful miss */
+export function shouldClearClarifyForSingleSourceDb(input: {
+  planShortcut?: string | null
+  taskIntent?: string | null
+  intent?: string | null
+  allowedAgents?: string[] | null
+  isDbAnchored?: boolean | null
+}): boolean {
+  if (input.isDbAnchored === true) return true
+  if (String(input.planShortcut || '').trim() === 'db_only') return true
+  if (String(input.taskIntent || '').trim() === 'structured_query') return true
+  if (String(input.intent || '').trim() === 'db') return true
+  const planes = (input.allowedAgents ?? [])
+    .map((a) => String(a || '').trim())
+    .filter((a) => DATA_PLANE_AGENTS.has(a))
+  return planes.length === 1 && planes[0] === 'db'
+}
+
 function applySingleSourceRagClarifyInvariant(
   decision: OrchestratorDecision,
   bundle: TaskOrchestratorBundle
@@ -297,6 +316,52 @@ function applySingleSourceRagClarifyInvariant(
       clarifyQuestions: [],
       clarifyKind: 'none',
       clarifySuppressedBySingleSourceRag: true
+    }
+  }
+}
+
+function applySingleSourceDbClarifyInvariant(
+  decision: OrchestratorDecision,
+  bundle: TaskOrchestratorBundle
+): OrchestratorDecision {
+  const slice = sourceCommitmentFromRaw(bundle.raw as Record<string, unknown>)
+  if (
+    shouldClarifyForAmbiguousCommitment(slice) ||
+    decision.clarifyKind === 'plane' ||
+    decision.metaPatch?.clarifyForNoCoverage === true ||
+    decision.metaPatch?.clarifyForAmbiguousCommitment === true
+  ) {
+    return decision
+  }
+  const taskIntent = String((bundle.raw as { taskIntent?: string } | undefined)?.taskIntent || '').trim()
+  if (
+    !shouldClearClarifyForSingleSourceDb({
+      planShortcut: decision.intentClassify?.planShortcut,
+      taskIntent,
+      intent: decision.intent,
+      allowedAgents: decision.allowedAgents?.map(String),
+      isDbAnchored: decision.intentClassify?.isDbAnchored
+    })
+  ) {
+    return decision
+  }
+  return {
+    ...decision,
+    needsClarify: false,
+    clarifyQuestions: [],
+    clarifyKind: 'none',
+    raw: {
+      ...decision.raw,
+      needsClarify: false,
+      clarifyKind: 'none',
+      clarifyQuestions: []
+    },
+    metaPatch: {
+      ...decision.metaPatch,
+      needsClarify: false,
+      clarifyQuestions: [],
+      clarifyKind: 'none',
+      clarifySuppressedBySingleSourceDb: true
     }
   }
 }
@@ -718,7 +783,16 @@ export function applyOrchestratorInvariants(input: {
     decision = applyClassicOrchestratorDecision(collapsedInput)
   }
   decision = applySourceCommitmentInvariant(decision, collapsedInput.bundle)
-  return applySingleSourceRagClarifyInvariant(decision, collapsedInput.bundle)
+  decision = applySingleSourceRagClarifyInvariant(decision, collapsedInput.bundle)
+  decision = applySingleSourceDbClarifyInvariant(decision, collapsedInput.bundle)
+  decision = applyRagProbeClarifySuppress(decision, {
+    probe: input.state?.probe ?? null,
+    bundle: collapsedInput.bundle
+  })
+  return applyDbProbeClarifySuppress(decision, {
+    probe: input.state?.probe ?? null,
+    bundle: collapsedInput.bundle
+  })
 }
 
 function applyClassicOrchestratorDecision(input: {

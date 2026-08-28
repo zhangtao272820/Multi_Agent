@@ -23,6 +23,7 @@
     "smoke:evidence": "npx --yes tsx scripts/smoke-rag-evidence-answer.ts",
     "smoke:enterprise-h": "npx --yes tsx scripts/smoke-rag-enterprise-h.ts",
     "smoke:agentic-jk": "npx --yes tsx scripts/smoke-rag-agentic-jk.ts",
+    "smoke:l-wave": "node scripts/smoke-rag-l-wave.mjs",
     "smoke:source-coverage": "npx --yes tsx scripts/smoke-rag-source-coverage.ts",
     "reindex": "npx --yes tsx scripts/reindex-from-store.ts"
   },

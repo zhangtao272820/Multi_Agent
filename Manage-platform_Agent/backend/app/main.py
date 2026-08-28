@@ -2752,6 +2752,11 @@ class EvolutionOpsBody(BaseModel):
     key: str | None = None
     minConfidence: float | None = None
     status: str | None = None
+    ruleCandidateId: str | None = None
+    experienceCandidateId: str | None = None
+    userId: str | None = None
+    decision: str | None = None
+    limit: int | None = None
 
 
 @app.post("/api/manager/evolution/ops")
@@ -2771,6 +2776,14 @@ async def manager_evolution_ops(
         "skill_draft_promote",
         "skill_draft_reject",
         "skill_playbook_reload",
+        "rule_candidates_list",
+        "rule_candidate_promote",
+        "rule_candidate_reject",
+        "experience_candidates_list",
+        "experience_candidate_promote",
+        "experience_candidate_reject",
+        "pending_prefs_list",
+        "user_profile_prefs",
         "evolution_hub",
         "evolution_review_bundle",
         "prompt_shadow_diff",
@@ -2817,6 +2830,20 @@ async def manager_evolution_ops(
     payload: dict = {"action": action if action != "evolution_review_bundle" else "skill_drafts_list"}
     if body.skillId:
         payload["skillId"] = body.skillId
+    if body.ruleCandidateId:
+        payload["ruleCandidateId"] = body.ruleCandidateId
+    if body.experienceCandidateId:
+        payload["experienceCandidateId"] = body.experienceCandidateId
+    if body.userId:
+        payload["userId"] = body.userId
+    if body.decision:
+        payload["decision"] = body.decision
+    if body.key:
+        payload["key"] = body.key
+    if body.status:
+        payload["status"] = body.status
+    if body.limit is not None:
+        payload["limit"] = body.limit
     if body.minConfidence is not None:
         payload["minConfidence"] = body.minConfidence
     result = post_json(url, payload, timeout_sec=30.0, extra_headers=ops_headers)
@@ -2856,6 +2883,27 @@ async def manager_evolution_ops(
         eval_data = (
             eval_latest.get("data") if eval_latest.get("ok") and isinstance(eval_latest.get("data"), dict) else {}
         )
+        rules = post_json(
+            url,
+            {"action": "rule_candidates_list", "status": "draft", "limit": 50},
+            timeout_sec=12.0,
+            extra_headers=ops_headers,
+        )
+        rules_data = rules.get("data") if rules.get("ok") and isinstance(rules.get("data"), dict) else {}
+        exp = post_json(
+            url,
+            {"action": "experience_candidates_list", "status": "draft", "limit": 50},
+            timeout_sec=12.0,
+            extra_headers=ops_headers,
+        )
+        exp_data = exp.get("data") if exp.get("ok") and isinstance(exp.get("data"), dict) else {}
+        prefs = post_json(
+            url,
+            {"action": "pending_prefs_list", "limit": 40},
+            timeout_sec=12.0,
+            extra_headers=ops_headers,
+        )
+        prefs_data = prefs.get("data") if prefs.get("ok") and isinstance(prefs.get("data"), dict) else {}
         data = {
             **data,
             "evolutionHub": hub_data.get("evolutionHub") or hub_data,
@@ -2866,10 +2914,24 @@ async def manager_evolution_ops(
             or cand_data.get("rows")
             or [],
             "onlineEvalLatest": eval_data.get("latest") or eval_data,
+            "ruleCandidates": rules_data.get("ruleCandidates")
+            if isinstance(rules_data.get("ruleCandidates"), list)
+            else [],
+            "experienceCandidates": exp_data.get("experienceCandidates")
+            if isinstance(exp_data.get("experienceCandidates"), list)
+            else [],
+            "pendingPrefs": prefs_data.get("pendingPrefs")
+            if isinstance(prefs_data.get("pendingPrefs"), list)
+            else [],
         }
     if action in (
         "skill_draft_promote",
         "skill_draft_reject",
+        "rule_candidate_promote",
+        "rule_candidate_reject",
+        "experience_candidate_promote",
+        "experience_candidate_reject",
+        "user_profile_prefs",
         "prompt_promote",
         "policy_rollback",
         "evolution_experiment_rollback",
@@ -2879,7 +2941,7 @@ async def manager_evolution_ops(
             current,
             f"evolution.{action}",
             "evolution",
-            str(body.skillId or body.patchId or body.key or ""),
+            str(body.skillId or body.ruleCandidateId or body.experienceCandidateId or body.patchId or body.key or ""),
             body.note or "",
         )
     return {"ok": True, **data}

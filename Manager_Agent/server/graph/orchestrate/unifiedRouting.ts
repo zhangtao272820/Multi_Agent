@@ -92,8 +92,13 @@ export function resolveOrchestratorRoutingContext(turnScope: {
   routingContext: string
   mode: string
 }): string {
-  if (isLlmFirstRouteEnabled()) return String(turnScope.lastOnly || '').trim()
-  return String(turnScope.routingContext || turnScope.lastOnly || '').trim()
+  if (isLlmFirstRouteEnabled()) {
+    return String(turnScope.lastOnly || '').trim().slice(0, 1200)
+  }
+  // Phase3：非 LLM-First 续轮也硬截断，避免历史灌进编排窗口
+  const raw = String(turnScope.routingContext || turnScope.lastOnly || '').trim()
+  const cap = turnScope.mode === 'continuation' ? 800 : 1200
+  return raw.slice(0, cap)
 }
 
 /** 附件 hint 注入编排 LLM */

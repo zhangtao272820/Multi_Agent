@@ -14,11 +14,13 @@ owner: rag_agent
 
 稳定阶段顺序（代码实现见 `document_retrieval.ts`；H 波企业化见 `doc/企业化升级方案.md`）：
 
-1. **Query Plan**：`buildRagQueryPlan` → intent / sub_queries / 实体词
+1. **Query Plan**：`buildRagQueryPlan` → intent / sub_queries / 实体词；L 波写入 `use_hyde` / `use_multi_query` / `needs_graph`（`query_lane_gates`）
 2. **Condense**（可选）：多轮指代消解 → 自包含检索问句
-3. **Expansion**（可选）：LLM 生成多检索词，提高召回
+3. **Expansion**（可选）：仅当门控 `use_multi_query` 且非 probe/锚点
 4. **Doc Routing**：`selectCandidateSources` 选定文档范围
 5. **Hybrid Recall**：向量 + keyword + BM25 融合；复合问句可走 sub-query 并行 lane
+5b. **HyDE**（可选，L1）：假想文档 embedding 召回并入语义通道（默认关；假想文不作证据）
+5c. **Policy Graph**（可选，M）：制度本体 1～2 跳 → RRF（`rrfGraphWeight` 默认 1.15）
 6. **Pre-Rerank**：lexical / cross-encoder / local rerank（Bandit 可选跳过 LLM rerank）
 7. **Rerank**：LLM 从候选池选 Top-N 片段
 8. **MMR**（可选，H3）：相关性 vs 多样性去冗余

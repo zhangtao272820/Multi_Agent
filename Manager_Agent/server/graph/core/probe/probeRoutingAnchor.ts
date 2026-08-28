@@ -33,10 +33,18 @@ export function inferDbAnchorFromProbe(input: {
 }): IntentClassifyResult {
   const { classify, probe, clauses } = input
   if (classify.isDbAnchored === true) return classify
+
+  const ragHits = Number(probe?.rag?.hits ?? 0) || 0
+  const classifyPlanes = (classify.dataSources ?? []).filter((d) => DATA_PLANE.has(d)) as DataSourceAgent[]
+  const docRagTask =
+    classify.primaryIntent === 'rag' ||
+    classify.planShortcut === 'rag_only' ||
+    (classifyPlanes.length === 1 && classifyPlanes[0] === 'rag')
+  if (ragHits > 0 && docRagTask) return classify
+
   if (!isProbeDbRoutingRelevant(probe?.db)) return classify
 
   const clausePlanes = dataPlanesFromClauses(clauses)
-  const classifyPlanes = (classify.dataSources ?? []).filter((d) => DATA_PLANE.has(d)) as DataSourceAgent[]
   if (distinctDataPlanes(clausePlanes, classifyPlanes) >= 2) return classify
 
   const wantsRag =

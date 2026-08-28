@@ -1,6 +1,7 @@
 /**
  * Wave6 K6：路由权威链快照 — 供 Trace / metrics 排障三问（路由错？）。
  * 不做 cap 决策；只汇总已有契约字段。
+ * Phase0：扩展 thickness / skips / routeLlmCalls 供成熟化 SLI。
  */
 import { sourceCommitmentFromRaw } from './sourceCommitment'
 import {
@@ -8,6 +9,11 @@ import {
   isSingleSourceRagTask,
   isTrueMultiTask
 } from '../core/routing/subAgentPassthrough'
+import { shouldSkipPostSynthAudit } from '../core/routing/orchestrationThickness'
+import {
+  buildRouteSkipsSnapshot,
+  estimateRouteLlmCalls
+} from '../core/routing/routeSkipCascade'
 
 export type RouteAuthorityChain = {
   sourceCommitment: string
@@ -18,6 +24,11 @@ export type RouteAuthorityChain = {
   singleSourcePassthrough: boolean
   trueMulti: boolean
   allowedAgents: string[]
+  /** Phase0 */
+  orchestrationThickness: string
+  orchestratorSource: string
+  routeSkips: Record<string, boolean>
+  routeLlmCalls: number
 }
 
 export function buildRouteAuthorityChain(input: {
@@ -42,6 +53,34 @@ export function buildRouteAuthorityChain(input: {
   const turnKind = String(input.turnKind ?? meta.turnKind ?? '').trim() || 'new_task'
   const singleSourcePassthrough =
     isSingleSourceDbTask(meta) || isSingleSourceRagTask(meta)
+
+  const orchestrationThickness = String(meta.orchestrationThickness || '').trim() || 'complex'
+  const orchestratorSource = String(meta.orchestratorSource || '').trim()
+  const priorSkips =
+    meta.routeSkips && typeof meta.routeSkips === 'object'
+      ? (meta.routeSkips as Record<string, boolean>)
+      : null
+  const routeSkips =
+    priorSkips ??
+    buildRouteSkipsSnapshot({
+      skipAlign: Boolean(meta.routeSkipAlign),
+      skipPlane: Boolean(meta.routeSkipPlane),
+      skipWebAlign: Boolean(meta.routeSkipWebAlign),
+      plannerBypassed: Boolean(meta.plannerBypassed) || orchestrationThickness === 'single_source',
+      skipAudit: shouldSkipPostSynthAudit(meta)
+    })
+
+  const priorCalls = Number(meta.routeLlmCalls)
+  const routeLlmCalls = Number.isFinite(priorCalls) && priorCalls > 0
+    ? Math.floor(priorCalls)
+    : estimateRouteLlmCalls({
+        priorAuxCalls: Number(meta.routeAuxLlmCalls) || 0,
+        ranOrchestratorLlm: meta.directChitchatSynth !== true && !String(orchestratorSource).includes('meta_intent'),
+        skipAlign: routeSkips.align,
+        skipPlane: routeSkips.plane,
+        skipWebAlign: routeSkips.webAlign
+      })
+
   return {
     sourceCommitment: slice.sourceCommitment,
     committedPlanes: [...slice.committedPlanes],
@@ -50,7 +89,11 @@ export function buildRouteAuthorityChain(input: {
     turnKind,
     singleSourcePassthrough,
     trueMulti: isTrueMultiTask(meta),
-    allowedAgents: agents
+    allowedAgents: agents,
+    orchestrationThickness,
+    orchestratorSource,
+    routeSkips,
+    routeLlmCalls
   }
 }
 
@@ -65,6 +108,10 @@ export function routeAuthorityMetricExtra(chain: RouteAuthorityChain): Record<st
     singleSourcePassthrough: chain.singleSourcePassthrough,
     trueMulti: chain.trueMulti,
     allowedAgents: chain.allowedAgents,
+    orchestrationThickness: chain.orchestrationThickness,
+    orchestratorSource: chain.orchestratorSource,
+    routeSkips: chain.routeSkips,
+    routeLlmCalls: chain.routeLlmCalls,
     goldenHit: null as boolean | null
   }
 }

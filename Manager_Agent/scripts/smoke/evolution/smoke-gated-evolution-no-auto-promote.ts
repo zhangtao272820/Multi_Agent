@@ -21,7 +21,12 @@ import {
   canSkipSkillBatchVerify,
   isSkillBatchPromoteEnabled,
 } from '../../../server/utils/skills/skillDraftBatchPromote'
-import { promoteSkillDraftContent } from '../../../server/utils/skills/skillDraftFromSuccess'
+import {
+  buildSkillDraftMarkdown,
+  isExplicitUserRequestSkillDraft,
+  sortSkillDraftsExplicitFirst,
+  promoteSkillDraftContent,
+} from '../../../server/utils/skills/skillDraftFromSuccess'
 
 async function main() {
   // 1) 默认禁止专家自动晋级
@@ -64,6 +69,28 @@ async function main() {
   const dirty = normalizePromotableSkillId('manager_很长的用户问句slug_不应该直接进热目录')
   assert.match(dirty, /^learned_[a-f0-9]{12}$/)
   assert.equal(normalizePromotableSkillId('intent_rag_nurse_ratio'), 'intent_rag_nurse_ratio')
+
+  // 1d) Wave 8c：显式请求 skill draft 打 capture_source 且排序置顶
+  const explicitDraft = buildSkillDraftMarkdown({
+    agent: 'manager',
+    question: '以后都这么查补贴标准',
+    hints: ['source=explicit_user_request', 'path=rag'],
+  })
+  assert.ok(
+    explicitDraft.markdown.includes('capture_source: explicit_user_request'),
+    'explicit draft frontmatter'
+  )
+  assert.equal(isExplicitUserRequestSkillDraft(explicitDraft.markdown), true)
+  const implicitDraft = buildSkillDraftMarkdown({
+    agent: 'manager',
+    question: '普通隐式高分 run',
+  })
+  assert.equal(isExplicitUserRequestSkillDraft(implicitDraft.markdown), false)
+  const sortedDrafts = sortSkillDraftsExplicitFirst([
+    { markdown: implicitDraft.markdown, successScore: 0.99 },
+    { markdown: explicitDraft.markdown, successScore: 0.5 },
+  ])
+  assert.equal(isExplicitUserRequestSkillDraft(String(sortedDrafts[0]?.markdown || '')), true)
 
   // 3) promote → 索引 → recall
   const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'mgr-skill-evo-'))

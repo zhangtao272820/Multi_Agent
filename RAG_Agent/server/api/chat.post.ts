@@ -547,6 +547,7 @@ export default defineEventHandler(async (event) => {
         needsClarify: Boolean(retrieveFirst.clarifyOnly),
         usage: resolveAgentUsage({ llmUsage: retrieveFirst.usage, answerText: finalAnswer }),
         retrievalFailureMode: retrieveFirst.retrievalFailureMode,
+        retrievalLanes: retrieveFirst.retrievalLanes,
         evolutionApplied: snapshotRagEvolutionApplied(retrieveFirst.toolOutput),
       });
       sendData({
@@ -554,7 +555,11 @@ export default defineEventHandler(async (event) => {
         phase: "done",
         content: retrieveFirst.clarifyOnly ? "检索澄清完成" : "回答完成",
         ms: Date.now() - startedAt,
-        detail: { path: "rag_pipeline", mode: retrieveFirst.workflowMode },
+        detail: {
+          path: "rag_pipeline",
+          mode: retrieveFirst.workflowMode,
+          retrievalLanes: retrieveFirst.retrievalLanes,
+        },
       });
       sendData({ type: "agentResult", agentResult, evidence: evidenceRows });
       sendData({ type: "done", conversationId: sessionId, answer: finalAnswer, ms: Date.now() - startedAt });

@@ -100,6 +100,28 @@ export type UserFacingPayload = {
   badge?: 'evidence_rejected' | 'needs_clarify'
   badgeLabel?: string
   replyTier?: 'lite' | 'standard' | 'report'
+  /** Cursor 式 follow-up chips */
+  suggestions?: string[]
+  presentationPlan?: {
+    replyTier?: 'lite' | 'standard' | 'report'
+    modules?: Array<{ type: string; collapsed?: boolean; maxItems?: number }>
+    suggestions?: string[]
+    proseStyle?: string
+    confidence?: number
+    source?: string
+  }
+  artifacts?: Array<{
+    id: string
+    kind: 'chart' | 'table' | 'report'
+    title: string
+    surface: 'inline' | 'artifact_panel'
+    collapsed?: boolean
+  }>
+  /** Canvas 中用户已编辑并应用报告 */
+  reportEdited?: boolean
+  reportEditedAt?: string
+  /** 气泡内短注（与 appendix 分离，幂等） */
+  reportRevisionNote?: string
 }
 
 export type LogItem = {
@@ -122,6 +144,9 @@ export type LogItem = {
   adminUiCards?: unknown[]
   /** D1 用户态结构化载荷 */
   userFacing?: UserFacingPayload
+  presentationPlan?: UserFacingPayload['presentationPlan']
+  /** Wave 8：记忆提案（记住答案/打法/偏好/规则） */
+  memoryCapture?: MemoryCaptureProposal
   routeCap?: { intent: string; agents: string[]; capLabel?: string; needsWebSearch?: boolean }
   routePlanCard?: RoutePlanCardData
   planOutline?: { dag?: string; steps: PlanStepTodo[] }
@@ -132,6 +157,22 @@ export type LogItem = {
   /** 姿态门禁原因，如 debug_no_observation / write_filtered */
   postureBlocked?: string
   postureReadOnly?: boolean
+}
+
+export type MemoryCaptureProposal = {
+  kind: string
+  status: string
+  source?: string
+  title?: string
+  summary?: string
+  runId?: string
+  skillId?: string
+  ruleCandidateId?: string
+  experienceCandidateId?: string
+  note?: string
+  proposedAt?: string
+  /** UI 本地状态 */
+  uiStatus?: 'open' | 'acked' | 'confirmed' | 'rejected' | 'sending'
 }
 
 export type TurnGroup = {
@@ -145,6 +186,9 @@ export type TurnGroup = {
   ragEvidence: RagEvidenceItem[]
   adminUiCards?: unknown[]
   userFacing?: UserFacingPayload
+  /** Synth 前 WS 下发的展示计划（user_facing 到达前可用） */
+  presentationPlan?: UserFacingPayload['presentationPlan']
+  memoryCapture?: MemoryCaptureProposal
 }
 
 export type PendingAttachment = {

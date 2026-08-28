@@ -48,6 +48,9 @@ import { judgeDocScope, getRagRequestIntent } from "./doc_scope_judge";
 import { condenseRetrievalQuery } from "./query_condense";
 import { expandDocsToParent } from "./parent_expand";
 import { mmrSelect } from "./mmr_select";
+import { applyLaneGatesToPlan } from "./query_lane_gates";
+import { generateHypotheticalDocument } from "./hyde_retrieval";
+import { traversePolicyGraph } from "./policy_graph_store";
 import {
   buildClarifyMessage,
   buildExplicitDocNotFoundMessage,
@@ -105,6 +108,8 @@ export type DocumentRetrievalResult = {
   experienceHits?: number;
   abVariant?: string;
   banditArm?: string;
+  /** L/M：实际参与召回的车道 */
+  retrievalLanes?: string[];
 };
 
 const coerceEvidenceJson = (modelTextRaw: string, maxEvidence = 6) => {
@@ -313,7 +318,8 @@ export async function runDocumentRetrieval(input: {
     prefetchedPlanSource: params.prefetchedPlanSource,
   });
   effectiveQuery = understood.effectiveQuery || effectiveQuery;
-  const ragPlan = understood.plan;
+  let ragPlan = understood.plan;
+  const retrievalLanes: string[] = ["hybrid"];
   let runCompoundFast = compoundFast;
   if (fastPath && !runCompoundFast && !probeMode && understood.needsDeepRetrieval) {
     runCompoundFast = true;
@@ -346,6 +352,19 @@ export async function runDocumentRetrieval(input: {
       [effectiveQuery, rawIncoming, originalQuery].filter(Boolean).pop() || effectiveQuery,
       uploadedDocs
     ));
+  ragPlan = applyLaneGatesToPlan(ragPlan, {
+    probeMode,
+    turboRetrieval,
+    fastPath: Boolean(fastPath) && !runCompoundFast,
+    hasExplicitDocAnchor: Boolean(queryIntent.has_explicit_doc_anchor),
+    managerLeanQueryHighConfidence: Boolean(
+      managerTask?.lean_query && Number(ragPlan.confidence) >= 0.7
+    ),
+    queryLen: String(effectiveQuery || "").trim().length,
+    enableHyde: env.enableHyde,
+    enableMultiQuery: env.enableMultiQuery,
+    enablePolicyGraph: env.enablePolicyGraph,
+  });
   if (queryIntent.missing_documents.length > 0) {
     const message = buildExplicitDocNotFoundMessage(queryIntent.missing_documents, uploadedDocs);
     recordRagQueryMetric({
@@ -508,7 +527,10 @@ export async function runDocumentRetrieval(input: {
   const vectorTopK = turboRetrieval || probeMode ? env.fastPathVectorTopK : env.vectorSearchTopK;
   const skipMultiQueryExpansion = queryIntent.has_explicit_doc_anchor;
   const shouldUseMultiQuery =
-    !probeMode && !turboRetrieval && env.enableMultiQuery && expansionSeed.length >= env.multiQueryMinLen;
+    !probeMode &&
+    !turboRetrieval &&
+    Boolean(ragPlan.use_multi_query) &&
+    expansionSeed.length >= env.multiQueryMinLen;
   if (shouldUseMultiQuery && !skipMultiQueryExpansion) {
     const expansionPrompt = [
       userPrefsBlock,
@@ -595,6 +617,87 @@ export async function runDocumentRetrieval(input: {
   };
 
   await Promise.all(queries.map((q) => tryVectorSearchWithScore(q)));
+
+  /** L1：门控 HyDE — 假想文档向量召回并入 semanticMap（不进最终证据原文） */
+  if (ragPlan.use_hyde && env.enableHyde && !probeMode && !turboRetrieval) {
+    try {
+      const hyde = await generateHypotheticalDocument({
+        query: effectiveQuery,
+        intent: ragPlan.intent,
+      });
+        if (hyde.hypotheticalDoc) {
+        await ensureQueriesEmbedded(embeddings, [hyde.hypotheticalDoc]);
+        const storeAny = vectorStore as any;
+        let hydeHitCount = 0;
+        if (typeof storeAny.similaritySearchWithScore === "function") {
+          const rows = await storeAny.similaritySearchWithScore(hyde.hypotheticalDoc, vectorTopK);
+          for (const [doc, distance] of rows as [any, number][]) {
+            const metadata = normalizeMetadata(doc?.metadata);
+            const source = String(metadata?.source ?? "");
+            if (shouldFilterBySource && routedSources.size > 0 && !routedSources.has(source)) continue;
+            const sourceLabel = buildSourceLabel(metadata);
+            const docKey = `${sourceLabel}:${String(doc?.pageContent ?? "").slice(0, 60)}`;
+            const semanticScore =
+              env.rrfHydeWeight * (1 / (1 + Math.max(distance ?? 0, 0)));
+            hydeHitCount += 1;
+            const prev = semanticMap.get(docKey);
+            if (!prev || semanticScore > prev.score) {
+              semanticMap.set(docKey, { doc: { ...doc, metadata }, score: Math.max(prev?.score ?? 0, semanticScore) });
+            }
+          }
+        } else {
+          const docs = await vectorStore.similaritySearch(hyde.hypotheticalDoc, vectorTopK);
+          for (const doc of docs) {
+            const metadata = normalizeMetadata(doc?.metadata);
+            const source = String(metadata?.source ?? "");
+            if (shouldFilterBySource && routedSources.size > 0 && !routedSources.has(source)) continue;
+            const sourceLabel = buildSourceLabel(metadata);
+            const docKey = `${sourceLabel}:${String(doc?.pageContent ?? "").slice(0, 60)}`;
+            const semanticScore = 0.16 * env.rrfHydeWeight;
+            hydeHitCount += 1;
+            const prev = semanticMap.get(docKey);
+            if (!prev || semanticScore > prev.score) {
+              semanticMap.set(docKey, { doc: { ...doc, metadata }, score: semanticScore });
+            }
+          }
+        }
+        if (hydeHitCount > 0) retrievalLanes.push("hyde");
+      }
+    } catch (e) {
+      console.warn("[HyDE] retrieval skipped:", e);
+    }
+  }
+
+  /** M3：制度图 1～2 跳 → 并入候选（后与 hybrid RRF；turbo/compound 也允许，probe 除外） */
+  const graphMap = new Map<string, { doc: any; score: number }>();
+  if (ragPlan.needs_graph && env.enablePolicyGraph && !probeMode) {
+    try {
+      const graphHits = traversePolicyGraph({
+        query: effectiveQuery,
+        topics: ragPlan.entities.topics,
+        maxHops: env.policyGraphMaxHops,
+        limit: Math.max(6, vectorTopK),
+      });
+      for (const hit of graphHits) {
+        if (shouldFilterBySource && routedSources.size > 0 && !routedSources.has(hit.source)) continue;
+        const doc = {
+          pageContent: hit.pageContent,
+          metadata: { source: hit.source, retrieval_lane: "graph" },
+        };
+        graphMap.set(hit.key, { doc, score: hit.score });
+      }
+      if (graphMap.size) retrievalLanes.push("graph");
+      console.info(
+        `[PolicyGraph] retrieve needs_graph=1 hits=${graphMap.size} turbo=${turboRetrieval ? 1 : 0} topics=${(ragPlan.entities.topics || []).slice(0, 4).join(",")}`
+      );
+    } catch (e) {
+      console.warn("[PolicyGraph] retrieve skipped:", e);
+    }
+  } else if (env.enablePolicyGraph && !probeMode) {
+    console.info(
+      `[PolicyGraph] retrieve skipped lane intent=${ragPlan.intent} needs_graph=${Boolean(ragPlan.needs_graph)}`
+    );
+  }
 
   const keywordTerms = Array.from(
     new Set([
@@ -722,6 +825,7 @@ export async function runDocumentRetrieval(input: {
   const semanticRank = new Map<string, number>();
   const keywordRank = new Map<string, number>();
   const bm25Rank = new Map<string, number>();
+  const graphRank = new Map<string, number>();
   Array.from(semanticMap.entries())
     .sort((a, b) => b[1].score - a[1].score)
     .forEach(([k], i) => semanticRank.set(k, i + 1));
@@ -731,16 +835,25 @@ export async function runDocumentRetrieval(input: {
   Array.from(bm25Map.entries())
     .sort((a, b) => b[1].score - a[1].score)
     .forEach(([k], i) => bm25Rank.set(k, i + 1));
+  Array.from(graphMap.entries())
+    .sort((a, b) => b[1].score - a[1].score)
+    .forEach(([k], i) => graphRank.set(k, i + 1));
 
-  const allKeys = new Set<string>([...semanticMap.keys(), ...keywordMap.keys(), ...bm25Map.keys()]);
+  const allKeys = new Set<string>([
+    ...semanticMap.keys(),
+    ...keywordMap.keys(),
+    ...bm25Map.keys(),
+    ...graphMap.keys(),
+  ]);
   const focusLexicalTerms = tokenizeForKeywordSearch(raw || effectiveQuery).slice(0, 16);
   const hybridDocs = Array.from(allKeys)
     .map((k) => {
       const sem = semanticMap.get(k);
       const kw = keywordMap.get(k);
       const bm = bm25Map.get(k);
-      const rowDoc = sem?.doc ?? kw?.doc ?? bm?.doc;
-      const baseScore = Math.max(sem?.score ?? 0, kw?.score ?? 0, bm?.score ?? 0);
+      const gr = graphMap.get(k);
+      const rowDoc = sem?.doc ?? kw?.doc ?? bm?.doc ?? gr?.doc;
+      const baseScore = Math.max(sem?.score ?? 0, kw?.score ?? 0, bm?.score ?? 0, gr?.score ?? 0);
       const semanticRrf = semanticRank.has(k)
         ? env.rrfSemanticWeight * (1 / (env.rrfK + (semanticRank.get(k) as number)))
         : 0;
@@ -750,8 +863,13 @@ export async function runDocumentRetrieval(input: {
       const bm25Rrf = bm25Rank.has(k)
         ? env.rrfBm25Weight * (1 / (env.rrfK + (bm25Rank.get(k) as number)))
         : 0;
-      const fusionScore = env.enableRrfFusion ? baseScore + semanticRrf + keywordRrf + bm25Rrf : baseScore;
-      const meta = sem?.doc?.metadata ?? kw?.doc?.metadata ?? {};
+      const graphRrf = graphRank.has(k)
+        ? env.rrfGraphWeight * (1 / (env.rrfK + (graphRank.get(k) as number)))
+        : 0;
+      const fusionScore = env.enableRrfFusion
+        ? baseScore + semanticRrf + keywordRrf + bm25Rrf + graphRrf
+        : baseScore;
+      const meta = sem?.doc?.metadata ?? kw?.doc?.metadata ?? gr?.doc?.metadata ?? {};
       const sourceLabel = resolveSourceLabel(meta, routedSources);
       const learnedBoost = learning?.sourceScoreAdjust(sourceLabel) ?? 0;
       let expBoost = 0;
@@ -894,6 +1012,8 @@ export async function runDocumentRetrieval(input: {
       rerank_mode: rerankMode,
       ab_variant: promptAbVariant,
       bandit_arm: banditArm,
+      retrieval_lanes: Array.from(new Set(retrievalLanes)),
+      needs_graph: Boolean(ragPlan.needs_graph),
       refused,
       empty_evidence,
       error_code: refused ? "needs_clarify" : empty_evidence ? "empty_result" : undefined,
@@ -1128,6 +1248,7 @@ export async function runDocumentRetrieval(input: {
         experienceHits,
         abVariant: promptAbVariant,
         banditArm,
+        retrievalLanes: Array.from(new Set(retrievalLanes)),
       };
     }
   }
@@ -1176,6 +1297,7 @@ export async function runDocumentRetrieval(input: {
             experienceHits,
             abVariant: promptAbVariant,
             banditArm,
+            retrievalLanes: Array.from(new Set(retrievalLanes)),
           };
         }
       }
@@ -1272,5 +1394,6 @@ export async function runDocumentRetrieval(input: {
     experienceHits,
     abVariant: promptAbVariant,
     banditArm,
+    retrievalLanes: Array.from(new Set(retrievalLanes)),
   };
 }

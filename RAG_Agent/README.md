@@ -22,8 +22,9 @@
 | Citation | 引用片段可核验门禁（H5） |
 | 离线重建 | reindex 脚本与流程（H6） |
 | 向量后端 | 内存向量（开发）或 `pgvector`（持久化） |
+| **L 波（已落地）** | 门控 HyDE + Query 门控 + 企业制度 Graph 双车道（见升级文档） |
 
-企业化细节见 [doc/企业化升级方案.md](doc/企业化升级方案.md)；守门 `npm run smoke:enterprise-h` / `npm run smoke:agentic-jk`。
+企业化细节见 [doc/企业化升级方案.md](doc/企业化升级方案.md)；L 波见 [doc/L波-普通RAG与GraphRAG升级方案.md](doc/L波-普通RAG与GraphRAG升级方案.md)。守门 `npm run smoke:enterprise-h` / `npm run smoke:agentic-jk` / `npm run smoke:l-wave`。
 
 ## 技术栈
 
@@ -35,14 +36,15 @@
 ## 架构与关键路径
 
 ```text
-upload → MinerU重解析(可选) → parse → chunk（parent/child）→ embed → store
-                                              │
+upload → MinerU重解析(可选) → parse → chunk → embed → store
+                              └─（L/M）制度图抽取（content_hash 变则 purge 再写）
 chat ← generate ← tools⇄agent(多跳) ← intent(pipeline|agentic)
          │              │
-    citation/clarify   Hybrid retrieve（简单问句 retrieve-first）
+    citation/clarify   Hybrid ± 门控HyDE ± Graph（简单问句 retrieve-first）
 ```
 
-**边界**：Manager 一次派发 `cap=rag` ≠ Agentic RAG；Agentic 闭环在专家内。明确不做 GraphRAG / 完整 RAGAS。
+**边界**：Manager 一次派发 `cap=rag` ≠ Agentic RAG ≠ GraphRAG；后两者闭环在专家内。  
+**L 波**：门控 HyDE（默认关）+ 企业制度图双车道（PG/文件边表，非 Neo4j）。**明确不做**：完整 RAGAS、开放域百科图、无限探索。
 
 ## 目录结构速览
 
@@ -82,9 +84,10 @@ npm run dev
 
 - **适合**：内部文档问答、带出处的解释、资料列表检索、跨文档对比（Agentic）
 - **不适合**：实时公网搜索、大规模爬虫、无文档依据的开放闲聊
-- **明确不做**：完整 RAGAS 流水线、GraphRAG、多租户物理隔离、无限 Agent 探索
+- **明确不做**：完整 RAGAS 流水线、Neo4j 强依赖、多租户物理隔离、无限 Agent 探索
+- **L 波已落地**：门控 HyDE、Query 门控、制度 GraphRAG（勿面试说「完全没做图」或「默认全开 HyDE」）
 
-## 环境变量（J/K 波）
+## 环境变量（J/K / L 波）
 
 ```bash
 # K：MinerU 重解析（Compose 默认 http://mineru_api:8080）
@@ -95,6 +98,12 @@ RAG_HEAVY_PARSE_TIMEOUT_MS=120000
 # J：专家内 Agentic 工具多跳
 RAG_ENABLE_AGENTIC_TOOL_LOOP=1
 RAG_AGENTIC_TOOL_MAX_ROUNDS=4
+
+# L：门控 HyDE（默认关）/ 制度图
+# RAG_ENABLE_HYDE=off
+# RAG_ENABLE_POLICY_GRAPH=on
+# RAG_RRF_GRAPH_WEIGHT=1.15
+# RAG_RRF_HYDE_WEIGHT=0.9
 ```
 
 ## Docker / 平台编排

@@ -1,6 +1,13 @@
 import { resolveEffectiveLlmTier, resolveStageModel } from '../shared/modelTier'
 import type { LlmInvokeOptions } from '../shared/modelTier'
 import { withLlmRateLimitRetry } from '../../../utils/chat/llmRateLimit'
+import {
+  buildRouteThoughtHeartbeats,
+  extractContentFromStreamChunk,
+  extractReasoningFromStreamChunk,
+  isManagerRouteThoughtStreamEnabled,
+  sanitizeRouteThoughtForUser
+} from '../../../utils/chat/routeThoughtStream'
 
 export function isManagerSynthStreamEnabled(): boolean {
   const v = String(process.env.MANAGER_SYNTH_STREAM ?? '1').trim().toLowerCase()
@@ -34,7 +41,14 @@ export type CreateManagerRuntimeDeps = {
   }
   getEffectivePlanSteps: (state: any) => any[]
   traceRun: <T>(name: string, fn: () => Promise<T>, extra?: Record<string, any>) => Promise<T>
-  getModel: (modelName: string, temperature?: number) => { invoke: (messages: any[]) => Promise<any> }
+  getModel: (
+    modelName: string,
+    temperature?: number,
+    modelOpts?: { enableThinking?: boolean }
+  ) => {
+    invoke: (messages: any[]) => Promise<any>
+    stream?: (messages: any[]) => Promise<AsyncIterable<unknown>>
+  }
   extractTotalTokens: (resp: any) => number | undefined
   estimateTokensFromMessages: (messages: any[]) => number
   estimateTokensFromText: (text: string) => number
@@ -161,12 +175,69 @@ export function createManagerRuntime(deps: CreateManagerRuntimeDeps) {
     if (!effectiveModel) throw new Error('missing model for llmInvoke')
     if (stage !== 'route' && tLeft > 0 && tLeft < 3500) throw new Error('deadline approaching')
     const t0 = Date.now()
-    const model = getModel(effectiveModel, 0)
+    const useRouteThoughtStream =
+      (stage === 'route' || stage === 'plan') &&
+      !invokeOptions?.quiet &&
+      !Boolean(state.meta?.lowCostMode) &&
+      isManagerRouteThoughtStreamEnabled()
+    const model = getModel(effectiveModel, 0, useRouteThoughtStream ? { enableThinking: true } : undefined)
     const useStream =
-      stage === 'synth' && isManagerSynthStreamEnabled() && typeof invokeOptions?.onDelta === 'function'
+      (stage === 'synth' && isManagerSynthStreamEnabled() && typeof invokeOptions?.onDelta === 'function') ||
+      useRouteThoughtStream
     let outText = ''
     let resp: unknown = null
-    if (useStream && typeof (model as { stream?: (messages: unknown[]) => AsyncIterable<unknown> }).stream === 'function') {
+
+    const emitThoughtDelta = (text: string) => {
+      const line = sanitizeRouteThoughtForUser(text)
+      if (!line) return
+      opts.sendEvent({
+        event: 'thought_delta',
+        data: { text: line, done: false },
+        from: 'manager'
+      })
+    }
+
+    if (useRouteThoughtStream && typeof (model as { stream?: (messages: unknown[]) => Promise<AsyncIterable<unknown>> }).stream === 'function') {
+      const label = invokeOptions?.thinkingLabel?.trim() || (stage === 'plan' ? '制定执行计划' : '路由编排')
+      const heartbeats = buildRouteThoughtHeartbeats(label)
+      let heartbeatIdx = 0
+      let lastActivityAt = Date.now()
+      const heartbeatTimer = setInterval(() => {
+        if (Date.now() - lastActivityAt < 3800) return
+        emitThoughtDelta(heartbeats[heartbeatIdx++ % heartbeats.length]!)
+        lastActivityAt = Date.now()
+      }, 4200)
+      try {
+        await traceRun(
+          `manager_llm_${stage}`,
+          async () => {
+            const stream = await withLlmRateLimitRetry(() =>
+              (model as { stream: (messages: unknown[]) => Promise<AsyncIterable<unknown>> }).stream(messages)
+            )
+            for await (const chunk of stream) {
+              ensureNotAborted()
+              const reasoning = extractReasoningFromStreamChunk(chunk)
+              if (reasoning) {
+                emitThoughtDelta(reasoning)
+                lastActivityAt = Date.now()
+              }
+              const content = extractContentFromStreamChunk(chunk)
+              if (content) outText += content
+            }
+          },
+          {
+            stage,
+            model: effectiveModel,
+            forceIntent: state.forceIntent,
+            intent: state.intent,
+            routeConfidence: typeof state.meta?.routeConfidence === 'number' ? state.meta.routeConfidence : undefined,
+            routeThoughtStream: true
+          }
+        )
+      } finally {
+        clearInterval(heartbeatTimer)
+      }
+    } else if (useStream && typeof (model as { stream?: (messages: unknown[]) => AsyncIterable<unknown> }).stream === 'function') {
       const stream = await withLlmRateLimitRetry(() =>
         (model as { stream: (messages: unknown[]) => AsyncIterable<unknown> }).stream(messages)
       )

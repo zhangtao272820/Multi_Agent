@@ -8,7 +8,7 @@
         <div>
           <p class="mgr-login-eyebrow">立冬 · 天机</p>
           <h1 class="mgr-login-title">天机 · 登录</h1>
-          <p class="mgr-login-desc">使用 ClawHive 账号登录</p>
+          <p class="mgr-login-desc">使用天机账号登录（无需先打开控制端）</p>
         </div>
       </div>
       <label class="mgr-login-label">

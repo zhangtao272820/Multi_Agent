@@ -140,6 +140,21 @@ def list_adm_sessions_pg(user_id: str) -> list[dict[str, Any]]:
     return out
 
 
+def get_adm_session_user_id(session_id: str) -> str | None:
+    sid = (session_id or "").strip()
+    if not sid:
+        return None
+    with _connect() as conn:
+        row = conn.execute(
+            "SELECT user_id FROM adm_sessions WHERE id = %s",
+            (sid,),
+        ).fetchone()
+    if not row:
+        return None
+    uid = str(row.get("user_id") or "").strip()
+    return uid or None
+
+
 def delete_session_pg(session_id: str) -> dict[str, int]:
     sid = (session_id or "default").strip() or "default"
     with _connect() as conn:

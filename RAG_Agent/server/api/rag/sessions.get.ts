@@ -1,9 +1,9 @@
 import path from "node:path";
-import { z } from "zod";
 import { agentPgQuery } from "#agent-shared/agentPgClient";
 import { isPostgresStorageEnabled, resolveStorageBackend } from "#agent-shared/storageBackend";
-import { readRagSessionMeta, sanitizeRagSessionTitle } from "../../utils/ragSessionMeta";
+import { readRagSessionMeta } from "../../utils/ragSessionMeta";
 import { readRagSession, listRagSessionsForUser } from "../../utils/ragSessionStore";
+import { assertRagSessionAccess, resolveRagHttpUser } from "../../utils/ragRequestUser";
 
 function previewTitle(messages: Array<{ role?: string; content?: string }>) {
   const firstUser = messages.find((m) => String(m?.role || "").toLowerCase() === "user");
@@ -27,13 +27,18 @@ async function sessionUpdatedAt(sessionId: string): Promise<string | undefined> 
 
 export default defineEventHandler(async (event) => {
   const query = getQuery(event);
-  const userId = String(query.userId ?? "").trim();
+  const auth = resolveRagHttpUser(event, query.userId ? String(query.userId) : undefined);
+  const userId = auth.userId;
   const dataRoot = path.join(process.cwd(), ".data");
-  // 会话列表仅服务端权威：忽略客户端 historyIds，禁止前端拼装权威列表
+  const anchor = String(query.sessionId ?? "").trim();
 
   const sessionIdSet = new Set<string>();
   if (userId) {
     for (const id of await listRagSessionsForUser(userId)) sessionIdSet.add(id);
+  }
+  if (anchor && userId) {
+    await assertRagSessionAccess({ sessionId: anchor, userId }).catch(() => undefined);
+    sessionIdSet.add(anchor);
   }
 
   const items: Array<{

@@ -2,6 +2,10 @@ import { z } from 'zod'
 import { processManagerFeedback } from './processManagerFeedback'
 import { appendRouteWrongFeedback } from '../../utils/route/managerRouteFeedbackStore'
 import { routeWrongFeedbackKey, upsertSessionFeedback } from '#agent-shared/sessionFeedbackStore'
+import {
+  assertManagerSessionAccess,
+  resolveManagerHttpUser
+} from '../../utils/platform/managerRequestUser'
 
 const BodySchema = z.object({
   sessionId: z.string().min(1).max(120).regex(/^[A-Za-z0-9_-]+$/),
@@ -22,6 +26,11 @@ const BodySchema = z.object({
 
 export default defineEventHandler(async (event) => {
   const body = BodySchema.parse(await readBody(event))
+  const auth = resolveManagerHttpUser(event, body.userId)
+  const userId = auth.userId
+  const tenantId = body.tenantId || auth.tenantId || 'default'
+  await assertManagerSessionAccess({ sessionId: body.sessionId, userId })
+
   const kind = body.kind ?? 'score'
 
   if (kind === 'route_wrong') {
@@ -32,7 +41,7 @@ export default defineEventHandler(async (event) => {
     try {
       await appendRouteWrongFeedback({
         sessionId: body.sessionId,
-        userId: body.userId,
+        userId,
         runId: body.runId ? String(body.runId) : undefined,
         turnId: body.turnId,
         userMessageIndex: uidx ?? undefined,
@@ -47,7 +56,7 @@ export default defineEventHandler(async (event) => {
         await upsertSessionFeedback({
           agent: 'manager',
           sessionId: body.sessionId,
-          tenantId: body.tenantId,
+          tenantId,
           feedbackKey: routeWrongFeedbackKey(uidx),
           score: 0,
           userMessageIndex: uidx,
@@ -77,8 +86,8 @@ export default defineEventHandler(async (event) => {
 
   const result = await processManagerFeedback({
     sessionId: body.sessionId,
-    userId: body.userId,
-    tenantId: body.tenantId,
+    userId,
+    tenantId,
     runId: body.runId,
     turnId: body.turnId,
     userMessageIndex: body.userMessageIndex,

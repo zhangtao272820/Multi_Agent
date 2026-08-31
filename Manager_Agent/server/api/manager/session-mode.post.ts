@@ -4,7 +4,11 @@ import {
   sanitizeWorkbenchMode,
   writeSessionWorkbenchMode
 } from '../../utils/session/managerSessionMeta'
-import { bindSessionToUser, resolveUserId } from '../../graph/core/task/userIdentity'
+import { bindSessionToUser } from '../../graph/core/task/userIdentity'
+import {
+  assertManagerSessionAccess,
+  resolveManagerHttpUser
+} from '../../utils/platform/managerRequestUser'
 
 const BodySchema = z.object({
   sessionId: z.string().min(1).max(80).regex(/^[A-Za-z0-9_-]+$/),
@@ -14,17 +18,16 @@ const BodySchema = z.object({
 
 export default defineEventHandler(async (event) => {
   const body = BodySchema.parse(await readBody(event))
-  const policyDir = path.join(process.cwd(), '.data')
-  const userId = await resolveUserId(policyDir, body.sessionId, body.userId)
-  if (!userId) {
-    throw createError({ statusCode: 403, statusMessage: '无法验证会话归属' })
-  }
+  const auth = resolveManagerHttpUser(event, body.userId)
+  const userId = auth.userId
+  await assertManagerSessionAccess({ sessionId: body.sessionId, userId })
 
   const workbenchMode = sanitizeWorkbenchMode(body.workbenchMode)
   if (!workbenchMode) {
     throw createError({ statusCode: 400, statusMessage: 'workbenchMode 无效' })
   }
 
+  const policyDir = path.join(process.cwd(), '.data')
   const dataRoot = path.join(process.cwd(), '.data')
   await bindSessionToUser(policyDir, body.sessionId, userId)
   await writeSessionWorkbenchMode(dataRoot, body.sessionId, workbenchMode)

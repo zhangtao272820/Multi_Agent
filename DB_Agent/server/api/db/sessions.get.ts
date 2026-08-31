@@ -1,4 +1,5 @@
 import { readDbSession, listDbSessionsForUser, getDbSessionMeta } from '../../../utils/dbSessionStore'
+import { assertDbSessionAccess, resolveDbHttpUser } from '../../utils/dbRequestUser'
 
 function previewTitle(messages: Array<{ role?: string; content?: string }>) {
   const firstUser = messages.find((m) => String(m?.role || '').toLowerCase() === 'user')
@@ -7,15 +8,19 @@ function previewTitle(messages: Array<{ role?: string; content?: string }>) {
   return raw.length > 40 ? `${raw.slice(0, 40)}…` : raw
 }
 
-/** 会话列表：仅服务端权威（按 userId） */
+/** 会话列表：仅服务端权威（按验签 JWT.sub / internal X-User-Id） */
 export default defineEventHandler(async (event) => {
   const query = getQuery(event)
-  const userId = String(query.userId ?? '').trim()
+  const auth = resolveDbHttpUser(event, query.userId ? String(query.userId) : undefined)
+  const userId = auth.userId
   const anchor = String(query.sessionId ?? '').trim()
   if (!userId) return { items: [] }
 
   const ids = new Set(await listDbSessionsForUser(userId))
-  if (anchor) ids.add(anchor)
+  if (anchor) {
+    await assertDbSessionAccess({ sessionId: anchor, userId }).catch(() => undefined)
+    ids.add(anchor)
+  }
 
   const items: Array<{
     id: string

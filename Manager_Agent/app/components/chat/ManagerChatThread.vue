@@ -570,10 +570,11 @@ watch(streamingSynthText, async () => {
                 class="reply-sources-panel"
               >
                 <summary class="reply-sources-summary">
-                  <span class="reply-web-read-icon" aria-hidden="true">依据</span>
+                  <span class="reply-web-read-icon" aria-hidden="true"></span>
                   <span class="reply-web-read-label"
                     >已阅读 {{ turnUnifiedCiteSources(t).length }} 个来源</span
                   >
+                  <span class="reply-sources-chevron" aria-hidden="true"></span>
                 </summary>
                 <ol class="reply-source-cards">
                   <li
@@ -581,7 +582,7 @@ watch(streamingSynthText, async () => {
                     :key="`cite-${src.index}-${src.title.slice(0, 24)}`"
                     class="reply-source-card"
                   >
-                    <span class="reply-source-index">[{{ src.index }}]</span>
+                    <span class="reply-source-index">{{ src.index }}</span>
                     <div class="reply-source-body">
                       <a
                         v-if="src.url"
@@ -1056,10 +1057,6 @@ watch(streamingSynthText, async () => {
                 </div>
               </details>
 
-              <div v-else-if="thoughtViewMode === 'user'" class="reply-toolbar reply-toolbar-inline">
-                <button type="button" class="reply-tool-btn" @click="downloadMarkdown(`report_${t.id}_${idx}.md`, r.text)">下载完整回复 .md</button>
-              </div>
-
               <p
                 v-if="
                   !replyMarkdownBody(r.text, t) &&
@@ -1077,10 +1074,25 @@ watch(streamingSynthText, async () => {
               </p>
               </div>
               <footer class="reply-panel-footer">
-                <div class="message-actions">
-                  <button type="button" class="message-action-btn" @click="copyMessageText(r.text, { replyKey: `${t.id}-${idx}` })">
+                <div class="message-actions reply-actions-bar">
+                  <button
+                    type="button"
+                    class="message-action-btn"
+                    @click="copyMessageText(r.text, { replyKey: `${t.id}-${idx}` })"
+                  >
                     {{ copyAckKey === `${t.id}-${idx}` ? '已复制' : '复制' }}
                   </button>
+                  <button
+                    type="button"
+                    class="message-action-btn"
+                    @click="downloadMarkdown(`report_${t.id}_${idx}.md`, r.text)"
+                  >
+                    下载 .md
+                  </button>
+                  <span
+                    v-if="thoughtViewMode === 'user' && turnUnifiedCiteSources(t).length"
+                    class="reply-actions-meta"
+                  >来源 {{ turnUnifiedCiteSources(t).length }}</span>
                 </div>
               </footer>
             </div>

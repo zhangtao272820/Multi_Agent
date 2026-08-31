@@ -1,13 +1,7 @@
 import path from 'node:path'
 import { z } from 'zod'
-import { resolveUserId } from '../../graph/core/task/userIdentity'
 import { buildUserGoalsDashboard, isUserGoalsEnabled, loadUserGoals } from '../../graph/core/task/userGoals'
-
-const UserIdSchema = z
-  .string()
-  .min(1)
-  .max(64)
-  .regex(/^[A-Za-z0-9_-]+$/)
+import { resolveManagerHttpUser } from '../../utils/platform/managerRequestUser'
 
 const SessionIdSchema = z
   .string()
@@ -23,15 +17,15 @@ export default defineEventHandler(async (event) => {
     return { ok: true, enabled: false, goals: [], userId: null }
   }
 
+  const auth = resolveManagerHttpUser(event, query.userId ? String(query.userId) : undefined)
+  const userId = auth.userId
+
   if (query.dashboard === '1' || query.dashboard === 'true') {
-    const userId = query.userId ? UserIdSchema.parse(String(query.userId)) : undefined
     const dashboard = await buildUserGoalsDashboard(policyDir, userId)
     return { ok: true, dashboard }
   }
 
-  const sessionId = query.sessionId ? SessionIdSchema.parse(String(query.sessionId)) : undefined
-  const explicitUserId = query.userId ? UserIdSchema.parse(String(query.userId)) : undefined
-  const userId = await resolveUserId(policyDir, sessionId, explicitUserId)
+  if (query.sessionId) SessionIdSchema.parse(String(query.sessionId))
   if (!userId) {
     return { ok: true, enabled: true, userId: null, goals: [] }
   }

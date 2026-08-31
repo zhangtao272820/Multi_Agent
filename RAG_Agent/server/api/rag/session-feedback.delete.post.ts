@@ -5,9 +5,11 @@ import {
   deleteRagSessionFeedbackFromTurn,
   deleteRagSessionFeedbackFromUserIndex,
 } from "../../utils/ragSessionFeedback";
+import { assertRagSessionAccess, resolveRagHttpUser } from "../../utils/ragRequestUser";
 
 const BodySchema = z.object({
   sessionId: z.string().min(1).max(120).regex(/^[A-Za-z0-9_-]+$/),
+  userId: z.string().min(1).max(64).regex(/^[A-Za-z0-9_-]+$/).optional(),
   fromTurnId: z.number().int().min(0).max(500).optional(),
   fromUserIndex: z.number().int().min(0).max(500).optional(),
   atUserIndexOnly: z.boolean().optional(),
@@ -16,6 +18,9 @@ const BodySchema = z.object({
 
 export default defineEventHandler(async (event) => {
   const body = BodySchema.parse(await readBody(event));
+  const auth = resolveRagHttpUser(event, body.userId);
+  await assertRagSessionAccess({ sessionId: body.sessionId, userId: auth.userId });
+
   let deleted = 0;
   if (body.deleteAll) {
     deleted = await deleteRagSessionFeedbackAll("rag", body.sessionId);

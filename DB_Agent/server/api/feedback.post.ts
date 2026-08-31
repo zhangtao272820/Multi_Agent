@@ -5,6 +5,7 @@ import { ensureRateLimit } from "../../utils/rate";
 import { turnFeedbackKey, upsertDbSessionFeedback, userMessageFeedbackKey } from "../utils/dbSessionFeedback";
 import { handleDbAgentFeedback } from "#agent-shared/artifactFeedbackOrchestrator";
 import { normalizeArtifact } from "#agent-shared/artifactFeedbackPolicy";
+import { assertDbSessionAccess, resolveDbHttpUser } from "../utils/dbRequestUser";
 
 export default defineEventHandler(async (event) => {
   ensureRateLimit(event, { max: 40, refillPerSec: 20 });
@@ -14,6 +15,8 @@ export default defineEventHandler(async (event) => {
     comment?: string;
     session_id?: string;
     sessionId?: string;
+    userId?: string;
+    user_id?: string;
     turn_id?: number;
     turnId?: number;
     run_id?: string;
@@ -41,6 +44,11 @@ export default defineEventHandler(async (event) => {
   }
   if (!Number.isFinite(score) || (score !== 1 && score !== -1)) {
     throw createError({ statusCode: 400, statusMessage: "score 须为 1 或 -1" });
+  }
+
+  if (sessionId) {
+    const auth = resolveDbHttpUser(event, body?.userId ?? body?.user_id);
+    await assertDbSessionAccess({ sessionId, userId: auth.userId });
   }
 
   applyFeedbackToSignal(question, score);

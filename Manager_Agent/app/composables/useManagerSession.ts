@@ -697,11 +697,27 @@ export function useManagerSession(host: ManagerSessionHost) {
     } catch {}
   }
 
-  function clearStaleFeedbackPending(scores: Record<string, 0 | 1>, acks: Record<string, string>) {
+  function clearStaleFeedbackPending(
+    scores: Record<string, 0 | 1>,
+    acks: Record<string, string>,
+    byUser?: Record<number, 0 | 1>,
+    ackByUser?: Record<number, string>
+  ) {
     for (const [key, ack] of Object.entries(acks)) {
       if (ack !== FEEDBACK_PENDING_ACK) continue
       delete scores[key]
       delete acks[key]
+    }
+    if (ackByUser) {
+      for (const [k, ack] of Object.entries(ackByUser)) {
+        if (ack !== FEEDBACK_PENDING_ACK) continue
+        const uidx = Number(k)
+        delete ackByUser[uidx]
+        if (byUser) delete byUser[uidx]
+        const umKey = umidxFeedbackKey(uidx)
+        delete scores[umKey]
+        delete acks[umKey]
+      }
     }
   }
 
@@ -723,15 +739,17 @@ export function useManagerSession(host: ManagerSessionHost) {
         parsed?.scores && typeof parsed.scores === 'object' ? { ...parsed.scores } : {}
       const acks =
         parsed?.acks && typeof parsed.acks === 'object' ? { ...parsed.acks } : {}
-      clearStaleFeedbackPending(scores, acks)
-      feedbackByRunId.value = scores
-      feedbackAckByRunId.value = acks
-      feedbackByUserIndex.value =
+      const byUser =
         parsed?.byUserIndex && typeof parsed.byUserIndex === 'object' ? { ...parsed.byUserIndex } : {}
-      feedbackAckByUserIndex.value =
+      const ackByUser =
         parsed?.ackByUserIndex && typeof parsed.ackByUserIndex === 'object'
           ? { ...parsed.ackByUserIndex }
           : {}
+      clearStaleFeedbackPending(scores, acks, byUser, ackByUser)
+      feedbackByRunId.value = scores
+      feedbackAckByRunId.value = acks
+      feedbackByUserIndex.value = byUser
+      feedbackAckByUserIndex.value = ackByUser
       routeFeedbackByUserIndex.value =
         parsed?.routeWrong && typeof parsed.routeWrong === 'object' ? { ...parsed.routeWrong } : {}
       feedbackSendingRunId.value = null

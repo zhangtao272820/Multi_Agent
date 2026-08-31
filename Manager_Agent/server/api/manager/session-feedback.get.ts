@@ -3,13 +3,21 @@ import path from 'node:path'
 import { readHistoryEntries } from '../../graph/core/shared'
 import { normalizeFeedbackScore } from '../../graph/core/runtime/runtimePersistence'
 import { listSessionFeedback } from '#agent-shared/sessionFeedbackStore'
+import {
+  assertManagerSessionAccess,
+  resolveManagerHttpUser
+} from '../../utils/platform/managerRequestUser'
 
 const QuerySchema = z.object({
-  sessionId: z.string().min(1).max(120).regex(/^[A-Za-z0-9_-]+$/)
+  sessionId: z.string().min(1).max(120).regex(/^[A-Za-z0-9_-]+$/),
+  userId: z.string().min(1).max(64).regex(/^[A-Za-z0-9_-]+$/).optional()
 })
 
 export default defineEventHandler(async (event) => {
   const query = QuerySchema.parse(getQuery(event))
+  const auth = resolveManagerHttpUser(event, query.userId)
+  await assertManagerSessionAccess({ sessionId: query.sessionId, userId: auth.userId })
+
   const pgItems = await listSessionFeedback('manager', query.sessionId)
   if (pgItems.length) {
     return {

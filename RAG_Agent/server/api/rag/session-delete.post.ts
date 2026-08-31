@@ -3,6 +3,7 @@ import { deleteRagSessionArtifacts } from "../../utils/ragSessionMeta";
 import { deleteRagSession } from "../../utils/ragSessionStore";
 import { clearSessionMemory } from "../../utils/session_memory";
 import { deleteRagSessionFeedbackAll } from "../../utils/ragSessionFeedback";
+import { assertRagSessionAccess, resolveRagHttpUser } from "../../utils/ragRequestUser";
 
 const BodySchema = z.object({
   sessionId: z.string().min(1).max(120).regex(/^[A-Za-z0-9_-]+$/),
@@ -11,6 +12,9 @@ const BodySchema = z.object({
 
 export default defineEventHandler(async (event) => {
   const body = BodySchema.parse(await readBody(event));
+  const auth = resolveRagHttpUser(event, body.userId);
+  await assertRagSessionAccess({ sessionId: body.sessionId, userId: auth.userId });
+
   const pgDelete = await deleteRagSession(body.sessionId);
   await deleteRagSessionArtifacts(body.sessionId);
   clearSessionMemory(body.sessionId);
@@ -18,7 +22,7 @@ export default defineEventHandler(async (event) => {
   return {
     ok: true,
     sessionId: body.sessionId,
-    userId: body.userId || null,
+    userId: auth.userId,
     pgDeleted: pgDelete.pg,
     feedbackDeleted,
   };

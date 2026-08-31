@@ -527,11 +527,75 @@ def _jwt_user_from_request(request: Request) -> str | None:
         auth = request.headers.get("authorization")
         token = _bearer(auth) or str(request.headers.get("x-clawhive-user-token") or "").strip()
         if not token:
+            cookie = str(request.headers.get("cookie") or "")
+            for part in cookie.split(";"):
+                k, _, v = part.strip().partition("=")
+                if k == "clawhive_access_token" and v:
+                    token = v
+                    break
+        if not token:
             return None
         payload = verify_jwt(token)
-        return str(payload.get("user_id") or "") or None
+        return str(payload.get("user_id") or payload.get("sub") or "") or None
     except Exception:
         return None
+
+
+def _is_internal_request(request: Request) -> bool:
+    import os
+
+    got = (
+        str(request.headers.get("x-clawhive-internal-token") or "").strip()
+        or str(request.headers.get("x-agent-service-token") or "").strip()
+        or str(request.headers.get("x-internal-token") or "").strip()
+    )
+    if not got:
+        return False
+    expected = str(
+        os.getenv("CLAWHIVE_INTERNAL_TOKEN") or os.getenv("AGENT_INTERNAL_TOKEN") or ""
+    ).strip()
+    return bool(expected) and got == expected
+
+
+def _resolve_authoritative_user(request: Request, claimed: str | None = None) -> str:
+    """browser → JWT.sub；internal → X-User-Id/claimed；open → claimed/local。"""
+    from app.core.browser_auth import browser_auth_enabled
+    from app.core.mailbox_binding import sanitize_user_id
+
+    claimed_uid = sanitize_user_id(claimed or "")
+    header_uid = sanitize_user_id(str(request.headers.get("x-user-id") or "").strip())
+    jwt_uid = sanitize_user_id(_jwt_user_from_request(request) or "")
+
+    if _is_internal_request(request):
+        return header_uid or claimed_uid or "local"
+
+    if browser_auth_enabled():
+        if not jwt_uid:
+            raise HTTPException(status_code=401, detail="login_required")
+        if claimed_uid and claimed_uid != jwt_uid:
+            raise HTTPException(status_code=403, detail="forbidden: user_id mismatch")
+        if header_uid and header_uid != jwt_uid:
+            raise HTTPException(status_code=403, detail="forbidden: user_id mismatch")
+        return jwt_uid
+
+    return claimed_uid or header_uid or "local"
+
+
+def _assert_session_owned(session_id: str, user_id: str, *, bind_if_unbound: bool = True) -> None:
+    from app.core.admin_pg_store import get_adm_session_user_id, is_admin_pg_storage, touch_adm_session_pg
+    from app.core.mailbox_binding import sanitize_user_id
+
+    sid = str(session_id or "").strip()
+    uid = sanitize_user_id(user_id)
+    if not sid or not uid:
+        raise HTTPException(status_code=400, detail="session_id/user_id required")
+    if not is_admin_pg_storage():
+        return
+    owner = get_adm_session_user_id(sid)
+    if owner and owner != uid:
+        raise HTTPException(status_code=403, detail="forbidden: session ownership")
+    if not owner and bind_if_unbound:
+        touch_adm_session_pg(sid, user_id=uid)
 
 
 @app.get("/api/mailbox/providers")
@@ -691,7 +755,7 @@ async def decide_pending_action(body: PendingDecideRequest):
 
 
 @app.post("/api/feedback")
-async def post_feedback(body: FeedbackRequest):
+async def post_feedback(request: Request, body: FeedbackRequest):
     from app.core.admin_session_feedback import turn_feedback_key, upsert_session_feedback, user_message_feedback_key
     from app.core.admin_artifact_feedback import handle_admin_feedback
 
@@ -702,6 +766,8 @@ async def post_feedback(body: FeedbackRequest):
     session_id = str(body.session_id or "").strip()
     if not question or not session_id:
         raise HTTPException(status_code=400, detail="question 与 session_id 不能为空")
+    uid = _resolve_authoritative_user(request)
+    _assert_session_owned(session_id, uid)
     feedback_key = (body.run_id or "").strip()
     if body.user_message_index is not None and int(body.user_message_index) >= 0:
         feedback_key = user_message_feedback_key(int(body.user_message_index))
@@ -758,17 +824,19 @@ async def post_artifact_revoke(body: ArtifactRevokeRequest):
 
 
 @app.get("/api/session-feedback")
-async def get_session_feedback(session_id: str):
+async def get_session_feedback(request: Request, session_id: str):
     from app.core.admin_session_feedback import list_session_feedback
 
     sid = str(session_id or "").strip()
     if not sid:
         raise HTTPException(status_code=400, detail="session_id 不能为空")
+    uid = _resolve_authoritative_user(request)
+    _assert_session_owned(sid, uid)
     return {"items": list_session_feedback(sid)}
 
 
 @app.post("/api/session-feedback/delete")
-async def delete_session_feedback(body: FeedbackDeleteRequest):
+async def delete_session_feedback(request: Request, body: FeedbackDeleteRequest):
     from app.core.admin_session_feedback import (
         delete_all_session_feedback,
         delete_feedback_at_user_index,
@@ -779,6 +847,8 @@ async def delete_session_feedback(body: FeedbackDeleteRequest):
     sid = str(body.session_id or "").strip()
     if not sid:
         raise HTTPException(status_code=400, detail="session_id 不能为空")
+    uid = _resolve_authoritative_user(request)
+    _assert_session_owned(sid, uid)
     deleted = 0
     if body.delete_all:
         deleted = delete_all_session_feedback(sid)
@@ -794,7 +864,7 @@ async def delete_session_feedback(body: FeedbackDeleteRequest):
 
 
 @app.post("/api/session-delete")
-async def delete_session(body: SessionDeleteRequest):
+async def delete_session(request: Request, body: SessionDeleteRequest):
     """删除整段会话：对话 turns + 任务上下文 + 反馈。"""
     from app.core.admin_session_feedback import delete_all_session_feedback
     from app.core.session_dialogue import delete_session_dialogue
@@ -802,6 +872,8 @@ async def delete_session(body: SessionDeleteRequest):
     sid = str(body.session_id or "").strip()
     if not sid:
         raise HTTPException(status_code=400, detail="session_id 不能为空")
+    uid = _resolve_authoritative_user(request)
+    _assert_session_owned(sid, uid)
     dialogue = delete_session_dialogue(sid)
     feedback_deleted = delete_all_session_feedback(sid)
     return {"ok": True, "session_id": sid, "dialogue": dialogue, "feedback_deleted": feedback_deleted}
@@ -832,11 +904,11 @@ async def learning_reset_local(body: LocalLearningResetRequest):
 
 
 @app.get("/api/sessions")
-async def list_sessions(user_id: str = ""):
+async def list_sessions(request: Request, user_id: str = ""):
     """按用户列出会话（PG adm_sessions 权威）。"""
     from app.core.admin_pg_store import is_admin_pg_storage, list_adm_sessions_pg
 
-    uid = str(user_id or "").strip()
+    uid = _resolve_authoritative_user(request, user_id)
     if not uid:
         return {"items": []}
     if not is_admin_pg_storage():
@@ -848,7 +920,7 @@ async def list_sessions(user_id: str = ""):
 
 
 @app.get("/api/session")
-async def get_session(session_id: str):
+async def get_session(request: Request, session_id: str):
     """拉取单会话消息（PG adm_session_turns 权威）。"""
     from app.core.admin_pg_store import is_admin_pg_storage, load_turns_pg
     from app.core.session_dialogue import SessionTurn, SessionLocal, _ensure_tables
@@ -856,6 +928,8 @@ async def get_session(session_id: str):
     sid = str(session_id or "").strip()
     if not sid:
         raise HTTPException(status_code=400, detail="session_id 不能为空")
+    uid = _resolve_authoritative_user(request)
+    _assert_session_owned(sid, uid)
     rows: list[dict] = []
     if is_admin_pg_storage():
         try:
@@ -894,19 +968,21 @@ class SessionMetaRequest(BaseModel):
 
 
 @app.post("/api/session-meta")
-async def update_session_meta(body: SessionMetaRequest):
+async def update_session_meta(request: Request, body: SessionMetaRequest):
     from app.core.admin_pg_store import is_admin_pg_storage, touch_adm_session_pg
 
     sid = str(body.session_id or "").strip()
     if not sid:
         raise HTTPException(status_code=400, detail="session_id 不能为空")
+    uid = _resolve_authoritative_user(request, body.user_id)
+    _assert_session_owned(sid, uid)
     if not is_admin_pg_storage():
         return {"ok": False, "warning": "ADMIN_STORAGE_BACKEND 未启用 postgres"}
     title = str(body.title or "").strip()[:80] or None
     try:
         touch_adm_session_pg(
             sid,
-            user_id=body.user_id,
+            user_id=uid,
             title=title,
             custom_title=True if body.custom_title else body.custom_title,
         )

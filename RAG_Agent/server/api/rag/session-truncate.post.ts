@@ -7,6 +7,7 @@ import {
 } from "../../utils/ragSessionFeedback";
 import { supersedeRagLearningSignalsForRevision } from "../../../utils/learning_signal_store";
 import { supersedeRagPromptPatchesForRevision } from "../../utils/prompt_evolution";
+import { assertRagSessionAccess, resolveRagHttpUser } from "../../utils/ragRequestUser";
 
 const BodySchema = z.object({
   sessionId: z.string().min(1).max(120).regex(/^[A-Za-z0-9_-]+$/),
@@ -19,6 +20,8 @@ const BodySchema = z.object({
 
 export default defineEventHandler(async (event) => {
   const body = BodySchema.parse(await readBody(event));
+  const auth = resolveRagHttpUser(event, body.userId);
+  await assertRagSessionAccess({ sessionId: body.sessionId, userId: auth.userId });
   const fallback = String(body.fallbackUserText || body.replaceUserText || "").trim();
   if (typeof body.fromUserIndex !== "number" && !fallback) {
     throw createError({ statusCode: 400, statusMessage: "需要 fromUserIndex 或用户原文" });
@@ -27,7 +30,7 @@ export default defineEventHandler(async (event) => {
     body.sessionId,
     typeof body.fromUserIndex === "number" ? body.fromUserIndex : -1,
     {
-      userId: body.userId,
+      userId: auth.userId,
       replaceUserText: body.replaceUserText,
       fallbackUserText: fallback || undefined,
     }

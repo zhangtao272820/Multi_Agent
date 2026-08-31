@@ -169,6 +169,17 @@ export async function listDbSessionsForUser(userId: string): Promise<string[]> {
   return res?.rows.map((r) => r.id) ?? []
 }
 
+export async function getDbSessionUserId(sessionId: string): Promise<string | null> {
+  const sid = String(sessionId || '').trim()
+  if (!sid) return null
+  const res = await agentPgQuery<{ user_id: string | null }>(
+    `SELECT user_id FROM db_sessions WHERE id = $1`,
+    [sid]
+  ).catch(() => null)
+  const uid = String(res?.rows?.[0]?.user_id || '').trim()
+  return uid || null
+}
+
 export async function updateDbSessionMeta(
   sessionId: string,
   opts: { userId?: string; title?: string; customTitle?: boolean }

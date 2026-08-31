@@ -31,6 +31,53 @@ export type ProcessManagerFeedbackResult = {
   error?: string
 }
 
+/**
+ * 产物确认 / 学习回填 / 经验晋升可能触达 embedding、多表 PG、联邦同步。
+ * 这些不得阻塞「有用/无用」HTTP/WS 回包，否则前端会长时间停在「提交中…」。
+ */
+async function runFeedbackSideEffects(input: {
+  dir: string
+  rid: string
+  sessionId: string
+  boundUserId: string
+  tenantId: string
+  fb: 0 | 1
+  artifact: Record<string, unknown> | null | undefined
+}): Promise<void> {
+  const { dir, rid, sessionId, boundUserId, tenantId, fb, artifact } = input
+  const { confirmRunArtifacts, revokeRunArtifacts } = await import('#agent-shared/artifactFeedbackOrchestrator')
+
+  if (fb === 1 && rid) {
+    await confirmRunArtifacts(rid, artifact).catch(() => ({ promoted: [] }))
+  } else if (fb === 0 && rid) {
+    await revokeRunArtifacts(rid, artifact).catch(() => ({ revoked: [] }))
+  }
+
+  if (rid) {
+    await patchLearningSignalWithFeedback(dir, rid, fb).catch(() => ({ patched: false }))
+  }
+  await maybeTuneLearningWeights(dir).catch(() => ({ tuned: false }))
+
+  if (fb >= 0.78 && rid) {
+    const experiencePromote = await promoteExperienceFromPositiveFeedback({
+      policyDir: dir,
+      runId: rid,
+      sessionId,
+      userId: boundUserId,
+      tenantId,
+      feedbackScore: fb,
+      memorySource: 'explicit_feedback'
+    }).catch((e: unknown) => ({
+      promoted: false,
+      reason: String((e as Error)?.message || e || 'promote_failed')
+    }))
+    if (experiencePromote.promoted) {
+      const { tagMgrRunArtifactCaptureSource } = await import('#agent-shared/artifactStore')
+      await tagMgrRunArtifactCaptureSource(rid, 'explicit_feedback').catch(() => false)
+    }
+  }
+}
+
 export async function processManagerFeedback(
   input: ProcessManagerFeedbackInput
 ): Promise<ProcessManagerFeedbackResult> {
@@ -67,7 +114,6 @@ export async function processManagerFeedback(
 
     const { upsertSessionFeedback, userMessageFeedbackKey } = await import('#agent-shared/sessionFeedbackStore')
     const { normalizeArtifact } = await import('#agent-shared/artifactFeedbackPolicy')
-    const { confirmRunArtifacts, revokeRunArtifacts } = await import('#agent-shared/artifactFeedbackOrchestrator')
     const artifact = normalizeArtifact(input.artifact)
     const feedbackKey = uidx != null && uidx >= 0 ? userMessageFeedbackKey(uidx) : rid
     await upsertSessionFeedback({
@@ -82,37 +128,15 @@ export async function processManagerFeedback(
       artifact: artifact ?? undefined
     })
 
-    let artifactResult: { promoted?: string[]; revoked?: string[] } = {}
-    if (fb === 1 && rid) {
-      artifactResult = await confirmRunArtifacts(rid, artifact).catch(() => ({ promoted: [] }))
-    } else if (fb === 0 && rid) {
-      artifactResult = await revokeRunArtifacts(rid, artifact).catch(() => ({ revoked: [] }))
-    }
-
-    const patched = rid
-      ? await patchLearningSignalWithFeedback(dir, rid, fb).catch(() => ({ patched: false }))
-      : { patched: false }
-    const tuned = await maybeTuneLearningWeights(dir).catch(() => ({ tuned: false }))
-
-    let experiencePromote: { promoted?: boolean; indexed?: boolean; reason?: string } = {}
-    if (fb >= 0.78 && rid) {
-      experiencePromote = await promoteExperienceFromPositiveFeedback({
-        policyDir: dir,
-        runId: rid,
-        sessionId,
-        userId: boundUserId,
-        tenantId,
-        feedbackScore: fb,
-        memorySource: 'explicit_feedback'
-      }).catch((e: unknown) => ({
-        promoted: false,
-        reason: String((e as Error)?.message || e || 'promote_failed')
-      }))
-      if (experiencePromote.promoted) {
-        const { tagMgrRunArtifactCaptureSource } = await import('#agent-shared/artifactStore')
-        await tagMgrRunArtifactCaptureSource(rid, 'explicit_feedback').catch(() => false)
-      }
-    }
+    void runFeedbackSideEffects({
+      dir,
+      rid,
+      sessionId,
+      boundUserId,
+      tenantId,
+      fb,
+      artifact: artifact ?? null
+    }).catch(() => undefined)
 
     return {
       ok: true,
@@ -120,20 +144,16 @@ export async function processManagerFeedback(
       feedbackKey,
       userMessageIndex: uidx,
       runId: rid || null,
-      learningPatched: patched.patched,
-      compositeScore: patched.compositeScore ?? null,
-      weightsTuned: tuned.tuned,
-      experiencePromoted: experiencePromote.promoted === true,
-      experienceIndexed: experiencePromote.indexed === true,
+      learningPatched: false,
+      compositeScore: null,
+      weightsTuned: false,
+      experiencePromoted: false,
+      experienceIndexed: false,
       note:
         fb === 1
-          ? experiencePromote.promoted
-            ? '已确认本轮产物并写入经验（人审已关闭时直接生效）。'
-            : experiencePromote.reason === 'pending_review'
-              ? '已确认本轮产物；经验候选已提交控制面审核，通过后才参与召回。'
-              : '已确认本轮产物；学习信号已回填（经验晋升待补全上下文）。'
+          ? '已记录有用反馈；产物确认与经验晋升在后台进行。'
           : fb === 0
-            ? '已吊销本轮产物；相关 SQL/检索/工具路径已降权。'
+            ? '已记录无用反馈；降权处理在后台进行。'
             : '反馈已记录。'
     }
   } catch (e: unknown) {

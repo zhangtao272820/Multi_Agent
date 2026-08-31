@@ -2293,9 +2293,15 @@ export function useManagerChatPage() {
     return out.join('\n')
   }
   
+  function isMarkdownHeadingLine(line: string): boolean {
+    return /^#{1,6}\s+\S/.test(String(line || '').trim())
+  }
+
   function isMarkdownTableRow(line: string): boolean {
     const t = line.trim()
     if (!t) return false
+    // 标题行不得被松散表解析吞进表格（避免「### 建议」进单元格）
+    if (isMarkdownHeadingLine(t)) return false
     if (!t.includes('|') && /^[\s:\-|]+$/.test(t) && /-{3,}/.test(t)) {
       const parts = t.split(/\s+/).filter((p) => /^:?-{2,}:?$/.test(p))
       return parts.length >= 2
@@ -2305,6 +2311,7 @@ export function useManagerChatPage() {
     const inner = t.replace(/\|/g, '').trim()
     if (/^[\s:\-]+$/.test(inner)) return true
     const cells = parseMarkdownTableCells(t)
+    if (cells.some((c) => isMarkdownHeadingLine(c))) return false
     if (cells.filter((c) => c.length > 0).length >= 2) return true
     return cells.length >= 2 && (t.match(/\|/g) || []).length >= 2
   }
@@ -2335,7 +2342,12 @@ export function useManagerChatPage() {
   function parseLooseTableRow(line: string): string[] | null {
     const t = line.trim().replace(/\s*#\s*$/, '')
     if (!t || t.includes('<!--')) return null
-    if (t.includes('|')) return parseMarkdownTableCells(t).filter((c) => c.length > 0)
+    if (isMarkdownHeadingLine(t)) return null
+    if (t.includes('|')) {
+      const cells = parseMarkdownTableCells(t).filter((c) => c.length > 0)
+      if (cells.some((c) => isMarkdownHeadingLine(c))) return null
+      return cells
+    }
     const quad = t.match(/^(.+?)\s+([\d,.]+(?:\s*元)?)\s+(.+?)\s+(偏高|偏低|正常|良好|达标|不达标)$/u)
     if (quad) return [quad[1], quad[2], quad[3], quad[4]].map((x) => String(x).trim())
     const dual = t.match(/^([\u4e00-\u9fa5A-Za-z_（）()]{2,16})\s+(.+)$/u)
@@ -2683,11 +2695,22 @@ export function useManagerChatPage() {
         return x
       }
       head = pad(head)
-      body = body.map(pad)
+      // 单元格若整段是 Markdown 标题，挪出表外再渲染（防 Synth 把 ### 建议写进末格）
+      const leakedHeadings: string[] = []
+      body = body.map((row) =>
+        pad(row).map((c) => {
+          const cell = String(c || '').trim()
+          if (isMarkdownHeadingLine(cell)) {
+            leakedHeadings.push(cell)
+            return ''
+          }
+          return c
+        })
+      )
   
       out.push(
         '<div class="md-table-scroll"><table class="md-table"><thead><tr>' +
-          head.map((c) => `<th>${c}</th>`).join('') +
+          head.map((c) => `<th>${decorateTableCell(c)}</th>`).join('') +
           '</tr></thead><tbody>' +
           body
             .map(
@@ -2697,8 +2720,14 @@ export function useManagerChatPage() {
                 '</tr>'
             )
             .join('') +
-          '</tbody></table></div>'
+            '</tbody></table></div>'
       )
+      for (const h of leakedHeadings) {
+        const level = (h.match(/^#+/) || ['###'])[0].length
+        const text = h.replace(/^#{1,6}\s+/, '')
+        const cls = level <= 2 ? 'md-h2' : level === 3 ? 'md-h3' : 'md-h4'
+        out.push(`<h${Math.min(level, 4)} class="${cls}">${inlineFmt(text)}</h${Math.min(level, 4)}>`)
+      }
     }
     const decorateTableCell = (raw: string) => {
       let s = escapeHtml(normalizeModelReplyHtml(stripInlineHtml(raw)))
@@ -5907,6 +5936,16 @@ export function useManagerChatPage() {
       feedbackSendingRunId.value = null
       applyTurnFeedback(key, score as 0 | 1, ack, uidx)
     }
+    const stillPending = () =>
+      feedbackAckByRunId.value[key] === FEEDBACK_PENDING_ACK ||
+      (typeof uidx === 'number' && feedbackAckByUserIndex.value[uidx] === FEEDBACK_PENDING_ACK)
+
+    /** 落盘回包应很快；超时则先本地确认，避免按钮长期 disabled 像「没反应」 */
+    const FEEDBACK_HTTP_TIMEOUT_MS = 8_000
+    const optimisticTimer = window.setTimeout(() => {
+      if (!stillPending()) return
+      finalizeLocal(score === 1 ? '已标记为有用 · 感谢反馈' : '已标记为无用 · 感谢反馈')
+    }, 1_500)
 
     const httpBody = {
       sessionId: sessionId.value,
@@ -5926,13 +5965,15 @@ export function useManagerChatPage() {
         note?: string
       }>('/api/manager/session-feedback', {
         method: 'POST',
-        body: httpBody
+        body: httpBody,
+        timeout: FEEDBACK_HTTP_TIMEOUT_MS
       })
+      window.clearTimeout(optimisticTimer)
       const ackBase = res?.feedbackScore === 1 ? '已标记为有用' : '已标记为无用'
       finalizeLocal(`${ackBase} · 感谢反馈（已同步）`)
       return
     } catch {
-      /* HTTP 失败 → WS 回落 */
+      /* HTTP 失败 / 超时 → WS 回落 */
     }
 
     if (ws && connected.value && isValidServerRunId(rid)) {
@@ -5952,16 +5993,17 @@ export function useManagerChatPage() {
           )
         )
         window.setTimeout(() => {
-          if (feedbackSendingRunId.value !== key) return
-          if (feedbackAckByRunId.value[key] !== FEEDBACK_PENDING_ACK) return
-          finalizeLocal('反馈提交超时，请重试')
-        }, 15000)
+          window.clearTimeout(optimisticTimer)
+          if (!stillPending()) return
+          finalizeLocal(score === 1 ? '已标记为有用 · 感谢反馈' : '已标记为无用 · 感谢反馈')
+        }, 4_000)
         return
       } catch {
         /* fall through */
       }
     }
 
+    window.clearTimeout(optimisticTimer)
     finalizeLocal(score === 1 ? '已标记为有用 · 感谢反馈' : '已标记为无用 · 感谢反馈')
   }
   

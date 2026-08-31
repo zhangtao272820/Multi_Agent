@@ -1,8 +1,10 @@
-import path from 'node:path'
 import { z } from 'zod'
 import { readManagerSession, writeManagerSession } from '../../utils/session/managerSessionStore'
-import { resolveUserId } from '../../graph/core/task/userIdentity'
 import { deleteSessionFeedbackFromUserIndex } from '#agent-shared/sessionFeedbackStore'
+import {
+  assertManagerSessionAccess,
+  resolveManagerHttpUser
+} from '../../utils/platform/managerRequestUser'
 import {
   resolveUserMessageAnchor,
   type UserMessageAnchor
@@ -32,8 +34,8 @@ export default defineEventHandler(async (event) => {
   if (typeof body.userMessageIndex !== 'number' && !String(body.text || '').trim()) {
     throw createError({ statusCode: 400, statusMessage: '需要 userMessageIndex 或 text' })
   }
-  const policyDir = path.join(process.cwd(), '.data')
-  await resolveUserId(policyDir, body.sessionId, body.userId)
+  const auth = resolveManagerHttpUser(event, body.userId)
+  await assertManagerSessionAccess({ sessionId: body.sessionId, userId: auth.userId })
 
   const session = await readSession(body.sessionId)
   const hit: UserMessageAnchor | null = resolveUserMessageAnchor(session.messages, {

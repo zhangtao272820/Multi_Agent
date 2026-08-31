@@ -1,9 +1,13 @@
 import path from 'node:path'
-import { bindSessionToUser, listSessionsForUser, resolveUserId } from '../../graph/core/task/userIdentity'
+import { bindSessionToUser, listSessionsForUser } from '../../graph/core/task/userIdentity'
 import { readSessionMeta, type SessionWorkbenchMode } from '../../utils/session/managerSessionMeta'
 import { readManagerSession } from '../../utils/session/managerSessionStore'
 import { agentPgQuery } from '#agent-shared/agentPgClient'
 import { isPostgresStorageEnabled, resolveStorageBackend } from '#agent-shared/storageBackend'
+import {
+  assertManagerSessionAccess,
+  resolveManagerHttpUser
+} from '../../utils/platform/managerRequestUser'
 
 function stripAttachmentSuffix(content: string) {
   return String(content || '')
@@ -33,21 +37,23 @@ async function sessionUpdatedAt(sessionId: string): Promise<string | undefined> 
 }
 
 /**
- * 会话列表：仅服务端权威（按 userId 绑定）。
- * 不再接受客户端 historyIds 拼装列表，避免 localStorage 脏数据「诈尸」。
+ * 会话列表：仅服务端权威（按验签 JWT.sub / internal X-User-Id 绑定）。
+ * 不再信任客户端 query.userId 覆盖。
  */
 export default defineEventHandler(async (event) => {
   const query = getQuery(event)
   const policyDir = path.join(process.cwd(), '.data')
   const dataRoot = path.join(process.cwd(), '.data')
   const anchorSessionId = query.sessionId ? String(query.sessionId) : undefined
-  const explicitUserId = query.userId ? String(query.userId) : undefined
-  const userId = await resolveUserId(policyDir, anchorSessionId, explicitUserId)
+  const auth = resolveManagerHttpUser(event, query.userId ? String(query.userId) : undefined)
+  const userId = auth.userId
   if (!userId) return { items: [] as Array<Record<string, unknown>> }
 
   const sessionIdSet = new Set(await listSessionsForUser(policyDir, userId))
-  // 当前 tab 会话若已有正文，允许出现在列表（新会话首条消息写入前可能尚未 bind）
-  if (anchorSessionId) sessionIdSet.add(anchorSessionId)
+  if (anchorSessionId) {
+    await assertManagerSessionAccess({ sessionId: anchorSessionId, userId }).catch(() => undefined)
+    sessionIdSet.add(anchorSessionId)
+  }
 
   const items: Array<{
     id: string

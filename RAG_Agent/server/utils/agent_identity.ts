@@ -107,12 +107,26 @@ export async function resolveAgentUserId(parts: {
   sessionId?: string;
   conversationId?: string;
   authorization?: string;
+  /** ClawHive browser JWT.sub（来自 middleware context）；优先于 body/header */
+  clawhiveUserId?: string;
+  authMode?: "browser" | "internal" | "open";
 }): Promise<string | undefined> {
   const oidc = await resolveOidcIdentity(parts.authorization);
   if (oidc.userId) {
     if (oidc.roles.length) oidcRolesByUser.set(oidc.userId, oidc.roles);
     return oidc.userId;
   }
+
+  // ClawHive browser：强制 JWT.sub，禁止 body/header 覆盖
+  const claw = sanitizeUserId(parts.clawhiveUserId);
+  if (parts.authMode === "browser" && claw) {
+    for (const v of [parts.headerUserId, parts.bodyUserId, parts.userId]) {
+      const claimed = sanitizeUserId(v);
+      if (claimed && claimed !== claw) return claw;
+    }
+    return claw;
+  }
+  if (claw) return claw;
 
   for (const v of [parts.headerUserId, parts.bodyUserId, parts.userId]) {
     const uid = sanitizeUserId(v);

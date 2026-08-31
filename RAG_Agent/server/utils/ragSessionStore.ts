@@ -363,3 +363,28 @@ export async function listRagSessionsForUser(userId: string): Promise<string[]> 
 
   return ordered.slice(0, 80);
 }
+
+export async function getRagSessionUserId(sessionId: string): Promise<string | null> {
+  const sid = String(sessionId || "").trim();
+  if (!sid) return null;
+  const res = await agentPgQuery<{ user_id: string | null }>(
+    `SELECT user_id FROM rag_sessions WHERE id = $1`,
+    [sid]
+  ).catch(() => null);
+  const uid = String(res?.rows?.[0]?.user_id || "").trim();
+  return uid || null;
+}
+
+export async function bindRagSessionUser(sessionId: string, userId: string): Promise<void> {
+  const sid = String(sessionId || "").trim();
+  const uid = String(userId || "").trim();
+  if (!sid || !uid) return;
+  await agentPgQuery(
+    `INSERT INTO rag_sessions (id, user_id, updated_at)
+     VALUES ($1, $2, NOW())
+     ON CONFLICT (id) DO UPDATE SET
+       user_id = COALESCE(rag_sessions.user_id, EXCLUDED.user_id),
+       updated_at = NOW()`,
+    [sid, uid]
+  ).catch(() => undefined);
+}

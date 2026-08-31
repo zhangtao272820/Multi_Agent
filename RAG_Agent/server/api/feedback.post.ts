@@ -1,9 +1,10 @@
-import { recordLearningSignal, refreshArtifactPrefsCache } from "../utils/rag_learning";
+﻿import { recordLearningSignal, refreshArtifactPrefsCache } from "../utils/rag_learning";
 import { evolveFromNegativeFeedback } from "../utils/prompt_evolution";
 import { getRagAgentEnv } from "../utils/rag_agent_env";
 import { turnFeedbackKey, upsertRagSessionFeedback, userMessageFeedbackKey } from "../utils/ragSessionFeedback";
 import { handleRagAgentFeedback } from "#agent-shared/artifactFeedbackOrchestrator";
 import { normalizeArtifact } from "#agent-shared/artifactFeedbackPolicy";
+import { assertRagSessionAccess, resolveRagHttpUser } from "../utils/ragRequestUser";
 
 export default defineEventHandler(async (event) => {
   const body = await readBody<{
@@ -16,6 +17,8 @@ export default defineEventHandler(async (event) => {
     sessionId?: string;
     conversation_id?: string;
     conversationId?: string;
+    userId?: string;
+    user_id?: string;
     turn_id?: number;
     turnId?: number;
     run_id?: string;
@@ -55,6 +58,11 @@ export default defineEventHandler(async (event) => {
   }
   if (!Number.isFinite(score) || (score !== 1 && score !== -1)) {
     throw createError({ statusCode: 400, statusMessage: "score 须为 1 或 -1" });
+  }
+
+  if (sessionId) {
+    const auth = resolveRagHttpUser(event, body?.userId ?? body?.user_id);
+    await assertRagSessionAccess({ sessionId, userId: auth.userId });
   }
 
   recordLearningSignal({

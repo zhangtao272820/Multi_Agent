@@ -182,7 +182,7 @@ cd Manager_Agent && npm i && cp .env.example .env && npm run dev
 | 数据 / 检索 | MySQL · pgvector · PDF/Word 解析 |
 | 自动化 | Playwright |
 | 媒体 | ffmpeg · music21 / FluidSynth · 文生视频 API |
-| 部署 / 观测 | Docker Compose · ClawHive · LangSmith · 健康与指标 |
+| 部署 / 观测 | Docker Compose · ClawHive · Prometheus · MCP Servers · 健康与指标 |
 
 **代码约定（全仓）：**
 

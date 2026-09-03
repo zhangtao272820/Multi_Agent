@@ -13,8 +13,17 @@ assert.equal(resolveGuiPlusMaxSteps({ LOBSTER_GUI_PLUS_MAX_STEPS: '3' } as any),
 assert.equal(resolveGuiPlusMaxSteps({ LOBSTER_GUI_PLUS_MAX_STEPS: '99' } as any), 4)
 
 assert.equal(
-  shouldAttemptGuiPlusFallback({ verifyOk: false, failureType: 'incomplete_task_output' }),
+  shouldAttemptGuiPlusFallback({ verifyOk: false, failureType: 'navigation_unverified' }),
   true,
+)
+assert.equal(
+  shouldAttemptGuiPlusFallback({ verifyOk: false, failureType: 'element_not_found' }),
+  true,
+)
+assert.equal(
+  shouldAttemptGuiPlusFallback({ verifyOk: false, failureType: 'incomplete_task_output' }),
+  false,
+  'narrow: incomplete alone does not burn gui-plus',
 )
 assert.equal(shouldAttemptGuiPlusFallback({ verifyOk: true }), false)
 assert.equal(
@@ -30,6 +39,42 @@ assert.equal(
   shouldAttemptGuiPlusFallback({ verifyOk: false, failureType: 'network_unreachable' }),
   false,
   'network_unreachable must not burn gui-plus',
+)
+assert.equal(
+  shouldAttemptGuiPlusFallback({
+    verifyOk: false,
+    failureType: 'navigation_unverified',
+    taskKind: 'form_fill',
+  }),
+  false,
+  'form_fill must use DOM fill, not gui-plus',
+)
+assert.equal(
+  shouldAttemptGuiPlusFallback({
+    verifyOk: false,
+    failureType: 'login_wall',
+    taskKind: 'login',
+  }),
+  false,
+  'login must not burn gui-plus',
+)
+assert.equal(
+  shouldAttemptGuiPlusFallback({
+    verifyOk: false,
+    failureType: 'navigation_unverified',
+    taskKind: 'login',
+  }),
+  false,
+  'login task_kind blocks gui-plus',
+)
+assert.equal(
+  shouldAttemptGuiPlusFallback({
+    verifyOk: false,
+    failureType: 'navigation_unverified',
+    formFilledCount: 2,
+  }),
+  false,
+  'already filled fields → no gui-plus overwrite',
 )
 assert.equal(
   shouldAttemptGuiPlusFallback({

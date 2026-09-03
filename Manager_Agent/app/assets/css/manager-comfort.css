@@ -1,0 +1,53 @@
+/* 舒适工作台：取消节气大图 / motif 粒子，干净底色优先可读 */
+
+.mgr-season-bg,
+.brand-motif,
+.spring-root > .mgr-season-bg,
+.manager-shell .mgr-season-bg,
+.manager-shell .brand-motif {
+  display: none !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench,
+.spring-root.cursor-workbench {
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--brand-accent, #2f7fd1) 6%, #f4f7fb) 0%,
+      var(--brand-bg, #eef1f6) 42%,
+      #e8eef5 100%
+    ) !important;
+}
+
+.mgr-login-gate {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(800px 420px at 12% -8%, var(--brand-wash-a, rgba(47, 127, 209, 0.12)), transparent 55%),
+    radial-gradient(700px 380px at 96% 0%, var(--brand-wash-b, rgba(47, 127, 209, 0.06)), transparent 50%),
+    var(--brand-bg, #eef1f6);
+}
+
+.spring-root.cursor-workbench .chat-thread.ch-thread,
+.spring-root.cursor-workbench .chat-thread {
+  max-width: var(--ch-max, 760px);
+  margin-inline: auto;
+}
+
+.spring-root.cursor-workbench .reply-panel-streaming .reply-streaming-body {
+  min-height: 1.5em;
+}
+
+.spring-root.cursor-workbench .reply-panel-streaming .reply-streaming-body.ch-streaming::after {
+  content: "";
+  display: inline-block;
+  width: 0.45em;
+  height: 1.05em;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  border-radius: 1px;
+  background: color-mix(in srgb, var(--brand-accent, #2f7fd1) 75%, transparent);
+  animation: ch-caret-blink 1s steps(1) infinite;
+}

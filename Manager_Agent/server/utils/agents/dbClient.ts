@@ -115,14 +115,17 @@ export async function callDbAgent(params: {
   sendThinking?: (text: string) => void
   httpOnly?: boolean
   signal?: AbortSignal
+  /** 写库预览：传 managerTask.write_allowed（仍须 HITL 才执行） */
+  managerTask?: Record<string, unknown>
 }): Promise<DbResult> {
   const question = String(params.messages?.[params.messages.length - 1]?.content ?? '').trim()
   const wsUrl = normalizeDbWsUrl(params.dbAgentWsUrl)
   const sessionKey = String(params.sessionId || '').trim()
-  const cacheKey = `db|${wsUrl}|${String(params.dbId || 'default')}|${sessionKey}|${question}`
+  const writeKey = params.managerTask?.write_allowed === true ? '|w1' : ''
+  const cacheKey = `db|${wsUrl}|${String(params.dbId || 'default')}|${sessionKey}|${question}${writeKey}`
   const cached = dbCache.get(cacheKey)
   // 不缓存「空结果」：避免误查/短超时后的空答案长期命中，造成「总管 HTTP 永远查不到」假象
-  if (cached && !cached.empty) return cached
+  if (cached && !cached.empty && !writeKey) return cached
 
   // Define HTTP caller first to avoid temporal dead zone issues
   const tryHttp = async (forced = false) => {
@@ -139,7 +142,8 @@ export async function callDbAgent(params: {
             {
               messages: params.messages.length ? params.messages : [{ role: 'user', content: question }],
               dbId: params.dbId,
-              ...(sessionKey ? { session_id: sessionKey, sessionId: sessionKey } : {})
+              ...(sessionKey ? { session_id: sessionKey, sessionId: sessionKey } : {}),
+              ...(params.managerTask ? { managerTask: params.managerTask } : {})
             },
             params.traceId
           )
@@ -306,7 +310,15 @@ export async function callDbAgent(params: {
           ? (meta!.explain_preflight as unknown[]).map((x) => String(x ?? '').trim()).filter(Boolean)
           : []
       const serverAgentResult = {
-        ok: !empty && !Boolean(meta?.needs_clarification),
+        // 业务空结果（empty_result）仍 ok=true，与 Vanna build_db_agent_result 对齐
+        ok:
+          Boolean(meta?.needs_clarification)
+            ? false
+            : empty
+              ? errorCode === 'empty_result' || meta?.empty === true
+                ? true
+                : false
+              : true,
         agent: 'db',
         trace_id: params.traceId,
         answer: text,
@@ -350,4 +362,66 @@ export async function callDbAgent(params: {
     if (!ans.empty) dbCache.set(cacheKey, ans)
     return ans
   }
+}
+
+/** 写库 HITL：确认/取消 pending（T2 须 confirm_token） */
+export async function callDbPendingDecide(params: {
+  dbAgentHttpUrl: string
+  pendingId: string
+  decision: '确认' | '取消'
+  confirmToken?: string
+  blastRadius?: string
+  dbId?: string
+  sessionId?: string
+  traceId?: string
+  timeoutMs: number
+  signal?: AbortSignal
+  sendThinking?: (text: string) => void
+}): Promise<DbResult> {
+  params.sendThinking?.(`数据库 Agent：正在${params.decision}写库待办…`)
+  const base = String(params.dbAgentHttpUrl || '').replace(/\/+$/, '')
+  const url = `${base}/api/pending/decide`
+  const res = await fetchWithExpertPolicy(
+    url,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...buildAgentTraceHeaders(params.traceId) },
+      body: JSON.stringify(
+        withTraceBody(
+          {
+            pending_id: params.pendingId,
+            decision: params.decision,
+            confirm_token: params.confirmToken || '',
+            blast_radius: params.blastRadius || 't2',
+            dbId: params.dbId,
+            ...(params.sessionId ? { session_id: params.sessionId, sessionId: params.sessionId } : {})
+          },
+          params.traceId
+        )
+      ),
+      signal: params.signal
+    },
+    {
+      timeoutMs: params.timeoutMs,
+      signal: params.signal,
+      label: 'dbAgent(pendingDecide)'
+    }
+  )
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`db pending decide ${res.status}: ${text || res.statusText}`)
+  }
+  const data = (await res.json().catch(() => null)) as Record<string, unknown> | null
+  const answer = typeof data?.answer === 'string' ? data.answer : JSON.stringify(data ?? {})
+  return finalizeDbResult(
+    {
+      answer,
+      empty: false,
+      reason: data?.ok === false ? 'business' : 'ok',
+      transport: 'http' as const
+    },
+    params.traceId,
+    data?.agentResult,
+    structuredFromVannaPayload(data || undefined)
+  )
 }

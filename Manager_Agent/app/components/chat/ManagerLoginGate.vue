@@ -1,13 +1,11 @@
 <template>
   <div class="mgr-login-gate">
-    <div class="mgr-season-bg mgr-season-bg--lidong" aria-hidden="true" />
-    <BrandMotif motif="snow" :count="72" />
     <form class="mgr-login-card mgr-glass" @submit.prevent="onSubmit">
       <div class="mgr-login-brand">
         <img class="mgr-login-logo" src="/brand/logos/manager.svg" alt="" width="56" height="56" />
         <div>
-          <p class="mgr-login-eyebrow">立冬 · 天机</p>
-          <h1 class="mgr-login-title">天机 · 登录</h1>
+          <p class="mgr-login-eyebrow">天机 · Manager</p>
+          <h1 class="mgr-login-title">登录</h1>
           <p class="mgr-login-desc">使用天机账号登录（无需先打开控制端）</p>
         </div>
       </div>
@@ -34,8 +32,6 @@
 </template>
 
 <script setup lang="ts">
-import BrandMotif from '@brand/vue/BrandMotif.vue'
-
 const emit = defineEmits<{ success: [] }>()
 const { login } = useClawhiveLogin()
 const username = ref('admin')

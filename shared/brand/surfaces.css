@@ -1,0 +1,242 @@
+/* 主题表面层：废节气大图身份，用 CSS 氛围 + 高对比分层 */
+
+/* —— 永久隐藏节日/节气装饰 —— */
+[class*="-season-bg"],
+.brand-motif,
+[class*="-storm"],
+.code-storm,
+.mm-storm {
+  display: none !important;
+}
+
+.brand-shell,
+[data-agent] {
+  --brand-motif-opacity: 0;
+}
+
+/* —— 统一氛围底（替代大图；每站色相更醒目） —— */
+.brand-shell {
+  position: relative;
+  min-height: 100vh;
+  isolation: isolate;
+  color: var(--brand-text);
+  font-family: var(--brand-font-sans);
+  background:
+    radial-gradient(980px 480px at 6% -8%, var(--brand-wash-a), transparent 58%),
+    radial-gradient(820px 440px at 98% 0%, var(--brand-wash-b), transparent 52%),
+    radial-gradient(640px 360px at 50% 110%, color-mix(in srgb, var(--brand-accent) 14%, transparent), transparent 65%),
+    linear-gradient(180deg, color-mix(in srgb, var(--brand-bg) 55%, #fff) 0%, var(--brand-bg) 45%, color-mix(in srgb, var(--brand-bg) 80%, var(--brand-bg-subtle)) 100%);
+  -webkit-font-smoothing: antialiased;
+}
+
+.brand-shell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: calc(var(--brand-grid-opacity, 0.4) + 0.12);
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--brand-accent) 14%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--brand-accent) 10%, transparent) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(ellipse 78% 68% at 50% 28%, #000 18%, transparent 75%);
+}
+
+[data-agent="manager"].brand-shell {
+  background:
+    radial-gradient(980px 520px at 8% -8%, rgba(37, 99, 235, 0.26), transparent 55%),
+    radial-gradient(820px 440px at 96% 0%, rgba(14, 165, 233, 0.16), transparent 50%),
+    linear-gradient(165deg, #dbe7fb 0%, #e8eef8 45%, #d4e0f4 100%);
+}
+
+[data-agent="platform"].brand-shell {
+  background:
+    radial-gradient(900px 480px at 8% -8%, rgba(184, 134, 47, 0.22), transparent 55%),
+    radial-gradient(820px 440px at 100% 0%, rgba(107, 79, 154, 0.16), transparent 50%),
+    linear-gradient(180deg, #f3ecf8 0%, #ebe4f0 48%, #e0d6ea 100%);
+}
+
+[data-agent="admin"].brand-shell {
+  background:
+    radial-gradient(900px 480px at 10% -8%, rgba(184, 134, 11, 0.22), transparent 55%),
+    radial-gradient(760px 420px at 96% 4%, rgba(90, 70, 40, 0.18), transparent 50%),
+    linear-gradient(165deg, #1e1a15 0%, #14110e 50%, #100e0c 100%);
+}
+
+[data-agent="rag"].brand-shell {
+  background:
+    radial-gradient(900px 480px at 8% -8%, rgba(79, 111, 212, 0.26), transparent 55%),
+    radial-gradient(760px 420px at 98% 0%, rgba(120, 90, 180, 0.14), transparent 50%),
+    linear-gradient(180deg, #e4eaf8 0%, #e9edf8 45%, #d4dced 100%);
+}
+
+[data-agent="lobster"].brand-shell {
+  background:
+    radial-gradient(900px 480px at 8% -8%, rgba(194, 65, 85, 0.22), transparent 55%),
+    radial-gradient(760px 420px at 98% 0%, rgba(120, 40, 60, 0.12), transparent 50%),
+    linear-gradient(180deg, #f7ecef 0%, #f4e8eb 45%, #e8d0d6 100%);
+}
+
+[data-agent="db"].brand-shell {
+  background:
+    radial-gradient(900px 480px at 8% -8%, rgba(13, 148, 136, 0.24), transparent 55%),
+    radial-gradient(760px 420px at 98% 0%, rgba(20, 90, 110, 0.14), transparent 50%),
+    linear-gradient(180deg, #dff3f0 0%, #e6f4f2 45%, #cfe8e4 100%);
+}
+
+.brand-shell > *:not(.brand-motif):not([class*="-season-bg"]) {
+  position: relative;
+  z-index: 1;
+}
+
+/* 三层表面原语 */
+.brand-surface {
+  background: var(--brand-bg);
+  color: var(--brand-text);
+}
+
+.brand-surface--elevated,
+.brand-panel {
+  background: var(--brand-panel-solid);
+  border: 1px solid var(--brand-border);
+  border-radius: var(--brand-radius);
+  box-shadow: var(--brand-shadow-panel);
+  color: var(--brand-text);
+}
+
+.brand-panel {
+  background: var(--brand-panel);
+  backdrop-filter: blur(10px);
+}
+
+.brand-panel--solid {
+  background: var(--brand-panel-solid);
+  backdrop-filter: none;
+}
+
+.brand-surface--sidebar {
+  background: var(--brand-sidebar);
+  color: var(--brand-sidebar-text);
+  border-right: 1px solid color-mix(in srgb, #fff 8%, transparent);
+}
+
+/* 结构化信号 / 日志卡（替代灰条 raw dump） */
+.brand-signal-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.brand-signal {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: start;
+  padding: 10px 12px;
+  border-radius: var(--brand-radius-sm);
+  border: 1px solid var(--brand-border);
+  background: var(--brand-bg-elevated);
+  box-shadow: var(--brand-shadow-sm);
+  color: var(--brand-text);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.brand-signal__time {
+  font-family: var(--brand-font-mono);
+  font-size: 11px;
+  color: var(--brand-text-muted);
+  white-space: nowrap;
+  padding-top: 2px;
+}
+
+.brand-signal__body {
+  min-width: 0;
+  color: var(--brand-text-secondary);
+  word-break: break-word;
+}
+
+.brand-signal__body code,
+.brand-signal pre {
+  display: block;
+  margin: 4px 0 0;
+  padding: 8px 10px;
+  border-radius: var(--brand-radius-xs);
+  background: color-mix(in srgb, var(--brand-bg-subtle) 80%, var(--brand-accent-soft));
+  border: 1px solid var(--brand-border);
+  font-family: var(--brand-font-mono);
+  font-size: 12px;
+  color: var(--brand-ink);
+  overflow-x: auto;
+}
+
+.brand-empty-state {
+  display: grid;
+  place-items: center;
+  gap: 8px;
+  min-height: 160px;
+  padding: 28px 20px;
+  text-align: center;
+  border: 1px dashed var(--brand-border-strong);
+  border-radius: var(--brand-radius);
+  background: color-mix(in srgb, var(--brand-bg-elevated) 70%, transparent);
+  color: var(--brand-text-secondary);
+}
+
+.brand-empty-state__title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--brand-ink);
+}
+
+.brand-empty-state__hint {
+  margin: 0;
+  font-size: 13px;
+  color: var(--brand-text-muted);
+  max-width: 36ch;
+}
+
+/* 表单控件：浅底可读（禁黑底砸对比） */
+.brand-shell input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+.brand-shell select,
+.brand-shell textarea,
+[data-agent] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+[data-agent] select,
+[data-agent] textarea {
+  color: var(--brand-text);
+  background: var(--brand-bg-elevated);
+  border: 1px solid var(--brand-border);
+  border-radius: var(--brand-radius-sm);
+}
+
+.brand-shell input:not([type="checkbox"]):not([type="radio"]):focus,
+.brand-shell select:focus,
+.brand-shell textarea:focus,
+[data-agent] input:not([type="checkbox"]):not([type="radio"]):focus,
+[data-agent] select:focus,
+[data-agent] textarea:focus {
+  outline: none;
+  border-color: var(--brand-accent);
+  box-shadow: 0 0 0 3px var(--brand-accent-soft);
+}
+
+/* 深色壳体氛围 */
+.brand-shell--dark {
+  color-scheme: dark;
+  color: var(--brand-dark-text);
+  background:
+    radial-gradient(1000px 480px at 12% -8%, var(--brand-wash-a), transparent 55%),
+    radial-gradient(860px 420px at 92% 4%, var(--brand-wash-b), transparent 50%),
+    radial-gradient(640px 360px at 50% 100%, color-mix(in srgb, var(--brand-accent) 12%, transparent), transparent 70%),
+    linear-gradient(165deg, color-mix(in srgb, var(--brand-dark-bg-elevated) 80%, #000) 0%, var(--brand-dark-bg) 48%, #0a0c10 100%);
+}
+
+.brand-shell--dark::before {
+  opacity: 0.28;
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--brand-accent) 14%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--brand-accent) 12%, transparent) 1px, transparent 1px);
+  background-size: 52px 52px;
+}

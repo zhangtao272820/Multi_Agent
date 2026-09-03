@@ -864,6 +864,111 @@ def draft_email_reply(
     )
 
 
+def draft_batch_email_replies(
+    email_ids: list | str = "",
+    hint: str = "",
+    session_id: str = "default",
+    user_id: str = "",
+    items: list | None = None,
+) -> dict:
+    """
+    批量起草回复（不发信、不走发送闸）。
+    - 若传入 items（含 email_id + draft_content）：纯装配 mail_compose 列表（smoke / 上游已有正文）。
+    - 否则按 email_ids 逐封调用 draft_email_reply（会调 LLM）。
+    """
+    from app.core.mail_compose import assemble_batch_draft_composes
+
+    uid = str(user_id or "").strip()
+    sid = (session_id or "default").strip() or "default"
+
+    if isinstance(items, list) and items:
+        composes = assemble_batch_draft_composes(items)
+        return _tool_ok(
+            f"已装配 {len(composes)} 封回复草稿（未发送）。请在 Compose 卡确认后再发。",
+            data={
+                "mail_composes": composes,
+                "count": len(composes),
+                "session_id": sid,
+                "user_id": uid,
+            },
+            code="mail_batch_draft_ok",
+        )
+
+    ids: list[int] = []
+    if isinstance(email_ids, list):
+        for x in email_ids:
+            try:
+                ids.append(int(x))
+            except (TypeError, ValueError):
+                continue
+    elif isinstance(email_ids, str) and email_ids.strip():
+        try:
+            parsed = json.loads(email_ids)
+            if isinstance(parsed, list):
+                for x in parsed:
+                    try:
+                        ids.append(int(x))
+                    except (TypeError, ValueError):
+                        continue
+            else:
+                for part in re.split(r"[,;\s]+", email_ids.strip()):
+                    if part.isdigit():
+                        ids.append(int(part))
+        except Exception:
+            for part in re.split(r"[,;\s]+", email_ids.strip()):
+                if part.isdigit():
+                    ids.append(int(part))
+
+    if not ids:
+        return _tool_err(
+            "请提供 email_ids 或带 draft_content 的 items。",
+            code="missing_email_ids",
+        )
+
+    assembled: list[dict] = []
+    errors: list[dict] = []
+    for eid in ids[:10]:
+        one = draft_email_reply(
+            email_id=eid,
+            hint=hint,
+            session_id=sid,
+            user_id=uid,
+        )
+        if isinstance(one, dict) and one.get("ok"):
+            data = one.get("data") or {}
+            assembled.append(
+                {
+                    "email_id": eid,
+                    "to": data.get("to") or "",
+                    "subject": data.get("subject") or "",
+                    "draft_content": data.get("draft_content") or "",
+                    "from_address": str(data.get("from") or "").strip(),
+                }
+            )
+        else:
+            errors.append(
+                {
+                    "email_id": eid,
+                    "error": (one.get("code") if isinstance(one, dict) else "draft_failed"),
+                }
+            )
+
+    composes = assemble_batch_draft_composes(assembled)
+    return _tool_ok(
+        f"已起草 {len(composes)} 封回复草稿（未发送）"
+        + (f"；失败 {len(errors)} 封" if errors else "")
+        + "。请在 Compose 卡确认后再发。",
+        data={
+            "mail_composes": composes,
+            "count": len(composes),
+            "errors": errors,
+            "session_id": sid,
+            "user_id": uid,
+        },
+        code="mail_batch_draft_ok",
+    )
+
+
 def classify_emails(session_id: str = "default", limit: int = 20, user_id: str = "") -> dict:
     """读取收件箱并用 LLM 打标签：工作 / 社交 / 通知 / 广告 / 其他。"""
     from app.core.llm import qwen_llm

@@ -22,6 +22,7 @@
 | `docker-no-volume-wipe.mdc` | 重启禁 `down -v`，保命名卷 |
 | `complex-task-planning.mdc` | 跨 Agent / 语义重构先 Plan 再写 |
 | `cursor-governance.mdc` | 遵守并及时提取 rules/skills |
+| `experience-useful-only.mdc` | 全专家经验只认「有用」；RAG 向量亦仅有用索引；撤回重生无用不回灌 |
 
 ## 3. 按路径生效的规则
 
@@ -29,8 +30,11 @@
 |------|----------------|
 | `agent-llm-first.mdc` | `**/*Agent/**/*` — 禁正则做意图/抽参；LLM + Zod |
 | `shared-agent-contracts.mdc` | `shared/**/*` — 契约层同样 LLM-first |
-| `manager-routing-playbook.mdc` | Manager 路由 / smoke / eval — 改路由必读手册；优化阶段见 `Manager_Agent/doc/路由成熟化优化方案.md` |
+| `manager-routing-playbook.mdc` | Manager 路由 / smoke / eval — 改路由必读手册；优化阶段见 `Manager_Agent/doc/路由成熟化优化方案.md`；企业生产见 `docs/企业级Agent生产升级方案.md`；企业档见 `docs/企业档配置指南.md`；P1/P2 深化见 `docs/企业化-P1深化清单.md`、`docs/企业化-P2升级指南.md` |
 | `manager-cursor-reply-only.mdc` | Manager 只借鉴 Cursor **回复呈现**，禁做成改代码 / Composer |
+| `experience-useful-only.mdc` | Vanna/RAG/GUI/Admin/shared/Manager — 仅「有用」可召回 |
+
+DB/Code 写闸：Vanna `skills/write_gate.md`（T2 pending）；CodePy 改码事前 HITL + 沙箱终端；总管 `db_write`→T2、`MANAGER_CODE_EDIT_HITL` 默认开。
 
 ## 4. 项目 Skills（入库，可共享）
 

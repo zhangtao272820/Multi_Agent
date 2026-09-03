@@ -1,7 +1,7 @@
-# AI Admin Agent
+﻿# AI Admin Agent
 
-> **面试讲义**：[备战入口](../docs/面试备战/00-使用说明与防穿帮.md) · [04 Admin](../docs/面试备战/04-Admin-Agent.md)  
-> **能力升级规划**（Admin + Lobster，能力优先）：[`docs/动手Agent升级-Admin与Lobster.md`](../docs/动手Agent升级-Admin与Lobster.md)
+> **面试讲义**：[备战入口](../docs/面试备战/README.md) · [04 Admin](../docs/面试备战/技术/04-Admin-Agent.md)  
+> **能力升级规划**（Admin Compose / MCP）：[`docs/Admin办公助手对标与Compose升级.md`](../docs/Admin办公助手对标与Compose升级.md)
 
 基于 **FastAPI + React (Vite) + LangGraph** 的个人办公助理。对应平台 `ai_admin_agent`，默认端口 **13105**；总管能力 cap 为 `admin`。
 
@@ -16,14 +16,14 @@
 | 能力 | 说明 |
 |------|------|
 | 邮箱绑定（A0） | 按登录用户绑定国内 IMAP/SMTP（QQ/163/126/企业邮）；授权码 Fernet 密文；未绑定 → `email_not_bound` |
-| 邮件动手（AM） | 列表/搜索/已读/分拣/草稿/回复/发送/转发/删除/附件；发信·转发·删信 RISKY HITL |
+| 邮件动手（AM） | 列表/搜索/已读/分拣/草稿/批量草稿/回复/发送/转发/删除/附件；发信·转发·删信 RISKY HITL + **Compose Card** |
 | 办公主链 | 日历、待办、提醒、通讯录 |
 | 天气 / 地图 | 工具调用（总管亦走此 cap） |
-| 简报 / 会前 | `daily_briefing` / `prepare_meeting` 聚合本地数据（邮件按当前 `user_id`） |
-| HITL | 高风险操作确认；总管可传可信侧自动确认参数 |
+| 简报 / 会前 | `daily_briefing` / `prepare_meeting` / `weekly_report`（含 mail_compose 预填） |
+| HITL | 高风险操作确认；邮件提交编辑后 `mail_compose` payload |
 | manager_task | 结构化侧车，与总管协议对齐；Python `MANAGER_ADMIN_TOOLS` ↔ shared 白名单 |
 | content_trust | 内容可信度相关约束与 smoke |
-| 玩法台 / MCP | 本仓额外趣味能力；不经总管编排 |
+| 玩法台 / MCP | 本仓额外趣味能力；对外 MCP 见 `mcp-servers/admin-office`（只读+draft，禁直发） |
 
 ## 技术栈
 
@@ -68,6 +68,7 @@ python scripts/smoke_admin_write_clarify.py
 python scripts/smoke_admin_risky_hitl.py
 python scripts/smoke_admin_mailbox_binding.py
 python scripts/smoke_admin_mail_hands.py
+python scripts/smoke_admin_mail_compose.py
 python scripts/smoke_admin_dual_path_prompt.py
 ```
 

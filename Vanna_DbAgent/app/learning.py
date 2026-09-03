@@ -197,7 +197,7 @@ def record_feedback(
             tables=list(tables or []),
             tenant_id=tenant_id,
             data_domain=tenant_id,
-            source="vanna_feedback",
+            source="vanna_feedback|useful",
             session_id=sid,
             message_id=mid,
         )

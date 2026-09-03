@@ -1175,6 +1175,49 @@ def test_fk_seed_joins_and_template() -> None:
         assert_true(any("PersonGroupId" in str(x.get("sql") or "") for x in data), "fk sql kept")
 
 
+def test_browser_jwt_not_blocked_by_service_auth() -> None:
+    """企业档 AGENT_SERVICE_AUTH=require 时，浏览器 JWT 不得再被 _require_auth 二次拦截。"""
+    import base64
+    import hashlib
+    import hmac
+    import json
+    import time
+
+    from app.browser_auth import require_browser_or_internal
+    from app.main import _require_auth
+    from app.protocol import verify_agent_service_auth
+    from fastapi import Request
+    from starlette.datastructures import Headers
+
+    secret = "smoke-jwt-secret"
+    os.environ["JWT_SECRET"] = secret
+    os.environ["CLAWHIVE_JWT_SECRET"] = secret
+    os.environ["AGENT_BROWSER_AUTH"] = "1"
+    os.environ["AGENT_SERVICE_AUTH"] = "require"
+    os.environ["CLAWHIVE_INTERNAL_TOKEN"] = "svc-token-smoke"
+
+    header = base64.urlsafe_b64encode(json.dumps({"alg": "HS256", "typ": "JWT"}).encode()).decode().rstrip("=")
+    payload = base64.urlsafe_b64encode(
+        json.dumps({"sub": "admin", "role": "admin", "exp": int(time.time()) + 3600}).encode()
+    ).decode().rstrip("=")
+    sig = base64.urlsafe_b64encode(
+        hmac.new(secret.encode(), f"{header}.{payload}".encode(), hashlib.sha256).digest()
+    ).decode().rstrip("=")
+    jwt = f"{header}.{payload}.{sig}"
+
+    auth = require_browser_or_internal({"authorization": f"Bearer {jwt}"})
+    assert_true(auth.get("mode") == "browser", "browser jwt accepted by browser auth")
+    ok, reason = verify_agent_service_auth({"authorization": f"Bearer {jwt}"})
+    assert_true(not ok and reason == "agent_service_token_missing", "service-only gate rejects jwt-only")
+    req = Request({"type": "http", "headers": [(b"authorization", f"Bearer {jwt}".encode())]})
+    try:
+        _require_auth(req)
+        passed = True
+    except Exception:
+        passed = False
+    assert_true(passed, "_require_auth accepts browser jwt under enterprise require")
+
+
 def test_protocol_envelope() -> None:
     from app.protocol import (
         build_db_agent_result,
@@ -1223,14 +1266,67 @@ def test_protocol_envelope() -> None:
         not is_manager_request(headers=None, messages=None, mgr=parse_manager_task(None)),
         "standalone question-only is not manager",
     )
-    fail = build_db_agent_result(answer="x", empty=True, error_code="empty_result")
-    assert_true(fail.get("agent") == "db" and fail.get("ok") is False, "fail agent db")
-    assert_true(fail.get("error_code") == "empty_result", "fail has error_code")
+    fail = build_db_agent_result(answer="按这条查询在库里查到 0 行。", empty=True, error_code="empty_result")
+    assert_true(fail.get("agent") == "db" and fail.get("ok") is True, "soft empty ok=true")
+    assert_true(fail.get("error_code") == "empty_result", "empty keeps error_code")
+    assert_true(fail.get("structured", {}).get("empty") is True, "structured.empty")
     clar = build_db_agent_result(answer="请说明对象", needs_clarify=True)
     assert_true(clar.get("needs_clarify") is True and clar.get("error_code") == "needs_clarify", "clarify code")
+    assert_true(clar.get("ok") is False, "clarify still fails")
 
 
-def test_manager_compat_session_and_plan() -> None:
+def test_sql_match_normalize_and_location_filters() -> None:
+    from app.filter_gate import assert_plan_filters, required_location_values
+    from app.router import parse_router, plan_to_must_filters
+    from app.sql_match_normalize import normalize_substring_equality
+    from app.tenants import load_tenants
+
+    eq = "SELECT is_gender, COUNT(*) AS count FROM person_info WHERE deleted = 0 AND provinces_and_cities = '河西区' AND age BETWEEN 70 AND 79 GROUP BY is_gender LIMIT 50"
+    like = normalize_substring_equality(eq, {"person_info.provinces_and_cities": "substring"})
+    assert_true("LIKE '%河西区%'" in like, "equality rewritten to LIKE")
+    assert_true("= '河西区'" not in like, "no bare equality left")
+    already = "WHERE provinces_and_cities LIKE '%河西区%'"
+    assert_true(
+        normalize_substring_equality(already, {"person_info.provinces_and_cities": "substring"}) == already,
+        "LIKE unchanged",
+    )
+    tenants = load_tenants()
+    t = tenants.get("p2026")
+    assert_true(t is not None and t.column_match.get("person_info.provinces_and_cities") == "substring", "p2026 column_match")
+
+    route = parse_router(
+        {
+            "path": "llm_sql",
+            "intent": "aggregate",
+            "tables": ["person_info"],
+            "entities": {"names": [], "locations": ["河西区"]},
+            "filters": {"slots": [], "time_range": {}},
+            "confidence": 0.9,
+        },
+        t,
+    )
+    assert_true(
+        any(s.get("field_hint") == "地区" and "河西区" in s.get("sql_match_value", "") for s in route["filters"]["slots"]),
+        "locations promoted to slots",
+    )
+    lines = plan_to_must_filters(route)
+    blob = "\n".join(lines)
+    assert_true("LIKE" in blob and "包含" in blob, "must_filters use LIKE/包含")
+    assert_true("地区 = 河西区" not in blob, "must_filters must not steer equality")
+
+    plan = {
+        "entities": {"names": [], "locations": ["河西区"]},
+        "filters": {"slots": [{"field_hint": "地区", "value": "河西区", "sql_match_value": "河西区"}]},
+    }
+    assert_true(required_location_values(plan) == ["河西区"], "required location")
+    bad = assert_plan_filters("SELECT 1 FROM person_info WHERE deleted=0", plan)
+    assert_true(not bad.ok and "河西区" in bad.missing, "filter_gate catches missing location")
+    good = assert_plan_filters(
+        "SELECT 1 FROM person_info WHERE provinces_and_cities LIKE '%河西区%'",
+        plan,
+    )
+    assert_true(good.ok, "filter_gate accepts LIKE location")
+
     from unittest.mock import patch
 
     from fastapi.testclient import TestClient
@@ -1356,12 +1452,47 @@ def test_mcp_and_learning_http() -> None:
 def test_experience_no_pg() -> None:
     from unittest.mock import patch
 
-    from app.experience import recall_experience, resolve_experience_path_conflicts
+    from app.experience import (
+        _is_confirmed,
+        may_recall_row,
+        recall_experience,
+        resolve_experience_path_conflicts,
+    )
     from app.learning import record_feedback
 
     with patch("app.experience._database_url", return_value=""):
         rows = recall_experience("目前突发事件有几个，分别是什么", tenant_id="p2604")
     assert_true(rows == [], "no pg returns empty")
+
+    assert_true(
+        _is_confirmed({"source": "vanna_feedback|useful|sid:x", "userConfirmed": False}),
+        "vanna useful recallable",
+    )
+    assert_true(
+        _is_confirmed({"source": "manager_feedback_confirmed", "userConfirmed": False}),
+        "manager thumbs-up recallable",
+    )
+    assert_true(
+        not _is_confirmed({"source": "manager_finalize_sync", "status": "confirmed"}),
+        "finalize auto sync not recallable",
+    )
+    assert_true(
+        not _is_confirmed({"source": "voided|vanna_feedback|useful"}),
+        "voided not recallable",
+    )
+    assert_true(
+        not _is_confirmed({"source": "vanna_golden_promote"}),
+        "golden promote not recallable as useful",
+    )
+    with patch("app.experience._confirmed_only", return_value=True):
+        assert_true(
+            not may_recall_row({"source": "manager_finalize_sync"}, manager_path=False),
+            "confirmed_only blocks finalize",
+        )
+        assert_true(
+            may_recall_row({"source": "vanna_feedback|useful"}, manager_path=False),
+            "confirmed_only allows useful",
+        )
 
     resolved = resolve_experience_path_conflicts(
         [
@@ -1374,7 +1505,7 @@ def test_experience_no_pg() -> None:
             {
                 "question_norm": "突发事件个数",
                 "path": "golden",
-                "source": "manager_finalize_sync|feedback",
+                "source": "manager_feedback_confirmed",
                 "ts": "2026-08-01T00:00:00+00:00",
             },
         ]
@@ -1580,7 +1711,9 @@ def main() -> None:
     test_golden_source_metering()
     test_chart_types()
     test_fk_seed_joins_and_template()
+    test_browser_jwt_not_blocked_by_service_auth()
     test_protocol_envelope()
+    test_sql_match_normalize_and_location_filters()
     test_manager_compat_session_and_plan()
     test_mcp_and_learning_http()
     test_experience_no_pg()

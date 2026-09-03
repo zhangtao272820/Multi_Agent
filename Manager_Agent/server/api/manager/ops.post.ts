@@ -74,6 +74,10 @@ export default defineEventHandler(async (event) => {
   const body = (await readBody(event).catch(() => ({}))) as Record<string, unknown>
   const action = String(body?.action || '').trim()
   const dir = path.join(process.cwd(), '.data')
+  /** 与 processManagerFeedback / promoteFromFeedback 写入一致的租户 policy 目录 */
+  const tenantPolicyDir = resolveManagerPolicyDir(
+    body?.tenantId != null && String(body.tenantId).trim() ? String(body.tenantId) : undefined
+  )
 
   if (action === 'policy_rollback') {
     const r = await restoreManagerPolicyFromPrevious(dir)
@@ -270,7 +274,7 @@ export default defineEventHandler(async (event) => {
   if (action === 'experience_candidates_list') {
     const { listExperienceCandidates } = await import('../../graph/core/memory/experienceCandidateStore')
     const statusRaw = body?.status != null ? String(body.status).trim() : 'draft'
-    const rows = await listExperienceCandidates(dir, {
+    const rows = await listExperienceCandidates(tenantPolicyDir, {
       limit: Number(body?.limit ?? 50),
       status:
         statusRaw === 'all'
@@ -286,7 +290,7 @@ export default defineEventHandler(async (event) => {
     const verify = await verifyBeforePromote('manager')
     if (!verify.ok) return { ok: false, message: verify.reason || 'verify_failed', verify }
     const { promoteExperienceCandidateById } = await import('../../graph/core/unifiedLearning/promoteFromFeedback')
-    const out = await promoteExperienceCandidateById(dir, candidateId)
+    const out = await promoteExperienceCandidateById(tenantPolicyDir, candidateId)
     return { ok: out.ok, ...out, verify }
   }
 
@@ -294,13 +298,13 @@ export default defineEventHandler(async (event) => {
     const candidateId = String(body?.experienceCandidateId || body?.skillId || body?.key || '').trim()
     if (!candidateId) return { ok: false, message: 'missing experienceCandidateId' }
     const { setExperienceCandidateStatus } = await import('../../graph/core/memory/experienceCandidateStore')
-    const out = await setExperienceCandidateStatus(dir, candidateId, 'rejected')
+    const out = await setExperienceCandidateStatus(tenantPolicyDir, candidateId, 'rejected')
     return { ok: out.ok, ...out }
   }
 
   if (action === 'pending_prefs_list') {
     const { listPendingPrefsProfiles } = await import('../../graph/core/memory/userProfile')
-    const rows = await listPendingPrefsProfiles(dir, { limit: Number(body?.limit ?? 40) })
+    const rows = await listPendingPrefsProfiles(tenantPolicyDir, { limit: Number(body?.limit ?? 40) })
     return { ok: true, pendingPrefs: rows }
   }
 

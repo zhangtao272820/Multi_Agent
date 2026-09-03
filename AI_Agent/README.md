@@ -1,6 +1,6 @@
-# AI_Agent — 实时 AI 虚拟化身
+﻿# AI_Agent — 实时 AI 虚拟化身
 
-> **说明**：独立 Demo，**不进** Supervisor 主叙事。面试主链见 [docs/面试备战](../docs/面试备战/00-使用说明与防穿帮.md)；本仓详答讲义见 [11-AI-Agent 实时数字人](../docs/面试备战/11-AI-Agent-实时数字人.md)。  
+> **说明**：独立 Demo，**不进** Supervisor 主叙事。面试主链见 [docs/面试备战](../docs/面试备战/README.md)；本仓详答讲义见 [11-AI-Agent 实时数字人](../docs/面试备战/技术/11-AI-Agent-实时数字人.md)。  
 > 实时数字人落地：[doc/realtime-digital-human.md](doc/realtime-digital-human.md)
 
 **对口型主路径（唯一推荐）**：`LiveTalking`（WebRTC 推流）+ `FeatherTalk`（口型模型）。  

@@ -1,8 +1,8 @@
 import { useMemo, useState, useRef, useEffect, useCallback, type ReactNode } from 'react';
-import BrandMotif from '@brand/react/BrandMotif.jsx';
 import { brandAvatarUrl, brandLogoUrl } from '@brand/react/assetMap.js';
 import './App.css';
 import './admin-cursor-chat.css';
+import './admin-theme.css';
 import { AppModal } from './AppModal';
 import { AdminReplyCards, parseAdminUiCards, type AdminUiCard } from './AdminReplyCards';
 import { ContactsPanel, HubPanel, IntegrationsPanel, SearchPanel } from './AdminExtraPanels';
@@ -75,7 +75,6 @@ function handledActionsStorageKey(id: string) {
 }
 
 const PENDING_THOUGHT_RE = /(?:待确认|等待确认|已阻止高风险)[^\[]*\[\d+\]/i;
-const PENDING_CONTENT_RE = /【待确认】/;
 
 function generateSessionId() {
   return typeof crypto !== 'undefined' && crypto.randomUUID
@@ -125,6 +124,38 @@ function extractMailDraftFromAgentResult(agentResult: unknown): { content: strin
   };
 }
 
+type MailCompose = {
+  tool?: string;
+  from_address?: string;
+  to?: string;
+  cc?: string;
+  bcc?: string;
+  subject?: string;
+  content?: string;
+  email_id?: number | null;
+  editable?: boolean;
+  digest?: string;
+};
+
+function extractMailComposeFromFinal(data: {
+  agentResult?: { structured?: { pending_actions?: Array<{ id?: number; mail_compose?: MailCompose }> } };
+  pending_actions?: Array<{ id?: number; mail_compose?: MailCompose }>;
+}): { actionId: string; compose: MailCompose } | null {
+  const rows =
+    data.agentResult?.structured?.pending_actions
+    || data.pending_actions
+    || [];
+  for (const row of rows) {
+    if (!row || typeof row !== 'object') continue;
+    const mc = row.mail_compose;
+    if (!mc || typeof mc !== 'object') continue;
+    const id = row.id != null ? String(row.id) : '';
+    if (!id) continue;
+    return { actionId: id, compose: { ...mc } };
+  }
+  return null;
+}
+
 function buildClientContext(location: ClientLocation | null): { location?: ClientLocation } {
   if (!location) return {};
   return { location };
@@ -167,13 +198,6 @@ function getWsUrl(apiBaseUrl: string): string {
   return url.toString();
 }
 
-function getPendingActionIdFromText(text: string): string | null {
-  const m = text.match(/(?:待确认操作|待确认|等待确认|确认|action)[^\[]*\[(\d+)\]/i);
-  if (m?.[1]) return m[1];
-  const m2 = text.match(/(?:确认|取消)\s+(\d+)/i);
-  return m2?.[1] ?? null;
-}
-
 function stripPendingThoughts(thoughts?: string[]): string[] {
   return (thoughts || []).filter((t) => !PENDING_THOUGHT_RE.test(String(t || '')));
 }
@@ -196,16 +220,10 @@ function processToggleSummary(thoughts: string[], running: boolean): string {
 
 function getPendingActionId(message: Message, handledIds?: Set<string>): string | null {
   const handled = handledIds;
-  const fromContent = getPendingActionIdFromText(message.content || '');
-  if (fromContent) {
-    if (handled?.has(fromContent)) return null;
-    if (!PENDING_CONTENT_RE.test(message.content || '')) return null;
-    return fromContent;
-  }
-  if (!PENDING_CONTENT_RE.test(message.content || '')) return null;
-  for (const t of message.thoughts || []) {
-    const fromThought = getPendingActionIdFromText(t || '');
-    if (fromThought && !handled?.has(fromThought)) return fromThought;
+  // Compose HITL 只认结构化 pendingActionId，避免历史【待确认】气泡残留按钮
+  if (message.pendingActionId) {
+    if (handled?.has(message.pendingActionId)) return null;
+    return message.pendingActionId;
   }
   return null;
 }
@@ -219,6 +237,8 @@ interface Message {
   turnId?: number;
   userMessageIndex?: number;
   questionForFeedback?: string;
+  mailCompose?: MailCompose;
+  pendingActionId?: string;
 }
 
 interface Task {
@@ -394,6 +414,7 @@ function App() {
   const [activeTab, setActiveTab] = useState<TabId>('Hub');
   const [handledActionIds, setHandledActionIds] = useState<Set<string>>(new Set());
   const [decidingActionId, setDecidingActionId] = useState<string | null>(null);
+  const [refiningComposeKey, setRefiningComposeKey] = useState<string | null>(null);
   const pendingAgentIdRef = useRef<string | null>(null);
   const activeWsRef = useRef<WebSocket | null>(null);
   const cancelPendingRef = useRef(false);
@@ -1472,6 +1493,7 @@ function App() {
               const pendingId = pendingAgentIdRef.current;
               const cards = parseAdminUiCards(data.cards ?? data.agentResult?.structured?.ui_cards);
               const mailDraft = extractMailDraftFromAgentResult(data.agentResult);
+              const mailComposeHit = extractMailComposeFromFinal(data);
               if (mailDraft) {
                 setReplyContent(mailDraft.content);
                 if (mailDraft.emailId) setReplyTargetId(mailDraft.emailId);
@@ -1479,18 +1501,37 @@ function App() {
               }
               if (pendingId) {
                 setMessages((prev) => {
-                  const next = prev.map((msg) =>
-                    msg.id === pendingId
-                      ? {
-                          ...msg,
-                          content: data.response,
-                          thoughts: [...(msg.thoughts ?? []), ...(data.thoughts || []), '回答完成'].filter(
-                            (t: string, i: number, arr: string[]) => arr.indexOf(t) === i,
-                          ),
-                          cards: cards.length ? cards : undefined,
-                        }
-                      : msg,
-                  );
+                  const next = prev.map((msg) => {
+                    if (msg.id === pendingId) {
+                      return {
+                        ...msg,
+                        content: data.response,
+                        thoughts: [...(msg.thoughts ?? []), ...(data.thoughts || []), '回答完成'].filter(
+                          (t: string, i: number, arr: string[]) => arr.indexOf(t) === i,
+                        ),
+                        cards: cards.length ? cards : undefined,
+                        ...(mailComposeHit
+                          ? {
+                              mailCompose: mailComposeHit.compose,
+                              pendingActionId: mailComposeHit.actionId,
+                            }
+                          : {}),
+                      };
+                    }
+                    // 新 pending 到来：收起其它气泡上的 Compose HITL，避免多套按钮
+                    if (
+                      mailComposeHit
+                      && msg.pendingActionId
+                      && msg.pendingActionId !== mailComposeHit.actionId
+                    ) {
+                      return {
+                        ...msg,
+                        pendingActionId: undefined,
+                        mailCompose: undefined,
+                      };
+                    }
+                    return msg;
+                  });
                   messagesRef.current = next;
                   return next;
                 });
@@ -1984,19 +2025,104 @@ function App() {
     return { agentMsg, turnId, originalUserMessage };
   };
 
+  const updateMessageMailCompose = useCallback(
+    (messageId: string, patch: Partial<MailCompose>) => {
+      setMessages((prev) => {
+        const next = prev.map((msg) =>
+          msg.id === messageId && msg.mailCompose
+            ? { ...msg, mailCompose: { ...msg.mailCompose, ...patch } }
+            : msg,
+        );
+        messagesRef.current = next;
+        return next;
+      });
+    },
+    [],
+  );
+
+  /** 就地改写 Compose 正文：不发新对话、不碰 SMTP */
+  const refineComposeInPlace = useCallback(
+    async (messageId: string, actionId: string, tone: string) => {
+      const msg = messagesRef.current.find((m) => m.id === messageId);
+      const body = String(msg?.mailCompose?.content || '').trim();
+      if (!body || refiningComposeKey || decidingActionId) return;
+      const key = `${messageId}:${tone}`;
+      setRefiningComposeKey(key);
+      try {
+        const cid = conversationIdRef.current || 'default';
+        const res = await fetch(`${API_BASE_URL}/mail/compose/refine`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            content: body,
+            tone,
+            session_id: cid,
+            action_id: Number(actionId) || undefined,
+            subject: msg?.mailCompose?.subject || undefined,
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data?.content) {
+          setAppModal({
+            open: true,
+            mode: 'alert',
+            title: '改写失败',
+            message: String(data?.detail || data?.error || '请稍后重试'),
+            inputValue: '',
+            inputPlaceholder: '',
+            pendingAction: null,
+          });
+          return;
+        }
+        updateMessageMailCompose(messageId, { content: String(data.content) });
+      } catch (err) {
+        setAppModal({
+          open: true,
+          mode: 'alert',
+          title: '改写失败',
+          message: err instanceof Error ? err.message : '网络错误',
+          inputValue: '',
+          inputPlaceholder: '',
+          pendingAction: null,
+        });
+      } finally {
+        setRefiningComposeKey(null);
+      }
+    },
+    [decidingActionId, refiningComposeKey, updateMessageMailCompose],
+  );
+
   const handleDecision = async (
     actionId: string,
     decision: '确认' | '取消',
     agentMessageId?: string,
+    mailComposeOverride?: MailCompose | null,
   ) => {
-    if (loading || decidingActionId) return;
+    if (decidingActionId) return;
+    // 允许在其它轮次 loading 时仍确认 pending（勿静默吞掉点击）
+    if (loading) {
+      cancelPendingRef.current = true;
+      try {
+        activeWsRef.current?.close();
+      } catch {
+        /* ignore */
+      }
+    }
 
     const { agentMsg, turnId, originalUserMessage } = resolvePendingDecisionContext(
       actionId,
       agentMessageId,
     );
-    const streamingAgentId = agentMsg?.id || agentMessageId;
-    if (!streamingAgentId || !turnId) return;
+    const streamingAgentId = agentMsg?.id || agentMessageId || `pending-decide-${actionId}`;
+    // turnId 可为 0：仍走 pending_decide / REST，禁止静默 return
+    const safeTurnId = turnId > 0 ? turnId : Date.now();
+
+    const composePayload =
+      mailComposeOverride
+      || agentMsg?.mailCompose
+      || (agentMessageId
+        ? messagesRef.current.find((m) => m.id === agentMessageId)?.mailCompose
+        : undefined);
 
     let cid = conversationIdRef.current;
     if (!cid) {
@@ -2006,19 +2132,37 @@ function App() {
     }
 
     setDecidingActionId(actionId);
-    setActiveTurnId(turnId);
+    setActiveTurnId(safeTurnId);
     cancelPendingRef.current = false;
     setLoading(true);
-    setMessages((prev) =>
-      prev.map((msg) =>
-        msg.id === streamingAgentId
-          ? {
-              ...msg,
-              thoughts: [...(msg.thoughts ?? []), `正在${decision}操作…`],
-            }
-          : msg,
-      ),
-    );
+
+    // 若无对应气泡，补一条 agent 占位以便展示结果
+    if (!agentMsg) {
+      setMessages((prev) => {
+        const placeholder: Message = {
+          id: streamingAgentId,
+          role: 'agent',
+          content: decision === '确认' ? '正在确认发送…' : '正在取消…',
+          thoughts: [`正在${decision}操作…`],
+          turnId: safeTurnId,
+          ...(composePayload ? { mailCompose: composePayload, pendingActionId: actionId } : {}),
+        };
+        const next = [...prev, placeholder];
+        messagesRef.current = next;
+        return next;
+      });
+    } else {
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === streamingAgentId
+            ? {
+                ...msg,
+                thoughts: [...(msg.thoughts ?? []), `正在${decision}操作…`],
+              }
+            : msg,
+        ),
+      );
+    }
 
     const applyDecisionResult = (resultText: string, thoughts?: string[]) => {
       setHandledActionIds((prev) => {
@@ -2029,17 +2173,22 @@ function App() {
     });
       setMessages((prev) => {
         const next = prev.map((msg) =>
-          msg.id === streamingAgentId
+          msg.id === streamingAgentId || msg.pendingActionId === actionId
             ? {
                 ...msg,
-                content: resultText,
-                thoughts: stripPendingThoughts(
-                  thoughts?.length
-                    ? [...(msg.thoughts ?? []), ...thoughts, '回答完成'].filter(
-                        (t, i, arr) => arr.indexOf(t) === i,
+                content: msg.id === streamingAgentId ? resultText : msg.content,
+                thoughts:
+                  msg.id === streamingAgentId
+                    ? stripPendingThoughts(
+                        thoughts?.length
+                          ? [...(msg.thoughts ?? []), ...thoughts, '回答完成'].filter(
+                              (t, i, arr) => arr.indexOf(t) === i,
+                            )
+                          : [...(msg.thoughts ?? []), '回答完成'],
                       )
-                    : [...(msg.thoughts ?? []), '回答完成'],
-                ),
+                    : stripPendingThoughts(msg.thoughts),
+                pendingActionId: undefined,
+                mailCompose: undefined,
               }
             : msg,
         );
@@ -2070,6 +2219,21 @@ function App() {
           action_id: Number(actionId),
           decision,
           original_user_message: originalUserMessage,
+          ...(decision === '确认' && composePayload && composePayload.editable !== false
+            ? {
+                mail_compose: {
+                  tool: composePayload.tool,
+                  from_address: composePayload.from_address || '',
+                  to: composePayload.to || '',
+                  cc: composePayload.cc || '',
+                  bcc: composePayload.bcc || '',
+                  subject: composePayload.subject || '',
+                  content: composePayload.content || '',
+                  email_id: composePayload.email_id ?? null,
+                  digest: composePayload.digest,
+                },
+              }
+            : {}),
           client_context: buildClientContext(clientLocationRef.current),
         }),
       );
@@ -2125,6 +2289,21 @@ function App() {
             session_id: cid,
             action_id: Number(actionId),
             decision,
+            ...(decision === '确认' && composePayload && composePayload.editable !== false
+              ? {
+                  mail_compose: {
+                    tool: composePayload.tool,
+                    from_address: composePayload.from_address || '',
+                    to: composePayload.to || '',
+                    cc: composePayload.cc || '',
+                    bcc: composePayload.bcc || '',
+                    subject: composePayload.subject || '',
+                    content: composePayload.content || '',
+                    email_id: composePayload.email_id ?? null,
+                    digest: composePayload.digest,
+                  },
+                }
+              : {}),
           }),
         });
         const data = await res.json();
@@ -2231,9 +2410,6 @@ function App() {
 
   return (
     <div className="admin-shell admin-brand-root brand-shell relative flex h-screen w-screen overflow-hidden text-white" data-agent="admin">
-      <div className="admin-season-bg admin-season-bg--bailu" aria-hidden="true" />
-      <BrandMotif motif="leaves" fixed />
-
       {/* Sidebar */}
       <aside className="app-sidebar admin-glass--panel relative z-10 flex w-[15.5rem] shrink-0 flex-col border-r border-white/10 p-4 shadow-[inset_-1px_0_0_rgba(255,255,255,0.05)]">
         <div className="app-assistant-card mb-6">
@@ -2432,10 +2608,16 @@ function App() {
               ) : (
                 <>
                   <div className="app-chat-scroll admin-chat-scroll flex-1 overflow-y-auto">
-                    <div className="admin-chat-thread">
+                    <div className="admin-chat-thread ch-thread">
               {messages.length === 0 && (
                       <div className="admin-welcome">
-                        <div className="admin-welcome__avatar" aria-hidden>助</div>
+                        <img
+                          className="admin-welcome__avatar admin-welcome__avatar--img"
+                          src={brandAvatarUrl('admin')}
+                          alt=""
+                          width={56}
+                          height={56}
+                        />
                         <h3 className="admin-welcome__title">{greeting}，我是你的个人助理</h3>
                         <p className="admin-welcome__desc">
                           可以帮你安排日程、整理待办、查路线与地点。试试这样说：
@@ -2590,7 +2772,7 @@ function App() {
                                   <AdminReplyCards cards={msg.cards} />
                                 </>
                               ) : (
-                                <p className="admin-agent-bubble__text">
+                                <p className={`admin-agent-bubble__text${isTurnRunning(msg.turnId) ? ' ch-streaming' : ''}`}>
                                   {msg.content || (isTurnRunning(msg.turnId) ? '…' : '')}
                                 </p>
                               )}
@@ -2598,30 +2780,130 @@ function App() {
 
                             {(() => {
                               const actionId = getPendingActionId(msg, handledActionIds);
-                              if (actionId && !handledActionIds.has(actionId)) {
-                    return (
-                                  <div className="admin-agent-actions">
-                        <button
-                                      type="button"
-                                      onClick={() => void handleDecision(actionId, '确认', msg.id)}
-                                      disabled={loading || decidingActionId === actionId}
-                                      className="admin-agent-action-btn admin-agent-action-btn--confirm"
-                                    >
-                                      {decidingActionId === actionId ? '处理中…' : '确认执行'}
-                        </button>
-                        <button
-                                      type="button"
-                                      onClick={() => void handleDecision(actionId, '取消', msg.id)}
-                                      disabled={loading || decidingActionId === actionId}
-                                      className="admin-agent-action-btn admin-agent-action-btn--cancel"
-                        >
-                          取消
-                        </button>
-                      </div>
-                    );
+                              // 必须有结构化 Compose，才展示 HITL（避免历史气泡残留按钮）
+                              if (
+                                actionId
+                                && !handledActionIds.has(actionId)
+                                && msg.mailCompose
+                                && msg.pendingActionId === actionId
+                              ) {
+                                const mc = msg.mailCompose;
+                                const editable = mc && mc.editable !== false && mc.tool !== 'delete_email';
+                                const refining = refiningComposeKey?.startsWith(`${msg.id}:`);
+                                return (
+                                  <div className="admin-compose-hitl">
+                                    <div className="admin-compose-card" data-action-id={actionId}>
+                                      <div className="admin-compose-card__head">
+                                        <span className="admin-compose-card__title">邮件草稿</span>
+                                        <span className="admin-compose-card__from">
+                                          发件：{mc?.from_address || '（未绑定邮箱）'}
+                                        </span>
+                                      </div>
+                                      {editable ? (
+                                        <div className="admin-compose-card__body">
+                                          <label className="admin-compose-field">
+                                            <span>收件人</span>
+                                            <input
+                                              type="text"
+                                              value={mc?.to || ''}
+                                              onChange={(e) =>
+                                                updateMessageMailCompose(msg.id, { to: e.target.value })
+                                              }
+                                              disabled={!!decidingActionId || !!refining}
+                                            />
+                                          </label>
+                                          <label className="admin-compose-field">
+                                            <span>抄送</span>
+                                            <input
+                                              type="text"
+                                              value={mc?.cc || ''}
+                                              onChange={(e) =>
+                                                updateMessageMailCompose(msg.id, { cc: e.target.value })
+                                              }
+                                              disabled={!!decidingActionId || !!refining}
+                                            />
+                                          </label>
+                                          <label className="admin-compose-field">
+                                            <span>主题</span>
+                                            <input
+                                              type="text"
+                                              value={mc?.subject || ''}
+                                              onChange={(e) =>
+                                                updateMessageMailCompose(msg.id, {
+                                                  subject: e.target.value,
+                                                })
+                                              }
+                                              disabled={!!decidingActionId || !!refining}
+                                            />
+                                          </label>
+                                          <label className="admin-compose-field admin-compose-field--body">
+                                            <span>正文</span>
+                                            <textarea
+                                              rows={8}
+                                              value={mc?.content || ''}
+                                              onChange={(e) =>
+                                                updateMessageMailCompose(msg.id, {
+                                                  content: e.target.value,
+                                                })
+                                              }
+                                              disabled={!!decidingActionId || !!refining}
+                                            />
+                                          </label>
+                                          <div className="admin-compose-refine">
+                                            <span className="admin-compose-refine__label">
+                                              {refining ? '改写中…' : '改写草稿'}
+                                            </span>
+                                            {(['更正式', '缩短', '更柔和'] as const).map((tone) => (
+                                              <button
+                                                key={tone}
+                                                type="button"
+                                                className="admin-compose-refine__btn"
+                                                disabled={!!decidingActionId || !!refiningComposeKey}
+                                                onClick={() =>
+                                                  void refineComposeInPlace(msg.id, actionId, tone)
+                                                }
+                                              >
+                                                {tone}
+                                              </button>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      ) : null}
+                                      <div className="admin-compose-card__actions">
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            void handleDecision(
+                                              actionId,
+                                              '确认',
+                                              msg.id,
+                                              msg.mailCompose || null,
+                                            )
+                                          }
+                                          disabled={!!decidingActionId || !!refiningComposeKey}
+                                          className="admin-agent-action-btn admin-agent-action-btn--confirm"
+                                        >
+                                          {decidingActionId === actionId
+                                            ? '处理中…'
+                                            : editable
+                                              ? '确认发送'
+                                              : '确认执行'}
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => void handleDecision(actionId, '取消', msg.id)}
+                                          disabled={!!decidingActionId || !!refiningComposeKey}
+                                          className="admin-agent-action-btn admin-agent-action-btn--cancel"
+                                        >
+                                          取消
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
                               }
                               return null;
-                  })()}
+                            })()}
 
                             {msg.turnId && msg.turnId > 0 && msg.content?.trim() && !isTurnRunning(msg.turnId) && (
                               <div className="admin-turn-feedback">

@@ -57,9 +57,9 @@ export function isExperienceReplayRoutingEnabled(env: NodeJS.ProcessEnv = proces
   return isExperienceReplayEnabled() && isEvolutionRoutingHintEnabled(env)
 }
 
-/** 是否在路由提示中注入低分/隔离负样本（默认开启；`0` 关闭） */
+/** 是否在路由提示中注入低分/隔离负样本（默认关闭：只让「有用」影响；`1` 开启） */
 export function isRouterNegativeHintsEnabled() {
-  return String(process.env.MANAGER_ROUTER_NEGATIVE_HINTS ?? '1').trim() !== '0'
+  return String(process.env.MANAGER_ROUTER_NEGATIVE_HINTS ?? '0').trim() === '1'
 }
 
 function decayLambdaPerDay() {
@@ -142,6 +142,11 @@ function minReplayJaccard(): number {
 /** 用户点「有用/无用」只应影响离线权重统计，不参与正向经验回放排序 */
 function feedbackAffectsReplayRanking(): boolean {
   return String(process.env.MANAGER_FEEDBACK_AFFECTS_REPLAY ?? '0').trim() === '1'
+}
+
+/** 正向经验回放是否要求该轮曾点「有用」(feedbackScore===1)；默认要求 */
+function requireUsefulForPositiveReplay(): boolean {
+  return String(process.env.MANAGER_EXPERIENCE_REQUIRE_USEFUL ?? '1').trim() !== '0'
 }
 
 export async function buildExperienceReplayForRouting(
@@ -249,6 +254,8 @@ export async function buildExperienceReplayForRouting(
     const decay = timeDecayForEntry(h.ts)
     const succ = succRaw * decay
     const fb = typeof h.feedbackScore === 'number' && Number.isFinite(h.feedbackScore) ? h.feedbackScore : null
+    // 默认：未点「有用」的经验不参与正向路由回放（撤回/忽略/无用不污染）
+    if (requireUsefulForPositiveReplay() && fb !== 1) continue
     const fbAdj =
       feedbackAffectsReplayRanking() && fb != null
         ? fb >= 0.78

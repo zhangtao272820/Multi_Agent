@@ -135,6 +135,27 @@ assert(navPick.engine === 'stagehand', 'navigate → stagehand')
 assert(recipePreferredEngine(navSpec.canonical_task, navSpec.start_url) === 'stagehand', 'runoob recipe stagehand')
 assert(selectEngineForTask('随便打开网页点一下') === 'stagehand', 'regex-less default stagehand')
 
+// B 站游客搜索：站名 alone 不强制 classic；播放/投币才 classic
+assert(
+  selectEngineForTask(
+    '打开 B站搜索 Python 教程，提取第一条标题（不要播放）',
+    'https://search.bilibili.com/all?keyword=Python',
+  ) === 'stagehand',
+  'bilibili guest search → stagehand',
+)
+assert(
+  selectEngineForTask('在 bilibili 搜索教程并提取 UP 主', 'https://www.bilibili.com/') === 'stagehand',
+  'bilibili host alone → stagehand',
+)
+assert(
+  selectEngineForTask('打开 B站播放这个视频', 'https://www.bilibili.com/video/BV1xx') === 'classic',
+  'bilibili play → classic',
+)
+assert(
+  selectEngineForTask('给这个B站视频投币', 'https://www.bilibili.com/video/BV1xx') === 'classic',
+  'bilibili coin → classic',
+)
+
 assert(resolveBrowserProfile({ LOBSTER_BROWSER_PROFILE: 'managed' }) === 'managed', 'profile managed')
 assert(resolveBrowserProfile({ LOBSTER_BROWSER_PROFILE: 'user' }) === 'user', 'profile user')
 assert(managedBrowserProfileDir('test_profile').includes('test_profile'), 'managed dir')

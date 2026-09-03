@@ -1,6 +1,6 @@
-# Lobster Agent
+﻿# Lobster Agent
 
-> **面试讲义**：[备战入口](../docs/面试备战/00-使用说明与防穿帮.md) · [05 GUI](../docs/面试备战/05-GUI-Lobster.md)  
+> **面试讲义**：[备战入口](../docs/面试备战/README.md) · [05 GUI](../docs/面试备战/技术/05-GUI-Lobster.md)  
 > **协议 SSOT**：[Lobster升级SSOT](doc/Lobster升级SSOT.md) · [Docker 与宿主机动手](doc/Docker与宿主机动手部署.md)  
 > **能力升级规划**（与 Admin 双动手）：[`docs/动手Agent升级-Admin与Lobster.md`](../docs/动手Agent升级-Admin与Lobster.md)
 
@@ -19,7 +19,9 @@
 | verify / recover | 动作后校验；失败进入恢复分支 |
 | 风控 gate | 高风险动作限制或人工确认 |
 | 执行模式 | `auto`=网页 **Stagehand only**；`stagehand` / `mcp` / `classic` 为单引擎锁 |
-| Workflow Macro | `workflows/*.json` + 总管 `workflow_id`（国内首选 w3school-form-* / runoob；httpbin 仅海外兜底） |
+| Workflow Macro | `workflows/*.json` + 总管 `workflow_id`（国内首选 w3school-form-* / runoob；B站游客 `bilibili-guest-search`；httpbin 海外兜底） |
+| 填表 / 登录 | Stagehand DOM fill；Profile/Cookie 复用为主；公开站账号密码为辅；验证码 HITL |
+| Workbench | 产品化任务面板 + 结果卡；调试模式保留工程看板 |
 | Hands 侧车 | `LOBSTER_HANDS_ONLY=1` · 默认 `:13109` · 见 [`hands/README.md`](hands/README.md) |
 | MCP 导出 | 默认可暴露 `/api/mcp`（见环境变量） |
 
@@ -50,25 +52,47 @@ LOBSTER_STAGEHAND=1
 ## 架构与关键路径
 
 ```text
-WS/API task → understand → Stagehand（网页主路径）
+WS/API task → understand → Stagehand+Playwright DOM（网页主路径）
                          → MCP（显式旁路）
                          → classic（仅视频 / HITL）
-              → verify（拒绝 chrome-error / 网络失败假成功）
-              → gui-plus 兜底？ → result → Manager
+              → verify
+              → gui-plus 同会话短步急救？ → result → Manager
 ```
 
-**能力矩阵**：网页 auto = Stagehand；MCP = 调试/旁路；classic = 视频与人工接管；desktop/android 默认关。
+**能力矩阵**：网页 auto = Stagehand DOM；**gui-plus = CAP_GUI 视觉急救（非主引擎）**；MCP = 调试/旁路；classic = 视频与人工接管；desktop/android 默认关。
+
+### gui-plus 怎么用
+
+| | |
+|--|--|
+| 配 `LOBSTER_GUI_MODEL=gui-plus-…` | 只给 **computer_use 兜底**用 |
+| 不要 | 把 gui-plus 配进 planner / decision / stagehand 模型 |
+| 触发 | DOM verify 失败（导航未离页 / 元素未找到）；同会话截图点几下（默认 ≤3） |
+| 不触发 | 验证码、登录墙、网络失败、**form_fill**（表单走 Playwright fill） |
+| 关急救 | `LOBSTER_GUI_PLUS_FALLBACK=0` |
 
 ## 目录结构速览
 
-- `server/services/lobsterStagehandAgent.ts` — 网页主引擎
-- `server/services/lobsterMcpAgent.ts` — Playwright MCP 旁路
-- `server/services/lobsterAgent.ts` — classic（视频/HITL）
-- `server/services/lobsterAgentRouter.ts` — 引擎路由
+- `server/services/lobsterStagehandAgent.ts` — 网页主引擎（Playwright DOM）
+- `server/services/stagehandPlaywrightBridge.ts` — 点击 / 表单确定性桥
+- `server/services/lobsterGuiPlusAgent.ts` — **gui_plus_rescue** 同会话短步急救（非主路径）
+- `server/services/lobsterMcpAgent.ts` — Playwright MCP **旁路**（显式 mode / 调试）
+- `server/services/lobsterAgent.ts` — classic **旁路**（视频 / HITL）
+- `server/services/lobsterAgentRouter.ts` — 引擎路由 + verify + gui-plus 急救
 - `server/routes/_ws.ts` — WebSocket
 - `server/api/lobster/*` — 启停、状态、截图
 - `scripts/sync-agent-shared.mjs` — 稀疏同步 shared（7 文件）
 - `workflows/*.json` — 宏工作流
+
+## 验收清单（契约 + 人工）
+
+| 项 | 怎么验 |
+|----|--------|
+| 契约 smoke | `npx tsx scripts/smoke-gui-plus-fallback.ts` · `npx tsx scripts/smoke-stagehand-plan.ts`（无 LLM） |
+| 点击离页 | 独立 UI / Manager：打开 runoob，点第一个教程 → 日志 `actualEngine=stagehand`，URL 离开首页 |
+| 表单 | httpbin / w3school form → **不出现** gui-plus 急救；`filled` 有字段 |
+| 急救日志 | 仅导航失败时见 `gui_plus_rescue` + `same_session` 或冷启动 |
+| Docker 重启 | `restart-agents-lan.ps1` / `up -d --force-recreate`；**禁** `down -v` |
 
 ## 快速开始
 
@@ -87,12 +111,12 @@ npm run dev
 | 变量 | 能力层 | 说明 |
 |------|--------|------|
 | `LOBSTER_PLANNER/DECISION/STAGEHAND_MODEL` | **CAP_ROUTE**（T0） | 文本规划与决策，省 token |
-| `LOBSTER_VISION_MODEL` / `LOBSTER_GUI_MODEL` | **CAP_GUI**（gui-plus） | 界面专用；默认 `LOBSTER_USE_VISION=false` 不每步截图 |
-| `LOBSTER_GUI_PLUS_FALLBACK` / `_MAX_STEPS` | — | DOM(Stagehand/MCP) verify 失败后有限步 computer_use 兜底（默认开，≤3 步） |
+| `LOBSTER_VISION_MODEL` / `LOBSTER_GUI_MODEL` | **CAP_GUI**（gui-plus） | **仅急救** computer_use；≠ 网页主执行模型；默认 `USE_VISION=false` |
+| `LOBSTER_GUI_PLUS_FALLBACK` / `_MAX_STEPS` | — | Stagehand verify 失败后同会话短步兜底（默认开，≤3；form_fill 不走） |
 | `HTTP_PROXY` / `HTTPS_PROXY` / `NO_PROXY` | — | Docker 内浏览器出网；宿主机能开网页 ≠ 容器能开 |
 | 其它 | — | `LOBSTER_HEADLESS`、`LOBSTER_ADMIN_TOKEN`、`LOBSTER_EXECUTION_MODE` 等见 `.env.example` |
 
-网页主路径：**Stagehand + Playwright bridge**（DOM）。MCP 为旁路。失败且非验证码时，自动走 **gui-plus computer_use**（截图→坐标，硬帽省 token）。
+网页主路径：**Stagehand + Playwright bridge**（DOM）。MCP/classic 为旁路。导航类 DOM 失败时，**同会话** gui-plus 有限步急救（非第二主引擎）。
 
 ## 与 Manager 协作
 

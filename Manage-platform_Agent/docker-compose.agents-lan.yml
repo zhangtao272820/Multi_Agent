@@ -53,6 +53,8 @@ services:
     env_file:
       - path: .env.agents-lan
         required: false
+      - path: .env.agents-enterprise
+        required: false
       - path: .env
         required: false
     volumes:
@@ -188,6 +190,8 @@ services:
         required: false
       - path: .env.agents-lan
         required: false
+      - path: .env.agents-enterprise
+        required: false
     environment:
       PORT: ${DB_PORT:-13101}
       DB_PORT: ${DB_PORT:-13101}
@@ -276,6 +280,8 @@ services:
         required: false
       - path: .env.agents-lan
         required: false
+      - path: .env.agents-enterprise
+        required: false
     volumes:
       - rag_agent_data:/app/.data
     environment:
@@ -284,6 +290,8 @@ services:
       NITRO_PORT: ${RAG_PORT:-13102}
       HOST: 0.0.0.0
       NITRO_HOST: 0.0.0.0
+      AGENT_SECURITY_PROFILE: ${AGENT_SECURITY_PROFILE:-lan}
+      AGENT_SERVICE_AUTH: ${AGENT_SERVICE_AUTH:-}
       CLAWHIVE_BACKEND_URL: http://clawhive_backend:8000
       JWT_SECRET: ${CLAWHIVE_JWT_SECRET:-change-this-secret}
       AGENT_BROWSER_AUTH: ${AGENT_BROWSER_AUTH:-1}
@@ -323,6 +331,9 @@ services:
       RAG_RRF_GRAPH_WEIGHT: ${RAG_RRF_GRAPH_WEIGHT:-1.15}
       RAG_POLICY_GRAPH_MAX_HOPS: ${RAG_POLICY_GRAPH_MAX_HOPS:-2}
       RAG_POLICY_GRAPH_BACKEND: ${RAG_POLICY_GRAPH_BACKEND:-auto}
+      EXPERIENCE_RECALL_CONFIRMED_ONLY: ${EXPERIENCE_RECALL_CONFIRMED_ONLY:-1}
+      EXPERIENCE_STANDALONE_EXCLUDE_FEDERATED: ${EXPERIENCE_STANDALONE_EXCLUDE_FEDERATED:-1}
+      RAG_VECTOR_EXPERIENCE_REQUIRE_USEFUL: ${RAG_VECTOR_EXPERIENCE_REQUIRE_USEFUL:-1}
       AGENT_DATABASE_URL: postgresql://${CLAWHIVE_PG_USER:-postgres}:${CLAWHIVE_PG_PASSWORD:-postgres}@clawhive_postgres:5432/${CLAWHIVE_PG_DB:-clawhive}
       # dual：PG + rag_agent_data 文件镜像；重建容器勿 down -v
       RAG_AGENT_STORAGE_BACKEND: ${RAG_AGENT_STORAGE_BACKEND:-dual}
@@ -384,6 +395,8 @@ services:
       # 集群 overlay 先加载，CodePy/.env 后加载以便 OPENAI_MODEL 等不被 .env.agents-lan 覆盖
       - path: .env.agents-lan
         required: false
+      - path: .env.agents-enterprise
+        required: false
       - path: ../CodePy_Agent/.env
         required: false
     environment:
@@ -435,6 +448,8 @@ services:
     env_file:
       # 集群 overlay 先加载，ExtractorPy/.env 后加载；模型键勿在 environment 写死覆盖
       - path: .env.agents-lan
+        required: false
+      - path: .env.agents-enterprise
         required: false
       - path: ../ExtractorPy_Agent/.env
         required: true
@@ -499,6 +514,8 @@ services:
     working_dir: /app
     env_file:
       - path: .env.agents-lan
+        required: false
+      - path: .env.agents-enterprise
         required: false
       - path: ../ExtractorPy_Agent/.env
         required: true
@@ -572,6 +589,8 @@ services:
       # 共享 LAN 配置；backend/.env 改挂载见 volumes（restart 即可生效，勿重复 env_file 避免 stale）
       - path: .env.agents-lan
         required: false
+      - path: .env.agents-enterprise
+        required: false
     volumes:
       - ../AI_admin_Agent/frontend/dist:/frontend-dist:ro
       - ../AI_admin_Agent/backend/workspace:/app/workspace
@@ -617,6 +636,9 @@ services:
       ADMIN_PLAN_FASTPATH: ${ADMIN_PLAN_FASTPATH:-1}
       ADMIN_MEMORY_FAST: ${ADMIN_MEMORY_FAST:-1}
       ADMIN_TURN_SCOPE_LLM: ${ADMIN_TURN_SCOPE_LLM:-1}
+      EXPERIENCE_RECALL_CONFIRMED_ONLY: ${EXPERIENCE_RECALL_CONFIRMED_ONLY:-1}
+      EXPERIENCE_STANDALONE_EXCLUDE_FEDERATED: ${EXPERIENCE_STANDALONE_EXCLUDE_FEDERATED:-1}
+      ADM_TOOL_EXPERIENCE_REQUIRE_FEEDBACK: ${ADM_TOOL_EXPERIENCE_REQUIRE_FEEDBACK:-1}
       AGENT_DATABASE_URL: postgresql://${CLAWHIVE_PG_USER:-postgres}:${CLAWHIVE_PG_PASSWORD:-postgres}@clawhive_postgres:5432/${CLAWHIVE_PG_DB:-clawhive}
       EVO_VERIFY_BEFORE_PROMOTE: ${EVO_VERIFY_BEFORE_PROMOTE:-1}
       EVO_AGENT_PROMPT_EXECUTION_ONLY: ${EVO_AGENT_PROMPT_EXECUTION_ONLY:-1}
@@ -760,6 +782,8 @@ services:
         required: false
       - path: .env.agents-lan
         required: false
+      - path: .env.agents-enterprise
+        required: false
     volumes:
       - manager_agent_data:/app/.data
     environment:
@@ -832,9 +856,19 @@ services:
       # 总管 DB 腿默认 p2026（本地 MySQL via vanna）；勿回退到旧 db_agent 的 default 库 id
       MANAGER_DB_ID: ${MANAGER_DB_ID:-p2026}
       DB_AGENT_DB_ID: ${DB_AGENT_DB_ID:-p2026}
+      # DB 写库预览（建表/改字段/改数据）；执行仍须总管 HITL confirm_token
+      MANAGER_DB_WRITE_ALLOWED: ${MANAGER_DB_WRITE_ALLOWED:-1}
+      # Code 改码事前 HITL（默认开；设 0 可关）
+      MANAGER_CODE_EDIT_HITL: ${MANAGER_CODE_EDIT_HITL:-1}
       CLAWHIVE_BACKEND_URL: http://clawhive_backend:8000
       JWT_SECRET: ${CLAWHIVE_JWT_SECRET:-change-this-secret}
       AGENT_BROWSER_AUTH: ${AGENT_BROWSER_AUTH:-1}
+      # 企业档：AGENT_SECURITY_PROFILE=enterprise（见 .env.agents-enterprise.example）；LAN 默认 lan
+      AGENT_SECURITY_PROFILE: ${AGENT_SECURITY_PROFILE:-lan}
+      AGENT_SERVICE_AUTH: ${AGENT_SERVICE_AUTH:-}
+      MANAGER_AUTH_MODE: ${MANAGER_AUTH_MODE:-}
+      MGR_TENANT_FAIL_CLOSED: ${MGR_TENANT_FAIL_CLOSED:-}
+      MANAGER_REQUEST_RATE_PER_MIN: ${MANAGER_REQUEST_RATE_PER_MIN:-0}
       MANAGER_USER_AUTH: ${MANAGER_USER_AUTH:-1}
       NUXT_PUBLIC_MANAGER_USER_AUTH: ${MANAGER_USER_AUTH:-1}
       CLAWHIVE_PUBLIC_URL: ${CLAWHIVE_PUBLIC_URL:-http://127.0.0.1:18000}
@@ -851,6 +885,10 @@ services:
       MGR_TOOL_CALL_AUDIT: ${MGR_TOOL_CALL_AUDIT:-1}
       MGR_PROCESS_MEMORY: ${MGR_PROCESS_MEMORY:-1}
       MGR_FEDERATION_REQUIRE_FEEDBACK: ${MGR_FEDERATION_REQUIRE_FEEDBACK:-1}
+      EXPERIENCE_RECALL_CONFIRMED_ONLY: ${EXPERIENCE_RECALL_CONFIRMED_ONLY:-1}
+      MANAGER_ROUTER_NEGATIVE_HINTS: ${MANAGER_ROUTER_NEGATIVE_HINTS:-0}
+      MANAGER_EXPERIENCE_REQUIRE_USEFUL: ${MANAGER_EXPERIENCE_REQUIRE_USEFUL:-1}
+      MANAGER_FEEDBACK_AFFECTS_REPLAY: ${MANAGER_FEEDBACK_AFFECTS_REPLAY:-0}
       MGR_CODE_EXPERIENCE_SYNC: ${MGR_CODE_EXPERIENCE_SYNC:-1}
       MGR_CRAWLER_EXPERIENCE_SYNC: ${MGR_CRAWLER_EXPERIENCE_SYNC:-1}
       MGR_GUI_EXPERIENCE_SYNC: ${MGR_GUI_EXPERIENCE_SYNC:-1}
@@ -948,6 +986,8 @@ services:
         required: false
       - path: .env.agents-lan
         required: false
+      - path: .env.agents-enterprise
+        required: false
     environment:
       # 仅容器路径与平台同步；密钥/模型见 Multimodal_Agent/.env + .env.agents-lan
       API_PORT: "13107"
@@ -1022,6 +1062,8 @@ services:
         required: false
       - path: .env.agents-lan
         required: false
+      - path: .env.agents-enterprise
+        required: false
     environment:
       HTTP_PROXY: ${HTTP_PROXY:-}
       HTTPS_PROXY: ${HTTPS_PROXY:-}
@@ -1056,7 +1098,7 @@ services:
       LOBSTER_CDP_URL: ${LOBSTER_CDP_URL:-}
       LOBSTER_SESSION_DIR: ${LOBSTER_SESSION_DIR:-/app/.data/sessions}
       LOBSTER_STORAGE_DIR: ${LOBSTER_STORAGE_DIR:-/app/.data/lobster}
-      # Token 控制：文本规划/决策用 CAP_ROUTE 档（compose 默认 flash/turbo）；勿默认 gui-plus
+      # 文本规划/决策/Stagehand ← CAP_ROUTE；gui-plus 仅 verify 失败后同会话急救（≠ 网页主执行模型）
       LOBSTER_PLANNER_MODEL: ${LOBSTER_PLANNER_MODEL:-qwen-turbo}
       LOBSTER_DECISION_MODEL: ${LOBSTER_DECISION_MODEL:-qwen-turbo}
       LOBSTER_STAGEHAND_MODEL: ${LOBSTER_STAGEHAND_MODEL:-qwen-turbo}
@@ -1130,6 +1172,8 @@ services:
         required: false
       - path: .env.agents-lan
         required: false
+      - path: .env.agents-enterprise
+        required: false
     environment:
       # 仅容器路径与平台同步；密钥/模型见 Tavern_Agent/.env + .env.agents-lan
       TAVERN_FRONTEND_DIST: /tavern/frontend/dist
@@ -1172,6 +1216,8 @@ services:
       - path: ../Music_Agent/.env
         required: false
       - path: .env.agents-lan
+        required: false
+      - path: .env.agents-enterprise
         required: false
     environment:
       API_PORT: "13110"
@@ -1255,6 +1301,8 @@ services:
       - path: ../Video_Agent/.env
         required: false
       - path: .env.agents-lan
+        required: false
+      - path: .env.agents-enterprise
         required: false
     environment:
       API_PORT: "13111"
@@ -1350,6 +1398,8 @@ services:
       - path: ../AI_Agent/.env
         required: false
       - path: .env.agents-lan
+        required: false
+      - path: .env.agents-enterprise
         required: false
     environment:
       # 模型名以 ../AI_Agent/.env 为准，勿在此覆盖 LLM_MODEL/ASR_MODEL/TTS_MODEL
@@ -1540,6 +1590,8 @@ services:
       # 集群 overlay 先加载，Vanna/.env 后加载以便 OPENAI_MODEL/EMBEDDING_MODEL 对齐 CAP_CODER/CAP_EMBEDDING
       - path: .env.agents-lan
         required: false
+      - path: .env.agents-enterprise
+        required: false
       - path: ../Vanna_DbAgent/.env
         required: false
     environment:
@@ -1556,12 +1608,14 @@ services:
       VANNA_MAX_PROMPT_CHARS: "6000"
       VANNA_MAX_QUESTION_CHARS: "400"
       VANNA_DEFAULT_TENANT: p2026
+      EXPERIENCE_RECALL_CONFIRMED_ONLY: ${EXPERIENCE_RECALL_CONFIRMED_ONLY:-1}
+      EXPERIENCE_STANDALONE_EXCLUDE_FEDERATED: ${EXPERIENCE_STANDALONE_EXCLUDE_FEDERATED:-1}
       P2026_MYSQL_HOST: ${DB_AGENT_MYSQL_HOST:-host.docker.internal}
       P2026_MYSQL_PORT: ${DB_AGENT_MYSQL_PORT:-3306}
       P2026_MYSQL_USER: ${DB_AGENT_MYSQL_USER:-root}
       P2026_MYSQL_PASSWORD: ${DB_AGENT_MYSQL_PASSWORD:-123456}
       P2026_MYSQL_DATABASE: ${DB_AGENT_MYSQL_DATABASE:-p2026}
-      AGENT_SERVICE_AUTH: "off"
+      AGENT_SERVICE_AUTH: ${AGENT_SERVICE_AUTH:-}
       AGENT_BROWSER_AUTH: "1"
       JWT_SECRET: ${CLAWHIVE_JWT_SECRET:-change-this-secret}
       CLAWHIVE_BACKEND_URL: http://clawhive_backend:8000

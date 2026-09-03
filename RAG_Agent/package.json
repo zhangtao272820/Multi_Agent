@@ -19,6 +19,7 @@
     "smoke:stage4": "npx --yes tsx --tsconfig tsconfig.smoke.json scripts/smoke-rag-stage4.ts",
     "smoke:unified": "npx --yes tsx --tsconfig tsconfig.smoke.json scripts/smoke-rag-unified.ts",
     "smoke:learning-supersede": "npx --yes tsx --tsconfig tsconfig.smoke.json scripts/smoke-rag-learning-supersede.ts",
+    "smoke:experience-useful": "npx --yes tsx --tsconfig tsconfig.smoke.json scripts/smoke-rag-experience-useful-only.ts",
     "smoke:rewrite": "npx --yes tsx scripts/smoke-rag-query-rewrite.ts",
     "smoke:evidence": "npx --yes tsx scripts/smoke-rag-evidence-answer.ts",
     "smoke:enterprise-h": "npx --yes tsx scripts/smoke-rag-enterprise-h.ts",

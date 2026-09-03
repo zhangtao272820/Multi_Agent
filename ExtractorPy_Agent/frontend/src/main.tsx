@@ -6,6 +6,7 @@ import { installFetchAuth, isLoggedIn } from './clawhiveAuth'
 import '@brand/index.css'
 import './extractor-season.css'
 import './styles.css'
+import './extractor-theme.css'
 
 installFetchAuth()
 

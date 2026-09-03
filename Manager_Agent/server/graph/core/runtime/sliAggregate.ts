@@ -1,5 +1,6 @@
 /** N3：从 manager-metrics.jsonl / nlu 指标聚合最小 SLI */
 
+import { resolveMetricRowUsd } from '#agent-shared/sliCostEstimate'
 import type { NormalizedManagerMetricEntry } from './observabilitySchema'
 import { resolveMetricAgentFromEntry } from './observabilitySchema'
 
@@ -32,12 +33,15 @@ export type ManagerSliSnapshot = {
   routeSkipPlaneRate: number | null
   routeAvgLlmCalls: number | null
   routeByThickness: Record<string, number>
+  /** metrics 窗口内 usd 合计（有则导出 Prometheus） */
+  totalEstimatedUsd: number
 }
 
 export function aggregateManagerSli(
   metricRows: Array<Record<string, unknown>>,
   nluRows: Array<Record<string, unknown>> = [],
-  hitlRows: Array<{ payload?: Record<string, unknown>; ts?: string }> = []
+  hitlRows: Array<{ payload?: Record<string, unknown>; ts?: string }> = [],
+  env: NodeJS.ProcessEnv = process.env
 ): ManagerSliSnapshot {
   const runIds = new Set<string>()
   const latencies: number[] = []
@@ -46,6 +50,7 @@ export function aggregateManagerSli(
   let expertErrors = 0
   const errorsByCode: Record<string, number> = {}
   let totalTokens = 0
+  let totalEstimatedUsd = 0
   let evidenceGateFailures = 0
   let routeAuthoritySamples = 0
   let routeSingleSource = 0
@@ -69,6 +74,11 @@ export function aggregateManagerSli(
     }
     const tok = Number(raw?.tokens ?? 0)
     if (Number.isFinite(tok) && tok > 0) totalTokens += tok
+    const rowUsd = resolveMetricRowUsd(
+      { usd: raw?.usd, tokens: raw?.tokens },
+      env
+    )
+    if (rowUsd > 0) totalEstimatedUsd += rowUsd
 
     const phase = String(raw?.phase || '')
     if (phase === 'evidence_gate' && raw?.ok === false) {
@@ -162,7 +172,8 @@ export function aggregateManagerSli(
     routeAvgLlmCalls: llmCallsN
       ? Math.round((llmCallsSum / llmCallsN) * 100) / 100
       : null,
-    routeByThickness
+    routeByThickness,
+    totalEstimatedUsd: Math.round(totalEstimatedUsd * 10000) / 10000
   }
 }
 

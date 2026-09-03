@@ -3,36 +3,40 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Vanna 库问数</title>
+  <title>禄存 · 库问数</title>
   <style>
     :root {
-      --bg: #f4f4f5;
-      --surface: #ffffff;
-      --ink: #18181b;
-      --muted: #71717a;
-      --line: #e4e4e7;
-      --accent: #2563eb;
-      --accent-hover: #1d4ed8;
-      --accent-soft: #eff6ff;
-      --sidebar-bg: #fafafa;
-      --warn: #c2410c;
-      --ok: #15803d;
-      --sql: #0f172a;
-      --sqlink: #e2e8f0;
-      --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-      --shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+      --bg: #e6f4f2;
+      --surface: #f7fffe;
+      --ink: #0c1918;
+      --muted: #4d6b66;
+      --line: #9fc9c2;
+      --accent: #0d9488;
+      --accent-hover: #0f766e;
+      --accent-soft: rgba(13, 148, 136, 0.16);
+      --sidebar-bg: #f0faf8;
+      --warn: #b45309;
+      --ok: #0f766e;
+      --sql: #0c1618;
+      --sqlink: #f2fbf9;
+      --shadow-sm: 0 1px 2px rgba(12, 25, 24, 0.06);
+      --shadow: 0 10px 32px rgba(12, 25, 24, 0.1);
       --radius: 12px;
       --radius-lg: 16px;
-      --chat-max: 720px;
+      --chat-max: 780px;
       --rail-width: 300px;
+      --font-sans: "Manrope", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+      --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     }
     * { box-sizing: border-box; }
     html { color-scheme: light; }
     html, body { margin: 0; height: 100%; overflow: hidden; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      font-family: var(--font-sans);
       color: var(--ink);
-      background: var(--bg);
+      background:
+        linear-gradient(165deg, rgba(223, 243, 240, 0.55) 0%, rgba(230, 244, 242, 0.58) 42%, rgba(207, 232, 228, 0.55) 100%),
+        url("/db-workbench.png") center / cover no-repeat fixed;
       -webkit-font-smoothing: antialiased;
     }
     button, select, textarea { font-family: inherit; }
@@ -47,12 +51,14 @@
       grid-template-columns: 260px minmax(0, 1fr) var(--rail-width);
     }
     aside.sidebar {
-      background: var(--sidebar-bg);
-      border-right: 1px solid var(--line);
+      background: rgba(247, 255, 254, 0.94);
+      border-right: 1px solid rgba(13, 148, 136, 0.2);
       display: flex;
       flex-direction: column;
       min-height: 0;
       overflow: hidden;
+      box-shadow: 8px 0 32px rgba(12, 40, 36, 0.08);
+      backdrop-filter: blur(14px);
     }
     .sidebar-head {
       padding: 16px 14px 12px;
@@ -60,7 +66,7 @@
     }
     .brand {
       font-size: 17px;
-      font-weight: 650;
+      font-weight: 750;
       letter-spacing: -0.02em;
       line-height: 1.25;
       color: var(--ink);
@@ -83,12 +89,13 @@
       padding: 9px 12px;
       cursor: pointer;
       font-size: 13px;
-      font-weight: 500;
-      transition: background 0.15s, border-color 0.15s;
+      font-weight: 600;
+      transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+      box-shadow: var(--shadow-sm);
     }
     .new-chat:hover {
-      background: #f4f4f5;
-      border-color: #d4d4d8;
+      background: color-mix(in srgb, var(--accent-soft) 50%, var(--surface));
+      border-color: var(--accent);
     }
     .sidebar-scroll {
       flex: 1;
@@ -108,28 +115,38 @@
     .login-gate {
       position: fixed; inset: 0; z-index: 40;
       display: none; align-items: center; justify-content: center;
-      background: rgba(24, 24, 27, 0.45);
-      backdrop-filter: blur(6px);
+      background:
+        linear-gradient(160deg, rgba(12, 40, 36, 0.48), rgba(20, 60, 55, 0.42)),
+        url("/db-workbench.png") center / cover no-repeat fixed;
+      backdrop-filter: blur(4px);
     }
     .login-gate.on { display: flex; }
     .login-card {
-      width: min(380px, 92vw);
-      background: var(--surface);
-      border: 1px solid var(--line);
-      border-radius: var(--radius-lg);
-      box-shadow: var(--shadow);
-      padding: 28px 24px 22px;
+      width: min(420px, 92vw);
+      background: rgba(255, 255, 255, 0.94);
+      border: 1px solid rgba(13, 148, 136, 0.28);
+      border-radius: 18px;
+      box-shadow: 0 28px 72px rgba(12, 40, 36, 0.28);
+      padding: 36px 32px 28px;
+      backdrop-filter: blur(18px) saturate(1.12);
     }
-    .login-card h1 { margin: 0 0 6px; font-size: 22px; letter-spacing: -0.02em; }
+    .login-card h1 { margin: 0 0 6px; font-size: 22px; font-weight: 800; letter-spacing: -0.02em; color: #0c1918; }
     .login-card .sub { margin: 0 0 18px; color: var(--muted); font-size: 13px; line-height: 1.5; }
-    .login-card label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+    .login-card label { display: block; font-size: 12px; font-weight: 750; color: #0f766e; margin-bottom: 6px; letter-spacing: 0.03em; }
     .login-card input {
       width: 100%; box-sizing: border-box; margin-bottom: 12px;
-      border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font-size: 14px;
+      border: 1px solid var(--line); border-radius: 11px; padding: 12px 14px; font-size: 14px;
+      background: #f4fffc; color: var(--ink);
+    }
+    .login-card input:focus {
+      outline: none; border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.22);
     }
     .login-card button {
-      width: 100%; border: 0; border-radius: 10px; padding: 11px 14px;
-      background: var(--accent); color: #fff; font-size: 14px; cursor: pointer;
+      width: 100%; border: 1px solid #0f766e; border-radius: 12px; padding: 12px 16px;
+      background: linear-gradient(135deg, #2dd4bf, #0d9488 48%, #0f766e); color: #fff;
+      font-size: 14px; font-weight: 800; cursor: pointer;
+      box-shadow: 0 10px 28px rgba(13, 148, 136, 0.38);
     }
     .login-card button:disabled { opacity: 0.6; cursor: wait; }
     .login-err { color: var(--warn); font-size: 13px; min-height: 1.2em; margin: 0 0 10px; }
@@ -154,8 +171,14 @@
       text-overflow: ellipsis;
       transition: background 0.12s;
     }
-    .sess button.pick:hover { background: #f4f4f5; }
-    .sess button.pick.on { background: var(--accent-soft); color: var(--accent); font-weight: 550; }
+    .sess button.pick:hover { background: rgba(13, 148, 136, 0.1); }
+    .sess button.pick.on {
+      background: rgba(13, 148, 136, 0.12);
+      color: var(--accent-hover);
+      font-weight: 700;
+      box-shadow: inset 3px 0 0 var(--accent);
+      border-radius: 8px;
+    }
     .sess .del {
       border: 0;
       background: transparent;
@@ -174,6 +197,25 @@
       padding: 12px 14px 14px;
       border-top: 1px solid var(--line);
       background: var(--sidebar-bg);
+    }
+    .sidebar-foot .logout-row {
+      margin-bottom: 10px;
+    }
+    .sidebar-foot .logout-btn {
+      width: 100%;
+      border: 1px solid var(--line);
+      background: var(--surface);
+      color: var(--ink);
+      border-radius: 8px;
+      padding: 7px 12px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: background 0.12s, border-color 0.12s;
+    }
+    .sidebar-foot .logout-btn:hover {
+      background: #fef2f2;
+      border-color: #fecaca;
+      color: #b91c1c;
     }
     .sidebar-foot .field { margin-bottom: 10px; }
     .sidebar-foot .field label {
@@ -204,21 +246,23 @@
       min-width: 0;
       min-height: 0;
       height: 100%;
-      background: var(--bg);
+      background: transparent;
     }
     .chat-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 12px;
-      padding: 10px 20px;
-      border-bottom: 1px solid var(--line);
-      background: var(--surface);
+      padding: 12px 20px;
+      border-bottom: 1px solid rgba(13, 148, 136, 0.2);
+      background: rgba(255, 255, 255, 0.9);
+      box-shadow: 0 10px 32px rgba(12, 40, 36, 0.08);
+      backdrop-filter: blur(14px);
       flex-shrink: 0;
     }
     .chat-header-title {
-      font-size: 14px;
-      font-weight: 600;
+      font-size: 15px;
+      font-weight: 800;
       color: var(--ink);
       letter-spacing: -0.01em;
     }
@@ -234,20 +278,22 @@
       flex-shrink: 0;
     }
     .header-btn {
-      border: 1px solid var(--line);
-      background: var(--surface);
+      border: 1px solid rgba(13, 148, 136, 0.28);
+      background: rgba(255, 255, 255, 0.92);
       color: var(--ink);
-      border-radius: 8px;
+      border-radius: 10px;
       padding: 6px 12px;
       font-size: 12px;
+      font-weight: 650;
       cursor: pointer;
       transition: background 0.12s, border-color 0.12s;
     }
-    .header-btn:hover { background: #f4f4f5; }
+    .header-btn:hover { background: rgba(13, 148, 136, 0.1); border-color: var(--accent); }
     .header-btn.on {
       background: var(--accent-soft);
-      border-color: #bfdbfe;
-      color: var(--accent);
+      border-color: rgba(13, 148, 136, 0.45);
+      color: var(--accent-hover);
+      font-weight: 750;
     }
     .thread-wrap {
       flex: 1;
@@ -259,19 +305,21 @@
     .thread-inner {
       width: 100%;
       max-width: calc(var(--chat-max) + 48px);
-      padding: 0 24px;
+      padding: 12px 28px 8px;
       min-height: 0;
       display: flex;
       flex-direction: column;
+      box-sizing: border-box;
     }
     .thread {
       flex: 1;
       min-height: 0;
       overflow: auto;
-      padding: 24px 0 16px;
+      padding: 20px 4px 20px;
       display: flex;
       flex-direction: column;
       gap: 20px;
+      box-sizing: border-box;
     }
     .empty-welcome {
       flex: 1;
@@ -348,8 +396,8 @@
       font-weight: 650;
       color: #fff;
     }
-    .msg-row.user .msg-avatar { background: #3b82f6; }
-    .msg-row.assistant .msg-avatar { background: #18181b; }
+    .msg-row.user .msg-avatar { background: var(--accent); }
+    .msg-row.assistant .msg-avatar { background: #1a3d3a; }
     .msg-body { flex: 1; min-width: 0; max-width: min(var(--chat-max), 100%); }
     .msg-row.user .msg-body { display: flex; flex-direction: column; align-items: flex-end; }
     .role {
@@ -365,19 +413,42 @@
       border-radius: var(--radius-lg);
       padding: 12px 16px;
       white-space: pre-wrap;
-      line-height: 1.6;
-      font-size: 14px;
+      line-height: 1.72;
+      font-size: 15px;
       color: var(--ink);
       box-shadow: var(--shadow-sm);
     }
     .msg-row.user .bubble {
-      background: var(--accent-soft);
-      border-color: #bfdbfe;
-      color: #1e3a8a;
+      background: color-mix(in srgb, var(--accent) 88%, #0f172a);
+      border-color: color-mix(in srgb, var(--accent) 55%, #0f172a);
+      color: #f4fffd;
       border-radius: var(--radius-lg) var(--radius-lg) 4px var(--radius-lg);
     }
     .msg-row.assistant .bubble {
       border-radius: var(--radius-lg) var(--radius-lg) var(--radius-lg) 4px;
+    }
+    .bubble.is-streaming::after {
+      content: "";
+      display: inline-block;
+      width: 0.45em;
+      height: 1.05em;
+      margin-left: 2px;
+      vertical-align: text-bottom;
+      border-radius: 1px;
+      background: color-mix(in srgb, var(--accent) 75%, transparent);
+      animation: vanna-caret 1s steps(1) infinite;
+    }
+    @keyframes vanna-caret {
+      0%, 49% { opacity: 1; }
+      50%, 100% { opacity: 0; }
+    }
+    .result-table-wrap, .sql-block, .agent-card {
+      font-size: 14px;
+    }
+    .sql-block, pre.sql {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 1.55;
     }
     .agent-card {
       margin: 0 0 10px;
@@ -520,44 +591,52 @@
     .feedback-ack { margin: 0; color: var(--ok); font-weight: 600; }
     .composer {
       flex-shrink: 0;
-      padding: 12px 24px 16px;
-      background: linear-gradient(to top, var(--bg) 80%, transparent);
+      padding: 12px 24px 18px;
+      background: linear-gradient(to top, color-mix(in srgb, var(--bg) 88%, transparent) 70%, transparent);
     }
     .composer-inner {
       max-width: calc(var(--chat-max) + 48px);
       margin: 0 auto;
     }
     .ask-card {
-      background: var(--surface);
-      border: 1px solid var(--line);
-      border-radius: var(--radius-lg);
-      box-shadow: var(--shadow);
-      padding: 4px 4px 4px 16px;
+      background: rgba(255, 255, 255, 0.96);
+      border: 1px solid rgba(13, 148, 136, 0.28);
+      border-radius: 18px;
+      box-shadow: 0 16px 44px rgba(12, 40, 36, 0.12);
+      padding: 6px 6px 6px 16px;
     }
     .ask {
       display: grid;
       grid-template-columns: minmax(0, 1fr) auto;
       gap: 8px;
-      align-items: flex-end;
+      align-items: center;
     }
     textarea {
       width: 100%;
-      min-height: 44px;
+      min-height: 48px;
       max-height: 160px;
       resize: none;
       border: 0;
-      border-radius: 0;
-      padding: 12px 0;
+      border-radius: 12px;
+      padding: 12px 14px;
       font-size: 15px;
       color: var(--ink);
       background: transparent;
-      line-height: 1.5;
+      line-height: 1.45;
+      box-sizing: border-box;
+      vertical-align: middle;
     }
     textarea:focus { outline: none; }
     .go {
-      border-radius: 10px;
+      border-radius: 11px;
       padding: 10px 18px;
       min-height: 40px;
+      background: linear-gradient(135deg, #2dd4bf, #0d9488 48%, #0f766e) !important;
+      color: #fff !important;
+      font-weight: 800;
+      border: 1px solid #0f766e;
+      box-shadow: 0 8px 22px rgba(13, 148, 136, 0.36);
+      cursor: pointer;
       align-self: center;
       margin: 4px 4px 4px 0;
     }
@@ -577,7 +656,26 @@
       flex-wrap: wrap;
     }
     .cost b { color: var(--ink); font-weight: 600; }
-    .legend { margin: 0; font-size: 11px; color: var(--muted); line-height: 1.45; }
+    .legend,
+    #budgetHint {
+      margin: 0;
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.45;
+      background: transparent !important;
+      background-color: transparent !important;
+      box-shadow: none !important;
+      border: 0 !important;
+      padding: 0 !important;
+      -webkit-text-fill-color: var(--muted);
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    #budgetHint::selection,
+    .legend::selection {
+      background: transparent;
+      color: var(--muted);
+    }
     .rail {
       background: var(--surface);
       border-left: 1px solid var(--line);
@@ -695,7 +793,7 @@
 <body>
   <div class="login-gate" id="loginGate" aria-hidden="true">
     <form class="login-card" id="loginForm">
-      <h1>Vanna 库问数</h1>
+      <h1>禄存 · 库问数</h1>
       <p class="sub">使用 ClawHive 账号登录后进入协作问数。</p>
       <label for="loginUser">用户名</label>
       <input id="loginUser" name="username" autocomplete="username" required />
@@ -705,10 +803,10 @@
       <button type="submit" id="loginGo">登录</button>
     </form>
   </div>
-  <div class="shell" id="appShell">
+  <div class="shell" id="appShell" data-agent="db">
     <aside class="sidebar">
       <div class="sidebar-head">
-        <div class="brand">Vanna<small>后台问数 · SQL 确认后执行</small></div>
+        <div class="brand">禄存<small>问数助手 · SQL 确认后执行 · 结果表可视化</small></div>
         <button class="new-chat" id="newChat" type="button">新对话</button>
       </div>
       <div class="sidebar-scroll">
@@ -716,6 +814,9 @@
         <div class="sessions" id="sessionList"></div>
       </div>
       <div class="sidebar-foot">
+        <div class="logout-row">
+          <button type="button" class="logout-btn" id="logoutBtn">退出登录</button>
+        </div>
         <div class="field">
           <label for="tenant">租户</label>
           <select id="tenant"></select>
@@ -835,6 +936,11 @@
       else localStorage.removeItem(TOKEN_KEY);
     }
 
+    function logout() {
+      setAuthToken("");
+      showLogin("");
+    }
+
     function showLogin(msg) {
       $("loginErr").textContent = msg || "";
       $("loginGate").classList.add("on");
@@ -862,6 +968,10 @@
       }
       return res;
     }
+
+    $("logoutBtn").addEventListener("click", () => {
+      logout();
+    });
 
     $("loginForm").addEventListener("submit", async (ev) => {
       ev.preventDefault();

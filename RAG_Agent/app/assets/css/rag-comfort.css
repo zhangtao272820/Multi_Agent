@@ -1,0 +1,45 @@
+/* RAG 舒适层：取消节气大图 / motif，干净阅读底 */
+
+.rag-season-bg,
+.rag-shell .brand-motif,
+.claw-login .rag-season-bg,
+.claw-login .brand-motif {
+  display: none !important;
+}
+
+.rag-shell.rag-app-root,
+.rag-shell {
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--brand-accent, #6b8fd4) 8%, #f5f7fb) 0%,
+      var(--brand-bg, #eef1f6) 45%,
+      #e7ecf4 100%
+    ) !important;
+}
+
+.claw-login {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: var(--brand-bg, #eef1f6);
+}
+
+.rag-shell .assistant-message-shell,
+.rag-shell .user-message-text {
+  font-size: var(--ch-font-body, 15px);
+  line-height: var(--ch-lh, 1.72);
+}
+
+.rag-shell .assistant-message-shell.ch-streaming::after {
+  content: "";
+  display: inline-block;
+  width: 0.45em;
+  height: 1.05em;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  border-radius: 1px;
+  background: color-mix(in srgb, var(--brand-accent, #6b8fd4) 75%, transparent);
+  animation: ch-caret-blink 1s steps(1) infinite;
+}

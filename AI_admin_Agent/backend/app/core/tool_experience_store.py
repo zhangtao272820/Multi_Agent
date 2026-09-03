@@ -54,6 +54,34 @@ def _connect():
     return psycopg.connect(url.replace("postgresql+psycopg2:", "postgresql:"), row_factory=dict_row)
 
 
+def _confirmed_only() -> bool:
+    raw = str(os.getenv("EXPERIENCE_RECALL_CONFIRMED_ONLY") or "1").strip().lower()
+    if raw in {"0", "false", "off", "no"}:
+        return False
+    return True
+
+
+def _is_useful_source(row: dict[str, Any]) -> bool:
+    """仅用户点「有用」确认的源可召回（对齐 shared/experienceRecallPolicy）。"""
+    src = str(row.get("source") or "").strip().lower()
+    if not src:
+        return False
+    if src.startswith("voided") or "shadow" in src or "useless" in src or "score:-1" in src:
+        return False
+    if "manager_feedback_confirmed" in src:
+        return True
+    if "feedback_confirmed" in src or "|useful" in src or "useful|" in src:
+        return True
+    if "vanna_feedback" in src:
+        return True
+    # status=confirmed 且非 finalize 自动同步
+    status = str(row.get("status") or "").strip().lower()
+    if status == "confirmed" and "manager_finalize_sync" not in src and "finalize" not in src:
+        if "feedback" in src and "confirmed" in src:
+            return True
+    return False
+
+
 def hydrate_admin_tool_experience_cache(max_rows: int = 400) -> None:
     global _experience_cache
     backend = os.getenv("ADMIN_STORAGE_BACKEND", "sqlite").strip().lower()
@@ -67,7 +95,7 @@ def hydrate_admin_tool_experience_cache(max_rows: int = 400) -> None:
         with _connect() as conn:
             rows = conn.execute(
                 f"""
-                SELECT question_norm, tool_name, scenario, hint, source, source_plane, tenant_id
+                SELECT question_norm, tool_name, scenario, hint, source, source_plane, tenant_id, status
                 FROM adm_tool_experience
                 WHERE tenant_id = %s {status_filter}
                 ORDER BY id DESC
@@ -78,6 +106,8 @@ def hydrate_admin_tool_experience_cache(max_rows: int = 400) -> None:
         cached = list(reversed(rows))
         if _standalone_exclude_federated():
             cached = [r for r in cached if not _is_manager_orchestrated_row(r)]
+        if _confirmed_only():
+            cached = [r for r in cached if _is_useful_source(r)]
         _experience_cache = cached
     except Exception:
         # 兼容未跑 017 迁移（无 tenant_id/source_plane）
@@ -85,7 +115,7 @@ def hydrate_admin_tool_experience_cache(max_rows: int = 400) -> None:
             with _connect() as conn:
                 rows = conn.execute(
                     f"""
-                    SELECT question_norm, tool_name, scenario, hint, source
+                    SELECT question_norm, tool_name, scenario, hint, source, status
                     FROM adm_tool_experience
                     WHERE 1=1 {status_filter}
                     ORDER BY id DESC
@@ -96,6 +126,8 @@ def hydrate_admin_tool_experience_cache(max_rows: int = 400) -> None:
             cached = list(reversed(rows))
             if _standalone_exclude_federated():
                 cached = [r for r in cached if not _is_manager_orchestrated_row(r)]
+            if _confirmed_only():
+                cached = [r for r in cached if _is_useful_source(r)]
             _experience_cache = cached
         except Exception:
             _experience_cache = []

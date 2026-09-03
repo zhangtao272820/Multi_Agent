@@ -1,0 +1,307 @@
+/* Admin · 暖金褐行政 · 深色精品控件层（背景氛围保持） */
+
+.admin-season-bg,
+.admin-brand-root .brand-motif,
+.admin-shell .brand-motif,
+.claw-login .admin-season-bg,
+.claw-login .brand-motif {
+  display: none !important;
+}
+
+.admin-shell.admin-brand-root.brand-shell,
+.admin-shell.brand-shell,
+.admin-shell[data-agent="admin"] {
+  --brand-motif-opacity: 0;
+  color: var(--brand-dark-text, #f3ead8);
+  background:
+    linear-gradient(165deg, rgba(20, 17, 14, 0.62) 0%, rgba(16, 14, 12, 0.55) 48%, rgba(10, 8, 6, 0.6) 100%),
+    url("@brand/backgrounds/theme/admin-workbench.png") center / cover no-repeat fixed !important;
+}
+
+.admin-shell.brand-shell::before,
+.admin-shell::before {
+  content: none !important;
+  display: none !important;
+}
+
+.claw-login.admin-shell,
+.claw-login[data-agent="admin"] {
+  background:
+    linear-gradient(160deg, rgba(10, 8, 6, 0.55), rgba(30, 24, 16, 0.5)),
+    url("@brand/backgrounds/theme/admin-workbench.png") center / cover no-repeat fixed !important;
+}
+
+/* 顶栏 */
+.admin-shell .admin-glass--bar,
+.admin-shell .app-page-header {
+  background: rgba(30, 26, 21, 0.9) !important;
+  border-bottom: 1px solid rgba(212, 168, 42, 0.28) !important;
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.35) !important;
+  backdrop-filter: blur(16px) saturate(1.15) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(1.15) !important;
+  color: #f3ead8 !important;
+}
+
+.admin-shell .app-page-title {
+  color: #ffe7a8 !important;
+  font-weight: 800;
+}
+
+/* 侧栏 */
+.admin-shell .admin-glass--panel,
+.admin-shell .app-sidebar,
+.admin-shell .admin-history-aside,
+.admin-shell aside,
+.admin-shell .sidebar {
+  background: linear-gradient(180deg, rgba(38, 32, 24, 0.96), rgba(20, 17, 14, 0.98)) !important;
+  border-color: rgba(212, 168, 42, 0.22) !important;
+  border-right: 1px solid rgba(212, 168, 42, 0.22) !important;
+  color: #f3ead8 !important;
+  box-shadow: 10px 0 40px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(16px);
+}
+
+.admin-shell .app-nav-item {
+  color: #ebe2d4 !important;
+  border-radius: 10px;
+}
+
+.admin-shell .app-nav-item:hover,
+.admin-shell .app-nav-item.is-active {
+  background: rgba(232, 196, 110, 0.14) !important;
+  color: #ffe7a8 !important;
+  box-shadow: inset 3px 0 0 #e8c46e;
+}
+
+/* 面板 / 看板卡 */
+.admin-shell .admin-panel,
+.admin-shell .brand-panel,
+.admin-shell .app-assistant-card,
+.admin-shell .admin-process-panel {
+  border: 1px solid rgba(212, 168, 42, 0.24) !important;
+  background:
+    linear-gradient(160deg, rgba(184, 134, 11, 0.1), transparent 55%),
+    rgba(38, 32, 24, 0.94) !important;
+  border-radius: 14px !important;
+  color: #f3ead8 !important;
+  box-shadow:
+    0 1px 0 rgba(255, 230, 180, 0.08) inset,
+    0 14px 40px rgba(0, 0, 0, 0.28) !important;
+  backdrop-filter: blur(10px);
+  padding: 16px 18px !important;
+  box-sizing: border-box !important;
+}
+
+.admin-chat-thread,
+.admin-shell .admin-chat-thread,
+.admin-shell .ch-thread,
+.admin-shell .messages {
+  max-width: var(--ch-max, 780px);
+  margin-inline: auto;
+  padding: 16px 20px 24px !important;
+  box-sizing: border-box !important;
+}
+
+.admin-shell .admin-agent-bubble,
+.admin-shell .ch-assistant-shell {
+  border: 1px solid rgba(212, 168, 42, 0.24) !important;
+  background: rgba(38, 32, 24, 0.96) !important;
+  border-radius: 14px !important;
+  color: #f3ead8 !important;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.22);
+}
+
+.admin-shell .admin-user-bubble {
+  background: linear-gradient(135deg, #d4a82a, #b8860b) !important;
+  color: #1a1510 !important;
+  border-radius: 14px 14px 4px 14px !important;
+  font-weight: 600;
+  box-shadow: 0 8px 20px rgba(184, 134, 11, 0.32);
+}
+
+.admin-agent-bubble.is-streaming .admin-agent-bubble__text.ch-streaming::after,
+.admin-agent-bubble.is-streaming .admin-agent-bubble__text::after {
+  background: color-mix(in srgb, #b8860b 85%, transparent);
+}
+
+/* Composer */
+.admin-shell .admin-composer,
+.admin-shell .admin-composer__inner {
+  background: rgba(30, 26, 21, 0.94) !important;
+  border: 1px solid rgba(212, 168, 42, 0.3) !important;
+  border-radius: 18px !important;
+  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.35) !important;
+}
+
+.admin-shell .admin-composer__input,
+.admin-shell input:not([type="checkbox"]):not([type="radio"]),
+.admin-shell textarea,
+.admin-shell select {
+  background: rgba(20, 17, 14, 0.92) !important;
+  border: 1px solid rgba(212, 168, 42, 0.32) !important;
+  color: #f3ead8 !important;
+  border-radius: 11px !important;
+}
+
+.admin-shell input:focus,
+.admin-shell textarea:focus,
+.admin-shell select:focus,
+.admin-shell .admin-composer__input:focus {
+  border-color: #d4a82a !important;
+  box-shadow: 0 0 0 3px rgba(184, 134, 11, 0.28) !important;
+  outline: none !important;
+}
+
+/* 按钮 */
+.admin-shell button.primary,
+.admin-shell .btn-primary,
+.admin-shell .send-btn,
+.admin-shell .app-btn-primary,
+.admin-shell .admin-composer__send:not(.is-cancel) {
+  background: linear-gradient(135deg, #f0d78a, #d4a84a 48%, #b8860b) !important;
+  border-color: #c9983a !important;
+  color: #1a1510 !important;
+  font-weight: 800 !important;
+  box-shadow: 0 8px 22px rgba(184, 134, 11, 0.4) !important;
+  border-radius: 11px !important;
+}
+
+.admin-shell .app-btn-ghost,
+.admin-shell .admin-toolbar-btn,
+.admin-shell .btn-secondary {
+  background: rgba(38, 32, 24, 0.9) !important;
+  border: 1px solid rgba(212, 168, 42, 0.32) !important;
+  color: #f3ead8 !important;
+  font-weight: 650;
+  border-radius: 10px !important;
+}
+
+/* Modal */
+.admin-modal-backdrop {
+  background: rgba(6, 5, 4, 0.62) !important;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.admin-modal-dialog {
+  background:
+    linear-gradient(165deg, rgba(42, 34, 24, 0.98) 0%, rgba(24, 20, 16, 0.98) 100%) !important;
+  border: 1px solid rgba(232, 196, 110, 0.42) !important;
+  border-radius: 16px !important;
+  box-shadow:
+    0 28px 72px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 231, 168, 0.1) !important;
+  color: #f3ead8 !important;
+  backdrop-filter: blur(18px);
+  overflow: hidden;
+}
+
+.admin-modal-header {
+  padding: 0.95rem 1.1rem 0.7rem !important;
+  border-bottom: 1px solid rgba(212, 168, 42, 0.22) !important;
+  background: linear-gradient(180deg, rgba(55, 44, 28, 0.45), transparent);
+}
+
+.admin-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.55rem;
+  padding: 0.75rem 1.1rem 1rem !important;
+  border-top: 1px solid rgba(212, 168, 42, 0.22) !important;
+  background: rgba(12, 10, 8, 0.28);
+}
+
+.admin-modal-footer--alert {
+  justify-content: stretch;
+}
+
+.admin-modal-footer--alert .admin-modal-btn-primary {
+  width: 100%;
+  min-height: 2.4rem;
+}
+
+.admin-modal-title {
+  margin: 0;
+  font-size: 0.95rem !important;
+  letter-spacing: 0.03em;
+  color: #ffe7a8 !important;
+  font-weight: 800 !important;
+}
+
+.admin-modal-body {
+  padding: 1rem 1.1rem !important;
+}
+
+.admin-modal-message {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: #d2c09a !important;
+  white-space: pre-wrap;
+}
+
+.admin-modal-input {
+  margin-top: 0.65rem;
+  width: 100%;
+  border-radius: 10px;
+  padding: 0.55rem 0.75rem;
+  font-size: 0.875rem;
+  background: rgba(14, 12, 10, 0.9) !important;
+  border: 1px solid rgba(212, 168, 42, 0.35) !important;
+  color: #f3ead8 !important;
+}
+
+.admin-modal-input:focus {
+  outline: none;
+  border-color: #e8c46e !important;
+  box-shadow: 0 0 0 3px rgba(184, 134, 11, 0.28) !important;
+}
+
+.admin-modal-btn-primary {
+  border-radius: 11px;
+  padding: 0.5rem 1.1rem;
+  font-size: 0.8125rem;
+  background: linear-gradient(135deg, #f0d78a, #b8860b) !important;
+  color: #1a1510 !important;
+  font-weight: 800 !important;
+  border: 1px solid #ffe7a8 !important;
+  box-shadow: 0 8px 20px rgba(184, 134, 11, 0.35) !important;
+  cursor: pointer;
+}
+
+.admin-modal-btn-primary:hover {
+  filter: brightness(1.05);
+}
+
+.admin-modal-btn-secondary {
+  border-radius: 11px;
+  padding: 0.5rem 1rem;
+  font-size: 0.8125rem;
+  background: rgba(38, 32, 24, 0.9) !important;
+  border: 1px solid rgba(212, 168, 42, 0.35) !important;
+  color: #f3ead8 !important;
+  cursor: pointer;
+}
+
+.admin-modal-btn-secondary:hover {
+  background: rgba(55, 44, 28, 0.95) !important;
+}
+
+/* 登录 */
+.claw-login.admin-shell .claw-login__card,
+.claw-login.admin-shell .admin-glass,
+.admin-shell.claw-login .claw-login__card {
+  background: rgba(30, 26, 21, 0.92) !important;
+  border: 1px solid rgba(232, 196, 110, 0.4) !important;
+  border-radius: 18px !important;
+  box-shadow: 0 28px 72px rgba(0, 0, 0, 0.5) !important;
+  color: #f3ead8 !important;
+}
+
+.claw-login.admin-shell button[type="submit"],
+.admin-shell.claw-login button[type="submit"] {
+  background: linear-gradient(135deg, #f0d78a, #d4a84a 48%, #b8860b) !important;
+  color: #1a1510 !important;
+  font-weight: 800 !important;
+  box-shadow: 0 10px 28px rgba(184, 134, 11, 0.4) !important;
+}

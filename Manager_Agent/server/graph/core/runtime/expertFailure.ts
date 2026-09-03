@@ -43,6 +43,13 @@ export function classifyExpertFailure(input: {
       message: '连续失败已触发熔断，本步已跳过'
     }
   }
+  if (input.policy === 'service_degrade') {
+    return {
+      code: 'skipped',
+      retryable: false,
+      message: '服务分级降级中，本步已跳过'
+    }
+  }
   if (input.policy === 'budget_exceeded') {
     return {
       code: 'budget_exceeded',

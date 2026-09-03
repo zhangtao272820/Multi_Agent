@@ -73,7 +73,12 @@ import {
 export function useManagerChatPage() {
   const runtimeConfig = useRuntimeConfig()
   const managerWsToken = computed(() => String(runtimeConfig.public.managerWsToken || '').trim())
-  const { withUserAuth, loadFromStorage: loadClawhiveAuth, token: clawhiveToken } = useClawhiveLogin()
+  const {
+    withUserAuth,
+    loadFromStorage: loadClawhiveAuth,
+    token: clawhiveToken,
+    ready: clawhiveAuthReady
+  } = useClawhiveLogin()
 
   function withManagerWsAuth(payload: Record<string, unknown>): Record<string, unknown> {
     return withUserAuth(withManagerWsAuthRaw(payload, managerWsToken.value))
@@ -6327,25 +6332,38 @@ export function useManagerChatPage() {
     { flush: 'post' }
   )
 
-  let streamingMarkdownTimer: ReturnType<typeof setTimeout> | null = null
-  watch(streamingSynthDisplayText, (text) => {
+  /** 流式 Markdown：rAF 合并最新缓冲，禁止 timer 窗口丢 delta / 闭包旧 text */
+  let streamingMarkdownRaf = 0
+  let streamingMarkdownPending = ''
+  const flushStreamingMarkdown = () => {
+    streamingMarkdownRaf = 0
+    const text = streamingMarkdownPending
     if (!text) {
       streamingMarkdownHtml.value = ''
-      if (streamingMarkdownTimer) {
-        clearTimeout(streamingMarkdownTimer)
-        streamingMarkdownTimer = null
+      return
+    }
+    const liveId = findLatestOpenUserTurn()
+    const liveTurn =
+      liveId != null ? visibleTurnGroups.value.find((t) => t.id === liveId) : undefined
+    const cleaned = stripStreamingAuxForPlan(text, liveTurn)
+    streamingMarkdownHtml.value = renderAssistantMarkdown(cleaned)
+    if (streamingMarkdownPending !== text) {
+      streamingMarkdownRaf = requestAnimationFrame(flushStreamingMarkdown)
+    }
+  }
+  watch(streamingSynthDisplayText, (text) => {
+    if (!text) {
+      streamingMarkdownPending = ''
+      streamingMarkdownHtml.value = ''
+      if (streamingMarkdownRaf) {
+        cancelAnimationFrame(streamingMarkdownRaf)
+        streamingMarkdownRaf = 0
       }
       return
     }
-    if (streamingMarkdownTimer) return
-    streamingMarkdownTimer = setTimeout(() => {
-      streamingMarkdownTimer = null
-      const liveId = findLatestOpenUserTurn()
-      const liveTurn =
-        liveId != null ? visibleTurnGroups.value.find((t) => t.id === liveId) : undefined
-      const cleaned = stripStreamingAuxForPlan(text, liveTurn)
-      streamingMarkdownHtml.value = renderAssistantMarkdown(cleaned)
-    }, 80)
+    streamingMarkdownPending = text
+    if (streamingMarkdownRaf) return
+    streamingMarkdownRaf = requestAnimationFrame(flushStreamingMarkdown)
   })
 
   watch(thoughtViewMode, () => {
@@ -6370,7 +6388,18 @@ export function useManagerChatPage() {
     const authNeeded = Boolean((runtimeConfig.public as any)?.managerUserAuth)
     const canTalkToServer = () => !authNeeded || Boolean(String(clawhiveToken.value || '').trim())
 
+    async function waitForClawhiveAuthReady(timeoutMs = 2500) {
+      if (!authNeeded) return
+      if (!clawhiveAuthReady.value) loadClawhiveAuth()
+      const start = Date.now()
+      while (!clawhiveAuthReady.value && Date.now() - start < timeoutMs) {
+        await new Promise((r) => setTimeout(r, 25))
+      }
+      if (!String(clawhiveToken.value || '').trim()) loadClawhiveAuth()
+    }
+
     async function bootstrapServerSession() {
+      await waitForClawhiveAuthReady()
       if (!canTalkToServer()) return
       const ready = await waitForManagerReady()
       if (!ready) {
@@ -6378,9 +6407,18 @@ export function useManagerChatPage() {
       }
       void fetchServerSessionHistory()
       const sid = sessionId.value
-      if (sid) void hydrateSessionFromServer(sid)
+      // 与 switchSession 一致：先灌历史与 umidx，再回显有用/无用，避免首屏竞态丢反馈
+      if (sid) {
+        await hydrateSessionFromServer(sid)
+        reconcileTurnFeedbackKeys()
+        const fb = await hydrateSessionFeedbackFromServer()
+        if (fb === 'auth' && authNeeded) {
+          // JWT 尚未生效时短等再试一次（登录门刚关掉）
+          await new Promise((r) => setTimeout(r, 120))
+          await hydrateSessionFeedbackFromServer()
+        }
+      }
       connect()
-      void hydrateSessionFeedbackFromServer()
       void hydrateTaskStack()
       void hydrateUserGoals()
     }
@@ -6394,7 +6432,8 @@ export function useManagerChatPage() {
     historyPanelOpen.value = wide
     sidebarOpen.value = false
     const stopWatchLogin = watch(clawhiveToken, (t, prev) => {
-      if (t && !prev && authNeeded) {
+      // 空→有 token，或换了新 token：强制再灌历史与反馈（总管登录即可，不依赖控制端）
+      if (authNeeded && t && t !== prev) {
         ensureUserId()
         loadSessionHistoryList()
         void bootstrapServerSession()

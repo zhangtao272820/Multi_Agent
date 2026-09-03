@@ -31,6 +31,7 @@ def _confirmed_only() -> bool:
         return True
     if raw in {"0", "false"}:
         return False
+    # 默认只召回「有用」；与 shared/experienceRecallPolicy 对齐
     return bool(get_settings().experience_recall_confirmed_only)
 
 
@@ -59,22 +60,34 @@ def _is_voided(row: dict[str, Any]) -> bool:
     if row.get("voided") is True:
         return True
     src = str(row.get("source") or "").strip().lower()
-    return src.startswith("voided") or ":voided" in src
+    return src.startswith("voided") or ":voided" in src or "|voided" in src
 
 
 def _is_confirmed(row: dict[str, Any]) -> bool:
+    """仅用户点「有用」可召回；撤回/无用/自动 finalize/黄金旁路不算。"""
     if _is_voided(row):
         return False
     if row.get("userConfirmed") is True or row.get("user_confirmed") is True:
         return True
-    if str(row.get("status") or "").strip() == "confirmed":
-        return True
     src = str(row.get("source") or "").strip()
     if not src:
         return False
-    if "shadow" in src:
+    low = src.lower()
+    if "shadow" in low or "useless" in low or "score:-1" in low or "score=-1" in low:
         return False
-    return any(x in src for x in ("feedback", "federation", "manager_finalize_sync", "confirmed"))
+    if "manager_feedback_confirmed" in low:
+        return True
+    # UI「有用」写入（record_feedback 仅 score=1 写 experience）
+    if "vanna_feedback" in low:
+        return True
+    if "useful" in low or "score:1" in low or "score=1" in low:
+        return True
+    status = str(row.get("status") or "").strip()
+    if status == "confirmed" and (
+        "feedback_confirmed" in low or "useful" in low or "vanna_feedback" in low
+    ):
+        return True
+    return False
 
 
 def may_recall_row(row: dict[str, Any], *, manager_path: bool) -> bool:

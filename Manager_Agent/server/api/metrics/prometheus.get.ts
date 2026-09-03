@@ -4,6 +4,10 @@ import { buildAgentRegistry } from '../../graph/core/agent/agentRegistry'
 import { queryMemoryPgStats } from '#agent-shared/memoryDashboard'
 import { queryToolMemoryTop } from '#agent-shared/toolMemoryStore'
 import { getBackpressureSnapshot } from '../../graph/core/runtime/backpressure'
+import { getRequestRateLimitSnapshot } from '../../graph/core/runtime/requestRateLimit'
+import { getContentTrustMetricsSnapshot } from '#agent-shared/contentTrustMetrics'
+import { getWsStreamSloSnapshot } from '#agent-shared/wsStreamSlo'
+import { appendSliCostThicknessPrometheusLines } from '../../graph/core/runtime/sliPrometheus'
 import { managerDataRoot, resolveManagerPolicyDir } from '../../utils/session/managerPolicyDir'
 
 function escLabel(v: string) {
@@ -163,7 +167,58 @@ export default defineEventHandler(async (event) => {
       out.push('# TYPE manager_sli_tokens_total gauge')
       out.push(line('manager_sli_tokens_total', sliTok))
     }
+    const routeClear = Number((sli as any).routeCommitmentClearRate ?? NaN)
+    if (Number.isFinite(routeClear)) {
+      out.push('# HELP manager_sli_route_clear_rate Route sourceCommitment=clear rate 0..1')
+      out.push('# TYPE manager_sli_route_clear_rate gauge')
+      out.push(line('manager_sli_route_clear_rate', routeClear))
+    }
+    const avgLlm = Number((sli as any).routeAvgLlmCalls ?? NaN)
+    if (Number.isFinite(avgLlm)) {
+      out.push('# HELP manager_sli_route_avg_llm_calls Avg route LLM calls per route_authority sample')
+      out.push('# TYPE manager_sli_route_avg_llm_calls gauge')
+      out.push(line('manager_sli_route_avg_llm_calls', avgLlm))
+    }
+    const skipAlign = Number((sli as any).routeSkipAlignRate ?? NaN)
+    if (Number.isFinite(skipAlign)) {
+      out.push('# HELP manager_sli_route_skip_align_rate Route align skip rate 0..1')
+      out.push('# TYPE manager_sli_route_skip_align_rate gauge')
+      out.push(line('manager_sli_route_skip_align_rate', skipAlign))
+    }
+    appendSliCostThicknessPrometheusLines(out, sli as Record<string, unknown>, line)
   }
+
+  const rateSnap = getRequestRateLimitSnapshot()
+  out.push('# HELP manager_request_rate_limited_total Chat requests rejected by MANAGER_REQUEST_RATE_PER_MIN')
+  out.push('# TYPE manager_request_rate_limited_total counter')
+  out.push(line('manager_request_rate_limited_total', rateSnap.rejectedTotal))
+
+  const trustSnap = getContentTrustMetricsSnapshot()
+  out.push('# HELP manager_content_trust_wrap_total Untrusted content wrap operations')
+  out.push('# TYPE manager_content_trust_wrap_total counter')
+  out.push(line('manager_content_trust_wrap_total', trustSnap.wrapTotal))
+  out.push('# HELP manager_content_trust_sanitize_empty_total Sanitize emptied untrusted body')
+  out.push('# TYPE manager_content_trust_sanitize_empty_total counter')
+  out.push(line('manager_content_trust_sanitize_empty_total', trustSnap.sanitizeEmptyTotal))
+  out.push('# HELP manager_content_trust_strict_total Strict mode wrap operations')
+  out.push('# TYPE manager_content_trust_strict_total counter')
+  out.push(line('manager_content_trust_strict_total', trustSnap.strictModeTotal))
+
+  const streamSlo = getWsStreamSloSnapshot()
+  if (streamSlo.ttftSampleCount > 0) {
+    out.push('# HELP manager_ws_ttft_p50_ms WS first stream event TTFT P50 ms')
+    out.push('# TYPE manager_ws_ttft_p50_ms gauge')
+    out.push(line('manager_ws_ttft_p50_ms', streamSlo.ttftP50Ms))
+    out.push('# HELP manager_ws_ttft_samples Total TTFT samples recorded')
+    out.push('# TYPE manager_ws_ttft_samples gauge')
+    out.push(line('manager_ws_ttft_samples', streamSlo.ttftSampleCount))
+  }
+  if (streamSlo.cancelSampleCount > 0) {
+    out.push('# HELP manager_ws_cancel_ack_p50_ms Cancel request to ack P50 ms')
+    out.push('# TYPE manager_ws_cancel_ack_p50_ms gauge')
+    out.push(line('manager_ws_cancel_ack_p50_ms', streamSlo.cancelAckP50Ms))
+  }
+
   if (evo && typeof evo === 'object') {
     const searchHit = Number((evo as any).searchHitRate ?? (evo as any).search_hit_rate ?? NaN)
     if (Number.isFinite(searchHit)) {

@@ -1,7 +1,11 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { agentPgQuery } from '#agent-shared/agentPgClient'
-import { shouldRecallExperienceForPlane } from '#agent-shared/experienceRecallPolicy'
+import {
+  isConfirmedExperienceRow,
+  isExperienceRecallConfirmedOnly,
+  shouldRecallExperienceForPlane
+} from '#agent-shared/experienceRecallPolicy'
 import {
   isPostgresStorageEnabled,
   resolveStorageBackend,
@@ -198,6 +202,27 @@ export function activeRagLearningSignals(rows: RagLearningSignalRow[]): RagLearn
   return rows.filter((r) => !r.superseded && r.learnEligible !== false)
 }
 
+/** 仅「有用/无用」显式反馈或联邦 👍 确认可进偏好；finalize 自动同步排除 */
+export function mayUseRagLearningSignalForRecall(
+  row: RagLearningSignalRow,
+  env: NodeJS.ProcessEnv = process.env
+): boolean {
+  if (row.superseded || row.learnEligible === false) return false
+  if (!shouldRecallExperienceForPlane('standalone', row, env)) return false
+  if (!isExperienceRecallConfirmedOnly(env)) return true
+  const src = String(row.source || '')
+  if (isConfirmedExperienceRow({ source: src, status: undefined, userConfirmed: false })) return true
+  const score = Number(row.score)
+  if (
+    (score === 1 || score === -1) &&
+    !src.includes('manager_finalize_sync') &&
+    !src.toLowerCase().includes('federation')
+  ) {
+    return true
+  }
+  return false
+}
+
 export async function readRagLearningSignalsAsync(maxLines = 500, tenantId?: string): Promise<RagLearningSignalRow[]> {
   const tid = normalizeTenantId(tenantId)
   const backend = resolveRagStorageBackend()
@@ -227,7 +252,7 @@ export function readRagLearningSignalsSync(maxLines = 500, tenantId?: string): R
     isPostgresStorageEnabled(backend) && cache?.length
       ? cache.slice(-maxLines)
       : readJsonlLines<RagLearningSignalRow>(signalsFilePath(tid), maxLines).map(hydrateRowMeta)
-  return activeRagLearningSignals(rows.filter((r) => shouldRecallExperienceForPlane('standalone', r)))
+  return activeRagLearningSignals(rows.filter((r) => mayUseRagLearningSignalForRecall(r)))
 }
 
 export async function persistRagLearningSignal(row: RagLearningSignalRow): Promise<void> {

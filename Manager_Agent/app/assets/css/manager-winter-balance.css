@@ -113,12 +113,10 @@
   font-weight: 600 !important;
 }
 
-/* ── 内容卡实底（可读） ── */
+/* ── 内容卡实底（可读；用户气泡由 manager-theme 终裁为蓝底白字，此处不强制白底） ── */
 .spring-root.cosmic-theme.cursor-workbench .reply-panel .reply-panel-inner,
 .spring-root.cosmic-theme.cursor-workbench .reply-panel-inner.cosmic-bubble-reply,
 .spring-root.cursor-workbench.cosmic-theme .chat-thread .reply-panel .reply-panel-inner.cosmic-bubble-reply,
-.spring-root.cosmic-theme.cursor-workbench .cosmic-bubble-user,
-.spring-root.cursor-workbench.cosmic-theme .chat-thread .cosmic-bubble-user,
 .spring-root.cosmic-theme.cursor-workbench .spring-input.cosmic-input-dock,
 .spring-root.cursor-workbench.cosmic-theme .spring-input.cosmic-input-dock,
 .spring-root.cosmic-theme.cursor-workbench .md-table-scroll,

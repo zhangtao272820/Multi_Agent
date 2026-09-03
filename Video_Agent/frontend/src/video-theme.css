@@ -1,0 +1,132 @@
+/* Video · 橙焰视频 · 精品控件层（背景氛围保持） */
+
+.video-season-bg,
+.video-brand-root .brand-motif,
+.claw-login .video-season-bg,
+.claw-login .brand-motif {
+  display: none !important;
+}
+
+.video-brand-root.brand-shell,
+.video-brand-root[data-agent="video"] {
+  --brand-motif-opacity: 0;
+  color: var(--brand-text, #1c120e);
+}
+
+/* 顶栏 */
+.video-brand-root .video-brand-bar {
+  background: rgba(255, 250, 247, 0.92) !important;
+  border: 1px solid rgba(234, 88, 12, 0.22) !important;
+  border-radius: 14px !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.7) inset,
+    0 12px 36px rgba(60, 30, 10, 0.1) !important;
+  backdrop-filter: blur(14px) saturate(1.1) !important;
+  color: #1c120e !important;
+  padding: 12px 16px;
+}
+
+.video-brand-root .video-brand-bar h1 {
+  color: #1c120e !important;
+  font-weight: 800;
+}
+
+.video-brand-root .video-brand-bar .sub {
+  color: #4a3428 !important;
+}
+
+/* 面板 */
+.video-brand-root .panel,
+.video-brand-root .panel-timeline,
+.video-brand-root .panel-result,
+.video-brand-root .video-shell {
+  background: rgba(255, 255, 255, 0.94) !important;
+  border: 1px solid rgba(234, 88, 12, 0.2) !important;
+  border-radius: 14px !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.72) inset,
+    0 14px 40px rgba(60, 30, 10, 0.1) !important;
+  color: #1c120e !important;
+  backdrop-filter: blur(10px);
+}
+
+.video-brand-root .timeline-step {
+  background: rgba(255, 250, 247, 0.92);
+  border: 1px solid rgba(234, 88, 12, 0.16);
+  border-radius: 10px;
+}
+
+.video-brand-root .timeline-step.is-active {
+  border-color: rgba(234, 88, 12, 0.4);
+  box-shadow: inset 3px 0 0 #ea580c;
+  background: rgba(234, 88, 12, 0.1);
+}
+
+.video-brand-root .highlight-dl,
+.video-brand-root .shot-mini-list {
+  border-radius: 10px;
+  background: rgba(255, 250, 247, 0.9);
+  border: 1px solid rgba(234, 88, 12, 0.14);
+}
+
+/* 输入 */
+.video-brand-root textarea,
+.video-brand-root input:not([type="checkbox"]):not([type="radio"]),
+.video-brand-root select {
+  background: #fff8f4 !important;
+  border: 1px solid rgba(176, 128, 104, 0.35) !important;
+  color: #1c120e !important;
+  border-radius: 11px !important;
+}
+
+.video-brand-root input:focus,
+.video-brand-root textarea:focus {
+  border-color: #ea580c !important;
+  box-shadow: 0 0 0 3px rgba(234, 88, 12, 0.22) !important;
+  outline: none !important;
+}
+
+/* 按钮 */
+.video-brand-root button.primary,
+.video-brand-root .primary {
+  background: linear-gradient(135deg, #fb923c, #ea580c 48%, #c2410c) !important;
+  border-color: #c2410c !important;
+  color: #fff !important;
+  font-weight: 800 !important;
+  box-shadow: 0 8px 22px rgba(234, 88, 12, 0.36) !important;
+  border-radius: 11px !important;
+}
+
+.video-brand-root .btn-ghost,
+.video-brand-root button.btn-ghost {
+  background: rgba(255, 255, 255, 0.92) !important;
+  border: 1px solid rgba(234, 88, 12, 0.28) !important;
+  color: #1c120e !important;
+  font-weight: 650;
+  border-radius: 10px !important;
+}
+
+/* 登录 */
+.claw-login[data-agent="video"] .claw-login__card,
+.claw-login .video-glass {
+  background: rgba(255, 255, 255, 0.94) !important;
+  border: 1px solid rgba(234, 88, 12, 0.28) !important;
+  border-radius: 18px !important;
+  box-shadow: 0 28px 72px rgba(60, 30, 10, 0.28) !important;
+  color: #1c120e !important;
+}
+
+.claw-login[data-agent="video"] button[type="submit"],
+.claw-login .video-glass button[type="submit"],
+.claw-login form.video-glass button[type="submit"] {
+  background: linear-gradient(135deg, #fb923c, #ea580c 48%, #c2410c) !important;
+  color: #fff !important;
+  font-weight: 800 !important;
+  box-shadow: 0 10px 28px rgba(234, 88, 12, 0.4) !important;
+  border-radius: 12px !important;
+}
+
+.claw-login[data-agent="video"] input:focus {
+  border-color: #ea580c !important;
+  box-shadow: 0 0 0 3px rgba(234, 88, 12, 0.22) !important;
+}

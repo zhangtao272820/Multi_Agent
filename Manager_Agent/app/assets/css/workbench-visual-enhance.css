@@ -941,22 +941,24 @@
   background: linear-gradient(90deg, transparent, rgba(167, 139, 250, 0.18), transparent);
 }
 
-/* 用户气泡 · 右对齐胶囊 */
+/* 用户气泡 · 右对齐胶囊（浅冰蓝霜玻璃，交由 manager-theme 终裁配色） */
 .spring-root:not(.mode-professional) .cosmic-bubble-user {
   max-width: var(--chat-user-max) !important;
   padding: 11px 16px 10px !important;
-  border-radius: 20px 20px 4px 20px !important;
-  background: linear-gradient(145deg, rgba(109, 40, 217, 0.72), rgba(79, 70, 229, 0.58)) !important;
-  border: 1px solid rgba(167, 139, 250, 0.42) !important;
+  border-radius: 16px 16px 4px 16px !important;
+  background:
+    linear-gradient(155deg, rgba(255, 255, 255, 0.7), rgba(210, 230, 248, 0.68)) !important;
+  border: 1px solid rgba(122, 168, 212, 0.48) !important;
   box-shadow:
-    0 4px 20px rgba(109, 40, 217, 0.22),
-    inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
+    0 1px 0 rgba(255, 255, 255, 0.8) inset,
+    0 6px 18px rgba(40, 90, 150, 0.1) !important;
 }
 
 .spring-root:not(.mode-professional) .cosmic-bubble-user .spring-log-text {
-  color: #0e2436 !important;
+  color: #0b1220 !important;
   font-size: 15px !important;
   line-height: 1.65 !important;
+  background: transparent !important;
 }
 
 /* 总管回复 · 左对齐简洁卡片 */

@@ -218,6 +218,8 @@ rollout_jobs: dict[str, asyncio.Task] = {}
 class LoginRequest(BaseModel):
     username: str
     password: str
+    # control_plane：控制端登录；拒绝 role=user。Agent 代理登录不传，仍发 JWT。
+    audience: str | None = None
 
 
 class LoginResponse(BaseModel):
@@ -230,7 +232,7 @@ class LoginResponse(BaseModel):
 class UserCreateRequest(BaseModel):
     username: str
     password: str
-    role: str = "viewer"
+    role: str = "user"
     tenant_id: str = "default"
 
 
@@ -2757,6 +2759,7 @@ class EvolutionOpsBody(BaseModel):
     userId: str | None = None
     decision: str | None = None
     limit: int | None = None
+    tenantId: str | None = None
 
 
 @app.post("/api/manager/evolution/ops")
@@ -2828,6 +2831,8 @@ async def manager_evolution_ops(
             detail="MANAGER_OPS_TOKEN 未配置：无法代理 Manager ops（请注入 clawhive_backend 与 manager_agent）",
         )
     payload: dict = {"action": action if action != "evolution_review_bundle" else "skill_drafts_list"}
+    tenant_id = str(body.tenantId or getattr(current, "tenant_id", None) or "default").strip() or "default"
+    payload["tenantId"] = tenant_id
     if body.skillId:
         payload["skillId"] = body.skillId
     if body.ruleCandidateId:
@@ -2892,14 +2897,19 @@ async def manager_evolution_ops(
         rules_data = rules.get("data") if rules.get("ok") and isinstance(rules.get("data"), dict) else {}
         exp = post_json(
             url,
-            {"action": "experience_candidates_list", "status": "draft", "limit": 50},
+            {
+                "action": "experience_candidates_list",
+                "status": "draft",
+                "limit": 50,
+                "tenantId": tenant_id,
+            },
             timeout_sec=12.0,
             extra_headers=ops_headers,
         )
         exp_data = exp.get("data") if exp.get("ok") and isinstance(exp.get("data"), dict) else {}
         prefs = post_json(
             url,
-            {"action": "pending_prefs_list", "limit": 40},
+            {"action": "pending_prefs_list", "limit": 40, "tenantId": tenant_id},
             timeout_sec=12.0,
             extra_headers=ops_headers,
         )
@@ -3106,6 +3116,8 @@ async def manager_run_proxy(
 @app.post("/api/auth/login", response_model=LoginResponse)
 async def login(payload: LoginRequest, db: Session = Depends(get_db)):
     api_requests_total.labels(endpoint="/api/auth/login", method="POST").inc()
+    from .auth import ALLOWED_ROLES, CONTROL_PLANE_ROLES
+
     user = db.query(UserRecord).filter(UserRecord.username == payload.username).first()
     if not user or not verify_password(payload.password, user.password_hash):
         write_audit(
@@ -3117,10 +3129,27 @@ async def login(payload: LoginRequest, db: Session = Depends(get_db)):
             "用户名或密码错误",
         )
         raise HTTPException(status_code=401, detail="用户名或密码错误")
+    role = str(user.role or "").strip()
+    if role not in ALLOWED_ROLES:
+        role = "viewer"
+    audience = str(payload.audience or "").strip().lower()
+    if audience in ("control_plane", "controlplane", "cp") and role not in CONTROL_PLANE_ROLES:
+        write_audit(
+            db,
+            user,
+            "auth.login_failed",
+            "user",
+            user.username,
+            "control_plane_denied_role_user",
+        )
+        raise HTTPException(
+            status_code=403,
+            detail="对话账号无控制端权限，请使用总管对话入口（Manager）登录",
+        )
     tid = str(getattr(user, "tenant_id", None) or "default").strip() or "default"
-    token = create_access_token(user.username, user.role, tid)
-    write_audit(db, user, "auth.login", "user", user.username, "用户登录成功")
-    return LoginResponse(access_token=token, role=user.role, tenant_id=tid)
+    token = create_access_token(user.username, role, tid)
+    write_audit(db, user, "auth.login", "user", user.username, f"login audience={audience or 'agent'}")
+    return LoginResponse(access_token=token, role=role, tenant_id=tid)
 
 
 @app.get("/api/auth/oidc/status")
@@ -3256,6 +3285,11 @@ async def create_user(
     db: Session = Depends(get_db),
 ):
     api_requests_total.labels(endpoint="/api/users", method="POST").inc()
+    from .auth import ALLOWED_ROLES
+
+    role = str(payload.role or "user").strip()
+    if role not in ALLOWED_ROLES:
+        raise HTTPException(status_code=400, detail=f"role 须为 {', '.join(sorted(ALLOWED_ROLES))}")
     exists = db.query(UserRecord).filter(UserRecord.username == payload.username).first()
     if exists:
         raise HTTPException(status_code=409, detail="用户已存在")
@@ -3266,13 +3300,13 @@ async def create_user(
     row = UserRecord(
         username=payload.username,
         password_hash=hash_password(payload.password),
-        role=payload.role,
+        role=role,
         tenant_id=tid,
         auth_provider="local",
     )
     db.add(row)
     db.commit()
-    write_audit(db, current, "user.create", "user", payload.username, f"role={payload.role};tenant={tid}")
+    write_audit(db, current, "user.create", "user", payload.username, f"role={role};tenant={tid}")
     return {"username": row.username, "role": row.role, "tenant_id": row.tenant_id}
 
 
@@ -3284,13 +3318,18 @@ async def update_user_role(
     db: Session = Depends(get_db),
 ):
     api_requests_total.labels(endpoint="/api/users/{username}/role", method="PATCH").inc()
+    from .auth import ALLOWED_ROLES
+
+    role = str(payload.role or "").strip()
+    if role not in ALLOWED_ROLES:
+        raise HTTPException(status_code=400, detail=f"role 须为 {', '.join(sorted(ALLOWED_ROLES))}")
     row = db.query(UserRecord).filter(UserRecord.username == username).first()
     if not row:
         raise HTTPException(status_code=404, detail="用户不存在")
-    row.role = payload.role
+    row.role = role
     db.add(row)
     db.commit()
-    write_audit(db, current, "user.update_role", "user", username, f"role={payload.role}")
+    write_audit(db, current, "user.update_role", "user", username, f"role={role}")
     return {"username": row.username, "role": row.role}
 
 

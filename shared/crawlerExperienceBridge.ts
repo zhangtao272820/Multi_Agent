@@ -8,6 +8,7 @@ import {
   emptyQuestionResult,
   experienceSnippet,
   experienceSyncSource,
+  experienceSyncStatus,
   guardExperiencePg,
   normalizeExperienceQuestionKey,
   type ExperienceSyncOpts,
@@ -88,7 +89,7 @@ export async function syncCrawlerExperienceFromManagerRun(
   const res = await agentPgQuery(
     `INSERT INTO ext_crawl_experience
       (ts, task_norm, target_site, content_type, channel, seed_url, fields, hint, source, status)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'confirmed')`,
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
     [
       new Date().toISOString(),
       task_norm,
@@ -98,7 +99,8 @@ export async function syncCrawlerExperienceFromManagerRun(
       input.seedUrl?.slice(0, 500) ?? null,
       JSON.stringify((input.fields || []).slice(0, 12)),
       hint,
-      experienceSyncSource(opts)
+      experienceSyncSource(opts),
+      experienceSyncStatus(opts)
     ],
     env
   )

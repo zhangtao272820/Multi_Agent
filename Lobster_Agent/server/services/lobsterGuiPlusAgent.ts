@@ -156,7 +156,7 @@ async function applyAction(page: Page, action: GuiPlusAction, viewport: { w: num
 
 export async function runLobsterGuiPlusAgent(
   params: RunParams,
-  opts?: { resumeUrl?: string; priorFailure?: string },
+  opts?: { resumeUrl?: string; priorFailure?: string; page?: Page | any },
 ): Promise<Record<string, unknown>> {
   const apiKey = String(params.config?.openaiApiKey || process.env.OPENAI_API_KEY || '').trim()
   const baseURL = String(
@@ -170,60 +170,81 @@ export async function runLobsterGuiPlusAgent(
     512,
     Math.max(120, Math.floor(Number(params.config?.lobster?.visionMaxTokens ?? 320) || 320)),
   )
-  const headless = resolveEffectiveHeadless(Boolean(params.config?.lobster?.headless))
-  const launchOpts = buildChromiumLaunchOptions(headless)
-  const storage = await resolveRunStoragePaths({
-    startUrl: params.startUrl,
-    sessionId: params.sessionId,
-    storageProfile: params.storageProfile,
-    storageDir: String(params.config?.lobster?.storageDir || '').trim() || undefined,
-  })
-  const storageState = storage.loadPath ? await readStorageStateFile(storage.loadPath) : null
-
   const startUrl = String(opts?.resumeUrl || params.startUrl || params.taskSpec?.start_url || '').trim()
   const runId = String(params.runId || crypto.randomUUID())
   const startedAt = Date.now()
   let browser: Browser | null = null
+  let ownsBrowser = false
   const stepsLog: Array<Record<string, unknown>> = []
+  const reusePage = opts?.page && typeof opts.page.screenshot === 'function' ? opts.page : null
+  const sessionMode = reusePage ? 'same_session' : 'cold_start'
 
   emitThinking(
     params,
-    `gui-plus 兜底启动 model=${model} maxSteps=${maxSteps}${opts?.priorFailure ? ` prior=${opts.priorFailure}` : ''}`,
+    `gui-plus 急救 ${sessionMode} model=${model} maxSteps=${maxSteps}${opts?.priorFailure ? ` prior=${opts.priorFailure}` : ''}`,
   )
   params.emit({
     type: 'engine_active',
-    payload: { ts: Date.now(), engine: 'gui_plus', actualEngine: 'gui_plus', attemptIndex: 1 },
+    payload: {
+      ts: Date.now(),
+      engine: 'gui_plus',
+      actualEngine: 'gui_plus_rescue',
+      attemptIndex: 1,
+      sessionMode,
+    },
   })
 
   try {
-    browser = await chromium.launch({
-      headless,
-      args: launchOpts.args,
-      env: launchOpts.env,
-      ...(launchOpts.executablePath ? { executablePath: launchOpts.executablePath } : {}),
-    })
-    const context = await browser.newContext({
-      ...(storageState ? { storageState: storageState as any } : {}),
-      viewport: { width: 1280, height: 720 },
-    })
-    const page = await context.newPage()
-    if (startUrl) {
-      await page.goto(startUrl, { waitUntil: 'domcontentloaded', timeout: 45_000 }).catch(() => {})
+    let page: Page | any = reusePage
+    if (!page) {
+      ownsBrowser = true
+      const headless = resolveEffectiveHeadless(Boolean(params.config?.lobster?.headless))
+      const launchOpts = buildChromiumLaunchOptions(headless)
+      const storage = await resolveRunStoragePaths({
+        startUrl: params.startUrl,
+        sessionId: params.sessionId,
+        storageProfile: params.storageProfile,
+        storageDir: String(params.config?.lobster?.storageDir || '').trim() || undefined,
+      })
+      const storageState = storage.loadPath ? await readStorageStateFile(storage.loadPath) : null
+      browser = await chromium.launch({
+        headless,
+        args: launchOpts.args,
+        env: launchOpts.env,
+        ...(launchOpts.executablePath ? { executablePath: launchOpts.executablePath } : {}),
+      })
+      const context = await browser.newContext({
+        ...(storageState ? { storageState: storageState as any } : {}),
+        viewport: { width: 1280, height: 720 },
+      })
+      page = await context.newPage()
+      if (startUrl) {
+        await page.goto(startUrl, { waitUntil: 'domcontentloaded', timeout: 45_000 }).catch(() => {})
+      }
     }
 
     let terminateOk = false
     let lastTitle = ''
     let lastUrl = startUrl
+    try {
+      lastUrl = String(typeof page.url === 'function' ? page.url() : page.url || startUrl)
+    } catch {
+      lastUrl = startUrl
+    }
 
     for (let i = 0; i < maxSteps; i++) {
       await page.waitForTimeout(400)
       const shot = await page.screenshot({ type: 'png' })
       const dataUrl = `data:image/png;base64,${shot.toString('base64')}`
-      const vp = page.viewportSize() || { width: 1280, height: 720 }
-      lastUrl = page.url()
+      const vp = page.viewportSize?.() || page.viewportSize || { width: 1280, height: 720 }
+      try {
+        lastUrl = String(typeof page.url === 'function' ? page.url() : page.url || lastUrl)
+      } catch {
+        /* keep */
+      }
       lastTitle = await page.title().catch(() => '')
 
-      emitThinking(params, `gui-plus 步骤 ${i + 1}/${maxSteps} · ${lastUrl.slice(0, 80)}`)
+      emitThinking(params, `gui-plus 步骤 ${i + 1}/${maxSteps} · ${String(lastUrl).slice(0, 80)}`)
       params.emit({
         type: 'state',
         payload: { phase: 'gui_plus_step', stepCount: i + 1, pageUrl: lastUrl },
@@ -242,7 +263,7 @@ export async function runLobsterGuiPlusAgent(
       const action = parseGuiPlusToolCall(raw)
       if (!action) {
         stepsLog.push({ step: i + 1, error: 'parse_failed', preview: raw.slice(0, 160) })
-        emitThinking(params, 'gui-plus 输出无法解析，结束兜底')
+        emitThinking(params, 'gui-plus 输出无法解析，结束急救')
         break
       }
       stepsLog.push({ step: i + 1, action: action.action, coordinate: action.coordinate, status: action.status })
@@ -256,17 +277,21 @@ export async function runLobsterGuiPlusAgent(
         if (action.text) lastTitle = String(action.text).slice(0, 200)
         break
       }
-      await applyAction(page, action, { w: vp.width, h: vp.height })
+      await applyAction(page, action, { w: vp.width || 1280, h: vp.height || 720 })
     }
 
-    lastUrl = page.url()
+    try {
+      lastUrl = String(typeof page.url === 'function' ? page.url() : page.url || lastUrl)
+    } catch {
+      /* keep */
+    }
     lastTitle = lastTitle || (await page.title().catch(() => ''))
     const answer =
       lastTitle && lastUrl
         ? `标题：${lastTitle}\n链接：${lastUrl}`
         : lastUrl
           ? `页面：${lastUrl}`
-          : 'gui-plus 兜底未得到可读结果'
+          : 'gui-plus 急救未得到可读结果'
 
     const ok = terminateOk || (Boolean(lastTitle) && Boolean(lastUrl) && lastUrl !== startUrl)
     const rawOut = ensureLobsterGuiFinalPayload(
@@ -278,6 +303,7 @@ export async function runLobsterGuiPlusAgent(
         pageTitle: lastTitle,
         title: lastTitle,
         guiPlusSteps: stepsLog,
+        guiPlusSessionMode: sessionMode,
         failureType: ok ? undefined : 'gui_plus_incomplete',
         startedAt,
         finishedAt: Date.now(),
@@ -292,6 +318,8 @@ export async function runLobsterGuiPlusAgent(
       answer,
     }) as Record<string, unknown>
   } finally {
-    await browser?.close().catch(() => {})
+    if (ownsBrowser) {
+      await browser?.close().catch(() => {})
+    }
   }
 }

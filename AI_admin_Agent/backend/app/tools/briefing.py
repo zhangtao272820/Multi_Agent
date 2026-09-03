@@ -288,8 +288,10 @@ def prepare_meeting(
     )
 
 
-def weekly_report(session_id: str = "default") -> dict:
-    """生成本周工作周报草稿（待办 + 日程 + 笔记摘要）。"""
+def weekly_report(session_id: str = "default", to: str = "", subject: str = "") -> dict:
+    """生成本周工作周报草稿（待办 + 日程 + 笔记摘要），并附 Compose 预填（不发信）。"""
+    from app.core.mail_compose import compose_prefills_from_report_body
+
     now = local_now_aware()
     week_start = (now - datetime.timedelta(days=now.weekday())).strftime("%Y-%m-%d")
     lines = [f"**本周工作周报（{week_start} ~ {now.strftime('%Y-%m-%d')}）**", ""]
@@ -305,4 +307,17 @@ def weekly_report(session_id: str = "default") -> dict:
 
     lines.append("**下周计划**（请补充）\n- ")
     body = "\n".join(lines).strip()
-    return _tool_ok(body, data={"week_start": week_start}, code="weekly_ok")
+    mail_compose = compose_prefills_from_report_body(
+        body,
+        to=str(to or "").strip(),
+        subject=str(subject or "").strip() or f"工作周报（{week_start}）",
+    )
+    return _tool_ok(
+        body,
+        data={
+            "week_start": week_start,
+            "mail_compose": mail_compose,
+            "mail_compose_prefill": mail_compose,
+        },
+        code="weekly_ok",
+    )

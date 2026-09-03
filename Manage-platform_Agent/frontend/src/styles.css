@@ -1,31 +1,31 @@
-/* 紫微 · Agent 控制面 — 帝星墨色侧栏 + 雾紫工作区 + 帝金行动色 */
+/* 紫微 · Agent 控制面 — 帝星墨色侧栏 + 暖灰工作区 + 琥珀金行动色 */
 :root {
-  --bg: #f3f0f6;
+  --bg: #efeaf4;
   --bg-elevated: #fffcfe;
-  --bg-subtle: #ebe6f1;
-  --bg-hover: #e3dcea;
-  --border: #d9d2e3;
-  --border-strong: #bdb3cd;
-  --text: #1a1625;
-  --text-secondary: #4a4458;
-  --text-muted: #6e667a;
-  /* 行动色：帝金（非橙陶、非紫渐变主 CTA） */
-  --accent: #9a7b3c;
-  --accent-hover: #826632;
-  --accent-soft: #f5efdf;
-  --accent-border: #d4c29a;
-  --accent-muted: #b8954a;
+  --bg-subtle: #e4dcec;
+  --bg-hover: #d9d0e3;
+  --border: #c9bfd6;
+  --border-strong: #a89ab8;
+  --text: #16121f;
+  --text-secondary: #433c52;
+  --text-muted: #6a6178;
+  /* 行动色：琥珀金 */
+  --accent: #b8862f;
+  --accent-hover: #9a7024;
+  --accent-soft: rgba(184, 134, 47, 0.16);
+  --accent-border: rgba(184, 134, 47, 0.45);
+  --accent-muted: #d4a84a;
   /* 品牌紫仅用于标识 / 选中轨 */
   --brand: #6b4f9a;
   --brand-soft: rgba(107, 79, 154, 0.12);
   --brand-line: rgba(107, 79, 154, 0.35);
-  --ink: #14121c;
-  --ink-soft: #1e1a2a;
-  --sidebar-bg: #14121c;
-  --sidebar-elevated: #1e1a2a;
-  --sidebar-text: #d8d2e6;
-  --sidebar-muted: #8f869f;
-  --sidebar-hover: rgba(255, 255, 255, 0.06);
+  --ink: #12101a;
+  --ink-soft: #1c1828;
+  --sidebar-bg: #12101a;
+  --sidebar-elevated: #1c1828;
+  --sidebar-text: #e6ebf4;
+  --sidebar-muted: #9aa6bb;
+  --sidebar-hover: rgba(255, 255, 255, 0.08);
   --sidebar-active: #2a2438;
   --success: #0f766e;
   --success-bg: #ecfdf8;
@@ -36,23 +36,23 @@
   --danger: #b91c1c;
   --danger-bg: #fef2f2;
   --danger-border: #fecaca;
-  --neutral-bg: #ebe6f1;
-  --neutral-border: #d9d2e3;
-  --sidebar-width: 248px;
+  --neutral-bg: #e4dcec;
+  --neutral-border: #c9bfd6;
+  --sidebar-width: 256px;
   --topbar-height: 64px;
   --content-max: 1240px;
   --content-max-wide: 1400px;
   --content-gutter: clamp(20px, 3.5vw, 44px);
-  --radius: 10px;
-  --radius-sm: 7px;
-  --radius-xs: 4px;
-  --shadow-sm: none;
-  --shadow: none;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --radius-xs: 5px;
+  --shadow-sm: 0 1px 2px rgba(15, 20, 28, 0.06);
+  --shadow: 0 10px 32px rgba(15, 20, 28, 0.1);
   --font-sans: "Manrope", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --font-serif: "Noto Serif SC", "Source Han Serif SC", "Songti SC", serif;
-  --chart-axis: #6e667a;
-  --chart-grid: #d9d2e3;
+  --chart-axis: #6a6178;
+  --chart-grid: #c9bfd6;
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -94,6 +94,18 @@ body {
   max-width: none;
   padding: 0;
   height: 100%;
+  min-height: 100%;
+  overflow: hidden;
+}
+
+.page--login {
+  max-width: none;
+  margin: 0;
+  padding: 0 !important;
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+  overflow: hidden;
 }
 
 .page--monitor {

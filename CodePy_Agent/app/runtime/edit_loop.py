@@ -14,6 +14,8 @@ from app.protocol.incoming import ManagerCodeTask, parse_manager_task, resolve_t
 from app.runtime.playbook import edit_system_prompt
 from app.tools.fs_sandbox import SandboxError, list_dir, read_file, search_in_files
 from app.tools.search_replace import apply_search_replace, preview_search_replace
+from app.tools.shell_sandbox import run_terminal
+from app.pending_patch import save_pending_patch
 
 SendFn = Callable[[dict[str, Any]], Awaitable[None] | None]
 
@@ -56,18 +58,33 @@ _READ_TOOLS = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "run_terminal",
+            "description": "在沙箱内执行白名单命令（pytest/npm/ls/git status|diff 等）",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "command": {"type": "string"},
+                    "cwd": {"type": "string", "description": "相对工程根的工作目录"},
+                },
+                "required": ["command"],
+            },
+        },
+    },
 ]
 
 _WRITE_TOOL = {
     "type": "function",
     "function": {
         "name": "propose_patch",
-        "description": "提交 SEARCH/REPLACE 补丁预览（首行路径 + SEARCH/REPLACE 块）",
+        "description": "提交 SEARCH/REPLACE 补丁预览（首行路径 + SEARCH/REPLACE 块）；默认不写盘，进入 pending 待确认",
         "parameters": {
             "type": "object",
             "properties": {
                 "patch": {"type": "string"},
-                "apply": {"type": "boolean", "description": "true 时尝试写盘（需 WRITE_TOOL_ENABLED）"},
+                "apply": {"type": "boolean", "description": "true 时尝试写盘（需 WRITE_TOOL_ENABLED + write_allowed + confirm）"},
             },
             "required": ["patch"],
         },
@@ -122,6 +139,12 @@ def _tool_result(
         if name == "search_code":
             hits = search_in_files(str(args.get("query") or ""), root_override=root)
             return {"ok": True, "hits": hits}
+        if name == "run_terminal":
+            return run_terminal(
+                str(args.get("command") or ""),
+                cwd=str(args.get("cwd") or "") or None,
+                root_override=root,
+            )
         if name == "propose_patch":
             if task_kind in ("inspect", "compute"):
                 return {"ok": False, "error": "propose_patch not available for inspect/compute"}
@@ -129,7 +152,25 @@ def _tool_result(
             apply = bool(args.get("apply")) and write_apply_allowed(manager, task_kind=task_kind)
             if apply and settings.write_tool_enabled:
                 return apply_search_replace(patch, root_override=root, require_write_enabled=True)
-            return preview_search_replace(patch, root_override=root)
+            preview = preview_search_replace(patch, root_override=root)
+            if preview.get("ok"):
+                pid = save_pending_patch(
+                    {
+                        "kind": "edit",
+                        "patch": patch,
+                        "root": root or "",
+                        "files": preview.get("files") or preview.get("files_touched") or [],
+                        "unified_diff": preview.get("unified_diff") or "",
+                        "preview": preview,
+                    }
+                )
+                preview = {
+                    **preview,
+                    "pending_patch_id": pid,
+                    "needs_human_confirm": True,
+                    "applied": False,
+                }
+            return preview
         return {"ok": False, "error": f"unknown tool {name}"}
     except SandboxError as e:
         return {"ok": False, "error": str(e)}
@@ -198,8 +239,10 @@ async def run_edit_loop(
 
     files_touched: list[str] = []
     unified_diff = ""
+    pending_patch_id = ""
     tool_calls_n = 0
     final_text = ""
+    terminal_runs: list[dict[str, Any]] = []
 
     for _round in range(settings.edit_max_rounds):
         msg = await chat_messages(messages=messages, tools=tools, max_tokens=settings.llm_json_max_tokens)
@@ -232,11 +275,21 @@ async def run_edit_loop(
                 task_kind=task_kind,
                 manager=manager,
             )
+            if name == "run_terminal":
+                terminal_runs.append(
+                    {
+                        "command": str((args if isinstance(args, dict) else {}).get("command") or ""),
+                        "exit_code": result.get("exit_code"),
+                        "ok": result.get("ok"),
+                    }
+                )
             if name == "propose_patch" and result.get("ok"):
                 files = [str(x) for x in (result.get("files") or result.get("files_touched") or [])]
                 files_touched.extend(files)
                 if result.get("unified_diff"):
                     unified_diff = str(result["unified_diff"])
+                if result.get("pending_patch_id"):
+                    pending_patch_id = str(result["pending_patch_id"])
                 await _emit(
                     send,
                     {
@@ -244,6 +297,8 @@ async def run_edit_loop(
                         "files": files,
                         "unified_diff": unified_diff[:12000],
                         "diff_stat": f"{len(files)} file(s)",
+                        "pending_patch_id": pending_patch_id,
+                        "needs_human_confirm": bool(result.get("needs_human_confirm")),
                     },
                 )
             messages.append(
@@ -272,6 +327,14 @@ async def run_edit_loop(
         "tool_calls": tool_calls_n,
         "validate_ok": True if task_kind != "edit" else (bool(files_touched) or True),
         "unified_diff": unified_diff[:8000] if unified_diff else None,
+        "edit_preview": {
+            "files": list(dict.fromkeys(files_touched)),
+            "unified_diff": unified_diff[:8000] if unified_diff else None,
+            "diff_stat": f"{len(list(dict.fromkeys(files_touched)))} file(s)" if files_touched else None,
+        },
+        "pending_patch_id": pending_patch_id or None,
+        "needs_human_confirm": bool(pending_patch_id),
+        "terminal_runs": terminal_runs[-8:],
     }
     await _emit(send, {"type": "meta", "payload": meta})
     await _emit(send, {"type": "done"})
@@ -285,6 +348,13 @@ async def run_edit_loop(
         validate_ok=meta["validate_ok"],
         unified_diff=unified_diff or None,
     )
+    if isinstance(agent_result.get("structured"), dict):
+        if pending_patch_id:
+            agent_result["structured"]["pending_patch_id"] = pending_patch_id
+            agent_result["structured"]["needs_human_confirm"] = True
+            agent_result["structured"]["pending_actions"] = [
+                {"id": pending_patch_id, "tool": "apply_patch", "title": "确认写盘"}
+            ]
     return {
         "ok": bool(final_text.strip()) or bool(files_touched),
         "answer": final_text,

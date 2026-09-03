@@ -18,6 +18,33 @@ function getPage(stagehand: any): any | null {
   }
 }
 
+/** 供 router / gui-plus 同会话急救复用 */
+export function getStagehandPage(stagehand: any): any | null {
+  return getPage(stagehand)
+}
+
+async function linkLooksVisible(link: any): Promise<boolean> {
+  try {
+    if (typeof link.isVisible === 'function') return Boolean(await link.isVisible())
+  } catch {
+    /* ignore */
+  }
+  return true
+}
+
+/** header/nav 噪音降权（DOM 结构，非用户意图 regex） */
+async function linkInChromeNav(link: any): Promise<boolean> {
+  try {
+    return Boolean(
+      await link.evaluate((el: Element) => {
+        return Boolean(el.closest('nav, header, [role="navigation"], .navbar, #nav, .top-nav, .menu-bar'))
+      }),
+    )
+  } catch {
+    return false
+  }
+}
+
 /**
  * 关键帧截图（JPEG）供总管进度条 / HITL；体积远小于 PNG，避免撑爆 WS。
  */
@@ -113,7 +140,7 @@ export type PlaywrightClickOpts = {
   scanLimit?: number
 }
 
-/** 按计划目标/任务，点第一个像「内容入口」的链接（非导航栏噪音） */
+/** 按计划目标/任务，点第一个像「内容入口」的链接（优先可见 + 非 nav chrome） */
 export async function playwrightClickContentLink(
   stagehand: any,
   input: PlaywrightClickOpts,
@@ -154,11 +181,18 @@ export async function playwrightClickContentLink(
     if (text && NAV_SKIP_RE.test(text)) continue
     if (text.length > 120) continue
 
+    const visible = await linkLooksVisible(link)
+    if (!visible) continue
+    const inNav = await linkInChromeNav(link)
+
     let score = 1
     if (!text) score -= 1
+    if (inNav) score -= 6
+    else score += 3
     score += scoreLinkAgainstHints(text, href, tokens)
-    if (preferTutorial && /学习|教程|入门|Python|Java|HTML|CSS|JS|前端|后端/.test(text)) score += 5
-    if (/【学习/.test(text)) score += 4
+    // 轻量内容启发（DOM 打分，非意图路由）
+    if (preferTutorial && /学习|教程|入门|Python|Java|HTML|CSS|JS|前端|后端/.test(text)) score += 3
+    if (/【学习/.test(text)) score += 2
     try {
       const abs = new URL(href, startUrl || 'https://example.com/')
       const startPath = (() => {
@@ -169,10 +203,8 @@ export async function playwrightClickContentLink(
         }
       })()
       const p = abs.pathname.replace(/\/$/, '') || '/'
-      if (p !== startPath && p.length >= 2) score += 2
+      if (p !== startPath && p.length >= 2) score += 3
       if (/\.(htm|html)(\?|$)/i.test(p)) score += 2
-      if (/\/(python|java|html|css|js|jquery|bootstrap|sql|csharp|cplusplus|php|vue|react|nodejs)/i.test(p))
-        score += 4
     } catch {
       /* ignore */
     }
@@ -180,7 +212,7 @@ export async function playwrightClickContentLink(
     cands.push({ i, text: text || href, href, score })
   }
 
-  // 若评分全被滤掉：退化为点第一个离开首页的 html 链接
+  // 若评分全被滤掉：退化为第一个可见、离开首页的链接
   if (!cands.length) {
     for (let i = 0; i < n; i++) {
       const link = links.nth(i)
@@ -191,6 +223,8 @@ export async function playwrightClickContentLink(
         continue
       }
       if (!hrefLooksNavigable(href, startUrl)) continue
+      if (!(await linkLooksVisible(link))) continue
+      if (await linkInChromeNav(link)) continue
       try {
         const abs = new URL(href, startUrl || 'https://example.com/')
         const start = new URL(startUrl || abs.href)
@@ -211,7 +245,9 @@ export async function playwrightClickContentLink(
   if (!top) return { ok: false, reason: 'no_content_link' }
 
   try {
-    await links.nth(top.i).click({ timeout: 10000 })
+    const target = links.nth(top.i)
+    await target.scrollIntoViewIfNeeded?.().catch(() => {})
+    await target.click({ timeout: 10000 })
     try {
       await page.waitForLoadState?.('domcontentloaded', { timeout: 15000 })
     } catch {
@@ -263,13 +299,85 @@ export function isInstructionalFillTarget(target: string): boolean {
   if (!t) return true
   if (t.length > 64) return true
   if (
-    /按任务|填写表单|表单字段|可见输入|输入框|填入用户|根据任务|完成填写|用户任务|步骤说明|禁止把/i.test(
+    /按任务|填写表单|表单字段|可见输入|输入框|搜索框|填入用户|根据任务|完成填写|用户任务|步骤说明|禁止把|关键词并搜索/i.test(
       t,
     )
   ) {
     return true
   }
   return false
+}
+
+/**
+ * 搜索框输入并提交（role=searchbox / 常见 name=wd|q|query）。
+ * 供 task_kind=search；禁止把「在搜索框输入…」说明当字面值盲填。
+ */
+export async function playwrightPerformSearch(
+  stagehand: any,
+  input: { query: string },
+): Promise<{ ok: boolean; url?: string; reason?: string }> {
+  const page = getPage(stagehand)
+  if (!page) return { ok: false, reason: 'no_page' }
+  const q = String(input.query || '').trim()
+  if (!q) return { ok: false, reason: 'empty_query' }
+
+  const startUrl =
+    typeof page.url === 'function' ? String(page.url() || '') : String(page.url || '')
+
+  const tryFill = async (loc: any): Promise<boolean> => {
+    try {
+      await loc.click({ timeout: 4000 }).catch(() => {})
+      await loc.fill(q, { timeout: 8000 })
+      const got = String((await loc.inputValue?.().catch(() => '')) || '').trim()
+      return !got || got.includes(q.slice(0, Math.min(8, q.length)))
+    } catch {
+      return false
+    }
+  }
+
+  let filled = false
+  if (typeof page.getByRole === 'function') {
+    filled = await tryFill(page.getByRole('searchbox').first())
+    if (!filled) filled = await tryFill(page.getByRole('textbox', { name: /搜索|search/i }).first())
+  }
+  if (!filled) {
+    const sels = [
+      'input[name="wd"]',
+      'input#kw',
+      'input[name="q"]',
+      'input[name="query"]',
+      'input[type="search"]',
+      'textarea[name="wd"]',
+    ]
+    for (const sel of sels) {
+      filled = await tryFill(page.locator(sel).first())
+      if (filled) break
+    }
+  }
+  if (!filled) return { ok: false, reason: 'searchbox_not_found' }
+
+  try {
+    await page.keyboard.press('Enter')
+  } catch {
+    try {
+      await page.locator('button[type=submit], input[type=submit], #su, button:has-text("搜索")').first().click({
+        timeout: 5000,
+      })
+    } catch (e: any) {
+      return { ok: false, reason: String(e?.message || e).slice(0, 120) }
+    }
+  }
+  try {
+    await page.waitForLoadState?.('domcontentloaded', { timeout: 15000 })
+  } catch {
+    /* ignore */
+  }
+  await new Promise((r) => setTimeout(r, 500))
+  const url = typeof page.url === 'function' ? String(page.url() || '') : String(page.url || '')
+  const leftHome = startUrl && url && !sameHomeUrl(url, startUrl)
+  const looksResults = /[?&](wd|q|query|keyword)=/i.test(url) || /\/s(\?|$)/i.test(url)
+  if (!leftHome && !looksResults) return { ok: false, reason: 'search_no_navigation', url }
+  return { ok: true, url }
 }
 
 async function readLocatorValue(loc: any): Promise<string> {
@@ -290,15 +398,30 @@ async function readLocatorValue(loc: any): Promise<string> {
 async function tryFillLocator(
   loc: any,
   value: string,
+  opts?: { password?: boolean },
 ): Promise<'ok' | 'value_mismatch' | 'fail'> {
   try {
     await loc.fill(value.slice(0, 200), { timeout: 8000 })
+    // 部分站点 password 控件 inputValue 为空或不可读；fill 未抛错即视为写入成功
+    if (opts?.password) {
+      try {
+        const got = await readLocatorValue(loc)
+        if (!got || got === value.slice(0, 200)) return 'ok'
+        return 'value_mismatch'
+      } catch {
+        return 'ok'
+      }
+    }
     const got = await readLocatorValue(loc)
     if (got === value.slice(0, 200)) return 'ok'
     return 'value_mismatch'
   } catch {
     return 'fail'
   }
+}
+
+function isPasswordFieldKey(key: string): boolean {
+  return /pass(word)?|pwd|passwd|密码/i.test(String(key || ''))
 }
 
 function labelCandidatesForField(field: {
@@ -327,6 +450,21 @@ function labelCandidatesForField(field: {
     names.add('Customer name')
     names.add('客户名')
   }
+  if (/user(name)?|login|account|账号|用户名/i.test(key)) {
+    names.add('Username')
+    names.add('User name')
+    names.add('用户名')
+    names.add('账号')
+  }
+  if (/e-?mail|邮箱/i.test(key)) {
+    names.add('Email')
+    names.add('E-mail')
+    names.add('邮箱')
+  }
+  if (isPasswordFieldKey(key)) {
+    names.add('Password')
+    names.add('密码')
+  }
   return [...names]
 }
 
@@ -353,6 +491,8 @@ export async function playwrightFillFormFields(
         (r.aliases || []).some((a) => String(a).toLowerCase() === key),
       )
     const outKey = recipe?.key || field.key
+    const asPassword = isPasswordFieldKey(key) || isPasswordFieldKey(outKey)
+    const fillOpts = asPassword ? { password: true } : undefined
     const selectors = [
       ...(recipe?.selectors || []),
       `input[name="${key}"]`,
@@ -360,6 +500,21 @@ export async function playwrightFillFormFields(
       `textarea[name="${key}"]`,
       `input[name="${outKey}"]`,
       `input#${outKey}`,
+      ...(asPassword
+        ? ['input[type="password"]', 'input[autocomplete="current-password"]', 'input[autocomplete="new-password"]']
+        : []),
+      ...(/user(name)?|login|account/i.test(key)
+        ? [
+            'input[autocomplete="username"]',
+            'input[name="username"]',
+            'input#username',
+            'input[name="user"]',
+            'input[type="text"]',
+          ]
+        : []),
+      ...(/e-?mail/i.test(key)
+        ? ['input[type="email"]', 'input[autocomplete="email"]', 'input[name="email"]']
+        : []),
     ].filter(Boolean)
 
     let wrote = false
@@ -368,7 +523,7 @@ export async function playwrightFillFormFields(
     for (const sel of selectors) {
       try {
         const loc = page.locator(sel).first()
-        const status = await tryFillLocator(loc, value)
+        const status = await tryFillLocator(loc, value, fillOpts)
         if (status === 'ok') {
           filled.push({ key: outKey, value })
           wrote = true
@@ -384,18 +539,10 @@ export async function playwrightFillFormFields(
       const labels = labelCandidatesForField({ key: field.key, recipe })
       for (const label of labels) {
         if (typeof page.getByLabel === 'function') {
-          const status = await tryFillLocator(page.getByLabel(label, { exact: false }).first(), value)
-          if (status === 'ok') {
-            filled.push({ key: outKey, value })
-            wrote = true
-            break
-          }
-          if (status === 'value_mismatch') lastMismatch = true
-        }
-        if (typeof page.getByRole === 'function') {
           const status = await tryFillLocator(
-            page.getByRole('textbox', { name: label }).first(),
+            page.getByLabel(label, { exact: false }).first(),
             value,
+            fillOpts,
           )
           if (status === 'ok') {
             filled.push({ key: outKey, value })
@@ -404,6 +551,65 @@ export async function playwrightFillFormFields(
           }
           if (status === 'value_mismatch') lastMismatch = true
         }
+        if (typeof page.getByRole === 'function') {
+          if (asPassword) {
+            // Playwright 无 password role；优先 textbox + name，再退回 type=password 已在 selectors
+            const status = await tryFillLocator(
+              page.getByRole('textbox', { name: label }).first(),
+              value,
+              fillOpts,
+            )
+            if (status === 'ok') {
+              filled.push({ key: outKey, value })
+              wrote = true
+              break
+            }
+            if (status === 'value_mismatch') lastMismatch = true
+          } else {
+            const status = await tryFillLocator(
+              page.getByRole('textbox', { name: label }).first(),
+              value,
+              fillOpts,
+            )
+            if (status === 'ok') {
+              filled.push({ key: outKey, value })
+              wrote = true
+              break
+            }
+            if (status === 'value_mismatch') lastMismatch = true
+          }
+        }
+        if (typeof page.getByPlaceholder === 'function') {
+          const status = await tryFillLocator(
+            page.getByPlaceholder(label, { exact: false }).first(),
+            value,
+            fillOpts,
+          )
+          if (status === 'ok') {
+            filled.push({ key: outKey, value })
+            wrote = true
+            break
+          }
+          if (status === 'value_mismatch') lastMismatch = true
+        }
+      }
+    }
+
+    if (!wrote && typeof page.getByPlaceholder === 'function') {
+      for (const ph of [key, outKey, field.key]) {
+        const p = String(ph || '').trim()
+        if (!p) continue
+        const status = await tryFillLocator(
+          page.getByPlaceholder(p, { exact: false }).first(),
+          value,
+          fillOpts,
+        )
+        if (status === 'ok') {
+          filled.push({ key: outKey, value })
+          wrote = true
+          break
+        }
+        if (status === 'value_mismatch') lastMismatch = true
       }
     }
 

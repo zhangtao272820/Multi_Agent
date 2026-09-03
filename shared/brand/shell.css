@@ -1,36 +1,4 @@
-/* 生产风壳体 — 有层次、不花哨 */
-
-.brand-shell {
-  position: relative;
-  min-height: 100vh;
-  isolation: isolate;
-  color: var(--brand-text);
-  font-family: var(--brand-font-sans);
-  background:
-    radial-gradient(1100px 520px at 8% -12%, var(--brand-wash-a), transparent 58%),
-    radial-gradient(900px 480px at 96% 0%, var(--brand-wash-b), transparent 52%),
-    linear-gradient(180deg, #f4f6fa 0%, var(--brand-bg) 42%, #e8edf5 100%);
-  -webkit-font-smoothing: antialiased;
-}
-
-.brand-shell::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  opacity: 0.35;
-  background-image:
-    linear-gradient(rgba(22, 26, 34, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(22, 26, 34, 0.03) 1px, transparent 1px);
-  background-size: 48px 48px;
-  mask-image: radial-gradient(ellipse 80% 70% at 50% 30%, #000 20%, transparent 75%);
-}
-
-.brand-shell > *:not(.brand-motif) {
-  position: relative;
-  z-index: 1;
-}
+/* 生产风壳体组件 — 氛围底由 surfaces.css 提供 */
 
 .brand-topbar {
   display: flex;
@@ -104,19 +72,6 @@
   box-shadow: var(--brand-shadow-sm);
 }
 
-.brand-panel {
-  background: var(--brand-panel);
-  border: 1px solid var(--brand-border);
-  border-radius: var(--brand-radius);
-  box-shadow: var(--brand-shadow-panel);
-  backdrop-filter: blur(10px);
-}
-
-.brand-panel--solid {
-  background: var(--brand-panel-solid);
-  backdrop-filter: none;
-}
-
 .brand-chip {
   display: inline-flex;
   align-items: center;
@@ -173,24 +128,42 @@
   border-radius: var(--brand-radius-sm);
   padding: 8px 14px;
   font: inherit;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
-  transition: background 0.18s var(--brand-ease), border-color 0.18s var(--brand-ease), color 0.18s var(--brand-ease);
+  transition:
+    background 0.18s var(--brand-ease),
+    border-color 0.18s var(--brand-ease),
+    color 0.18s var(--brand-ease),
+    box-shadow 0.18s var(--brand-ease),
+    transform 0.15s var(--brand-ease);
 }
 
 .brand-btn--primary {
-  background: var(--brand-accent);
-  color: #fff;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--brand-accent) 72%, #fff),
+    var(--brand-accent) 48%,
+    var(--brand-accent-hover)
+  );
+  border-color: var(--brand-accent-hover);
+  color: var(--brand-accent-contrast, #fff);
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--brand-accent) 38%, transparent);
 }
 
 .brand-btn--primary:hover {
-  background: var(--brand-accent-hover);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--brand-accent) 58%, #fff),
+    var(--brand-accent-hover)
+  );
+  box-shadow: 0 10px 26px color-mix(in srgb, var(--brand-accent) 46%, transparent);
 }
 
 .brand-btn--secondary {
-  background: var(--brand-bg-elevated);
+  background: rgba(255, 255, 255, 0.92);
   border-color: var(--brand-border);
   color: var(--brand-text);
+  box-shadow: var(--brand-shadow-sm);
 }
 
 .brand-btn--secondary:hover {
@@ -208,64 +181,80 @@
   color: var(--brand-text);
 }
 
-/* —— 深色工作区壳体（可被各 data-agent 色调覆盖） —— */
-.brand-shell--dark {
-  color-scheme: dark;
-  color: var(--brand-dark-text);
-  background:
-    radial-gradient(1000px 480px at 12% -8%, var(--brand-wash-a), transparent 55%),
-    radial-gradient(860px 420px at 92% 4%, var(--brand-wash-b), transparent 50%),
-    radial-gradient(640px 360px at 50% 100%, color-mix(in srgb, var(--brand-accent) 10%, transparent), transparent 70%),
-    linear-gradient(165deg, color-mix(in srgb, var(--brand-dark-bg-elevated) 80%, #000) 0%, var(--brand-dark-bg) 48%, #0a0c10 100%);
+/* —— 精品控件原语（各站 theme 可复用 / 覆盖） —— */
+.brand-glass-bar {
+  background: rgba(255, 255, 255, 0.9) !important;
+  border-bottom: 1px solid color-mix(in srgb, var(--brand-accent) 22%, var(--brand-border)) !important;
+  box-shadow: 0 10px 32px color-mix(in srgb, var(--brand-accent) 12%, rgba(15, 20, 28, 0.08)) !important;
+  backdrop-filter: blur(14px) saturate(1.1) !important;
+  -webkit-backdrop-filter: blur(14px) saturate(1.1) !important;
+  color: var(--brand-ink) !important;
 }
 
-.brand-shell--dark::before {
-  opacity: 0.22;
-  background-image:
-    linear-gradient(color-mix(in srgb, var(--brand-accent) 12%, transparent) 1px, transparent 1px),
-    linear-gradient(90deg, color-mix(in srgb, var(--brand-accent) 10%, transparent) 1px, transparent 1px);
-  background-size: 56px 56px;
-  mask-image: radial-gradient(ellipse 75% 65% at 50% 28%, #000 15%, transparent 72%);
+.brand-glass-panel {
+  background: rgba(255, 255, 255, 0.94) !important;
+  border: 1px solid color-mix(in srgb, var(--brand-accent) 20%, var(--brand-border)) !important;
+  border-radius: 14px !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.72) inset,
+    0 14px 40px color-mix(in srgb, var(--brand-accent) 10%, rgba(15, 20, 28, 0.1)) !important;
+  color: var(--brand-text) !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  padding: 18px 20px;
+  box-sizing: border-box;
 }
 
-/* 四站氛围点缀：静态光晕层（非动态 canvas） */
-.brand-shell--dark[data-agent="rag"]::after,
-.brand-shell--dark[data-agent="db"]::after,
-.brand-shell--dark[data-agent="code"]::after,
-.brand-shell--dark[data-agent="admin"]::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  opacity: 0.55;
+/* 工作区内容槽：避免对话/卡片贴边或右对齐元素被裁切 */
+.brand-content-pad {
+  padding: 16px 20px 20px;
+  box-sizing: border-box;
 }
 
-.brand-shell--dark[data-agent="rag"]::after {
-  background:
-    radial-gradient(circle at 88% 8%, rgba(220, 230, 255, 0.14), transparent 28%),
-    radial-gradient(circle at 18% 72%, rgba(100, 130, 210, 0.1), transparent 40%);
+.brand-thread-pad {
+  padding: 16px 20px 24px !important;
+  box-sizing: border-box !important;
 }
 
-.brand-shell--dark[data-agent="db"]::after {
-  background:
-    radial-gradient(ellipse 70% 40% at 50% 0%, rgba(46, 196, 182, 0.14), transparent 55%),
-    linear-gradient(180deg, transparent 60%, rgba(10, 40, 48, 0.45) 100%);
+.brand-composer-shell {
+  background: rgba(255, 255, 255, 0.96) !important;
+  border: 1px solid color-mix(in srgb, var(--brand-accent) 28%, var(--brand-border)) !important;
+  border-radius: 18px !important;
+  box-shadow: 0 16px 44px color-mix(in srgb, var(--brand-accent) 14%, rgba(15, 20, 28, 0.12)) !important;
 }
 
-.brand-shell--dark[data-agent="code"]::after {
-  background:
-    radial-gradient(circle at 16% 12%, rgba(255, 200, 100, 0.16), transparent 32%),
-    radial-gradient(circle at 78% 0%, rgba(220, 120, 40, 0.1), transparent 36%),
-    linear-gradient(180deg, transparent 70%, rgba(40, 20, 8, 0.35) 100%);
+.brand-field-focus:focus,
+.brand-field-focus:focus-visible {
+  outline: none !important;
+  border-color: var(--brand-accent) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-accent) 22%, transparent) !important;
 }
 
-.brand-shell--dark[data-agent="admin"]::after {
-  background:
-    radial-gradient(circle at 80% 10%, rgba(255, 230, 170, 0.12), transparent 30%),
-    radial-gradient(circle at 20% 90%, rgba(120, 90, 40, 0.12), transparent 42%);
+.brand-modal-backdrop {
+  background: rgba(8, 12, 20, 0.48) !important;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 }
 
+.brand-modal-dialog {
+  background: rgba(255, 255, 255, 0.96) !important;
+  border: 1px solid color-mix(in srgb, var(--brand-accent) 28%, var(--brand-border)) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 28px 72px rgba(15, 23, 42, 0.32) !important;
+  color: var(--brand-text) !important;
+}
+
+.brand-login-card {
+  background: rgba(255, 255, 255, 0.94) !important;
+  border: 1px solid color-mix(in srgb, var(--brand-accent) 28%, var(--brand-border)) !important;
+  border-radius: 18px !important;
+  box-shadow: 0 28px 72px rgba(15, 23, 42, 0.28) !important;
+  color: var(--brand-text) !important;
+  backdrop-filter: blur(18px) saturate(1.15);
+  -webkit-backdrop-filter: blur(18px) saturate(1.15);
+}
+
+/* —— 深色工作区组件（氛围底见 surfaces.css） —— */
 .brand-shell--dark .brand-topbar {
   border-bottom-color: var(--brand-dark-border);
   background: color-mix(in srgb, var(--brand-dark-bg-elevated) 88%, transparent);
@@ -441,4 +430,137 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--brand-dark-text-muted);
+}
+
+/* —— 统一登录卡精品层（浅色站；Admin 深色由 admin-theme 覆盖） —— */
+.claw-login {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.claw-login .claw-login__card {
+  width: min(440px, 100%);
+  padding: 36px 32px 28px;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid color-mix(in srgb, var(--brand-accent) 28%, var(--brand-border));
+  border-radius: 18px;
+  box-shadow: 0 28px 72px rgba(15, 23, 42, 0.28);
+  color: var(--brand-text);
+  backdrop-filter: blur(18px) saturate(1.15);
+  -webkit-backdrop-filter: blur(18px) saturate(1.15);
+}
+
+.claw-login .claw-login__eyebrow {
+  color: var(--brand-accent-hover);
+  letter-spacing: 0.14em;
+  font-weight: 750;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.claw-login .claw-login__card h1 {
+  color: var(--brand-ink);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.claw-login .claw-login__sub {
+  color: var(--brand-text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.claw-login .claw-login__field span,
+.claw-login .claw-login__field {
+  color: var(--brand-accent-hover);
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.claw-login .claw-login__field input {
+  width: 100%;
+  margin-top: 6px;
+  padding: 12px 14px;
+  background: #fff;
+  border: 1px solid var(--brand-border);
+  border-radius: 11px;
+  color: var(--brand-text);
+  font: inherit;
+}
+
+.claw-login .claw-login__field input:focus {
+  outline: none;
+  border-color: var(--brand-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-accent) 22%, transparent);
+}
+
+.claw-login .claw-login__err {
+  background: var(--brand-danger-bg);
+  border: 1px solid color-mix(in srgb, var(--brand-danger) 35%, transparent);
+  color: var(--brand-danger);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 13px;
+}
+
+.claw-login .claw-login__card button[type="submit"],
+.claw-login .claw-login__submit,
+.claw-login button[type="submit"] {
+  width: 100%;
+  margin-top: 8px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--brand-accent-hover);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--brand-accent) 72%, #fff),
+    var(--brand-accent) 48%,
+    var(--brand-accent-hover)
+  );
+  color: var(--brand-accent-contrast, #fff);
+  font-weight: 800;
+  font: inherit;
+  cursor: pointer;
+  box-shadow: 0 10px 28px color-mix(in srgb, var(--brand-accent) 38%, transparent);
+}
+
+.claw-login .claw-login__card button[type="submit"]:disabled,
+.claw-login .claw-login__submit:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+/* Admin 登录深色金褐 */
+.claw-login[data-agent="admin"] .claw-login__card,
+.admin-shell.claw-login .claw-login__card {
+  background: rgba(30, 26, 21, 0.92);
+  border-color: rgba(232, 196, 110, 0.4);
+  color: #f3ead8;
+  box-shadow: 0 28px 72px rgba(0, 0, 0, 0.5);
+}
+
+.claw-login[data-agent="admin"] .claw-login__card h1,
+.admin-shell.claw-login .claw-login__card h1 {
+  color: #ffe7a8;
+}
+
+.claw-login[data-agent="admin"] .claw-login__sub,
+.admin-shell.claw-login .claw-login__sub {
+  color: #d2c09a;
+}
+
+.claw-login[data-agent="admin"] .claw-login__field input,
+.admin-shell.claw-login .claw-login__field input {
+  background: rgba(14, 12, 10, 0.9);
+  border-color: rgba(212, 168, 42, 0.35);
+  color: #f3ead8;
+}
+
+.claw-login[data-agent="admin"] .claw-login__card button[type="submit"],
+.admin-shell.claw-login button[type="submit"] {
+  background: linear-gradient(135deg, #f0d78a, #d4a84a 48%, #b8860b);
+  border-color: #ffe7a8;
+  color: #1a1510;
 }

@@ -62,6 +62,9 @@ class ManagerDbTask:
     hint_tables: list[str] = field(default_factory=list)
     hint_fields: list[str] = field(default_factory=list)
     turn_scope: TurnScope | None = None
+    write_allowed: bool = False
+    confirm_token: str = ""
+    pending_id: str = ""
     raw: dict[str, Any] = field(default_factory=dict)
 
     @property
@@ -107,6 +110,9 @@ def parse_manager_task(raw: str | dict[str, Any] | None) -> ManagerDbTask:
         hint_tables=_as_str_list(data.get("hint_tables")),
         hint_fields=_as_str_list(data.get("hint_fields")),
         turn_scope=scope,
+        write_allowed=bool(data.get("write_allowed")),
+        confirm_token=str(data.get("confirm_token") or "").strip(),
+        pending_id=str(data.get("pending_id") or "").strip(),
         raw=data,
     )
 
@@ -143,7 +149,11 @@ def resolve_auth_mode() -> str:
         return "require"
     if raw == "optional":
         return "optional"
-    return "off"
+    prof = str(os.getenv("AGENT_SECURITY_PROFILE") or os.getenv("MANAGER_SECURITY_MODE") or "").strip().lower()
+    if prof in {"enterprise", "prod", "production", "strict", "fail_closed", "fail-closed"}:
+        return "require"
+    token = resolve_service_token()
+    return "optional" if token else "off"
 
 
 def header_get(headers: dict[str, Any] | None, name: str) -> str:
@@ -239,10 +249,14 @@ def build_db_agent_result(
     rows: list[dict[str, Any]] | None = None,
     field_details: list[dict[str, str]] | None = None,
     experience_hits: int = 0,
+    needs_human_confirm: bool = False,
+    pending_actions: list[dict[str, Any]] | None = None,
+    pending_id: str = "",
 ) -> dict[str, Any]:
     if needs_clarify:
         code = error_code or "needs_clarify"
     elif empty:
+        # 成功执行但 0 行：业务空结果，不是 Agent 故障
         code = error_code or "empty_result"
     elif error_code:
         code = error_code
@@ -250,10 +264,12 @@ def build_db_agent_result(
         code = error_code or "business"
     else:
         code = error_code
-    failed = bool(empty or needs_clarify or code)
+    # empty_result alone → ok=true（保留 structured.empty / error_code 供证据）
+    # pending HITL 也是 ok=true（未失败，等待确认）
+    failed = bool(needs_clarify) or bool(code and code != "empty_result" and not needs_human_confirm)
     structured: dict[str, Any] = {
         "empty": empty,
-        "reason": reason,
+        "reason": reason or ("empty_result" if empty else "ok"),
     }
     if path:
         structured["path"] = path
@@ -261,6 +277,12 @@ def build_db_agent_result(
         structured["error_code"] = code
     if executed_sql:
         structured["executed_sql"] = executed_sql
+    if needs_human_confirm:
+        structured["needs_human_confirm"] = True
+    if pending_id:
+        structured["pending_id"] = pending_id
+    if pending_actions:
+        structured["pending_actions"] = pending_actions
     if tables:
         structured["tables"] = tables[:12]
     if rows:

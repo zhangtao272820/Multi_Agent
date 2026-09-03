@@ -1,0 +1,27 @@
+/* DB 舒适层：取消节气大图 / motif */
+
+.db-season-bg,
+.db-shell .brand-motif,
+.claw-login .db-season-bg,
+.claw-login .brand-motif {
+  display: none !important;
+}
+
+.db-shell,
+.db-body {
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--brand-accent, #2ec4b6) 8%, #f4faf9) 0%,
+      var(--brand-bg, #eef1f6) 45%,
+      #e6f0ee 100%
+    ) !important;
+}
+
+.claw-login {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: var(--brand-bg, #eef1f6);
+}

@@ -3,6 +3,8 @@
  * Key 规范：{service}:{tenant}:{type}:{id}
  */
 
+import { isEnterpriseSecurityProfile } from './securityProfile'
+
 export const GLOBAL_BASELINE_TENANT_ID = '_global_'
 
 export type TenantScope = {
@@ -22,12 +24,13 @@ export function isTenantScopeEnabled(env: NodeJS.ProcessEnv = process.env): bool
   return String(env.MGR_TENANT_SCOPE ?? '1').trim() !== '0'
 }
 
-/** 生产默认 fail-closed：禁止静默用 default 做跨租户召回 */
+/** 生产 / 企业档默认 fail-closed：禁止静默用 default 做跨租户召回 */
 export function isTenantFailClosed(env: NodeJS.ProcessEnv = process.env): boolean {
   if (!isTenantScopeEnabled(env)) return false
   const v = String(env.MGR_TENANT_FAIL_CLOSED ?? '').trim()
   if (v === '0' || v.toLowerCase() === 'false') return false
   if (v === '1' || v.toLowerCase() === 'true') return true
+  if (isEnterpriseSecurityProfile(env)) return true
   return String(env.NODE_ENV || '').trim() === 'production'
 }
 

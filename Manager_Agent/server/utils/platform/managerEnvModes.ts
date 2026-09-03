@@ -5,6 +5,7 @@
  */
 
 import { existsSync } from 'node:fs'
+import { isEnterpriseSecurityProfile } from '#agent-shared/securityProfile'
 
 export type ManagerRouteMode = 'convergence' | /** @deprecated B4: 仅 smoke/迁移；主路径用 convergence */ 'legacy' | /** @deprecated B4: 仅 smoke/实验；主路径用 convergence */ 'heuristic'
 /** gated = 可写可看板、路由 hint 默认不注入编排（防污染折中） */
@@ -123,6 +124,8 @@ export function resolveManagerAuthMode(env: NodeJS.ProcessEnv = process.env): Ma
   if (explicit) return explicit
   if (isEnvOnToken(env.MANAGER_WS_AUTH)) return 'token'
   if (isEnvOffToken(env.MANAGER_WS_AUTH)) return 'open'
+  // 企业档：WS / 入口强制 token（仍可用 MANAGER_AUTH_MODE=open 显式放开，不推荐）
+  if (isEnterpriseSecurityProfile(env)) return 'token'
   return null
 }
 
@@ -401,6 +404,8 @@ export const MANAGER_ENV_MODE_DOCS = {
   ARTIFACT_FEEDBACK_MODE: 'strict | off（DB/RAG/Admin 产物学习门控）',
   MANAGER_PLATFORM_MODE: 'local | sync',
   MANAGER_AUTH_MODE: 'token | open',
+  AGENT_SECURITY_PROFILE: 'lan | enterprise（enterprise→服务鉴权 require + WS token + 租户 fail-closed）',
+  MANAGER_SECURITY_MODE: '同 AGENT_SECURITY_PROFILE 别名',
   MANAGER_RUNTIME: 'docker | local',
   MANAGER_WEB_SEARCH_MODE: 'open | economy | off'
 } as const

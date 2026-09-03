@@ -6,6 +6,7 @@ import assert from 'node:assert/strict'
 import {
   experienceSyncSource,
   experienceSyncSourcePlane,
+  experienceSyncStatus,
   mayRecallExperienceRow
 } from '#agent-shared/experienceBridgeContract'
 import {
@@ -34,6 +35,26 @@ function main() {
   assert.equal(mayRecallExperienceRow(fedRow, process.env, 'standalone'), false)
   assert.equal(mayRecallExperienceRow(localRow, process.env, 'standalone'), true)
   assert.equal(mayRecallExperienceRow(fedRow, process.env, 'orchestrated'), true)
+
+  // 仅有用：finalize 自动同步不可召回；无 userConfirmed 的本地成功亦不可
+  const finalizeRow = { source: 'manager_finalize_sync', source_plane: 'manager_orchestrated', status: 'pending' }
+  const bareLocal = { source: 'db_local_success', source_plane: 'standalone' }
+  assert.equal(mayRecallExperienceRow(finalizeRow, process.env, 'orchestrated'), false)
+  assert.equal(mayRecallExperienceRow(bareLocal, process.env, 'standalone'), false)
+  assert.equal(
+    mayRecallExperienceRow(
+      { source: 'vanna_feedback|useful', source_plane: 'standalone', userConfirmed: false },
+      process.env,
+      'standalone'
+    ),
+    true
+  )
+
+  // 联邦写入：非 force → pending；force 👍 → confirmed
+  assert.equal(experienceSyncStatus({}), 'pending')
+  assert.equal(experienceSyncStatus({ force: true }), 'confirmed')
+  assert.equal(experienceSyncSource({}), 'manager_finalize_sync')
+  assert.ok(String(experienceSyncSource({ force: true })).includes('manager_feedback_confirmed'))
 
   assert.equal(shouldRecallExperienceForPlane('standalone', legacyLocal), true)
 

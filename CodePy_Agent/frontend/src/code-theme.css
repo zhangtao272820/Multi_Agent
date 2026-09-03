@@ -1,0 +1,145 @@
+/* Code · 琥珀工坊 · 精品控件层（背景由 comfort/surfaces 保持） */
+
+.code-season-bg,
+.code-storm,
+.code-brand-root .brand-motif,
+.code-shell .brand-motif,
+.claw-login .code-season-bg,
+.claw-login .code-storm {
+  display: none !important;
+}
+
+.code-shell.brand-shell,
+.layout.code-brand-root,
+.code-shell[data-agent="code"] {
+  --brand-motif-opacity: 0;
+  color: var(--brand-text, #1a140c);
+}
+
+/* 顶栏 */
+.code-shell .topbar,
+.code-shell .code-glass--bar {
+  background: rgba(255, 252, 247, 0.92) !important;
+  border-bottom: 1px solid rgba(217, 119, 6, 0.24) !important;
+  box-shadow: 0 10px 32px rgba(60, 40, 10, 0.1) !important;
+  backdrop-filter: blur(14px) saturate(1.1) !important;
+  -webkit-backdrop-filter: blur(14px) saturate(1.1) !important;
+  color: #1a140c !important;
+}
+
+.code-shell .topbar__row--brand h1,
+.code-shell .code-topbar__title {
+  color: #1a140c !important;
+  font-weight: 800;
+}
+
+/* 面板 */
+.code-shell .panel.left,
+.code-shell .panel.right,
+.code-shell .code-glass--panel {
+  background: rgba(255, 252, 247, 0.94) !important;
+  border: 1px solid rgba(217, 119, 6, 0.2) !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.7) inset,
+    0 12px 36px rgba(60, 40, 10, 0.1) !important;
+  color: #1a140c !important;
+  backdrop-filter: blur(10px);
+}
+
+.code-shell .panel.center,
+.code-shell .code-glass--monaco {
+  background: rgba(255, 250, 242, 0.88) !important;
+  border: 1px solid rgba(217, 119, 6, 0.18) !important;
+  box-shadow: 0 10px 28px rgba(60, 40, 10, 0.08) !important;
+}
+
+/* 聊天 */
+.code-shell .chat-log.ch-thread,
+.code-shell .chat-line.assistant {
+  color: #1a140c;
+}
+
+.code-shell .chat-line.assistant pre,
+.code-shell .chat-line.assistant .ch-assistant-shell {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border: 1px solid rgba(217, 119, 6, 0.18) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 10px 28px rgba(60, 40, 10, 0.08);
+}
+
+.code-shell .chat-line.user {
+  background: linear-gradient(135deg, #f0a03a, #d97706) !important;
+  color: #fffaf2 !important;
+  border-radius: 14px 14px 4px 14px !important;
+  box-shadow: 0 8px 20px rgba(217, 119, 6, 0.28);
+}
+
+/* Composer */
+.code-shell .chat-compose,
+.code-shell .ch-composer {
+  background: rgba(255, 252, 247, 0.96) !important;
+  border: 1px solid rgba(217, 119, 6, 0.28) !important;
+  border-radius: 18px !important;
+  box-shadow: 0 16px 44px rgba(60, 40, 10, 0.12) !important;
+}
+
+.code-shell input:not([type="checkbox"]):not([type="radio"]),
+.code-shell textarea,
+.code-shell select {
+  background: #fffaf2 !important;
+  border: 1px solid rgba(176, 140, 88, 0.35) !important;
+  color: #1a140c !important;
+  border-radius: 11px !important;
+}
+
+.code-shell input:focus,
+.code-shell textarea:focus {
+  border-color: #d97706 !important;
+  box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.22) !important;
+  outline: none !important;
+}
+
+/* 按钮 */
+.code-shell .button:not(.secondary):not(.tiny),
+.code-shell button.primary {
+  background: linear-gradient(135deg, #f0a03a, #d97706 48%, #b45309) !important;
+  border-color: #b45309 !important;
+  color: #fffaf2 !important;
+  font-weight: 800 !important;
+  box-shadow: 0 8px 22px rgba(217, 119, 6, 0.36) !important;
+  border-radius: 11px !important;
+}
+
+.code-shell .button.secondary,
+.code-shell .button.tiny {
+  background: rgba(255, 252, 247, 0.92) !important;
+  border: 1px solid rgba(217, 119, 6, 0.28) !important;
+  color: #1a140c !important;
+  font-weight: 650;
+  box-shadow: none !important;
+}
+
+/* 登录 */
+.claw-login.code-shell .claw-login__card,
+.claw-login .code-glass {
+  background: rgba(255, 252, 247, 0.94) !important;
+  border: 1px solid rgba(217, 119, 6, 0.3) !important;
+  border-radius: 18px !important;
+  box-shadow: 0 28px 72px rgba(60, 40, 10, 0.28) !important;
+  color: #1a140c !important;
+  backdrop-filter: blur(18px);
+}
+
+.claw-login.code-shell .claw-login__card button[type="submit"],
+.claw-login.code-shell button[type="submit"] {
+  background: linear-gradient(135deg, #f0a03a, #d97706 48%, #b45309) !important;
+  color: #fffaf2 !important;
+  font-weight: 800 !important;
+  box-shadow: 0 10px 28px rgba(217, 119, 6, 0.4) !important;
+  border-radius: 12px !important;
+}
+
+.claw-login.code-shell input:focus {
+  border-color: #d97706 !important;
+  box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.22) !important;
+}

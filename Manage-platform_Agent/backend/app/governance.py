@@ -13,20 +13,25 @@ from .db_models import AuditLogRecord
 
 settings = get_settings()
 
-# 控制面「域」× 三角色（与 require_roles 执法对齐；可视化用）
+# 全量角色：user=仅 Agent 对话；viewer/operator/admin=控制面
+ALLOWED_ROLES: tuple[str, ...] = ("user", "viewer", "operator", "admin")
+# 可登录控制面的角色（user 禁止）
+CONTROL_PLANE_ROLES: tuple[str, ...] = ("viewer", "operator", "admin")
+
+# 控制面「域」× 角色（与 require_roles 执法对齐；可视化用）。user 全 False。
 RBAC_DOMAINS: list[dict[str, Any]] = [
-    {"id": "overview", "label": "总览只读", "viewer": True, "operator": True, "admin": True},
-    {"id": "monitor", "label": "监控与告警只读", "viewer": True, "operator": True, "admin": True},
-    {"id": "agents_control", "label": "Agent 启停 / Drain", "viewer": False, "operator": True, "admin": True},
-    {"id": "deploy", "label": "部署 / recreate / 回滚", "viewer": False, "operator": True, "admin": True},
-    {"id": "backup", "label": "PG 备份", "viewer": False, "operator": True, "admin": True},
-    {"id": "backup_restore", "label": "PG 恢复", "viewer": False, "operator": False, "admin": True},
-    {"id": "config_write", "label": "能力层 / MODE / agents-lan", "viewer": False, "operator": True, "admin": True},
-    {"id": "secrets", "label": "密钥 Vault 只读", "viewer": False, "operator": True, "admin": True},
-    {"id": "secrets_rotate", "label": "密钥轮换写回", "viewer": False, "operator": False, "admin": True},
-    {"id": "tenants", "label": "租户与配额", "viewer": False, "operator": False, "admin": True},
-    {"id": "users", "label": "用户与角色", "viewer": False, "operator": False, "admin": True},
-    {"id": "audit", "label": "审计浏览 / 导出", "viewer": False, "operator": False, "admin": True},
+    {"id": "overview", "label": "总览只读", "user": False, "viewer": True, "operator": True, "admin": True},
+    {"id": "monitor", "label": "监控与告警只读", "user": False, "viewer": True, "operator": True, "admin": True},
+    {"id": "agents_control", "label": "Agent 启停 / Drain", "user": False, "viewer": False, "operator": True, "admin": True},
+    {"id": "deploy", "label": "部署 / recreate / 回滚", "user": False, "viewer": False, "operator": True, "admin": True},
+    {"id": "backup", "label": "PG 备份", "user": False, "viewer": False, "operator": True, "admin": True},
+    {"id": "backup_restore", "label": "PG 恢复", "user": False, "viewer": False, "operator": False, "admin": True},
+    {"id": "config_write", "label": "能力层 / MODE / agents-lan", "user": False, "viewer": False, "operator": True, "admin": True},
+    {"id": "secrets", "label": "密钥 Vault 只读", "user": False, "viewer": False, "operator": True, "admin": True},
+    {"id": "secrets_rotate", "label": "密钥轮换写回", "user": False, "viewer": False, "operator": False, "admin": True},
+    {"id": "tenants", "label": "租户与配额", "user": False, "viewer": False, "operator": False, "admin": True},
+    {"id": "users", "label": "用户与角色", "user": False, "viewer": False, "operator": False, "admin": True},
+    {"id": "audit", "label": "审计浏览 / 导出", "user": False, "viewer": False, "operator": False, "admin": True},
 ]
 
 # 敏感动作：合规验收必能在审计中出现（登录失败允许无用户）
@@ -55,9 +60,10 @@ SENSITIVE_AUDIT_ACTIONS: list[dict[str, str]] = [
 def rbac_matrix_payload() -> dict[str, Any]:
     return {
         "ok": True,
-        "roles": ["viewer", "operator", "admin"],
+        "roles": list(ALLOWED_ROLES),
+        "control_plane_roles": list(CONTROL_PLANE_ROLES),
         "domains": RBAC_DOMAINS,
-        "note": "三角色粗粒度 RBAC；细粒度资源 ACL / MFA 非本期",
+        "note": "user=仅 Agent 对话（无控制面域）；viewer 只读旁观；operator 运维；admin 治理。细粒度 ACL / MFA 非本期",
     }
 
 

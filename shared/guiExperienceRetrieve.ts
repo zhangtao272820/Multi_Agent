@@ -1,9 +1,11 @@
 /**
  * lob_gui_experience 回读 — 路由/规划阶段注入相似 GUI 任务经验
+ * 仅召回用户点「有用」确认的行（status=confirmed + useful source）。
  */
 
 import { agentPgQuery, isAgentPgConfigured } from './agentPgClient'
 import { normalizeDbQuestionKey } from './dbExperienceBridge'
+import { isConfirmedExperienceRow, isExperienceRecallConfirmedOnly } from './experienceRecallPolicy'
 
 export type GuiExperienceRow = {
   id: number
@@ -45,19 +47,30 @@ export async function recallGuiExperience(
     scenario: string | null
     execution_mode: string | null
     hint: string
+    source: string | null
+    status: string | null
   }>(
-    `SELECT id::text, task_norm, scenario, execution_mode, hint
+    `SELECT id::text, task_norm, scenario, execution_mode, hint, source, status
      FROM lob_gui_experience
      WHERE status = 'confirmed'
        AND (task_norm = $1 OR task_norm LIKE $2)
      ORDER BY ts DESC
      LIMIT $3`,
-    [taskNorm, `${prefix}%`, Math.min(limit * 4, 16)],
+    [taskNorm, `${prefix}%`, Math.min(limit * 6, 24)],
     env
   ).catch(() => null)
 
   const rows = res?.rows ?? []
+  const requireUseful = isExperienceRecallConfirmedOnly(env)
   const scored = rows
+    .filter((r) => {
+      if (!requireUseful) return true
+      return isConfirmedExperienceRow({
+        source: String(r.source || ''),
+        status: String(r.status || ''),
+        userConfirmed: String(r.source || '').includes('manager_feedback_confirmed')
+      })
+    })
     .map((r) => ({
       id: Number(r.id) || 0,
       taskNorm: String(r.task_norm || ''),
@@ -89,7 +102,7 @@ export function formatGuiExperienceBlock(rows: GuiExperienceRow[]): string {
     return `${i + 1}. ${meta ? `（${meta}）` : ''}${r.hint.slice(0, 160)}`
   })
   return [
-    '### GUI 任务经验（相似历史 run，供路由/规划参考）',
+    '### GUI 任务经验（相似历史 run，供路由/规划参考；仅「有用」确认）',
     '若任务语义匹配，可建议 allowedAgents 含 gui，并优先 engineHint/storageProfile：',
     ...lines
   ].join('\n')

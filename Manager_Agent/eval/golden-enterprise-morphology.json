@@ -1,0 +1,69 @@
+{
+  "description": "企业化形态 golden：续轮/admin/hybrid/ambiguous/租户边界（结构门禁，不调 LLM）",
+  "cases": [
+    {
+      "id": "MORPH_CONT_RAG",
+      "morphology": "continuation",
+      "user": "刚才说的探视制度，具体下午几点可以探视？",
+      "expectCap": ["rag"],
+      "contextHint": { "priorCap": ["rag"], "priorTopic": "探视制度" }
+    },
+    {
+      "id": "MORPH_CONT_DB",
+      "morphology": "continuation",
+      "user": "那张三的血压呢，和上次比怎么样？",
+      "expectCap": ["db"],
+      "contextHint": { "priorCap": ["db"], "priorTopic": "张三血压" }
+    },
+    {
+      "id": "MORPH_ADMIN_ROUTE",
+      "morphology": "admin",
+      "user": "坐地铁从天津西站到天津站大概多久",
+      "expectCap": ["admin"]
+    },
+    {
+      "id": "MORPH_ADMIN_REMINDER",
+      "morphology": "admin",
+      "user": "帮我订明天下午三点的复查提醒",
+      "expectCap": ["admin"]
+    },
+    {
+      "id": "MORPH_HYBRID_RAG_DB",
+      "morphology": "hybrid",
+      "user": "对照知识库护理员配比标准，查张三最新血压记录",
+      "expectCap": ["rag", "db"]
+    },
+    {
+      "id": "MORPH_HYBRID_DB_CHART",
+      "morphology": "hybrid",
+      "user": "查足底压力检测次数并做趋势图",
+      "expectCap": ["db", "code", "visualize"]
+    },
+    {
+      "id": "MORPH_AMBIGUOUS_ELDER",
+      "morphology": "ambiguous",
+      "user": "老人怎么样",
+      "expectClarify": true
+    },
+    {
+      "id": "MORPH_AMBIGUOUS_VAGUE",
+      "morphology": "ambiguous",
+      "user": "查一下那个",
+      "expectClarify": true
+    },
+    {
+      "id": "MORPH_TENANT_DB",
+      "morphology": "tenant_boundary",
+      "user": "查本租户老人总数",
+      "expectCap": ["db"],
+      "expectTenantScope": true
+    },
+    {
+      "id": "MORPH_TENANT_RAG",
+      "morphology": "tenant_boundary",
+      "user": "在本租户知识库里查探视制度原文",
+      "expectCap": ["rag"],
+      "expectTenantScope": true
+    }
+  ]
+}

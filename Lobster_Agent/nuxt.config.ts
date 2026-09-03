@@ -41,7 +41,17 @@ const devPortParsed = hasFixedDevPort ? Number.parseInt(String(_rawDevPort), 10)
 const devPort = Number.isFinite(devPortParsed) && devPortParsed > 0 ? devPortParsed : 3000
 
 export default defineNuxtConfig({
-  css: [join(brandDir, 'index.css'), '~/assets/css/lobster-season.css'],
+  css: [
+    join(brandDir, 'index.css'),
+    '~/assets/css/lobster-season.css',
+    '~/assets/css/lobster-theme.css',
+    '~/assets/css/lobster-comfort.css',
+    '~/assets/css/lobster-workbench.css',
+  ],
+  // workbench/ 下组件按文件名解析（LobsterTaskPanel），避免 resolveComponent 空挂
+  components: [
+    { path: '~/components', pathPrefix: false },
+  ],
   alias: {
     '#agent-shared': agentSharedDir(),
     '@brand': brandDir

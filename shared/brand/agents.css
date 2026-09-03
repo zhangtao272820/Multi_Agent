@@ -1,144 +1,292 @@
-/* 每站强调色 — 挂在 [data-agent="..."] 根节点
- * 四站深色工作区各自有色调，不强制同一灰底 */
+/* 每站完整色面 — 挂在 [data-agent="..."]；一眼可区分，不靠节气大图 */
 
 [data-agent="platform"] {
-  --brand-accent: #9a7b3c;
-  --brand-accent-hover: #826632;
-  --brand-accent-soft: rgba(154, 123, 60, 0.14);
-  --brand-accent-border: rgba(154, 123, 60, 0.38);
-  --brand-accent-muted: #b8954a;
-  --brand-wash-a: rgba(107, 79, 154, 0.08);
-  --brand-wash-b: rgba(154, 123, 60, 0.09);
+  --brand-accent: #b8862f;
+  --brand-accent-hover: #9a7024;
+  --brand-accent-soft: rgba(184, 134, 47, 0.18);
+  --brand-accent-border: rgba(184, 134, 47, 0.48);
+  --brand-accent-muted: #d4a84a;
+  --brand-bg: #ebe4f0;
+  --brand-bg-elevated: #fffcfe;
+  --brand-bg-subtle: #ddd4e8;
+  --brand-bg-hover: #d0c4de;
+  --brand-border: #b8acc8;
+  --brand-border-strong: #9586ac;
+  --brand-text: #16121f;
+  --brand-text-secondary: #3f3850;
+  --brand-text-muted: #635a72;
+  --brand-sidebar: #100e16;
+  --brand-sidebar-elevated: #1a1524;
+  --brand-sidebar-active: #2a2438;
+  --brand-wash-a: rgba(184, 134, 47, 0.22);
+  --brand-wash-b: rgba(107, 79, 154, 0.16);
 }
 
 [data-agent="manager"] {
-  --brand-accent: #2f7fd1;
-  --brand-accent-hover: #2569b0;
-  --brand-accent-soft: rgba(47, 127, 209, 0.14);
-  --brand-accent-border: rgba(47, 127, 209, 0.38);
-  --brand-accent-muted: #5a9adc;
+  --brand-accent: #2563eb;
+  --brand-accent-hover: #1d4ed8;
+  --brand-accent-soft: rgba(37, 99, 235, 0.16);
+  --brand-accent-border: rgba(37, 99, 235, 0.42);
+  --brand-accent-muted: #5b87f0;
+  --brand-bg: #dbe7fb;
+  --brand-bg-elevated: #ffffff;
+  --brand-bg-subtle: #c5d4ee;
+  --brand-bg-hover: #b4c6e4;
+  --brand-border: #9eb4d8;
+  --brand-border-strong: #6b8aba;
+  --brand-text: #0f172a;
+  --brand-text-secondary: #334155;
+  --brand-text-muted: #475569;
+  --brand-sidebar: #0f172a;
+  --brand-sidebar-elevated: #1e293b;
+  --brand-sidebar-active: #243552;
+  --brand-wash-a: rgba(37, 99, 235, 0.28);
+  --brand-wash-b: rgba(14, 165, 233, 0.18);
 }
 
-/* 禄存 · 雨意青绿 */
+/* 禄存 · 青绿问数 */
 [data-agent="db"] {
-  --brand-accent: #2ec4b6;
-  --brand-accent-hover: #24a99c;
-  --brand-accent-soft: rgba(46, 196, 182, 0.18);
-  --brand-accent-border: rgba(46, 196, 182, 0.42);
-  --brand-accent-muted: #5ed9cc;
-  --brand-wash-a: rgba(32, 160, 180, 0.22);
-  --brand-wash-b: rgba(20, 90, 110, 0.28);
+  --brand-accent: #0d9488;
+  --brand-accent-hover: #0f766e;
+  --brand-accent-soft: rgba(13, 148, 136, 0.16);
+  --brand-accent-border: rgba(13, 148, 136, 0.45);
+  --brand-accent-muted: #2dd4bf;
+  --brand-bg: #e6f4f2;
+  --brand-bg-elevated: #f7fffe;
+  --brand-bg-subtle: #cfe8e4;
+  --brand-bg-hover: #b8dcd6;
+  --brand-border: #9fc9c2;
+  --brand-border-strong: #6ea89f;
+  --brand-text: #0c1918;
+  --brand-text-secondary: #2a4542;
+  --brand-text-muted: #4d6b66;
+  --brand-sidebar: #0c1618;
+  --brand-sidebar-elevated: #122226;
+  --brand-sidebar-active: #1a3338;
+  --brand-wash-a: rgba(13, 148, 136, 0.22);
+  --brand-wash-b: rgba(20, 90, 110, 0.14);
   --brand-dark-bg: #0c1618;
   --brand-dark-bg-elevated: #122226;
-  --brand-dark-panel: rgba(18, 36, 40, 0.9);
+  --brand-dark-panel: rgba(18, 36, 40, 0.92);
   --brand-dark-panel-solid: #15282c;
-  --brand-dark-border: rgba(94, 217, 204, 0.22);
-  --brand-dark-border-strong: rgba(94, 217, 204, 0.38);
+  --brand-dark-border: rgba(45, 212, 191, 0.24);
+  --brand-dark-border-strong: rgba(45, 212, 191, 0.4);
   --brand-dark-text: #f2fbf9;
   --brand-dark-text-secondary: #c8ece6;
-  --brand-dark-text-muted: #a8d4cc;
-  --brand-motif-opacity: 0.48;
+  --brand-dark-text-muted: #8fc4bc;
 }
 
-/* 文曲 · 月色靛青 */
+/* 文曲 · 靛青知识 */
 [data-agent="rag"] {
-  --brand-accent: #6b8fd4;
-  --brand-accent-hover: #5578bc;
-  --brand-accent-soft: rgba(107, 143, 212, 0.2);
-  --brand-accent-border: rgba(107, 143, 212, 0.45);
-  --brand-accent-muted: #93b0e4;
-  --brand-wash-a: rgba(90, 120, 200, 0.26);
-  --brand-wash-b: rgba(140, 110, 190, 0.16);
+  --brand-accent: #4f6fd4;
+  --brand-accent-hover: #3d59b8;
+  --brand-accent-soft: rgba(79, 111, 212, 0.16);
+  --brand-accent-border: rgba(79, 111, 212, 0.45);
+  --brand-accent-muted: #7b97e4;
+  --brand-bg: #e9edf8;
+  --brand-bg-elevated: #fbfcff;
+  --brand-bg-subtle: #d4dced;
+  --brand-bg-hover: #c4cfe4;
+  --brand-border: #aebcdc;
+  --brand-border-strong: #8496c0;
+  --brand-text: #12162a;
+  --brand-text-secondary: #38405c;
+  --brand-text-muted: #5c6688;
+  --brand-sidebar: #10131c;
+  --brand-sidebar-elevated: #171c2c;
+  --brand-sidebar-active: #222a42;
+  --brand-wash-a: rgba(79, 111, 212, 0.22);
+  --brand-wash-b: rgba(120, 90, 180, 0.1);
   --brand-dark-bg: #10131c;
   --brand-dark-bg-elevated: #171c2c;
-  --brand-dark-panel: rgba(26, 32, 50, 0.9);
+  --brand-dark-panel: rgba(26, 32, 50, 0.92);
   --brand-dark-panel-solid: #1a2236;
-  --brand-dark-border: rgba(147, 176, 228, 0.14);
-  --brand-dark-border-strong: rgba(147, 176, 228, 0.28);
+  --brand-dark-border: rgba(123, 151, 228, 0.2);
+  --brand-dark-border-strong: rgba(123, 151, 228, 0.36);
   --brand-dark-text: #e9eef8;
   --brand-dark-text-secondary: #a8b6d4;
   --brand-dark-text-muted: #7a88a8;
-  --brand-motif-opacity: 0.52;
 }
 
-/* 武曲 · 琥珀黄（恢复偏黄主色） */
+/* 武曲 · 琥珀黄 */
 [data-agent="code"] {
-  --brand-accent: #e8a23a;
-  --brand-accent-hover: #d48c28;
-  --brand-accent-soft: rgba(232, 162, 58, 0.2);
-  --brand-accent-border: rgba(232, 162, 58, 0.48);
-  --brand-accent-muted: #f0bc62;
-  --brand-wash-a: rgba(232, 162, 58, 0.22);
-  --brand-wash-b: rgba(180, 80, 30, 0.16);
+  --brand-accent: #d97706;
+  --brand-accent-hover: #b45309;
+  --brand-accent-soft: rgba(217, 119, 6, 0.16);
+  --brand-accent-border: rgba(217, 119, 6, 0.45);
+  --brand-accent-muted: #f0a03a;
+  --brand-bg: #f5efe6;
+  --brand-bg-elevated: #fffcf7;
+  --brand-bg-subtle: #e8dcc8;
+  --brand-bg-hover: #dccfb8;
+  --brand-border: #d0b890;
+  --brand-border-strong: #b08c58;
+  --brand-text: #1a140c;
+  --brand-text-secondary: #4a3c28;
+  --brand-text-muted: #6e5c40;
+  --brand-sidebar: #16110a;
+  --brand-sidebar-elevated: #22180e;
+  --brand-sidebar-active: #322414;
+  --brand-wash-a: rgba(217, 119, 6, 0.2);
+  --brand-wash-b: rgba(180, 80, 30, 0.12);
   --brand-dark-bg: #16110a;
   --brand-dark-bg-elevated: #22180e;
-  --brand-dark-panel: rgba(38, 26, 14, 0.88);
+  --brand-dark-panel: rgba(38, 26, 14, 0.9);
   --brand-dark-panel-solid: #2a1c10;
-  --brand-dark-border: rgba(240, 188, 98, 0.16);
-  --brand-dark-border-strong: rgba(240, 188, 98, 0.32);
+  --brand-dark-border: rgba(240, 160, 58, 0.22);
+  --brand-dark-border-strong: rgba(240, 160, 58, 0.38);
   --brand-dark-text: #f6e7d0;
   --brand-dark-text-secondary: #d4b892;
   --brand-dark-text-muted: #9a7f5c;
-  --brand-motif-opacity: 0.42;
 }
 
 [data-agent="extractor"] {
-  --brand-accent: #3d8f55;
-  --brand-accent-hover: #327846;
-  --brand-accent-soft: rgba(61, 143, 85, 0.14);
-  --brand-accent-border: rgba(61, 143, 85, 0.38);
-  --brand-accent-muted: #5aa870;
+  --brand-accent: #16a34a;
+  --brand-accent-hover: #15803d;
+  --brand-accent-soft: rgba(22, 163, 74, 0.14);
+  --brand-accent-border: rgba(22, 163, 74, 0.42);
+  --brand-accent-muted: #4ade80;
+  --brand-bg: #e8f5ec;
+  --brand-bg-elevated: #f7fff9;
+  --brand-bg-subtle: #cfe8d8;
+  --brand-border: #9fc9ae;
+  --brand-border-strong: #6ea882;
+  --brand-text: #0f1a14;
+  --brand-text-secondary: #2d4536;
+  --brand-text-muted: #4d6b58;
+  --brand-wash-a: rgba(22, 163, 74, 0.16);
+  --brand-wash-b: rgba(20, 100, 60, 0.1);
 }
 
-/* 天梁 · 暖金褐 */
+/* 天梁 · 暖金褐行政 */
 [data-agent="admin"] {
-  --brand-accent: #c9a24a;
-  --brand-accent-hover: #b08c3c;
-  --brand-accent-soft: rgba(201, 162, 74, 0.18);
-  --brand-accent-border: rgba(201, 162, 74, 0.42);
-  --brand-accent-muted: #ddb96a;
-  --brand-wash-a: rgba(201, 162, 74, 0.18);
-  --brand-wash-b: rgba(90, 70, 40, 0.22);
+  --brand-accent: #b8860b;
+  --brand-accent-hover: #9a7009;
+  --brand-accent-soft: rgba(184, 134, 11, 0.16);
+  --brand-accent-border: rgba(184, 134, 11, 0.45);
+  --brand-accent-muted: #d4a82a;
+  --brand-bg: #f3ede3;
+  --brand-bg-elevated: #fffbf5;
+  --brand-bg-subtle: #e6d9c4;
+  --brand-bg-hover: #d8c8ae;
+  --brand-border: #cbb892;
+  --brand-border-strong: #a89268;
+  --brand-text: #1a1510;
+  --brand-text-secondary: #4a3f30;
+  --brand-text-muted: #6e6250;
+  --brand-sidebar: #14110e;
+  --brand-sidebar-elevated: #1e1a15;
+  --brand-sidebar-active: #2c261e;
+  --brand-wash-a: rgba(184, 134, 11, 0.18);
+  --brand-wash-b: rgba(90, 70, 40, 0.12);
   --brand-dark-bg: #14110e;
   --brand-dark-bg-elevated: #1e1a15;
-  --brand-dark-panel: rgba(36, 30, 24, 0.9);
+  --brand-dark-panel: rgba(36, 30, 24, 0.92);
   --brand-dark-panel-solid: #262018;
-  --brand-dark-border: rgba(221, 185, 106, 0.14);
-  --brand-dark-border-strong: rgba(221, 185, 106, 0.28);
+  --brand-dark-border: rgba(212, 168, 42, 0.22);
+  --brand-dark-border-strong: rgba(212, 168, 42, 0.38);
   --brand-dark-text: #f3ead8;
   --brand-dark-text-secondary: #cbb897;
   --brand-dark-text-muted: #8f8168;
-  --brand-motif-opacity: 0.46;
 }
 
 [data-agent="multimodal"] {
-  --brand-accent: #9a4db8;
-  --brand-accent-hover: #813fa0;
-  --brand-accent-soft: rgba(154, 77, 184, 0.12);
-  --brand-accent-border: rgba(154, 77, 184, 0.34);
-  --brand-accent-muted: #b070c8;
+  --brand-accent: #9333ea;
+  --brand-accent-hover: #7e22ce;
+  --brand-accent-soft: rgba(147, 51, 234, 0.14);
+  --brand-accent-border: rgba(147, 51, 234, 0.4);
+  --brand-accent-muted: #c084fc;
+  --brand-bg: #f0e8f8;
+  --brand-bg-elevated: #fdfbff;
+  --brand-bg-subtle: #e0d0ef;
+  --brand-border: #c4a8d8;
+  --brand-border-strong: #9e78b8;
+  --brand-text: #1a1222;
+  --brand-text-secondary: #453456;
+  --brand-text-muted: #6a5880;
+  --brand-wash-a: rgba(147, 51, 234, 0.14);
+  --brand-wash-b: rgba(100, 40, 160, 0.1);
 }
 
 [data-agent="music"] {
-  --brand-accent: #c45a72;
-  --brand-accent-hover: #a84a60;
-  --brand-accent-soft: rgba(196, 90, 114, 0.14);
-  --brand-accent-border: rgba(196, 90, 114, 0.38);
-  --brand-accent-muted: #d4788c;
+  --brand-accent: #db2777;
+  --brand-accent-hover: #be185d;
+  --brand-accent-soft: rgba(219, 39, 119, 0.14);
+  --brand-accent-border: rgba(219, 39, 119, 0.4);
+  --brand-accent-muted: #f472b6;
+  --brand-bg: #f8e8ef;
+  --brand-bg-elevated: #fff8fb;
+  --brand-bg-subtle: #efd0dc;
+  --brand-border: #d8a0b4;
+  --brand-border-strong: #b87890;
+  --brand-text: #1c1016;
+  --brand-text-secondary: #4a3040;
+  --brand-text-muted: #6e5060;
+  --brand-wash-a: rgba(219, 39, 119, 0.14);
+  --brand-wash-b: rgba(160, 40, 80, 0.1);
 }
 
 [data-agent="video"] {
-  --brand-accent: #d45a28;
-  --brand-accent-hover: #b44a20;
-  --brand-accent-soft: rgba(212, 90, 40, 0.14);
-  --brand-accent-border: rgba(212, 90, 40, 0.38);
-  --brand-accent-muted: #e07848;
+  --brand-accent: #ea580c;
+  --brand-accent-hover: #c2410c;
+  --brand-accent-soft: rgba(234, 88, 12, 0.14);
+  --brand-accent-border: rgba(234, 88, 12, 0.4);
+  --brand-accent-muted: #fb923c;
+  --brand-bg: #f6ebe4;
+  --brand-bg-elevated: #fffaf7;
+  --brand-bg-subtle: #ebd4c6;
+  --brand-border: #d4a890;
+  --brand-border-strong: #b08068;
+  --brand-text: #1c120e;
+  --brand-text-secondary: #4a3428;
+  --brand-text-muted: #6e5040;
+  --brand-wash-a: rgba(234, 88, 12, 0.16);
+  --brand-wash-b: rgba(160, 50, 20, 0.1);
 }
 
+/* GUI · 玫红操控 */
 [data-agent="lobster"] {
-  --brand-accent: #b84a58;
-  --brand-accent-hover: #9a3c48;
-  --brand-accent-soft: rgba(184, 74, 88, 0.14);
-  --brand-accent-border: rgba(184, 74, 88, 0.38);
-  --brand-accent-muted: #cc6874;
+  --brand-accent: #c24155;
+  --brand-accent-hover: #9f3445;
+  --brand-accent-soft: rgba(194, 65, 85, 0.15);
+  --brand-accent-border: rgba(194, 65, 85, 0.45);
+  --brand-accent-muted: #e07082;
+  --brand-bg: #f4e8eb;
+  --brand-bg-elevated: #fff9fa;
+  --brand-bg-subtle: #e8d0d6;
+  --brand-bg-hover: #dcb8c0;
+  --brand-border: #d0a0aa;
+  --brand-border-strong: #b07884;
+  --brand-text: #1a1014;
+  --brand-text-secondary: #4a3038;
+  --brand-text-muted: #6e5058;
+  --brand-sidebar: #161014;
+  --brand-sidebar-elevated: #22181c;
+  --brand-sidebar-active: #322428;
+  --brand-wash-a: rgba(194, 65, 85, 0.18);
+  --brand-wash-b: rgba(120, 40, 60, 0.1);
+}
+
+/* 同步兼容别名 */
+[data-agent] {
+  --bg: var(--brand-bg);
+  --bg-elevated: var(--brand-bg-elevated);
+  --bg-subtle: var(--brand-bg-subtle);
+  --bg-hover: var(--brand-bg-hover);
+  --border: var(--brand-border);
+  --border-strong: var(--brand-border-strong);
+  --text: var(--brand-text);
+  --text-secondary: var(--brand-text-secondary);
+  --text-muted: var(--brand-text-muted);
+  --accent: var(--brand-accent);
+  --accent-hover: var(--brand-accent-hover);
+  --accent-soft: var(--brand-accent-soft);
+  --accent-border: var(--brand-accent-border);
+  --accent-muted: var(--brand-accent-muted);
+  --sidebar-bg: var(--brand-sidebar);
+  --sidebar-elevated: var(--brand-sidebar-elevated);
+  --sidebar-text: var(--brand-sidebar-text);
+  --sidebar-muted: var(--brand-sidebar-muted);
+  --sidebar-hover: var(--brand-sidebar-hover);
+  --sidebar-active: var(--brand-sidebar-active);
 }

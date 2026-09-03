@@ -18,7 +18,11 @@ export function gateManagerEnvelopeBlastRadius(
     typeof opts?.writeAllowed === "boolean"
       ? opts.writeAllowed
       : Boolean(data?.write_allowed)
-  const readOnly = Boolean(data?.read_only) || kind === "db" || kind === "rag" || kind === "crawler"
+  const readOnly =
+    Boolean(data?.read_only) ||
+    (kind === "db" && !writeAllowed) ||
+    kind === "rag" ||
+    kind === "crawler"
   const blast =
     envelope.blast_radius ||
     resolveBlastRadius({
@@ -32,9 +36,11 @@ export function gateManagerEnvelopeBlastRadius(
             : "admin_write"
           : kind === "gui"
             ? "gui_write"
-            : kind === "code" && writeAllowed
-              ? "code_edit"
-              : "readonly",
+            : kind === "db" && writeAllowed
+              ? "db_write"
+              : kind === "code" && writeAllowed
+                ? "code_edit"
+                : "readonly",
     })
   return gateBlastRadiusExecution({
     blast_radius: blast,

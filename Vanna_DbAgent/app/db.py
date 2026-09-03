@@ -19,7 +19,7 @@ _AUDIT_COLS = {
     "creator",
     "createdate",
 }
-_SAMPLE_COMMENT_HINTS = ("类型", "级别", "状态", "分类")
+_SAMPLE_COMMENT_HINTS = ("类型", "级别", "状态", "分类", "省市区", "地区")
 _VARCHAR_W = re.compile(r"(?:var)?char\s*\(\s*(\d+)\s*\)", re.I)
 _SAMPLE_ROW_CAP = 80
 _SAMPLE_UNIQUE_CAP = 8
@@ -55,6 +55,9 @@ def should_sample_column(
         or (width > 0 and width <= 32)
     )
     comment_ok = any(h in cmt for h in _SAMPLE_COMMENT_HINTS)
+    # 省市区/地区常为长 varchar，仍采样以便卡片展示复合串形态
+    if comment_ok and any(h in cmt for h in ("省市区", "地区")):
+        return True
     return type_ok and comment_ok
 
 
@@ -265,6 +268,33 @@ def run_select(cfg: MysqlConf, sql: str, max_rows: int | None = None) -> list[di
             item[str(k)] = v if v is None or isinstance(v, (int, float, bool, str)) else str(v)
         out.append(item)
     return out
+
+
+def run_write(cfg: MysqlConf, sql: str) -> dict[str, Any]:
+    """Execute a single guarded write statement in a transaction. Returns rowcount meta."""
+    with mysql_conn(cfg) as conn:
+        prev = bool(getattr(conn, "get_autocommit", lambda: True)())
+        try:
+            conn.autocommit(False)
+            with conn.cursor() as cur:
+                cur.execute(sql)
+                rowcount = int(cur.rowcount or 0)
+            conn.commit()
+            return {"ok": True, "rowcount": rowcount, "error": ""}
+        except Exception as exc:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+            return {"ok": False, "rowcount": 0, "error": str(exc)}
+        finally:
+            try:
+                conn.autocommit(prev)
+            except Exception:
+                try:
+                    conn.autocommit(True)
+                except Exception:
+                    pass
 
 
 def apply_value_maps(rows: list[dict[str, Any]], tenant: Tenant, tables: list[str]) -> list[dict[str, Any]]:

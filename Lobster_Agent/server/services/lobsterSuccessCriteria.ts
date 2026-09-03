@@ -29,6 +29,7 @@ export const WEB_FAILURE_CODES = [
   'navigation_unverified',
   'element_not_found',
   'captcha',
+  'login_wall',
   'timeout',
   'network',
   'success_criteria_unmet',
@@ -77,8 +78,8 @@ export function assembleDefaultSuccessCriteria(input: {
   const out: SuccessCriteria = {}
   // 离开起始页由 goals + navigation_unverified 硬闸；此处只保证「有可判定产物」
   if (mustExtract) out.extractMin = 1
-  if (kind === 'form_fill') {
-    // 填表成功看 filled 证据，禁止用首页标题凑 extractMin
+  if (kind === 'form_fill' || kind === 'login') {
+    // 填表/登录成功看 filled 证据，禁止用首页标题凑 extractMin
     out.filledMin = 1
     delete (out as { extractMin?: number }).extractMin
   }
@@ -142,6 +143,9 @@ export function normalizeWebFailureCode(raw?: string | null): WebFailureCode | s
   if (WEB_FAILURE_SET.has(s)) return s as WebFailureCode
   if (s === 'network_unreachable' || s.includes('network')) return 'network'
   if (s.includes('captcha')) return 'captcha'
+  if (s.includes('login_wall') || s.includes('login_required') || s.includes('auth_wall')) {
+    return 'login_wall'
+  }
   if (s.includes('element') || s.includes('click_fail') || s === 'no_candidates') return 'element_not_found'
   if (s.includes('timeout') || s.includes('deadline')) return 'timeout'
   if (s.includes('success_criteria') || s.startsWith('success_criteria_missing')) {

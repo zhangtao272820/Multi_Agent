@@ -2,7 +2,7 @@ import { runLobsterAgent, type RunParams } from './lobsterAgent'
 import { probeLobsterMcpReady, runLobsterMcpAgent } from './lobsterMcpAgent'
 import { probeLobsterDesktopReady, runLobsterDesktopMcpAgent } from './lobsterDesktopMcpAgent'
 import { probeLobsterAndroidReady, runLobsterAndroidMcpAgent } from './lobsterAndroidMcpAgent'
-import { probeStagehandReady, runLobsterStagehandAgent } from './lobsterStagehandAgent'
+import { probeStagehandReady, runLobsterStagehandAgent, type LobsterBrowserSessionHandoff } from './lobsterStagehandAgent'
 import type { LobsterEngineId } from './engineSelector'
 import { requiresDesktopEngine, requiresMobileEngine } from './engineSelector'
 import { resolveRunStoragePaths } from './sessionStorageBridge'
@@ -49,10 +49,14 @@ function emitWarn(params: RunParams, message: string) {
   })
 }
 
-async function runEngine(engine: LobsterEngineId, params: RunParams) {
+async function runEngine(
+  engine: LobsterEngineId,
+  params: RunParams,
+  opts?: { sessionHandoff?: LobsterBrowserSessionHandoff },
+) {
   if (engine === 'desktop') return await runLobsterDesktopMcpAgent(params)
   if (engine === 'mobile') return await runLobsterAndroidMcpAgent(params)
-  if (engine === 'stagehand') return await runLobsterStagehandAgent(params)
+  if (engine === 'stagehand') return await runLobsterStagehandAgent(params, opts)
   if (engine === 'mcp') return await runLobsterMcpAgent(params)
   return await runLobsterAgent(params)
 }
@@ -380,111 +384,133 @@ export async function runLobsterWithRouter(params: RunParams) {
     },
   })
 
-  const outputRaw = await runEngine(engine, runParams)
-  const output =
-    outputRaw && typeof outputRaw === 'object'
-      ? ensureLobsterGuiFinalPayload(outputRaw as Record<string, unknown>, runParams.task)
-      : outputRaw
-  const verify = verifyLobsterRunResult({
-    task: runParams.task,
-    status: 'done',
-    result: output,
-  })
-  params.emit({
-    type: 'verify',
-    payload: {
-      ts: Date.now(),
-      engine,
-      attemptIndex: 0,
-      verify: {
-        ok: verify.ok,
-        reason: verify.reason,
-        failureType: verify.failureType,
-        hints: verify.hints,
-        // 网页无下一引擎；retryable 仅供总管 HITL 决策，不驱动回退
-        retryable: false,
-      },
-    },
-  })
-  if (!verify.ok) {
-    const finalUrl = String((output as any)?.finalUrl || '').trim()
-    const hints = recipeResultPageHints(runParams.task, runParams.startUrl)
-    const channelHit = Array.isArray(hints?.channelHomeExclude)
-      ? hints!.channelHomeExclude!.some((h) => finalUrl.includes(h.replace(/^https?:\/\//, '')))
-      : /news\.baidu\.com|map\.baidu\.com|tieba\.baidu\.com/i.test(finalUrl)
-    void appendLobsterFailureInsight({
-      ts: Date.now(),
-      run_id: params.runId,
-      kind: channelHit ? 'wrong_channel_click' : String(verify.reason || 'verify_fail'),
-      url: finalUrl,
-      stage: String(verify.reason || ''),
-      detail: String(verify.hints?.[0] || '').slice(0, 240),
+  const sessionHandoff: LobsterBrowserSessionHandoff = {}
+  let outputRaw: unknown
+  try {
+    outputRaw = await runEngine(engine, runParams, engine === 'stagehand' ? { sessionHandoff } : undefined)
+    const output =
+      outputRaw && typeof outputRaw === 'object'
+        ? ensureLobsterGuiFinalPayload(outputRaw as Record<string, unknown>, runParams.task)
+        : outputRaw
+    const verify = verifyLobsterRunResult({
+      task: runParams.task,
+      status: 'done',
+      result: output,
     })
-    emitWarn(
-      params,
-      `${engine} verify 未通过（${verify.reason}${verify.hints?.[0] ? `：${verify.hints[0].slice(0, 80)}` : ''}）`,
-    )
-
-    // DOM 主路径失败 → 有限次 gui-plus computer_use 兜底（captcha/登录墙仍走 HITL）
-    if (
-      engine !== 'desktop' &&
-      engine !== 'mobile' &&
-      shouldAttemptGuiPlusFallback({
-        verifyOk: false,
-        failureType: verify.failureType || verify.reason,
+    params.emit({
+      type: 'verify',
+      payload: {
+        ts: Date.now(),
+        engine,
+        attemptIndex: 0,
+        verify: {
+          ok: verify.ok,
+          reason: verify.reason,
+          failureType: verify.failureType,
+          hints: verify.hints,
+          // 网页无下一引擎；retryable 仅供总管 HITL 决策，不驱动回退
+          retryable: false,
+        },
+      },
+    })
+    if (!verify.ok) {
+      const finalUrl = String((output as any)?.finalUrl || '').trim()
+      const hints = recipeResultPageHints(runParams.task, runParams.startUrl)
+      const channelHit = Array.isArray(hints?.channelHomeExclude)
+        ? hints!.channelHomeExclude!.some((h) => finalUrl.includes(h.replace(/^https?:\/\//, '')))
+        : /news\.baidu\.com|map\.baidu\.com|tieba\.baidu\.com/i.test(finalUrl)
+      void appendLobsterFailureInsight({
+        ts: Date.now(),
+        run_id: params.runId,
+        kind: channelHit ? 'wrong_channel_click' : String(verify.reason || 'verify_fail'),
+        url: finalUrl,
+        stage: String(verify.reason || ''),
+        detail: String(verify.hints?.[0] || '').slice(0, 240),
       })
-    ) {
-      try {
-        emitMilestone(params, '改走 gui-plus 有限步兜底（截图→坐标，省 token 硬帽）…')
-        const resumeUrl = finalUrl || String(runParams.startUrl || '').trim()
-        const gpOut = await runLobsterGuiPlusAgent(runParams, {
-          resumeUrl: resumeUrl || undefined,
-          priorFailure: String(verify.failureType || verify.reason || ''),
-        })
-        const gpPayload =
-          gpOut && typeof gpOut === 'object'
-            ? ensureLobsterGuiFinalPayload(gpOut as Record<string, unknown>, runParams.task)
-            : gpOut
-        const gpVerify = verifyLobsterRunResult({
-          task: runParams.task,
-          status: 'done',
-          result: gpPayload,
-        })
-        params.emit({
-          type: 'verify',
-          payload: {
-            ts: Date.now(),
-            engine: 'gui_plus',
-            attemptIndex: 1,
-            verify: {
-              ok: gpVerify.ok,
-              reason: gpVerify.reason,
-              failureType: gpVerify.failureType,
-              hints: gpVerify.hints,
-              retryable: false,
-            },
-          },
-        })
-        if (gpVerify.ok || String((gpPayload as any)?.answer || '').trim().length >= 8) {
-          return gpPayload
-        }
-        emitWarn(params, `gui-plus 兜底未通过（${gpVerify.reason || 'incomplete'}），返回原 ${engine} 结果`)
-      } catch (e: unknown) {
-        emitWarn(
-          params,
-          `gui-plus 兜底失败：${String((e as Error)?.message || e).slice(0, 160)}`,
-        )
-      }
-    }
+      emitWarn(
+        params,
+        `${engine} verify 未通过（${verify.reason}${verify.hints?.[0] ? `：${verify.hints[0].slice(0, 80)}` : ''}）`,
+      )
 
-    // 非 retryable 语义失败：仍返回结果（含 failureType），供总管 HITL / 用户面
-    if (!isLobsterRetryableFailure({ status: 'done', result: output, verify })) {
+      const filledArr = Array.isArray((output as any)?.filled)
+        ? ((output as any).filled as unknown[])
+        : Array.isArray((output as any)?.data?.[0]?.filled)
+          ? ((output as any).data[0].filled as unknown[])
+          : []
+      const formFilledCount =
+        Number((output as any)?.stats?.filledCount) ||
+        filledArr.length ||
+        0
+
+      // DOM 主路径失败 → 同会话 gui-plus 短步急救（form_fill/captcha/登录墙不走）
+      if (
+        engine !== 'desktop' &&
+        engine !== 'mobile' &&
+        shouldAttemptGuiPlusFallback({
+          verifyOk: false,
+          failureType: verify.failureType || verify.reason,
+          taskKind: String(runParams.taskSpec?.task_kind || (output as any)?.task_kind || ''),
+          formFilledCount,
+        })
+      ) {
+        try {
+          const mode = sessionHandoff.page ? '同会话' : '冷启动'
+          emitMilestone(params, `gui_plus_rescue：${mode}有限步急救（截图→坐标，省 token 硬帽）…`)
+          const resumeUrl = finalUrl || String(runParams.startUrl || '').trim()
+          const gpOut = await runLobsterGuiPlusAgent(runParams, {
+            resumeUrl: resumeUrl || undefined,
+            priorFailure: String(verify.failureType || verify.reason || ''),
+            page: sessionHandoff.page,
+          })
+          const gpPayload =
+            gpOut && typeof gpOut === 'object'
+              ? ensureLobsterGuiFinalPayload(gpOut as Record<string, unknown>, runParams.task)
+              : gpOut
+          const gpVerify = verifyLobsterRunResult({
+            task: runParams.task,
+            status: 'done',
+            result: gpPayload,
+          })
+          params.emit({
+            type: 'verify',
+            payload: {
+              ts: Date.now(),
+              engine: 'gui_plus_rescue',
+              attemptIndex: 1,
+              verify: {
+                ok: gpVerify.ok,
+                reason: gpVerify.reason,
+                failureType: gpVerify.failureType,
+                hints: gpVerify.hints,
+                retryable: false,
+              },
+            },
+          })
+          if (gpVerify.ok || String((gpPayload as any)?.answer || '').trim().length >= 8) {
+            return gpPayload
+          }
+          emitWarn(params, `gui-plus 急救未通过（${gpVerify.reason || 'incomplete'}），返回原 ${engine} 结果`)
+        } catch (e: unknown) {
+          emitWarn(
+            params,
+            `gui-plus 急救失败：${String((e as Error)?.message || e).slice(0, 160)}`,
+          )
+        }
+      }
+
+      // 非 retryable 语义失败：仍返回结果（含 failureType），供总管 HITL / 用户面
+      if (!isLobsterRetryableFailure({ status: 'done', result: output, verify })) {
+        return output
+      }
+      // infra / navigation soft fail：返回结构化失败，不抛、不换引擎
       return output
     }
-    // infra / navigation soft fail：返回结构化失败，不抛、不换引擎
     return output
+  } finally {
+    if (typeof sessionHandoff.close === 'function') {
+      await sessionHandoff.close().catch(() => {})
+    }
   }
-  return output
 }
 
 export { probeLobsterMcpReady } from './lobsterMcpAgent'

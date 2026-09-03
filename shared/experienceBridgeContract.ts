@@ -56,7 +56,7 @@ export function experienceSyncSourcePlane(_opts?: ExperienceSyncOpts): Experienc
 }
 
 export function experienceSyncStatus(opts?: ExperienceSyncOpts): 'confirmed' | 'pending' {
-  return opts?.force ? 'confirmed' : 'confirmed'
+  return opts?.force ? 'confirmed' : 'pending'
 }
 
 /**

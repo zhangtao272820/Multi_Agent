@@ -11,8 +11,14 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const root = path.resolve(__dirname, '..')
 const evalDir = path.join(root, 'eval')
 
-const ROUTE_FILES = ['golden-gui-route.json', 'golden-route-media.json', 'golden-route-composite.json']
+const ROUTE_FILES = [
+  'golden-gui-route.json',
+  'golden-route-media.json',
+  'golden-route-composite.json',
+  'routing-fixtures.json'
+]
 const COMPOSITE_MIN = Number(process.env.ROUTE_COMPOSITE_MIN ?? '10')
+const ROUTING_FIXTURES_MIN = Number(process.env.ROUTING_FIXTURES_MIN ?? '30')
 
 function assert(cond, msg) {
   if (!cond) throw new Error(msg)
@@ -53,11 +59,19 @@ async function validateFile(name) {
 
 let total = 0
 let compositeCount = 0
+let routingFixturesCount = 0
 for (const f of ROUTE_FILES) {
   const n = await validateFile(f)
   console.log(`${f} OK: ${n} cases (structural)`)
   total += n
   if (f === 'golden-route-composite.json') compositeCount = n
+  if (f === 'routing-fixtures.json') routingFixturesCount = n
 }
 assert(compositeCount >= COMPOSITE_MIN, `golden-route-composite.json need >=${COMPOSITE_MIN} cases, got ${compositeCount}`)
-console.log(`eval:route OK — ${total} cases across ${ROUTE_FILES.length} files (composite=${compositeCount})`)
+assert(
+  routingFixturesCount >= ROUTING_FIXTURES_MIN,
+  `routing-fixtures.json need >=${ROUTING_FIXTURES_MIN} cases, got ${routingFixturesCount}`
+)
+console.log(
+  `eval:route OK — ${total} cases across ${ROUTE_FILES.length} files (composite=${compositeCount}, routing-fixtures=${routingFixturesCount})`
+)

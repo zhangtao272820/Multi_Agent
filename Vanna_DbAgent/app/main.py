@@ -17,6 +17,7 @@ from app.audit import read_audit
 from app.browser_auth import (
     ClawhiveAuthError,
     ClawhiveBrowserAuthMiddleware,
+    auth_from_request,
     auth_from_websocket,
     install_auth_config_route,
 )
@@ -33,7 +34,7 @@ from app.learning import (
     record_feedback,
     reset_learning,
 )
-from app.pending import load_pending, save_pending
+from app.pending import drop_pending, load_pending, save_pending
 from app.manager_compat import build_unified_task_plan, resolve_manager_session_id
 from app.protocol import (
     build_db_agent_result,
@@ -43,6 +44,8 @@ from app.protocol import (
     parse_manager_task,
     verify_agent_service_auth,
 )
+from app.write_sql import decide_write_pending, preview_write_turn
+from app.llm import LlmMeter
 from app.scenes import get_scene, scene_public
 from app.schema_link import cards_for, link_tables
 from app.sessions import (
@@ -146,6 +149,20 @@ class FeedbackBody(BaseModel):
     comment: str = ""
 
 
+class PendingDecideBody(BaseModel):
+    pending_id: str = Field(min_length=1, max_length=80)
+    decision: str = Field(default="确认", max_length=40)
+    tenant: str = ""
+    dbId: str = ""
+    db_id: str = ""
+    confirm_token: str = ""
+    blast_radius: str = ""
+    session_id: str = ""
+    sessionId: str = ""
+    trace_id: str = ""
+    traceId: str = ""
+
+
 class McpBody(BaseModel):
     method: str = ""
     params: dict[str, Any] | None = None
@@ -188,6 +205,34 @@ MCP_TOOLS = [
                 "tenant": {"type": "string"},
             },
             "required": ["pending_id"],
+        },
+    },
+    {
+        "name": "preview_write_sql",
+        "description": "生成安全写 SQL（DML/有限 DDL）并进入 HITL pending（不执行）",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "question": {"type": "string"},
+                "tenant": {"type": "string"},
+                "scene": {"type": "string"},
+                "sql": {"type": "string"},
+            },
+            "required": ["question"],
+        },
+    },
+    {
+        "name": "confirm_write_sql",
+        "description": "确认写库 pending 后执行（须 confirm_token）",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "pending_id": {"type": "string"},
+                "tenant": {"type": "string"},
+                "confirm_token": {"type": "string"},
+                "decision": {"type": "string"},
+            },
+            "required": ["pending_id", "confirm_token"],
         },
     },
     {
@@ -248,9 +293,16 @@ def _headers_dict(request: Request | None) -> dict[str, Any]:
 
 
 def _require_auth(request: Request | None) -> None:
-    ok, reason = verify_agent_service_auth(_headers_dict(request))
-    if not ok:
-        raise HTTPException(401, reason or "unauthorized")
+    """浏览器 JWT / internal token / open 与 ClawhiveBrowserAuthMiddleware 一致；勿单独强制 service token。"""
+    if request is None:
+        ok, reason = verify_agent_service_auth({})
+        if not ok:
+            raise HTTPException(401, reason or "unauthorized")
+        return
+    try:
+        auth_from_request(request)
+    except ClawhiveAuthError as exc:
+        raise HTTPException(401, exc.code) from exc
 
 
 @asynccontextmanager
@@ -601,6 +653,35 @@ def _mcp_call(name: str, args: dict[str, Any]) -> dict[str, Any]:
             "sql": answer.get("sql") or "",
             "rows": answer.get("rows") or [],
         }
+    if name == "preview_write_sql":
+        tenant = _tenant_or_404(str(args.get("tenant") or "p2604"))
+        scene = get_scene(str(args.get("scene") or "assistant"))
+        events = list(
+            preview_write_turn(
+                tenant=tenant,
+                scene=scene,
+                question=str(args.get("question") or ""),
+                sql_override=str(args.get("sql") or ""),
+                meter=LlmMeter(),
+            )
+        )
+        answer = next((e for e in reversed(events) if e.get("event") == "answer"), {})
+        return {
+            "ok": True,
+            "text": answer.get("text") or "",
+            "sql": answer.get("sql") or "",
+            "pending_id": answer.get("pending_id") or "",
+            "needs_human_confirm": bool(answer.get("needs_human_confirm")),
+            "pending_actions": answer.get("pending_actions") or [],
+        }
+    if name == "confirm_write_sql":
+        tenant = _tenant_or_404(str(args.get("tenant") or "p2604"))
+        return decide_write_pending(
+            pending_id=str(args.get("pending_id") or ""),
+            decision=str(args.get("decision") or "确认"),
+            tenant=tenant,
+            confirm_token=str(args.get("confirm_token") or ""),
+        )
     if name == "promote_golden":
         return promote_golden(
             _tenant_or_404(str(args.get("tenant") or "p2604")),
@@ -609,6 +690,70 @@ def _mcp_call(name: str, args: dict[str, Any]) -> dict[str, Any]:
             tables=list(args.get("tables") or []),
         )
     raise HTTPException(400, f"unknown tool: {name}")
+
+
+@app.post("/api/pending/decide")
+def pending_decide(body: PendingDecideBody, request: Request) -> dict[str, Any]:
+    _require_auth(request)
+    tid = _resolve_tenant_id(tenant=body.tenant, db_id=body.dbId or body.db_id, required_if_explicit=False)
+    tenant = _tenant_or_404(tid)
+    pending = load_pending(body.pending_id)
+    if not pending:
+        raise HTTPException(404, "pending not found")
+    if str(pending.get("kind") or "") != "write":
+        ask_body = AskBody(
+            question="",
+            tenant=tenant.id,
+            pending_id=body.pending_id,
+            confirm=True,
+            session_id=body.session_id or body.sessionId,
+            trace_id=body.trace_id or body.traceId,
+        )
+        events = list(_run(ask_body, headers=_headers_dict(request), force_manager=True))
+        answer_ev = next((e for e in reversed(events) if e.get("event") == "answer"), {})
+        text = str(answer_ev.get("text") or "")
+        sql = str(answer_ev.get("sql") or "")
+        agent_result = build_db_agent_result(
+            answer=text,
+            empty=bool(answer_ev.get("empty")),
+            reason="ok",
+            trace_id=str(body.trace_id or body.traceId or ""),
+            executed_sql=sql,
+            error_code=str(answer_ev.get("error_code") or ""),
+            tables=list(answer_ev.get("tables") or []),
+            rows=list(answer_ev.get("rows") or [])[:30],
+        )
+        return {"ok": bool(agent_result.get("ok")), "answer": text, "sql": sql, "agentResult": agent_result}
+    result = decide_write_pending(
+        pending_id=body.pending_id,
+        decision=body.decision,
+        tenant=tenant,
+        confirm_token=body.confirm_token,
+    )
+    agent_result = build_db_agent_result(
+        answer=str(result.get("text") or ""),
+        empty=False,
+        reason="ok" if result.get("ok") else "business",
+        trace_id=str(body.trace_id or body.traceId or ""),
+        executed_sql=str(result.get("sql") or ""),
+        error_code=str(result.get("error_code") or ""),
+        path="write",
+        tables=list(result.get("tables") or []),
+        needs_human_confirm=bool(result.get("needs_human_confirm")),
+        pending_id=str(result.get("pending_id") or ""),
+    )
+    if result.get("ok") is False:
+        agent_result["ok"] = False
+        if result.get("error_code"):
+            agent_result["error_code"] = result["error_code"]
+    return {
+        "ok": bool(result.get("ok")),
+        "answer": result.get("text") or "",
+        "sql": result.get("sql") or "",
+        "executed": bool(result.get("executed")),
+        "rowcount": result.get("rowcount", 0),
+        "agentResult": agent_result,
+    }
 
 
 @app.post("/api/ask")
@@ -640,6 +785,9 @@ def ask(body: AskBody, request: Request) -> dict[str, Any]:
         rows=list(answer_ev.get("rows") or [])[:30],
         field_details=list(answer_ev.get("field_details") or [])[:12],
         experience_hits=int(getattr(body, "_experience_hits", 0) or 0),
+        needs_human_confirm=bool(answer_ev.get("needs_human_confirm")),
+        pending_actions=list(answer_ev.get("pending_actions") or []),
+        pending_id=str(answer_ev.get("pending_id") or ""),
     )
     sid = str(body.session_id or body.sessionId or "")
     return {
@@ -651,6 +799,8 @@ def ask(body: AskBody, request: Request) -> dict[str, Any]:
         "sql": sql,
         "checkpoint": bool(answer_ev.get("checkpoint")),
         "pending_id": answer_ev.get("pending_id") or "",
+        "needs_human_confirm": bool(answer_ev.get("needs_human_confirm")),
+        "pending_actions": answer_ev.get("pending_actions") or [],
         "rows": answer_ev.get("rows") or [],
         "session_id": sid,
         "ok": bool(agent_result.get("ok")),
@@ -715,11 +865,6 @@ async def chat_ws(ws: WebSocket) -> None:
         await ws.close()
         return
     headers = {k.lower(): v for k, v in ws.headers.items()}
-    ok, reason = verify_agent_service_auth(headers)
-    if not ok:
-        await ws.send_json({"event": "error", "data": reason or "unauthorized"})
-        await ws.close()
-        return
     try:
         auth_from_websocket(ws)
     except ClawhiveAuthError as exc:
@@ -835,21 +980,67 @@ def _run(
         "row_count": 0,
         "error": "",
     }
-    for ev in run_turn(
-        tenant=tenant,
-        scene=scene,
-        question=question,
-        confirm=confirm,
-        pending=pending,
-        sql_override=body.sql.strip() or None,
-        history=history,
-        manager_path=manager_path,
-        hint_tables=mgr.hint_tables,
-        hint_fields=mgr.hint_fields,
-        must_filters=mgr.must_filters,
-        experience_block=experience_block,
-        experience_hits=experience_hits,
-    ):
+    write_mode = bool(mgr.write_allowed) or (
+        pending is not None and str((pending or {}).get("kind") or "") == "write"
+    )
+    # 写 pending 确认：禁止走 SELECT 执行路径
+    if pending and str(pending.get("kind") or "") == "write":
+        if confirm:
+            token = str(mgr.confirm_token or "").strip()
+            result = decide_write_pending(
+                pending_id=str(pending.get("id") or body.pending_id),
+                decision="确认",
+                tenant=tenant,
+                confirm_token=token,
+            )
+            ev = {
+                "event": "answer",
+                "text": result.get("text") or "",
+                "sql": result.get("sql") or "",
+                "ok": bool(result.get("ok")),
+                "error_code": result.get("error_code") or "",
+                "needs_human_confirm": bool(result.get("needs_human_confirm")),
+                "pending_id": result.get("pending_id") or "",
+                "tables": result.get("tables") or [],
+            }
+            yield ev
+            return
+        drop_pending(str(pending.get("id") or body.pending_id))
+        yield {
+            "event": "answer",
+            "text": "已取消写库操作，未改动数据库。",
+            "sql": "",
+            "ok": True,
+        }
+        return
+
+    turn_iter = (
+        preview_write_turn(
+            tenant=tenant,
+            scene=scene,
+            question=question,
+            meter=LlmMeter(),
+            hint_tables=mgr.hint_tables,
+            sql_override=body.sql.strip() if write_mode and body.sql.strip() else "",
+        )
+        if write_mode and not pending
+        else run_turn(
+            tenant=tenant,
+            scene=scene,
+            question=question,
+            confirm=confirm,
+            pending=pending,
+            sql_override=body.sql.strip() or None,
+            history=history,
+            manager_path=manager_path,
+            hint_tables=mgr.hint_tables,
+            hint_fields=mgr.hint_fields,
+            must_filters=mgr.must_filters,
+            experience_block=experience_block,
+            experience_hits=experience_hits,
+        )
+    )
+    for ev in turn_iter:
         kind = str(ev.get("event") or "")
         if kind == "retrieve":
             trace_meta["tables"] = list(ev.get("tables") or [])

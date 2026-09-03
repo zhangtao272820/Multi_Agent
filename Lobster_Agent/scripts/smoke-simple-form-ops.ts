@@ -88,6 +88,69 @@ assert.equal(isFormFillBrowseTask(task), true)
 const heur = extractFormFieldsHeuristic(task)
 assert.equal(heur.find((f) => f.key === 'first_name')?.value, '张三')
 
+// login 字段启发式 + 密码脱敏 + password fill（mock）
+import {
+  isSensitiveFormKey,
+  redactFormFieldsForLog,
+} from '../server/services/lobsterFormFill'
+const loginTask =
+  '打开 https://the-internet.herokuapp.com/login ，用户名填 tomsmith，密码填 SuperSecretPassword!，提交登录。'
+const loginHeur = extractFormFieldsHeuristic(loginTask)
+assert.equal(loginHeur.find((f) => f.key === 'username')?.value, 'tomsmith')
+assert.equal(loginHeur.find((f) => f.key === 'password')?.value, 'SuperSecretPassword!')
+assert.equal(isSensitiveFormKey('password'), true)
+const redacted = redactFormFieldsForLog(loginHeur)
+assert.equal(redacted.find((f) => f.key === 'password')?.value, '***')
+
+const loginStore: Record<string, string> = {}
+const loginPage = {
+  locator(sel: string) {
+    const key =
+      /password|type="password"|current-password/i.test(sel)
+        ? 'password'
+        : /username|user|autocomplete="username"/i.test(sel)
+          ? 'username'
+          : sel
+    return {
+      first() {
+        return this
+      },
+      async fill(v: string) {
+        loginStore[key] = v
+      },
+      async inputValue() {
+        // 模拟部分站点 password 不可读
+        return key === 'password' ? '' : loginStore[key] || ''
+      },
+      async getAttribute(name: string) {
+        return name === 'value' ? (key === 'password' ? '' : loginStore[key] || '') : null
+      },
+    }
+  },
+  getByLabel(label: string) {
+    return this.locator(label)
+  },
+  getByRole(_role: string, opts?: { name?: string }) {
+    return this.locator(String(opts?.name || ''))
+  },
+  getByPlaceholder(ph: string) {
+    return this.locator(ph)
+  },
+}
+const loginFilled = await playwrightFillFormFields(
+  { page: loginPage },
+  {
+    fields: [
+      { key: 'username', value: 'tomsmith' },
+      { key: 'password', value: 'SuperSecretPassword!' },
+    ],
+    recipeFields: [],
+  },
+)
+assert.equal(loginFilled.ok, true, 'login mock fill ok')
+assert.equal(loginStore.username, 'tomsmith')
+assert.equal(loginStore.password, 'SuperSecretPassword!')
+
 const okResult = {
   answer: '已填 first_name=张三；last_name=李四（未提交）',
   finalUrl: 'https://www.w3school.com.cn/html/html_forms.asp',

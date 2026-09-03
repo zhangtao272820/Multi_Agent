@@ -79,6 +79,24 @@ const RECIPES: SiteRecipe[] = [
     },
   },
   {
+    id: 'bing-cn',
+    hosts: /(?:^|\.)bing\.com$/i,
+    preferredEngine: 'stagehand',
+    mcpHints: [
+      '必应中国：优先 https://cn.bing.com/search?q=关键词；国内默认搜索引擎之一。',
+      '结果区多为 #b_results；避免点广告位。',
+    ],
+    stagehandHints: [
+      '优先 cn.bing.com；goto 直达 /search?q=… 再抽标题链接。',
+      '若跳到国际站，改回 cn.bing.com 或加 mkt=zh-CN。',
+    ],
+    resultPageHints: {
+      urlIncludes: ['/search', 'q='],
+      listSelector: '#b_results',
+      resultRootSelector: '#b_results',
+    },
+  },
+  {
     id: 'gov',
     hosts: /gov\.cn/i,
     preferredEngine: 'stagehand',
@@ -208,22 +226,25 @@ const RECIPES: SiteRecipe[] = [
   {
     id: 'bilibili',
     hosts: /bilibili\.com|b23\.tv/i,
-    preferredEngine: 'classic',
+    // 游客搜索/抽取优先 Stagehand；播放/投币/弹幕等互动仍 hard_guard → classic（见 engineSelector）
+    preferredEngine: 'stagehand',
     complex: true,
     mcpHints: [
-      'B 站为重度 SPA；游客任务可直达 search.bilibili.com 搜索，无需登录。',
-      '首页登录推广弹窗点「暂不登录」或 Escape；搜索框在顶栏。',
-      '播放/点赞/弹幕任务必须用 classic 引擎；播放器控件 MCP ref 常失效。'
+      'B 站为重度 SPA；游客任务直达 search.bilibili.com，无需登录。',
+      '首页登录推广弹窗点「暂不登录」或 Escape。',
+      '播放/点赞/投币/弹幕：下一阶段 B 站专属 MCP（skills/bilibili-engagement）；当前走 classic HITL。',
     ],
     stagehandHints: [
+      '游客搜索：startUrl 用 https://search.bilibili.com/all?keyword=…，explicitly_avoid_login。',
       '登录墙出现则 finish 说明需 cookie；可 POST /api/lobster/session/import 导入登录态。',
-      '弹窗/青少年模式提示先 observe 关闭按钮再 act。'
+      '弹窗/青少年模式提示先 observe 关闭按钮再 act。',
+      '专属互动（弹幕/播放/投币）→ 后续 MCP，本轮禁止自动执行。',
     ],
-    actTemplate: '在 B 站搜索指定关键词，打开第一条视频详情页，提取标题、UP 主与链接（不播放）',
+    actTemplate: '在 B 站搜索指定关键词，打开第一条视频详情页，提取标题、UP 主与链接（不播放、不点赞、不投币）',
     resultPageHints: {
       urlIncludes: ['search.bilibili.com', 'keyword='],
-      listSelector: '.video-list, .search-content',
-      resultRootSelector: '.video-list, .search-content',
+      listSelector: '.video-list, .search-content, .bili-video-card',
+      resultRootSelector: '.bili-video-card, .video-list .bili-video-card, .search-content',
     },
   },
   {

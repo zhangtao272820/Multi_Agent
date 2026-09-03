@@ -77,7 +77,10 @@ const taskKind = computed(() => String(taskSpec.value?.task_kind || '').trim() |
 const engineHint = computed(() => String(taskSpec.value?.engine_hint || '').trim() || '')
 const rationale = computed(() => String(taskSpec.value?.rationale || '').trim() || '')
 const confidence = computed(() => {
-  const n = Number(taskSpec.value?.confidence ?? props.understand?.picked && (props.understand!.picked as any).confidence)
+  const picked = props.understand?.picked
+  const fromPicked =
+    picked && typeof picked === 'object' ? (picked as { confidence?: unknown }).confidence : undefined
+  const n = Number(taskSpec.value?.confidence ?? fromPicked)
   return Number.isFinite(n) ? n : null
 })
 const source = computed(() => {
@@ -134,17 +137,17 @@ function chainChipClass(i: number, engine: string) {
   margin: 14px 0;
   padding: 14px 16px;
   border-radius: 16px;
-  background: rgba(12, 22, 42, 0.48);
-  border: 1px solid rgba(168, 206, 255, 0.22);
-  backdrop-filter: blur(16px) saturate(1.15);
-  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.22);
+  background: color-mix(in srgb, var(--brand-accent, #9f3445) 8%, #fff);
+  border: 1px solid color-mix(in srgb, var(--brand-accent, #9f3445) 22%, transparent);
+  backdrop-filter: blur(12px) saturate(1.08);
+  box-shadow: 0 10px 28px color-mix(in srgb, var(--brand-accent, #9f3445) 12%, transparent);
 }
 .insight-h {
   font-size: 13px;
   font-weight: 650;
   margin-bottom: 12px;
   letter-spacing: 0.2px;
-  color: rgba(230, 240, 255, 0.92);
+  color: var(--brand-accent, #9f3445);
 }
 .insight-grid {
   display: grid;
@@ -159,13 +162,13 @@ function chainChipClass(i: number, engine: string) {
 .insight-card {
   padding: 10px 12px;
   border-radius: 12px;
-  background: rgba(0, 0, 0, 0.22);
-  border: 1px solid rgba(168, 206, 255, 0.1);
+  background: color-mix(in srgb, #fff 82%, var(--brand-bg, #f4f1f2));
+  border: 1px solid color-mix(in srgb, var(--brand-accent, #9f3445) 14%, transparent);
   min-height: 78px;
 }
 .k {
   font-size: 11px;
-  color: rgba(180, 200, 225, 0.65);
+  color: color-mix(in srgb, var(--brand-text, #2a1f22) 55%, transparent);
   margin-bottom: 6px;
   font-weight: 600;
 }
@@ -173,21 +176,21 @@ function chainChipClass(i: number, engine: string) {
   font-size: 12px;
   line-height: 1.45;
   word-break: break-word;
-  color: rgba(236, 244, 255, 0.94);
+  color: var(--brand-text, #2a1f22);
 }
 .v.small {
   font-size: 11px;
-  color: rgba(200, 218, 240, 0.8);
+  color: color-mix(in srgb, var(--brand-text, #2a1f22) 72%, transparent);
   margin-top: 4px;
 }
 .v.muted {
-  color: rgba(168, 190, 218, 0.55);
+  color: color-mix(in srgb, var(--brand-text, #2a1f22) 48%, transparent);
 }
 .v.ok {
-  color: #7dcea0;
+  color: #2e7d4f;
 }
 .v.bad {
-  color: #f1948a;
+  color: #b03a2e;
 }
 .chain {
   display: flex;
@@ -198,15 +201,16 @@ function chainChipClass(i: number, engine: string) {
   font-size: 11px;
   padding: 3px 8px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: rgba(220, 236, 255, 0.9);
+  background: color-mix(in srgb, var(--brand-accent, #9f3445) 10%, #fff);
+  border: 1px solid color-mix(in srgb, var(--brand-accent, #9f3445) 28%, transparent);
+  color: var(--brand-accent, #9f3445);
 }
 .chip.active {
-  background: rgba(93, 173, 226, 0.28);
-  border-color: rgba(93, 173, 226, 0.55);
+  background: var(--brand-accent, #9f3445);
+  color: #fff;
+  border-color: transparent;
 }
 .chip.done {
-  opacity: 0.55;
+  opacity: 0.65;
 }
 </style>

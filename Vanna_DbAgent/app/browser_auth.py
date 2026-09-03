@@ -72,8 +72,18 @@ def verify_jwt(token: str) -> dict[str, Any]:
     }
 
 
+def _resolve_internal_token() -> str:
+    return str(
+        os.getenv("AGENT_SERVICE_TOKEN")
+        or os.getenv("CLAWHIVE_INTERNAL_TOKEN")
+        or os.getenv("AGENT_INTERNAL_TOKEN")
+        or os.getenv("MANAGER_OPS_TOKEN")
+        or ""
+    ).strip()
+
+
 def _internal_ok(headers: dict[str, str]) -> bool:
-    expected = str(os.getenv("CLAWHIVE_INTERNAL_TOKEN") or os.getenv("AGENT_INTERNAL_TOKEN") or "").strip()
+    expected = _resolve_internal_token()
     if not expected:
         return False
     got = (

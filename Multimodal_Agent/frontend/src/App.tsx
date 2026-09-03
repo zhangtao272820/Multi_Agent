@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import BrandMotif from "@brand/react/BrandMotif.jsx";
 import { brandAvatarUrl, brandLogoUrl } from "@brand/react/assetMap.js";
 import { logout } from "./clawhiveAuth";
 import { parseAgentView } from "./reply";
@@ -203,22 +202,13 @@ export default function App({ onLogout }: Props) {
   };
 
   return (
-    <div className="brand-shell mm-brand-root mm-shell" data-agent="multimodal">
-      <div className="mm-season-bg mm-season-bg--xiazhi" aria-hidden="true" />
-      <BrandMotif motif="thunder" />
-      <div className="mm-storm" aria-hidden="true">
-        <span className="mm-storm__sheet" />
-        <span className="mm-storm__bolt mm-storm__bolt--a" />
-        <span className="mm-storm__bolt mm-storm__bolt--b" />
-        <span className="mm-storm__bolt mm-storm__bolt--c" />
-      </div>
-
+    <div className="brand-shell mm-brand-root mm-shell ch-lite" data-agent="multimodal">
       <div className="app">
       <header className="hero mm-glass--bar">
         <div className="hero-brand">
           <img className="brand-logo" src={brandLogoUrl("multimodal")} alt="" width={40} height={40} />
           <div className="hero-brand__text">
-            <p className="mm-topbar__eyebrow">夏至 · 廉贞 · 雷霆夏景</p>
+            <p className="mm-topbar__eyebrow">廉贞 · Multimodal</p>
             <h1>廉贞 · 多模态</h1>
             <p className="hero-sub">视觉理解 · 视频摘要 · 语音转写 · 实时思考链</p>
           </div>

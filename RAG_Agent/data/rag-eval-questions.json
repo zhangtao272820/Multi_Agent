@@ -168,5 +168,151 @@
     "expect_intent": "process",
     "tags": ["graph_relation", "process", "policy"],
     "notes": "M：关系问优先 needs_graph；答案须落到原文条款 citation"
+  },
+  {
+    "id": "policy_nutrition",
+    "question": "养老机构特殊饮食医嘱如何执行？",
+    "expect_sources": ["养老机构服务规范"],
+    "tags": ["fact_lookup", "policy"]
+  },
+  {
+    "id": "policy_sleep",
+    "question": "老年人睡眠监测与记录要求有哪些？",
+    "expect_sources": ["养老机构服务规范"],
+    "tags": ["fact_lookup", "policy"]
+  },
+  {
+    "id": "policy_bathing",
+    "question": "助浴服务的安全注意事项是什么？",
+    "expect_sources": ["养老机构服务规范"],
+    "tags": ["fact_lookup", "policy"]
+  },
+  {
+    "id": "policy_wound_care",
+    "question": "压疮分级护理措施有哪些？",
+    "expect_sources": ["养老机构服务规范"],
+    "tags": ["fact_lookup", "policy", "faithfulness"]
+  },
+  {
+    "id": "policy_mental_health",
+    "question": "认知障碍老人的沟通与安抚规范？",
+    "expect_sources": ["养老机构服务规范"],
+    "tags": ["fact_lookup", "policy"]
+  },
+  {
+    "id": "policy_visitor",
+    "question": "探视管理制度有哪些要点？",
+    "expect_sources": ["养老机构服务规范"],
+    "tags": ["fact_lookup", "policy"]
+  },
+  {
+    "id": "policy_complaint",
+    "question": "投诉处理流程应如何记录和反馈？",
+    "expect_sources": ["养老机构服务规范"],
+    "tags": ["fact_lookup", "policy"]
+  },
+  {
+    "id": "policy_training",
+    "question": "护理员岗前培训时长和内容要求？",
+    "expect_sources": ["养老机构服务规范"],
+    "tags": ["fact_lookup", "policy"]
+  },
+  {
+    "id": "policy_equipment",
+    "question": "康复辅具使用与维护有哪些规定？",
+    "expect_sources": ["养老机构服务规范"],
+    "tags": ["fact_lookup", "policy"]
+  },
+  {
+    "id": "compound_fall_infection",
+    "question": "跌倒预防和感染防控分别有什么要求？",
+    "expect_sources": ["养老机构服务规范"],
+    "tags": ["multi_part", "policy"]
+  },
+  {
+    "id": "quote_medication_admin",
+    "question": "请引用规范中关于给药双人核对的表述",
+    "expect_sources": ["养老机构服务规范"],
+    "tags": ["quote", "policy", "faithfulness"]
+  },
+  {
+    "id": "faithfulness_ratio_number",
+    "question": "护理人员与失能老人配比比例是多少？",
+    "expect_sources": ["养老机构服务规范"],
+    "tags": ["faithfulness", "policy"],
+    "expect_clarify_or_cite": true
+  },
+  {
+    "id": "refuse_off_topic",
+    "question": "帮我写一段 Python 快速排序代码",
+    "expect_intent": "out_of_scope",
+    "tags": ["refuse", "out_of_scope"],
+    "notes": "库内无编程内容；应拒答或 clarify，不硬编制度"
+  },
+  {
+    "id": "refuse_no_corpus",
+    "question": "特斯拉 Model Y 2026 款售价是多少？",
+    "expect_intent": "retrieval_failure",
+    "tags": ["refuse", "no_corpus"],
+    "notes": "私有库无此信息；retrieve-first 无命中应拒答"
+  },
+  {
+    "id": "refuse_vague",
+    "question": "那个文件里说的",
+    "expect_intent": "clarify",
+    "tags": ["refuse", "clarify"],
+    "expect_clarify_or_cite": true,
+    "notes": "意图鸿沟；应澄清指哪份文档/哪一条"
+  },
+  {
+    "id": "meta_kb_scope",
+    "question": "知识库里有没有关于消防的文档？",
+    "expect_sources": ["养老机构服务规范"],
+    "tags": ["meta", "policy"]
+  },
+  {
+    "id": "expression_gap_hallucination",
+    "question": "怎么减少大模型胡说八道？",
+    "expect_intent": "definition",
+    "tags": ["expression_gap", "hyde"],
+    "notes": "表达鸿沟；若有 HyDE 门控应检索制度/技术书面语"
+  },
+  {
+    "id": "policy_elder_abuse",
+    "question": "疑似虐待老人应如何上报？",
+    "expect_sources": ["养老机构服务规范"],
+    "tags": ["fact_lookup", "policy"]
+  },
+  {
+    "id": "policy_transfer",
+    "question": "老人转院或出院交接有哪些要求？",
+    "expect_sources": ["养老机构服务规范"],
+    "tags": ["fact_lookup", "policy"]
+  },
+  {
+    "id": "policy_inventory",
+    "question": "老人个人物品保管制度是什么？",
+    "expect_sources": ["养老机构服务规范"],
+    "tags": ["fact_lookup", "policy"]
+  },
+  {
+    "id": "policy_activity",
+    "question": "文娱活动组织的安全规范有哪些？",
+    "expect_sources": ["养老机构服务规范"],
+    "tags": ["fact_lookup", "policy"]
+  },
+  {
+    "id": "faithfulness_handover",
+    "question": "交接班必须口头交代还是必须书面记录？",
+    "expect_sources": ["养老机构服务规范"],
+    "tags": ["faithfulness", "policy"],
+    "expect_clarify_or_cite": true
+  },
+  {
+    "id": "stale_version_explicit",
+    "question": "2018 版养老机构服务规范里的补贴标准",
+    "expect_sources": ["养老机构服务规范"],
+    "tags": ["stale", "policy"],
+    "expect_stale_hint": true
   }
 ]

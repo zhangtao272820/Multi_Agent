@@ -3,6 +3,9 @@
  * 不可信正文（工具·网页·邮件·抓取）须显式打标；不得当作指令改 cap / 跳过 HITL。
  */
 
+import { recordContentTrustSanitizeEmpty, recordContentTrustStrictMode, recordContentTrustWrap } from './contentTrustMetrics'
+import { isContentTrustStrictEnabled, resolveUntrustedMaxChars } from './contentTrustStrict'
+
 export type ContentTrustZone = 'system' | 'user' | 'untrusted'
 
 export const UNTRUSTED_BEGIN = '<<<UNTRUSTED_DATA'
@@ -37,6 +40,7 @@ export function wrapUntrustedContent(input: WrapUntrustedInput): string {
   if (isUntrustedWrapped(body)) return body
   const max = Math.max(64, Number(input.maxChars) || 4000)
   if (body.length > max) body = `${body.slice(0, max)}…`
+  recordContentTrustWrap(source)
   return [
     `${UNTRUSTED_BEGIN} source=${source}`,
     UNTRUSTED_POLICY_LINE,
@@ -69,13 +73,17 @@ export function prepareUntrustedForSynth(
   source: string,
   text: string,
   sanitize: (s: string) => string,
-  maxChars = 1200
+  maxChars = 1200,
+  env: NodeJS.ProcessEnv = process.env
 ): string {
   const raw = String(text ?? '')
   const cleaned = sanitize(raw).trim()
   // 注入行被洗空时仍保留 untrusted 区，避免“消失后误入 system/user”
   const body = cleaned || (raw.trim() ? '(untrusted content removed by sanitize)' : '')
-  return wrapUntrustedContent({ source, text: body, maxChars })
+  if (!cleaned && raw.trim()) recordContentTrustSanitizeEmpty()
+  const cap = resolveUntrustedMaxChars(maxChars, env)
+  if (isContentTrustStrictEnabled(env)) recordContentTrustStrictMode()
+  return wrapUntrustedContent({ source, text: body, maxChars: cap })
 }
 
 /** 断言：文本不在 system 区语义（smoke 用）——不得出现裸 system 指令区标签 */

@@ -5,7 +5,9 @@ import ClawhiveLoginGate from './ClawhiveLoginGate'
 import { installFetchAuth, isLoggedIn } from './clawhiveAuth'
 import '@brand/index.css'
 import './code-season.css'
+import './code-comfort.css'
 import './styles.css'
+import './code-theme.css'
 
 installFetchAuth()
 

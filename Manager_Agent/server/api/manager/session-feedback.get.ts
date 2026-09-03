@@ -7,6 +7,7 @@ import {
   assertManagerSessionAccess,
   resolveManagerHttpUser
 } from '../../utils/platform/managerRequestUser'
+import { resolveManagerPolicyDir } from '../../utils/session/managerPolicyDir'
 
 const QuerySchema = z.object({
   sessionId: z.string().min(1).max(120).regex(/^[A-Za-z0-9_-]+$/),
@@ -36,7 +37,8 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  const dir = path.join(process.cwd(), '.data')
+  // 与 processManagerFeedback 写入同一租户目录（MGR_TENANT_SCOPE=1 时为 .data/tenants/{id}）
+  const dir = resolveManagerPolicyDir(auth.tenantId)
   const jsonlPath = path.join(dir, 'manager-memory.jsonl')
   const jsonPath = path.join(dir, 'manager-memory.json')
   const history = await readHistoryEntries(jsonlPath, jsonPath, 800)

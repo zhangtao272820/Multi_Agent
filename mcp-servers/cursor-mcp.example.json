@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "clawhive-rag": {
+      "command": "node",
+      "args": ["mcp-servers/rag-search/index.mjs"],
+      "env": {
+        "RAG_AGENT_URL": "http://127.0.0.1:13102"
+      }
+    },
+    "clawhive-db": {
+      "command": "node",
+      "args": ["mcp-servers/db-readonly/index.mjs"],
+      "env": {
+        "DB_AGENT_URL": "http://127.0.0.1:13101"
+      }
+    }
+  }
+}

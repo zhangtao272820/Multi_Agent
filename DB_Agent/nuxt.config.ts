@@ -28,7 +28,7 @@ const mcpServers = (() => {
 })();
 
 export default defineNuxtConfig({
-  css: [join(brandDir, 'index.css'), '~/assets/css/db-season.css', '~/assets/css/db-cursor-chat.css'],
+  css: [join(brandDir, 'index.css'), '~/assets/css/db-season.css', '~/assets/css/db-cursor-chat.css', '~/assets/css/db-theme.css'],
   alias: {
     '#agent-shared': agentSharedDir(),
     '@brand': brandDir

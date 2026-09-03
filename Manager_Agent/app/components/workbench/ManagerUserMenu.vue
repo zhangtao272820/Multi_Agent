@@ -8,7 +8,14 @@ const { user, isLoggedIn, logout } = useClawhiveLogin()
 
 const displayName = computed(() => String(user.value?.username || user.value?.userId || '用户').trim() || '用户')
 const tenantLabel = computed(() => String(user.value?.tenantId || 'default').trim() || 'default')
-const roleLabel = computed(() => String(user.value?.role || 'viewer').trim() || 'viewer')
+const roleLabel = computed(() => {
+  const r = String(user.value?.role || 'viewer').trim() || 'viewer'
+  if (r === 'user') return '对话用户'
+  if (r === 'viewer') return '旁观（viewer）'
+  if (r === 'operator') return '运维（operator）'
+  if (r === 'admin') return '管理员（admin）'
+  return r
+})
 
 function placePanel() {
   const el = rootEl.value

@@ -20,11 +20,14 @@ function assert(cond: unknown, msg: string): void {
 const saved: Record<string, string | undefined> = {
   AGENT_SERVICE_AUTH: process.env.AGENT_SERVICE_AUTH,
   MANAGER_AGENT_SERVICE_AUTH: process.env.MANAGER_AGENT_SERVICE_AUTH,
+  AGENT_SECURITY_PROFILE: process.env.AGENT_SECURITY_PROFILE,
+  MANAGER_SECURITY_MODE: process.env.MANAGER_SECURITY_MODE,
   AGENT_SERVICE_TOKEN: process.env.AGENT_SERVICE_TOKEN,
   CLAWHIVE_INTERNAL_TOKEN: process.env.CLAWHIVE_INTERNAL_TOKEN,
   AGENT_INTERNAL_TOKEN: process.env.AGENT_INTERNAL_TOKEN,
   MANAGER_OPS_TOKEN: process.env.MANAGER_OPS_TOKEN,
-  AGENT_BROWSER_AUTH: process.env.AGENT_BROWSER_AUTH
+  AGENT_BROWSER_AUTH: process.env.AGENT_BROWSER_AUTH,
+  JWT_SECRET: process.env.JWT_SECRET
 }
 
 function restore() {
@@ -37,11 +40,14 @@ function restore() {
 function clear() {
   delete process.env.AGENT_SERVICE_AUTH
   delete process.env.MANAGER_AGENT_SERVICE_AUTH
+  delete process.env.AGENT_SECURITY_PROFILE
+  delete process.env.MANAGER_SECURITY_MODE
   delete process.env.AGENT_SERVICE_TOKEN
   delete process.env.CLAWHIVE_INTERNAL_TOKEN
   delete process.env.AGENT_INTERNAL_TOKEN
   delete process.env.MANAGER_OPS_TOKEN
   delete process.env.AGENT_BROWSER_AUTH
+  delete process.env.JWT_SECRET
 }
 
 try {
@@ -91,6 +97,21 @@ try {
     forgedStatus = Number((e as { statusCode?: number }).statusCode || 0)
   }
   assert(forgedStatus === 401, 'nitro: forged service token → 401')
+
+  // 企业档 require + 浏览器鉴权：无服务 token 时走 JWT，不得 agent_service_token_missing
+  clear()
+  process.env.AGENT_SECURITY_PROFILE = 'enterprise'
+  process.env.AGENT_SERVICE_AUTH = 'require'
+  process.env.AGENT_SERVICE_TOKEN = 'req-secret'
+  process.env.AGENT_BROWSER_AUTH = '1'
+  process.env.JWT_SECRET = 'jwt-test-secret'
+  let loginRequired = ''
+  try {
+    requireBrowserOrInternalAuth(event({}))
+  } catch (e) {
+    loginRequired = String((e as { statusMessage?: string }).statusMessage || (e as Error).message || '')
+  }
+  assert(loginRequired === 'login_required', `enterprise browser without JWT → login_required, got ${loginRequired}`)
 
   console.log('smoke-envelope-auth: OK')
 } finally {

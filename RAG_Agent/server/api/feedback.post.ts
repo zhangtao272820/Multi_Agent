@@ -5,6 +5,7 @@ import { turnFeedbackKey, upsertRagSessionFeedback, userMessageFeedbackKey } fro
 import { handleRagAgentFeedback } from "#agent-shared/artifactFeedbackOrchestrator";
 import { normalizeArtifact } from "#agent-shared/artifactFeedbackPolicy";
 import { assertRagSessionAccess, resolveRagHttpUser } from "../utils/ragRequestUser";
+import { indexRagExperience } from "../utils/experience_vectors";
 
 export default defineEventHandler(async (event) => {
   const body = await readBody<{
@@ -65,12 +66,19 @@ export default defineEventHandler(async (event) => {
     await assertRagSessionAccess({ sessionId, userId: auth.userId });
   }
 
+  const sourceLabel =
+    String(body?.source ?? artifact?.source_labels?.[0] ?? "").trim() || undefined;
+  const feedbackSourceTag =
+    score === 1
+      ? `rag_feedback|useful${sourceLabel ? `|${sourceLabel}` : ""}`
+      : `rag_feedback|useless${sourceLabel ? `|${sourceLabel}` : ""}`;
+
   recordLearningSignal({
     question: question.slice(0, 500),
     score,
     comment: String(body?.comment ?? "").trim().slice(0, 300) || undefined,
     path: String(body?.path ?? "document_query").trim() || "document_query",
-    source: String(body?.source ?? artifact?.source_labels?.[0] ?? "").trim() || undefined,
+    source: feedbackSourceTag,
     sessionId: sessionId || undefined,
     userMessageIndex: userMessageIndex ?? undefined,
     runId: runId || undefined,
@@ -78,6 +86,18 @@ export default defineEventHandler(async (event) => {
 
   const artifactAction = await handleRagAgentFeedback({ score, question, runId, artifact });
   await refreshArtifactPrefsCache(true);
+
+  // 仅「有用」写入向量经验库（检索成功默认不再自动索引）
+  if (score === 1) {
+    const sources: string[] = Array.isArray(artifact?.source_labels)
+      ? artifact.source_labels.map((s) => String(s || "").trim()).filter(Boolean)
+      : [];
+    if (sourceLabel && !sources.includes(sourceLabel)) sources.push(sourceLabel);
+    const hint = sources.length
+      ? `优先来源=${sources.slice(0, 2).join("、")}`
+      : "document_query|useful_feedback";
+    void indexRagExperience({ question: question.slice(0, 500), hint, sources }).catch(() => {});
+  }
 
   if (score === -1 && getRagAgentEnv().enablePromptEvolution) {
     evolveFromNegativeFeedback(question, String(body?.comment ?? ""), {

@@ -125,30 +125,35 @@ export function requireBrowserOrInternalAuth(
   const mode = resolveAgentServiceAuthMode(env)
   const hasServiceHeader = Boolean(extractInternalToken(event))
 
-  if (hasServiceHeader || mode === 'require') {
+  // 服务身份：仅当请求显式带服务 token 时校验。
+  // 企业档 AGENT_SERVICE_AUTH=require 不得拦浏览器 JWT（二选一：服务 token OR 用户 JWT）。
+  if (hasServiceHeader) {
     const v = verifyAgentServiceAuth(hdrs, env)
     if (v.ok) return { mode: 'internal' }
-    if (mode === 'require' || hasServiceHeader) {
-      return fail({ statusCode: 401, statusMessage: v.reason || 'unauthorized' })
-    }
+    return fail({ statusCode: 401, statusMessage: v.reason || 'unauthorized' })
   }
 
   const browserEnabled = isAgentBrowserAuthEnabled(env)
-  if (!browserEnabled) {
-    return { mode: 'open' }
-  }
-
-  const token = extractBrowserToken(event, opts?.bodyToken)
-  if (!token) {
+  if (browserEnabled) {
+    const token = extractBrowserToken(event, opts?.bodyToken)
+    if (token) {
+      try {
+        const user = resolveBrowserUser(token, env)
+        if (event.context) event.context.clawhiveUser = user
+        return { mode: 'browser', user }
+      } catch {
+        return fail({ statusCode: 401, statusMessage: 'invalid_user_token' })
+      }
+    }
+    // 浏览器鉴权开着但无 JWT → 引导登录（不要报 agent_service_token_missing）
     return fail({ statusCode: 401, statusMessage: 'login_required' })
   }
-  try {
-    const user = resolveBrowserUser(token, env)
-    if (event.context) event.context.clawhiveUser = user
-    return { mode: 'browser', user }
-  } catch {
-    return fail({ statusCode: 401, statusMessage: 'invalid_user_token' })
+
+  // 无浏览器鉴权：服务间 require/optional 仍须带服务 token
+  if (mode === 'require' || mode === 'optional') {
+    return fail({ statusCode: 401, statusMessage: 'agent_service_token_missing' })
   }
+  return { mode: 'open' }
 }
 
 /**

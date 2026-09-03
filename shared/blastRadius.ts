@@ -12,6 +12,7 @@ export type BlastRadiusActionKind =
   | 'multi_aggregate'
   | 'admin_write'
   | 'gui_write'
+  | 'db_write'
   | 'code_edit'
   | 'code_compute'
 
@@ -35,7 +36,7 @@ export function riskTierToBlastRadius(tier: BlastRadiusRiskTier | string): Blast
 
 export function actionKindToBlastRadius(kind: BlastRadiusActionKind | string): BlastRadius {
   const k = String(kind || '').toLowerCase()
-  if (k === 'admin_write' || k === 'gui_write') return 't2'
+  if (k === 'admin_write' || k === 'gui_write' || k === 'db_write') return 't2'
   if (k === 'code_edit') return 't1'
   if (k === 'multi_aggregate') return 't1'
   return 't0'
@@ -54,8 +55,9 @@ export function resolveBlastRadius(input: {
   const agent = String(input.agent || '').toLowerCase()
   let fromAgent: BlastRadius = 't0'
   if (agent === 'admin' || agent === 'gui') fromAgent = 't2'
+  else if (agent === 'db') fromAgent = input.writeAllowed ? 't2' : 't0'
   else if (agent === 'code') fromAgent = input.writeAllowed ? 't1' : 't0'
-  else if (['db', 'rag', 'crawler', 'clean', 'visualize', 'report', 'multimodal', 'music', 'video'].includes(agent)) {
+  else if (['rag', 'crawler', 'clean', 'visualize', 'report', 'multimodal', 'music', 'video'].includes(agent)) {
     fromAgent = 't0'
   }
 

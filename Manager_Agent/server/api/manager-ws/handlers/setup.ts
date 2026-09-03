@@ -87,6 +87,8 @@ import { nowMs } from '../runtimeState'
 import { withAgentTraceContext } from '../../../utils/agents/agentTrace'
 import { createWsOutboundFlusher } from '../../../utils/ws/wsOutboundFlusher'
 import { noteRunProcessEvent } from '../../../utils/session/runProcessAccumulator'
+import { recordWsStreamFirstEvent } from '#agent-shared/wsStreamSlo'
+import { runMeta } from '../runtimeState'
 import type { WsHandlerContext, WsSendFn } from './types'
 
 export type WsSetupResult =
@@ -99,6 +101,14 @@ export async function setupWsMessage(peer: any, message: any): Promise<WsSetupRe
   const send: WsSendFn = (event, data, from, runId) => {
     flushOutbound({ event, data, from, runId })
     if (runId) {
+      const meta = runMeta.get(runId)
+      if (meta?.startedAtMs) {
+        recordWsStreamFirstEvent({
+          runId,
+          chatStartedAtMs: meta.startedAtMs,
+          event
+        })
+      }
       noteRunProcessEvent(runId, event, data, from)
       void appendRunEvent(runId, { event, data, from, ts: new Date().toISOString() })
     }

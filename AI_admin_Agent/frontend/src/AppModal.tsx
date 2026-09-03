@@ -51,31 +51,31 @@ export function AppModal({
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center"
+      className="admin-modal-backdrop fixed inset-0 z-[60] flex items-center justify-center p-4"
       role="presentation"
       onClick={() => (mode === 'alert' ? onConfirm() : onCancel())}
     >
       <div
-        className="relative mx-4 w-full max-w-sm rounded-xl border border-white/10 bg-[#061422]/96 shadow-2xl backdrop-blur"
+        className="admin-modal-dialog relative w-full max-w-[22rem]"
         role="dialog"
         aria-labelledby={titleId}
         aria-modal="true"
         onClick={(e) => e.stopPropagation()}
       >
-        <header className="border-b border-white/10 px-4 py-3">
-          <h3 id={titleId} className="text-sm font-semibold text-white/95">
+        <header className="admin-modal-header">
+          <h3 id={titleId} className="admin-modal-title">
             {title}
           </h3>
         </header>
-        <div className="px-4 py-3">
-          {message ? <p className="whitespace-pre-wrap text-sm text-white/65">{message}</p> : null}
+        <div className="admin-modal-body">
+          {message ? <p className="admin-modal-message">{message}</p> : null}
           {mode === 'prompt' ? (
             <input
               type="text"
               value={localInput}
               maxLength={inputMaxLength}
               placeholder={inputPlaceholder}
-              className="mt-2 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/35 focus:outline-none focus:ring-2 focus:ring-sky-400/40"
+              className="admin-modal-input"
               onChange={(e) => setLocalInput(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
@@ -86,19 +86,15 @@ export function AppModal({
             />
           ) : null}
         </div>
-        <footer className="flex justify-end gap-2 border-t border-white/10 px-4 py-3">
+        <footer className={`admin-modal-footer${mode === 'alert' ? ' admin-modal-footer--alert' : ''}`}>
           {mode === 'confirm' || mode === 'prompt' ? (
-            <button
-              type="button"
-              className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/80 hover:bg-white/10"
-              onClick={onCancel}
-            >
+            <button type="button" className="admin-modal-btn-secondary" onClick={onCancel}>
               {cancelText}
             </button>
           ) : null}
           <button
             type="button"
-            className="rounded-lg bg-sky-500/90 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-400"
+            className="admin-modal-btn-primary"
             onClick={() => onConfirm(mode === 'prompt' ? localInput : undefined)}
           >
             {confirmText}

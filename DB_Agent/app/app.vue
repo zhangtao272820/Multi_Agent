@@ -4,18 +4,14 @@
   </ClientOnly>
   <div
     v-if="!needAuth || (authReady && isLoggedIn)"
-    class="db-shell"
+    class="db-shell brand-shell"
     data-agent="db"
   >
-    <div class="db-season-bg db-season-bg--guyu" aria-hidden="true" />
-    <BrandMotif motif="rain" />
     <NuxtPage />
   </div>
 </template>
 
 <script setup lang="ts">
-import BrandMotif from '@brand/vue/BrandMotif.vue'
-
 const runtimeConfig = useRuntimeConfig()
 const needAuth = computed(() => String(runtimeConfig.public?.agentBrowserAuth ?? '1') !== '0')
 const { isLoggedIn, ready: authReady, loadFromStorage } = useClawhiveLogin()

@@ -1,0 +1,40 @@
+{
+  "description": "P2-1 DB 语义层 / 换库边界 golden（结构门禁，不调 LLM）",
+  "cases": [
+    {
+      "id": "DB_CAT_P2026_PERSON",
+      "dbId": "p2026",
+      "user": "老人一共有多少人",
+      "expectCap": ["db"],
+      "expectMetricHint": "person_total_count"
+    },
+    {
+      "id": "DB_CAT_P2026_FOOT",
+      "dbId": "p2026",
+      "user": "足底压力检测按月趋势",
+      "expectCap": ["db"],
+      "expectMetricHint": "foot_pressure_monthly_trend"
+    },
+    {
+      "id": "DB_CAT_GENERIC_TABLES",
+      "dbId": "generic",
+      "user": "当前数据库有多少张表",
+      "expectCap": ["db"],
+      "expectMetricHint": "schema_table_count"
+    },
+    {
+      "id": "DB_CAT_NO_CROSS_JOIN",
+      "dbId": "p2026",
+      "user": "把 p2026 老人表和 generic 系统表做跨库 join",
+      "expectClarify": true,
+      "boundary": "no_cross_db_join"
+    },
+    {
+      "id": "DB_CAT_SWITCH_EXPLICIT",
+      "dbId": "generic",
+      "user": "切换到 generic 库查表数量",
+      "expectCap": ["db"],
+      "expectMetricHint": "schema_table_count"
+    }
+  ]
+}

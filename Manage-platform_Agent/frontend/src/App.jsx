@@ -16,7 +16,6 @@ import ObservabilityHub from "./components/ObservabilityHub";
 import { fetchJsonSafe } from "./utils/api";
 import { agentListLabel } from "./agentDisplayNames";
 import { BRAND_AVATARS, BRAND_LOGOS } from "@brand/react/assetMap.js";
-import BrandMotif from "@brand/react/BrandMotif.jsx";
 
 const APP_ROUTES = [
   "overview",
@@ -77,6 +76,7 @@ export default function App() {
   const [role, setRole] = useState(localStorage.getItem("clawhive_role") || "");
   const [oidcEnabled, setOidcEnabled] = useState(false);
   const [oidcError, setOidcError] = useState("");
+  const [loginError, setLoginError] = useState("");
   const [loginForm, setLoginForm] = useState({ username: "", password: "" });
   const [agents, setAgents] = useState([]);
   const [runtime, setRuntime] = useState({});
@@ -89,7 +89,7 @@ export default function App() {
   const [taskStartedAt, setTaskStartedAt] = useState(null);
   const [taskFlowEvents, setTaskFlowEvents] = useState([]);
   const [users, setUsers] = useState([]);
-  const [newUser, setNewUser] = useState({ username: "", password: "", role: "viewer" });
+  const [newUser, setNewUser] = useState({ username: "", password: "", role: "user" });
   const [healthOverview, setHealthOverview] = useState(null);
   const [managerCluster, setManagerCluster] = useState(null);
   const [monitorSummary, setMonitorSummary] = useState(null);
@@ -362,22 +362,29 @@ export default function App() {
   async function login(event) {
     event.preventDefault();
     setLoading(true);
+    setLoginError("");
     try {
       const response = await fetch(`${API_BASE}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(loginForm),
+        body: JSON.stringify({ ...loginForm, audience: "control_plane" }),
       });
       if (!response.ok) {
         const errBody = await response.json().catch(() => ({}));
         throw new Error(formatApiError(errBody, response.status === 429 ? "配额已用尽" : "登录失败"));
       }
       const data = await response.json();
+      const nextRole = String(data.role || "").trim();
+      if (nextRole === "user") {
+        throw new Error("对话账号无控制端权限，请使用总管对话入口登录");
+      }
       setToken(data.access_token);
-      setRole(data.role);
+      setRole(nextRole);
       localStorage.setItem("clawhive_token", data.access_token);
-      localStorage.setItem("clawhive_role", data.role);
+      localStorage.setItem("clawhive_role", nextRole);
       localStorage.setItem("clawhive_username", loginForm.username.trim());
+    } catch (e) {
+      setLoginError(e?.message || "登录失败");
     } finally {
       setLoading(false);
     }
@@ -1232,7 +1239,7 @@ export default function App() {
         setControlMessage(String(data.detail || `创建用户失败 HTTP ${res.status}`));
         return;
       }
-      setNewUser({ username: "", password: "", role: "viewer" });
+      setNewUser({ username: "", password: "", role: "user" });
       setControlMessage(`已创建用户 ${newUser.username}`);
       await fetchUsers();
     } finally {
@@ -1607,22 +1614,24 @@ export default function App() {
   }
 
   return (
-    <div className={`page ${token ? "page--admin" : ""}`}>
+    <div className={`page ${token ? "page--admin" : "page--login"}`}>
       {!token ? (
         <div className="login-panel brand-shell" data-agent="platform">
-          <div className="platform-season-bg platform-season-bg--hanlu" aria-hidden="true" />
-          <BrandMotif motif="leaves" fixed />
           <section className="card login-card platform-glass">
             <div className="login-card__brand">
               <img className="login-card__logo" src={BRAND_LOGOS.platform} alt="" width={52} height={52} />
               <div className="login-card__titles">
-                <p className="login-card__eyebrow">寒露 · 紫微</p>
+                <p className="login-card__eyebrow">紫微 · 控制面</p>
                 <h1 className="login-card__title">紫微</h1>
                 <p className="login-card__sub">Agent 控制面 · 运维治理与星曜集群</p>
               </div>
               <img className="login-card__avatar" src={BRAND_AVATARS.platform} alt="" width={56} height={56} title="紫微虚拟形象" />
             </div>
-            {oidcError ? <p className="status offline login-card__err">SSO 失败：{oidcError}</p> : null}
+            {(loginError || oidcError) ? (
+              <p className="status offline login-card__err">
+                {loginError || `SSO 失败：${oidcError}`}
+              </p>
+            ) : null}
             <form onSubmit={login} className="form login-card__form">
               <label className="login-card__field">
                 <span>用户名</span>

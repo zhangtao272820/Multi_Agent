@@ -143,14 +143,17 @@ export async function detectStagehandNetworkErrorPage(
 
 export function goalsNeedLeaveStart(
   goals?: LobsterTaskGoals | null,
-  task = '',
+  _task = '',
   taskKind?: string,
 ): boolean {
-  // form_fill 停留在表单页即成功；禁止被任务原文「打开…」类词或误 goals 拖成离页硬闸
+  // form_fill：仅 goals 显式要求离页；默认停在表单页
   if (String(taskKind || '').trim() === 'form_fill') {
     return goals?.must_leave_start === true
   }
   if (goals?.must_leave_start === true) return true
   if (goals?.expected_url_change === true) return true
-  return /(点击|进入|打开第一个|第一条|教程|详情)/i.test(task)
+  if (goals?.must_leave_start === false) return false
+  // 无显式 goals 时按 task_kind 默认（禁止任务原文 regex）
+  const kind = String(taskKind || '').trim()
+  return kind === 'search' || kind === 'navigate' || kind === 'extract' || kind === 'multi_step'
 }

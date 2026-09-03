@@ -1,5 +1,4 @@
 import { FormEvent, useState } from 'react'
-import BrandMotif from '@brand/react/BrandMotif.jsx'
 import { brandLogoUrl } from '@brand/react/assetMap.js'
 import { login } from './clawhiveAuth'
 
@@ -36,19 +35,11 @@ export default function ClawhiveLoginGate({ onSuccess }: Props) {
 
   return (
     <div className="mm-shell claw-login" data-agent="multimodal">
-      <div className="mm-season-bg mm-season-bg--mangzhong" aria-hidden="true" />
-      <BrandMotif motif="thunder" />
-      <div className="mm-storm" aria-hidden="true">
-        <span className="mm-storm__sheet" />
-        <span className="mm-storm__bolt mm-storm__bolt--a" />
-        <span className="mm-storm__bolt mm-storm__bolt--b" />
-        <span className="mm-storm__bolt mm-storm__bolt--c" />
-      </div>
       <form className="claw-login__card mm-glass" onSubmit={submit}>
         <div className="claw-login__brand">
           <img className="claw-login__logo" src={brandLogoUrl('multimodal')} alt="" width={56} height={56} />
           <div>
-            <p className="claw-login__eyebrow">芒种 · 廉贞</p>
+            <p className="claw-login__eyebrow">廉贞 · Multimodal</p>
             <h1>廉贞 · 多模态</h1>
             <p className="claw-login__sub">使用 ClawHive 账号登录</p>
           </div>

@@ -38,6 +38,7 @@ assert(addon.includes('gui 步骤'), 'gui automation addon loads Planner section
 assert(isGuiExperienceReadEnabled(), 'gui experience read enabled by default')
 assert(formatGuiExperienceBlock([]) === '', 'empty gui experience block')
 
+
 const handoff = buildGuiHandoffStep({
   crawlerTask: '打开 https://example.com 登录',
   crawlerStepId: 's1',

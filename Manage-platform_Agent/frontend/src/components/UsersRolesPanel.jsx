@@ -5,6 +5,13 @@ function cell(ok) {
   return ok ? <span className="rbac-matrix__ok">允许</span> : <span className="rbac-matrix__no">—</span>;
 }
 
+const ROLE_OPTIONS = [
+  { value: "user", label: "user（对话）" },
+  { value: "viewer", label: "viewer（控制端只读）" },
+  { value: "operator", label: "operator" },
+  { value: "admin", label: "admin" },
+];
+
 export default function UsersRolesPanel({
   apiBase,
   token,
@@ -32,23 +39,27 @@ export default function UsersRolesPanel({
     })();
   }, [apiBase, token]);
 
+  const roleCols = matrix?.roles?.length
+    ? matrix.roles
+    : ["user", "viewer", "operator", "admin"];
+
   const matrixTable = matrix?.domains ? (
     <table className="rbac-matrix">
       <thead>
         <tr>
           <th>控制面域</th>
-          <th>viewer</th>
-          <th>operator</th>
-          <th>admin</th>
+          {roleCols.map((r) => (
+            <th key={r}>{r}</th>
+          ))}
         </tr>
       </thead>
       <tbody>
         {matrix.domains.map((d) => (
           <tr key={d.id}>
             <td>{d.label}</td>
-            <td>{cell(d.viewer)}</td>
-            <td>{cell(d.operator)}</td>
-            <td>{cell(d.admin)}</td>
+            {roleCols.map((r) => (
+              <td key={r}>{cell(Boolean(d[r]))}</td>
+            ))}
           </tr>
         ))}
       </tbody>
@@ -61,7 +72,10 @@ export default function UsersRolesPanel({
     return (
       <div className="page-stack page-stack--scroll admin-page">
         <div className="gov-page-intro">
-          <p>当前角色 {role || "—"} 为只读视角。用户管理需 admin；下方为三角色 × 控制面域执法表。</p>
+          <p>
+            当前角色 {role || "—"} 为只读视角。用户管理需 admin；下方为角色 × 控制面域执法表（user
+            无任何控制面权限）。
+          </p>
         </div>
         <section className="admin-card">
           <h3 className="admin-card__title">角色 × 控制面域</h3>
@@ -76,8 +90,9 @@ export default function UsersRolesPanel({
     <div className="page-stack page-stack--scroll admin-page">
       <div className="gov-page-intro">
         <p>
-          控制台账号与 Agent UI 共用 ClawHive 身份。三角色粗粒度 RBAC：viewer 只读，operator
-          运维，admin 治理与密钥。
+          控制台与 Agent UI 共用 ClawHive 身份。<strong>user</strong> 仅总管/子 Agent
+          对话（禁止登控制端）；viewer 控制端只读；operator 运维；admin 治理与密钥。记忆按对话账号
+          JWT.sub 隔离，不必先登控制端。
         </p>
       </div>
       <div className="admin-grid admin-grid--2">
@@ -110,9 +125,11 @@ export default function UsersRolesPanel({
                 value={newUser.role}
                 onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
               >
-                <option value="viewer">viewer</option>
-                <option value="operator">operator</option>
-                <option value="admin">admin</option>
+                {ROLE_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
               </select>
             </label>
             <button type="submit" className="btn-primary btn-sm" disabled={loading}>
@@ -132,9 +149,11 @@ export default function UsersRolesPanel({
                     onChange={(e) => onChangeRole(u.username, e.target.value)}
                     aria-label={`${u.username} 角色`}
                   >
-                    <option value="viewer">viewer</option>
-                    <option value="operator">operator</option>
-                    <option value="admin">admin</option>
+                    {ROLE_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
                   </select>
                   <button
                     type="button"
@@ -161,7 +180,7 @@ export default function UsersRolesPanel({
         <section className="admin-card">
           <h3 className="admin-card__title">角色 × 控制面域</h3>
           <p className="admin-card__desc">
-            {matrix?.note || "三角色粗粒度 RBAC，与后端 require_roles 对齐"}
+            {matrix?.note || "与后端 require_roles 对齐"}
           </p>
           {matrixTable}
           <button

@@ -1,0 +1,145 @@
+/* Multimodal · 紫霞多模态 · 精品控件层（背景氛围保持） */
+
+.mm-season-bg,
+.mm-storm,
+.mm-brand-root .brand-motif,
+.mm-shell .brand-motif,
+.claw-login .mm-season-bg,
+.claw-login .mm-storm {
+  display: none !important;
+}
+
+.mm-shell.brand-shell,
+.mm-brand-root,
+.mm-shell[data-agent="multimodal"] {
+  --brand-motif-opacity: 0;
+  color: var(--brand-text, #1a1222);
+}
+
+/* 顶栏 */
+.mm-shell .hero,
+.mm-shell .mm-glass--bar {
+  background: rgba(253, 251, 255, 0.92) !important;
+  border: 1px solid rgba(147, 51, 234, 0.22) !important;
+  border-radius: 14px !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.7) inset,
+    0 12px 36px rgba(50, 20, 80, 0.1) !important;
+  backdrop-filter: blur(14px) saturate(1.1) !important;
+  color: #1a1222 !important;
+}
+
+.mm-shell .hero-brand h1,
+.mm-shell .mm-topbar__eyebrow {
+  color: #1a1222 !important;
+  font-weight: 800;
+}
+
+.mm-shell .hero-sub {
+  color: #453456 !important;
+}
+
+/* 面板 / 卡片 */
+.mm-shell .card,
+.mm-shell .mm-glass--panel,
+.mm-shell .panel,
+.mm-shell .welcome-panel {
+  background: rgba(255, 255, 255, 0.94) !important;
+  border: 1px solid rgba(147, 51, 234, 0.2) !important;
+  border-radius: 14px !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.72) inset,
+    0 14px 40px rgba(50, 20, 80, 0.1) !important;
+  color: #1a1222 !important;
+  backdrop-filter: blur(10px);
+}
+
+.mm-shell .tabs button,
+.mm-shell .chip,
+.mm-shell .meta-chips .chip {
+  background: rgba(147, 51, 234, 0.1) !important;
+  border: 1px solid rgba(147, 51, 234, 0.3) !important;
+  color: #7e22ce !important;
+  font-weight: 700;
+  border-radius: 999px !important;
+}
+
+.mm-shell .tabs button.is-active,
+.mm-shell .tabs .active {
+  background: linear-gradient(135deg, #c084fc, #9333ea) !important;
+  color: #fff !important;
+  border-color: #7e22ce !important;
+}
+
+/* 气泡 */
+.mm-shell .bubble.agent .bubble-body {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border: 1px solid rgba(147, 51, 234, 0.18) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 10px 28px rgba(50, 20, 80, 0.08);
+  color: #1a1222 !important;
+}
+
+/* 输入 */
+.mm-shell textarea,
+.mm-shell input:not([type="checkbox"]):not([type="radio"]),
+.mm-shell select {
+  background: #fbf7ff !important;
+  border: 1px solid rgba(158, 120, 184, 0.35) !important;
+  color: #1a1222 !important;
+  border-radius: 11px !important;
+}
+
+.mm-shell input:focus,
+.mm-shell textarea:focus {
+  border-color: #9333ea !important;
+  box-shadow: 0 0 0 3px rgba(147, 51, 234, 0.22) !important;
+  outline: none !important;
+}
+
+/* 按钮 */
+.mm-shell button.primary,
+.mm-shell .primary {
+  background: linear-gradient(135deg, #c084fc, #9333ea 48%, #7e22ce) !important;
+  border-color: #7e22ce !important;
+  color: #fff !important;
+  font-weight: 800 !important;
+  box-shadow: 0 8px 22px rgba(147, 51, 234, 0.36) !important;
+  border-radius: 11px !important;
+}
+
+.mm-shell button.ghost,
+.mm-shell .ghost,
+.mm-shell .file-btn,
+.mm-shell .raw-toggle {
+  background: rgba(255, 255, 255, 0.92) !important;
+  border: 1px solid rgba(147, 51, 234, 0.28) !important;
+  color: #1a1222 !important;
+  font-weight: 650;
+  border-radius: 10px !important;
+}
+
+/* 登录 */
+.claw-login[data-agent="multimodal"] .claw-login__card,
+.claw-login .mm-glass {
+  background: rgba(255, 255, 255, 0.94) !important;
+  border: 1px solid rgba(147, 51, 234, 0.28) !important;
+  border-radius: 18px !important;
+  box-shadow: 0 28px 72px rgba(50, 20, 80, 0.28) !important;
+  color: #1a1222 !important;
+}
+
+.claw-login[data-agent="multimodal"] button[type="submit"],
+.claw-login form.mm-glass button[type="submit"],
+.claw-login .mm-glass button[type="submit"] {
+  background: linear-gradient(135deg, #c084fc, #9333ea 48%, #7e22ce) !important;
+  color: #fff !important;
+  font-weight: 800 !important;
+  box-shadow: 0 10px 28px rgba(147, 51, 234, 0.4) !important;
+  border-radius: 12px !important;
+}
+
+.claw-login[data-agent="multimodal"] input:focus {
+  border-color: #9333ea !important;
+  box-shadow: 0 0 0 3px rgba(147, 51, 234, 0.22) !important;
+}

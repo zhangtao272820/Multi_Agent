@@ -48,6 +48,8 @@ GUARD_REASONS = {
     "secret_column": "禁止查询密码或证件等敏感列",
     "table_not_allowed": "表不在租户白名单",
     "parse_error": "SQL 无法解析",
+    "not_safe_write": "不是允许的安全写语句",
+    "dangerous_ddl": "禁止 DROP / TRUNCATE / 删列等破坏性 DDL",
     "ok": "通过",
 }
 
@@ -58,6 +60,7 @@ class GuardResult:
     reason: str
     sql: str
     tables: list[str] = field(default_factory=list)
+    write_kind: str = ""  # insert|update|delete|create_table|alter_add|alter_modify|""
 
 
 def strip_sql_fence(raw: str) -> str:
@@ -278,3 +281,164 @@ def guard_sql(
             return GuardResult(ok=False, reason="table_not_allowed", sql=cleaned, tables=tables)
     limited = enforce_select_limit(cleaned, max_limit=max_limit, default_limit=default_limit)
     return GuardResult(ok=True, reason="ok", sql=limited, tables=tables)
+
+
+_DANGEROUS_WRITE = re.compile(
+    r"\b(drop\s+(table|database|schema|view|index|column)|truncate|grant|revoke|"
+    r"replace\s+into|call\s+|load\s+data|create\s+(index|view|trigger|procedure|function|event))\b",
+    re.I,
+)
+_ALTER_DROP_COL = re.compile(r"\balter\s+table\b[\s\S]*\bdrop\s+(column\s+)?[`\w]", re.I)
+
+
+def _normalize_write_sql(raw: str) -> tuple[bool, str, str]:
+    """Strip comments/fence; reject multi-statement. Returns (ok, reason, cleaned)."""
+    cleaned = strip_sql_fence(raw)
+    if not cleaned:
+        return False, "empty", ""
+    normalized = re.sub(r"/\*[\s\S]*?\*/", " ", cleaned)
+    normalized = re.sub(r"--[^\n]*", " ", normalized)
+    normalized = re.sub(r"#[^\n]*", " ", normalized)
+    normalized = re.sub(r"\s+", " ", normalized).strip()
+    s = re.sub(r";+\s*$", "", normalized).strip()
+    if not s:
+        return False, "empty", ""
+    if ";" in s:
+        return False, "multi_statement", s
+    if _FILE_IO.search(s):
+        return False, "file_io", s
+    if _TIME_BOMB.search(s):
+        return False, "time_bomb", s
+    if _DANGEROUS_WRITE.search(s) or _ALTER_DROP_COL.search(s):
+        return False, "dangerous_ddl", s
+    return True, "ok", s
+
+
+def _ast_write_kind(sql: str) -> tuple[bool, str, str]:
+    """Return (ok, reason, write_kind). write_kind empty on failure."""
+    try:
+        import sqlglot
+        from sqlglot import exp
+    except Exception:
+        # Fallback: prefix classify only when sqlglot missing
+        low = sql.lower().lstrip()
+        if low.startswith("insert"):
+            return True, "ok", "insert"
+        if low.startswith("update"):
+            return True, "ok", "update"
+        if low.startswith("delete"):
+            return True, "ok", "delete"
+        if low.startswith("create table"):
+            return True, "ok", "create_table"
+        if low.startswith("alter table"):
+            if re.search(r"\badd\b", low):
+                return True, "ok", "alter_add"
+            if re.search(r"\bmodify\b|\bchange\b", low):
+                return True, "ok", "alter_modify"
+            return False, "dangerous_ddl", ""
+        return False, "not_safe_write", ""
+    try:
+        trees = sqlglot.parse(sql, read="mysql")
+    except Exception:
+        return False, "parse_error", ""
+    live = [t for t in (trees or []) if t is not None]
+    if not live:
+        return False, "empty", ""
+    if len(live) > 1:
+        return False, "multi_statement", ""
+    tree = live[0]
+    if isinstance(tree, exp.Insert):
+        return True, "ok", "insert"
+    if isinstance(tree, exp.Update):
+        return True, "ok", "update"
+    if isinstance(tree, exp.Delete):
+        return True, "ok", "delete"
+    if isinstance(tree, exp.Create):
+        kind = str(getattr(tree, "kind", None) or "").lower()
+        if kind == "table" or tree.find(exp.Schema) is not None or "table" in sql.lower()[:40]:
+            # Reject CREATE INDEX/VIEW etc. if kind present and not table
+            if kind and kind != "table":
+                return False, "dangerous_ddl", ""
+            return True, "ok", "create_table"
+        return False, "dangerous_ddl", ""
+    if isinstance(tree, exp.Alter) or type(tree).__name__ in {"Alter", "AlterTable"}:
+        blob = sql.lower()
+        if re.search(r"\bdrop\b", blob):
+            return False, "dangerous_ddl", ""
+        if re.search(r"\badd\b", blob):
+            return True, "ok", "alter_add"
+        if re.search(r"\bmodify\b|\bchange\b", blob):
+            return True, "ok", "alter_modify"
+        return False, "dangerous_ddl", ""
+    # Drop / Truncate / etc.
+    name = type(tree).__name__.lower()
+    if name in {"drop", "truncate", "command"}:
+        return False, "dangerous_ddl", ""
+    return False, "not_safe_write", ""
+
+
+def _write_tables_for_create(sql: str) -> list[str]:
+    """CREATE TABLE may introduce a new name not yet in whitelist — still extract it."""
+    m = re.search(
+        r"\bcreate\s+table\s+(?:if\s+not\s+exists\s+)?((?:`?\w+`?\.)?`?\w+`?)",
+        sql,
+        re.I,
+    )
+    if not m:
+        return extract_tables(sql)
+    token = re.sub(r"[`\s]", "", m.group(1) or "")
+    return [token] if token else extract_tables(sql)
+
+
+def guard_write_sql(
+    sql: str,
+    *,
+    tenant: Tenant,
+    scene: Scene,
+    allow_new_table: bool = True,
+) -> GuardResult:
+    """Safe DML + limited DDL. Hard-deny DROP/TRUNCATE/DROP COLUMN/GRANT/etc."""
+    ok, reason, cleaned = _normalize_write_sql(sql)
+    if not ok:
+        return GuardResult(ok=False, reason=reason, sql=cleaned, tables=extract_tables(cleaned))
+    ast_ok, ast_reason, write_kind = _ast_write_kind(cleaned)
+    if not ast_ok:
+        return GuardResult(
+            ok=False,
+            reason=ast_reason,
+            sql=cleaned,
+            tables=extract_tables(cleaned),
+            write_kind=write_kind,
+        )
+    if _secret_hit(cleaned, scene):
+        return GuardResult(
+            ok=False,
+            reason="secret_column",
+            sql=cleaned,
+            tables=extract_tables(cleaned),
+            write_kind=write_kind,
+        )
+    if write_kind == "create_table":
+        tables = _write_tables_for_create(cleaned)
+        if not allow_new_table:
+            return GuardResult(ok=False, reason="table_not_allowed", sql=cleaned, tables=tables, write_kind=write_kind)
+        # New table name need not be pre-whitelisted; still block system schemas
+        for t in tables:
+            low = t.lower()
+            if low.startswith("information_schema.") or low.startswith("performance_schema.") or low.startswith("mysql."):
+                return GuardResult(ok=False, reason="system_schema", sql=cleaned, tables=tables, write_kind=write_kind)
+        return GuardResult(ok=True, reason="ok", sql=cleaned, tables=tables, write_kind=write_kind)
+    tables = extract_tables(cleaned)
+    if not tables and write_kind in {"insert", "update", "delete", "alter_add", "alter_modify"}:
+        # UPDATE/DELETE/ALTER: try AST / regex table extract
+        m = re.search(
+            r"\b(?:update|delete\s+from|alter\s+table|insert\s+into)\s+((?:`?\w+`?\.)?`?\w+`?)",
+            cleaned,
+            re.I,
+        )
+        if m:
+            tables = [re.sub(r"[`\s]", "", m.group(1))]
+    for t in tables:
+        if not _table_allowed(t, tenant, scene):
+            return GuardResult(ok=False, reason="table_not_allowed", sql=cleaned, tables=tables, write_kind=write_kind)
+    return GuardResult(ok=True, reason="ok", sql=cleaned, tables=tables, write_kind=write_kind)

@@ -90,16 +90,19 @@ def parse_manager_task(raw: str | dict[str, Any] | None) -> ManagerCodeTask:
 
 
 def write_apply_allowed(manager: ManagerCodeTask, *, task_kind: str) -> bool:
-    """E1：T2 无 confirm_token 或 write_allowed=false 时禁止落盘。"""
+    """事前 HITL：无 confirm_token 禁止落盘；T2 同；write_allowed=false 禁止。"""
     if str(task_kind or "").strip().lower() != "edit":
         return False
     if manager.write_allowed is False:
+        return False
+    if not str(manager.confirm_token or "").strip():
         return False
     if str(manager.blast_radius or "").strip().lower() == "t2" and not str(manager.confirm_token or "").strip():
         return False
     if manager.write_allowed is True:
         return True
-    return False
+    # 有 token 且未显式禁止 → 允许（decide 路径）
+    return True
 
 
 def resolve_task_kind(

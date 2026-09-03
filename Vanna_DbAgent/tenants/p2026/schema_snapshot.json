@@ -5730,7 +5730,13 @@
         {
           "name": "provinces_and_cities",
           "type": "varchar(255)",
-          "comment": "省市区"
+          "comment": "省市区；复合串如天津市河西区，区县过滤用 LIKE '%区名%'",
+          "samples": [
+            "天津市河西区",
+            "天津市南开区",
+            "天津市和平区",
+            "江西省宜春市宜丰县"
+          ]
         },
         {
           "name": "is_labor",

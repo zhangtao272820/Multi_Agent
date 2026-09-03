@@ -3,6 +3,7 @@
 $Script:AgentsLanRoot = Split-Path -Parent $PSScriptRoot
 $Script:ComposeFile = Join-Path $AgentsLanRoot "docker-compose.agents-lan.yml"
 $Script:EnvFile = Join-Path $AgentsLanRoot ".env.agents-lan"
+$Script:EnterpriseEnvFile = Join-Path $AgentsLanRoot ".env.agents-enterprise"
 $Script:SyncModelsScript = Join-Path $PSScriptRoot "sync-capability-models.ps1"
 $Script:SyncConvergenceModesScript = Join-Path $PSScriptRoot "sync-convergence-modes.ps1"
 
@@ -19,6 +20,26 @@ $Script:ManagerStack = @(
     "multimodal_agent",
     "playwright_mcp",
     "lobster_agent",
+    "manager_agent"
+)
+
+# Core LAN stack: platform + DB + crawler deps + business agents (no Lobster/monitoring/fun)
+$Script:CoreStack = @(
+    "clawhive_postgres",
+    "clawhive_redis",
+    "searxng",
+    "crw",
+    "rag_pgvector",
+    "vanna_db_agent",
+    "vanna_db_web",
+    "db_agent",
+    "clawhive_backend",
+    "clawhive_frontend",
+    "rag_agent",
+    "code_assistent_agent",
+    "extractor_agent",
+    "ai_admin_agent",
+    "multimodal_agent",
     "manager_agent"
 )
 
@@ -120,10 +141,9 @@ function Write-EnvFileUtf8Text {
 function Get-AgentsLanLanHost {
     $lan = "localhost"
     if (Test-Path $Script:EnvFile) {
-        $line = Read-EnvFileUtf8 $Script:EnvFile | Where-Object { $_ -match "^LAN_HOST=" } | Select-Object -First 1
+        $line = Read-EnvFileUtf8 $Script:EnvFile | Where-Object { $_ -match '^\s*LAN_HOST\s*=' -and $_ -notmatch '^\s*#' } | Select-Object -First 1
         if ($line) {
-            # 防御：.env 若被错误拼成单行，只取 LAN_HOST 值的第一个 token
-            $raw = $line.Split("=", 2)[1].Trim()
+            $raw = $line -replace '^\s*LAN_HOST\s*=\s*', ''
             $lan = ($raw -split "\s+")[0].Trim().Trim('"').Trim("'")
             if (-not $lan) { $lan = "localhost" }
         }
@@ -132,7 +152,23 @@ function Get-AgentsLanLanHost {
 }
 
 function Get-ComposeBaseArgs {
-    return @("--env-file", $Script:EnvFile, "-f", $Script:ComposeFile)
+    param(
+        [switch]$Enterprise
+    )
+    $args = @("--env-file", $Script:EnvFile)
+    if ($Enterprise) {
+        if (-not (Test-Path $Script:EnterpriseEnvFile)) {
+            throw @"
+-Enterprise requires $($Script:EnterpriseEnvFile)
+Copy example first:
+  Copy-Item .env.agents-enterprise.example .env.agents-enterprise
+See docs/企业档配置指南.md
+"@
+        }
+        $args += @("--env-file", $Script:EnterpriseEnvFile)
+    }
+    $args += @("-f", $Script:ComposeFile)
+    return $args
 }
 
 function Get-ProfileArgs {
@@ -299,6 +335,7 @@ function Invoke-AgentsLanCompose {
         [bool]$Extended = $false,
         [switch]$Build,
         [switch]$ForceRecreate,
+        [switch]$Enterprise,
         [string[]]$Services = @()
     )
 
@@ -307,9 +344,12 @@ function Invoke-AgentsLanCompose {
         Invoke-DockerBaseImagePull -Extended $useExtendedForPull
     }
 
-    $base = Get-ComposeBaseArgs
+    $base = Get-ComposeBaseArgs -Enterprise:$Enterprise
     $useExtended = $Extended -or (Test-RequiresExtendedProfile -Services $Services)
     $profile = Get-ProfileArgs -Extended $useExtended
+    if ($Enterprise) {
+        Write-Host "Enterprise overlay: $Script:EnterpriseEnvFile" -ForegroundColor Yellow
+    }
 
     if ($Action -eq "restart") {
         if ($Build -or $ForceRecreate) {

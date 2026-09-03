@@ -1,0 +1,611 @@
+/* 紫微 · 墨金控制面（生成氛围底图 + 高对比组件） */
+
+.platform-season-bg,
+.admin-app .brand-motif,
+.login-panel .brand-motif,
+.login-panel .platform-season-bg {
+  display: none !important;
+}
+
+/* 避免 html/body 浅紫底从边缘漏出 */
+html:has(.login-panel),
+html:has(.admin-app[data-agent="platform"]),
+body:has(.login-panel),
+body:has(.admin-app[data-agent="platform"]) {
+  background: #0a090e !important;
+  height: 100%;
+  min-height: 100%;
+  overflow: hidden;
+}
+
+#root:has(.login-panel),
+#root:has(.admin-app[data-agent="platform"]) {
+  height: 100%;
+  min-height: 100%;
+  background: #0a090e;
+}
+
+/* —— 登录：全屏氛围底（fixed 层，不被父级 padding 裁切） —— */
+.login-panel.brand-shell,
+.login-panel[data-agent="platform"] {
+  --brand-motif-opacity: 0;
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 100%;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: clamp(20px, 4vh, 40px) 20px;
+  overflow: hidden;
+  isolation: isolate;
+  color: #f7f0e2 !important;
+  background: #0a090e !important;
+}
+
+.login-panel.brand-shell::before {
+  content: "" !important;
+  display: block !important;
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 0 !important;
+  pointer-events: none !important;
+  opacity: 1 !important;
+  background:
+    linear-gradient(165deg, rgba(6, 7, 12, 0.42) 0%, rgba(8, 9, 14, 0.62) 55%, rgba(10, 8, 6, 0.7) 100%),
+    url("@brand/backgrounds/theme/platform-login.png") center / cover no-repeat !important;
+  background-color: #0a090e !important;
+}
+
+.login-panel.brand-shell::after {
+  content: none !important;
+  display: none !important;
+}
+
+.login-panel .login-card,
+.login-panel .platform-glass {
+  position: relative;
+  z-index: 1;
+  width: min(440px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 40px 36px 32px !important;
+  background: rgba(14, 12, 18, 0.78) !important;
+  border: 1px solid rgba(232, 196, 110, 0.5) !important;
+  color: #f7f0e2 !important;
+  backdrop-filter: blur(22px) saturate(1.25) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(1.25) !important;
+  box-shadow:
+    0 1px 0 rgba(255, 230, 180, 0.14) inset,
+    0 28px 80px rgba(0, 0, 0, 0.55) !important;
+  border-radius: 18px !important;
+  text-shadow: none !important;
+}
+
+.login-panel .login-card__brand {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(232, 196, 110, 0.22);
+}
+
+.login-panel .login-card__eyebrow {
+  color: #e8c46e !important;
+  letter-spacing: 0.16em;
+  font-weight: 700;
+  font-size: 11px;
+  margin: 0 0 6px;
+}
+
+.login-panel .login-card__title {
+  color: #ffe7a8 !important;
+  font-weight: 800;
+  font-size: 2rem !important;
+  letter-spacing: 0.06em;
+  text-shadow: 0 2px 24px rgba(232, 196, 110, 0.35);
+  margin: 0;
+}
+
+.login-panel .login-card__sub {
+  color: #d2c09a !important;
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 8px 0 0;
+}
+
+.login-panel .login-card__form.form,
+.login-panel .login-card__form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+}
+
+.login-panel .login-card__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+.login-panel .login-card__field span,
+.login-panel label span {
+  color: #e8c46e !important;
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+
+.login-panel .status,
+.login-panel .login-card__err {
+  background: rgba(185, 28, 28, 0.22) !important;
+  border: 1px solid rgba(248, 113, 113, 0.45) !important;
+  color: #fecaca !important;
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin: 0;
+}
+
+.login-panel input:not([type="checkbox"]):not([type="radio"]),
+.login-panel select,
+.login-panel textarea {
+  width: 100% !important;
+  box-sizing: border-box;
+  background: rgba(8, 8, 12, 0.82) !important;
+  border: 1px solid rgba(232, 196, 110, 0.32) !important;
+  color: #f8f4ea !important;
+  border-radius: 11px !important;
+  padding: 12px 14px !important;
+  -webkit-text-fill-color: #f8f4ea !important;
+  box-shadow: none !important;
+  filter: none !important;
+}
+
+.login-panel input::placeholder {
+  color: #9a8f78 !important;
+  -webkit-text-fill-color: #9a8f78 !important;
+}
+
+.login-panel input:focus {
+  border-color: #e8c46e !important;
+  box-shadow: 0 0 0 3px rgba(232, 196, 110, 0.22) !important;
+  outline: none !important;
+}
+
+.login-panel input:-webkit-autofill,
+.login-panel input:-webkit-autofill:hover,
+.login-panel input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #f8f4ea !important;
+  caret-color: #f8f4ea;
+  transition: background-color 99999s ease-out 0s;
+  box-shadow: 0 0 0 1000px rgba(8, 8, 12, 0.92) inset !important;
+  border: 1px solid rgba(232, 196, 110, 0.32) !important;
+}
+
+.login-panel .btn-primary,
+.login-panel .login-card__submit {
+  width: 100% !important;
+  margin-top: 4px;
+  background: linear-gradient(135deg, #f0d78a, #d4a84a 48%, #b8862f) !important;
+  border: 1px solid #ffe7a8 !important;
+  color: #1a1208 !important;
+  font-weight: 800 !important;
+  border-radius: 12px !important;
+  padding: 12px 16px !important;
+  box-shadow: 0 10px 28px rgba(184, 134, 47, 0.4) !important;
+}
+
+.login-panel .login-sso {
+  margin: 0;
+  text-align: center;
+}
+
+.login-panel .login-sso .btn-secondary {
+  width: 100%;
+  background: rgba(255, 252, 247, 0.08) !important;
+  border: 1px solid rgba(232, 196, 110, 0.28) !important;
+  color: #f7f0e2 !important;
+  border-radius: 11px !important;
+}
+
+/* —— 工作区：全屏氛围底 + 深墨侧栏 + 实色卡片 —— */
+.admin-app.brand-shell,
+.admin-app[data-agent="platform"] {
+  --brand-motif-opacity: 0;
+  --bg: transparent;
+  --bg-elevated: rgba(255, 252, 247, 0.94);
+  --bg-subtle: rgba(236, 226, 210, 0.92);
+  --bg-hover: rgba(226, 212, 190, 0.95);
+  --border: rgba(120, 100, 70, 0.28);
+  --border-strong: rgba(90, 74, 48, 0.4);
+  --text: #1a1410;
+  --text-secondary: #3f3428;
+  --text-muted: #6a5a48;
+  --accent: #b8862f;
+  --accent-hover: #9a7024;
+  --accent-soft: rgba(184, 134, 47, 0.16);
+  --accent-border: rgba(184, 134, 47, 0.45);
+  --accent-muted: #d4a84a;
+  --sidebar-bg: #0e0c12;
+  --sidebar-text: #f3ead8;
+  --sidebar-muted: #b0a088;
+  position: relative;
+  isolation: isolate;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 100%;
+  min-height: 100dvh;
+  height: 100%;
+  overflow: hidden;
+  color: var(--text);
+  background: #12101a !important;
+}
+
+.admin-app.brand-shell::before {
+  content: "" !important;
+  display: block !important;
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 0 !important;
+  pointer-events: none !important;
+  opacity: 1 !important;
+  background:
+    linear-gradient(120deg, rgba(250, 246, 238, 0.72) 0%, rgba(244, 236, 224, 0.66) 45%, rgba(236, 228, 240, 0.64) 100%),
+    url("@brand/backgrounds/theme/platform-workspace.png") center / cover no-repeat !important;
+  background-color: #1a1410 !important;
+}
+
+.admin-app.brand-shell::after {
+  content: none !important;
+  display: none !important;
+}
+
+.admin-app .admin-sidebar {
+  position: relative;
+  z-index: 3;
+  background:
+    linear-gradient(180deg, rgba(22, 18, 28, 0.96) 0%, rgba(12, 10, 16, 0.98) 100%) !important;
+  border-right: 1px solid rgba(232, 196, 110, 0.22) !important;
+  color: var(--sidebar-text) !important;
+  box-shadow: 10px 0 40px rgba(10, 8, 14, 0.35);
+  backdrop-filter: blur(16px);
+}
+
+.admin-app .admin-brand strong {
+  color: #ffe7a8 !important;
+  font-weight: 800;
+}
+
+.admin-app .admin-brand__tag {
+  color: #b0a088 !important;
+}
+
+.admin-app .admin-nav__group-label {
+  color: #c9a85a !important;
+  font-weight: 750;
+  letter-spacing: 0.1em;
+}
+
+.admin-app .admin-nav__item {
+  color: #ebe2d4 !important;
+  border-radius: 10px;
+  font-weight: 550;
+}
+
+.admin-app .admin-nav__item:hover {
+  background: rgba(232, 196, 110, 0.12) !important;
+  color: #fff !important;
+}
+
+.admin-app .admin-nav__item--active {
+  background: linear-gradient(90deg, rgba(232, 196, 110, 0.28), transparent 92%) !important;
+  color: #ffe7a8 !important;
+  box-shadow: inset 3px 0 0 #e8c46e !important;
+  font-weight: 750;
+}
+
+.admin-app .admin-main {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+  background: transparent !important;
+}
+
+.admin-app .admin-topbar {
+  background: rgba(255, 252, 247, 0.86) !important;
+  border-bottom: 1px solid rgba(120, 100, 70, 0.22) !important;
+  backdrop-filter: blur(16px) saturate(1.1);
+  box-shadow: 0 10px 32px rgba(40, 30, 20, 0.08);
+  flex-shrink: 0;
+}
+
+.admin-app .admin-topbar__title {
+  color: #1a1410 !important;
+  font-weight: 800;
+}
+
+.admin-app .admin-topbar__sub,
+.admin-app .gov-page-intro,
+.admin-app .muted {
+  color: #3f3428 !important;
+}
+
+.admin-app .admin-topbar__kicker {
+  color: #9a7024 !important;
+  font-weight: 750;
+}
+
+.admin-app .admin-content,
+.admin-app .admin-workspace {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  background: transparent !important;
+}
+
+.admin-app .admin-card,
+.admin-app .card,
+.admin-app .panel,
+.admin-app .admin-panel {
+  background: rgba(255, 252, 247, 0.94) !important;
+  border: 1px solid rgba(120, 100, 70, 0.26) !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.7) inset,
+    0 14px 40px rgba(40, 30, 20, 0.1) !important;
+  color: #1a1410 !important;
+  border-radius: 14px;
+  backdrop-filter: blur(10px);
+}
+
+.admin-app .admin-card--accent {
+  border-color: rgba(184, 134, 47, 0.5) !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.7) inset,
+    0 14px 40px rgba(184, 134, 47, 0.14) !important;
+}
+
+.admin-app .admin-card__title {
+  color: #1a1410 !important;
+  font-weight: 800;
+}
+
+.admin-app .admin-card__desc {
+  color: #3f3428 !important;
+}
+
+.admin-app th {
+  background: linear-gradient(180deg, #efe4d2, #e4d6c0) !important;
+  color: #1a1410 !important;
+  font-weight: 800;
+  border-bottom: 1px solid rgba(120, 100, 70, 0.28) !important;
+}
+
+.admin-app td {
+  color: #1a1410 !important;
+  border-bottom-color: rgba(120, 100, 70, 0.18) !important;
+}
+
+.admin-app .rbac-matrix__ok {
+  color: #0f766e !important;
+  font-weight: 800;
+}
+
+.admin-app .rbac-matrix__no {
+  color: #8a7a68 !important;
+}
+
+.admin-app input:not([type="checkbox"]):not([type="radio"]),
+.admin-app select,
+.admin-app textarea {
+  background: #fffef9 !important;
+  border: 1px solid rgba(120, 100, 70, 0.32) !important;
+  color: #1a1410 !important;
+  border-radius: 10px !important;
+}
+
+.admin-app input:focus,
+.admin-app select:focus,
+.admin-app textarea:focus {
+  border-color: #b8862f !important;
+  box-shadow: 0 0 0 3px rgba(184, 134, 47, 0.2) !important;
+}
+
+.admin-app .btn-primary,
+.admin-app button.primary {
+  background: linear-gradient(135deg, #e8c46e, #b8862f) !important;
+  border-color: #c9983a !important;
+  color: #1a1208 !important;
+  font-weight: 800;
+  border-radius: 11px !important;
+  box-shadow: 0 8px 22px rgba(184, 134, 47, 0.32) !important;
+}
+
+.admin-app .btn-secondary,
+.admin-app .btn-ghost {
+  background: rgba(255, 252, 247, 0.9) !important;
+  border: 1px solid rgba(120, 100, 70, 0.3) !important;
+  color: #1a1410 !important;
+}
+
+.admin-app .shell-chip,
+.admin-app .badge {
+  background: rgba(236, 226, 210, 0.95) !important;
+  border: 1px solid rgba(120, 100, 70, 0.28) !important;
+  color: #3f3428 !important;
+  font-weight: 700;
+}
+
+/* —— 工作区排版节奏 —— */
+.admin-app .admin-content__frame,
+.admin-app .admin-workspace,
+.admin-app .page-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-bottom: 8px;
+}
+
+.admin-app .admin-content {
+  padding: 24px 28px 32px;
+  box-sizing: border-box;
+}
+
+.admin-app .gov-page-intro,
+.admin-app .page-intro {
+  margin: 0 0 4px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #3f3428 !important;
+}
+
+.admin-app .link-nav {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.admin-app .link-nav__item {
+  text-align: left;
+  padding: 14px 16px !important;
+  border-radius: 14px !important;
+  border: 1px solid rgba(120, 100, 70, 0.26) !important;
+  background: rgba(255, 252, 247, 0.92) !important;
+  box-shadow: 0 10px 28px rgba(40, 30, 20, 0.08) !important;
+  color: #1a1410 !important;
+}
+
+.admin-app .link-nav__title {
+  display: block;
+  font-weight: 800;
+  color: #1a1410 !important;
+}
+
+.admin-app .link-nav__desc {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: #6a5a48 !important;
+}
+
+.admin-app .muted.empty,
+.admin-app .empty-state,
+.admin-app .events--flat:empty::before {
+  display: block;
+  padding: 28px 16px;
+  text-align: center;
+  color: #6a5a48 !important;
+  font-size: 13px;
+  border: 1px dashed rgba(120, 100, 70, 0.28);
+  border-radius: 14px;
+  background: rgba(255, 252, 247, 0.7);
+}
+
+.admin-app .form label,
+.admin-app .field label,
+.admin-app .admin-card label {
+  font-size: 12px;
+  font-weight: 750;
+  letter-spacing: 0.03em;
+  color: #9a7024 !important;
+}
+
+.admin-app .admin-card + .admin-card,
+.admin-app .panel + .panel {
+  margin-top: 0;
+}
+
+.admin-app table {
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(40, 30, 20, 0.06);
+}
+
+.admin-app .ops-panel,
+.admin-app .panel.ops-panel {
+  padding: 20px 22px 24px !important;
+  box-sizing: border-box !important;
+  overflow: visible;
+}
+
+.admin-app .ops-surface,
+.admin-app .panel.ops-surface {
+  padding: 20px 22px 24px !important;
+  box-sizing: border-box !important;
+}
+
+.admin-app .admin-card,
+.admin-app .card,
+.admin-app .panel,
+.admin-app .admin-panel {
+  padding: 18px 20px !important;
+  box-sizing: border-box !important;
+}
+
+.admin-app .ops-panel.panel,
+.admin-app .ops-surface.panel {
+  /* ops 已有专用 padding，避免被上面 panel 规则冲掉时仍够用 */
+  padding: 20px 22px 24px !important;
+}
+
+.admin-app .phase-bars {
+  padding-right: 4px;
+  box-sizing: border-box;
+}
+
+.admin-app .phase-bar {
+  grid-template-columns: minmax(72px, 100px) minmax(0, 1fr) minmax(64px, 88px) !important;
+  gap: 10px 14px !important;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.admin-app .phase-bar__val {
+  min-width: 0;
+  padding-right: 2px;
+  white-space: nowrap;
+}
+
+.admin-app .status-band {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 16px;
+}
+
+.admin-app .status-band__item {
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(120, 100, 70, 0.28);
+  background: rgba(255, 252, 247, 0.9);
+  font-size: 12px;
+  font-weight: 700;
+  color: #3f3428;
+}
+
+.admin-app .status-band__item.online {
+  border-color: rgba(15, 118, 110, 0.35);
+  background: rgba(236, 253, 248, 0.95);
+  color: #0f766e;
+}
+
+.admin-app .kpi-grid {
+  gap: 12px !important;
+  border: none !important;
+  overflow: visible !important;
+}
+
+.admin-app .kpi-tile {
+  border-radius: 12px !important;
+  border: 1px solid rgba(120, 100, 70, 0.22) !important;
+  background: linear-gradient(180deg, #fffef9, #f7f0e6) !important;
+  box-shadow: 0 6px 18px rgba(40, 30, 20, 0.06);
+  padding: 14px 16px !important;
+  box-sizing: border-box !important;
+}

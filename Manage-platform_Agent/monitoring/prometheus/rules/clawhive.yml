@@ -107,7 +107,17 @@ groups:
           source: manager
         annotations:
           summary: "Manager 专家步骤失败率过高 (>35%)"
-          description: "检查专家可用性与 fail-fast 是否生效"
+          description: "检查专家可用性与 fail-fast 是否生效；Runbook: docs/运维-AI-SLI告警Runbook.md"
+
+      - alert: ManagerSliFailRateElevated
+        expr: manager_sli_expert_error_rate > 0.05 and manager_sli_expert_error_rate <= 0.35
+        for: 20m
+        labels:
+          severity: info
+          source: manager
+        annotations:
+          summary: "Manager 专家失败率升高 (>5%)"
+          description: "早期预警；见 docs/运维-AI-SLI告警Runbook.md"
 
       - alert: ManagerSliP95High
         expr: manager_sli_p95_latency_ms > 120000
@@ -117,6 +127,46 @@ groups:
           source: manager
         annotations:
           summary: "Manager SLI P95 延迟过高 (>120s)"
+
+      - alert: ManagerRouteClearRateLow
+        expr: manager_sli_route_clear_rate < 0.35 and manager_sli_route_clear_rate >= 0
+        for: 30m
+        labels:
+          severity: warning
+          source: manager
+        annotations:
+          summary: "路由 clear 率偏低 (<35%)"
+          description: "可能 schema/库域漂移或 ambiguous 增多；查 route_authority Trace"
+
+      - alert: ManagerRouteLlmCallsHigh
+        expr: manager_sli_route_avg_llm_calls > 4
+        for: 30m
+        labels:
+          severity: info
+          source: manager
+        annotations:
+          summary: "单轮路由 LLM 次数均值偏高 (>4)"
+          description: "检查 skip 级联与续轮复用是否生效"
+
+      - alert: ManagerEstimatedCostHigh
+        expr: manager_sli_estimated_usd > 5
+        for: 30m
+        labels:
+          severity: info
+          source: manager
+        annotations:
+          summary: "Manager SLI 窗口估算成本偏高 (>$5)"
+          description: "见 docs/运维-AI-SLI告警Runbook.md；需配置 MANAGER_COST_PER_1K_TOKENS_USD 才有 usd 打点"
+
+      - alert: ManagerRequestRateLimited
+        expr: increase(manager_request_rate_limited_total[15m]) > 20
+        for: 5m
+        labels:
+          severity: info
+          source: manager
+        annotations:
+          summary: "入口限流拒绝偏多"
+          description: "检查 MANAGER_REQUEST_RATE_PER_MIN 或异常流量；LAN 默认 0=不限"
 
       - alert: ManagerEvidenceRejectionHigh
         expr: manager_sli_evidence_rejection_rate > 0.5

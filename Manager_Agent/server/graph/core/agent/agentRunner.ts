@@ -8,6 +8,11 @@ import {
 } from '../runtime/expertFailure'
 import { checkRunBudget, type RunBudgetCheck } from '../runtime/runBudget'
 import { checkExpertInflight } from '../runtime/backpressure'
+import {
+  isExpertAllowedAtDegradeLevel,
+  resolveServiceDegradeLevel,
+  type ServiceDegradeLevel
+} from '#agent-shared/expertCircuitPolicy'
 
 export type StepRunStatus = 'ok' | 'error' | 'skipped'
 
@@ -73,6 +78,26 @@ export function readAgentCircuitStreak(env: NodeJS.ProcessEnv = process.env): nu
 /** 熔断后是否跳过核心 Agent（默认开） */
 export function isCircuitSkipCoreEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
   return String(env.MANAGER_CIRCUIT_SKIP_CORE ?? '1').trim() !== '0'
+}
+
+/**
+ * 服务降级档。
+ * - 仅当显式设置 MANAGER_SERVICE_DEGRADE_LEVEL 时用于跳过专家（默认不拦，避免影响 LAN）
+ * - 未设显式档时仍可按本 run 开路专家做观测推断（返回值供看板；precheck 不据此 skip）
+ */
+export function readServiceDegradeLevel(
+  telemetry: Pick<AgentRunTelemetry, 'runtimeCircuitOpenAgents'>,
+  env: NodeJS.ProcessEnv = process.env
+): ServiceDegradeLevel {
+  const explicit = env.MANAGER_SERVICE_DEGRADE_LEVEL
+  return resolveServiceDegradeLevel({
+    explicitLevel: explicit !== undefined && String(explicit).trim() !== '' ? explicit : undefined,
+    openAgents: telemetry.runtimeCircuitOpenAgents
+  })
+}
+
+export function hasExplicitServiceDegradeLevel(env: NodeJS.ProcessEnv = process.env): boolean {
+  return String(env.MANAGER_SERVICE_DEGRADE_LEVEL ?? '').trim() !== ''
 }
 
 /** 多步执行共享：超时缩放、熔断计数、可选 Agent 集合 */
@@ -197,6 +222,7 @@ export type StepPrecheckPolicy =
   | 'upstream_failed'
   | 'clean_dedupe'
   | 'overloaded'
+  | 'service_degrade'
 
 export type StepPrecheckResult =
   | { action: 'run' }
@@ -221,6 +247,17 @@ export function precheckAgentStep(input: StepPrecheckInput): StepPrecheckResult 
       action: 'skip',
       reason: `agent ${stepAgent} 本轮已硬失败（${code}），截断后续调用以免空转耗 token`,
       policy: 'expert_hard_down'
+    }
+  }
+
+  if (hasExplicitServiceDegradeLevel()) {
+    const degradeLevel = readServiceDegradeLevel(telemetry)
+    if (!isExpertAllowedAtDegradeLevel(stepAgent, degradeLevel)) {
+      return {
+        action: 'skip',
+        reason: `服务降级 L${degradeLevel}：暂跳过专家 ${stepAgent} 以保只读/核心路径`,
+        policy: 'service_degrade'
+      }
     }
   }
 

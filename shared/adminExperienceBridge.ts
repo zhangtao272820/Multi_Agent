@@ -9,6 +9,7 @@ import {
   experienceSnippet,
   experienceSyncSource,
   experienceSyncSourcePlane,
+  experienceSyncStatus,
   guardExperiencePg,
   normalizeExperienceQuestionKey,
   type ExperienceSyncOpts,
@@ -82,7 +83,7 @@ export async function syncAdminExperienceFromManagerRun(
   const res = await agentPgQuery(
     `INSERT INTO adm_tool_experience
       (ts, question_norm, tool_name, scenario, hint, source, status, run_id, tools_json, tenant_id, source_plane)
-     VALUES ($1, $2, $3, $4, $5, $6, 'confirmed', NULL, '[]'::jsonb, $7, $8)`,
+     VALUES ($1, $2, $3, $4, $5, $6, $7, NULL, '[]'::jsonb, $8, $9)`,
     [
       new Date().toISOString(),
       question_norm,
@@ -90,6 +91,7 @@ export async function syncAdminExperienceFromManagerRun(
       scenario ?? null,
       hint,
       experienceSyncSource(opts),
+      experienceSyncStatus(opts),
       tid,
       experienceSyncSourcePlane(opts)
     ],

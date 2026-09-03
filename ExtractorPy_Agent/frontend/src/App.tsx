@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import BrandMotif from '@brand/react/BrandMotif.jsx'
 import { brandAvatarUrl, brandLogoUrl } from '@brand/react/assetMap.js'
 import { logout } from './clawhiveAuth'
 
@@ -153,15 +152,12 @@ export default function App({ onLogout }: Props) {
   const showQuerying = running && !resultText
 
   return (
-    <div className="extractor-shell" data-agent="extractor">
-      <div className="extractor-season-bg extractor-season-bg--jingzhe" aria-hidden="true" />
-      <BrandMotif motif="rain" />
-
+    <div className="extractor-shell ch-lite" data-agent="extractor">
       <header className="extractor-topbar extractor-glass--bar">
         <div className="extractor-topbar__brand">
           <img className="extractor-topbar__logo" src={brandLogoUrl('extractor')} alt="" width={44} height={44} />
           <div>
-            <p className="extractor-topbar__eyebrow">惊蛰 · 巨门</p>
+            <p className="extractor-topbar__eyebrow">巨门 · Extractor</p>
             <h1 className="extractor-topbar__title">巨门 · 数据提取</h1>
           </div>
         </div>

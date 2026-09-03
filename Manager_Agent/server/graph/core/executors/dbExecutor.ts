@@ -11,6 +11,53 @@ import { resolveSubAgentStepSessionId } from '../routing/subAgentPassthrough'
 import { extractStructuredPayload } from '../shared'
 import { CTX_SEP } from './sharedHelpers'
 import type { AgentExecutorDeps, AgentExecutorOpts, AgentStepOutcome } from './types'
+import { callDbPendingDecide } from '../../../utils/agents/dbClient'
+import { waitGuiConfirm } from '../../../utils/gui/guiConfirmBridge'
+import { mintHitlConfirmToken } from '#agent-shared/agentServiceAuth'
+import {
+  gateCopy,
+  inferActionKindFromAgent,
+  resolveRiskExecutionPolicy
+} from '../policy/riskExecutionPolicy'
+import { resolveBlastRadius } from '#agent-shared/blastRadius'
+
+function dbWriteAllowedFromMeta(meta: unknown): boolean {
+  const m = meta && typeof meta === 'object' ? (meta as Record<string, unknown>) : {}
+  if (m.dbWriteAllowed === true || m.db_write_allowed === true) return true
+  if (m.allowRiskyWrites === true && String(process.env.MANAGER_DB_WRITE_WITH_RISKY ?? '0').trim() === '1') {
+    return true
+  }
+  return String(process.env.MANAGER_DB_WRITE_ALLOWED ?? '0').trim() === '1'
+}
+
+function dbSignalsPendingConfirm(ar?: { structured?: Record<string, unknown> } | null): boolean {
+  const s = ar?.structured
+  if (!s) return false
+  if (s.needs_human_confirm === true) return true
+  const pending = s.pending_actions
+  return Array.isArray(pending) && pending.length > 0
+}
+
+function extractDbPendingIds(ar?: { structured?: Record<string, unknown> } | null): string[] {
+  const s = ar?.structured
+  if (!s) return []
+  const out: string[] = []
+  const pid = String(s.pending_id || '').trim()
+  if (pid) out.push(pid)
+  const rows = Array.isArray(s.pending_actions) ? s.pending_actions : []
+  for (const row of rows) {
+    if (!row || typeof row !== 'object') continue
+    const id = String((row as { id?: unknown }).id || '').trim()
+    if (id && !out.includes(id)) out.push(id)
+  }
+  return out.slice(0, 4)
+}
+
+function previewSqlFromResult(ar?: { structured?: Record<string, unknown> } | null, output?: string): string {
+  const sql = String(ar?.structured?.executed_sql || '').trim()
+  if (sql) return sql.slice(0, 1200)
+  return String(output || '').slice(0, 800)
+}
 
 export async function executeDbStep(
   deps: AgentExecutorDeps,
@@ -32,10 +79,8 @@ export async function executeDbStep(
   const lockDbScope = hasOrchestratedDbScope(execState.meta)
   let dbQuestion: string
   if (singleSource && lastU.length >= 4) {
-    // 协议：单源 ≡ 独立端 /api/ask，禁止 refine / queryFocus / scope LLM
     dbQuestion = lastU
   } else if (lockDbScope) {
-    // 真 multi：一次切分后的 clause/queryFocus，禁止二次 LLM 改写
     dbQuestion =
       dbQueryFocusFromMeta(execState.meta, stepCore) ||
       stepCore ||
@@ -55,14 +100,24 @@ export async function executeDbStep(
       `DB 出站问句与用户末轮不同（len ${lastU.length}→${finalDbMessage.length}）；multi 子句切分属预期`
     )
   }
+  const writeAllowed = dbWriteAllowedFromMeta(execState.meta)
   try {
     const dbSessionId = resolveSubAgentStepSessionId({
       runId: opts.runId,
       agent: 'db',
       stepId: String((execState.meta as { currentStepId?: string } | null)?.currentStepId || '').trim() || undefined
     })
-    // 透传：仅 NL 问句，等同独立端 /api/ask（不传 managerTask / 编排头）；步进 session 隔离历史
-    const dbRes = await deps.callDbAgent({
+    const managerTask = writeAllowed
+      ? {
+          source: 'manager',
+          write_allowed: true,
+          refined_question: finalDbMessage
+        }
+      : undefined
+    if (writeAllowed) {
+      input.sendThinking('数据库 Agent：写库预览模式（须 HITL 确认后执行）')
+    }
+    let dbRes = await deps.callDbAgent({
       dbAgentWsUrl: opts.dbAgentWsUrl,
       dbAgentHttpUrl: opts.dbAgentHttpUrl,
       dbId: opts.dbId,
@@ -72,18 +127,136 @@ export async function executeDbStep(
       messages: [{ role: 'user', content: finalDbMessage }],
       sendThinking: input.sendThinking,
       ...(String(process.env.MANAGER_DB_HTTP_ONLY ?? '').trim() === '1' ? { httpOnly: true as const } : {}),
-      signal: opts.signal
+      signal: opts.signal,
+      ...(managerTask ? { managerTask } : {})
     })
     let output = String(dbRes?.answer ?? '')
-    const ar = dbRes.agentResult
-    const serverOk =
+    let ar = dbRes.agentResult
+
+    if (writeAllowed && dbSignalsPendingConfirm(ar)) {
+      const riskPolicy = resolveRiskExecutionPolicy({
+        actionKind: inferActionKindFromAgent('db', { writeAllowed: true }),
+        meta: input.state.meta
+      })
+      const blast =
+        riskPolicy.blast_radius ||
+        resolveBlastRadius({ agent: 'db', writeAllowed: true, actionKind: 'db_write' })
+      const pendingIds = extractDbPendingIds(ar)
+      const sqlPreview = previewSqlFromResult(ar, output)
+      if (!opts.runId) {
+        return {
+          ok: false,
+          agent: 'db',
+          output: output || '写库待确认但缺少 runId',
+          query: finalDbMessage,
+          error: 'db_pending_confirm_no_run',
+          meta: ar ? { agentResult: ar } : {}
+        }
+      }
+      const confirmId = crypto.randomUUID()
+      const confirmToken = mintHitlConfirmToken(opts.runId, confirmId)
+      input.sendThinking(`数据库：${gateCopy('dry_run')} — 写 SQL 预览（未执行）`)
+      opts.sendEvent({
+        event: 'dry_run_result',
+        data: {
+          agent: 'db',
+          badge: gateCopy('dry_run'),
+          message: '拟执行写库 SQL（未写入）',
+          preview: sqlPreview,
+          pending_ids: pendingIds,
+          riskPolicy,
+          blast_radius: blast
+        },
+        from: 'manager'
+      })
+      input.sendThinking(
+        `数据库：${gateCopy('action')}（${String(blast).toUpperCase()}），等待您确认…`
+      )
+      opts.sendEvent({
+        event: 'human_confirm_request',
+        data: {
+          confirmId,
+          confirm_token: confirmToken,
+          title: '数据库写操作待确认',
+          message: `${gateCopy('action')}\n\`\`\`sql\n${sqlPreview}\n\`\`\``,
+          agent: 'db',
+          riskTier: riskPolicy.tier,
+          blast_radius: blast,
+          pending_ids: pendingIds
+        },
+        from: 'manager'
+      })
+      const approved = await waitGuiConfirm(opts.runId, confirmId)
+      if (!approved) {
+        for (const pid of pendingIds) {
+          try {
+            await callDbPendingDecide({
+              dbAgentHttpUrl: String(opts.dbAgentHttpUrl || ''),
+              pendingId: pid,
+              decision: '取消',
+              dbId: opts.dbId,
+              sessionId: dbSessionId,
+              traceId: opts.runId,
+              timeoutMs: Math.min(input.timeoutMs, 30_000),
+              signal: opts.signal
+            })
+          } catch {
+            /* cancel best-effort */
+          }
+        }
+        return {
+          ok: false,
+          agent: 'db',
+          output: '已取消写库操作，未改动数据库。',
+          query: finalDbMessage,
+          error: 'user_cancelled_db_write',
+          meta: { dbWriteTerminal: true, agentResult: { ok: false, error_code: 'user_cancelled_db_write' } }
+        }
+      }
+      if (!pendingIds.length) {
+        return {
+          ok: false,
+          agent: 'db',
+          output: '写库待确认但缺少 pending_id。',
+          query: finalDbMessage,
+          error: 'db_pending_missing'
+        }
+      }
+      let decideText = output
+      let decideAr = ar
+      for (const pid of pendingIds) {
+        const decideRes = await callDbPendingDecide({
+          dbAgentHttpUrl: String(opts.dbAgentHttpUrl || ''),
+          pendingId: pid,
+          decision: '确认',
+          confirmToken,
+          blastRadius: blast,
+          dbId: opts.dbId,
+          sessionId: dbSessionId,
+          traceId: opts.runId,
+          timeoutMs: input.timeoutMs,
+          signal: opts.signal,
+          sendThinking: input.sendThinking
+        })
+        decideText = String(decideRes.answer || '')
+        decideAr = decideRes.agentResult
+        if (decideAr?.ok === false) break
+      }
+      output = decideText
+      ar = decideAr
+      dbRes = { ...dbRes, answer: decideText, agentResult: decideAr, empty: false }
+    }
+
+    const softEmpty =
       ar?.ok === true &&
-      ar?.error_code !== 'empty_result' &&
-      ar?.error_code !== 'schema_miss' &&
-      ar?.structured?.empty !== true &&
-      dbRes?.empty !== true
-    // 空结果以 DB empty / error_code 为准；服务端 ok 时不以文案启发式 isDbNoData 误杀短统计答。
-    // 无 agentResult 但正文足够长且不像拒答时，也不用启发式误杀（协议对齐：保留专才 Artifact）。
+      (ar?.error_code === 'empty_result' || ar?.structured?.empty === true || dbRes?.empty === true)
+    const serverOk =
+      softEmpty ||
+      (ar?.ok === true &&
+        ar?.error_code !== 'empty_result' &&
+        ar?.error_code !== 'schema_miss' &&
+        ar?.structured?.empty !== true &&
+        dbRes?.empty !== true)
     const heuristicEmpty = ar?.ok !== true && deps.isDbNoData(output)
     const richNonEmptyAnswer =
       !ar &&
@@ -96,9 +269,9 @@ export async function executeDbStep(
         ar?.error_code === 'empty_result' ||
         ar?.error_code === 'schema_miss' ||
         heuristicEmpty
-    const arFailed = ar?.ok === false
-    const stepOk = !isEmpty && !arFailed
-    if (isEmpty) {
+    const arFailed = ar?.ok === false && !softEmpty
+    const stepOk = softEmpty ? true : !isEmpty && !arFailed
+    if (isEmpty && !softEmpty) {
       output = output ? `${output}\n(注：未在数据库中查到匹配的明细数据)` : '数据库未查到相关记录。'
     }
     const explainPreflight = Array.isArray(ar?.structured?.explain_preflight)
@@ -112,7 +285,9 @@ export async function executeDbStep(
         from: 'db'
       })
     }
-    const errorCode = String(ar?.error_code || (isEmpty ? 'empty_result' : '')).trim() || undefined
+    const errorCode = softEmpty
+      ? undefined
+      : String(ar?.error_code || (isEmpty ? 'empty_result' : '')).trim() || undefined
     if (!stepOk) {
       return {
         ok: false,
@@ -150,13 +325,13 @@ export async function executeDbStep(
         run_id: dbRes.run_id,
         trace_id: dbRes.trace_id || opts.runId,
         sources: ar?.sources,
-        empty: false,
-        reason: dbRes.reason,
+        empty: softEmpty ? true : false,
+        reason: softEmpty ? 'empty_result' : dbRes.reason,
         error_code: errorCode,
         executed_sql: ar?.structured?.executed_sql,
         ...(explainPreflight.length ? { explain_preflight: explainPreflight } : {})
       },
-      meta: ar ? { agentResult: ar } : {}
+      meta: ar ? { agentResult: ar, ...(writeAllowed ? { dbWrite: true } : {}) } : {}
     }
   } catch (e: unknown) {
     const err = String((e as Error)?.message || e || 'unknown error')

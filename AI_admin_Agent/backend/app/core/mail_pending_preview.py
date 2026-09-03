@@ -4,6 +4,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from app.core.mail_compose import build_mail_compose
+
 
 def _clip(text: str, n: int = 280) -> str:
     s = str(text or "").strip()
@@ -79,12 +81,14 @@ def format_mail_pending_preview(
     返回 pending 卡字段：
     - title: 短标题
     - message: 用户可见确认文案（含 from/to/cc/subject/body 摘要）
+    - mail_compose: Compose Card 结构化载荷（可编辑后 commit）
     """
     args = _enrich_from_mail_cache(dict(tool_args or {}))
     name = str(tool_name or "").strip()
     from_addr = (from_address or "").strip() or resolve_bound_from_address(
         str(args.get("user_id") or "").strip() or None
     )
+    mail_compose = build_mail_compose(name, args, from_address=from_addr)
 
     if name == "delete_email":
         eid = args.get("email_id")
@@ -100,13 +104,22 @@ def format_mail_pending_preview(
             "",
             "请点击下方「确认」或「取消」按钮。",
         ]
-        return {"title": title, "message": "\n".join(lines), "tool": name}
+        mail_compose["subject"] = subj
+        mail_compose["digest"] = build_mail_compose(name, {**args, "subject": subj}, from_address=from_addr)[
+            "digest"
+        ]
+        return {
+            "title": title,
+            "message": "\n".join(lines),
+            "tool": name,
+            "mail_compose": mail_compose,
+        }
 
     to = _list_field(args.get("to") or args.get("recipient") or "")
     cc = _list_field(args.get("cc") or "")
     bcc = _list_field(args.get("bcc") or "")
-    subject = str(args.get("subject") or "").strip() or "(无主题)"
-    body = str(args.get("content") or args.get("body") or args.get("note") or "")
+    subject = str(mail_compose.get("subject") or "").strip() or "(无主题)"
+    body = str(mail_compose.get("content") or "")
     body_preview = _clip(body, 320)
     atts = _attachment_names(args.get("attachment_paths"))
 
@@ -114,20 +127,16 @@ def format_mail_pending_preview(
         eid = args.get("email_id")
         verb = "回复"
         title = f"回复邮件 #{eid}" if eid is not None else "回复邮件"
-        if subject != "(无主题)" and not subject.lower().startswith("re:"):
-            subject = f"Re: {subject}"
     elif name == "forward_email":
         eid = args.get("email_id")
         verb = "转发"
         title = f"转发邮件 #{eid}" if eid is not None else "转发邮件"
-        if subject != "(无主题)" and not subject.lower().startswith("fwd:"):
-            subject = f"Fwd: {subject}"
     else:
         verb = "发送"
         title = f"发送邮件：{_clip(subject, 40)}"
 
     lines = [
-        f"【待确认】将{verb}以下邮件。",
+        f"【待确认】将{verb}以下邮件。可在下方 Compose 卡中修改后再确认。",
         f"发件人（绑定箱）：{from_addr}",
         f"收件人：{to or '（未填）'}",
     ]
@@ -141,5 +150,10 @@ def format_mail_pending_preview(
     lines.append("正文摘要：")
     lines.append(body_preview or "（空）")
     lines.append("")
-    lines.append("请点击下方「确认」或「取消」按钮。取消则不会发送。")
-    return {"title": title, "message": "\n".join(lines), "tool": name}
+    lines.append("请在 Compose 卡编辑后点「确认发送」，或「取消」。取消则不会发送。")
+    return {
+        "title": title,
+        "message": "\n".join(lines),
+        "tool": name,
+        "mail_compose": mail_compose,
+    }

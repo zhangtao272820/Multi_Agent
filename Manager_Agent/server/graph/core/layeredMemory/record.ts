@@ -199,6 +199,14 @@ export async function appendReflectionMemory(
 ) {
   if (!isReflectionMemoryEnabled()) return
   if (entry.failure.category === 'success') return
+  // 纯库空结果不写反思，避免回灌「应澄清/换 Agent」污染后续编排
+  const reasons = entry.failure.reasons || []
+  if (
+    reasons.length > 0 &&
+    reasons.every((r) => /db no data|empty_result|business outcome/i.test(String(r)))
+  ) {
+    return
+  }
   const lesson = buildLessonFromFailure(entry.failure)
   if (!lesson) return
   const row: ReflectionRecord = {

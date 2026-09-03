@@ -1,11 +1,11 @@
 <template>
-  <div class="wrap">
+  <div class="wrap lobster-workbench ch-thread" data-agent="lobster">
     <header class="hdr">
       <div class="hdr-brand">
         <img class="hdr-logo" src="/brand/logos/lobster.svg" alt="" width="40" height="40" />
         <div>
           <div class="title">七杀 · 龙虾 Agent</div>
-          <div class="sub">GUI 自动化 · 规划 · 执行 · 验证 · 雪意点缀</div>
+          <div class="sub">GUI 自动化 · 规划 · 执行 · 验证 · 可视化</div>
         </div>
       </div>
       <div class="hdr-right">
@@ -24,103 +24,47 @@
       </div>
     </header>
 
-    <section class="panel">
-      <div class="panel-section">
-        <div class="section-label">快捷任务</div>
-        <div class="preset-chips">
-          <button
-            v-for="p in taskPresets"
-            :key="p.id"
-            type="button"
-            class="chip"
-            :title="p.hint"
-            @click="applyPreset(p)"
-          >
-            {{ p.label }}
-          </button>
-        </div>
-      </div>
-
-      <div class="panel-section">
-        <label class="field">
-          <span class="field-label">任务</span>
-          <textarea
-            v-model="task"
-            class="ta"
-            rows="4"
-            placeholder="例如：打开目标网站，搜索某个关键词，进入详情页并提取字段…"
-          />
-        </label>
-      </div>
-
-      <div class="panel-section config-grid">
-        <label class="field">
-          <span class="field-label">起始 URL</span>
-          <input v-model="startUrl" class="inp" placeholder="可选；也可写在任务里" />
-        </label>
-        <label class="field">
-          <span class="field-label">引擎 hint</span>
-          <select v-model="engineHint" class="inp engine-select">
-            <option value="">auto（默认 Stagehand）</option>
-            <option value="stagehand">stagehand（网页主路径）</option>
-            <option value="mcp">mcp（Playwright MCP 旁路）</option>
-            <option value="classic">classic（仅视频/人工接管）</option>
-            <option value="desktop">desktop（Windows 原生应用）</option>
-          </select>
-          <span v-if="!engineHint && engineAutoPreview" class="hint">{{ engineAutoPreview }}</span>
-        </label>
-        <label class="field">
-          <span class="field-label">浏览器 Profile</span>
-          <select v-model="browserProfile" class="inp engine-select">
-            <option value="">auto（服务端默认）</option>
-            <option value="managed">managed（隔离浏览器）</option>
-            <option value="user">user（附着已登录 Chrome）</option>
-          </select>
-        </label>
-      </div>
-
-      <details class="advanced" :open="showAdvanced">
-        <summary @click.prevent="showAdvanced = !showAdvanced">
-          {{ showAdvanced ? '收起高级设置' : '高级设置' }}
-          <span v-if="infraStatus && !showAdvanced" class="adv-brief">{{ infraBrief }}</span>
-        </summary>
-        <div v-show="showAdvanced" class="advanced-body">
-          <label class="field">
-            <span class="field-label">登录态 profile</span>
-            <input v-model="storageProfile" class="inp" placeholder="可选：复用 .data/sessions" />
-          </label>
-          <label class="field">
-            <span class="field-label">访问令牌</span>
-            <input v-model="accessToken" type="password" class="inp" :placeholder="tokenPlaceholder" />
-            <span v-if="tokenHint" class="hint">{{ tokenHint }}</span>
-          </label>
-          <div v-if="infraStatus" class="infra-pill">{{ infraStatus }}</div>
-        </div>
-      </details>
-
-      <div v-if="engineNotice" class="notice">{{ engineNotice }}</div>
-
-      <div class="actions">
-        <div class="actions-main">
-          <button class="btn" :disabled="busy || !task.trim()" @click="start">开始</button>
-          <button class="btn ghost" :disabled="!busy" @click="stop">停止</button>
-          <div class="badge" :class="badgeClass">{{ statusText }}</div>
-        </div>
-        <div v-if="debugMode" class="actions-debug">
-          <button class="btn ghost sm" :disabled="!busy" @click="pause">暂停</button>
-          <button class="btn ghost sm" :disabled="!busy" @click="resume">继续</button>
-          <button class="btn ghost sm" :disabled="!busy" @click="stepOnce">单步</button>
-          <button class="btn ghost sm" :disabled="!wsReady" @click="ping">Ping</button>
-          <label v-if="vncUrl" class="chk"><input v-model="autoOpenVnc" type="checkbox" />任务时打开浏览器</label>
-          <label class="chk"><input v-model="takeover" type="checkbox" :disabled="!busy" />接管点选</label>
-          <label class="chk"><input v-model="showBoxes" type="checkbox" :disabled="!screenshotDataUrl" />显示框</label>
-          <label class="chk"><input v-model="onlyErrors" type="checkbox" />仅异常</label>
-          <label class="chk"><input v-model="autoScrollLogs" type="checkbox" />日志跟随</label>
-          <label class="chk"><input v-model="autoScrollSteps" type="checkbox" />步骤跟随</label>
-        </div>
-      </div>
-      <div v-if="lastError" class="err">{{ lastError }}</div>
-    </section>
+    <LobsterTaskPanel
+      v-model:task="task"
+      v-model:start-url="startUrl"
+      v-model:engine-hint="engineHint"
+      v-model:browser-profile="browserProfile"
+      v-model:storage-profile="storageProfile"
+      v-model:access-token="accessToken"
+      v-model:session-import-json="sessionImportJson"
+      v-model:show-advanced="showAdvanced"
+      v-model:auto-open-vnc="autoOpenVnc"
+      v-model:takeover="takeover"
+      v-model:show-boxes="showBoxes"
+      v-model:only-errors="onlyErrors"
+      v-model:auto-scroll-logs="autoScrollLogs"
+      v-model:auto-scroll-steps="autoScrollSteps"
+      :token-hint="tokenHint"
+      :token-placeholder="tokenPlaceholder"
+      :session-import-busy="sessionImportBusy"
+      :session-import-msg="sessionImportMsg"
+      :debug-mode="debugMode"
+      :busy="busy"
+      :ws-ready="wsReady"
+      :status-text="statusText"
+      :badge-class="badgeClass"
+      :last-error="lastError"
+      :engine-notice="engineNotice"
+      :engine-auto-preview="engineAutoPreview"
+      :infra-status="infraStatus"
+      :vnc-url="vncUrl"
+      :screenshot-data-url="screenshotDataUrl"
+      :recent-tasks="recentTasks"
+      @apply-preset="applyPreset"
+      @apply-recent="applyRecent"
+      @import-session="importSession"
+      @start="start"
+      @stop="stop"
+      @pause="pause"
+      @resume="resume"
+      @step="stepOnce"
+      @ping="ping"
+    />
 
     <LobsterRunInsightPanel
       :understand="runInsight.understand"
@@ -130,32 +74,19 @@
       :run-meta="runInsight.runMeta"
     />
 
-    <section v-if="!debugMode" class="grid simple">
-      <div v-if="mcpSidecar && screenshotDataUrl" class="card span2 mcp-shot-card">
-        <div class="card-h">
-          <span>MCP 实时截图</span>
-          <a v-if="vncUrl" class="btn ghost sm" :href="vncUrl" target="_blank" rel="noopener noreferrer">noVNC（classic 引擎）</a>
-        </div>
-        <div class="shot compact">
-          <img :src="screenshotDataUrl" alt="mcp screenshot" />
-        </div>
-        <div v-if="engineNotice" class="hint">{{ engineNotice }}</div>
-      </div>
-      <div class="card span2">
-        <div class="card-h">
-          <div>结果</div>
-          <div class="right">
-            <button class="btn ghost sm" :disabled="!result" @click="downloadJson">导出 JSON</button>
-          </div>
-        </div>
-        <div v-if="!prettyResult" class="result-empty">
-          <div class="empty-ico" aria-hidden="true" />
-          <div class="empty-title">等待任务完成</div>
-          <div class="empty-sub">执行结束后，这里会展示结构化结果（可导出 JSON）</div>
-        </div>
-        <pre v-else class="pre">{{ prettyResult }}</pre>
-      </div>
-    </section>
+    <LobsterRunMonitor
+      v-if="!debugMode"
+      :busy="busy"
+      :status-text="statusText"
+      :screenshot-data-url="screenshotDataUrl"
+      :vnc-url="vncUrl"
+      :result="result"
+      :pretty-json="prettyResult"
+      :thinking-text="thinking.text"
+      :phase="agentState.phase"
+      :last-action="lastActionText"
+      @download-json="downloadJson"
+    />
 
     <section v-else class="grid">
       <div class="card">
@@ -227,7 +158,7 @@
 
       <div class="card">
         <div class="card-h">日志</div>
-        <div ref="logEl" class="log">
+        <div ref="logEl" class="log ch-assistant">
           <div v-for="(l, idx) in filteredLogs" :key="idx" class="logline" :class="l.level">
             <span class="ts">{{ fmtTs(l.ts) }}</span>
             <span class="lv">{{ l.level }}</span>
@@ -325,8 +256,18 @@
     <div v-if="confirmReq" class="modal">
       <div class="modal-card">
         <div class="modal-h">{{ confirmReq.title }}</div>
+        <p v-if="confirmNeedsHumanBrowser" class="modal-hint">
+          需要在真实浏览器中完成登录/验证码。请打开下方画面人工操作后，再点确认继续。
+        </p>
         <pre class="modal-pre">{{ confirmReq.message }}</pre>
         <div class="modal-actions">
+          <a
+            v-if="vncUrl"
+            class="btn ghost"
+            :href="vncUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+          >打开浏览器画面</a>
           <button class="btn" @click="confirmOk">确认</button>
           <button class="btn ghost" @click="confirmNo">取消</button>
         </div>
@@ -360,6 +301,13 @@
 </template>
 
 <script setup lang="ts">
+import LobsterTaskPanel from '../components/workbench/LobsterTaskPanel.vue'
+import LobsterRunMonitor from '../components/workbench/LobsterRunMonitor.vue'
+import LobsterRunInsightPanel from '../components/workbench/LobsterRunInsightPanel.vue'
+import type { LobsterTaskPreset } from '../utils/lobsterTaskPresets'
+import type { LobsterRecentTask as RecentTask } from '../utils/lobsterTaskPresets'
+import { LOBSTER_DEFAULT_START_URL, LOBSTER_DEFAULT_TASK } from '../utils/lobsterTaskPresets'
+
 type LogLevel = 'info' | 'warn' | 'error'
 type LogItem = { level: LogLevel; message: string; ts: number }
 
@@ -401,8 +349,8 @@ function onLogout() {
 }
 const wsPath = computed(() => String(runtimeConfig.public?.wsPath || '/_ws'))
 
-const task = ref('打开 https://www.baidu.com/ ，搜索「Python 教程」，点击第一条结果并提取标题与链接，输出 JSON。')
-const startUrl = ref('https://www.baidu.com/')
+const task = ref(LOBSTER_DEFAULT_TASK)
+const startUrl = ref(LOBSTER_DEFAULT_START_URL)
 const engineHint = ref('')
 const browserProfile = ref('')
 const storageProfile = ref('')
@@ -416,118 +364,80 @@ const infraStatus = ref('')
 const engineNotice = ref('')
 const debugMode = ref(false)
 const showAdvanced = ref(false)
-
-const infraBrief = computed(() => {
-  const s = String(infraStatus.value || '').trim()
-  if (!s) return ''
-  return s.length > 42 ? `${s.slice(0, 40)}…` : s
-})
-
-type TaskPreset = {
-  id: string
-  label: string
-  hint: string
-  task: string
-  startUrl?: string
-  engine?: string
-  browserProfile?: string
-  workflowId?: string
-  workflowArgs?: Record<string, string>
-}
-const taskPresets: TaskPreset[] = [
-  {
-    id: 'runoob-search',
-    label: 'Runoob 搜索',
-    hint: 'G3 · stagehand 主路径',
-    task: '打开 https://www.runoob.com/ ，搜索 Python 教程，提取第一条结果标题与链接，输出 JSON。',
-    startUrl: 'https://www.runoob.com/',
-    engine: 'stagehand'
-  },
-  {
-    id: 'baidu-search',
-    label: '百度站内搜',
-    hint: 'auto · Stagehand 有头（noVNC）；验证码走 HITL→classic',
-    task: '打开 https://www.baidu.com/ ，搜索「Python 教程」，点击第一条搜索结果，提取标题与链接，输出 JSON。',
-    startUrl: 'https://www.baidu.com/',
-    engine: ''
-  },
-  {
-    id: 'httpbin-workflow',
-    label: '工作流宏填表',
-    hint: 'workflow · httpbin-form-fill',
-    task: '用工作流宏填写 httpbin 表单 Customer name 为 demo_user，完成后回报结果。',
-    startUrl: 'https://httpbin.org/forms/post',
-    engine: '',
-    workflowId: 'httpbin-form-fill',
-    workflowArgs: { customer_name: 'demo_user', startUrl: 'https://httpbin.org/forms/post' }
-  },
-  {
-    id: 'gov-news',
-    label: '政府网资讯',
-    hint: 'stagehand · 列表抽取',
-    task: '打开 https://www.gov.cn/ ，提取首页至少 3 条资讯标题和链接，输出 JSON。',
-    startUrl: 'https://www.gov.cn/',
-    engine: 'stagehand'
-  },
-  {
-    id: 'httpbin-form',
-    label: '表单填写',
-    hint: 'stagehand · 填表',
-    task: '打开 https://httpbin.org/forms/post ，在 custname 填写 lobster_test，截图并输出 JSON。',
-    startUrl: 'https://httpbin.org/forms/post',
-    engine: 'stagehand'
-  },
-  {
-    id: 'antd-form',
-    label: 'Ant Design',
-    hint: 'stagehand · SPA 表单',
-    task: '引擎:stagehand\n打开 https://ant.design/components/form-cn ，在 Form 示例的用户名输入框填写 test，截图。',
-    startUrl: 'https://ant.design/components/form-cn',
-    engine: 'stagehand'
-  },
-  {
-    id: 'w3schools',
-    label: 'W3Schools',
-    hint: 'mcp · cookie+搜索',
-    task: '打开 https://www.w3schools.com/ ，关闭 cookie 提示，搜索 HTML tutorial，提取第一条结果标题与链接。',
-    startUrl: 'https://www.w3schools.com/',
-    engine: 'mcp'
-  },
-  {
-    id: 'dynamic-dropdown',
-    label: '动态下拉',
-    hint: 'stagehand · 复杂组件',
-    task: '引擎:stagehand\n打开 https://the-internet.herokuapp.com/dropdown ，选择 Option 1，截图确认。',
-    startUrl: 'https://the-internet.herokuapp.com/dropdown',
-    engine: 'stagehand'
-  },
-  {
-    id: 'bilibili-search',
-    label: 'B站搜索',
-    hint: 'mcp · SPA 搜索（不播放）',
-    task: '打开 https://www.bilibili.com/ ，搜索「Python 教程」，打开第一条结果详情页，提取标题、UP 主和链接，输出 JSON（不要点击播放）。',
-    startUrl: 'https://www.bilibili.com/',
-    engine: 'mcp'
-  },
-  {
-    id: 'notepad-desktop',
-    label: '记事本 Hello',
-    hint: 'G4/desktop · Win 宿主机',
-    task: '打开记事本，输入 Hello World，保存到桌面。',
-    engine: 'desktop'
-  }
-]
+const sessionImportJson = ref('')
+const sessionImportBusy = ref(false)
+const sessionImportMsg = ref('')
+const recentTasks = ref<RecentTask[]>([])
+const RECENT_KEY = 'lobster_recent_tasks'
 
 const selectedWorkflowId = ref('')
 const selectedWorkflowArgs = ref<Record<string, string> | null>(null)
 
-function applyPreset(p: TaskPreset) {
+function applyPreset(p: LobsterTaskPreset) {
   task.value = p.task
   startUrl.value = p.startUrl || ''
   engineHint.value = p.engine || ''
   browserProfile.value = p.browserProfile || ''
   selectedWorkflowId.value = p.workflowId || ''
   selectedWorkflowArgs.value = p.workflowArgs ? { ...p.workflowArgs } : null
+  if (p.group === 'login' && p.id === 'reuse-profile') {
+    showAdvanced.value = true
+  }
+}
+
+function applyRecent(r: RecentTask) {
+  task.value = r.task
+  startUrl.value = r.startUrl || ''
+}
+
+function pushRecentTask() {
+  const row: RecentTask = {
+    task: String(task.value || '').trim(),
+    startUrl: String(startUrl.value || '').trim() || undefined,
+    ts: Date.now(),
+  }
+  if (!row.task) return
+  const next = [row, ...recentTasks.value.filter((x) => x.task !== row.task)].slice(0, 8)
+  recentTasks.value = next
+  try {
+    window.localStorage.setItem(RECENT_KEY, JSON.stringify(next))
+  } catch {
+    /* ignore */
+  }
+}
+
+async function importSession() {
+  sessionImportMsg.value = ''
+  const profile = String(storageProfile.value || '').trim()
+  const raw = String(sessionImportJson.value || '').trim()
+  if (!profile || !raw) {
+    sessionImportMsg.value = '请填写 profile 名并粘贴 storageState JSON'
+    return
+  }
+  let storage: unknown
+  try {
+    storage = JSON.parse(raw)
+  } catch {
+    sessionImportMsg.value = 'JSON 解析失败'
+    return
+  }
+  sessionImportBusy.value = true
+  try {
+    const headers: Record<string, string> = { 'content-type': 'application/json' }
+    const token = String(accessToken.value || '').trim()
+    if (token) headers.authorization = `Bearer ${token}`
+    const res = await $fetch<{ ok?: boolean; path?: string }>('/api/lobster/session/import', {
+      method: 'POST',
+      headers,
+      body: { profile, storageState: storage },
+    })
+    sessionImportMsg.value = res?.ok ? `已导入：${res.path || profile}` : '导入失败'
+    sessionImportJson.value = ''
+  } catch (e: any) {
+    sessionImportMsg.value = String(e?.data?.statusMessage || e?.message || e).slice(0, 160)
+  } finally {
+    sessionImportBusy.value = false
+  }
 }
 
 const ws = shallowRef<WebSocket | null>(null)
@@ -552,6 +462,10 @@ const autoScrollSteps = ref(true)
 const shotImg = ref<HTMLImageElement | null>(null)
 const shotMetrics = reactive({ nw: 0, nh: 0, dw: 0, dh: 0, left: 0, top: 0 })
 const confirmReq = ref<{ id: string; title: string; message: string } | null>(null)
+const confirmNeedsHumanBrowser = computed(() => {
+  const msg = `${confirmReq.value?.title || ''} ${confirmReq.value?.message || ''}`
+  return /登录|验证码|captcha|login|人工|HITL|扫码|短信/i.test(msg)
+})
 const runInsight = reactive<{
   understand: Record<string, unknown> | null
   engineChain: Record<string, unknown> | null
@@ -890,7 +804,12 @@ function openVncWindow() {
 
 function maybeWarnEngine(taskText: string, engine: string) {
   const t = String(taskText || '')
-  const needsClassic = /(播放|观看|视频|弹幕|点赞|投币|B站|bilibili)/i.test(t)
+  const stripped = t
+    .replace(/不要\s*点击?\s*播放/gi, ' ')
+    .replace(/(不要|勿|别|禁止|无需|不用)\s*播放/gi, ' ')
+  const needsClassic =
+    /(播放|观看|弹幕|点赞|投币|三连)/i.test(stripped) ||
+    (/(点赞|投币|收藏|三连|关注)/i.test(stripped) && /(B站|bilibili|哔哩)/i.test(t))
   if (engine === 'mcp' && mcpSidecar.value) {
     engineNotice.value =
       '当前为 MCP 无头 sidecar，noVNC 看不到浏览器。播放/点赞请选「引擎:classic」或任务含「观看/播放」。'
@@ -955,6 +874,7 @@ function start() {
   }
   engineNotice.value = ''
   maybeWarnEngine(task.value, eh || 'auto')
+  pushRecentTask()
   send('start', payloadBase)
   if (autoOpenVnc.value && vncUrl.value) openVncWindow()
 }
@@ -1234,6 +1154,22 @@ onMounted(() => {
     accessToken.value = String(window.localStorage.getItem('lobster_admin_token') || '')
   } catch {}
   try {
+    const raw = window.localStorage.getItem(RECENT_KEY)
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      if (Array.isArray(parsed)) {
+        recentTasks.value = parsed
+          .filter((x) => x && typeof x.task === 'string')
+          .slice(0, 8)
+          .map((x: any) => ({
+            task: String(x.task),
+            startUrl: x.startUrl ? String(x.startUrl) : undefined,
+            ts: Number(x.ts) || Date.now(),
+          }))
+      }
+    }
+  } catch {}
+  try {
     const q = new URLSearchParams(window.location.search)
     const fromQuery = String(q.get('token') || '').trim()
     if (fromQuery) accessToken.value = fromQuery
@@ -1328,26 +1264,33 @@ watch(
 
 <style scoped>
 .wrap {
-  --text-primary: #0a1a28;
-  --text-secondary: #1a3550;
-  --text-muted: #2a4a66;
-  --border-soft: rgba(90, 140, 190, 0.38);
-  --panel-bg: rgba(248, 252, 255, 0.78);
-  --panel-bg-strong: rgba(255, 255, 255, 0.9);
-  --panel-bg-soft: rgba(236, 244, 252, 0.72);
-  --field-bg: rgba(255, 255, 255, 0.94);
-  --accent: #1e6bb8;
-  --accent-warm: #3a86c8;
+  --text-primary: #1a1014;
+  --text-secondary: #4a3038;
+  --text-muted: #6e5058;
+  --border-soft: rgba(194, 65, 85, 0.28);
+  --panel-bg: rgba(255, 255, 255, 0.94);
+  --panel-bg-strong: rgba(255, 249, 250, 0.96);
+  --panel-bg-soft: rgba(255, 244, 247, 0.9);
+  --field-bg: #fff9fa;
+  --accent: #c24155;
+  --accent-warm: #e07082;
   --danger: #a83d52;
-  --ok: #1a7a58;
+  --ok: #0f766e;
   --warn: #9a5b12;
   position: relative;
   z-index: 3;
-  max-width: 1080px;
-  margin: 14px auto 0;
-  padding: 0 20px 36px;
+  box-sizing: border-box;
+  max-width: 1280px;
+  width: 100%;
+  min-height: calc(100vh - 8px);
+  margin: 0 auto;
+  padding: 14px 20px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
   color: var(--text-primary);
-  font-family: "Manrope", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-family: var(--brand-font-sans, "Manrope", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif);
+  overflow-x: hidden;
 }
 
 .hdr {
@@ -1355,7 +1298,14 @@ watch(
   justify-content: space-between;
   align-items: center;
   gap: 16px;
-  padding: 10px 4px 18px;
+  padding: 12px 16px;
+  border: 1px solid var(--border-soft);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.7) inset,
+    0 12px 36px rgba(60, 20, 30, 0.1);
+  backdrop-filter: blur(14px);
 }
 
 .hdr-brand {
@@ -1367,7 +1317,7 @@ watch(
 .hdr-logo,
 .hdr-avatar {
   border-radius: 10px;
-  border: 1px solid rgba(90, 140, 190, 0.4);
+  border: 1px solid rgba(194, 65, 85, 0.35);
   flex: 0 0 auto;
 }
 
@@ -1799,6 +1749,14 @@ select.inp.engine-select option {
   border-bottom: 1px solid var(--border-soft);
   font-weight: 700;
   font-size: 14px;
+}
+
+.modal-hint {
+  margin: 0;
+  padding: 10px 14px 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--brand-accent, #9f3445);
 }
 
 .modal-pre {

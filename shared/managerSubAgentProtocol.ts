@@ -226,6 +226,12 @@ export type ManagerDbTaskPayload = {
   prefetch_reuse?: boolean;
   prefetch_schema_ground_json?: string;
   turn_scope?: TurnScopePayload;
+  /** 允许进入写库预览路径（仍须 HITL confirm_token 才执行） */
+  write_allowed?: boolean;
+  /** HITL 确认令牌（T2）；无 token 时写 SQL 仅 pending */
+  confirm_token?: string;
+  /** 待确认写操作 id（decide 路径） */
+  pending_id?: string;
 };
 
 function parseTurnScopeField(o: Record<string, unknown>): TurnScopePayload | undefined {
@@ -396,13 +402,19 @@ export function parseManagerDbTaskFromJson(raw: string | null | undefined): Mana
     const hint_tables = arr(o.hint_tables).slice(0, 8);
     const hint_fields = arr(o.hint_fields).slice(0, 12);
     const risk_notes = arr(o.risk_notes).slice(0, 8);
+    const write_allowed = o.write_allowed === true;
+    const confirm_token = String(o.confirm_token ?? "").trim() || undefined;
+    const pending_id = String(o.pending_id ?? "").trim() || undefined;
     const hasAny =
       String(o.refined_question ?? "").trim() ||
       must_filters.length ||
       String(o.schema_search_keywords ?? "").trim() ||
       String(o.query_plan_json ?? "").trim() ||
       hint_tables.length ||
-      o.prefetch_reuse === true;
+      o.prefetch_reuse === true ||
+      write_allowed ||
+      Boolean(confirm_token) ||
+      Boolean(pending_id);
     const turn_scope = parseTurnScopeField(o);
     if (!hasAny && !turn_scope) return null;
     return {
@@ -419,6 +431,9 @@ export function parseManagerDbTaskFromJson(raw: string | null | undefined): Mana
       prefetch_reuse: o.prefetch_reuse === true ? true : undefined,
       prefetch_schema_ground_json: String(o.prefetch_schema_ground_json ?? "").trim() || undefined,
       turn_scope,
+      write_allowed: write_allowed ? true : undefined,
+      confirm_token,
+      pending_id,
     };
   } catch {
     return null;

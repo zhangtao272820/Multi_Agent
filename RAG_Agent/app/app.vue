@@ -2,10 +2,7 @@
   <ClientOnly>
     <ClawhiveLoginGate v-if="needAuth && authReady && !isLoggedIn" @success="onLoginOk" />
   </ClientOnly>
-  <div v-if="!needAuth || (authReady && isLoggedIn)" class="rag-shell rag-app-root relative min-h-screen" data-agent="rag">
-    <div class="rag-season-bg rag-season-bg--qingming" aria-hidden="true" />
-    <BrandMotif motif="rain" :count="96" />
-
+  <div v-if="!needAuth || (authReady && isLoggedIn)" class="brand-shell rag-shell rag-app-root relative min-h-screen" data-agent="rag">
     <div class="rag-layout relative z-10 flex h-screen">
       <div class="rag-sidebar flex flex-col">
         <div class="rag-sidebar__brand">
@@ -339,7 +336,7 @@
         <!-- 右侧“来源证据”抽屉 -->
         <div v-if="sourceDrawer.show" class="fixed inset-0 z-40">
           <div class="absolute inset-0 bg-black/40" @click="closeSourceDrawer"></div>
-          <aside class="absolute right-0 top-0 h-full w-full max-w-md bg-slate-950/95 border-l border-white/10 backdrop-blur shadow-2xl shadow-black/40 flex flex-col">
+          <aside class="rag-source-drawer absolute right-0 top-0 h-full w-full max-w-md border-l flex flex-col">
             <div class="px-4 py-4 border-b border-white/10 flex items-start justify-between gap-3">
               <div class="min-w-0">
                 <div class="text-xs text-slate-300/70">来源证据</div>
@@ -394,6 +391,16 @@
           <span>正在加载会话…</span>
         </div>
         <div v-else class="flex-1 overflow-y-auto p-6 space-y-5" ref="chatContainer">
+          <div v-if="messages.length === 0" class="rag-welcome">
+            <img src="/brand/avatars/rag.svg" alt="" width="56" height="56" style="margin:0 auto 12px;border-radius:14px;border:1px solid rgba(79,111,212,0.3)" />
+            <h3 class="rag-welcome__title">文曲 · 文档助手</h3>
+            <p class="rag-welcome__desc">上传或选择知识库文档后提问，我会基于证据回答并标注来源。</p>
+            <ul class="rag-welcome__chips">
+              <li>这份文档的核心结论是什么？</li>
+              <li>帮我摘要第三章要点</li>
+              <li>有哪些与合规相关的条款？</li>
+            </ul>
+          </div>
           <div
             v-for="(msg, index) in messages"
             :key="msg.turnId != null ? `turn-${msg.turnId}-${msg.role}` : `msg-${index}`"
@@ -501,6 +508,7 @@
               <div
                 v-if="msg.content?.trim() || evidenceCardList(msg).length"
                 class="assistant-message-shell"
+                :class="{ 'ch-streaming': isTurnRunning(msg.turnId) && !!msg.content?.trim() }"
               >
                 <div
                   v-if="extractAnswerBody(msg.content).text"
@@ -673,8 +681,6 @@
 
 <script setup>
 import { ref, reactive, onMounted, onUnmounted, nextTick, computed, watch } from 'vue';
-import BrandMotif from '@brand/vue/BrandMotif.vue'
-
 const runtimeConfig = useRuntimeConfig()
 const needAuth = computed(() => String(runtimeConfig.public?.agentBrowserAuth ?? '1') !== '0')
 const { isLoggedIn, ready: authReady, loadFromStorage, authHeaders, token: clawhiveToken, logout } = useClawhiveLogin()

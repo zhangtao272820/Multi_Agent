@@ -196,11 +196,15 @@ watch(streamingSynthText, async () => {
 </script>
 
 <template>
-  <div class="chat-thread chat-messenger">
+  <div class="chat-thread chat-messenger ch-thread">
         <div
           v-for="t in turns"
           :key="t.id"
-          v-memo="[turnRenderMemoKey(t), isTurnLive(t) ? streamingSynthText : '']"
+          v-memo="
+            isTurnLive(t)
+              ? [turnRenderMemoKey(t), streamingSynthText.length, streamingMarkdownHtml.length]
+              : [turnRenderMemoKey(t)]
+          "
           class="spring-turn"
         >
           <div
@@ -516,6 +520,7 @@ watch(streamingSynthText, async () => {
                 <div
                   v-if="streamingSynthText"
                   class="reply-summary md-body reply-chat reply-streaming-body"
+                  :class="{ 'ch-streaming': !!streamingSynthText }"
                   @click="onReplyMarkdownClick"
                   v-html="streamingMarkdownHtml || renderAssistantMarkdown(streamingSynthDisplayText)"
                 ></div>

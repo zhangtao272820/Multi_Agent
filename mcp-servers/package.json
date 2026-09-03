@@ -1,0 +1,18 @@
+{
+  "name": "clawhive-mcp-servers",
+  "private": true,
+  "type": "module",
+  "description": "ClawHive 专家能力 MCP Server（stdio），供 Cursor / Claude Desktop 联调",
+  "scripts": {
+    "start:rag": "node rag-search/index.mjs",
+    "start:db": "node db-readonly/index.mjs",
+    "start:admin": "node admin-office/index.mjs",
+    "smoke:schema": "node scripts/smoke-tool-schemas.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.27.1"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

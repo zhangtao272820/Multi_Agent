@@ -30,6 +30,7 @@ export default defineNuxtConfig({
     join(brandDir, 'index.css'),
     '~/assets/css/rag-season.css',
     '~/assets/css/rag-cursor-chat.css',
+    '~/assets/css/rag-theme.css',
   ],
   runtimeConfig: {
     public: {

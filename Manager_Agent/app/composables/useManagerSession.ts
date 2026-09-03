@@ -782,9 +782,10 @@ export function useManagerSession(host: ManagerSessionHost) {
     }
   }
 
-  async function hydrateSessionFeedbackFromServer() {
+  /** @returns ok | empty | auth（401/403，可登录后重试）| error */
+  async function hydrateSessionFeedbackFromServer(): Promise<'ok' | 'empty' | 'auth' | 'error'> {
     const sid = sessionId.value
-    if (!sid) return
+    if (!sid) return 'empty'
     try {
       const res = await $fetch<{
         items?: Array<{
@@ -797,7 +798,7 @@ export function useManagerSession(host: ManagerSessionHost) {
         }>
       }>(`/api/manager/session-feedback?sessionId=${encodeURIComponent(sid)}`)
       const items = Array.isArray(res?.items) ? res.items : []
-      if (!items.length) return
+      if (!items.length) return 'empty'
       const scores = { ...feedbackByRunId.value }
       const acks = { ...feedbackAckByRunId.value }
       const byUser = { ...feedbackByUserIndex.value }
@@ -812,8 +813,7 @@ export function useManagerSession(host: ManagerSessionHost) {
         }
         const key = uidx != null ? `umidx:${uidx}` : fbKey
         if (!key || (item.score !== 0 && item.score !== 1)) continue
-        if (uidx != null && (byUser[uidx] === 0 || byUser[uidx] === 1)) continue
-        if (typeof scores[key] === 'number') continue
+        // 服务端为 SSOT：覆盖本地 sessionStorage 的同 key，避免刷新后「未标记」假象
         scores[key] = item.score
         acks[key] =
           item.score === 1 ? '已标记为有用 · 感谢反馈（已同步）' : '已标记为无用 · 感谢反馈（已同步）'
@@ -829,7 +829,17 @@ export function useManagerSession(host: ManagerSessionHost) {
       routeFeedbackByUserIndex.value = routeWrong
       feedbackSendingRunId.value = null
       persistSessionFeedback()
-    } catch {}
+      return 'ok'
+    } catch (e: unknown) {
+      const status = Number(
+        (e as { statusCode?: number; status?: number; response?: { status?: number } })?.statusCode ||
+          (e as { status?: number })?.status ||
+          (e as { response?: { status?: number } })?.response?.status ||
+          0
+      )
+      if (status === 401 || status === 403) return 'auth'
+      return 'error'
+    }
   }
 
   function shouldShowTurnFeedback(t: TurnGroup): boolean {
@@ -1329,7 +1339,7 @@ export function useManagerSession(host: ManagerSessionHost) {
       await hydrateSessionFromServer(id)
 
       reconcileTurnFeedbackKeys()
-      void hydrateSessionFeedbackFromServer()
+      await hydrateSessionFeedbackFromServer()
 
       stampCurrentSessionMode()
       touchCurrentSessionHistory({ bump: false })

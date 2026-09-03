@@ -1,5 +1,6 @@
 import type { WsHandlerContext, ParsedWsMessage } from './types'
 import { tryAcquireRunSlot, releaseRunSlot } from '../../../graph/core/runtime/backpressure'
+import { tryAcquireRequestRate } from '../../../graph/core/runtime/requestRateLimit'
 import { crypto, RunIdSchema, createManagerGraph, buildManagerGraphInvokeConfig, buildManagerTurnInvokeState, composeFinalBundleFromGraphResult, buildHumanConfirmCheckpoint, pickRicherFinalText, saveHumanConfirmCheckpoint, isSynthRejectingMedia, resolveManagerLlmConfig, resolveAgentEndpointsWithPlatform, buildCompactedHistoryWithStats, buildSummarizeWithLlmFn, graphAgentEndpoints, buildRagHistoryForRun, sanitizeHistoryText, detectClarifyFollowUp, clarifyReplanMetaPatch, ingestTaskStackFromUserMessage, withAgentTraceContext, emitRunObservability, emitAdminHumanConfirmRequest, shouldPauseForPostGraphAdminConfirm, pauseAdminConfirmMessage, loadTaskStack, path, runs, runMeta, sessionMeta, sessions, readSession, writeSession, buildUserContent, stripAttachmentSuffix, resolveUserMessageAnchor, pruneAutoUserTasksOnEditResend, policyDataDir, emitImplicitLearning, allowRate, nowMs, isRunAbortError, useRuntimeConfig } from './wsBarrel'
 import { takeRunProcessUiMeta, clearRunProcess } from '../../../utils/session/runProcessAccumulator'
 import { stripStructuredExecReport } from '#agent-shared/synthOutputSanitize'
@@ -159,6 +160,14 @@ if (!allowRate(`${peerKey}:chat`, 8, 30_000)) {
     runMeta.delete(prevRunId)
     send('status', { status: 'canceled_by_new_chat', runId: prevRunId }, 'manager', prevRunId)
   }
+  const runRate = tryAcquireRequestRate({
+    key: String(tenantId || boundUserId || peerKey || 'anon'),
+    nowMs: nowMs()
+  })
+  if (!runRate.ok) {
+    send('error', { error_code: 'rate_limited', message: runRate.reason }, 'manager')
+    return
+  }
   const runSlot = tryAcquireRunSlot()
   if (!runSlot.ok) {
     send('error', { error_code: 'overloaded', message: runSlot.reason }, 'manager')
@@ -169,11 +178,12 @@ if (!allowRate(`${peerKey}:chat`, 8, 30_000)) {
     send('error', 'runId 生成失败', 'manager')
     return
   }
-  send('thinking', '总管 Agent：开始处理…', 'manager', runId)
+  const chatStartedAtMs = nowMs()
+  runMeta.set(runId, { startedAtMs: chatStartedAtMs, sessionId, tenantId })
   const ctrl = new AbortController()
   runs.set(runId, ctrl)
-  runMeta.set(runId, { startedAtMs: nowMs(), sessionId, tenantId })
   sessionMeta.set(sessionId, { lastActiveMs: nowMs(), activeRunId: runId })
+  send('thinking', '总管 Agent：开始处理…', 'manager', runId)
    try {
     const ingestPromise = effectiveText
       ? ingestTaskStackFromUserMessage(sessionId, effectiveText, send, runId, {

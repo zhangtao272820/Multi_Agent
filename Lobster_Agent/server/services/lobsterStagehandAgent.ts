@@ -32,11 +32,14 @@ import {
   playwrightExtractBasics,
   playwrightFillAndSubmit,
   playwrightFillFormFields,
+  playwrightPerformSearch,
   isInstructionalFillTarget,
   captureStagehandScreenshot,
+  getStagehandPage,
 } from './stagehandPlaywrightBridge'
 import {
   extractFormFieldsFromTask,
+  redactFormFieldsForLog,
   resolveRecipeFormFields,
 } from './lobsterFormFill'
 import {
@@ -47,9 +50,21 @@ import {
 import { savePlaybookEvolved } from './lobsterPlaybookEvolution'
 import { guiScreenshotFingerprint } from '#agent-shared/lobsterGuiProgressContract'
 import { resolveLobsterVncLiveView } from '../utils/lobsterVnc'
+import {
+  classifyLeanBrowseKind,
+  extractSearchQueryFromTask,
+  resolveLeanSearchLandingUrl,
+} from './lobsterAgent/leanBrowsePolicy'
+import { baiduNeedsDirectSearch, baiduSearchUrl, isBaiduHost } from './lobsterAgent/taskLoginIntent'
 
 const RISKY_TASK_PATTERN =
   /(支付|下单|购买|删除|注销|上传|投稿|checkout|pay\b|delete|remove|upload|purchase)/i
+
+/** Stagehand 结束后交给 router / gui-plus 同会话急救；由调用方 close */
+export type LobsterBrowserSessionHandoff = {
+  page?: any
+  close?: () => Promise<void>
+}
 
 export async function probeStagehandReady(): Promise<{ ok: boolean; error?: string }> {
   if (!isStagehandEnabled()) return { ok: false, error: 'disabled' }
@@ -61,7 +76,10 @@ export async function probeStagehandReady(): Promise<{ ok: boolean; error?: stri
   }
 }
 
-export async function runLobsterStagehandAgent(params: RunParams) {
+export async function runLobsterStagehandAgent(
+  params: RunParams,
+  opts?: { sessionHandoff?: LobsterBrowserSessionHandoff },
+) {
   if (!isStagehandEnabled()) throw new Error('lobster_stagehand_disabled')
 
   const traceId = String(params.runId || crypto.randomUUID()).trim()
@@ -164,11 +182,27 @@ export async function runLobsterStagehandAgent(params: RunParams) {
     }
   })
 
-  const startUrl =
+  let startUrl =
     sanitizeExtractedHttpUrl(String(params.startUrl || '').trim()) ||
     sanitizeExtractedHttpUrl(String(params.taskSpec?.start_url || '').trim()) ||
     extractFirstHttpUrl(params.task) ||
     ''
+  const searchQuery =
+    String((params.taskSpec?.goals as { searchQuery?: string } | undefined)?.searchQuery || '').trim() ||
+    extractSearchQueryFromTask(params.task)
+  const leanKind = classifyLeanBrowseKind({
+    task: params.task,
+    goals: (params.taskSpec?.goals || null) as Record<string, unknown> | null,
+    taskKind: params.taskSpec?.task_kind,
+  })
+  const searchLanding = resolveLeanSearchLandingUrl({
+    startUrl,
+    searchQuery,
+    kind: leanKind,
+  })
+  if (searchLanding) {
+    startUrl = searchLanding
+  }
   const planResolved = resolveStagehandPlanSteps({
     task: params.task,
     startUrl,
@@ -177,13 +211,22 @@ export async function runLobsterStagehandAgent(params: RunParams) {
   const planSteps = planResolved.steps
   const playbookKey = planResolved.playbookKey
   const goals = params.taskSpec?.goals
-  const mustLeave = goalsNeedLeaveStart(goals, params.task, params.taskSpec?.task_kind)
+  let mustLeave = goalsNeedLeaveStart(goals, params.task, params.taskSpec?.task_kind)
   const structuredCriteria = resolveStructuredSuccessCriteria({
     taskSpec: params.taskSpec,
     task: params.task,
     startUrl,
   })
   let leaveStartOk = !mustLeave
+  // 百度等已直达结果页：search_extract 不再要求离页；search_open 须再点进详情
+  if (searchLanding && searchQuery) {
+    if (leanKind === 'search_open') {
+      leaveStartOk = false
+    } else {
+      mustLeave = false
+      leaveStartOk = true
+    }
+  }
   let clickAttempted = false
   let lastClickFailReason = ''
   let stepBudgetExceeded = false
@@ -452,10 +495,51 @@ export async function runLobsterStagehandAgent(params: RunParams) {
       }
 
       if (step.op === 'type' || step.op === 'submit') {
-        const formOperate =
-          String(params.taskSpec?.task_kind || '').trim() === 'form_fill' ||
-          String(params.taskSpec?.task_kind || '').trim() === 'login'
+        const taskKind = String(params.taskSpec?.task_kind || '').trim()
+        const formOperate = taskKind === 'form_fill' || taskKind === 'login'
         const mustSubmit = params.taskSpec?.goals?.must_submit === true
+        const isSearchOperate =
+          taskKind === 'search' || leanKind === 'search_extract' || leanKind === 'search_open'
+
+        // 搜索：百度直达或 Playwright 填 searchbox；禁止把「在搜索框输入…」丢给 Stagehand act（会空转卡住）
+        if (isSearchOperate && step.op === 'type') {
+          const pageUrlNow = await readStagehandPageUrl(stagehand, startUrl)
+          const q = searchQuery || extractSearchQueryFromTask(params.task)
+          if (!q) {
+            emitLog('warn', 'search type 无关键词，跳过')
+            continue
+          }
+          if (isBaiduHost(pageUrlNow) && !baiduNeedsDirectSearch(pageUrlNow)) {
+            leaveStartOk = true
+            emitThinking('step', '已在搜索结果页，跳过 type')
+            continue
+          }
+          if (isBaiduHost(pageUrlNow || startUrl) && baiduNeedsDirectSearch(pageUrlNow || startUrl)) {
+            const dest = baiduSearchUrl(q)
+            try {
+              await gotoStagehandUrl(stagehand, dest)
+              stepCount++
+              leaveStartOk = true
+              lastActNote = `baidu_direct:${q}`
+              emitThinking('step', `百度直达搜索：${q.slice(0, 40)}`)
+              await emitScreenshot()
+            } catch (e: any) {
+              emitLog('warn', `百度直达失败：${String(e?.message || e).slice(0, 120)}`)
+            }
+            continue
+          }
+          const sr = await playwrightPerformSearch(stagehand, { query: q })
+          if (sr.ok) {
+            stepCount++
+            leaveStartOk = true
+            lastActNote = `search:${q}`
+            emitThinking('step', `已搜索 ${q.slice(0, 40)}`)
+            await emitScreenshot()
+          } else {
+            emitLog('warn', `Playwright search 失败：${sr.reason || 'unknown'}`)
+          }
+          continue
+        }
 
         // form_fill：确定性 recipe 填表，禁止依赖 Stagehand act JSON schema（Qwen 常失败）
         if (formOperate && step.op === 'type') {
@@ -474,7 +558,8 @@ export async function runLobsterStagehandAgent(params: RunParams) {
           if (pwForm.ok) {
             stepCount++
             formFilledEvidence = pwForm.filled
-            lastActNote = `form_fill:${pwForm.filled.map((f) => `${f.key}=${f.value}`).join(',')}`
+            const safeFilled = redactFormFieldsForLog(pwForm.filled)
+            lastActNote = `form_fill:${safeFilled.map((f) => `${f.key}=${f.value}`).join(',')}`
             emitThinking('step', `已填 ${pwForm.filled.length} 字段`)
             await emitScreenshot()
           } else {
@@ -533,7 +618,8 @@ export async function runLobsterStagehandAgent(params: RunParams) {
           stepCount++
           lastActNote = `${step.op} ok`
           await emitScreenshot()
-        } else if (!formOperate && (preferLlmAct || instructional)) {
+        } else if (!formOperate && instructional && preferLlmAct) {
+          // 仅显式开启 LLM act 时才走 Stagehand act；否则说明性 type 会空转卡住
           try {
             const actResult = await stagehand.act(withHint)
             lastActNote = String((actResult as any)?.message || '').slice(0, 200)
@@ -542,11 +628,60 @@ export async function runLobsterStagehandAgent(params: RunParams) {
           } catch (e: any) {
             emitLog('warn', `act(${step.op}) 失败：${String(e?.message || e).slice(0, 120)}`)
           }
+        } else if (!formOperate && instructional && !preferLlmAct) {
+          emitLog('warn', `跳过说明性 ${step.op}（LLM act 关闭）：${String(step.target || '').slice(0, 60)}`)
         } else if (formOperate && step.op === 'submit' && mustSubmit) {
+          const urlBeforeSubmit = await readStagehandPageUrl(stagehand, startUrl)
           const submitted = await playwrightFillAndSubmit(stagehand, step)
           if (submitted.ok) {
             stepCount++
-            lastActNote = 'submit ok'
+              const urlAfter = await readStagehandPageUrl(stagehand, urlBeforeSubmit || startUrl)
+              const isLogin = taskKind === 'login'
+              if (isLogin && urlBeforeSubmit && urlAfter && isStillOnStartUrl(urlAfter, urlBeforeSubmit)) {
+              // 登录提交后仍停在登录页：常见为验证码/密码错误 → HITL，不烧 gui-plus
+              let captchaHint = false
+              try {
+                captchaHint = /captcha|wappass|verify|challenge/i.test(String(urlAfter || ''))
+              } catch {
+                /* ignore */
+              }
+              const failureType = normalizeWebFailureCode(captchaHint ? 'captcha' : 'login_wall')
+              const failAnswer = `登录未完成（${failureType}）：提交后仍停留在登录页。请在浏览器画面人工完成验证码/二次确认，或导入已登录 Cookie（POST /api/lobster/session/import）。当前页：${urlAfter}`
+              emitLog('warn', failAnswer.slice(0, 200))
+              await emitScreenshot(true)
+              const output = wrapLobsterOutput(
+                withShot({
+                  traceId,
+                  task: params.task,
+                  finalUrl: urlAfter,
+                  plan: planSteps,
+                  goals: goals || undefined,
+                  successCriteria: structuredCriteria,
+                  task_kind: 'login',
+                  filled: redactFormFieldsForLog(formFilledEvidence),
+                  stats: {
+                    stepCount,
+                    planSteps: planSteps.length,
+                    latency_ms: Date.now() - startedAt,
+                    enginePath: 'playwright_form',
+                    filledCount: formFilledEvidence.length,
+                  },
+                  data: [{ via: 'stagehand+playwright', text: failAnswer, url: urlAfter }],
+                  answer: failAnswer,
+                  verify: { ok: false, reason: failureType },
+                  failureType,
+                  need_login: failureType === 'login_wall',
+                }),
+                'stagehand',
+                { confirmCount, answer: failAnswer, failureType },
+              )
+              params.emit({ type: 'result', payload: output })
+              return output
+            }
+            if (isLogin && urlAfter && urlBeforeSubmit && !isStillOnStartUrl(urlAfter, urlBeforeSubmit)) {
+              leaveStartOk = true
+            }
+            lastActNote = isLogin ? 'login submit ok' : 'submit ok'
             await emitScreenshot()
           } else {
             emitLog('warn', `Playwright submit 失败：${submitted.reason || 'unknown'}`)
@@ -612,11 +747,14 @@ export async function runLobsterStagehandAgent(params: RunParams) {
           plan: planSteps,
           goals: goals || undefined,
           successCriteria: structuredCriteria,
+          task_kind: params.taskSpec?.task_kind,
+          filled: formFilledEvidence,
           stats: {
             stepCount,
             planSteps: planSteps.length,
             latency_ms: Date.now() - startedAt,
             enginePath: 'playwright_first',
+            filledCount: formFilledEvidence.length,
           },
           data: [{ via: 'stagehand+playwright', text: failAnswer, url: finalUrl || startUrl }],
           answer: failAnswer,
@@ -693,7 +831,9 @@ export async function runLobsterStagehandAgent(params: RunParams) {
       String(params.taskSpec?.task_kind || '').trim() === 'login'
     const filledSummary =
       formFilledEvidence.length > 0
-        ? `已填 ${formFilledEvidence.map((f) => `${f.key}=${f.value}`).join('；')}`
+        ? `已填 ${redactFormFieldsForLog(formFilledEvidence)
+            .map((f) => `${f.key}=${f.value}`)
+            .join('；')}`
         : ''
 
     const titleOut =
@@ -722,6 +862,7 @@ export async function runLobsterStagehandAgent(params: RunParams) {
 
     await emitScreenshot(true)
 
+    const safeFilledOut = redactFormFieldsForLog(formFilledEvidence)
     const rawOutput = wrapLobsterOutput(
       withShot({
         traceId,
@@ -732,7 +873,7 @@ export async function runLobsterStagehandAgent(params: RunParams) {
         goals: goals || undefined,
         successCriteria: structuredCriteria,
         task_kind: params.taskSpec?.task_kind,
-        filled: formFilledEvidence,
+        filled: safeFilledOut,
         stats: {
           stepCount,
           planSteps: planSteps.length,
@@ -746,7 +887,7 @@ export async function runLobsterStagehandAgent(params: RunParams) {
             via: formOperateDone ? 'playwright_form' : 'stagehand+playwright',
             text: answerText,
             url: finalUrl || undefined,
-            filled: formFilledEvidence,
+            filled: safeFilledOut,
             items:
               formFilledEvidence.length > 0
                 ? formFilledEvidence.map((f) => ({ title: f.key, text: f.value }))
@@ -859,8 +1000,27 @@ export async function runLobsterStagehandAgent(params: RunParams) {
         }
       }
     } catch {}
-    try {
-      await stagehand.close()
-    } catch {}
+    if (opts?.sessionHandoff) {
+      try {
+        const page = getStagehandPage(stagehand)
+        const sh = stagehand
+        opts.sessionHandoff.page = page || undefined
+        opts.sessionHandoff.close = async () => {
+          try {
+            await sh.close()
+          } catch {
+            /* ignore */
+          }
+        }
+      } catch {
+        try {
+          await stagehand.close()
+        } catch {}
+      }
+    } else {
+      try {
+        await stagehand.close()
+      } catch {}
+    }
   }
 }

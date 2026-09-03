@@ -1,12 +1,10 @@
 <template>
   <div class="claw-login" data-agent="lobster">
-    <div class="lob-season-bg lob-season-bg--daxue" aria-hidden="true" />
-    <BrandMotif motif="snow" :count="72" />
     <form class="claw-login__card lob-glass" @submit.prevent="submit">
       <div class="claw-login__brand">
         <img class="claw-login__logo" src="/brand/logos/lobster.svg" alt="" width="56" height="56" />
         <div>
-          <p class="claw-login__eyebrow">大雪 · 七杀</p>
+          <p class="claw-login__eyebrow">七杀 · GUI</p>
           <h1>七杀 · 龙虾 Agent</h1>
           <p class="claw-login__sub">使用 ClawHive 账号登录</p>
         </div>
@@ -34,8 +32,6 @@
 </template>
 
 <script setup lang="ts">
-import BrandMotif from '@brand/vue/BrandMotif.vue'
-
 const emit = defineEmits<{ success: [] }>()
 const { login } = useClawhiveLogin()
 const username = ref('')

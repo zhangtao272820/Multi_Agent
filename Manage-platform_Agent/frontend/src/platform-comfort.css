@@ -1,0 +1,125 @@
+/* 紫微控制端：后台管理系统舒适层（非聊天 Agent）
+ * 取消节气大图 / motif；实色侧栏 + 清晰工作区，表格/表单可读优先 */
+
+.platform-season-bg,
+.admin-app .brand-motif,
+.login-panel .brand-motif,
+.login-panel .platform-season-bg {
+  display: none !important;
+}
+
+.admin-app.brand-shell,
+.login-panel.brand-shell {
+  --bg: #f3f0f6;
+  --bg-elevated: #fffcfe;
+  --bg-subtle: #ebe6f1;
+  --text: #1a1625;
+  --text-secondary: #4a4458;
+  --text-muted: #6e667a;
+  --border: #d9d2e3;
+  --accent: #9a7b3c;
+  --accent-hover: #826632;
+  --accent-soft: #f5efdf;
+  --sidebar-bg: #14121c;
+  --sidebar-text: #d8d2e6;
+  --sidebar-muted: #8f869f;
+  --brand-motif-opacity: 0;
+  background: var(--bg) !important;
+  color: var(--text);
+}
+
+.login-panel.brand-shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(900px 420px at 10% -10%, rgba(154, 123, 60, 0.12), transparent 55%),
+    radial-gradient(700px 360px at 100% 0%, rgba(107, 79, 154, 0.08), transparent 50%),
+    var(--bg) !important;
+}
+
+.login-panel .login-card,
+.login-panel .platform-glass {
+  background: var(--bg-elevated) !important;
+  border: 1px solid var(--border) !important;
+  color: var(--text) !important;
+  backdrop-filter: none !important;
+  box-shadow: 0 8px 28px rgba(22, 26, 34, 0.08) !important;
+}
+
+.admin-app .admin-sidebar {
+  background: var(--sidebar-bg) !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  color: var(--sidebar-text);
+}
+
+.admin-app .admin-main,
+.admin-app .admin-content,
+.admin-app .admin-workspace {
+  background: var(--bg) !important;
+  color: var(--text);
+}
+
+.admin-app .card,
+.admin-app .panel,
+.admin-app .platform-glass,
+.admin-app .admin-panel {
+  background: var(--bg-elevated) !important;
+  border: 1px solid var(--border) !important;
+  backdrop-filter: none !important;
+  box-shadow: 0 1px 2px rgba(22, 26, 34, 0.04);
+  color: var(--text);
+}
+
+.admin-app table,
+.admin-app .data-table,
+.admin-app .ops-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.admin-app th,
+.admin-app td {
+  padding: 0.55rem 0.7rem;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.admin-app th {
+  font-weight: 650;
+  background: var(--bg-subtle);
+  color: var(--text-secondary);
+}
+
+.admin-app input,
+.admin-app select,
+.admin-app textarea {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--text);
+}
+
+.admin-app input:focus,
+.admin-app select:focus,
+.admin-app textarea:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.admin-app .btn-primary,
+.admin-app button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.admin-app .btn-primary:hover,
+.admin-app button.primary:hover {
+  background: var(--accent-hover);
+}

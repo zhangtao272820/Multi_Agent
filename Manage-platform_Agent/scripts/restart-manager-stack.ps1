@@ -2,11 +2,14 @@
 # 用法：
 #   .\scripts\restart-manager-stack.ps1           # force-recreate（重载 env，保留卷）
 #   .\scripts\restart-manager-stack.ps1 -Build  # 重新构建镜像后启动
+#   .\scripts\restart-manager-stack.ps1 -Enterprise  # 叠加 .env.agents-enterprise
 #
 # 禁止 down -v：见 doc/docker-persist-no-volume-wipe.md
+# 企业档：docs/企业档配置指南.md
 
 param(
-    [switch]$Build
+    [switch]$Build,
+    [switch]$Enterprise
 )
 
 $ErrorActionPreference = "Stop"
@@ -14,6 +17,20 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 $composeFile = Join-Path $root "docker-compose.agents-lan.yml"
 $envFile = Join-Path $root ".env.agents-lan"
+$enterpriseEnvFile = Join-Path $root ".env.agents-enterprise"
+
+$composeEnvArgs = @("--env-file", $envFile)
+if ($Enterprise) {
+    if (-not (Test-Path $enterpriseEnvFile)) {
+        throw @"
+-Enterprise requires $enterpriseEnvFile
+Copy-Item .env.agents-enterprise.example .env.agents-enterprise
+See docs/企业档配置指南.md
+"@
+    }
+    $composeEnvArgs += @("--env-file", $enterpriseEnvFile)
+    Write-Host "Enterprise overlay: $enterpriseEnvFile" -ForegroundColor Yellow
+}
 
 # Manager 编排会用到的子 Agent（顺序：先依赖后总管）
 $managerStack = @(
@@ -43,11 +60,11 @@ if ($legacy) {
 
 if ($Build) {
     Write-Host "Building and force-recreating manager stack (keep volumes)..." -ForegroundColor Yellow
-    docker compose --env-file "$envFile" -f "$composeFile" up -d --build --force-recreate @managerStack
+    docker compose @composeEnvArgs -f "$composeFile" up -d --build --force-recreate @managerStack
 } else {
     # restart 不重载 env_file；改 STORAGE_BACKEND 等必须 force-recreate
     Write-Host "Force-recreating manager stack (keep volumes)..." -ForegroundColor Yellow
-    docker compose --env-file "$envFile" -f "$composeFile" up -d --force-recreate @managerStack
+    docker compose @composeEnvArgs -f "$composeFile" up -d --force-recreate @managerStack
 }
 
 if ($LASTEXITCODE -ne 0) {

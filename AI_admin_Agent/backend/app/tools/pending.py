@@ -63,17 +63,104 @@ def list_pending_actions(session_id: str = "default") -> str:
     items = []
     for a in actions[:20]:
         lines.append(f"- [{a.id}] {a.tool_name} args={a.tool_args_json}")
-        items.append(
-            {
-                "id": a.id,
-                "tool_name": a.tool_name,
-                "tool_args_json": a.tool_args_json,
-                "status": a.status,
-            }
-        )
+        row: dict[str, Any] = {
+            "id": a.id,
+            "tool_name": a.tool_name,
+            "tool_args_json": a.tool_args_json,
+            "status": a.status,
+        }
+        if a.tool_name in ("send_email", "reply_email", "forward_email", "delete_email"):
+            try:
+                from app.core.mail_pending_preview import format_mail_pending_preview
+
+                preview = format_mail_pending_preview(a.tool_name, a.get_args())
+                mc = preview.get("mail_compose")
+                if isinstance(mc, dict):
+                    row["mail_compose"] = mc
+                    row["title"] = preview.get("title") or a.tool_name
+            except Exception:
+                pass
+        items.append(row)
     return _tool_ok(
         "\n".join(lines),
         data={"items": items, "count": len(items), "session_id": session_id or "default"},
+    )
+
+
+def patch_pending_mail_compose(
+    session_id: str,
+    action_id: int,
+    *,
+    content: str | None = None,
+    subject: str | None = None,
+    to: str | None = None,
+    cc: str | None = None,
+) -> dict:
+    """更新仍 pending 的邮件写操作 args（就地改稿，不执行）。"""
+    # 在 close() 前拷贝标量，避免 DetachedInstanceError
+    tool_name = ""
+    args: dict = {}
+    err: dict | None = None
+    db = SessionLocal()
+    try:
+        action = (
+            db.query(PendingAction)
+            .filter(PendingAction.id == int(action_id))
+            .filter(PendingAction.session_id == (session_id or "default"))
+            .first()
+        )
+        if not action:
+            err = _tool_err(
+                "未找到待确认操作。",
+                data={"action_id": action_id},
+                code="pending_not_found",
+            )
+        elif action.status != "pending":
+            err = _tool_err(
+                f"操作 [{action_id}] 状态为 {action.status}，无法改稿。",
+                data={
+                    "action_id": action_id,
+                    "status": str(action.status),
+                    "tool_name": str(action.tool_name),
+                },
+                code="pending_already_decided",
+            )
+        elif action.tool_name not in ("send_email", "reply_email", "forward_email"):
+            err = _tool_err(
+                "仅邮件发送类待确认可改稿。",
+                data={"tool_name": str(action.tool_name)},
+                code="not_mail_compose",
+            )
+        else:
+            tool_name = str(action.tool_name)
+            args = dict(action.get_args() or {})
+            if content is not None:
+                args["content"] = str(content)
+            if subject is not None and str(subject).strip():
+                args["subject"] = str(subject).strip()
+            if to is not None and str(to).strip():
+                args["to"] = str(to).strip()
+            if cc is not None:
+                args["cc"] = str(cc).strip()
+            action.tool_args_json = json.dumps(args or {}, ensure_ascii=False)
+            db.commit()
+    finally:
+        db.close()
+
+    if err is not None:
+        return err
+
+    _audit(
+        session_id,
+        f"patch_compose:{tool_name}",
+        {"action_id": action_id},
+        "patched",
+        status="ok",
+    )
+    return _tool_ok(
+        f"已更新待确认邮件草稿 [{action_id}]",
+        data={"action_id": action_id, "tool_name": tool_name, "tool_args": args},
+        code="compose_patched",
     )
 
 
@@ -107,9 +194,15 @@ def confirm_action(session_id: str, action_id: int, decision: str) -> str:
     return f"已将操作 [{action_id}] 标记为 {status}：{tool_name}"
 
 
-def decide_action(session_id: str, action_id: int, decision: str) -> str:
+def decide_action(
+    session_id: str,
+    action_id: int,
+    decision: str,
+    mail_compose: dict | None = None,
+) -> str:
     """
     二次确认入口：confirm 会执行该 action 绑定的工具；cancel 则取消不执行。
+    mail_compose：可选，Compose Card 编辑后的 to/cc/subject/content（仅邮件写操作）。
     """
     db = SessionLocal()
     action = (
@@ -127,11 +220,12 @@ def decide_action(session_id: str, action_id: int, decision: str) -> str:
         )
 
     if action.status != "pending":
-        tool_name = action.tool_name
+        tool_name = str(action.tool_name)
+        status = str(action.status)
         db.close()
         return _tool_err(
-            f"操作 [{action_id}] 当前状态为 {action.status}，无需重复处理：{tool_name}",
-            data={"action_id": action_id, "tool_name": tool_name, "status": action.status},
+            f"操作 [{action_id}] 当前状态为 {status}，无需重复处理：{tool_name}",
+            data={"action_id": action_id, "tool_name": tool_name, "status": status},
             code="pending_already_decided",
         )
 
@@ -139,8 +233,8 @@ def decide_action(session_id: str, action_id: int, decision: str) -> str:
     if d in ("cancel", "cancelled", "no", "n", "取消"):
         action.status = "cancelled"
         action.decided_at = utc_now_naive()
+        tool_name = str(action.tool_name)
         db.commit()
-        tool_name = action.tool_name
         db.close()
         if tool_name in ("send_email", "reply_email", "forward_email", "delete_email"):
             try:
@@ -157,7 +251,7 @@ def decide_action(session_id: str, action_id: int, decision: str) -> str:
         )
 
     if d not in ("confirm", "confirmed", "yes", "y", "确认"):
-        tool_name = action.tool_name
+        tool_name = str(action.tool_name)
         db.close()
         return _tool_err(
             f"无法识别 decision={decision}。请回复：确认 {action_id} 或 取消 {action_id}（工具：{tool_name}）",
@@ -165,8 +259,18 @@ def decide_action(session_id: str, action_id: int, decision: str) -> str:
             code="invalid_decision",
         )
 
-    tool_name = action.tool_name
-    tool_args = action.get_args()
+    tool_name = str(action.tool_name)
+    tool_args = dict(action.get_args() or {})
+    if mail_compose and isinstance(mail_compose, dict) and tool_name in (
+        "send_email",
+        "reply_email",
+        "forward_email",
+    ):
+        from app.core.mail_compose import apply_mail_compose_override
+
+        tool_args = apply_mail_compose_override(tool_args, mail_compose, tool_name=tool_name)
+        # 持久化编辑后的 args，避免重复确认用旧稿
+        action.tool_args_json = json.dumps(tool_args or {}, ensure_ascii=False)
     action.status = "confirmed"
     action.decided_at = utc_now_naive()
     db.commit()

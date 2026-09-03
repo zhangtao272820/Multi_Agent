@@ -20,27 +20,42 @@ const pgUrl =
 const redisUrl = process.env.AGENT_REDIS_URL || process.env.REDIS_URL || 'redis://localhost:16379/0'
 
 const TRUNCATE_SQL = `
-TRUNCATE TABLE
-  mgr_session_turns,
-  mgr_session_summaries,
-  mgr_session_turns_archive,
-  mgr_memory_embeddings,
-  mgr_memory_entries,
-  db_learning_signals,
-  db_route_stats,
-  db_query_experience,
-  db_experience_vectors,
-  db_user_preferences,
-  rag_learning_signals,
-  rag_route_preferences,
-  rag_session_memory,
-  evo_policy_versions,
-  evo_audit_runs,
-  evo_curator_state,
-  adm_session_turns,
-  adm_session_task_contexts,
-  mgr_sessions
-RESTART IDENTITY CASCADE;
+DO $$
+DECLARE
+  t text;
+  targets text[] := ARRAY[
+    'mgr_session_turns',
+    'mgr_session_summaries',
+    'mgr_session_turns_archive',
+    'mgr_memory_embeddings',
+    'mgr_memory_entries',
+    'db_learning_signals',
+    'db_route_stats',
+    'db_query_experience',
+    'db_experience_vectors',
+    'db_user_preferences',
+    'rag_learning_signals',
+    'rag_route_preferences',
+    'rag_session_memory',
+    'evo_policy_versions',
+    'evo_audit_runs',
+    'evo_curator_state',
+    'adm_session_turns',
+    'adm_session_task_contexts',
+    'mgr_sessions',
+    'agent_session_feedback'
+  ];
+BEGIN
+  FOREACH t IN ARRAY targets LOOP
+    IF EXISTS (
+      SELECT 1 FROM information_schema.tables
+      WHERE table_schema = 'public' AND table_name = t
+    ) THEN
+      EXECUTE format('TRUNCATE TABLE %I RESTART IDENTITY CASCADE', t);
+      RAISE NOTICE 'truncated %', t;
+    END IF;
+  END LOOP;
+END $$;
 `
 
 function runPsql(sql) {
@@ -80,7 +95,7 @@ runPsql(TRUNCATE_SQL)
 
 flushRedis()
 
-for (const c of ['manager_agent', 'db_agent', 'rag_agent', 'ai_admin_agent']) {
+for (const c of ['manager_agent', 'db_agent', 'rag_agent', 'ai_admin_agent', 'vanna_db_agent']) {
   clearVolumeData(c)
 }
 

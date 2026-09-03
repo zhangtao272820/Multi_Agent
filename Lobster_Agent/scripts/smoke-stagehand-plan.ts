@@ -102,7 +102,9 @@ assert.equal(longPlan.steps.length, STAGEHAND_PLAN_MAX_STEPS, 'hard cap 6')
 assert.ok(longPlan.steps.some((s) => s.op === 'extract'), 'cap keeps extract')
 
 assert.ok(goalsNeedLeaveStart({ must_leave_start: true }, ''))
-assert.ok(goalsNeedLeaveStart({}, '点击第一个教程'))
+assert.equal(goalsNeedLeaveStart({}, '点击第一个教程'), false, 'no goals/task_kind → no leave (LLM-first)')
+assert.ok(goalsNeedLeaveStart({}, '', 'navigate'), 'navigate kind defaults leave')
+assert.equal(goalsNeedLeaveStart({ must_leave_start: false }, '点击教程', 'navigate'), false)
 
 const instr = stagehandStepInstruction(
   { op: 'click', target: '第一个教程', done_when: '进入详情' },

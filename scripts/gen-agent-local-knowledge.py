@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """DEPRECATED: 各仓 Agent知识-本地.md 已迁入 docs/面试备战/，勿再生成平行副本。
 
-See: docs/面试备战/00-使用说明与防穿帮.md
+See: docs/面试备战/README.md
 """
 from __future__ import annotations
 

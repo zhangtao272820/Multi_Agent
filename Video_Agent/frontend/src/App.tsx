@@ -1,5 +1,4 @@
 import { useCallback, useMemo, useRef, useState } from "react";
-import BrandMotif from "@brand/react/BrandMotif.jsx";
 import { brandAvatarUrl, brandLogoUrl } from "@brand/react/assetMap.js";
 import { logout } from "./clawhiveAuth";
 
@@ -271,9 +270,7 @@ export default function App({ onLogout }: { onLogout?: () => void }) {
   }
 
   return (
-    <div className="brand-shell video-brand-root" data-agent="video">
-      <div className="video-season-bg video-season-bg--dahan" aria-hidden="true" />
-      <BrandMotif motif="snow" />
+    <div className="brand-shell video-brand-root ch-lite" data-agent="video">
       <div className="layout">
       <header className="video-brand-bar">
         <img className="brand-logo" src={brandLogoUrl("video")} alt="" width={36} height={36} />

@@ -1,0 +1,25 @@
+[
+  {
+    "runId": "online_run_001",
+    "question": "老人怎么样",
+    "score": 0.15,
+    "reason": "route_wrong_no_clarify",
+    "expectClarify": true,
+    "source": "session_feedback"
+  },
+  {
+    "runId": "online_run_002",
+    "question": "查本租户老人总数",
+    "score": 0.25,
+    "reason": "tenant_scope_miss",
+    "expectCap": ["db"],
+    "source": "implicit_negative"
+  },
+  {
+    "runId": "online_run_003",
+    "question": "今天天津天气",
+    "score": 0.85,
+    "reason": "ok",
+    "expectCap": ["admin"]
+  }
+]

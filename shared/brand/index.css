@@ -1,6 +1,8 @@
-/* 一键引入生产品牌层 */
+/* 一键引入生产品牌层 — 节气身份已废，主题 = tokens + agents + surfaces */
 @import "./tokens.css";
 @import "./agents.css";
+@import "./surfaces.css";
 @import "./shell.css";
 @import "./motifs.css";
-/* 节气背景 / 玻璃：按 Agent 本地接入，避免全局壳体互相遮挡 */
+@import "./chat.css";
+@import "./comfort-hide-decor.css";

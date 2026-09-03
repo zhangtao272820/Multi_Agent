@@ -14,20 +14,21 @@ export function isManagerSynthStreamEnabled(): boolean {
   return !(v === '0' || v === 'false' || v === 'off' || v === 'no')
 }
 
-/** 将已生成正文按块回放为 delta（审计通过后伪流） */
+/** 将已生成正文按块回放为 delta（审计通过后伪流；小块匀速，避免「一块一块蹦」） */
 export async function emitSynthStreamChunks(
   text: string,
   onDelta: (delta: string) => void,
   ensureNotAborted: () => void,
-  chunkSize = 48
+  chunkSize = 14
 ): Promise<void> {
   const s = String(text ?? '')
   if (!s) return
+  const delayMs = 8
   for (let i = 0; i < s.length; i += chunkSize) {
     ensureNotAborted()
     onDelta(s.slice(i, i + chunkSize))
     if (i + chunkSize < s.length) {
-      await new Promise<void>((resolve) => setTimeout(resolve, 12))
+      await new Promise<void>((resolve) => setTimeout(resolve, delayMs))
     }
   }
 }

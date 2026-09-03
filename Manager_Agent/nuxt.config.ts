@@ -49,6 +49,8 @@ export default defineNuxtConfig({
     '~/assets/css/manager-hitl-panels.css',
     /* 雪景高对比深字：最后加载，压过深色主题浅青残留 */
     '~/assets/css/manager-winter-balance.css',
+    /* 主题层：废节气身份，高对比 Harness 风编排台 */
+    '~/assets/css/manager-theme.css',
   ],
   compatibilityDate: '2025-07-15',
   devtools: { enabled: process.env.NODE_ENV !== 'production' },

@@ -84,7 +84,7 @@ def _manager_tool_catalog() -> str:
     """总管编排用的紧凑工具目录（禁止搜索/问数/玩法/浏览器）。"""
     lines = [
         "个人助理工具目录（tool_plan.name 须从中选取）：",
-        "- 邮件：send_email, list_emails, search_emails, mark_email_read, reply_email, forward_email, delete_email, draft_email_reply, classify_emails, triage_emails",
+        "- 邮件：send_email, list_emails, search_emails, mark_email_read, reply_email, forward_email, delete_email, draft_email_reply, draft_batch_email_replies, classify_emails, triage_emails",
         "- 联系人：add_contact, search_contact, get_contact_email, list_contacts, import_contacts",
         "- 待办：add_task, add_task_with_due, modify_task, list_tasks, complete_task, delete_task",
         "- 日程：add_event, list_events, modify_event, delete_event, delete_all_meeting_reminders, complete_event, "
@@ -280,6 +280,20 @@ def _normalize_tool_args(name: str, args: dict[str, Any], action_text: str = "")
                 out["hint"] = str(out.get("hint") or out.get("tone") or "").strip() or out.get("hint")
             else:
                 out["content"] = content
+        # 联系人静默解析：to 非邮箱时尝试 get_contact_email
+        if name == "send_email":
+            to_raw = str(out.get("to") or "").strip()
+            if to_raw and "@" not in to_raw:
+                try:
+                    from app.core.mail_compose import resolve_recipient_to_email
+                    from app.tools.contacts import get_contact_email
+
+                    resolved, reason = resolve_recipient_to_email(to_raw, get_contact_email)
+                    if resolved and reason == "contact_resolved":
+                        out["to"] = resolved
+                        out["__resolved_from_name__"] = to_raw
+                except Exception:
+                    pass
         return out
     if name == "add_contact":
         cname = str(out.get("name") or out.get("contact_name") or "").strip()
@@ -357,6 +371,7 @@ _TOOL_INTENT_MAP: dict[str, str] = {
     "forward_email": "邮件",
     "delete_email": "邮件",
     "draft_email_reply": "邮件",
+    "draft_batch_email_replies": "邮件",
     "classify_emails": "邮件",
     "triage_emails": "邮件",
     "get_weather": "天气",

@@ -20,6 +20,7 @@ from app.schema_link import cards_for, join_prompt_for
 from app.settings import get_settings
 from app.skills import skill_prompt_block
 from app.sql_guard import GUARD_REASONS, guard_sql
+from app.sql_match_normalize import normalize_substring_equality
 from app.tenants import Tenant
 from app.understand import parse_plan
 
@@ -29,8 +30,9 @@ _PLAN_SYS = """你是只读数据库助手。先理解用户问题与「查询�
 规则：
 - intent：计数 count；名单 list；分组/同比/分布 aggregate；趋势 trend；两表以上 join；缺关键对象 clarify；闲聊 chitchat；库结构 meta。
 - 只用「库表元数据」里出现的表和列，表名大小写一致。列含义以注释为准。
-- 「必须过滤 / 查询计划」里的每一条（姓名、时间、枚举 sql_match_value）必须写入 WHERE 或 JOIN，禁止忽略。
+- 「必须过滤 / 查询计划」里的每一条（姓名、时间、枚举 sql_match_value、地区包含）必须写入 WHERE 或 JOIN，禁止忽略。
 - 人名用卡片注释标明的姓名列；枚举/编码以领域蓝图或列注释为准。
+- 省市区/地址类文本列：库内常存「省+市+区」复合串。用户只给区县短名时必须用 LIKE '%短名%'（或注释要求的包含匹配），禁止短字符串精确等值（禁止 provinces_and_cities = '河西区' 这类写法）。
 - 时间条件必须用卡片注释标明的时间列（如 create_time）；相对时间按「最近一周/本月」写成区间。
 - 选出的列必须是注释上可展示的业务字段；不要 SELECT 主键、创建人/修改时间、密码证件。
 - 涉及两个业务对象必须 JOIN，JOIN 只能用提供的关系，禁止无 ON 的笛卡尔积。
@@ -45,6 +47,7 @@ _REPAIR_SYS = """你是只读 SQL 修复器。根据 MySQL 报错或「缺失过
 - 只用提供的表和列，表名大小写一致。
 - JOIN 必须有 ON，禁止笛卡尔积。
 - 若提示缺失过滤值，必须把这些字面量写入 WHERE/JOIN。
+- 省市区/地址类列若用短区县名过滤，改为 LIKE '%短名%'，禁止短字符串 =。
 - 相对时间须写成 DATE_SUB / INTERVAL / 日期区间。
 - 禁止写操作、多语句、INTO OUTFILE、SLEEP、敏感列。
 - 不要编造不存在的列。报错是未知列就换成 DDL 里的列。
@@ -658,7 +661,7 @@ def run_turn(
             for line in plan_filters:
                 if line not in combined:
                     combined.append(line)
-            miss_msg = "缺失人名过滤：" + "、".join(gate.missing)
+            miss_msg = "缺失过滤字面量：" + "、".join(gate.missing)
             fixed = repair_sql(
                 tenant=tenant,
                 scene=scene,
@@ -692,7 +695,7 @@ def run_turn(
                     }
             if not gate.ok:
                 text = (
-                    "查询未写入必要人名条件（"
+                    "查询未写入必要过滤条件（"
                     + "、".join(gate.missing)
                     + "）。请改写问题后再试。"
                 )
@@ -716,6 +719,10 @@ def run_turn(
                     error="filter_gate",
                 )
                 return
+
+    # 省市区等 substring 列：把短字符串 = 改成 LIKE（含确认旧 pending）
+    if sql and tenant.column_match:
+        sql = normalize_substring_equality(sql, tenant.column_match)
 
     guarded = guard_sql(
         sql,

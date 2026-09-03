@@ -1,0 +1,34 @@
+/* Admin 舒适层：取消节气大图 / motif */
+
+.admin-season-bg,
+.admin-brand-root .brand-motif,
+.admin-shell .brand-motif,
+.claw-login .admin-season-bg,
+.claw-login .brand-motif {
+  display: none !important;
+}
+
+.admin-shell.admin-brand-root.brand-shell,
+.admin-shell.brand-shell {
+  background:
+    linear-gradient(
+      165deg,
+      color-mix(in srgb, var(--brand-accent, #c9a24a) 14%, #1a1620) 0%,
+      #14121a 48%,
+      #121018 100%
+    ) !important;
+}
+
+.claw-login.admin-shell {
+  background: #14121a !important;
+}
+
+.admin-chat-thread {
+  max-width: var(--ch-max, 760px);
+  margin-inline: auto;
+}
+
+.admin-agent-bubble.is-streaming .admin-agent-bubble__text.ch-streaming::after,
+.admin-agent-bubble.is-streaming .admin-agent-bubble__text::after {
+  background: color-mix(in srgb, var(--brand-accent, #c9a24a) 80%, transparent);
+}

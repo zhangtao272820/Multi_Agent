@@ -280,20 +280,22 @@ export function wrapDbResult(raw: DbResult, traceId?: string, explainPreflight?:
   const explain = Array.isArray(explainPreflight)
     ? explainPreflight.map((x) => String(x ?? '').trim()).filter(Boolean)
     : []
+  const softEmpty = Boolean(raw.empty)
   return {
-    ok: !raw.empty,
+    // 业务空结果仍 ok，与 Vanna empty_result 软失败对齐
+    ok: true,
     agent: 'db',
     trace_id: tid,
     answer: raw.answer,
     sources: dbSourcesFromResult(raw),
     structured: {
-      empty: raw.empty,
+      empty: softEmpty,
       reason: raw.reason,
       transport: raw.transport,
       run_id: raw.run_id,
       ...(explain.length ? { explain_preflight: explain } : {})
     },
-    error_code: raw.empty ? 'empty_result' : undefined
+    error_code: softEmpty ? 'empty_result' : undefined
   }
 }
 

@@ -1,8 +1,8 @@
-# Manage-platform Agent（紫微 · Docker 部署）
+﻿# Manage-platform Agent（紫微 · Docker 部署）
 
 用 **Docker Compose** 一键拉起整套 Agent 集群：紫微控制台（前端 + 后端 + Postgres + Redis）+ Manager 与协作子 Agent（DB / RAG / Code / Extractor / Admin / Multimodal 等）。日常只改 **一个配置文件 + 控制台**，不必手改十几份 `.env`。
 
-- **面试讲义**：[07 控制面](../docs/面试备战/07-控制面-ClawHive.md) · [备战入口](../docs/面试备战/00-使用说明与防穿帮.md) · [06 协同](../docs/面试备战/06-多Agent协同.md)
+- **面试讲义**：[07 控制面](../docs/面试备战/技术/07-控制面-ClawHive.md) · [备战入口](../docs/面试备战/README.md) · [06 协同](../docs/面试备战/技术/06-多Agent协同.md)
 - 公网 / 云主机清单：[docs/公网演示部署.md](../docs/公网演示部署.md) · 反代模板 [`docker/public/`](docker/public/)
 - 离线镜像包：[offline/README.md](offline/README.md)
 - K8s（可选）：[helm/clawhive/README.md](helm/clawhive/README.md)
@@ -62,6 +62,27 @@ bash scripts/install-linux.sh --no-monitor   # 或去掉 --no-monitor / 加 --ex
 | `http://<LAN_HOST>:13106` | Manager 对话 |
 
 登录 → **总览** 尽量全绿 → Manager 发一条对话。脚本会轮询 `/health/ready`。
+
+### 用户与对话（角色分离）
+
+控制台与 Agent UI **共用同一套账号表与 JWT**（`userId = JWT.sub = 用户名`），但角色职责分开：
+
+| 角色 | 控制端 (18073) | 总管/子 Agent 对话 |
+|------|----------------|-------------------|
+| **user** | 禁止登录（403） | 可登录；记忆/会话按该账号隔离 |
+| **viewer** | 只读旁观 | 可登录 |
+| **operator** | 运维（启停/部署等） | 可登录 |
+| **admin** | 治理（用户/租户/审计/密钥） | 可登录 |
+
+**推荐联调流程（全新环境）：**
+
+1. 控制端用 `admin` 登录（密码见 `.env.agents-lan` 的 `CLAWHIVE_ADMIN_PASSWORD`）
+2. **用户与角色** → 创建对话账号，角色选 **`user`**（勿给对话账号开 admin）
+3. 打开总管 `http://<LAN_HOST>:13106`，用该 `user` 账号登录（**无需**先登控制端）
+4. 对话、点「有用/无用」后刷新应仍显示已标记；`admin` 在总管里看不到该用户的会话正文
+5. 用 `user` 账号登控制端应被拒绝（提示走总管入口）
+
+清空会话/记忆/经验（保留 RAG 文档与用户表）：仓库根目录 `node scripts/reset-agent-memory.mjs --yes`（**禁止** `docker compose down -v`）。
 
 ### 离线交付（构建机 → 客户机）
 

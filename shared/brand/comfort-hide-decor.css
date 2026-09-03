@@ -1,0 +1,14 @@
+/* 全站：隐藏节气大图 / 粒子 motif；氛围改由 surfaces.css 提供 */
+
+[class*="-season-bg"],
+.brand-motif,
+[class*="-storm"],
+.code-storm,
+.mm-storm {
+  display: none !important;
+}
+
+.brand-shell,
+[data-agent] {
+  --brand-motif-opacity: 0;
+}

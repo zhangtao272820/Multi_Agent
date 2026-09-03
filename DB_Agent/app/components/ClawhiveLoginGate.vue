@@ -1,11 +1,10 @@
 <template>
-  <div class="claw-login">
-    <div class="db-season-bg db-season-bg--yushui" aria-hidden="true" />
+  <div class="claw-login" data-agent="db">
     <form class="claw-login__card db-glass" @submit.prevent="submit">
       <div class="claw-login__brand">
         <img class="claw-login__logo" src="/brand/logos/db.svg" alt="" width="56" height="56" />
         <div>
-          <p class="claw-login__eyebrow">雨水 · 禄存</p>
+          <p class="claw-login__eyebrow">禄存 · DB</p>
           <h1>禄存 · 数据库助手</h1>
           <p class="claw-login__sub">使用 ClawHive 账号登录</p>
         </div>

@@ -68,6 +68,9 @@ function assert(cond: unknown, msg: string): void {
   const wrapped = wrapDbResult({ answer: 'ok', empty: false, transport: 'ws', run_id: 'run-1' }, 't1')
   assert(wrapped.structured?.transport === 'ws', 'transport stays in structured')
   assert(!(wrapped.sources || []).some((s) => s.type === 'table' && String(s.ref).startsWith('transport:')), 'no transport table source')
+  const soft = wrapDbResult({ answer: '0 rows', empty: true, transport: 'http', reason: 'no_data' }, 't2')
+  assert(soft.ok === true, 'soft empty wrap ok=true')
+  assert(soft.error_code === 'empty_result' && soft.structured?.empty === true, 'soft empty keeps code')
 }
 
 {

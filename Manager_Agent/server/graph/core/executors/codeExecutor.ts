@@ -29,6 +29,8 @@ import {
   requestCodeEditHumanConfirm,
 } from '../../../utils/code/codeHumanConfirm'
 import { restoreCodeAgentEditedFiles } from '../../../utils/code/codeAgentRestore'
+import { applyCodePendingPatch } from '../../../utils/code/codePendingApply'
+import { mintHitlConfirmToken } from '#agent-shared/agentServiceAuth'
 
 export function isCodeMcpFirstEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
   return String(env.MANAGER_CODE_MCP_FIRST ?? '0').trim() === '1'
@@ -45,7 +47,7 @@ async function maybeConfirmCodeEdit(input: {
 }): Promise<{ confirmed: boolean; outputSuffix?: string }> {
   if (input.taskKind !== 'edit' || !isCodeEditHitlEnabled()) return { confirmed: true }
   const preview = extractCodeEditPreview({ meta: input.meta, raw: input.raw })
-  if (!preview?.files?.length) return { confirmed: true }
+  if (!preview?.files?.length && !preview?.pending_patch_id) return { confirmed: true }
   const approved = await requestCodeEditHumanConfirm({
     runId: input.opts.runId,
     preview,
@@ -54,10 +56,41 @@ async function maybeConfirmCodeEdit(input: {
     sendThinking: input.sendThinking,
     sendEvent: input.opts.sendEvent,
   })
+  const pendingId = String(preview.pending_patch_id || '').trim()
+  if (pendingId) {
+    const confirmToken = input.opts.runId
+      ? mintHitlConfirmToken(input.opts.runId, crypto.randomUUID())
+      : 'manager-preapply'
+    if (!approved) {
+      await applyCodePendingPatch({
+        codeAgentWsUrl: input.opts.codeAgentWsUrl,
+        pendingId,
+        confirmToken: '',
+        decision: '取消',
+        signal: input.opts.signal,
+      })
+      return { confirmed: false, outputSuffix: '\n\n（用户取消：已丢弃 pending，未写盘）' }
+    }
+    const applied = await applyCodePendingPatch({
+      codeAgentWsUrl: input.opts.codeAgentWsUrl,
+      pendingId,
+      confirmToken,
+      decision: '确认',
+      signal: input.opts.signal,
+    })
+    if (!applied.ok) {
+      return {
+        confirmed: false,
+        outputSuffix: `\n\n（确认后写盘失败：${applied.error || 'unknown'}）`,
+      }
+    }
+    return { confirmed: true, outputSuffix: '\n\n（已确认并写盘）' }
+  }
+  // 兼容旧路径：已写盘则取消时 git restore
   if (approved) return { confirmed: true }
   const restore = await restoreCodeAgentEditedFiles({
     codeAgentWsUrl: input.opts.codeAgentWsUrl,
-    paths: preview.files,
+    paths: preview.files || [],
     signal: input.opts.signal,
   })
   const suffix = restore.ok

@@ -1,12 +1,10 @@
 <template>
-  <div class="claw-login">
-    <div class="rag-season-bg rag-season-bg--chunfen" aria-hidden="true" />
-    <BrandMotif motif="rain" :count="80" />
+  <div class="claw-login" data-agent="rag">
     <form class="claw-login__card rag-glass" @submit.prevent="submit">
       <div class="claw-login__brand">
         <img class="claw-login__logo" src="/brand/logos/rag.svg" alt="" width="56" height="56" />
         <div>
-          <p class="claw-login__eyebrow">春分 · 文曲</p>
+          <p class="claw-login__eyebrow">文曲 · RAG</p>
           <h1>文曲 · 文档助手</h1>
           <p class="claw-login__sub">使用 ClawHive 账号登录</p>
         </div>
@@ -32,8 +30,6 @@
 </template>
 
 <script setup lang="ts">
-import BrandMotif from '@brand/vue/BrandMotif.vue'
-
 const emit = defineEmits<{ success: [] }>()
 const { login } = useClawhiveLogin()
 const username = ref('')

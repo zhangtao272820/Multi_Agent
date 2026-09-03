@@ -108,6 +108,7 @@ def _map_role(claims: dict) -> str:
         for candidate in ("admin", "operator", "viewer"):
             if candidate in rr:
                 return candidate
+    # 未知角色落 viewer（控制端旁观），不误升为对话专用 user
     return "viewer"
 
 

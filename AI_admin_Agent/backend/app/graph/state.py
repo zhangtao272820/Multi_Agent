@@ -880,47 +880,15 @@ def _resolve_tool_placeholder(
 
 
 def _extract_direct_confirmation(user_message: str) -> Dict[str, Any]:
-    """
-    Deterministic parser for confirmation commands.
-    Supports:
-    - 确认 12 / 取消 12
-    - confirm 12 / cancel 12
-    - 确认[12] / 取消[12]
-    """
-    text = (user_message or "").strip()
-    if not text:
-        return {"is_confirmation": False, "decision": "", "action_id": 0}
-    m = re.search(r"(确认|取消|confirm|cancel)\s*\[?\s*(\d+)\s*\]?", text, re.IGNORECASE)
-    if not m:
-        return {"is_confirmation": False, "decision": "", "action_id": 0}
-    raw_decision = (m.group(1) or "").strip().lower()
-    action_id = int(m.group(2))
-    if raw_decision in ("confirm", "确认"):
-        decision = "确认"
-    elif raw_decision in ("cancel", "取消"):
-        decision = "取消"
-    else:
-        decision = ""
-    return {
-        "is_confirmation": bool(decision and action_id > 0),
-        "decision": decision,
-        "action_id": action_id,
-    }
+    from app.core.pending_confirm_parse import extract_direct_confirmation
+
+    return extract_direct_confirmation(user_message)
 
 
 def _detect_confirmation_without_id(user_message: str) -> Dict[str, Any]:
-    """
-    Detect confirmation intent without action id, e.g. "确认", "取消一下", "confirm please".
-    """
-    text = (user_message or "").strip()
-    if not text:
-        return {"is_confirmation_intent": False, "decision": ""}
-    has_decision_word = bool(re.search(r"(确认|取消|confirm|cancel)", text, re.IGNORECASE))
-    has_action_id = bool(re.search(r"\d+", text))
-    if has_decision_word and not has_action_id:
-        decision = "确认" if re.search(r"(确认|confirm)", text, re.IGNORECASE) else "取消"
-        return {"is_confirmation_intent": True, "decision": decision}
-    return {"is_confirmation_intent": False, "decision": ""}
+    from app.core.pending_confirm_parse import detect_confirmation_without_id
+
+    return detect_confirmation_without_id(user_message)
 
 
 def create_agent_graph():
@@ -1848,10 +1816,26 @@ def create_agent_graph():
                         elif name in ("send_email", "reply_email", "forward_email", "delete_email"):
                             from app.core.mail_pending_preview import format_mail_pending_preview
 
+                            if name == "send_email":
+                                from app.core.outbound_email_compose import enrich_send_email_args
+
+                                processed_args = enrich_send_email_args(
+                                    processed_args,
+                                    user_message=user_message,
+                                    understanding=understanding if isinstance(understanding, dict) else None,
+                                )
+                                state["thoughts"].append("已将发信意图整理为邮件成稿（待确认）")
+
+                            preview = format_mail_pending_preview(name, processed_args)
+                            mail_compose = preview.get("mail_compose") if isinstance(preview, dict) else None
+                            if isinstance(mail_compose, dict) and mail_compose.get("digest"):
+                                processed_args = {
+                                    **processed_args,
+                                    "__mail_compose_digest__": mail_compose.get("digest"),
+                                }
                             action_id = create_pending_action(
                                 session_id, name, processed_args, user_message, understanding
                             )
-                            preview = format_mail_pending_preview(name, processed_args)
                             title = str(preview.get("title") or name)
                             msg = str(preview.get("message") or "【待确认】邮件操作。")
                             state["thoughts"].append(
@@ -1863,6 +1847,8 @@ def create_agent_graph():
                                 "title": title,
                                 "time": None,
                             }
+                            if isinstance(mail_compose, dict):
+                                pending_row["mail_compose"] = mail_compose
                             state["pending_actions"] = list(state.get("pending_actions") or []) + [
                                 pending_row
                             ]

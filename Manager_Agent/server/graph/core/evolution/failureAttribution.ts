@@ -73,6 +73,13 @@ export function attributeFailure(state: any, opts?: { timeLeftMs?: number; final
   }
   if (results.some((r) => isDbNoData(r.text))) reasons.push('db no data')
 
+  // 仅「库内无匹配」且已有可读终答：业务空结果，不当失败
+  const onlySoftDbEmpty =
+    reasons.length > 0 &&
+    reasons.every((r) => r === 'db no data') &&
+    Boolean(finalText) &&
+    !results.some((r) => resultLooksLikeAgentError(r.agent, r.text, evidence) && !isDbNoData(r.text))
+
   const search = extractSearchRunMetrics(state)
   if (search.searchRequested && search.searchHitCount === 0) {
     if (search.searchFailed) reasons.push(`web search error: ${search.searchError || 'unknown'}`)
@@ -101,11 +108,16 @@ export function attributeFailure(state: any, opts?: { timeLeftMs?: number; final
   if (results.some((r) => textIncludesAny(r.agent, ['plan', '规划', '拆解'])) && textIncludesAny(finalText, PLAN_FAILURE_MARKERS)) {
     return { category: 'plan_error', severity: 'medium', reasons: reasons.length ? reasons : ['planning-related weakness'] }
   }
-  if (results.some((r) => resultLooksLikeAgentError(r.agent, r.text, evidence))) {
+  if (
+    results.some((r) => resultLooksLikeAgentError(r.agent, r.text, evidence) && !isDbNoData(r.text))
+  ) {
     return { category: 'tool_failure', severity: 'high', reasons: reasons.length ? reasons : ['one or more agent outputs indicate failure'] }
   }
   if (results.length > 0 && !finalText) {
     return { category: 'synthesis_error', severity: 'medium', reasons: reasons.length ? reasons : ['no synthesized final answer'] }
+  }
+  if (onlySoftDbEmpty) {
+    return { category: 'success', severity: 'low', reasons: ['db empty is business outcome'] }
   }
 
   return { category: 'success', severity: 'low', reasons: reasons.length ? reasons : ['no obvious failure signal'] }

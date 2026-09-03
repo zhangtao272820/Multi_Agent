@@ -1,0 +1,210 @@
+/* Lobster GUI · 玫红操控 · 精品控件层（背景氛围保持） */
+
+.lob-season-bg,
+.lobster-shell .brand-motif,
+.claw-login .lob-season-bg,
+.claw-login .brand-motif {
+  display: none !important;
+}
+
+.lobster-shell.brand-shell,
+.brand-shell.lobster-shell,
+.lobster-shell[data-agent="lobster"] {
+  --brand-motif-opacity: 0;
+  color: var(--brand-text);
+  background:
+    linear-gradient(165deg, rgba(247, 236, 239, 0.55) 0%, rgba(244, 232, 235, 0.58) 42%, rgba(232, 208, 214, 0.55) 100%),
+    url("/brand/backgrounds/theme/lobster-workbench.png") center / cover no-repeat fixed !important;
+}
+
+.lobster-shell.brand-shell::before,
+.lobster-shell::before {
+  content: none !important;
+  display: none !important;
+}
+
+.claw-login[data-agent="lobster"] {
+  background:
+    linear-gradient(160deg, rgba(60, 20, 30, 0.42), rgba(80, 30, 40, 0.38)),
+    url("/brand/backgrounds/theme/lobster-workbench.png") center / cover no-repeat fixed !important;
+}
+
+.lobster-shell .panel {
+  flex: 1;
+  min-height: 0;
+}
+
+.lobster-shell .wrap.lobster-workbench > .panel {
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.72) inset,
+    0 14px 40px rgba(60, 20, 30, 0.1) !important;
+  padding: 16px 18px !important;
+  box-sizing: border-box !important;
+}
+
+.lobster-shell .panel,
+.lobster-shell .card,
+.lobster-shell .result-panel {
+  padding: 16px 18px !important;
+  box-sizing: border-box !important;
+}
+
+.lobster-shell .section-label,
+.lobster-shell .field-label {
+  font-size: 12px;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  color: #9f3445 !important;
+}
+
+.lobster-shell .result-empty {
+  padding: 28px 16px;
+  text-align: center;
+  color: #6e5058;
+  border: 1px dashed rgba(194, 65, 85, 0.28);
+  border-radius: 14px;
+  background: rgba(255, 249, 250, 0.8);
+}
+
+/* 顶栏 */
+.lobster-shell .hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 16px;
+  border: 1px solid rgba(194, 65, 85, 0.22) !important;
+  border-radius: 14px !important;
+  background: rgba(255, 255, 255, 0.92) !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.7) inset,
+    0 12px 36px rgba(60, 20, 30, 0.1) !important;
+  backdrop-filter: blur(14px) saturate(1.1);
+  color: #1a1014 !important;
+}
+
+.lobster-shell .title {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: #1a1014 !important;
+}
+
+.lobster-shell .sub {
+  margin-top: 2px;
+  font-size: 12px;
+  color: #4a3038 !important;
+}
+
+/* 看板 / 工具轨 */
+.lobster-shell .tool-rail,
+.lobster-shell .status-bar,
+.lobster-shell .metrics-bar,
+.lobster-shell .advanced {
+  border: 1px solid rgba(194, 65, 85, 0.2) !important;
+  border-radius: 12px !important;
+  background: rgba(255, 249, 250, 0.92) !important;
+  color: #4a3038 !important;
+  box-shadow: 0 8px 24px rgba(60, 20, 30, 0.08) !important;
+  backdrop-filter: blur(10px);
+}
+
+.lobster-shell .panel,
+.lobster-shell .card,
+.lobster-shell .result-panel {
+  border: 1px solid rgba(194, 65, 85, 0.2) !important;
+  border-radius: 14px !important;
+  background: rgba(255, 255, 255, 0.94) !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.72) inset,
+    0 14px 40px rgba(60, 20, 30, 0.1) !important;
+  color: #1a1014 !important;
+  backdrop-filter: blur(10px);
+}
+
+.lobster-shell .card-h {
+  font-weight: 800;
+  color: #1a1014 !important;
+}
+
+.lobster-shell .sumgrid,
+.lobster-shell .kv {
+  border-radius: 10px;
+  background: rgba(255, 249, 250, 0.9);
+  border: 1px solid rgba(194, 65, 85, 0.16);
+}
+
+/* 输入 */
+.lobster-shell .ta,
+.lobster-shell .inp,
+.lobster-shell input:not([type="checkbox"]):not([type="radio"]),
+.lobster-shell textarea,
+.lobster-shell select {
+  background: #fff9fa !important;
+  border: 1px solid rgba(176, 120, 132, 0.35) !important;
+  color: #1a1014 !important;
+  border-radius: 11px !important;
+}
+
+.lobster-shell .ta:focus,
+.lobster-shell .inp:focus,
+.lobster-shell input:focus,
+.lobster-shell textarea:focus,
+.lobster-shell select:focus {
+  border-color: #c24155 !important;
+  box-shadow: 0 0 0 3px rgba(194, 65, 85, 0.22) !important;
+  outline: none !important;
+}
+
+.lobster-shell .actions {
+  gap: 10px;
+}
+
+/* 按钮 / chip */
+.lobster-shell button.primary,
+.lobster-shell .btn-primary,
+.lobster-shell .btn:not(.ghost) {
+  background: linear-gradient(135deg, #e07082, #c24155 48%, #9f3445) !important;
+  border-color: #9f3445 !important;
+  color: #fff !important;
+  font-weight: 800 !important;
+  box-shadow: 0 8px 22px rgba(194, 65, 85, 0.36) !important;
+  border-radius: 11px !important;
+}
+
+.lobster-shell .btn.ghost,
+.lobster-shell .btn.ghost.sm {
+  background: rgba(255, 255, 255, 0.92) !important;
+  border: 1px solid rgba(194, 65, 85, 0.28) !important;
+  color: #1a1014 !important;
+  font-weight: 650;
+  border-radius: 10px !important;
+  box-shadow: none !important;
+}
+
+.lobster-shell .chip {
+  background: #fff !important;
+  border: 1px solid rgba(194, 65, 85, 0.22) !important;
+  color: #9f3445 !important;
+  font-weight: 650;
+  border-radius: 999px !important;
+  padding: 7px 14px !important;
+}
+
+/* 登录 */
+.claw-login[data-agent="lobster"] .claw-login__card,
+.claw-login[data-agent="lobster"] .lob-glass {
+  background: rgba(255, 255, 255, 0.94) !important;
+  border: 1px solid rgba(194, 65, 85, 0.28) !important;
+  border-radius: 18px !important;
+  box-shadow: 0 28px 72px rgba(60, 20, 30, 0.28) !important;
+  color: #1a1014 !important;
+}
+
+.claw-login[data-agent="lobster"] .claw-login__submit,
+.claw-login[data-agent="lobster"] button[type="submit"] {
+  background: linear-gradient(135deg, #e07082, #c24155 48%, #9f3445) !important;
+  color: #fff !important;
+  font-weight: 800 !important;
+  box-shadow: 0 10px 28px rgba(194, 65, 85, 0.4) !important;
+}

@@ -3,14 +3,7 @@
  */
 import { qualifiesHighQualityExperience, refineExperienceWrite } from '../../../server/graph/core/memory/experienceWritePolicy'
 import { buildEvolutionVersionLift } from '../../../server/graph/core/evolution/evolutionVersionLift'
-
-function isConfirmedExperienceRow(row: { source?: string; userConfirmed?: boolean; status?: string }): boolean {
-  if (row.userConfirmed === true) return true
-  if (String(row.status || '').trim() === 'confirmed') return true
-  const src = String(row.source || '').trim()
-  if (!src || src.includes('shadow')) return false
-  return src.includes('feedback') || src.includes('federation') || src.includes('manager_finalize_sync') || src.includes('confirmed')
-}
+import { isConfirmedExperienceRow } from '#agent-shared/experienceRecallPolicy'
 
 function assert(cond: unknown, msg: string) {
   if (!cond) throw new Error(msg)
@@ -42,7 +35,10 @@ const capped = refineExperienceWrite({
 assert(capped.cappedForLearning && capped.successScore < 0.72, 'unqualified high score capped')
 
 assert(isConfirmedExperienceRow({ source: 'manager_feedback_confirmed' }), 'confirmed source')
+assert(isConfirmedExperienceRow({ source: 'vanna_feedback|useful' }), 'vanna useful')
 assert(!isConfirmedExperienceRow({ source: 'manager_shadow' }), 'shadow excluded')
+assert(!isConfirmedExperienceRow({ source: 'manager_finalize_sync', status: 'confirmed' }), 'finalize not useful')
+assert(!isConfirmedExperienceRow({ source: 'voided|vanna_feedback|useful' }), 'voided excluded')
 
 const lift = buildEvolutionVersionLift([
   {

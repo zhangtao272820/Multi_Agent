@@ -41,6 +41,10 @@ assert(!isProStrongRouteEnabled({ MANAGER_PRO_MODE: 'fast' } as NodeJS.ProcessEn
 assert(resolveManagerEvolutionMode(env) === 'convergence', 'evolution mode')
 assert(resolveManagerPlatformMode(env) === 'local', 'platform mode')
 assert(resolveManagerAuthMode(env) === 'token', 'auth mode')
+assert(
+  resolveManagerAuthMode({ AGENT_SECURITY_PROFILE: 'enterprise' } as NodeJS.ProcessEnv) === 'token',
+  'enterprise profile implies token auth'
+)
 assert(resolveManagerRuntimeMode(env) === 'docker', 'runtime mode')
 assert(isOrchestratorLlmOnlyMode(env), 'llm only from route mode')
 assert(isLlmFirstRouteEnabled(env), 'llm-first from convergence preset')

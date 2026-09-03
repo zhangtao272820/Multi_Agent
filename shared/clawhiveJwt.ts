@@ -5,6 +5,7 @@
  */
 
 import { createHmac, timingSafeEqual } from 'node:crypto'
+import { isTenantFailClosed } from './tenantScope'
 
 export type ClawhiveJwtClaims = {
   sub: string
@@ -91,11 +92,15 @@ export function verifyClawhiveJwt(
 
 export function resolveBrowserUser(token: string, env: NodeJS.ProcessEnv = process.env): ClawhiveUser {
   const claims = verifyClawhiveJwt(token, env)
+  const tenantId = String(claims.tenant_id || '').trim()
+  if (!tenantId && isTenantFailClosed(env)) {
+    throw new Error('jwt_missing_tenant_id')
+  }
   return {
     userId: claims.sub,
     username: claims.sub,
     role: String(claims.role || 'viewer'),
-    tenantId: String(claims.tenant_id || 'default')
+    tenantId: tenantId || 'default'
   }
 }
 

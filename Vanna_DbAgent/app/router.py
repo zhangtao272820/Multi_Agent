@@ -28,6 +28,7 @@ _ROUTER_SYS = """你是只读库问数的 Understand（意图与槽位裁判）�
 - data_domain：短 slug（字母数字下划线），可按蓝图自定义；无把握用 general。
 - confidence：0～1，把握不足时降低；低置信不要硬选 golden。
 - entities.names / locations 必须进 filters.slots；sql_match_value 用蓝图或列注释中的库内真实值。
+- 地点（区县/省市区）：sql_match_value 用用户说的短地名（如「河西区」）；后续 SQL 须 LIKE '%短名%' 包含匹配，禁止对复合省市区列做短字符串精确等值。
 - 时间：relative 或 start/end（YYYY-MM-DD），供后续 SQL 写入，勿省略。
 - join_needed：需多表关联时为 true；蓝图要求附带明细表时须一并写入 tables。
 - 禁止编造表目录外的表名；禁止因说法不标准就 clarify。
@@ -214,6 +215,10 @@ def parse_router(raw: str | dict[str, Any], tenant: Tenant | None = None) -> dic
     if names and not have_name:
         for n in names:
             slots.append({"field_hint": "姓名", "value": n, "sql_match_value": n})
+    have_loc = any(_is_location_slot(s.get("field_hint", "")) for s in slots)
+    if locations and not have_loc:
+        for loc in locations:
+            slots.append({"field_hint": "地区", "value": loc, "sql_match_value": loc})
     if path in {"chitchat", "clarify"}:
         tables = []
         golden_ok = False
@@ -257,6 +262,14 @@ def parse_router(raw: str | dict[str, Any], tenant: Tenant | None = None) -> dic
     }
 
 
+def _is_location_slot(hint: str) -> bool:
+    h = str(hint or "").strip().lower()
+    if not h:
+        return False
+    keys = ("地区", "省市区", "区县", "城市", "location", "region", "province", "city")
+    return any(k in h for k in keys) or h in {"addr", "address", "area"}
+
+
 def plan_to_must_filters(plan: dict[str, Any] | None) -> list[str]:
     """把 Understand 槽位变成 SQL prompt 的必须过滤行。"""
     if not plan:
@@ -278,11 +291,22 @@ def plan_to_must_filters(plan: dict[str, Any] | None) -> list[str]:
         val = str(slot.get("sql_match_value") or slot.get("value") or "").strip()
         if not val:
             continue
-        lines.append(f"{hint or '条件'} = {val}（必须写入 WHERE/JOIN，禁止忽略）")
+        if _is_location_slot(hint):
+            lines.append(
+                f"{hint or '地区'} 包含 {val}（WHERE 用 LIKE '%{val}%'，禁止对省市区复合列做短字符串 =）"
+            )
+        else:
+            lines.append(f"{hint or '条件'} = {val}（必须写入 WHERE/JOIN，禁止忽略）")
     for n in (plan.get("entities") or {}).get("names") or []:
         n = str(n).strip()
         if n and not any(n in x for x in lines):
             lines.append(f"姓名 = {n}（必须写入 WHERE/JOIN，禁止忽略）")
+    for loc in (plan.get("entities") or {}).get("locations") or []:
+        loc = str(loc).strip()
+        if loc and not any(loc in x for x in lines):
+            lines.append(
+                f"地区 包含 {loc}（WHERE 用 LIKE '%{loc}%'，禁止对省市区复合列做短字符串 =）"
+            )
     domain = str(plan.get("data_domain") or "")
     if domain and domain != "general":
         lines.append(f"数据域 data_domain={domain}")

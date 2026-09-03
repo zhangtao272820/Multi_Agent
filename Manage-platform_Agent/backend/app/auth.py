@@ -13,6 +13,10 @@ from .db_models import UserRecord
 settings = get_settings()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
+# 与 governance.ALLOWED_ROLES 对齐；此处避免循环 import 用字面量
+ALLOWED_ROLES = frozenset({"user", "viewer", "operator", "admin"})
+CONTROL_PLANE_ROLES = frozenset({"viewer", "operator", "admin"})
+
 
 def hash_password(raw: str) -> str:
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()

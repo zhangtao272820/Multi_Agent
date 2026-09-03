@@ -14,6 +14,7 @@ export type RiskActionKind =
   | 'multi_aggregate'
   | 'admin_write'
   | 'gui_write'
+  | 'db_write'
   | 'code_edit'
 
 export type RiskTier = 'low' | 'medium' | 'high'
@@ -56,7 +57,7 @@ function securityTier(input: RiskPolicyInput): RiskTier {
 }
 
 function actionBaseTier(kind: RiskActionKind): RiskTier {
-  if (kind === 'admin_write' || kind === 'gui_write') return 'high'
+  if (kind === 'admin_write' || kind === 'gui_write' || kind === 'db_write') return 'high'
   /** 代码落盘可先 dry-run（diff 预览）再人批，默认中档 */
   if (kind === 'code_edit') return 'medium'
   if (kind === 'multi_aggregate') return 'medium'
@@ -107,7 +108,8 @@ export function resolveRiskExecutionPolicy(input: RiskPolicyInput): RiskPolicyDe
       actionGate:
         tier === 'high'
           ? 'require_confirm'
-          : tier === 'medium' && (kind === 'admin_write' || kind === 'gui_write' || kind === 'code_edit')
+          : tier === 'medium' &&
+              (kind === 'admin_write' || kind === 'gui_write' || kind === 'code_edit' || kind === 'db_write')
             ? 'dry_run_then_confirm'
             : kind === 'readonly'
               ? 'none'
@@ -134,7 +136,8 @@ export function resolveRiskExecutionPolicy(input: RiskPolicyInput): RiskPolicyDe
   }
 
   if (tier === 'medium') {
-    const writeish = kind === 'admin_write' || kind === 'gui_write' || kind === 'code_edit'
+    const writeish =
+      kind === 'admin_write' || kind === 'gui_write' || kind === 'code_edit' || kind === 'db_write'
     return withBlast({
       tier,
       actionKind: kind,
@@ -163,13 +166,14 @@ export function resolveRiskExecutionPolicy(input: RiskPolicyInput): RiskPolicyDe
 
 export function inferActionKindFromAgent(
   agent: string,
-  opts?: { readOnly?: boolean; isEdit?: boolean }
+  opts?: { readOnly?: boolean; isEdit?: boolean; writeAllowed?: boolean }
 ): RiskActionKind {
   const a = String(agent || '').toLowerCase()
   if (a === 'admin') return opts?.readOnly ? 'readonly' : 'admin_write'
   if (a === 'gui') return opts?.readOnly ? 'readonly' : 'gui_write'
+  if (a === 'db') return opts?.writeAllowed && !opts?.readOnly ? 'db_write' : 'readonly'
   if (a === 'code' && opts?.isEdit) return 'code_edit'
-  if (['db', 'rag', 'crawler', 'clean', 'visualize', 'report', 'multimodal', 'music', 'video'].includes(a)) {
+  if (['rag', 'crawler', 'clean', 'visualize', 'report', 'multimodal', 'music', 'video'].includes(a)) {
     return 'readonly'
   }
   return 'readonly'

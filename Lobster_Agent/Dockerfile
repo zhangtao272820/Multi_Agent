@@ -34,6 +34,8 @@ COPY --chown=pwuser:pwuser shared/lobsterGuiProgressContract.ts /app/agent-repo-
 COPY --chown=pwuser:pwuser shared/managerTaskEnvelope.ts /app/agent-repo-shared/
 COPY --chown=pwuser:pwuser shared/nitroClawhiveAuth.ts /app/agent-repo-shared/
 COPY --chown=pwuser:pwuser shared/agentServiceAuth.ts /app/agent-repo-shared/
+COPY --chown=pwuser:pwuser shared/securityProfile.ts /app/agent-repo-shared/
+COPY --chown=pwuser:pwuser shared/tenantScope.ts /app/agent-repo-shared/
 COPY --chown=pwuser:pwuser shared/clawhiveJwt.ts /app/agent-repo-shared/
 COPY --chown=pwuser:pwuser shared/brand /app/agent-repo-shared/brand
 

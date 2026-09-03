@@ -326,7 +326,7 @@
   border-left: 2px solid rgba(100, 116, 139, 0.2) !important;
   margin-left: 4px !important;
   padding-left: 12px !important;
-  padding-right: 4px !important;
+  padding-right: 10px !important;
 }
 
 .spring-root.cursor-workbench .cursor-thought-panel .process-step {

@@ -19,6 +19,8 @@ table_whitelist_prefixes:
   - cultivate_
   - device_
   - iot_
+  # Agent 动手写库沙箱表（HITL 演示；勿放业务正式表）
+  - agent_hands_
 table_whitelist:
   - sys_user
   - sys_role

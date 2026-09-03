@@ -213,6 +213,15 @@ class PendingDecideRequest(BaseModel):
     session_id: str = "default"
     action_id: int
     decision: str
+    mail_compose: dict | None = None
+
+
+class ComposeRefineRequest(BaseModel):
+    content: str
+    tone: str = "更正式"
+    session_id: str = "default"
+    action_id: int | None = None
+    subject: str | None = None
 
 
 def _tool_text(result: Any) -> str:
@@ -720,6 +729,47 @@ async def reply_mail_api(payload: ReplyEmailRequest):
     return {"result": _tool_text(result), "raw": result}
 
 
+@app.post("/api/mail/compose/refine")
+async def refine_mail_compose_api(body: ComposeRefineRequest):
+    """就地改写 Compose 草稿正文；可选同步写回 pending args。不发 SMTP。"""
+    from app.core.outbound_email_compose import refine_outbound_email_body
+    from app.tools.pending import patch_pending_mail_compose
+
+    content = str(body.content or "").strip()
+    if not content:
+        raise HTTPException(status_code=400, detail="content_required")
+    try:
+        refined = refine_outbound_email_body(content, str(body.tone or "").strip() or "更正式")
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"refine_llm_error:{exc}") from exc
+    if not refined:
+        raise HTTPException(status_code=502, detail="refine_failed")
+
+    pending_patched = False
+    patch_raw = None
+    if body.action_id and int(body.action_id) > 0:
+        try:
+            patch_raw = patch_pending_mail_compose(
+                str(body.session_id or "default"),
+                int(body.action_id),
+                content=refined,
+                subject=body.subject,
+            )
+            pending_patched = bool(isinstance(patch_raw, dict) and patch_raw.get("ok"))
+        except Exception as exc:
+            # 成稿已成功：写回 pending 失败不阻断 UI 改写
+            patch_raw = {"ok": False, "code": "patch_exception", "error": str(exc)}
+            pending_patched = False
+
+    return {
+        "ok": True,
+        "content": refined,
+        "tone": body.tone,
+        "pending_patched": pending_patched,
+        "raw": patch_raw,
+    }
+
+
 @app.get("/api/mail/classify")
 async def classify_mail_api(session_id: str = "default", limit: int = 20, user_id: str = ""):
     result = classify_emails(
@@ -741,7 +791,12 @@ async def decide_pending_action(body: PendingDecideRequest):
     from app.tools.pending import decide_action
 
     sid = str(body.session_id or "default").strip() or "default"
-    result = decide_action(sid, int(body.action_id), body.decision)
+    result = decide_action(
+        sid,
+        int(body.action_id),
+        body.decision,
+        mail_compose=body.mail_compose if isinstance(body.mail_compose, dict) else None,
+    )
     result_text = _tool_text(result)
     ok = bool(result.get("ok", True)) if isinstance(result, dict) else True
     if ok and result_text.strip():
@@ -1221,6 +1276,8 @@ async def websocket_endpoint(websocket: WebSocket):
                 action_id = int(message_data.get("action_id") or 0)
                 decision = str(message_data.get("decision") or "").strip()
                 original_user_message = str(message_data.get("original_user_message") or "").strip()
+                mail_compose_raw = message_data.get("mail_compose")
+                mail_compose_arg = mail_compose_raw if isinstance(mail_compose_raw, dict) else None
                 if action_id <= 0 or not decision:
                     await manager.send_personal_message(
                         json.dumps(
@@ -1235,6 +1292,13 @@ async def websocket_endpoint(websocket: WebSocket):
                 if not original_user_message:
                     original_user_message = get_last_user_message(session_id)
                 user_message = original_user_message or f"{decision} {action_id}"
+                decide_args: Dict[str, Any] = {
+                    "session_id": session_id,
+                    "action_id": action_id,
+                    "decision": decision,
+                }
+                if mail_compose_arg:
+                    decide_args["mail_compose"] = mail_compose_arg
                 initial_state = {
                     "messages": [HumanMessage(content=user_message)],
                     "session_id": session_id,
@@ -1246,11 +1310,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     "plan": [
                         {
                             "name": "decide_action",
-                            "args": {
-                                "session_id": session_id,
-                                "action_id": action_id,
-                                "decision": decision,
-                            },
+                            "args": decide_args,
                         }
                     ],
                     "verification_result": "",

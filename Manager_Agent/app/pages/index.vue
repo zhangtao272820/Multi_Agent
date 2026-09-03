@@ -19,8 +19,6 @@
       'posture-plan': collaborationPosture === 'plan'
     }"
   >
-    <div class="mgr-season-bg mgr-season-bg--xiaoxue" aria-hidden="true" />
-    <BrandMotif motif="snow" :count="72" />
     <div class="spring-container cosmic-command-deck">
       <ManagerWorkbenchHeader
         :connected="connected"
@@ -146,7 +144,6 @@
 </template>
 
 <script setup lang="ts">
-import BrandMotif from '@brand/vue/BrandMotif.vue'
 import AppModal from '~/components/AppModal.vue'
 import ManagerTraceDrawer from '~/components/workbench/ManagerTraceDrawer.vue'
 import ManagerReplyArtifactDrawer from '~/components/workbench/ManagerReplyArtifactDrawer.vue'

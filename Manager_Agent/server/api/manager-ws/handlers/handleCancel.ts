@@ -1,5 +1,6 @@
 import type { WsHandlerContext, ParsedWsMessage } from './types'
-import { runs, runMeta, sessionMeta, cancelGuiConfirmsForRun, cancelPlanConfirmsForRun, emitImplicitLearning, isRunAbortError } from './wsBarrel'
+import { runs, runMeta, sessionMeta, cancelGuiConfirmsForRun, cancelPlanConfirmsForRun, emitImplicitLearning, isRunAbortError, nowMs } from './wsBarrel'
+import { recordWsStreamCancelLatency } from '#agent-shared/wsStreamSlo'
 
 export async function handleCancel(ctx: WsHandlerContext, payload: ParsedWsMessage) {
   const { peer, peerKey, send, sessionId, boundUserId, tenantId, explicitUserId, platformTraceId, payloadRaw } = ctx
@@ -11,6 +12,8 @@ let rid = String(payload.runId || '').trim()
     }
     const ctrl = rid ? runs.get(rid) : null
     if (ctrl) {
+      const cancelAt = nowMs()
+      recordWsStreamCancelLatency({ cancelRequestedAtMs: cancelAt, nowMs: cancelAt })
       ctrl.abort()
       cancelGuiConfirmsForRun(rid)
       cancelPlanConfirmsForRun(rid)

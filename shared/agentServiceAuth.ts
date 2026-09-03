@@ -8,6 +8,7 @@
  * 默认 off：有密钥则出站携带、入站校验（与 CodePy 现状一致）；无密钥则不拦（LAN 开发）。
  */
 import { createHmac, timingSafeEqual } from 'node:crypto'
+import { isEnterpriseSecurityProfile } from './securityProfile'
 
 export const AGENT_SERVICE_TOKEN_HEADER = 'x-agent-service-token'
 export const CLAWHIVE_INTERNAL_TOKEN_HEADER = 'x-clawhive-internal-token'
@@ -31,7 +32,9 @@ export function resolveAgentServiceAuthMode(env: NodeJS.ProcessEnv = process.env
     return 'require'
   }
   if (raw === 'optional') return 'optional'
-  // 未设：有 token 则 optional（出站带、入站验）；无 token 则 off
+  // 企业档未显式设 AUTH → require（缺 token 由 getAgentServiceAuthConfigStatus 拒配）
+  if (isEnterpriseSecurityProfile(env)) return 'require'
+  // LAN：有 token 则 optional（出站带、入站验）；无 token 则 off
   return resolveAgentServiceToken(env) ? 'optional' : 'off'
 }
 

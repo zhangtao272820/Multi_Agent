@@ -1,5 +1,4 @@
 import { FormEvent, useState } from 'react'
-import BrandMotif from '@brand/react/BrandMotif.jsx'
 import { brandLogoUrl } from '@brand/react/assetMap.js'
 import { login } from './clawhiveAuth'
 
@@ -36,13 +35,11 @@ export default function ClawhiveLoginGate({ onSuccess }: Props) {
 
   return (
     <div className="extractor-shell claw-login" data-agent="extractor">
-      <div className="extractor-season-bg extractor-season-bg--lichun" aria-hidden="true" />
-      <BrandMotif motif="rain" />
       <form className="claw-login__card extractor-glass" onSubmit={submit}>
         <div className="claw-login__brand">
           <img className="claw-login__logo" src={brandLogoUrl('extractor')} alt="" width={56} height={56} />
           <div>
-            <p className="claw-login__eyebrow">立春 · 巨门</p>
+            <p className="claw-login__eyebrow">巨门 · Extractor</p>
             <h1>巨门 · 数据提取</h1>
             <p className="claw-login__sub">使用 ClawHive 账号登录</p>
           </div>
@@ -60,9 +57,9 @@ export default function ClawhiveLoginGate({ onSuccess }: Props) {
         <label className="claw-login__field">
           <span>密码</span>
           <input
+            type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            type="password"
             placeholder="请输入密码"
             autoComplete="current-password"
             required

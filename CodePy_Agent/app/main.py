@@ -20,7 +20,9 @@ from app.runtime.compute import run_compute
 from app.runtime.runner import run_code_task
 from app.tools.fs_sandbox import SandboxError, get_root, list_dir, list_tree, read_file, write_file
 from app.tools.search_replace import apply_search_replace, preview_search_replace
+from app.pending_patch import drop_pending_patch, load_pending_patch
 from app.browser_auth import ClawhiveBrowserAuthMiddleware, install_auth_config_route, auth_from_websocket, ClawhiveAuthError
+import subprocess
 
 ROOT = Path(__file__).resolve().parent.parent
 FRONTEND_DIST = ROOT / "frontend" / "dist"
@@ -80,6 +82,18 @@ class SearchReplaceBody(BaseModel):
     patch: str
     root: str | None = None
     apply: bool = False
+
+
+class GitRestoreBody(BaseModel):
+    paths: list[str] = Field(default_factory=list)
+    root: str | None = None
+
+
+class PendingDecideBody(BaseModel):
+    pending_id: str = Field(min_length=1)
+    decision: str = "确认"
+    confirm_token: str = ""
+    root: str | None = None
 
 
 class McpBody(BaseModel):
@@ -185,6 +199,82 @@ async def search_replace(body: SearchReplaceBody) -> dict[str, Any]:
         return preview_search_replace(body.patch, root_override=body.root)
     except SandboxError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
+
+
+@app.post("/api/git-restore")
+async def git_restore(body: GitRestoreBody) -> dict[str, Any]:
+    """Restore paths via git checkout -- (Manager cancel / failure fallback)."""
+    paths = [str(p).strip().replace("\\", "/") for p in (body.paths or []) if str(p).strip()]
+    if not paths:
+        return {"ok": True, "restored": []}
+    root = Path(get_root(body.root)).resolve()
+    # Safety: only relative paths under root
+    safe: list[str] = []
+    for p in paths[:40]:
+        if p.startswith("/") or ".." in p.split("/"):
+            continue
+        cand = (root / p).resolve()
+        try:
+            cand.relative_to(root)
+        except ValueError:
+            continue
+        safe.append(p)
+    if not safe:
+        return {"ok": False, "error": "no_safe_paths", "restored": []}
+    try:
+        proc = subprocess.run(
+            ["git", "checkout", "--", *safe],
+            cwd=str(root),
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if proc.returncode != 0:
+            return {
+                "ok": False,
+                "error": (proc.stderr or proc.stdout or "git checkout failed")[:400],
+                "restored": [],
+            }
+        return {"ok": True, "restored": safe}
+    except Exception as exc:  # noqa: BLE001
+        return {"ok": False, "error": str(exc)[:400], "restored": []}
+
+
+@app.post("/api/pending/decide")
+async def pending_decide(body: PendingDecideBody) -> dict[str, Any]:
+    pending = load_pending_patch(body.pending_id)
+    if not pending:
+        raise HTTPException(status_code=404, detail="pending not found")
+    dec = str(body.decision or "").strip().lower()
+    approve = dec in {"确认", "approve", "confirm", "yes", "y", "ok", "同意"}
+    if not approve:
+        drop_pending_patch(body.pending_id)
+        return {"ok": True, "applied": False, "answer": "已取消写盘，未修改文件。"}
+    if not str(body.confirm_token or "").strip():
+        return {
+            "ok": False,
+            "error_code": "blast_radius_confirm_required",
+            "answer": "写盘需要 HITL confirm_token。",
+            "needs_human_confirm": True,
+            "pending_id": body.pending_id,
+        }
+    settings = get_settings()
+    if not settings.write_tool_enabled:
+        return {"ok": False, "error_code": "write_disabled", "answer": "WRITE_TOOL_ENABLED=0，拒绝写盘。"}
+    patch = str(pending.get("patch") or "")
+    root = body.root or str(pending.get("root") or "") or None
+    try:
+        result = apply_search_replace(patch, root_override=root, require_write_enabled=True)
+    except SandboxError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    drop_pending_patch(body.pending_id)
+    return {
+        "ok": bool(result.get("ok")),
+        "applied": bool(result.get("ok")),
+        "answer": "补丁已写盘。" if result.get("ok") else str(result.get("error") or "apply failed"),
+        "files": result.get("files") or result.get("files_touched") or [],
+        "meta": result,
+    }
 
 
 @app.post("/api/set-root")

@@ -42,10 +42,18 @@ def smoke_offline() -> None:
     matrix = rbac_matrix_payload()
     if not matrix.get("ok") or len(matrix.get("domains") or []) < 8:
         _fail("rbac_matrix domains too few")
+    roles = matrix.get("roles") or []
+    if "user" not in roles:
+        _fail("rbac_matrix must include user role")
+    if "user" in (matrix.get("control_plane_roles") or []):
+        _fail("user must not be a control_plane role")
+    for d in matrix["domains"]:
+        if d.get("user"):
+            _fail(f"domain {d.get('id')} must deny user")
     admin_only = [d for d in matrix["domains"] if d["admin"] and not d["viewer"] and not d["operator"]]
     if not any(d["id"] == "users" for d in admin_only):
         _fail("users domain must be admin-only vs viewer")
-    _ok(f"rbac_matrix domains={len(matrix['domains'])}")
+    _ok(f"rbac_matrix domains={len(matrix['domains'])} roles={roles}")
 
     actions = {a["action"] for a in SENSITIVE_AUDIT_ACTIONS}
     required = {

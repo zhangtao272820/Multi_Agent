@@ -31,6 +31,7 @@ class Tenant:
     docs_path: Path | None = None
     golden_path: Path | None = None
     value_maps: dict[str, dict[str, str]] = field(default_factory=dict)
+    column_match: dict[str, str] = field(default_factory=dict)
 
     def allow_table(self, name: str) -> bool:
         n = str(name or "")
@@ -79,6 +80,15 @@ def load_tenants(dir_path: Path | None = None) -> dict[str, Tenant]:
                     for k, v in raw_maps.items()
                     if isinstance(v, dict)
                 }
+        from app.sql_match_normalize import load_column_match
+
+        cm_path = tdir / "column_match.json"
+        column_match: dict[str, str] = {}
+        if cm_path.is_file():
+            try:
+                column_match = load_column_match(json.loads(cm_path.read_text(encoding="utf-8")) or {})
+            except (OSError, json.JSONDecodeError, TypeError, ValueError):
+                column_match = {}
         port_raw = _expand(mysql.get("port") or 3306)
         try:
             port = int(port_raw or 3306)
@@ -100,5 +110,6 @@ def load_tenants(dir_path: Path | None = None) -> dict[str, Tenant]:
             docs_path=docs if docs.is_file() else None,
             golden_path=golden if golden.is_file() else None,
             value_maps=value_maps,
+            column_match=column_match,
         )
     return out

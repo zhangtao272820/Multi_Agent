@@ -1,0 +1,434 @@
+/* 天机·总管 · 冷蓝编排台（生成氛围底图 + 高对比实色面板） */
+
+.mgr-season-bg,
+.brand-motif,
+.spring-root > .mgr-season-bg,
+.manager-shell .mgr-season-bg,
+.manager-shell .brand-motif {
+  display: none !important;
+}
+
+.brand-shell.manager-shell,
+.manager-shell[data-agent="manager"] {
+  --brand-motif-opacity: 0;
+  --brand-accent: #1d4ed8;
+  --brand-accent-hover: #1e40af;
+  --brand-accent-soft: rgba(29, 78, 216, 0.14);
+  --brand-accent-border: rgba(29, 78, 216, 0.4);
+  color: #0b1220;
+}
+
+.spring-root.cosmic-theme.cursor-workbench,
+.spring-root.cursor-workbench,
+.manager-shell .spring-root.cosmic-theme.cursor-workbench {
+  --mgr-glass: rgba(255, 255, 255, 0.9) !important;
+  --mgr-glass-strong: rgba(255, 255, 255, 0.96) !important;
+  --mgr-border: rgba(29, 78, 216, 0.22) !important;
+  --mgr-ice-border: rgba(29, 78, 216, 0.34) !important;
+  --mgr-frost-blur: none !important;
+  --mgr-frost-card-bg: rgba(255, 255, 255, 0.94) !important;
+  color: #0b1220 !important;
+  background:
+    linear-gradient(165deg, rgba(220, 232, 248, 0.55) 0%, rgba(236, 242, 250, 0.62) 40%, rgba(210, 226, 246, 0.58) 100%),
+    url("/brand/backgrounds/theme/manager-workbench.png") center / cover no-repeat fixed !important;
+}
+
+.spring-root.cursor-workbench::before {
+  content: none !important;
+  display: none !important;
+}
+
+.spring-root.cursor-workbench > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* 顶栏 */
+.spring-root.cursor-workbench .spring-topbar,
+.spring-root.cursor-workbench .workbench-topbar,
+.spring-root.cursor-workbench .mgr-workbench-header,
+.spring-root.cursor-workbench header.workbench-header {
+  background: rgba(255, 255, 255, 0.9) !important;
+  border-bottom: 1px solid rgba(29, 78, 216, 0.2) !important;
+  box-shadow: 0 10px 32px rgba(15, 40, 90, 0.1) !important;
+  backdrop-filter: blur(14px) !important;
+  color: #0b1220 !important;
+}
+
+.spring-root.cursor-workbench .spring-title,
+.spring-root.cursor-workbench .workbench-title,
+.spring-root.cursor-workbench .mgr-brand-title {
+  color: #0b1220 !important;
+  font-weight: 850 !important;
+  background: none !important;
+  -webkit-text-fill-color: #0b1220 !important;
+}
+
+.spring-root.cursor-workbench .workbench-sub,
+.spring-root.cursor-workbench .mgr-brand-sub {
+  color: #334155 !important;
+}
+
+/* 历史侧栏 */
+.spring-root.cursor-workbench .spring-history-sidebar,
+.spring-root.cursor-workbench .spring-sidebar,
+.spring-root.cursor-workbench .history-panel,
+.spring-root.cursor-workbench aside.spring-history {
+  background: rgba(248, 251, 255, 0.92) !important;
+  border-right: 1px solid rgba(29, 78, 216, 0.2) !important;
+  box-shadow: 8px 0 32px rgba(15, 40, 90, 0.08) !important;
+  color: #0b1220 !important;
+  backdrop-filter: blur(14px) !important;
+}
+
+.spring-root.cursor-workbench .spring-history-item.is-active,
+.spring-root.cursor-workbench .history-item.is-active,
+.spring-root.cursor-workbench .session-row.is-active {
+  background: rgba(29, 78, 216, 0.12) !important;
+  border: 1px solid rgba(29, 78, 216, 0.35) !important;
+  box-shadow: inset 3px 0 0 #1d4ed8 !important;
+}
+
+.spring-root.cursor-workbench .spring-chat-column,
+.spring-root.cursor-workbench .cursor-chat-main,
+.spring-root.cursor-workbench .spring-main {
+  background: transparent !important;
+}
+
+.spring-root.cursor-workbench .spring-examples,
+.spring-root.cursor-workbench .spring-log-list,
+.spring-root.cursor-workbench .system-signals,
+.spring-root.cursor-workbench .spring-signals,
+.spring-root.cursor-workbench .cosmic-chat-empty,
+.spring-root.cursor-workbench .cosmic-chat-empty-compact {
+  background: rgba(255, 255, 255, 0.94) !important;
+  border: 1px solid rgba(29, 78, 216, 0.2) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 14px 40px rgba(15, 40, 90, 0.1) !important;
+  color: #0b1220 !important;
+  backdrop-filter: blur(10px);
+  padding: 14px 16px !important;
+  box-sizing: border-box !important;
+}
+
+/* 对话滚动区：左右留白，避免右对齐用户气泡贴边/裁切 */
+.spring-root.cursor-workbench .spring-log.chat-scroll,
+.spring-root.cursor-workbench .spring-log.cosmic-panel,
+.spring-root.cursor-workbench .spring-log.cosmic-hud-panel,
+.spring-root.cosmic-theme.cursor-workbench .spring-log.chat-scroll {
+  padding: 18px 22px 24px !important;
+  box-sizing: border-box !important;
+}
+
+.spring-root.cursor-workbench .chat-thread,
+.spring-root.cursor-workbench.cosmic-theme .chat-thread {
+  width: 100% !important;
+  max-width: min(var(--chat-col-width, 780px), 100%) !important;
+  box-sizing: border-box !important;
+  padding-inline: 2px !important;
+}
+
+.spring-root.cursor-workbench .spring-turn,
+.spring-root.cursor-workbench .chat-user-row,
+.spring-root.cursor-workbench .chat-agent-row,
+.spring-root.cursor-workbench .chat-agent-stack,
+.spring-root.cursor-workbench .reply-panel,
+.spring-root.cursor-workbench .cursor-thought-panel,
+.spring-root.cursor-workbench .turn-agent-pipeline {
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+/* 聊天行：禁止套用下方「日志条」边框+外边距（width:100%+margin 会撑破父级被 overflow 裁切） */
+.spring-root.cursor-workbench .chat-thread .spring-log-item.chat-user-row,
+.spring-root.cursor-workbench .chat-thread .spring-log-item.chat-agent-row,
+.spring-root.cursor-workbench .chat-thread .spring-log-item.reply-panel,
+.spring-root.cursor-workbench .chat-messenger .spring-log-item.chat-user-row {
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+.spring-root.cursor-workbench .cosmic-chat-empty-title {
+  color: #0b1220 !important;
+  font-weight: 800;
+}
+
+.spring-root.cursor-workbench .cosmic-chat-empty-hint,
+.spring-root.cursor-workbench .spring-history-empty,
+.spring-root.cursor-workbench .spring-log-empty {
+  color: #475569 !important;
+}
+
+/* 仅侧栏/信号列表的 log 行，排除对话气泡行 */
+.spring-root.cursor-workbench .spring-signal-row,
+.spring-root.cursor-workbench .log-row,
+.spring-root.cursor-workbench .spring-log-list > .spring-log-item,
+.spring-root.cursor-workbench .system-signals .spring-log-item {
+  margin: 8px;
+  padding: 12px 14px !important;
+  border: 1px solid rgba(100, 116, 139, 0.35) !important;
+  border-radius: 12px !important;
+  background: linear-gradient(180deg, #f8fbff, #eef4fb) !important;
+  color: #0f172a !important;
+  font-size: 13px;
+  line-height: 1.5;
+  box-sizing: border-box !important;
+  max-width: calc(100% - 16px) !important;
+}
+
+.spring-root.cursor-workbench .spring-signal-row pre,
+.spring-root.cursor-workbench .log-row pre,
+.spring-root.cursor-workbench .spring-log-list > .spring-log-item pre,
+.spring-root.cursor-workbench .spring-log-list > .spring-log-item code {
+  display: block;
+  margin-top: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #0f172a;
+  color: #e2e8f0;
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  font-family: var(--brand-font-mono);
+  font-size: 12px;
+}
+
+/* 思考过程 / 任务卡：内边距与右侧不贴边 */
+.spring-root.cursor-workbench .cursor-thought-panel.process-panel,
+.spring-root.cursor-workbench .turn-agent-pipeline-inner,
+.spring-root.cosmic-theme.cursor-workbench .cursor-thought-panel.process-panel {
+  padding: 12px 14px 14px !important;
+  box-sizing: border-box !important;
+}
+
+.spring-root.cursor-workbench .cursor-thought-panel .process-step,
+.spring-root.cursor-workbench .cursor-thought-panel .process-step-body {
+  padding-right: 8px !important;
+  box-sizing: border-box !important;
+}
+
+.spring-root.cursor-workbench .spring-input.cosmic-input-dock,
+.spring-root.cursor-workbench .composer-shell {
+  margin: 0 4px 8px !important;
+  box-sizing: border-box !important;
+}
+
+.spring-root.cursor-workbench .spring-phase .badge,
+.spring-root.cursor-workbench .phase-chip,
+.spring-root.cursor-workbench .stage-pill,
+.spring-root.cursor-workbench .view-chip {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border: 1px solid rgba(29, 78, 216, 0.25) !important;
+  color: #1e293b !important;
+  font-weight: 700 !important;
+}
+
+.spring-root.cursor-workbench .spring-phase .badge.active,
+.spring-root.cursor-workbench .phase-chip.is-active,
+.spring-root.cursor-workbench .stage-pill.is-active,
+.spring-root.cursor-workbench .view-chip.is-active,
+.spring-root.cursor-workbench .spring-seg.active {
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8) !important;
+  border-color: #1e40af !important;
+  color: #fff !important;
+  box-shadow: 0 6px 18px rgba(29, 78, 216, 0.35) !important;
+}
+
+.spring-root.cursor-workbench .spring-input,
+.spring-root.cursor-workbench .composer-shell,
+.spring-root.cursor-workbench .chat-composer {
+  background: rgba(255, 255, 255, 0.96) !important;
+  border: 1px solid rgba(29, 78, 216, 0.28) !important;
+  border-radius: 18px !important;
+  box-shadow: 0 16px 44px rgba(15, 40, 90, 0.14) !important;
+}
+
+.spring-root.cursor-workbench .spring-input textarea,
+.spring-root.cursor-workbench .composer-shell textarea {
+  background: #f7faff !important;
+  border: 1px solid rgba(100, 116, 139, 0.35) !important;
+  color: #0b1220 !important;
+}
+
+.spring-root.cursor-workbench .spring-btn:not(.alt),
+.spring-root.cursor-workbench .btn-send,
+.spring-root.cursor-workbench .composer-send {
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8) !important;
+  border-color: #1e40af !important;
+  color: #fff !important;
+  font-weight: 800 !important;
+  box-shadow: 0 8px 22px rgba(29, 78, 216, 0.38) !important;
+}
+
+.spring-root.cursor-workbench .reply-panel,
+.spring-root.cursor-workbench .assistant-bubble,
+.spring-root.cursor-workbench .reply-panel-streaming {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border: 1px solid rgba(29, 78, 216, 0.18) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 10px 28px rgba(15, 40, 90, 0.08) !important;
+  color: #0b1220 !important;
+}
+
+.spring-root.cursor-workbench .chat-thread.ch-thread,
+.spring-root.cursor-workbench .chat-thread {
+  max-width: var(--ch-max, 780px);
+  margin-inline: auto;
+  color: #0b1220;
+}
+
+/*
+ * 用户气泡终裁：冰蓝霜玻璃 + 深字（与思考卡/回复卡同系，避免实心深蓝块突兀）。
+ * 可读性靠浅底深字；压过 visual-enhance 紫底与旧实心蓝样式。
+ */
+.spring-root.cosmic-theme.cursor-workbench .chat-thread .cosmic-bubble-user,
+.spring-root.cursor-workbench.cosmic-theme .chat-thread .cosmic-bubble-user,
+.spring-root.cosmic-theme.cursor-workbench .chat-user-row .cosmic-bubble-user,
+.spring-root.cursor-workbench .chat-thread .cosmic-bubble-user {
+  background:
+    linear-gradient(155deg, rgba(255, 255, 255, 0.72) 0%, rgba(226, 239, 252, 0.78) 48%, rgba(196, 222, 248, 0.7) 100%) !important;
+  border: 1px solid rgba(122, 168, 212, 0.55) !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.85) inset,
+    0 8px 24px rgba(40, 90, 150, 0.12) !important;
+  color: #0b1220 !important;
+  border-radius: 16px 16px 4px 16px !important;
+  backdrop-filter: blur(14px) saturate(1.2) !important;
+  -webkit-backdrop-filter: blur(14px) saturate(1.2) !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .chat-thread .cosmic-bubble-user .spring-log-text,
+.spring-root.cursor-workbench.cosmic-theme .chat-thread .cosmic-bubble-user .spring-log-text,
+.spring-root.cosmic-theme.cursor-workbench .chat-user-row .cosmic-bubble-user .spring-log-text,
+.spring-root.cosmic-theme.cursor-workbench .chat-thread .cosmic-bubble-user pre.spring-log-text,
+.spring-root.cursor-workbench.cosmic-theme .chat-thread .cosmic-bubble-user pre.spring-log-text {
+  color: #0b1220 !important;
+  -webkit-text-fill-color: #0b1220 !important;
+  background: transparent !important;
+  text-shadow: none !important;
+  opacity: 1 !important;
+  font-weight: 600 !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .chat-thread .cosmic-bubble-user .spring-log-meta,
+.spring-root.cosmic-theme.cursor-workbench .chat-thread .cosmic-bubble-user .meta-time,
+.spring-root.cosmic-theme.cursor-workbench .chat-thread .cosmic-bubble-user .meta-pill {
+  color: #475569 !important;
+  opacity: 1 !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .chat-thread .cosmic-bubble-user .message-actions-user {
+  border-top: 1px solid rgba(122, 168, 212, 0.28) !important;
+  margin-top: 8px !important;
+  padding-top: 8px !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .chat-thread .cosmic-bubble-user .message-action-btn,
+.spring-root.cursor-workbench.cosmic-theme .chat-thread .cosmic-bubble-user .message-action-btn {
+  background: rgba(255, 255, 255, 0.72) !important;
+  border: 1px solid rgba(122, 168, 212, 0.42) !important;
+  color: #1e3a5f !important;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.7) inset !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .chat-thread .cosmic-bubble-user .message-action-btn:hover,
+.spring-root.cursor-workbench.cosmic-theme .chat-thread .cosmic-bubble-user .message-action-btn:hover {
+  background: rgba(232, 242, 252, 0.95) !important;
+  border-color: rgba(47, 127, 209, 0.5) !important;
+  color: #0b1220 !important;
+}
+
+.spring-root.cosmic-theme.cursor-workbench .chat-thread .cosmic-bubble-user::before,
+.spring-root.cursor-workbench.cosmic-theme .chat-thread .cosmic-bubble-user::before {
+  display: none !important;
+  content: none !important;
+}
+
+.mgr-login-gate {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    linear-gradient(160deg, rgba(15, 23, 42, 0.55), rgba(30, 58, 95, 0.5)),
+    url("/brand/backgrounds/theme/manager-workbench.png") center / cover no-repeat fixed;
+}
+
+.mgr-login-gate .mgr-login-card,
+.mgr-login-gate .mgr-glass {
+  background: rgba(255, 255, 255, 0.94) !important;
+  border: 1px solid rgba(29, 78, 216, 0.28) !important;
+  box-shadow: 0 28px 72px rgba(15, 23, 42, 0.35) !important;
+  color: #0b1220 !important;
+}
+
+.mgr-login-gate .mgr-login-btn {
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8) !important;
+  color: #fff !important;
+  font-weight: 800;
+}
+
+/* —— 排版细节加厚 —— */
+.spring-root.cursor-workbench .spring-body-row,
+.spring-root.cursor-workbench .cosmic-command-deck {
+  gap: 0;
+}
+
+.spring-root.cursor-workbench .cosmic-chat-empty-icon,
+.spring-root.cursor-workbench .cosmic-chat-empty-compact .cosmic-chat-empty-icon {
+  display: inline-grid !important;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 12px;
+  border-radius: 16px;
+  font-size: 0 !important;
+  background:
+    linear-gradient(145deg, rgba(59, 130, 246, 0.2), transparent 60%),
+    rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(29, 78, 216, 0.28);
+  box-shadow: 0 8px 22px rgba(29, 78, 216, 0.16);
+}
+
+.spring-root.cursor-workbench .cosmic-chat-empty-icon::before {
+  content: "";
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background:
+    url("/brand/logos/manager.svg") center / contain no-repeat;
+}
+
+.spring-root.cursor-workbench .example-chip,
+.spring-root.cursor-workbench .spring-example-chip,
+.spring-root.cursor-workbench .cosmic-chat-empty button {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border: 1px solid rgba(29, 78, 216, 0.28) !important;
+  color: #1e293b !important;
+  border-radius: 999px !important;
+  font-weight: 650 !important;
+  box-shadow: 0 4px 14px rgba(15, 40, 90, 0.08);
+}
+
+.spring-root.cursor-workbench .example-chip:hover,
+.spring-root.cursor-workbench .spring-example-chip:hover {
+  border-color: #1d4ed8 !important;
+  background: rgba(29, 78, 216, 0.1) !important;
+}
+
+.mgr-login-gate .mgr-login-card,
+.mgr-login-gate .mgr-glass {
+  width: min(440px, 100%);
+  padding: 36px 32px 28px !important;
+  border-radius: 18px !important;
+  backdrop-filter: blur(18px) saturate(1.15);
+}
+
+.mgr-login-gate input:focus {
+  border-color: #1d4ed8 !important;
+  box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.22) !important;
+  outline: none !important;
+}

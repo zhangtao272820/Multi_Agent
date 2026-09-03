@@ -72,6 +72,8 @@ class Settings:
     mcp_server_enabled: bool = True
     edit_max_rounds: int = 8
     max_file_chars: int = 120_000
+    shell_timeout_s: float = 60.0
+    data_dir: str = ""
 
     clawhive_internal_token: str = ""
 
@@ -114,6 +116,9 @@ class Settings:
         self.mcp_server_enabled = _env_bool("CODE_MCP_SERVER", True)
         self.edit_max_rounds = _env_int("CODE_EDIT_MAX_ROUNDS", 8, 1, 24)
         self.max_file_chars = _env_int("CODE_MAX_FILE_CHARS", 120_000, 4000, 500_000)
+        self.shell_timeout_s = float(_env_int("CODE_SHELL_TIMEOUT_S", 60, 5, 180))
+        dd = _env("CODE_DATA_DIR")
+        self.data_dir = str(Path(dd).expanduser().resolve()) if dd else str(Path(self.project_dir) / ".codepy_data")
 
         self.clawhive_internal_token = _env("CLAWHIVE_INTERNAL_TOKEN")
 

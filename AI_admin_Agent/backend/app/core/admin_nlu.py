@@ -481,8 +481,8 @@ def fill_admin_slots(
   创建需 event_title+start_time_expression；列出日程→list（勿误建）；删除全部会议提醒→bulk_delete 且 needs_clarification=false。
 - 待办：详细说明 → task_description；task_action=create|list|complete|delete|modify。列出→list；完成/删除需 task_title 若用户点名。
 - 联系人：contact_action=add|list|search|import。添加需 name+email；列出→list；查某人→search+contact_name。
-- 邮件：正文 → email_content；mail_action=list|read|triage|send|reply|search|mark_read|forward|delete|list_attachments|save_attachment|classify。
-  读信/翻译/摘要/抽要点/对正文任意处理→read（禁止 triage）；定位某封→email_id；mail_unread_only；attachment_index。
+- 邮件：email_content 必须是**可发送的完整正文**（称呼+说明+结尾），禁止把用户意图原话（如「说明本周进度…语气正式」）原样填入；若用户只给意图、未口述成稿，email_content 可留空由后续成稿步骤生成。mail_action=list|read|triage|send|reply|search|mark_read|forward|delete|list_attachments|save_attachment|classify。
+  读信/翻译/摘要/抽要点/对正文任意处理→read（禁止 triage）；定位某封→email_id；mail_unread_only；attachment_index。email_subject 写简短主题，勿留空（可据意图拟题）。
 - 文件：file_action=list|read|write|move|mkdir；读/写需 file_path；写可填 file_content；移动填 file_dest。
 - 搜索：search_action=web|knowledge；search_query 摘用户要查的内容；知识库/内部资料→knowledge，其余默认 web。
 - list_mode：仅兼容字段；优先填对应 *_action=list。

@@ -204,6 +204,17 @@ export function buildPlanPreviewPayload(
         confirmMode = 'hitl'
         confirmReason = 'code_edit_default_preview_hitl'
       }
+    } else if (ag === 'db') {
+      const meta = state?.meta as { dbWriteAllowed?: boolean; db_write_allowed?: boolean } | undefined
+      const writeish =
+        meta?.dbWriteAllowed === true ||
+        meta?.db_write_allowed === true ||
+        String((s as { taskForm?: string }).taskForm || '').toLowerCase() === 'write' ||
+        String(process.env.MANAGER_DB_WRITE_ALLOWED ?? '0').trim() === '1'
+      if (writeish) {
+        confirmMode = 'hitl'
+        confirmReason = 'db_write_hitl'
+      }
     }
     const taskForm = String((s as { taskForm?: string }).taskForm || '').trim().slice(0, 40)
     return {

@@ -63,6 +63,7 @@ AVAILABLE_TOOLS = {
     "forward_email": email.forward_email,
     "delete_email": email.delete_email,
     "draft_email_reply": email.draft_email_reply,
+    "draft_batch_email_replies": email.draft_batch_email_replies,
     "classify_emails": email.classify_emails,
     "list_email_attachments": email_attachments.list_email_attachments,
     "save_email_attachment": email_attachments.save_email_attachment,

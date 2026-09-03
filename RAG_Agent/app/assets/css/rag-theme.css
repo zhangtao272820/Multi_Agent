@@ -1,0 +1,347 @@
+/* RAG · 靛青知识 · 精品控件层（背景氛围保持） */
+
+.rag-season-bg,
+.rag-shell .brand-motif,
+.claw-login .rag-season-bg,
+.claw-login .brand-motif {
+  display: none !important;
+}
+
+.rag-shell.rag-app-root,
+.rag-shell,
+.rag-shell[data-agent="rag"] {
+  --brand-motif-opacity: 0;
+  color: var(--brand-text);
+  background:
+    linear-gradient(165deg, rgba(228, 234, 248, 0.55) 0%, rgba(236, 240, 250, 0.58) 42%, rgba(212, 220, 237, 0.55) 100%),
+    url("/brand/backgrounds/theme/rag-workbench.png") center / cover no-repeat fixed !important;
+}
+
+.rag-shell.rag-app-root::before,
+.rag-shell::before {
+  content: none !important;
+  display: none !important;
+}
+
+.claw-login[data-agent="rag"],
+.claw-login:has(.rag-glass) {
+  background:
+    linear-gradient(160deg, rgba(20, 30, 70, 0.45), rgba(40, 50, 100, 0.4)),
+    url("/brand/backgrounds/theme/rag-workbench.png") center / cover no-repeat fixed !important;
+}
+
+/* 侧栏 */
+.rag-shell .rag-sidebar,
+.rag-shell aside,
+.rag-shell .sidebar,
+.rag-shell .history-rail,
+.rag-shell .rag-history-aside {
+  background: rgba(251, 252, 255, 0.88) !important;
+  border-right: 1px solid rgba(79, 111, 212, 0.2) !important;
+  box-shadow: 8px 0 32px rgba(20, 30, 70, 0.08) !important;
+  color: #12162a !important;
+  backdrop-filter: blur(14px);
+}
+
+.rag-shell .rag-main,
+.rag-shell .rag-layout {
+  background: transparent !important;
+}
+
+.rag-shell .rag-sidebar__brand,
+.rag-shell .rag-sidebar__brand strong {
+  color: #12162a !important;
+  font-weight: 800;
+}
+
+.rag-shell .brand-list-row.is-active,
+.rag-shell .rag-doc-list .is-active {
+  background: rgba(79, 111, 212, 0.12) !important;
+  border: 1px solid rgba(79, 111, 212, 0.35) !important;
+  box-shadow: inset 3px 0 0 #4f6fd4 !important;
+}
+
+.rag-shell .brand-stat,
+.rag-shell .rag-intel-details,
+.rag-shell .panel,
+.rag-shell .card {
+  background: rgba(255, 255, 255, 0.94) !important;
+  border: 1px solid rgba(79, 111, 212, 0.2) !important;
+  border-radius: 14px !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.72) inset,
+    0 14px 40px rgba(20, 30, 70, 0.1) !important;
+  color: #12162a !important;
+  backdrop-filter: blur(10px);
+  padding: 16px 18px !important;
+  box-sizing: border-box !important;
+}
+
+.rag-shell .rag-thread,
+.rag-shell .chat-thread,
+.rag-shell .ch-thread,
+.rag-shell .messages,
+.rag-shell .rag-messages {
+  padding: 16px 20px 24px !important;
+  box-sizing: border-box !important;
+}
+
+/* 对话 */
+.rag-shell .assistant-message-shell,
+.rag-shell .ch-assistant-shell,
+.rag-shell .rag-answer-main {
+  border: 1px solid rgba(79, 111, 212, 0.18) !important;
+  border-radius: 14px !important;
+  background:
+    linear-gradient(160deg, rgba(79, 111, 212, 0.06), transparent 55%),
+    rgba(255, 255, 255, 0.95) !important;
+  box-shadow: 0 10px 28px rgba(20, 30, 70, 0.08) !important;
+  color: #12162a !important;
+  font-size: var(--ch-font-body, 15px);
+  line-height: var(--ch-lh, 1.7);
+}
+
+.rag-shell .user-message-text,
+.rag-shell .ch-user {
+  background: linear-gradient(135deg, #7b97e4, #4f6fd4) !important;
+  color: #f8fafc !important;
+  border-radius: 14px 14px 4px 14px !important;
+  box-shadow: 0 8px 20px rgba(79, 111, 212, 0.28);
+}
+
+.rag-shell .citation,
+.rag-shell .source-chip,
+.rag-shell .rag-cite {
+  border: 1px solid rgba(79, 111, 212, 0.4);
+  background: rgba(79, 111, 212, 0.12);
+  color: #3d59b8;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 12px;
+}
+
+.rag-shell .assistant-message-shell.ch-streaming::after {
+  content: "";
+  display: inline-block;
+  width: 0.45em;
+  height: 1.05em;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  border-radius: 1px;
+  background: color-mix(in srgb, #4f6fd4 80%, transparent);
+  animation: ch-caret-blink 1s steps(1) infinite;
+}
+
+/* Composer */
+.rag-shell .rag-compose,
+.rag-shell .rag-compose__row {
+  background: rgba(255, 255, 255, 0.96) !important;
+  border: 1px solid rgba(79, 111, 212, 0.28) !important;
+  border-radius: 18px !important;
+  box-shadow: 0 16px 44px rgba(20, 30, 70, 0.12) !important;
+}
+
+.rag-shell textarea,
+.rag-shell input:not([type="checkbox"]):not([type="radio"]),
+.rag-shell .rag-compose__input {
+  background: #f7f9ff !important;
+  border: 1px solid rgba(100, 116, 150, 0.35) !important;
+  color: #12162a !important;
+  border-radius: 11px !important;
+}
+
+.rag-shell input:focus,
+.rag-shell textarea:focus {
+  border-color: #4f6fd4 !important;
+  box-shadow: 0 0 0 3px rgba(79, 111, 212, 0.22) !important;
+  outline: none !important;
+}
+
+/* 按钮 */
+.rag-shell .send-btn,
+.rag-shell button.primary,
+.rag-shell .brand-btn--primary,
+.rag-shell .rag-send-cancel {
+  background: linear-gradient(135deg, #7b97e4, #4f6fd4 48%, #3d59b8) !important;
+  color: #fff !important;
+  border-color: #3d59b8 !important;
+  font-weight: 800 !important;
+  box-shadow: 0 8px 22px rgba(79, 111, 212, 0.38) !important;
+  border-radius: 11px !important;
+}
+
+.rag-shell .brand-btn--secondary,
+.rag-shell .brand-btn--ghost {
+  background: rgba(255, 255, 255, 0.92) !important;
+  border: 1px solid rgba(79, 111, 212, 0.28) !important;
+  color: #12162a !important;
+  font-weight: 650;
+  border-radius: 10px !important;
+}
+
+/* Modal（覆盖 Tailwind 内联色） */
+.rag-shell [role="dialog"],
+.rag-shell .fixed.inset-0 > .rounded-xl,
+.rag-shell .fixed.inset-0 > [class*="rounded"] {
+  background: rgba(255, 255, 255, 0.96) !important;
+  border: 1px solid rgba(79, 111, 212, 0.28) !important;
+  color: #12162a !important;
+  box-shadow: 0 28px 72px rgba(20, 30, 70, 0.32) !important;
+}
+
+.rag-shell [role="dialog"] button.bg-blue-600,
+.rag-shell [role="dialog"] button[class*="bg-blue"],
+.rag-shell .fixed.inset-0 button.bg-blue-600 {
+  background: linear-gradient(135deg, #7b97e4, #4f6fd4) !important;
+  color: #fff !important;
+  font-weight: 800 !important;
+}
+
+.rag-shell [role="dialog"] button.bg-red-600,
+.rag-shell .fixed.inset-0 button.bg-red-600 {
+  background: linear-gradient(135deg, #f87171, #b91c1c) !important;
+  color: #fff !important;
+  font-weight: 800 !important;
+}
+
+/* 登录 */
+.claw-login .rag-glass,
+.claw-login .claw-login__card {
+  background: rgba(255, 255, 255, 0.94) !important;
+  border: 1px solid rgba(79, 111, 212, 0.28) !important;
+  border-radius: 18px !important;
+  box-shadow: 0 28px 72px rgba(20, 30, 70, 0.28) !important;
+  color: #12162a !important;
+}
+
+.claw-login .claw-login__submit,
+.claw-login button[type="submit"] {
+  background: linear-gradient(135deg, #7b97e4, #4f6fd4 48%, #3d59b8) !important;
+  color: #fff !important;
+  font-weight: 800 !important;
+  box-shadow: 0 10px 28px rgba(79, 111, 212, 0.4) !important;
+}
+
+/* —— 主区顶栏 / 空态 / 抽屉 —— */
+.rag-shell .rag-main__topbar {
+  background: rgba(255, 255, 255, 0.9) !important;
+  border-bottom: 1px solid rgba(79, 111, 212, 0.2) !important;
+  box-shadow: 0 10px 32px rgba(20, 30, 70, 0.08) !important;
+  backdrop-filter: blur(14px);
+  padding: 12px 18px !important;
+}
+
+.rag-shell .rag-main__title {
+  color: #12162a !important;
+  font-weight: 800 !important;
+}
+
+.rag-shell .rag-main__session {
+  color: #5c6688 !important;
+  font-size: 12px;
+}
+
+.rag-shell .rag-chat-empty,
+.rag-shell .rag-welcome {
+  margin: 2.5rem auto;
+  max-width: 520px;
+  padding: 2rem 1.75rem;
+  text-align: center;
+  border-radius: 18px;
+  border: 1px solid rgba(79, 111, 212, 0.2);
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 14px 40px rgba(20, 30, 70, 0.1);
+  color: #12162a;
+}
+
+.rag-shell .rag-welcome__title {
+  margin: 0;
+  font-weight: 800;
+  font-size: 1.15rem;
+}
+
+.rag-shell .rag-welcome__desc {
+  margin: 0.65rem 0 0;
+  color: #5c6688;
+  font-size: 0.875rem;
+  line-height: 1.65;
+}
+
+.rag-shell .rag-welcome__chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+  margin: 1.1rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rag-shell .rag-welcome__chips li {
+  padding: 0.45rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid rgba(79, 111, 212, 0.3);
+  background: rgba(79, 111, 212, 0.1);
+  color: #3d59b8;
+  font-size: 0.8125rem;
+  font-weight: 650;
+}
+
+.rag-shell .rag-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: rgba(79, 111, 212, 0.12);
+  border: 1px solid rgba(79, 111, 212, 0.28);
+  font-size: 0 !important;
+  background-image: url("/brand/avatars/rag.svg");
+  background-size: cover;
+  background-position: center;
+}
+
+.rag-shell .rag-compose {
+  margin: 0 16px 16px;
+  padding: 12px 14px;
+}
+
+.rag-shell .rag-source-drawer {
+  background: rgba(251, 252, 255, 0.96) !important;
+  border-left: 1px solid rgba(79, 111, 212, 0.22) !important;
+  color: #12162a !important;
+  box-shadow: -16px 0 40px rgba(20, 30, 70, 0.14) !important;
+  backdrop-filter: blur(14px);
+}
+
+.rag-shell .fixed.inset-0 aside .text-sky-200,
+.rag-shell .fixed.inset-0 aside .text-slate-100,
+.rag-shell .fixed.inset-0 aside .text-slate-300\/70,
+.rag-shell .fixed.inset-0 aside .text-slate-100\/90 {
+  color: #38405c !important;
+}
+
+.rag-shell .fixed.inset-0 aside .bg-white\/5,
+.rag-shell .fixed.inset-0 aside .bg-slate-950\/20,
+.rag-shell .fixed.inset-0 aside section.rounded-lg {
+  background: rgba(255, 255, 255, 0.92) !important;
+  border-color: rgba(79, 111, 212, 0.18) !important;
+  color: #12162a !important;
+}
+
+/* 旧 modal 抬升 */
+.rag-shell .fixed.inset-0 > .relative.bg-white {
+  background: rgba(255, 255, 255, 0.96) !important;
+  border: 1px solid rgba(79, 111, 212, 0.28) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 28px 72px rgba(20, 30, 70, 0.28) !important;
+}
+
+.rag-shell .fixed.inset-0 .bg-blue-600 {
+  background: linear-gradient(135deg, #7b97e4, #4f6fd4) !important;
+}
+
+.rag-shell .fixed.inset-0 .bg-gray-800 {
+  background: linear-gradient(135deg, #7b97e4, #4f6fd4) !important;
+  border-radius: 10px !important;
+  font-weight: 750 !important;
+}

@@ -1,0 +1,103 @@
+/* GUI / Lobster 成熟舒适层：与总管同级可读性，取消花哨底图 */
+
+.lob-season-bg,
+.lobster-shell .brand-motif,
+.claw-login .lob-season-bg,
+.claw-login .brand-motif {
+  display: none !important;
+}
+
+.lobster-shell.brand-shell,
+.brand-shell.lobster-shell {
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--brand-accent, #b84a58) 8%, #f6f4f5) 0%,
+      var(--brand-bg, #eef1f6) 42%,
+      #ebe6e8 100%
+    ) !important;
+  --brand-motif-opacity: 0;
+}
+
+.claw-login[data-agent="lobster"] {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background: var(--brand-bg, #eef1f6);
+}
+
+.lobster-shell .wrap {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 18px 20px 28px;
+  font-family: var(--brand-font-sans);
+  color: var(--brand-text);
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+
+.lobster-shell .hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--brand-border);
+  border-radius: var(--brand-radius);
+  background: var(--brand-panel-solid);
+  box-shadow: var(--brand-shadow-sm);
+}
+
+.lobster-shell .title {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.lobster-shell .sub {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--brand-text-muted);
+}
+
+.lobster-shell .panel {
+  margin-top: 0;
+  padding: 20px 22px;
+  border: 1px solid var(--brand-border);
+  border-radius: var(--brand-radius);
+  background: var(--brand-bg-elevated);
+  box-shadow: var(--brand-shadow-sm);
+}
+
+.lobster-shell .ta,
+.lobster-shell .inp {
+  border: 1px solid var(--brand-border);
+  border-radius: var(--brand-radius-sm);
+  background: #fff;
+  color: var(--brand-text);
+  font: inherit;
+}
+
+.lobster-shell .ta:focus,
+.lobster-shell .inp:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--brand-accent) 55%, var(--brand-border));
+  box-shadow: 0 0 0 3px var(--brand-accent-soft);
+}
+
+.lobster-shell .log,
+.lobster-shell .run-log,
+.lobster-shell .msg-list {
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.lobster-shell .ch-viz,
+.lobster-shell .insight-panel,
+.lobster-shell .screenshot-wrap {
+  margin-top: 12px;
+  border: 1px solid var(--brand-border);
+  border-radius: var(--brand-radius);
+  background: var(--brand-bg-elevated);
+  padding: 10px;
+}

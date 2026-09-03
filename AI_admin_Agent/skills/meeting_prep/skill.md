@@ -21,3 +21,8 @@ compatible_agents:
 结构：主题线索 → 匹配日程 → 相关待办/笔记/工作区文件 →（可选）邮件主题 → 建议备忘。
 本地无匹配时诚实说明，并建议先建日程或把材料放入 workspace。
 语气专业简洁，适合国内职场。
+
+## 话术模板（最少槽位）
+
+- 「明天会前准备」→ `prepare_meeting(query=用户原话)`
+- 「把会前要点发邮件给张三」→ prepare 后用摘要填 `send_email` → Compose Card

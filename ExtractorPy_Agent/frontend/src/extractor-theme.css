@@ -1,0 +1,127 @@
+/* Extractor · 翠绿提取 · 精品控件层（背景氛围保持） */
+
+.extractor-season-bg,
+.extractor-shell .brand-motif,
+.claw-login .extractor-season-bg,
+.claw-login .brand-motif {
+  display: none !important;
+}
+
+.extractor-shell,
+.extractor-shell[data-agent="extractor"] {
+  --brand-motif-opacity: 0;
+  color: var(--brand-text, #0f1a14);
+}
+
+/* 顶栏 */
+.extractor-shell .extractor-topbar,
+.extractor-shell .extractor-glass--bar {
+  background: rgba(247, 255, 249, 0.92) !important;
+  border-bottom: 1px solid rgba(22, 163, 74, 0.22) !important;
+  box-shadow: 0 10px 32px rgba(12, 40, 24, 0.1) !important;
+  backdrop-filter: blur(14px) saturate(1.1) !important;
+  -webkit-backdrop-filter: blur(14px) saturate(1.1) !important;
+  color: #0f1a14 !important;
+}
+
+.extractor-shell .extractor-topbar__title {
+  color: #0f1a14 !important;
+  font-weight: 800;
+}
+
+.extractor-shell .extractor-topbar__eyebrow {
+  color: #15803d !important;
+  font-weight: 700;
+}
+
+/* 面板 */
+.extractor-shell .extractor-compose,
+.extractor-shell .extractor-glass,
+.extractor-shell .panel,
+.extractor-shell .extractor-glass--panel,
+.extractor-shell .manager-panel {
+  background: rgba(255, 255, 255, 0.94) !important;
+  border: 1px solid rgba(22, 163, 74, 0.2) !important;
+  border-radius: 14px !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.72) inset,
+    0 14px 40px rgba(12, 40, 24, 0.1) !important;
+  color: #0f1a14 !important;
+  backdrop-filter: blur(10px);
+}
+
+.extractor-shell .panel-header {
+  color: #0f1a14 !important;
+  font-weight: 800;
+  border-bottom: 1px solid rgba(22, 163, 74, 0.14);
+}
+
+.extractor-shell .log-line {
+  border-radius: 8px;
+  background: rgba(247, 255, 249, 0.9);
+  border: 1px solid rgba(22, 163, 74, 0.12);
+}
+
+/* 输入 */
+.extractor-shell .input-field,
+.extractor-shell textarea,
+.extractor-shell input:not([type="checkbox"]):not([type="radio"]) {
+  background: #f4fff8 !important;
+  border: 1px solid rgba(110, 168, 130, 0.35) !important;
+  color: #0f1a14 !important;
+  border-radius: 11px !important;
+}
+
+.extractor-shell input:focus,
+.extractor-shell textarea:focus,
+.extractor-shell .input-field:focus {
+  border-color: #16a34a !important;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.22) !important;
+  outline: none !important;
+}
+
+/* 按钮 */
+.extractor-shell .btn-primary,
+.extractor-shell button.btn-primary {
+  background: linear-gradient(135deg, #4ade80, #16a34a 48%, #15803d) !important;
+  border-color: #15803d !important;
+  color: #fff !important;
+  font-weight: 800 !important;
+  box-shadow: 0 8px 22px rgba(22, 163, 74, 0.36) !important;
+  border-radius: 11px !important;
+}
+
+.extractor-shell .btn-secondary,
+.extractor-shell .network-toggle {
+  background: rgba(255, 255, 255, 0.92) !important;
+  border: 1px solid rgba(22, 163, 74, 0.28) !important;
+  color: #0f1a14 !important;
+  font-weight: 650;
+  border-radius: 10px !important;
+}
+
+/* 登录 */
+.claw-login .extractor-glass,
+.claw-login .claw-login__card {
+  background: rgba(255, 255, 255, 0.94) !important;
+  border: 1px solid rgba(22, 163, 74, 0.28) !important;
+  border-radius: 18px !important;
+  box-shadow: 0 28px 72px rgba(12, 40, 24, 0.28) !important;
+  color: #0f1a14 !important;
+}
+
+.claw-login[data-agent="extractor"] button[type="submit"],
+.claw-login .extractor-glass ~ button,
+.claw-login form.extractor-glass button[type="submit"],
+.claw-login form.claw-login__card.extractor-glass button[type="submit"] {
+  background: linear-gradient(135deg, #4ade80, #16a34a 48%, #15803d) !important;
+  color: #fff !important;
+  font-weight: 800 !important;
+  box-shadow: 0 10px 28px rgba(22, 163, 74, 0.4) !important;
+  border-radius: 12px !important;
+}
+
+.claw-login[data-agent="extractor"] input:focus {
+  border-color: #16a34a !important;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.22) !important;
+}

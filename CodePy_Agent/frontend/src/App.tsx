@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import BrandMotif from '@brand/react/BrandMotif.jsx'
 import { brandAvatarUrl, brandLogoUrl } from '@brand/react/assetMap.js'
 import FileTree from './FileTree'
 import MonacoPane from './MonacoPane'
@@ -213,22 +212,14 @@ export default function App({ onLogout }: Props) {
   }
 
   return (
-    <div className="layout brand-shell code-brand-root code-shell" data-agent="code">
-      <div className="code-season-bg code-season-bg--xiaoman" aria-hidden="true" />
-      <BrandMotif motif="thunder" />
-      <div className="code-storm" aria-hidden="true">
-        <span className="code-storm__sheet" />
-        <span className="code-storm__bolt code-storm__bolt--a" />
-        <span className="code-storm__bolt code-storm__bolt--b" />
-        <span className="code-storm__bolt code-storm__bolt--c" />
-      </div>
+    <div className="layout brand-shell code-brand-root code-shell ch-lite" data-agent="code">
       <div className="shell">
         <header className="topbar code-glass--bar">
           <div className="topbar__row topbar__row--brand">
             <div className="brand">
               <img className="brand-logo" src={brandLogoUrl('code')} alt="" width={40} height={40} />
               <div className="brand__text">
-                <p className="code-topbar__eyebrow">小满 · 武曲</p>
+                <p className="code-topbar__eyebrow">武曲 · Code</p>
                 <div className="title">武曲 · 代码助手</div>
                 <div className="subtitle">Ask / Edit · Diff 确认写盘</div>
               </div>
@@ -309,18 +300,18 @@ export default function App({ onLogout }: Props) {
             <div className="panel-head">
               <span>对话</span>
             </div>
-            <div className="chat-log">
+            <div className="chat-log ch-thread">
               {chat.length === 0 ? (
                 <p className="brand-empty muted">发送消息开始对话；Edit 模式会产出 Diff 供确认。</p>
               ) : null}
               {chat.map((line, i) => (
-                <div key={i} className={`chat-line ${line.role}`}>
+                <div key={i} className={`chat-line ${line.role} ${line.role === 'assistant' && sending && i === chat.length - 1 ? 'ch-streaming' : ''}`}>
                   <span className="role">{line.role}</span>
                   <pre>{line.text}</pre>
                 </div>
               ))}
             </div>
-            <div className="chat-compose">
+            <div className="chat-compose ch-composer">
               <textarea value={input} onChange={(e) => setInput(e.target.value)} rows={3} placeholder="描述你想改什么…" />
               <button type="button" className="button" disabled={sending} onClick={sendChat}>
                 {sending ? '思考中…' : '发送'}

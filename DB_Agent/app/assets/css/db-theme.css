@@ -1,0 +1,230 @@
+/* DB · 青绿问数 · 精品控件层（背景氛围保持） */
+
+.db-season-bg,
+.db-shell .brand-motif,
+.claw-login .db-season-bg,
+.claw-login .brand-motif {
+  display: none !important;
+}
+
+.db-shell,
+.db-body,
+.db-shell[data-agent="db"] {
+  --brand-motif-opacity: 0;
+  color: var(--brand-text);
+  background:
+    linear-gradient(165deg, rgba(223, 243, 240, 0.55) 0%, rgba(230, 244, 242, 0.58) 42%, rgba(207, 232, 228, 0.55) 100%),
+    url("/brand/backgrounds/theme/db-workbench.png") center / cover no-repeat fixed !important;
+}
+
+.db-shell.brand-shell::before,
+.db-shell::before {
+  content: none !important;
+  display: none !important;
+}
+
+.claw-login[data-agent="db"],
+.claw-login:has(.db-glass) {
+  background:
+    linear-gradient(160deg, rgba(12, 40, 36, 0.42), rgba(20, 60, 55, 0.38)),
+    url("/brand/backgrounds/theme/db-workbench.png") center / cover no-repeat fixed !important;
+}
+
+/* 顶栏 / 玻璃条 */
+.db-shell .db-glass--bar,
+.db-shell header.db-header-bar,
+.db-shell .db-glass.db-header-bar {
+  background: rgba(255, 255, 255, 0.9) !important;
+  border-bottom: 1px solid rgba(13, 148, 136, 0.22) !important;
+  box-shadow: 0 10px 32px rgba(12, 40, 36, 0.1) !important;
+  backdrop-filter: blur(14px) saturate(1.1) !important;
+  -webkit-backdrop-filter: blur(14px) saturate(1.1) !important;
+  color: #0c1918 !important;
+}
+
+.db-shell .header-brand,
+.db-shell .db-header-bar strong,
+.db-shell .db-header-bar h1 {
+  color: #0c1918 !important;
+  font-weight: 800;
+}
+
+/* 侧栏历史 */
+.db-shell aside,
+.db-shell .sidebar,
+.db-shell .db-history-aside,
+.db-shell .db-history-inner {
+  background: rgba(247, 255, 254, 0.94) !important;
+  border-right: 1px solid rgba(13, 148, 136, 0.2) !important;
+  box-shadow: 8px 0 32px rgba(12, 40, 36, 0.08) !important;
+  color: #0c1918 !important;
+  backdrop-filter: blur(14px);
+}
+
+.db-shell .db-history-row.is-active,
+.db-shell .db-history-item.is-active,
+.db-shell .brand-list-row.is-active {
+  background: rgba(13, 148, 136, 0.12) !important;
+  border: 1px solid rgba(13, 148, 136, 0.35) !important;
+  box-shadow: inset 3px 0 0 #0d9488 !important;
+}
+
+/* 看板 / 面板 */
+.db-shell .db-glass,
+.db-shell .db-glass--soft,
+.db-shell .intel-panel,
+.db-shell .panel,
+.db-shell .card,
+.db-shell .db-process-panel {
+  background: rgba(255, 255, 255, 0.94) !important;
+  border: 1px solid rgba(13, 148, 136, 0.2) !important;
+  border-radius: 14px !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.72) inset,
+    0 14px 40px rgba(12, 40, 36, 0.1) !important;
+  color: #0c1918 !important;
+  backdrop-filter: blur(10px);
+  padding: 16px 18px !important;
+  box-sizing: border-box !important;
+}
+
+.db-shell .chat-thread,
+.db-shell .messages,
+.db-shell .thread,
+.db-shell .db-thread {
+  padding: 16px 20px 24px !important;
+  box-sizing: border-box !important;
+}
+
+.db-shell .sql-panel,
+.db-shell .code-block,
+.db-shell pre.sql {
+  background: #0c1618 !important;
+  color: #f2fbf9 !important;
+  border: 1px solid rgba(45, 212, 191, 0.28);
+  border-radius: 10px;
+}
+
+.db-shell .result-table,
+.db-shell table {
+  border: 1px solid rgba(13, 148, 136, 0.22);
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fff;
+  color: #0c1918;
+}
+
+.db-shell th {
+  background: linear-gradient(180deg, #e8f7f4, #d5eee9) !important;
+  color: #0c1918 !important;
+  font-weight: 800;
+}
+
+/* 对话气泡 */
+.db-shell .message.assistant .content,
+.db-shell .message.assistant,
+.db-shell .db-answer-main {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border: 1px solid rgba(13, 148, 136, 0.18) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 10px 28px rgba(12, 40, 36, 0.08) !important;
+  color: #0c1918 !important;
+}
+
+.db-shell .message.user .content,
+.db-shell .message.user {
+  background: linear-gradient(135deg, #14b8a6, #0d9488) !important;
+  color: #f8fffe !important;
+  border-radius: 14px 14px 4px 14px !important;
+  box-shadow: 0 8px 20px rgba(13, 148, 136, 0.28);
+}
+
+/* Composer */
+.db-shell .composer,
+.db-shell .composer-row {
+  background: rgba(255, 255, 255, 0.96) !important;
+  border: 1px solid rgba(13, 148, 136, 0.28) !important;
+  border-radius: 18px !important;
+  box-shadow: 0 16px 44px rgba(12, 40, 36, 0.12) !important;
+}
+
+.db-shell .composer textarea,
+.db-shell input:not([type="checkbox"]):not([type="radio"]),
+.db-shell textarea,
+.db-shell select {
+  background: #f4fffc !important;
+  border: 1px solid rgba(100, 140, 132, 0.35) !important;
+  color: #0c1918 !important;
+  border-radius: 11px !important;
+}
+
+.db-shell input:focus,
+.db-shell textarea:focus,
+.db-shell select:focus {
+  border-color: #0d9488 !important;
+  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.22) !important;
+  outline: none !important;
+}
+
+/* 按钮 */
+.db-shell button.primary,
+.db-shell .btn-primary,
+.db-shell .brand-btn--primary,
+.db-shell .send,
+.db-shell .db-send-cancel,
+.db-shell .intel-btn.primary,
+.db-shell .db-modal-btn-primary {
+  background: linear-gradient(135deg, #2dd4bf, #0d9488 48%, #0f766e) !important;
+  border-color: #0f766e !important;
+  color: #fff !important;
+  font-weight: 800 !important;
+  box-shadow: 0 8px 22px rgba(13, 148, 136, 0.38) !important;
+  border-radius: 11px !important;
+}
+
+.db-shell .brand-btn--secondary,
+.db-shell .db-toolbar-btn,
+.db-shell .db-modal-btn-secondary {
+  background: rgba(255, 255, 255, 0.92) !important;
+  border: 1px solid rgba(13, 148, 136, 0.28) !important;
+  color: #0c1918 !important;
+  font-weight: 650;
+  border-radius: 10px !important;
+}
+
+/* Modal */
+.db-shell .db-modal-backdrop {
+  background: rgba(8, 20, 18, 0.48) !important;
+  backdrop-filter: blur(6px);
+}
+
+.db-shell .db-modal-dialog {
+  background: rgba(255, 255, 255, 0.96) !important;
+  border: 1px solid rgba(13, 148, 136, 0.28) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 28px 72px rgba(12, 40, 36, 0.32) !important;
+  color: #0c1918 !important;
+}
+
+.db-shell .db-modal-header {
+  border-bottom: 1px solid rgba(13, 148, 136, 0.16);
+  font-weight: 800;
+}
+
+/* 登录卡 */
+.claw-login .db-glass,
+.claw-login .claw-login__card {
+  background: rgba(255, 255, 255, 0.94) !important;
+  border: 1px solid rgba(13, 148, 136, 0.28) !important;
+  border-radius: 18px !important;
+  box-shadow: 0 28px 72px rgba(12, 40, 36, 0.28) !important;
+  color: #0c1918 !important;
+}
+
+.claw-login .claw-login__submit,
+.claw-login button[type="submit"] {
+  background: linear-gradient(135deg, #2dd4bf, #0d9488 48%, #0f766e) !important;
+  color: #fff !important;
+  font-weight: 800 !important;
+  box-shadow: 0 10px 28px rgba(13, 148, 136, 0.4) !important;
+}

@@ -50,7 +50,7 @@ class Settings(BaseSettings):
     clawhive_database_url: str = ""
     database_url: str = ""
     evo_allow_expert_auto_promote: bool = False
-    experience_recall_confirmed_only: bool = False
+    experience_recall_confirmed_only: bool = True
     experience_standalone_exclude_federated: bool = True
 
 

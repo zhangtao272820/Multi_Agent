@@ -1,0 +1,39 @@
+{
+  "id": "bilibili-guest-search",
+  "name": "B站游客搜索抽取（准备宏）",
+  "description": "直达 search.bilibili.com，打开首条结果详情根，抽取标题后结束（不播放、不登录、不互动）",
+  "args": ["keyword", "startUrl"],
+  "steps": [
+    {
+      "action": "goto",
+      "url": "{{startUrl}}",
+      "waitUntil": "domcontentloaded"
+    },
+    {
+      "action": "snapshot",
+      "assignTo": "search_landing"
+    },
+    {
+      "action": "wait",
+      "ms": 800
+    },
+    {
+      "action": "click",
+      "selector": ".video-list .bili-video-card a, .search-content .bili-video-card a, .video-list a[href*='/video/'], .search-content a[href*='/video/']",
+      "timeoutMs": 20000
+    },
+    {
+      "action": "wait",
+      "ms": 1000
+    },
+    {
+      "action": "extract",
+      "selector": "h1, .video-title, title, [class*='video-title']",
+      "assignTo": "page_title"
+    },
+    {
+      "action": "finish",
+      "answer": "工作流 bilibili-guest-search 完成。关键词={{keyword}}；标题={{page_title}}；搜索落地={{search_landing}}"
+    }
+  ]
+}

@@ -14,10 +14,13 @@ export type CodeEditPreview = {
   unified_diff?: string
   diff_stat?: string
   branch?: string
+  pending_patch_id?: string
 }
 
 export function isCodeEditHitlEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
-  return String(env.MANAGER_CODE_EDIT_HITL ?? env.CODE_WRITE_REQUIRE_CONFIRM ?? '0').trim() === '1'
+  // 写路径默认事前 HITL；显式设 0 可关（仅受控环境）
+  const raw = String(env.MANAGER_CODE_EDIT_HITL ?? env.CODE_WRITE_REQUIRE_CONFIRM ?? '1').trim()
+  return raw !== '0' && raw.toLowerCase() !== 'false' && raw.toLowerCase() !== 'off'
 }
 
 export function codeEditAutoConfirmEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
@@ -46,7 +49,12 @@ export function extractCodeEditPreview(input: {
     ? artifacts!.files_changed!.map(String).filter(Boolean)
     : []
   const files = [...new Set([...(metaPreview?.files ?? []), ...filesFromMeta, ...filesFromArtifacts])]
-  if (!files.length && !metaPreview?.unified_diff && !artifacts?.unified_diff) return null
+  const pending_patch_id = String(
+    meta.pending_patch_id || metaPreview?.pending_patch_id || artifacts?.pending_patch_id || ''
+  ).trim()
+  if (!files.length && !metaPreview?.unified_diff && !artifacts?.unified_diff && !pending_patch_id) {
+    return null
+  }
   return {
     files,
     unified_diff: String(
@@ -54,6 +62,7 @@ export function extractCodeEditPreview(input: {
     ).trim() || undefined,
     diff_stat: String(metaPreview?.diff_stat ?? artifacts?.diff_stat ?? meta.diff_stat ?? '').trim() || undefined,
     branch: String(metaPreview?.branch ?? artifacts?.branch ?? meta.branch ?? '').trim() || undefined,
+    pending_patch_id: pending_patch_id || undefined,
   }
 }
 
@@ -66,12 +75,12 @@ export function buildCodeEditConfirmMessage(preview: CodeEditPreview, task: stri
   return {
     title: '代码变更需人工确认',
     message: [
-      `Code Agent 已修改 ${files.length || '若干'} 个文件，请审阅 diff 后确认保留或撤销。`,
+      `Code Agent 拟修改 ${files.length || '若干'} 个文件（尚未写盘），请审阅 diff 后确认应用。`,
       files.length ? `文件：${files.slice(0, 6).join(', ')}${files.length > 6 ? '…' : ''}` : '',
       preview.branch ? `分支：${preview.branch}` : '',
       diffSnippet ? `\n\`\`\`diff\n${diffSnippet}\n\`\`\`` : '',
       task ? `任务：${task.slice(0, 240)}` : '',
-      '确认 = 保留变更；取消 = 撤销写盘（git restore）。',
+      '确认 = 写盘应用补丁；取消 = 丢弃 pending（零写盘）。',
     ]
       .filter(Boolean)
       .join('\n'),
@@ -113,7 +122,7 @@ export async function requestCodeEditHumanConfirm(input: {
       data: {
         agent: 'code',
         badge: gateCopy('dry_run'),
-        message: `拟写入 ${input.preview.files?.length || 0} 个文件（未确认前可撤销）`,
+        message: `拟写入 ${input.preview.files?.length || 0} 个文件（未写盘）`,
         files: input.preview.files ?? [],
         riskPolicy
       },

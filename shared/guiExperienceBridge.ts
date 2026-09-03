@@ -8,6 +8,7 @@ import {
   emptyQuestionResult,
   experienceSnippet,
   experienceSyncSource,
+  experienceSyncStatus,
   guardExperiencePg,
   normalizeExperienceQuestionKey,
   type ExperienceSyncOpts,
@@ -62,14 +63,15 @@ export async function syncGuiExperienceFromManagerRun(
   const res = await agentPgQuery(
     `INSERT INTO lob_gui_experience
       (ts, task_norm, scenario, execution_mode, hint, source, status)
-     VALUES ($1, $2, $3, $4, $5, $6, 'confirmed')`,
+     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
     [
       new Date().toISOString(),
       task_norm,
       input.scenario?.slice(0, 64) ?? null,
       input.executionMode?.slice(0, 16) ?? null,
       hint,
-      experienceSyncSource(opts)
+      experienceSyncSource(opts),
+      experienceSyncStatus(opts)
     ],
     env
   )

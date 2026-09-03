@@ -17,7 +17,8 @@ function assert(cond: unknown, msg: string) {
   if (!cond) throw new Error(msg)
 }
 
-assert(!isCodeEditHitlEnabled({ MANAGER_CODE_EDIT_HITL: '0' }), 'HITL off by default')
+assert(isCodeEditHitlEnabled({}), 'HITL on by default (pre-apply)')
+assert(!isCodeEditHitlEnabled({ MANAGER_CODE_EDIT_HITL: '0' }), 'HITL off when env=0')
 assert(isCodeEditHitlEnabled({ MANAGER_CODE_EDIT_HITL: '1' }), 'HITL on when env=1')
 assert(
   isCodeEditHitlEnabled({ CODE_WRITE_REQUIRE_CONFIRM: '1' }),
@@ -47,6 +48,16 @@ assert(preview?.unified_diff?.includes('foo'), 'preview diff')
 const msg = buildCodeEditConfirmMessage(preview!, '改 foo.ts')
 assert(msg.title.includes('确认'), 'confirm title')
 assert(msg.message.includes('foo.ts'), 'confirm lists files')
+assert(msg.message.includes('尚未写盘') || msg.message.includes('未写盘'), 'pre-apply messaging')
+
+const previewPending = extractCodeEditPreview({
+  meta: {
+    pending_patch_id: 'patch-1',
+    files_touched: ['a.ts'],
+    edit_preview: { files: ['a.ts'], pending_patch_id: 'patch-1' },
+  },
+})
+assert(previewPending?.pending_patch_id === 'patch-1', 'pending_patch_id in preview')
 
 // 黄金路径：edit → diff → confirmMode hitl → write 侧计划
 assert(

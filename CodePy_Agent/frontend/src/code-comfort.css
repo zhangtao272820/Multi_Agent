@@ -1,0 +1,41 @@
+/* Code 轻量舒适：取消雷暴/节气大图 */
+
+.code-season-bg,
+.code-storm,
+.code-brand-root .brand-motif,
+.code-shell .brand-motif,
+.claw-login .code-season-bg,
+.claw-login .code-storm {
+  display: none !important;
+}
+
+.code-shell.brand-shell,
+.layout.code-brand-root {
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--brand-accent, #e8a23a) 10%, #f7f5f0) 0%,
+      var(--brand-bg, #eef1f6) 45%,
+      #ebe7df 100%
+    ) !important;
+}
+
+.claw-login.code-shell {
+  background: var(--brand-bg, #eef1f6) !important;
+}
+
+.code-shell .chat-log.ch-thread {
+  font-size: 14px;
+  line-height: 1.62;
+}
+
+.code-shell .chat-line.ch-streaming pre::after {
+  content: "";
+  display: inline-block;
+  width: 0.4em;
+  height: 1em;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  background: color-mix(in srgb, var(--brand-accent, #e8a23a) 75%, transparent);
+  animation: ch-caret-blink 1s steps(1) infinite;
+}

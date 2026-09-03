@@ -47,7 +47,7 @@ NLU / 快路径 / 约束评估：[docs/nlu-capability-assessment.md](docs/nlu-ca
 
 | 场景 | 现状 | 缺什么 |
 |---|---|---|
-| 后台助手 | 名单/计数、checkpoint、收入黄金 | 写入类 HITL（本栈默认只读） |
+| 后台助手 | 名单/计数、checkpoint、收入黄金 | 写库 HITL 已通（须 write_allowed + confirm_token） |
 | 分析师自助 | 聚合 SQL + 柱/折/饼 | 自动看板、下钻、导出 Excel |
 | 决策分析 | GROUP BY / 指标口径 | 漏斗模板包 |
 | DBA 助手 | 允许 `information_schema` 只读 | 慢日志、锁等待 |
@@ -58,11 +58,18 @@ NLU / 快路径 / 约束评估：[docs/nlu-capability-assessment.md](docs/nlu-ca
 ## 产品缺口
 
 - 用户登录与 ERP JWT 打通（P2604 后台 9990 浮窗仍未做）。
-- 只读 MySQL 账号（当前可用 root，生产应换成 SELECT-only）。
+- 只读 MySQL 账号（当前可用 root，生产应换成 SELECT-only；**写库账号应单独最小权限**，勿用无边界 root 当唯一防线）。
 - 场景自动识别（开关默认关，避免再变成多次 LLM）。
+
+## 写库 HITL（已交付 · p2026）
+
+- 安全 DML（INSERT/UPDATE/DELETE）+ 有限 DDL（CREATE TABLE、ALTER ADD/MODIFY COLUMN）。
+- 硬禁 DROP/TRUNCATE/DROP COLUMN/GRANT 等；AST + `guard_write_sql`。
+- 写路径始终 pending → `POST /api/pending/decide` + `confirm_token`（T2）；总管 `MANAGER_DB_WRITE_ALLOWED=1` 或 meta.`dbWriteAllowed` 才进写预览。
+- Skill：`skills/write_gate.md`。
 
 ## 明确不做（除非另开需求）
 
 - 不把旧 LangGraph 十三段 LLM 搬过来。
-- 不对 P2604 做写库 / DDL。
+- 第一期不对 DROP/TRUNCATE 做「二次确认放行」。
 - 不 `docker compose down -v`。

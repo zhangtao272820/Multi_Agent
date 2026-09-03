@@ -16,6 +16,7 @@ import {
 } from "./ragExperiencePathConflict";
 
 export { extractRagExperiencePathKey, resolveRagExperiencePathConflicts } from "./ragExperiencePathConflict";
+export { ragVectorExperienceRequireUseful } from "#agent-shared/experienceRecallPolicy";
 
 export type RagExperienceRow = {
   id: string;

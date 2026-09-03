@@ -22,16 +22,16 @@ body,
 
 .manager-shell {
   min-height: 100vh;
-  background: transparent;
-  color: inherit;
-  --brand-motif-opacity: 0.5;
+  background: var(--brand-bg, #eef1f6);
+  color: var(--brand-text, #1c2230);
+  --brand-motif-opacity: 0;
 }
 
 .manager-shell.brand-shell::before {
   opacity: 0;
 }
 
-.manager-shell > :not(.mgr-season-bg):not(.brand-motif):not(.spring-root) {
+.manager-shell > .spring-root {
   position: relative;
   z-index: 1;
 }

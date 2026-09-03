@@ -23,20 +23,26 @@ export function resolveGuiPlusMaxSteps(env: NodeJS.ProcessEnv = process.env): nu
   return Math.min(4, Math.floor(n))
 }
 
-/** captcha / 登录墙走 HITL，不烧 gui-plus */
+/** captcha / 登录墙走 HITL；form_fill 走 DOM；仅导航/元素失败走 gui-plus */
 export function shouldAttemptGuiPlusFallback(opts: {
   verifyOk: boolean
   failureType?: string
+  taskKind?: string
+  formFilledCount?: number
   env?: NodeJS.ProcessEnv
 }): boolean {
   if (!isGuiPlusFallbackEnabled(opts.env)) return false
   if (opts.verifyOk) return false
+  if (String(opts.taskKind || '').trim() === 'form_fill') return false
+  if (String(opts.taskKind || '').trim() === 'login') return false
+  if ((opts.formFilledCount || 0) > 0) return false
   const ft = String(opts.failureType || '').toLowerCase()
-  // captcha/登录墙走 HITL；network 无法靠 computer_use 在 about:blank 修复
+  // captcha/登录墙走 HITL；network 无法靠 computer_use 修复
   if (/captcha|login_wall|login_required|user_cancelled|auth_wall|network_unreachable|^network$/.test(ft)) {
     return false
   }
-  return true
+  // 收窄：优先救导航未离页 / 元素未找到 / 无效果
+  return /navigation_unverified|element_not_found|no_effect/.test(ft)
 }
 
 export function mapNormCoordToViewport(

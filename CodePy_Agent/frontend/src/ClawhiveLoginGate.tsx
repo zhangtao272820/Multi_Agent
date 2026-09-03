@@ -35,18 +35,11 @@ export default function ClawhiveLoginGate({ onSuccess }: Props) {
 
   return (
     <div className="code-shell claw-login" data-agent="code">
-      <div className="code-season-bg code-season-bg--lixia" aria-hidden="true" />
-      <div className="code-storm" aria-hidden="true">
-        <span className="code-storm__sheet" />
-        <span className="code-storm__bolt code-storm__bolt--a" />
-        <span className="code-storm__bolt code-storm__bolt--b" />
-        <span className="code-storm__bolt code-storm__bolt--c" />
-      </div>
       <form className="claw-login__card code-glass" onSubmit={submit}>
         <div className="claw-login__brand">
           <img className="claw-login__logo" src={brandLogoUrl('code')} alt="" width={56} height={56} />
           <div>
-            <p className="claw-login__eyebrow">立夏 · 武曲</p>
+            <p className="claw-login__eyebrow">武曲 · Code</p>
             <h1>武曲 · 代码助手</h1>
             <p className="claw-login__sub">使用 ClawHive 账号登录</p>
           </div>

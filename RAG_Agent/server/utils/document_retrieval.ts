@@ -22,7 +22,7 @@ import {
 } from "./cross_encoder_rerank";
 import { getLearningHintsForQuestion } from "./rag_learning";
 import { rewriteQueryForAgenticRetrieval, shouldAttemptAgenticRetry } from "./agentic_retrieval";
-import { indexRagExperience, recallRagExperience } from "./experience_vectors";
+import { indexRagExperience, ragVectorExperienceRequireUseful, recallRagExperience } from "./experience_vectors";
 import { getRagPromptPatchesForStage } from "./prompt_evolution";
 import {
   formatUserPreferencesBlock,
@@ -969,11 +969,14 @@ export async function runDocumentRetrieval(input: {
     const hint =
       experienceRecalls[0]?.hint ||
       (sources.length ? `优先来源=${sources.slice(0, 2).join("、")}` : "document_query");
-    void indexRagExperience({
-      question: originalQuery || effectiveQuery,
-      hint,
-      sources,
-    }).catch(() => {});
+    // 默认不在「检索成功」时写向量经验，避免未点有用的轮次污染召回；有用反馈见 feedback.post
+    if (!ragVectorExperienceRequireUseful()) {
+      void indexRagExperience({
+        question: originalQuery || effectiveQuery,
+        hint,
+        sources,
+      }).catch(() => {});
+    }
     if (userKey) {
       learnFromSuccessfulRetrieval({
         userKey,

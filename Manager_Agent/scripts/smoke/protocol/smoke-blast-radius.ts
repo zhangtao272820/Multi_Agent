@@ -22,6 +22,8 @@ assert(riskTierToBlastRadius('medium') === 't1', 'medium → t1')
 assert(riskTierToBlastRadius('high') === 't2', 'high → t2')
 
 assert(resolveBlastRadius({ agent: 'db' }) === 't0', 'db t0')
+assert(resolveBlastRadius({ agent: 'db', writeAllowed: true }) === 't2', 'db write t2')
+assert(resolveBlastRadius({ agent: 'db', actionKind: 'db_write' }) === 't2', 'db_write kind t2')
 assert(resolveBlastRadius({ agent: 'rag' }) === 't0', 'rag t0')
 assert(resolveBlastRadius({ agent: 'code', writeAllowed: false, actionKind: 'code_edit' }) === 't1', 'code preview t1')
 assert(resolveBlastRadius({ agent: 'code', writeAllowed: true }) === 't1', 'code write reversible t1')

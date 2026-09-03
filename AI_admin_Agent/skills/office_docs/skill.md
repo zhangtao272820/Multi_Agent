@@ -18,3 +18,8 @@ compatible_agents:
 ## Reply
 
 写成功后回报相对路径与格式；读失败时说明缺依赖或格式不支持。
+
+## 话术模板
+
+- 「读 workspace/周报.docx」→ `read_office_document`
+- 「把内容写成报告并发邮件」→ 写文档（HITL）后正文预填 Compose，用户在卡内改再发

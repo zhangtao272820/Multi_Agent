@@ -18,3 +18,9 @@ compatible_agents:
 ## Reply
 
 列表展示待办，标注负责人/时间（若有），并提示用户确认后写入任务。
+
+## 话术模板
+
+- 「从这段纪要提取待办」→ `extract_meeting_actions`
+- 「确认写入任务」→ `add_tasks_from_minutes`（HITL）
+- 「把纪要摘要发给老板」→ 摘要进 `send_email` Compose，勿让用户重打全文

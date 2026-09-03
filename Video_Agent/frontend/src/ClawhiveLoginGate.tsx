@@ -1,5 +1,4 @@
 import { FormEvent, useState } from 'react'
-import BrandMotif from '@brand/react/BrandMotif.jsx'
 import { brandLogoUrl } from '@brand/react/assetMap.js'
 import { login } from './clawhiveAuth'
 
@@ -36,13 +35,11 @@ export default function ClawhiveLoginGate({ onSuccess }: Props) {
 
   return (
     <div className="claw-login" data-agent="video">
-      <div className="video-season-bg video-season-bg--xiaohan" aria-hidden="true" />
-      <BrandMotif motif="snow" />
       <form className="claw-login__card video-glass" onSubmit={submit}>
         <div className="claw-login__brand">
           <img className="claw-login__logo" src={brandLogoUrl('video')} alt="" width={56} height={56} />
           <div>
-            <p className="claw-login__eyebrow">小寒 · 破军</p>
+            <p className="claw-login__eyebrow">破军 · Video</p>
             <h1>破军 · Video Agent</h1>
             <p className="claw-login__sub">使用 ClawHive 账号登录</p>
           </div>

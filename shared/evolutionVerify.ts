@@ -94,6 +94,34 @@ export async function verifyManagerEvolutionPromote(): Promise<EvolutionVerifyRe
     const obj = JSON.parse(raw) as { cases?: unknown[] }
     const cases = Array.isArray(obj?.cases) ? obj.cases : []
     checks.push({ id: 'golden_smoke_cases', ok: cases.length >= 1, detail: `count=${cases.length}` })
+
+    const morphPath = path.join(mgrRoot, 'eval', 'golden-enterprise-morphology.json')
+    const morphRaw = await fs.readFile(morphPath, 'utf8')
+    const morphObj = JSON.parse(morphRaw) as { cases?: Array<{ id?: string; morphology?: string; expectClarify?: boolean; expectCap?: string[]; expectTenantScope?: boolean }> }
+    const morphCases = Array.isArray(morphObj?.cases) ? morphObj.cases : []
+    checks.push({
+      id: 'golden_enterprise_morphology_cases',
+      ok: morphCases.length >= 8,
+      detail: `count=${morphCases.length}`
+    })
+    const morphs = new Set(morphCases.map((c) => String(c.morphology || '')))
+    for (const m of ['continuation', 'admin', 'hybrid', 'ambiguous', 'tenant_boundary']) {
+      checks.push({ id: `morphology_${m}`, ok: morphs.has(m), detail: m })
+    }
+    const tenantCases = morphCases.filter((c) => c.expectTenantScope === true)
+    checks.push({
+      id: 'morphology_tenant_boundary',
+      ok: tenantCases.length >= 2,
+      detail: `tenant_cases=${tenantCases.length}`
+    })
+    for (const c of morphCases.slice(0, 12)) {
+      const id = String(c.id || '')
+      const ok =
+        c.expectClarify === true
+          ? true
+          : Array.isArray(c.expectCap) && c.expectCap.length > 0
+      checks.push({ id: `morph_case_${id || 'unknown'}`, ok, detail: c.morphology })
+    }
     for (const c of cases.slice(0, 8)) {
       const row = c as { id?: string; user?: string; expect?: { intentHint?: string } }
       const id = String(row.id || '')

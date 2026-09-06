@@ -1,13 +1,29 @@
 {
   "id": "bilibili-guest-search",
   "name": "B站游客搜索抽取（准备宏）",
-  "description": "直达 search.bilibili.com，打开首条结果详情根，抽取标题后结束（不播放、不登录、不互动）",
+  "description": "直达 search.bilibili.com，关闭登录/青少年弹窗（可选），打开首条结果详情，抽取标题与 UP 后结束（不播放、不登录、不互动）",
   "args": ["keyword", "startUrl"],
   "steps": [
     {
       "action": "goto",
       "url": "{{startUrl}}",
       "waitUntil": "domcontentloaded"
+    },
+    {
+      "action": "wait",
+      "ms": 600
+    },
+    {
+      "action": "click",
+      "selector": "button:has-text('暂不登录'), .bili-mini-close-icon, .close-icon, [aria-label='关闭'], .vip-login-tip .close, .bili-dialog-close",
+      "timeoutMs": 2500,
+      "optional": true
+    },
+    {
+      "action": "click",
+      "selector": "button:has-text('我知道了'), button:has-text('关闭'), .teenager-mode button, .home-container .close",
+      "timeoutMs": 2000,
+      "optional": true
     },
     {
       "action": "snapshot",
@@ -19,21 +35,30 @@
     },
     {
       "action": "click",
-      "selector": ".video-list .bili-video-card a, .search-content .bili-video-card a, .video-list a[href*='/video/'], .search-content a[href*='/video/']",
+      "selector": ".video-list .bili-video-card a[href*='/video/'], .search-content .bili-video-card a[href*='/video/'], .bili-video-card__wrap a[href*='/video/'], .video-list a[href*='/video/'], .search-content a[href*='/video/']",
       "timeoutMs": 20000
     },
     {
       "action": "wait",
-      "ms": 1000
+      "ms": 1200
     },
     {
       "action": "extract",
-      "selector": "h1, .video-title, title, [class*='video-title']",
+      "selector": "h1, .video-title, [class*='video-title'], title",
       "assignTo": "page_title"
     },
     {
+      "action": "extract",
+      "selector": ".up-name, .up-info .name, a.up-name, .video-info-detail .username, [class*='up-name']",
+      "assignTo": "up_name"
+    },
+    {
+      "action": "snapshot",
+      "assignTo": "detail_landing"
+    },
+    {
       "action": "finish",
-      "answer": "工作流 bilibili-guest-search 完成。关键词={{keyword}}；标题={{page_title}}；搜索落地={{search_landing}}"
+      "answer": "工作流 bilibili-guest-search 完成。关键词={{keyword}}；标题={{page_title}}；UP={{up_name}}；搜索落地={{search_landing}}；详情={{detail_landing}}"
     }
   ]
 }

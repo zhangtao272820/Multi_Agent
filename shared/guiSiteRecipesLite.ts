@@ -17,10 +17,27 @@ const LITE_RECIPES: GuiSiteRecipeLite[] = [
     hints: ['百度搜索：type 关键词 → click 搜索 → snapshot 结果列表第一条。'],
   },
   {
+    id: 'httpbin-form',
+    hosts: /httpbin\.org/i,
+    preferredEngine: 'stagehand',
+    hints: [
+      'httpbin 表单：custname / custemail / custtel；form_fill 优先 DOM；可用宏 httpbin-form-fill / oa-multifield-form-fill。',
+    ],
+  },
+  {
+    id: 'w3school-cn-form',
+    hosts: /w3school\.com\.cn/i,
+    preferredEngine: 'stagehand',
+    hints: ['W3School 中文表单：#fname / #lname；可用宏 w3school-form-fill。'],
+  },
+  {
     id: 'bilibili',
     hosts: /bilibili\.com|b23\.tv/i,
-    preferredEngine: 'classic',
-    hints: ['B 站播放/弹幕用 classic；纯搜索可用 search.bilibili.com。'],
+    preferredEngine: 'stagehand',
+    hints: [
+      'B 站游客搜索/抽标题：Stagehand；宏 bilibili-guest-search（keyword）。',
+      '播放/点赞/投币/关注：classic + HITL；勿把资讯问答走 gui。',
+    ],
   },
   {
     id: 'google',

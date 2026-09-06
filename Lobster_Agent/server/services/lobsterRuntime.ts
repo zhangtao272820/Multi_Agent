@@ -553,6 +553,8 @@ async function startExecution(runId: string) {
     ;(rec as any).__emit?.({ type: 'log', payload: { level: 'info', message: '已出队，开始执行', ts: Date.now() } })
     ;(rec as any).__emit?.({ type: 'state', payload: rec.state })
   } catch {}
+  /** 引擎若只 return 不 emit result，前端会永远停在最后一条 state（如 workflow_snapshot） */
+  let resultEmitted = false
   const emit = (evt: EmitEvent) => {
     if (evt.type === 'state') rec.state = evt.payload
     if (evt.type === 'confirm') {
@@ -570,6 +572,7 @@ async function startExecution(runId: string) {
     }
     if (evt.type === 'screenshot') rec.lastScreenshotDataUrl = String(evt.payload?.dataUrl || '')
     if (evt.type === 'result') {
+      resultEmitted = true
       rec.result = evt.payload
       if (evt.payload && typeof evt.payload === 'object') {
         rec.traceId = String((evt.payload as any).traceId || '') || rec.traceId
@@ -622,6 +625,10 @@ async function startExecution(runId: string) {
     rec.traceId = String((output as any)?.traceId || '') || rec.traceId
     rec.traceZipPath = String((output as any)?.traceZipPath || '') || rec.traceZipPath
     rec.endedAt = Date.now()
+    // 安全网：workflow / bilibili 等路径若未自行 emit result，仍须推给 WS（status=end）
+    if (!resultEmitted && output != null) {
+      emit({ type: 'result', payload: output as any })
+    }
     const ch = channels.get(runId)
     const summaryExtra = {
       engine: String((output as any)?.engine || (output as any)?.executionEngine || ''),

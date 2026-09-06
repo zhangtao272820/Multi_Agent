@@ -371,6 +371,9 @@ export async function callDbPendingDecide(params: {
   decision: '确认' | '取消'
   confirmToken?: string
   blastRadius?: string
+  /** 高影响写：用户已在 HITL 卡确认后传 true */
+  impactAck?: boolean
+  verifySql?: string
   dbId?: string
   sessionId?: string
   traceId?: string
@@ -393,6 +396,8 @@ export async function callDbPendingDecide(params: {
             decision: params.decision,
             confirm_token: params.confirmToken || '',
             blast_radius: params.blastRadius || 't2',
+            impact_ack: params.impactAck === true,
+            ...(params.verifySql ? { verify_sql: params.verifySql } : {}),
             dbId: params.dbId,
             ...(params.sessionId ? { session_id: params.sessionId, sessionId: params.sessionId } : {})
           },

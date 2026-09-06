@@ -49,6 +49,14 @@ def main() -> None:
         ok, reason = validate_shell_command(c)
         assert_true(not ok, f"expected deny {c!r} but ok ({reason})")
 
+    # verify profile: tests only
+    ok, _ = validate_shell_command("pytest -q", profile="verify")
+    assert_true(ok, "verify allows pytest")
+    ok, _ = validate_shell_command("ls", profile="verify")
+    assert_true(not ok, "verify denies ls")
+    ok, _ = validate_shell_command("npm run test:unit", profile="verify")
+    assert_true(ok, "verify allows npm run test:*")
+
     print("smoke_shell_sandbox: OK")
 
 

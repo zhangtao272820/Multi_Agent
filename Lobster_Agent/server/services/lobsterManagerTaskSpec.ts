@@ -3,6 +3,7 @@
  */
 import { isUserBrowserProfile, resolveBrowserProfile } from './browserProfiles'
 import { clampFormFillGoals } from './lobsterFormGoals'
+import { matchSiteRecipe } from './siteRecipes'
 import {
   LobsterTaskKindSchema,
   toLobsterTaskSpec,
@@ -14,6 +15,42 @@ function parsePositiveInt(raw: unknown): number | undefined {
   const n = Number(raw)
   if (!Number.isFinite(n) || n <= 0) return undefined
   return Math.floor(n)
+}
+
+/**
+ * 站点 recipe 已声明 formFields 时，将 unknown TaskSpec 升为 form_fill。
+ * 依据 host→recipe 结构 SSOT，不解析用户原话意图。
+ */
+export function applySiteRecipeFormFillHint(
+  spec: LobsterTaskSpec | null | undefined,
+  task: string,
+  startUrl?: string,
+): LobsterTaskSpec | null {
+  if (!spec || spec.task_kind !== 'unknown') return spec || null
+  const recipe = matchSiteRecipe(task, startUrl || spec.start_url)
+  if (!recipe?.formFields?.length) return spec
+  const defaultProfile =
+    spec.browser_profile === 'user' || spec.browser_profile === 'managed'
+      ? spec.browser_profile
+      : isUserBrowserProfile()
+        ? 'user'
+        : resolveBrowserProfile()
+  return toLobsterTaskSpec(
+    {
+      canonical_task: spec.canonical_task || task,
+      start_url: spec.start_url || startUrl,
+      engine_hint: 'auto',
+      task_kind: 'form_fill',
+      browser_profile: defaultProfile,
+      needs_login: false,
+      explicitly_avoid_login: false,
+      confidence: Math.max(0.82, Number(spec.confidence) || 0),
+      rationale: `site_recipe_form:${recipe.id}`,
+      success_criteria: spec.success_criteria || spec.completion_criteria,
+    },
+    'manager',
+    defaultProfile,
+  )
 }
 
 /** Manager envelope 直传字段 → TaskSpec（跳过 LLM） */

@@ -18,9 +18,10 @@ compatible_agents:
 ## Reply
 
 列表展示待办，标注负责人/时间（若有），并提示用户确认后写入任务。
+工具返回 `mail_compose` / `mail_compose_prefill` 时，引导用户在 Compose Card 发摘要邮件，**禁止**让用户在 chat 重打全文。
 
 ## 话术模板
 
 - 「从这段纪要提取待办」→ `extract_meeting_actions`
 - 「确认写入任务」→ `add_tasks_from_minutes`（HITL）
-- 「把纪要摘要发给老板」→ 摘要进 `send_email` Compose，勿让用户重打全文
+- 「把纪要摘要发给老板」→ 使用 extract 返回的 `mail_compose` 进 Compose / `send_email` HITL，勿让用户重打全文

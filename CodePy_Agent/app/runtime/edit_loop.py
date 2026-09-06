@@ -15,7 +15,7 @@ from app.runtime.playbook import edit_system_prompt
 from app.tools.fs_sandbox import SandboxError, list_dir, read_file, search_in_files
 from app.tools.search_replace import apply_search_replace, preview_search_replace
 from app.tools.shell_sandbox import run_terminal
-from app.pending_patch import save_pending_patch
+from app.pending_patch import merge_pending_patch, save_pending_patch
 
 SendFn = Callable[[dict[str, Any]], Awaitable[None] | None]
 
@@ -122,8 +122,10 @@ def _tool_result(
     root: str | None,
     task_kind: str,
     manager: ManagerCodeTask,
+    batch_pending_id: str | None = None,
 ) -> dict[str, Any]:
     settings = get_settings()
+    allowed = list(manager.allowed_paths or []) or None
     try:
         if name == "list_dir":
             entries = list_dir(str(args.get("path") or ""), root_override=root)
@@ -144,6 +146,7 @@ def _tool_result(
                 str(args.get("command") or ""),
                 cwd=str(args.get("cwd") or "") or None,
                 root_override=root,
+                profile=str(args.get("profile") or "") or None,
             )
         if name == "propose_patch":
             if task_kind in ("inspect", "compute"):
@@ -151,19 +154,48 @@ def _tool_result(
             patch = str(args.get("patch") or "")
             apply = bool(args.get("apply")) and write_apply_allowed(manager, task_kind=task_kind)
             if apply and settings.write_tool_enabled:
-                return apply_search_replace(patch, root_override=root, require_write_enabled=True)
-            preview = preview_search_replace(patch, root_override=root)
-            if preview.get("ok"):
-                pid = save_pending_patch(
-                    {
-                        "kind": "edit",
-                        "patch": patch,
-                        "root": root or "",
-                        "files": preview.get("files") or preview.get("files_touched") or [],
-                        "unified_diff": preview.get("unified_diff") or "",
-                        "preview": preview,
-                    }
+                return apply_search_replace(
+                    patch,
+                    root_override=root,
+                    require_write_enabled=True,
+                    allowed_paths=allowed,
                 )
+            preview = preview_search_replace(patch, root_override=root, allowed_paths=allowed)
+            if preview.get("ok"):
+                files = preview.get("files") or preview.get("files_touched") or []
+                pid = ""
+                if batch_pending_id:
+                    merged = merge_pending_patch(
+                        batch_pending_id,
+                        patch=patch,
+                        files=[str(x) for x in files],
+                        unified_diff=str(preview.get("unified_diff") or ""),
+                        preview=preview,
+                    )
+                    if merged:
+                        pid = str(merged.get("id") or batch_pending_id)
+                        preview = {
+                            **preview,
+                            "files": merged.get("files") or files,
+                            "unified_diff": merged.get("unified_diff") or preview.get("unified_diff"),
+                            "batch_count": merged.get("batch_count"),
+                        }
+                if not pid:
+                    pid = save_pending_patch(
+                        {
+                            "kind": "edit",
+                            "patch": patch,
+                            "patches": [patch],
+                            "root": root or "",
+                            "files": files,
+                            "unified_diff": preview.get("unified_diff") or "",
+                            "preview": preview,
+                            "allowed_paths": list(manager.allowed_paths or []),
+                            "verify_after_apply": bool(manager.verify_after_apply),
+                            "verify_command": str(manager.verify_command or ""),
+                            "batch_count": 1,
+                        }
+                    )
                 preview = {
                     **preview,
                     "pending_patch_id": pid,
@@ -274,6 +306,7 @@ async def run_edit_loop(
                 root=root_override,
                 task_kind=task_kind,
                 manager=manager,
+                batch_pending_id=pending_patch_id or None,
             )
             if name == "run_terminal":
                 terminal_runs.append(

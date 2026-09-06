@@ -59,6 +59,33 @@ function previewSqlFromResult(ar?: { structured?: Record<string, unknown> } | nu
   return String(output || '').slice(0, 800)
 }
 
+function extractImpactEstimate(ar?: { structured?: Record<string, unknown> } | null): {
+  estimated_rows?: number | null
+  requires_ack?: boolean
+  statement_count?: number
+} | null {
+  const s = ar?.structured
+  if (!s) return null
+  const raw =
+    (s.impact_estimate as Record<string, unknown> | undefined) ||
+    (s.meta && typeof s.meta === 'object'
+      ? ((s.meta as Record<string, unknown>).impact_estimate as Record<string, unknown> | undefined)
+      : undefined)
+  const actions = Array.isArray(s.pending_actions) ? s.pending_actions : []
+  const fromAction =
+    actions.length && actions[0] && typeof actions[0] === 'object'
+      ? ((actions[0] as Record<string, unknown>).impact_estimate as Record<string, unknown> | undefined)
+      : undefined
+  const imp = raw || fromAction
+  if (!imp || typeof imp !== 'object') return null
+  const rows = imp.estimated_rows
+  return {
+    estimated_rows: rows === null || rows === undefined ? null : Number(rows),
+    requires_ack: Boolean(imp.requires_ack),
+    statement_count: Number(imp.statement_count || 1) || 1
+  }
+}
+
 export async function executeDbStep(
   deps: AgentExecutorDeps,
   opts: AgentExecutorOpts,
@@ -143,6 +170,7 @@ export async function executeDbStep(
         resolveBlastRadius({ agent: 'db', writeAllowed: true, actionKind: 'db_write' })
       const pendingIds = extractDbPendingIds(ar)
       const sqlPreview = previewSqlFromResult(ar, output)
+      const impact = extractImpactEstimate(ar)
       if (!opts.runId) {
         return {
           ok: false,
@@ -155,6 +183,12 @@ export async function executeDbStep(
       }
       const confirmId = crypto.randomUUID()
       const confirmToken = mintHitlConfirmToken(opts.runId, confirmId)
+      const impactLine =
+        impact?.estimated_rows != null
+          ? `\n预估影响约 ${impact.estimated_rows} 行${impact.requires_ack ? '（高影响，确认即视为 impact_ack）' : ''}`
+          : impact?.requires_ack
+            ? '\n无法预估影响行数（确认即视为 impact_ack）'
+            : ''
       input.sendThinking(`数据库：${gateCopy('dry_run')} — 写 SQL 预览（未执行）`)
       opts.sendEvent({
         event: 'dry_run_result',
@@ -164,6 +198,7 @@ export async function executeDbStep(
           message: '拟执行写库 SQL（未写入）',
           preview: sqlPreview,
           pending_ids: pendingIds,
+          impact_estimate: impact,
           riskPolicy,
           blast_radius: blast
         },
@@ -178,11 +213,13 @@ export async function executeDbStep(
           confirmId,
           confirm_token: confirmToken,
           title: '数据库写操作待确认',
-          message: `${gateCopy('action')}\n\`\`\`sql\n${sqlPreview}\n\`\`\``,
+          message: `${gateCopy('action')}${impactLine}\n\`\`\`sql\n${sqlPreview}\n\`\`\``,
           agent: 'db',
           riskTier: riskPolicy.tier,
           blast_radius: blast,
-          pending_ids: pendingIds
+          pending_ids: pendingIds,
+          impact_estimate: impact,
+          riskPolicyDecision: riskPolicy
         },
         from: 'manager'
       })
@@ -231,6 +268,8 @@ export async function executeDbStep(
           decision: '确认',
           confirmToken,
           blastRadius: blast,
+          // HITL 确认卡已展示影响预估：用户点确认 = impact_ack
+          impactAck: true,
           dbId: opts.dbId,
           sessionId: dbSessionId,
           traceId: opts.runId,

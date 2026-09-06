@@ -4,6 +4,7 @@ import { isPostgresStorageEnabled, resolveStorageBackend } from "#agent-shared/s
 import { readRagSessionMeta } from "../../utils/ragSessionMeta";
 import { readRagSession, listRagSessionsForUser } from "../../utils/ragSessionStore";
 import { assertRagSessionAccess, resolveRagHttpUser } from "../../utils/ragRequestUser";
+import { isRagSidebarHiddenSessionId } from "../../utils/ragStandalonePersistGate";
 
 function previewTitle(messages: Array<{ role?: string; content?: string }>) {
   const firstUser = messages.find((m) => String(m?.role || "").toLowerCase() === "user");
@@ -52,7 +53,7 @@ export default defineEventHandler(async (event) => {
 
   for (const sid of sessionIdSet) {
     const id = String(sid || "").trim();
-    if (!id) continue;
+    if (!id || isRagSidebarHiddenSessionId(id)) continue;
     const session = await readRagSession(id);
     const messages = session.messages || [];
     const meta = await readRagSessionMeta(dataRoot, id);

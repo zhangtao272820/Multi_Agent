@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { CollaborationPosture, PendingAttachment, WorkbenchMode } from '~/composables/managerChatTypes'
 import { COLLABORATION_POSTURE_OPTIONS } from '~/composables/managerChatTypes'
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, ref } from 'vue'
 
 const input = defineModel<string>({ required: true })
 
@@ -13,10 +13,9 @@ const props = defineProps<{
   sendCancelDisabled: boolean
   uploadingAttachment: boolean
   pendingAttachment: PendingAttachment | null
+  /** Plan 待确认时显示姿态条 */
+  planAwaitingConfirm?: boolean
 }>()
-
-/** 对话用分段；专业用下拉（信息量更大） */
-const useSegmentedPosture = computed(() => props.workbenchMode !== 'professional')
 
 const emit = defineEmits<{
   setCollaborationPosture: [mode: CollaborationPosture]
@@ -28,20 +27,12 @@ const emit = defineEmits<{
 }>()
 
 const fileInputEl = ref<HTMLInputElement | null>(null)
-const postureMenuOpen = ref(false)
-const postureWrapEl = ref<HTMLElement | null>(null)
 const dragOver = ref(false)
 let dragDepth = 0
 
-const currentPosture = computed(
-  () =>
-    COLLABORATION_POSTURE_OPTIONS.find((p) => p.id === props.collaborationPosture) ||
-    COLLABORATION_POSTURE_OPTIONS.find((p) => p.id === 'agent')!
-)
-
 const postureHint = computed(() => {
+  if (props.planAwaitingConfirm || props.collaborationPosture === 'plan') return 'Plan · 确认后执行'
   if (props.collaborationPosture === 'ask') return '只读探查，不会执行写操作'
-  if (props.collaborationPosture === 'plan') return '有步骤时先确认蓝图'
   if (props.collaborationPosture === 'debug') return '按步证据定点重验'
   return ''
 })
@@ -56,7 +47,6 @@ function resetFileInput() {
 
 function selectPosture(mode: CollaborationPosture) {
   emit('setCollaborationPosture', mode)
-  postureMenuOpen.value = false
 }
 
 /** Cursor 式：Shift+Tab 轮转 Ask → Plan → Agent → Debug */
@@ -76,13 +66,6 @@ function onTextareaKeydown(e: KeyboardEvent) {
     return
   }
   emit('inputKeydown', e)
-}
-
-function onDocPointerDown(e: PointerEvent) {
-  if (!postureMenuOpen.value) return
-  const root = postureWrapEl.value
-  if (root && e.target instanceof Node && root.contains(e.target)) return
-  postureMenuOpen.value = false
 }
 
 function pickImageFromDataTransfer(dt: DataTransfer | null): File | null {
@@ -154,25 +137,31 @@ function filesHavePayload(dt: DataTransfer | null | undefined): boolean {
   return Boolean(dt.files?.length)
 }
 
-onMounted(() => {
-  document.addEventListener('pointerdown', onDocPointerDown, true)
-})
-onBeforeUnmount(() => {
-  document.removeEventListener('pointerdown', onDocPointerDown, true)
-})
-
 defineExpose({ resetFileInput })
 </script>
 
 <template>
   <div
     class="spring-input cosmic-input-dock cosmic-comms-console"
-    :class="{ 'has-posture-menu': postureMenuOpen, 'is-drag-over': dragOver }"
+    :class="{ 'is-drag-over': dragOver }"
     @dragenter="onDragEnter"
     @dragover="onDragOver"
     @dragleave="onDragLeave"
     @drop="onDrop"
   >
+    <div
+      v-if="postureHint"
+      class="composer-posture-chip"
+      :class="{
+        'is-plan': collaborationPosture === 'plan' || planAwaitingConfirm,
+        'is-ask': collaborationPosture === 'ask',
+        'is-debug': collaborationPosture === 'debug'
+      }"
+      role="status"
+    >
+      {{ postureHint }}
+    </div>
+
     <div class="spring-input-col">
       <div class="cosmic-input-head">
         <span class="cosmic-input-hint">{{
@@ -216,12 +205,7 @@ defineExpose({ resetFileInput })
 
       <div class="composer-toolbar">
         <div class="composer-toolbar-left">
-          <div
-            v-if="useSegmentedPosture"
-            class="composer-posture-seg"
-            role="group"
-            aria-label="协作姿态"
-          >
+          <div class="composer-posture-seg" role="group" aria-label="协作姿态">
             <button
               v-for="p in COLLABORATION_POSTURE_OPTIONS"
               :key="p.id"
@@ -236,43 +220,6 @@ defineExpose({ resetFileInput })
             </button>
           </div>
 
-          <div v-else ref="postureWrapEl" class="composer-posture-wrap">
-            <button
-              type="button"
-              class="composer-posture-trigger"
-              :class="`is-${collaborationPosture}`"
-              :aria-expanded="postureMenuOpen"
-              aria-haspopup="listbox"
-              aria-label="协作姿态"
-              :title="currentPosture.title"
-              @click="postureMenuOpen = !postureMenuOpen"
-            >
-              <span class="composer-posture-label">{{ currentPosture.label }}</span>
-              <span class="composer-posture-chevron" aria-hidden="true">▾</span>
-            </button>
-            <div
-              v-if="postureMenuOpen"
-              class="composer-posture-menu"
-              role="listbox"
-              aria-label="选择协作姿态"
-            >
-              <button
-                v-for="p in COLLABORATION_POSTURE_OPTIONS"
-                :key="p.id"
-                type="button"
-                class="composer-posture-option"
-                :class="{ 'is-active': collaborationPosture === p.id }"
-                role="option"
-                :aria-selected="collaborationPosture === p.id"
-                @click="selectPosture(p.id)"
-              >
-                <span class="composer-posture-option-label">{{ p.label }}</span>
-                <span class="composer-posture-option-desc">{{ p.title }}</span>
-                <span v-if="collaborationPosture === p.id" class="composer-posture-option-check" aria-hidden="true">✓</span>
-              </button>
-            </div>
-          </div>
-
           <button
             type="button"
             class="spring-btn alt spring-attach-btn"
@@ -282,15 +229,6 @@ defineExpose({ resetFileInput })
           >
             附件
           </button>
-
-          <span
-            v-if="postureHint"
-            class="composer-posture-inline-hint"
-            :class="`is-${collaborationPosture}`"
-            role="status"
-          >
-            {{ postureHint }}
-          </span>
         </div>
 
         <button

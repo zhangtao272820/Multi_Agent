@@ -232,6 +232,10 @@ export type ManagerDbTaskPayload = {
   confirm_token?: string;
   /** 待确认写操作 id（decide 路径） */
   pending_id?: string;
+  /** 高影响写须显式确认（与 Vanna impact_estimate.requires_ack 对齐） */
+  impact_ack?: boolean;
+  /** 写后可选校验 SELECT */
+  verify_sql?: string;
 };
 
 function parseTurnScopeField(o: Record<string, unknown>): TurnScopePayload | undefined {
@@ -405,6 +409,8 @@ export function parseManagerDbTaskFromJson(raw: string | null | undefined): Mana
     const write_allowed = o.write_allowed === true;
     const confirm_token = String(o.confirm_token ?? "").trim() || undefined;
     const pending_id = String(o.pending_id ?? "").trim() || undefined;
+    const impact_ack = o.impact_ack === true;
+    const verify_sql = String(o.verify_sql ?? "").trim() || undefined;
     const hasAny =
       String(o.refined_question ?? "").trim() ||
       must_filters.length ||
@@ -414,7 +420,8 @@ export function parseManagerDbTaskFromJson(raw: string | null | undefined): Mana
       o.prefetch_reuse === true ||
       write_allowed ||
       Boolean(confirm_token) ||
-      Boolean(pending_id);
+      Boolean(pending_id) ||
+      impact_ack;
     const turn_scope = parseTurnScopeField(o);
     if (!hasAny && !turn_scope) return null;
     return {
@@ -434,6 +441,8 @@ export function parseManagerDbTaskFromJson(raw: string | null | undefined): Mana
       write_allowed: write_allowed ? true : undefined,
       confirm_token,
       pending_id,
+      impact_ack: impact_ack ? true : undefined,
+      verify_sql,
     };
   } catch {
     return null;

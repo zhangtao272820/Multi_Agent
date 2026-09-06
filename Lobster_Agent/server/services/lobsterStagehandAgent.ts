@@ -36,6 +36,7 @@ import {
   isInstructionalFillTarget,
   captureStagehandScreenshot,
   getStagehandPage,
+  buildFormFillClarifyMessage,
 } from './stagehandPlaywrightBridge'
 import {
   extractFormFieldsFromTask,
@@ -551,6 +552,43 @@ export async function runLobsterStagehandAgent(
             config: params.config,
             signal: params.signal,
           })
+          if (!extracted.fields.length) {
+            const pageUrl = (await readStagehandPageUrl(stagehand, startUrl)) || startUrl
+            const failAnswer = buildFormFillClarifyMessage({
+              reason: 'no_fields',
+              requestedKeys: (recipeFields || []).map((r) => r.key),
+              filledKeys: [],
+              pageUrl,
+            })
+            const failureType = normalizeWebFailureCode('success_criteria_unmet')
+            await emitScreenshot(true)
+            const output = wrapLobsterOutput(
+              withShot({
+                traceId,
+                task: params.task,
+                finalUrl: pageUrl,
+                plan: planSteps,
+                goals: goals || undefined,
+                successCriteria: structuredCriteria,
+                stats: {
+                  stepCount,
+                  planSteps: planSteps.length,
+                  latency_ms: Date.now() - startedAt,
+                  enginePath: 'playwright_form',
+                },
+                data: [{ via: 'stagehand+playwright', text: failAnswer, url: startUrl }],
+                answer: failAnswer,
+                verify: { ok: false, reason: failureType },
+                failureType,
+                needs_clarification: true,
+                clarification_questions: ['请补充要填写的字段名与取值'],
+              }),
+              'stagehand',
+              { confirmCount, answer: failAnswer, failureType },
+            )
+            params.emit({ type: 'result', payload: output })
+            return output
+          }
           const pwForm = await playwrightFillFormFields(stagehand, {
             fields: extracted.fields,
             recipeFields,
@@ -570,15 +608,19 @@ export async function runLobsterStagehandAgent(
                 ? 'element_not_found'
                 : 'success_criteria_unmet',
             )
-            const failAnswer = `浏览器填表未完成（${failureType}）：${pwForm.reason || 'no_fields'}。当前页：${
-              (await readStagehandPageUrl(stagehand, startUrl)) || startUrl
-            }`
+            const pageUrl = (await readStagehandPageUrl(stagehand, startUrl)) || startUrl
+            const failAnswer = buildFormFillClarifyMessage({
+              reason: pwForm.reason || 'no_fields',
+              requestedKeys: extracted.fields.map((f) => f.key),
+              filledKeys: (pwForm.filled || []).map((f) => f.key),
+              pageUrl,
+            })
             await emitScreenshot(true)
             const output = wrapLobsterOutput(
               withShot({
                 traceId,
                 task: params.task,
-                finalUrl: (await readStagehandPageUrl(stagehand, startUrl)) || startUrl,
+                finalUrl: pageUrl,
                 plan: planSteps,
                 goals: goals || undefined,
                 successCriteria: structuredCriteria,
@@ -592,6 +634,8 @@ export async function runLobsterStagehandAgent(
                 answer: failAnswer,
                 verify: { ok: false, reason: failureType },
                 failureType,
+                needs_clarification: true,
+                clarification_questions: ['请确认字段名/取值，或改用工作流宏 httpbin-form-fill / w3school-form-fill'],
               }),
               'stagehand',
               { confirmCount, answer: failAnswer, failureType },

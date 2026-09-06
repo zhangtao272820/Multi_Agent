@@ -7,6 +7,7 @@
         <div v-if="taskKind" class="v">kind: {{ taskKind }} · engine: {{ engineHint || '-' }}</div>
         <div v-if="confidence != null" class="v muted">conf {{ confidence.toFixed(2) }} · {{ source || '-' }}</div>
         <div v-if="rationale" class="v small">{{ rationale }}</div>
+        <div v-else-if="taskKind" class="v muted">source: {{ source || '-' }}</div>
         <div v-else class="v muted">等待 understand…</div>
       </div>
       <div class="insight-card">

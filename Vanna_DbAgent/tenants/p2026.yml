@@ -27,6 +27,13 @@ table_whitelist:
   - sys_dept
   - sys_department
   - sys_menu
+# 可选写库账号（未配则写路径回退 mysql；生产建议单独最小权限）
+# mysql_write:
+#   host: ${P2026_MYSQL_HOST}
+#   port: ${P2026_MYSQL_PORT}
+#   user: ${P2026_MYSQL_WRITE_USER}
+#   password_env: P2026_MYSQL_WRITE_PASSWORD
+#   database: p2026
 skip_list_tables:
   - device_command_temp
   - formcollectionobject

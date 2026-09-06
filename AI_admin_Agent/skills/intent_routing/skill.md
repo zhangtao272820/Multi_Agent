@@ -37,7 +37,11 @@ owner: ai_admin_agent
 - 如果用户明确「删除/取消所有/全部」会议提醒或日程：needs_clarification=false，calendar_action=bulk_delete；禁止问「哪个会议」。
 - 如果 intent 是「待办」：创建（task_action=create）至少需要标题；list/complete 按语义填 action，list 不因缺标题澄清。
 - 如果 intent 是「联系人」：添加需 contact_name 与 contact_email；list 不澄清；search 需 contact_name；has_time_reference=false。
-- 如果 intent 是「邮件」：发送/回复需要收件人或邮件编号、主题、正文等；缺失就 needs_clarification=true。读信/翻译/摘要不因缺「动作类型」而澄清——一律视为读正文后再按原话作答。
+- 如果 intent 是「邮件」（Compose 意图极简）：
+  - 发送：仅缺收件人身份（email_to_name_or_email 姓名或邮箱）→ needs_clarification=true；**主题/正文可空**，由成稿步骤或 Compose Card 补，禁止因缺正文追问用户粘贴全文。
+  - 回复：有邮件编号或可默认定位时不因缺正文/主题澄清；仅无法定位信件时短问编号。
+  - 转发：缺邮件编号或收件人 → 澄清；正文可空。
+  - 读信/翻译/摘要不因缺「动作类型」而澄清——一律视为读正文后再按原话作答。
 - 如果 intent 是「搜索」：需 search_query；缺则 needs_clarification=true。
 - 如果 intent 是「文件」：read/write 需 file_path；list 不澄清。
 
@@ -107,12 +111,13 @@ web_search | knowledge_retrieval
 - 日程批量删除：明确「删除/取消所有/全部」会议提醒或日程 → calendar_action=bulk_delete，needs_clarification=false
 - 待办：task_action=create|list|complete|delete|modify；创建需 task_title；list 不澄清；详细说明 → task_description
 - 联系人：contact_action=add|list|search|import；add 需 name+email；list 不澄清；search 需 contact_name；勿填 task_*；has_time_reference=false
-- 邮件：发送/回复缺收件人/主题/正文 → needs_clarification=true；正文 → email_content
+- 邮件（Compose）：发送仅缺收件人 → needs_clarification=true；**禁止**因缺主题/正文澄清。email_content 仅在用户已口述成稿时填写；意图说明勿当正文，可留空交 Compose。
 - 邮件动作 mail_action（语义填，禁止扫关键词表）：
   list|read|triage|send|reply|search|mark_read|forward|delete|list_attachments|save_attachment|classify
   - 读信/看详情/翻译/摘要/抽要点/对正文任意处理 → read（禁止标成 triage）
   - 分拣急件优先级 → triage；仅列清单 → list；附件列表 → list_attachments；保存附件 → save_attachment；打标签分类 → classify
-- email_id：需定位某封时填写（从 1 起）；未指定可空（规划可默认 1）
+  - 写信/发给某人 → send；回复某封 → reply；转发 → forward
+- email_id：需定位某封时填写（从 1 起）；未指定可空（规划可默认 1）；回复不因缺编号且无正文而双澄清
 - mail_unread_only：true|false|空。明确未读→true；明确已读/全部/不限未读，或指定编号打开某封且未强调未读→false；未提范围可空（读信规划默认 true）
 - attachment_index：保存第几个附件时填写（从 1 起）；未指定可空
 - 文件：file_action=list|read|write|move|mkdir；file_path / file_content / file_dest 按需填；list 不澄清

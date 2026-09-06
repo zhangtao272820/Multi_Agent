@@ -150,6 +150,35 @@ def _save_feedback_rows(rows: list[dict[str, Any]]) -> None:
             f.write(json.dumps(rec, ensure_ascii=False) + "\n")
 
 
+def list_session_feedback(session_id: str) -> list[dict[str, Any]]:
+    """按 session 回显有用/无用（跳过 voided）；Docker 重建后前端可从服务端重灌。"""
+    sid = str(session_id or "").strip()
+    if not sid:
+        return []
+    by_key: dict[str, dict[str, Any]] = {}
+    for rec in _load_feedback_rows():
+        if rec.get("voided") is True:
+            continue
+        rs = str(rec.get("session_id") or "").strip()
+        if rs != sid:
+            continue
+        score = int(rec.get("score") or 0)
+        if score not in (1, -1):
+            continue
+        mid = str(rec.get("message_id") or "").strip()
+        key = mid or str(rec.get("question") or "").strip()[:120]
+        if not key:
+            continue
+        by_key[key] = {
+            "feedbackKey": key,
+            "messageId": mid or None,
+            "score": score,
+            "question": str(rec.get("question") or "")[:400],
+            "updatedAt": str(rec.get("ts") or ""),
+        }
+    return list(by_key.values())
+
+
 def record_feedback(
     *,
     question: str,

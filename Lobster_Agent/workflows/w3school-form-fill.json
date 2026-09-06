@@ -15,13 +15,13 @@
     },
     {
       "action": "type",
-      "selector": "input#fname, input[name=\"fname\"]",
+      "selector": "input#fname, input[name=\"fname\"], input[name=\"firstname\"]",
       "text": "{{first_name}}",
       "clear": true
     },
     {
       "action": "type",
-      "selector": "input#lname, input[name=\"lname\"]",
+      "selector": "input#lname, input[name=\"lname\"], input[name=\"lastname\"]",
       "text": "{{last_name}}",
       "clear": true
     },
@@ -32,13 +32,13 @@
     },
     {
       "action": "extract",
-      "selector": "input#fname, input[name=\"fname\"]",
+      "selector": "input#fname, input[name=\"fname\"], input[name=\"firstname\"]",
       "attr": "value",
       "assignTo": "filled_first"
     },
     {
       "action": "extract",
-      "selector": "input#lname, input[name=\"lname\"]",
+      "selector": "input#lname, input[name=\"lname\"], input[name=\"lastname\"]",
       "attr": "value",
       "assignTo": "filled_last"
     },

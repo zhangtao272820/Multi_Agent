@@ -20,7 +20,9 @@ from app.runtime.compute import run_compute
 from app.runtime.runner import run_code_task
 from app.tools.fs_sandbox import SandboxError, get_root, list_dir, list_tree, read_file, write_file
 from app.tools.search_replace import apply_search_replace, preview_search_replace
-from app.pending_patch import drop_pending_patch, load_pending_patch
+from app.pending_patch import combined_patch_text, drop_pending_patch, load_pending_patch
+from app.tools.rollback import restore_rollback
+from app.tools.shell_sandbox import run_terminal
 from app.browser_auth import ClawhiveBrowserAuthMiddleware, install_auth_config_route, auth_from_websocket, ClawhiveAuthError
 import subprocess
 
@@ -93,6 +95,13 @@ class PendingDecideBody(BaseModel):
     pending_id: str = Field(min_length=1)
     decision: str = "确认"
     confirm_token: str = ""
+    root: str | None = None
+    verify_after_apply: bool | None = None
+    verify_command: str | None = None
+
+
+class RollbackBody(BaseModel):
+    rollback_ref: str = Field(min_length=1)
     root: str | None = None
 
 
@@ -261,20 +270,67 @@ async def pending_decide(body: PendingDecideBody) -> dict[str, Any]:
     settings = get_settings()
     if not settings.write_tool_enabled:
         return {"ok": False, "error_code": "write_disabled", "answer": "WRITE_TOOL_ENABLED=0，拒绝写盘。"}
-    patch = str(pending.get("patch") or "")
+    patch = combined_patch_text(pending)
     root = body.root or str(pending.get("root") or "") or None
+    allowed = pending.get("allowed_paths") if isinstance(pending.get("allowed_paths"), list) else None
     try:
-        result = apply_search_replace(patch, root_override=root, require_write_enabled=True)
+        result = apply_search_replace(
+            patch,
+            root_override=root,
+            require_write_enabled=True,
+            allowed_paths=[str(x) for x in (allowed or [])] or None,
+            create_rollback=True,
+        )
     except SandboxError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
+    if not result.get("ok"):
+        return {
+            "ok": False,
+            "applied": False,
+            "answer": str(result.get("error") or "apply failed"),
+            "meta": result,
+        }
+    rollback_ref = str(result.get("rollback_ref") or "")
+    verify_flag = body.verify_after_apply
+    if verify_flag is None:
+        verify_flag = bool(pending.get("verify_after_apply"))
+    verify_cmd = str(body.verify_command or pending.get("verify_command") or "").strip()
+    verify_meta: dict[str, Any] | None = None
+    if verify_flag:
+        cmd = verify_cmd or "pytest -q"
+        verify_meta = run_terminal(cmd, root_override=root, profile="verify")
+        if not verify_meta.get("ok"):
+            restored = restore_rollback(rollback_ref, root_override=root, require_write_enabled=True)
+            drop_pending_patch(body.pending_id)
+            return {
+                "ok": False,
+                "applied": False,
+                "rolled_back": True,
+                "rollback_ref": rollback_ref,
+                "answer": "写盘后验证失败，已自动回滚。",
+                "files": result.get("files") or [],
+                "verify": verify_meta,
+                "restore": restored,
+                "meta": result,
+            }
     drop_pending_patch(body.pending_id)
     return {
-        "ok": bool(result.get("ok")),
-        "applied": bool(result.get("ok")),
-        "answer": "补丁已写盘。" if result.get("ok") else str(result.get("error") or "apply failed"),
+        "ok": True,
+        "applied": True,
+        "answer": "补丁已写盘。" + (" 验证通过。" if verify_meta else ""),
         "files": result.get("files") or result.get("files_touched") or [],
+        "rollback_ref": rollback_ref,
+        "verify": verify_meta,
         "meta": result,
     }
+
+
+@app.post("/api/rollback")
+async def api_rollback(body: RollbackBody) -> dict[str, Any]:
+    settings = get_settings()
+    if not settings.write_tool_enabled:
+        return {"ok": False, "error": "write_disabled"}
+    return restore_rollback(body.rollback_ref, root_override=body.root, require_write_enabled=True)
 
 
 @app.post("/api/set-root")

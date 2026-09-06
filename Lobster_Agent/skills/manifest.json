@@ -18,7 +18,8 @@
     "browser-automation",
     "desktop-automation",
     "android-automation",
-    "workflow-macros"
+    "workflow-macros",
+    "bilibili-engagement"
   ],
   "env": {
     "LOBSTER_MCP_EXPORT": "1",

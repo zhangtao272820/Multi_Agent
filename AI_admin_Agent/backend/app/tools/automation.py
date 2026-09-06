@@ -100,7 +100,20 @@ def extract_meeting_actions(minutes_text: str) -> dict:
 
     lines.append("")
     lines.append("如需写入待办，请说「把以上待办加进任务列表」。")
-    return _tool_ok("\n".join(lines), data={"actions": actions[:15], "count": len(actions)}, code="extracted")
+    lines.append("如需邮件发出摘要，可在 Compose 中确认草稿（收件人可后填）。")
+    from app.core.mail_compose import compose_prefills_from_minutes_actions
+
+    mail_compose = compose_prefills_from_minutes_actions(actions[:15])
+    return _tool_ok(
+        "\n".join(lines),
+        data={
+            "actions": actions[:15],
+            "count": len(actions),
+            "mail_compose": mail_compose,
+            "mail_compose_prefill": mail_compose,
+        },
+        code="extracted",
+    )
 
 
 def sync_feishu_calendar(skip_duplicates: bool = True) -> dict:

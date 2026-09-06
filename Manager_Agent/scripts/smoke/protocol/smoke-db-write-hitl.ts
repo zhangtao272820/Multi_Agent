@@ -32,12 +32,16 @@ const parsed = parseManagerDbTaskFromJson(
     write_allowed: true,
     confirm_token: 'tok',
     pending_id: 'p1',
-    refined_question: '加一列'
+    refined_question: '加一列',
+    impact_ack: true,
+    verify_sql: 'SELECT 1'
   })
 )
 assert(parsed?.write_allowed === true, 'payload write_allowed')
 assert(parsed?.confirm_token === 'tok', 'payload confirm_token')
 assert(parsed?.pending_id === 'p1', 'payload pending_id')
+assert(parsed?.impact_ack === true, 'payload impact_ack')
+assert(parsed?.verify_sql === 'SELECT 1', 'payload verify_sql')
 
 const env = buildManagerTaskEnvelope({
   target_agent: 'db',

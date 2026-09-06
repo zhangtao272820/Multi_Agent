@@ -165,4 +165,49 @@ const searchOut = buildGuiResultForManager(
 assert(searchOut.includes('Python'), 'search keeps answer')
 assert(!searchOut.includes('【浏览器操作】'), 'search not operate-framed')
 
+const biliOk = guiOperateKindFromMeta({
+  guiOperateKind: {
+    task_kind: 'search',
+    needs_login: false,
+    confidence: 0.93,
+    rationale: 'B站游客搜索',
+    workflow_id: 'bilibili-guest-search',
+    workflow_args: { keyword: 'Python', startUrl: 'https://search.bilibili.com/all?keyword=Python' },
+  },
+})
+assert(biliOk?.workflow_id === 'bilibili-guest-search', 'bilibili macro kept')
+assert(String(biliOk?.workflow_args?.keyword) === 'Python', 'bilibili keyword')
+
+const biliMissing = guiOperateKindFromMeta({
+  guiOperateKind: {
+    task_kind: 'search',
+    needs_login: false,
+    confidence: 0.9,
+    rationale: '缺 keyword',
+    workflow_id: 'bilibili-guest-search',
+  },
+})
+assert(!biliMissing?.workflow_id, 'bilibili missing keyword dropped')
+assert(biliMissing?.dropped_workflow_id === 'bilibili-guest-search', 'bilibili drop recorded')
+
+const biliPlayMismatch = guiOperateKindFromMeta({
+  guiOperateKind: {
+    task_kind: 'video_play',
+    needs_login: false,
+    confidence: 0.9,
+    rationale: '播放',
+    workflow_id: 'bilibili-guest-search',
+    workflow_args: { keyword: 'x' },
+  },
+})
+assert(!biliPlayMismatch?.workflow_id, 'video_play drops guest-search macro')
+
+const socialKind = GuiOperateKindSchema.safeParse({
+  task_kind: 'social_engagement',
+  needs_login: true,
+  confidence: 0.92,
+  rationale: '点赞',
+})
+assert(socialKind.success, 'social_engagement schema')
+
 console.log('smoke-gui-operate-kind: PASS')

@@ -31,6 +31,25 @@ def main() -> None:
     m2 = ManagerCodeTask(write_allowed=False, confirm_token="tok", task_kind="edit")
     assert_true(not write_apply_allowed(m2, task_kind="edit"), "write_allowed=false blocks")
 
+    m3 = ManagerCodeTask(
+        write_allowed=True,
+        confirm_token="tok",
+        task_kind="edit",
+        allowed_paths=["src"],
+        verify_after_apply=True,
+        verify_command="pytest -q",
+    )
+    assert_true(m3.allowed_paths == ["src"], "allowed_paths parse")
+    assert_true(m3.verify_after_apply and m3.verify_command == "pytest -q", "verify fields")
+
+    from app.protocol.incoming import parse_manager_task
+
+    parsed = parse_manager_task(
+        {"source": "manager", "task_kind": "edit", "allowed_paths": ["a.ts"], "verify_after_apply": True}
+    )
+    assert_true(parsed.allowed_paths == ["a.ts"], "parse allowed_paths")
+    assert_true(parsed.verify_after_apply is True, "parse verify_after_apply")
+
     print("smoke_edit_pending: OK")
 
 

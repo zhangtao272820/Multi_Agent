@@ -21,6 +21,7 @@ def main() -> None:
         apply_mail_compose_override,
         assemble_batch_draft_composes,
         build_mail_compose,
+        compose_prefills_from_minutes_actions,
         compose_prefills_from_report_body,
         mail_compose_digest,
         resolve_recipient_to_email,
@@ -44,6 +45,10 @@ def main() -> None:
     assert_true(compose["editable"] is True, "compose editable")
     assert_true(str(compose["digest"]).startswith("sha256:"), "compose digest")
     assert_true(mail_compose_digest(compose) == compose["digest"], "digest stable")
+
+    delete_c = build_mail_compose("delete_email", {"email_id": 3}, from_address="me@qq.com")
+    assert_true(delete_c.get("editable") is False, "delete not editable")
+    assert_true(delete_c.get("content") == "", "delete no body edit")
 
     prev = format_mail_pending_preview(
         "send_email",
@@ -89,6 +94,17 @@ def main() -> None:
     assert_true(prefill["to"] == "boss@ex.com", "weekly prefill to")
     assert_true("完成 A" in prefill["content"], "weekly prefill body")
 
+    minutes_prefill = compose_prefills_from_minutes_actions(
+        [
+            {"title": "推进需求评审", "assignee": "张三", "due_expression": "周五"},
+            {"title": "补齐测试用例"},
+        ],
+        to="boss@ex.com",
+    )
+    assert_true(minutes_prefill["to"] == "boss@ex.com", "minutes prefill to")
+    assert_true("推进需求评审" in minutes_prefill["content"], "minutes prefill body")
+    assert_true(minutes_prefill.get("editable") is True, "minutes compose editable")
+
     email, reason = resolve_recipient_to_email("alice@ex.com", lambda _n: "nope")
     assert_true(email == "alice@ex.com" and reason == "email_literal", "literal email")
     email2, reason2 = resolve_recipient_to_email("张三", lambda n: "zhangsan@ex.com" if n == "张三" else "")
@@ -127,7 +143,62 @@ def main() -> None:
         detect_confirmation_without_id,
         extract_direct_confirmation,
     )
+    from app.core.admin_nlu import normalize_mail_outbound_understanding
     from app.core.outbound_email_compose import needs_outbound_body_compose
+    from app.core.mail_pending_preview import format_mail_pending_preview as _fmt_empty_body
+
+    # P1：有收件人、无正文 → 不澄清；仍可进 mail_compose pending
+    send_ok = normalize_mail_outbound_understanding(
+        {
+            "intent": "邮件",
+            "needs_clarification": True,
+            "clarification_questions": ["请提供邮件正文"],
+            "slots": {
+                "mail_action": "send",
+                "email_to_name_or_email": "张三",
+                "email_subject": "",
+                "email_content": "",
+            },
+        }
+    )
+    assert_true(send_ok.get("needs_clarification") is False, "send with to: no body clarify")
+    assert_true(not send_ok.get("clarification_questions"), "send clears body questions")
+
+    send_need_to = normalize_mail_outbound_understanding(
+        {
+            "intent": "邮件",
+            "needs_clarification": False,
+            "clarification_questions": [],
+            "slots": {"mail_action": "send", "email_to_name_or_email": "", "email_content": ""},
+        }
+    )
+    assert_true(send_need_to.get("needs_clarification") is True, "send missing to clarifies")
+
+    reply_ok = normalize_mail_outbound_understanding(
+        {
+            "intent": "邮件",
+            "needs_clarification": True,
+            "clarification_questions": ["请提供正文"],
+            "slots": {"mail_action": "reply", "email_id": "", "email_content": ""},
+        }
+    )
+    assert_true(reply_ok.get("needs_clarification") is False, "reply: empty body not clarify")
+
+    empty_prev = _fmt_empty_body(
+        "send_email",
+        {"user_id": "smoke_compose_u", "to": "a@example.com", "subject": "", "content": ""},
+        from_address="me@qq.com",
+    )
+    empty_mc = empty_prev.get("mail_compose") or {}
+    assert_true(isinstance(empty_mc, dict) and empty_mc.get("to") == "a@example.com", "empty body still compose")
+    assert_true(empty_mc.get("editable") is True, "empty body compose editable")
+
+    # playbook 契约：SlotFill 禁止因缺正文澄清
+    from app.core.admin_playbook_prompts import get_slot_fill_rules
+
+    slot_rules = get_slot_fill_rules("邮件")
+    assert_true("禁止" in slot_rules and "正文" in slot_rules, "slot fill forbids body clarify")
+    assert_true("Compose" in slot_rules or "收件人" in slot_rules, "slot fill mentions Compose/recipient")
 
     refine = "请改写邮件草稿正文（不要发送）。语气：更正式。当前正文：\n说明本周进度已完成，语气正式"
     assert_true(

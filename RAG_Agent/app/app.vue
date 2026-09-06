@@ -390,7 +390,7 @@
           <span class="rag-chat-loading-dot" aria-hidden="true"></span>
           <span>正在加载会话…</span>
         </div>
-        <div v-else class="flex-1 overflow-y-auto p-6 space-y-5" ref="chatContainer">
+        <div v-else class="flex-1 overflow-y-auto p-6 space-y-6 rag-chat-scroll" ref="chatContainer">
           <div v-if="messages.length === 0" class="rag-welcome">
             <img src="/brand/avatars/rag.svg" alt="" width="56" height="56" style="margin:0 auto 12px;border-radius:14px;border:1px solid rgba(79,111,212,0.3)" />
             <h3 class="rag-welcome__title">文曲 · 文档助手</h3>
@@ -703,6 +703,11 @@ import MarkdownIt from 'markdown-it';
 import * as echarts from 'echarts';
 import AppModal from './components/AppModal.vue';
 import { purgeAllForbiddenClientSessionKeys } from '#agent-shared/agentSessionClientStorage';
+import {
+  FEEDBACK_HYDRATE_COLD_OPTS,
+  FEEDBACK_HYDRATE_WARM_OPTS,
+  retryFeedbackHydrate,
+} from '#agent-shared/feedbackHydrateRetry';
 
 const RAG_SESSION_KEY = 'rag_session_id';
 
@@ -1020,18 +1025,18 @@ const restoreSessionFeedback = () => {
 
 const hydrateSessionFeedbackFromServer = async () => {
   const sid = conversationId.value;
-  if (!sid) return;
+  if (!sid) return 'empty';
   try {
     const res = await $fetch(`/api/rag/session-feedback?sessionId=${encodeURIComponent(sid)}`);
     const items = Array.isArray(res?.items) ? res.items : [];
-    if (!items.length) return;
+    if (!items.length) return 'empty';
     const scores = { ...feedbackByUserIndex.value };
     const acks = { ...feedbackAckByUserIndex.value };
     for (const item of items) {
       const uidx = parseFeedbackUserIndexFromItem(item);
       const score = Number(item.score);
       if (uidx == null || (score !== 1 && score !== -1)) continue;
-      if (scores[uidx] === 1 || scores[uidx] === -1) continue;
+      // 服务端为 SSOT：覆盖本地 sessionStorage，避免 Docker 重建后「未标记」假象
       scores[uidx] = score;
       acks[uidx] =
         score === 1 ? '已标记为有帮助 · 感谢反馈（已同步）' : '已标记为不准确 · 感谢反馈（已同步）';
@@ -1040,7 +1045,20 @@ const hydrateSessionFeedbackFromServer = async () => {
     feedbackAckByUserIndex.value = acks;
     persistSessionFeedback();
     applyFeedbackToMessages();
-  } catch {}
+    return 'ok';
+  } catch (e) {
+    const status = Number(e?.statusCode || e?.status || e?.response?.status || 0);
+    if (status === 401 || status === 403) return 'auth';
+    return 'error';
+  }
+};
+
+const hydrateFeedbackWithRetry = async (opts = {}) => {
+  const expectFeedback = Boolean(opts.expectFeedback);
+  await retryFeedbackHydrate(
+    () => hydrateSessionFeedbackFromServer(),
+    expectFeedback ? FEEDBACK_HYDRATE_WARM_OPTS : FEEDBACK_HYDRATE_COLD_OPTS,
+  );
 };
 
 const applyFeedbackToMessages = () => {
@@ -1573,7 +1591,8 @@ const switchSession = async (id) => {
     setTabRagSessionId(id);
     restoreSessionFeedback();
     await loadSessionFromServer(id);
-    await hydrateSessionFeedbackFromServer();
+    const expectFeedback = messages.value.some((m) => m.role === 'user');
+    await hydrateFeedbackWithRetry({ expectFeedback });
     touchCurrentSessionHistory({ bump: false });
   } finally {
     sessionSwitching.value = false;
@@ -2778,7 +2797,7 @@ onMounted(() => {
 
   const canTalkToServer = () => !needAuth.value || Boolean(String(clawhiveToken.value || '').trim());
 
-  function bootstrapServerSession() {
+  async function bootstrapServerSession() {
     if (!canTalkToServer()) return;
     ensureRagUserId();
     loadSessionHistoryList();
@@ -2786,8 +2805,10 @@ onMounted(() => {
     if (existingId) {
       conversationId.value = existingId;
       restoreSessionFeedback();
-      void hydrateSessionFeedbackFromServer(existingId);
-      void loadSessionFromServer(existingId);
+      // 先历史再反馈，避免与 Docker 暖机竞态；失败则退避重试
+      await loadSessionFromServer(existingId);
+      const expectFeedback = messages.value.some((m) => m.role === 'user');
+      await hydrateFeedbackWithRetry({ expectFeedback });
     } else {
       ensureConversationId();
       restoreSessionFeedback();
@@ -2797,13 +2818,34 @@ onMounted(() => {
     refreshIntel();
   }
 
-  bootstrapServerSession();
+  void bootstrapServerSession();
   watch(clawhiveToken, (t, prev) => {
-    if (t && !prev && needAuth.value) bootstrapServerSession();
+    // 空→有 token，或换了新 token（含重登）：再灌历史与反馈
+    if (needAuth.value && t && t !== prev) void bootstrapServerSession();
   });
+
+  const onVisibilityOrOnline = () => {
+    if (document.visibilityState === 'hidden') return;
+    if (!canTalkToServer() || !conversationId.value) return;
+    const hasTurns = messages.value.some((m) => m.role === 'user');
+    // 服务端为 SSOT：勿因本地已有 score 跳过
+    if (!hasTurns) return;
+    void hydrateFeedbackWithRetry({ expectFeedback: true });
+  };
+  window.addEventListener('visibilitychange', onVisibilityOrOnline);
+  window.addEventListener('online', onVisibilityOrOnline);
+  window.addEventListener('pageshow', onVisibilityOrOnline);
+  window.__ragFeedbackVisibility = onVisibilityOrOnline;
 });
 
 onUnmounted(() => {
+  const fn = window.__ragFeedbackVisibility;
+  if (fn) {
+    window.removeEventListener('visibilitychange', fn);
+    window.removeEventListener('online', fn);
+    window.removeEventListener('pageshow', fn);
+    delete window.__ragFeedbackVisibility;
+  }
   if (highlightTimer) {
     clearTimeout(highlightTimer);
     highlightTimer = null;
@@ -2815,22 +2857,25 @@ onUnmounted(() => {
 
 <style scoped>
 .user-message-text {
-  font-size: 0.92rem;
-  line-height: 1.6;
-  font-weight: 550;
+  font-size: 0.94rem;
+  line-height: 1.65;
+  font-weight: 500;
+  letter-spacing: 0.01em;
   color: var(--rag-text, #0a1a14);
 }
 .assistant-message-shell {
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
+  gap: 0.55rem;
 }
 .rag-msg-role-label {
-  margin-bottom: 0.25rem;
-  font-size: 10px;
+  margin-bottom: 0.15rem;
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
+  text-transform: none;
   color: var(--rag-accent, #2f7a64);
+  opacity: 0.92;
 }
 .rag-msg-status {
   font-size: 0.75rem;
@@ -3190,24 +3235,26 @@ onUnmounted(() => {
 
 .msg-action-btn {
   font-size: 11px;
-  font-weight: 650;
-  border-radius: 0.45rem;
-  border: 1px solid rgba(55, 100, 78, 0.28);
-  background: rgba(255, 255, 255, 0.82);
-  padding: 0.2rem 0.6rem;
-  color: #1a2e24;
+  font-weight: 600;
+  border-radius: 999px;
+  border: 1px solid rgba(55, 100, 78, 0.18);
+  background: rgba(255, 255, 255, 0.55);
+  padding: 0.18rem 0.7rem;
+  color: var(--rag-text-muted, #2f4a3c);
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 .msg-action-btn:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.96);
-  border-color: rgba(47, 122, 100, 0.45);
+  background: rgba(255, 255, 255, 0.92);
+  border-color: rgba(47, 122, 100, 0.4);
+  color: var(--rag-text, #0a1a14);
 }
 .msg-action-btn:disabled {
-  opacity: 0.45;
+  opacity: 0.4;
   cursor: not-allowed;
 }
 .msg-action-primary {
-  border-color: rgba(47, 122, 100, 0.45);
-  background: rgba(47, 122, 100, 0.16);
+  border-color: rgba(47, 122, 100, 0.4);
+  background: color-mix(in srgb, var(--rag-accent, #2f7a64) 16%, #fff);
   color: #0f4334;
 }
 

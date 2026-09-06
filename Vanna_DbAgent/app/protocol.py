@@ -65,6 +65,8 @@ class ManagerDbTask:
     write_allowed: bool = False
     confirm_token: str = ""
     pending_id: str = ""
+    impact_ack: bool = False
+    verify_sql: str = ""
     raw: dict[str, Any] = field(default_factory=dict)
 
     @property
@@ -113,6 +115,8 @@ def parse_manager_task(raw: str | dict[str, Any] | None) -> ManagerDbTask:
         write_allowed=bool(data.get("write_allowed")),
         confirm_token=str(data.get("confirm_token") or "").strip(),
         pending_id=str(data.get("pending_id") or "").strip(),
+        impact_ack=bool(data.get("impact_ack")),
+        verify_sql=str(data.get("verify_sql") or "").strip(),
         raw=data,
     )
 
@@ -252,6 +256,7 @@ def build_db_agent_result(
     needs_human_confirm: bool = False,
     pending_actions: list[dict[str, Any]] | None = None,
     pending_id: str = "",
+    impact_estimate: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     if needs_clarify:
         code = error_code or "needs_clarify"
@@ -283,6 +288,14 @@ def build_db_agent_result(
         structured["pending_id"] = pending_id
     if pending_actions:
         structured["pending_actions"] = pending_actions
+    impact = impact_estimate
+    if not impact and pending_actions:
+        for row in pending_actions:
+            if isinstance(row, dict) and isinstance(row.get("impact_estimate"), dict):
+                impact = row["impact_estimate"]
+                break
+    if impact:
+        structured["impact_estimate"] = impact
     if tables:
         structured["tables"] = tables[:12]
     if rows:

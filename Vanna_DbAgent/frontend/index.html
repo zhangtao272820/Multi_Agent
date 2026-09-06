@@ -1027,6 +1027,19 @@
       await refreshSessions();
       await loadThread();
       await refreshAudit();
+
+      const onVisibilityOrOnline = () => {
+        if (document.visibilityState === "hidden") return;
+        if (!sessionId) return;
+        const hasLocal = Object.keys(feedbackByMsg || {}).length > 0;
+        if (hasLocal) return;
+        void hydrateFeedbackFromServer({ expectFeedback: true }).then(() => {
+          // 按钮态在下一次 loadThread / append 时生效；此处仅回写 map
+        });
+      };
+      window.addEventListener("visibilitychange", onVisibilityOrOnline);
+      window.addEventListener("online", onVisibilityOrOnline);
+      window.addEventListener("pageshow", onVisibilityOrOnline);
     }
 
     function onScene() {
@@ -1098,6 +1111,7 @@
       const msgs = (doc && doc.messages) || [];
       $("thread").innerHTML = "";
       loadFeedbackMap();
+      await hydrateFeedbackFromServer({ expectFeedback: msgs.length > 0 });
       if (!msgs.length) {
         showWelcome();
         return;
@@ -1510,6 +1524,50 @@
       try {
         localStorage.setItem(FEEDBACK_KEY + ":" + sessionId, JSON.stringify(feedbackByMsg || {}));
       } catch {}
+    }
+
+    async function hydrateFeedbackFromServer(opts) {
+      const expectFeedback = Boolean(opts && opts.expectFeedback);
+      if (!sessionId) return;
+      const maxAttempts = expectFeedback ? 6 : 3;
+      let delay = 400;
+      for (let i = 0; i < maxAttempts; i++) {
+        try {
+          const res = await api("/api/session-feedback?session_id=" + encodeURIComponent(sessionId));
+          if (res.status === 401 || res.status === 403) {
+            if (i + 1 >= maxAttempts) return;
+            await new Promise((r) => setTimeout(r, delay));
+            delay = Math.min(2500, Math.round(delay * 1.5));
+            continue;
+          }
+          if (!res.ok) {
+            if (i + 1 >= maxAttempts) return;
+            await new Promise((r) => setTimeout(r, delay));
+            delay = Math.min(2500, Math.round(delay * 1.5));
+            continue;
+          }
+          const data = await res.json().catch(() => ({}));
+          const items = Array.isArray(data.items) ? data.items : [];
+          if (!items.length) {
+            if (!expectFeedback || i + 1 >= maxAttempts) return;
+            await new Promise((r) => setTimeout(r, delay));
+            delay = Math.min(2500, Math.round(delay * 1.5));
+            continue;
+          }
+          for (const item of items) {
+            const key = String(item.messageId || item.feedbackKey || "").trim();
+            const score = Number(item.score);
+            if (!key || (score !== 1 && score !== -1)) continue;
+            feedbackByMsg[key] = score;
+          }
+          saveFeedbackMap();
+          return;
+        } catch {
+          if (i + 1 >= maxAttempts) return;
+          await new Promise((r) => setTimeout(r, delay));
+          delay = Math.min(2500, Math.round(delay * 1.5));
+        }
+      }
     }
 
     function buildFeedbackRow(msgId, meta) {

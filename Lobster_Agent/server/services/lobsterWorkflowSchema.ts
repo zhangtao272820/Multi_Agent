@@ -18,6 +18,8 @@ export const LobsterWorkflowStepSchema = z.discriminatedUnion('action', [
     action: z.literal('click'),
     selector: z.string().min(1),
     timeoutMs: z.number().int().positive().optional(),
+    /** true：元素缺失时跳过（关登录弹窗等），禁止当成功证据 */
+    optional: z.boolean().optional(),
   }),
   z.object({
     action: z.literal('type'),

@@ -174,12 +174,43 @@ export function buildSynthNodeRun(deps: CreateFinalNodesDeps) {
             ensureNotAborted
           )
         }
+        // 审计路径：准备阶段只发 thinking；provisional 真流在主路径 llmInvoke 前开启
+        const streamProvisional =
+          !streamSynthEarly && isManagerSynthStreamEnabled()
+        let provisionalStreamOpened = false
         if (streamSynthEarly) {
           opts.sendEvent({ event: 'phase', data: 'synth', from: 'manager' })
           opts.sendEvent({ event: 'phase', data: 'synth_stream', from: 'manager' })
           opts.sendEvent({ event: 'stream_start', data: { phase: 'synth' }, from: 'manager' })
         } else {
-          opts.sendEvent({ event: 'thinking', data: '正在汇总草稿…', from: 'manager' })
+          opts.sendEvent({ event: 'thinking', data: '正在撰写回复…', from: 'manager' })
+        }
+
+        const openProvisionalStream = () => {
+          if (!streamProvisional || provisionalStreamOpened) return
+          provisionalStreamOpened = true
+          opts.sendEvent({ event: 'phase', data: 'synth', from: 'manager' })
+          opts.sendEvent({ event: 'phase', data: 'synth_stream', from: 'manager' })
+          opts.sendEvent({
+            event: 'stream_start',
+            data: { phase: 'synth', provisional: true },
+            from: 'manager'
+          })
+        }
+        const emitProvisionalDelta = (delta: string) => {
+          if (!streamProvisional || !delta) return
+          openProvisionalStream()
+          opts.sendEvent({ event: 'delta', data: delta, from: 'synth' })
+        }
+        const reviseProvisionalStream = () => {
+          if (!streamProvisional) return
+          opts.sendEvent({
+            event: 'stream_revise',
+            data: { phase: 'synth', provisional: true },
+            from: 'manager'
+          })
+          provisionalStreamOpened = false
+          openProvisionalStream()
         }
 
         if (Boolean(state.meta?.directChitchatSynth)) {
@@ -971,29 +1002,38 @@ export function buildSynthNodeRun(deps: CreateFinalNodesDeps) {
         ]
 
         let synthText = ''
+        let synthProvisionalRaw = ''
         let llmResources = merged.resources
         try {
-          // 主路径静默写 final；用户面 delta 由 emit_user_answer 在审计通过后回放
+          // 审计路径 provisional 真流；定稿由 emit_user_answer（commit / revise）
+          openProvisionalStream()
           let r = await llmInvoke('synth', state, synthPrompt, {
             tier: replyTier === 'report' ? 'max' : 'standard',
+            onDelta: streamProvisional ? emitProvisionalDelta : undefined
           })
           llmResources = r.resources ?? merged.resources
-          synthText = stripSynthPromptLeakage(stripLatexMath(String(r.text ?? '')))
+          synthProvisionalRaw = String(r.text ?? '')
+          synthText = stripSynthPromptLeakage(stripLatexMath(synthProvisionalRaw))
           if (replyTier === 'report' && isReportTierSummaryTooThin(synthText, 'report')) {
             opts.sendEvent({
               event: 'thinking',
               data: 'Synth：report 正文过短，追加展开重写（一次）',
               from: 'manager'
             })
+            reviseProvisionalStream()
             const retryPrompt = [
               ...synthPrompt,
               new HumanMessage(
                 '【重写】上一轮面向用户的正文过短，未按 report 结构展开。请重写：首段结论 → ### 关键发现（3～6 条，每条解释含义）→ ### 对照分析（rag 标准 vs db 实测）→ ### 建议 → 1～2 句拓展。禁止执行摘要与 agent 管线回显。'
               )
             ]
-            r = await llmInvoke('synth', state, retryPrompt, { tier: 'max' })
+            r = await llmInvoke('synth', state, retryPrompt, {
+              tier: 'max',
+              onDelta: streamProvisional ? emitProvisionalDelta : undefined
+            })
             llmResources = r.resources ?? llmResources
-            synthText = stripSynthPromptLeakage(stripLatexMath(String(r.text ?? '')))
+            synthProvisionalRaw = String(r.text ?? '')
+            synthText = stripSynthPromptLeakage(stripLatexMath(synthProvisionalRaw))
           }
         } catch (err) {
           const detail = err instanceof Error ? err.message : String(err || 'unknown')
@@ -1077,6 +1117,11 @@ export function buildSynthNodeRun(deps: CreateFinalNodesDeps) {
           })
           const streamBody = fallbackProse
           const finalBody = `${fallbackProse}${extras.join('')}`.trim()
+          if (streamProvisional && !synthProvisionalRaw.trim()) {
+            reviseProvisionalStream()
+            await emitSynthStreamChunks(streamBody, emitProvisionalDelta, ensureNotAborted)
+            synthProvisionalRaw = streamBody
+          }
           return {
             final: finalBody,
             results,
@@ -1085,11 +1130,16 @@ export function buildSynthNodeRun(deps: CreateFinalNodesDeps) {
             meta: mergeMeta(
               { meta: merged.meta || state.meta },
               {
-                synthStreamBody: streamBody,
-                presentationPlan,
-                uncertainty: 'high',
-                synthFallback: true
-              }
+              synthStreamBody: streamBody,
+              synthProvisionalStreamed: streamProvisional && provisionalStreamOpened,
+              synthProvisionalRaw:
+                streamProvisional && provisionalStreamOpened
+                  ? synthProvisionalRaw || streamBody
+                  : undefined,
+              presentationPlan,
+              uncertainty: 'high',
+              synthFallback: true
+            }
             )
           }
         }
@@ -1101,7 +1151,13 @@ export function buildSynthNodeRun(deps: CreateFinalNodesDeps) {
           resources: llmResources,
           meta: mergeMeta(
             { meta: merged.meta || state.meta },
-            { synthStreamBody: synthText, presentationPlan }
+            {
+              synthStreamBody: synthText,
+              synthProvisionalStreamed: streamProvisional && provisionalStreamOpened,
+              synthProvisionalRaw:
+                streamProvisional && provisionalStreamOpened ? synthProvisionalRaw : undefined,
+              presentationPlan
+            }
           )
         }
       }

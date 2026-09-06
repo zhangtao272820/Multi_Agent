@@ -4,6 +4,11 @@
  */
 import { nextTick, ref, type ComputedRef, type Ref } from 'vue'
 import { purgeAllForbiddenClientSessionKeys } from '#agent-shared/agentSessionClientStorage'
+import {
+  FEEDBACK_HYDRATE_COLD_OPTS,
+  FEEDBACK_HYDRATE_WARM_OPTS,
+  retryFeedbackHydrate
+} from '#agent-shared/feedbackHydrateRetry'
 import type { LogItem, SessionHistoryItem, TurnGroup, WorkbenchMode } from './managerChatTypes'
 
 const USER_ID_KEY = 'manager_user_id'
@@ -1339,7 +1344,11 @@ export function useManagerSession(host: ManagerSessionHost) {
       await hydrateSessionFromServer(id)
 
       reconcileTurnFeedbackKeys()
-      await hydrateSessionFeedbackFromServer()
+      const expectFeedback = host.getUserMessageIndexCounter() > 0
+      await retryFeedbackHydrate(
+        () => hydrateSessionFeedbackFromServer(),
+        expectFeedback ? FEEDBACK_HYDRATE_WARM_OPTS : FEEDBACK_HYDRATE_COLD_OPTS
+      )
 
       stampCurrentSessionMode()
       touchCurrentSessionHistory({ bump: false })

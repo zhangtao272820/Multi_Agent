@@ -127,45 +127,55 @@ watch(localLogEl, (el) => {
         </div>
       </div>
       <div class="conv-plan-preview-body">
-        <div v-if="pendingPlanPreview.routePlan" class="conv-route-plan-block">
-          <div class="conv-route-plan-row">
-            <span class="conv-route-plan-label">数据面</span>
-            <span class="conv-route-plan-value">{{ pendingPlanPreview.routePlan.dataSources?.join(' + ') || '—' }}</span>
+        <details v-if="pendingPlanPreview.routePlan" class="conv-plan-details">
+          <summary class="conv-plan-details-summary">
+            数据面 · 子句 · 蓝图
+            <span class="conv-plan-details-meta">{{
+              pendingPlanPreview.routePlan.dataSources?.join(' + ') || '—'
+            }}</span>
+          </summary>
+          <div class="conv-route-plan-block">
+            <div class="conv-route-plan-row">
+              <span class="conv-route-plan-label">数据面</span>
+              <span class="conv-route-plan-value">{{ pendingPlanPreview.routePlan.dataSources?.join(' + ') || '—' }}</span>
+            </div>
+            <div v-if="pendingPlanPreview.routePlan.clauses?.length" class="conv-route-plan-clauses">
+              <span class="conv-route-plan-label">子句</span>
+              <ul class="conv-route-plan-clause-list">
+                <li v-for="c in pendingPlanPreview.routePlan.clauses" :key="c.id">
+                  <span class="conv-route-clause-id">{{ c.id }}</span>
+                  {{ previewText(c.text, 100) }}
+                  <span v-if="c.agents?.length" class="conv-route-clause-agents">→ {{ c.agents.map((a) => planAgentLabel(a)).join('、') }}</span>
+                </li>
+              </ul>
+            </div>
+            <div v-if="pendingPlanPreview.routePlan.blueprintDag" class="conv-route-plan-row">
+              <span class="conv-route-plan-label">蓝图</span>
+              <span class="conv-route-plan-dag">{{ pendingPlanPreview.routePlan.blueprintDag }}</span>
+            </div>
+            <div v-if="pendingPlanPreview.routePlan.lintIssues?.length" class="conv-route-plan-lint" :class="`is-${pendingPlanPreview.routePlan.lintSeverity || 'warn'}`">
+              <span class="conv-route-plan-label">结构检查</span>
+              <ul>
+                <li v-for="(issue, li) in pendingPlanPreview.routePlan.lintIssues.slice(0, 4)" :key="li">{{ issue }}</li>
+              </ul>
+            </div>
+            <p v-if="pendingPlanPreview.routePlan.judgeRationale" class="conv-route-plan-judge">{{ previewText(pendingPlanPreview.routePlan.judgeRationale, 160) }}</p>
           </div>
-          <div v-if="pendingPlanPreview.routePlan.clauses?.length" class="conv-route-plan-clauses">
-            <span class="conv-route-plan-label">子句</span>
-            <ul class="conv-route-plan-clause-list">
-              <li v-for="c in pendingPlanPreview.routePlan.clauses" :key="c.id">
-                <span class="conv-route-clause-id">{{ c.id }}</span>
-                {{ previewText(c.text, 100) }}
-                <span v-if="c.agents?.length" class="conv-route-clause-agents">→ {{ c.agents.map((a) => planAgentLabel(a)).join('、') }}</span>
-              </li>
-            </ul>
-          </div>
-          <div v-if="pendingPlanPreview.routePlan.blueprintDag" class="conv-route-plan-row">
-            <span class="conv-route-plan-label">蓝图</span>
-            <span class="conv-route-plan-dag">{{ pendingPlanPreview.routePlan.blueprintDag }}</span>
-          </div>
-          <div v-if="pendingPlanPreview.routePlan.lintIssues?.length" class="conv-route-plan-lint" :class="`is-${pendingPlanPreview.routePlan.lintSeverity || 'warn'}`">
-            <span class="conv-route-plan-label">结构检查</span>
-            <ul>
-              <li v-for="(issue, li) in pendingPlanPreview.routePlan.lintIssues.slice(0, 4)" :key="li">{{ issue }}</li>
-            </ul>
-          </div>
-          <p v-if="pendingPlanPreview.routePlan.judgeRationale" class="conv-route-plan-judge">{{ previewText(pendingPlanPreview.routePlan.judgeRationale, 160) }}</p>
-        </div>
+        </details>
         <p v-if="pendingPlanPreview.hint" class="conv-plan-preview-hint">{{ pendingPlanPreview.hint }}</p>
-        <label class="conv-plan-preview-constraints">
-          <span class="conv-plan-preview-constraints-label">补充约束（可选）</span>
-          <textarea
-            v-model="pendingPlanPreview.constraints"
-            class="conv-plan-preview-constraints-input"
-            rows="2"
-            maxlength="500"
-            placeholder="例如：只用正式制度、不要发邮件、优先库表…"
-            :disabled="planPreviewSending"
-          />
-        </label>
+        <details class="conv-plan-details conv-plan-constraints-details">
+          <summary class="conv-plan-details-summary">补充约束（可选）</summary>
+          <label class="conv-plan-preview-constraints">
+            <textarea
+              v-model="pendingPlanPreview.constraints"
+              class="conv-plan-preview-constraints-input"
+              rows="2"
+              maxlength="500"
+              placeholder="例如：只用正式制度、不要发邮件、优先库表…"
+              :disabled="planPreviewSending"
+            />
+          </label>
+        </details>
         <ol class="conv-plan-preview-list">
           <li
             v-for="(step, si) in pendingPlanPreview.steps"
@@ -194,7 +204,7 @@ watch(localLogEl, (el) => {
             <textarea
               v-model="step.query"
               class="conv-plan-preview-query-edit"
-              rows="3"
+              rows="2"
               maxlength="2000"
               :disabled="planPreviewSending || !step.enabled"
               :placeholder="`${planAgentLabel(step.agent)}任务描述`"
@@ -335,6 +345,7 @@ watch(localLogEl, (el) => {
       :send-cancel-disabled="sendCancelDisabled"
       :uploading-attachment="uploadingAttachment"
       :pending-attachment="pendingAttachment"
+      :plan-awaiting-confirm="!!pendingPlanPreview"
       @set-collaboration-posture="setCollaborationPosture"
       @input-keydown="onInputKeydown"
       @send-or-cancel="onSendOrCancel"

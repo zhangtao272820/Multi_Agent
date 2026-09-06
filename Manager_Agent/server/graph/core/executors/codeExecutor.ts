@@ -79,12 +79,17 @@ async function maybeConfirmCodeEdit(input: {
       signal: input.opts.signal,
     })
     if (!applied.ok) {
+      const rolled = applied.rolled_back ? '；已自动回滚' : ''
       return {
         confirmed: false,
-        outputSuffix: `\n\n（确认后写盘失败：${applied.error || 'unknown'}）`,
+        outputSuffix: `\n\n（确认后写盘失败${rolled}：${applied.error || applied.answer || 'unknown'}）`,
       }
     }
-    return { confirmed: true, outputSuffix: '\n\n（已确认并写盘）' }
+    const verifyNote = applied.verify ? '；验证通过' : ''
+    return {
+      confirmed: true,
+      outputSuffix: `\n\n（已确认并写盘${verifyNote}${applied.rollback_ref ? `；rollback_ref=${applied.rollback_ref}` : ''}）`,
+    }
   }
   // 兼容旧路径：已写盘则取消时 git restore
   if (approved) return { confirmed: true }

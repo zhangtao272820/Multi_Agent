@@ -728,7 +728,7 @@ function App() {
         setTurnSeq(loaded.reduce((max, m) => Math.max(max, m.turnId || 0), 0));
         touchCurrentSessionHistory(loaded, id, { bump: false });
       }
-      void hydrateSessionFeedbackFromServer(id);
+      // 反馈回灌由 conversationId effect → hydrateFeedbackWithRetry 承担（含 Docker 暖机重试）
       void syncHandledActionsFromPending(id, loaded ?? []);
     })();
     return () => {
@@ -1297,44 +1297,57 @@ function App() {
   }, []);
 
   const hydrateSessionFeedbackFromServer = useCallback(
-    async (cid: string) => {
-      if (!cid) return;
+    async (cid: string): Promise<'ok' | 'empty' | 'auth' | 'error'> => {
+      if (!cid) return 'empty';
       try {
         const res = await fetch(`${API_BASE_URL}/session-feedback?session_id=${encodeURIComponent(cid)}`);
-        if (!res.ok) return;
+        if (res.status === 401 || res.status === 403) return 'auth';
+        if (!res.ok) return 'error';
         const data = await res.json();
         const items = Array.isArray(data?.items) ? data.items : [];
-        if (!items.length) return;
+        if (!items.length) return 'empty';
         setFeedbackByUserIndex((prevScores) => {
           const scores = { ...prevScores };
-          setFeedbackAckByUserIndex((prevAcks) => {
-            const acks = { ...prevAcks };
-            for (const item of items) {
-              const uidx = parseFeedbackUserIndexFromItem(item as Record<string, unknown>);
-              const score = Number(item.score);
-              if (uidx == null || (score !== 1 && score !== -1)) continue;
-              if (scores[uidx] === 1 || scores[uidx] === -1) continue;
-              scores[uidx] = score;
-              acks[uidx] =
-                score === 1 ? '已标记为有帮助 · 感谢反馈（已同步）' : '已标记为不准确 · 感谢反馈（已同步）';
-            }
-            persistSessionFeedback(cid, scores, acks);
-            return acks;
-          });
+          const acks: Record<number, string> = {};
           for (const item of items) {
             const uidx = parseFeedbackUserIndexFromItem(item as Record<string, unknown>);
             const score = Number(item.score);
             if (uidx == null || (score !== 1 && score !== -1)) continue;
-            if (scores[uidx] === 1 || scores[uidx] === -1) continue;
+            // 服务端为 SSOT
             scores[uidx] = score;
+            acks[uidx] =
+              score === 1 ? '已标记为有帮助 · 感谢反馈（已同步）' : '已标记为不准确 · 感谢反馈（已同步）';
           }
+          setFeedbackAckByUserIndex((prevAcks) => {
+            const next = { ...prevAcks, ...acks };
+            persistSessionFeedback(cid, scores, next);
+            return next;
+          });
           return scores;
         });
+        return 'ok';
       } catch {
-        /* ignore */
+        return 'error';
       }
     },
     [persistSessionFeedback],
+  );
+
+  const hydrateFeedbackWithRetry = useCallback(
+    async (cid: string, opts?: { expectFeedback?: boolean }) => {
+      const expectFeedback = Boolean(opts?.expectFeedback);
+      const attempts = expectFeedback ? 8 : 5;
+      let delay = 400;
+      for (let i = 0; i < attempts; i++) {
+        const status = await hydrateSessionFeedbackFromServer(cid);
+        if (status === 'ok') return;
+        if (status === 'empty' && !expectFeedback) return;
+        if (i + 1 >= attempts) return;
+        await new Promise((r) => setTimeout(r, delay));
+        delay = Math.min(2500, Math.round(delay * 1.5));
+      }
+    },
+    [hydrateSessionFeedbackFromServer],
   );
 
   const sendFeedback = useCallback(
@@ -1374,8 +1387,31 @@ function App() {
   );
 
   useEffect(() => {
-    if (conversationId) void hydrateSessionFeedbackFromServer(conversationId);
-  }, [conversationId, hydrateSessionFeedbackFromServer]);
+    if (conversationId) {
+      const expectFeedback = messagesRef.current.some((m) => m.role === 'user');
+      void hydrateFeedbackWithRetry(conversationId, { expectFeedback });
+    }
+  }, [conversationId, hydrateFeedbackWithRetry]);
+
+  // Docker 重建后页签仍开着：token 不变时用可见性补灌
+  useEffect(() => {
+    const onVisibilityOrOnline = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+      const cid = conversationIdRef.current;
+      if (!cid) return;
+      const hasTurns = messagesRef.current.some((m) => m.role === 'user');
+      if (!hasTurns) return;
+      void hydrateFeedbackWithRetry(cid, { expectFeedback: true });
+    };
+    window.addEventListener('visibilitychange', onVisibilityOrOnline);
+    window.addEventListener('online', onVisibilityOrOnline);
+    window.addEventListener('pageshow', onVisibilityOrOnline);
+    return () => {
+      window.removeEventListener('visibilitychange', onVisibilityOrOnline);
+      window.removeEventListener('online', onVisibilityOrOnline);
+      window.removeEventListener('pageshow', onVisibilityOrOnline);
+    };
+  }, [hydrateFeedbackWithRetry]);
 
   const sendMessage = async (
     userText: string,
@@ -1862,7 +1898,7 @@ function App() {
         setTurnSeq(0);
       }
       void syncHandledActionsFromPending(id, loaded ?? []);
-      void hydrateSessionFeedbackFromServer(id);
+      void hydrateFeedbackWithRetry(id, { expectFeedback: Boolean(loaded?.length) });
       touchCurrentSessionHistory(loaded || [], id, { bump: false });
     } finally {
       setSessionSwitching(false);

@@ -1,27 +1,24 @@
-# 启动整套 Agent LAN 栈
+# Start full Agent LAN stack
 param(
     [switch]$NoBuild,
     [switch]$Extended,
     [switch]$NoMonitor,
-    [switch]$SkipHealthGate
+    [switch]$SkipHealthGate,
+    [switch]$Enterprise
 )
 
 $ErrorActionPreference = "Stop"
 
 $root = Split-Path -Parent $PSScriptRoot
-$composeFile = Join-Path $root "docker-compose.agents-lan.yml"
-$envFile = Join-Path $root ".env.agents-lan"
 . (Join-Path $PSScriptRoot "_agents-lan-common.ps1")
-$lanHost = "192.168.88.51"
+$lanHost = Get-AgentsLanLanHost
 $backendPort = "18000"
-if (Test-Path $envFile) {
-    $line = (Read-EnvFileUtf8 $envFile | Where-Object { $_ -match "^LAN_HOST=" } | Select-Object -First 1)
-    if ($line) { $lanHost = ($line.Split("=", 2)[1].Trim() -split "\s+")[0].Trim() }
-    $bp = (Read-EnvFileUtf8 $envFile | Where-Object { $_ -match "^CLAWHIVE_BACKEND_PORT=" } | Select-Object -First 1)
+if (Test-Path $Script:EnvFile) {
+    $bp = (Read-EnvFileUtf8 $Script:EnvFile | Where-Object { $_ -match "^CLAWHIVE_BACKEND_PORT=" } | Select-Object -First 1)
     if ($bp) { $backendPort = $bp.Split("=", 2)[1].Trim() }
 }
 
-# 确保 CLAWHIVE_IMAGE_TAG
+# Ensure CLAWHIVE_IMAGE_TAG
 $tagScript = Join-Path $PSScriptRoot "tag-images.ps1"
 if (Test-Path $tagScript) {
     & $tagScript
@@ -29,40 +26,37 @@ if (Test-Path $tagScript) {
     $sha = "local"
     try { $sha = (git -C (Split-Path $root -Parent) rev-parse --short HEAD).Trim() } catch {}
     $tag = "0.1.0-$sha"
-    if (Test-Path $envFile) {
-        $content = @(Read-EnvFileUtf8 $envFile)
+    if (Test-Path $Script:EnvFile) {
+        $content = @(Read-EnvFileUtf8 $Script:EnvFile)
         if ($content -match "^CLAWHIVE_IMAGE_TAG=") {
             $content = $content | ForEach-Object { if ($_ -match "^CLAWHIVE_IMAGE_TAG=") { "CLAWHIVE_IMAGE_TAG=$tag" } else { $_ } }
-            Write-EnvFileUtf8 -Path $envFile -Lines $content
+            Write-EnvFileUtf8 -Path $Script:EnvFile -Lines $content
         } else {
-            Write-EnvFileUtf8 -Path $envFile -Lines (@($content) + @("CLAWHIVE_IMAGE_TAG=$tag"))
+            Write-EnvFileUtf8 -Path $Script:EnvFile -Lines (@($content) + @("CLAWHIVE_IMAGE_TAG=$tag"))
         }
     }
 }
 
-$profileArgs = @()
+$monitoring = -not $NoMonitor
 if ($Extended) {
-    $profileArgs = @("--profile", "extended")
     Write-Host "Deploy mode: extended (music/video + lobster)" -ForegroundColor Cyan
 } else {
-    Write-Host "Deploy mode: standard (platform + manager stack + multimodal + monitoring)" -ForegroundColor Cyan
+    Write-Host "Deploy mode: standard (platform + manager stack + multimodal)" -ForegroundColor Cyan
 }
 if ($NoMonitor) {
-    Write-Host "Monitoring: skipped (-NoMonitor)" -ForegroundColor Yellow
+    Write-Host "Monitoring: skipped (-NoMonitor; profile not enabled)" -ForegroundColor Yellow
+} else {
+    Write-Host "Monitoring: enabled (--profile monitoring)" -ForegroundColor Cyan
+}
+if ($Enterprise) {
+    Write-Host "Enterprise: env + compose overlay" -ForegroundColor Yellow
 }
 
 Write-Host "Starting agent stack for LAN access..." -ForegroundColor Cyan
-if ($NoBuild) {
-    docker compose --env-file "$envFile" -f "$composeFile" @profileArgs up -d
-} else {
-    docker compose --env-file "$envFile" -f "$composeFile" @profileArgs up -d --build
-}
+$build = -not $NoBuild
+Invoke-AgentsLanCompose -Action up -Build:$build -Extended:$Extended -Monitoring:$monitoring -Enterprise:$Enterprise
 if ($LASTEXITCODE -ne 0) {
     throw "docker compose up failed. Please check output above."
-}
-
-if ($NoMonitor) {
-    docker compose --env-file "$envFile" -f "$composeFile" stop prometheus grafana alertmanager tempo loki promtail
 }
 
 if (-not $SkipHealthGate) {
@@ -114,3 +108,6 @@ if ($Extended) {
     Write-Host "(extended) Music/Video/Lobster: up-agents-lan.ps1 -Extended" -ForegroundColor DarkGray
 }
 Write-Host "Backup: .\scripts\backup-postgres.ps1" -ForegroundColor DarkGray
+if ($Enterprise) {
+    Write-Host "Enterprise verify: .\scripts\verify-enterprise-docker.ps1" -ForegroundColor DarkGray
+}

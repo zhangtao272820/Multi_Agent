@@ -2,7 +2,7 @@
 
 > **面试讲义**：[备战入口](../docs/面试备战/README.md) · [05 GUI](../docs/面试备战/技术/05-GUI-Lobster.md)  
 > **协议 SSOT**：[Lobster升级SSOT](doc/Lobster升级SSOT.md) · [Docker 与宿主机动手](doc/Docker与宿主机动手部署.md)  
-> **能力升级规划**（与 Admin 双动手）：[`docs/动手Agent升级-Admin与Lobster.md`](../docs/动手Agent升级-Admin与Lobster.md)
+> **能力升级 / 手测**（与 Admin 双动手）：[`docs/动手Agent.md`](../docs/动手Agent.md)
 
 基于 **Nuxt 4 + Playwright + LangGraph** 的网页 **GUI / RPA** Agent。平台能力 id 为 **`gui`**，服务名 `lobster_agent`，默认端口 **13108**（noVNC 常见 **6080**）。compose 生产入口为本目录 Dockerfile。
 

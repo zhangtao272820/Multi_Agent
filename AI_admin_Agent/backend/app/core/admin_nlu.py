@@ -423,6 +423,40 @@ def normalize_weather_understanding(understanding: dict[str, Any]) -> dict[str, 
     return understanding
 
 
+def normalize_mail_outbound_understanding(understanding: dict[str, Any]) -> dict[str, Any]:
+    """
+    出站邮件与 Compose 对齐：有收件人/可定位信件时，禁止因缺主题/正文澄清。
+    纯确定性闸门（不调 LLM）；LLM 若误标 needs_clarification 在此纠正。
+    """
+    if str(understanding.get("intent") or "") != "邮件":
+        return understanding
+    slots = understanding.get("slots") if isinstance(understanding.get("slots"), dict) else {}
+    action = str(slots.get("mail_action") or "").strip().lower()
+    if action not in ("send", "reply", "forward"):
+        return understanding
+
+    to = str(slots.get("email_to_name_or_email") or "").strip()
+    email_id = str(slots.get("email_id") or "").strip()
+    questions: list[str] = []
+
+    if action == "send" and not to:
+        questions.append("请问发给谁？（姓名或邮箱）")
+    elif action == "forward":
+        if not email_id:
+            questions.append("请问转发哪一封？（编号）")
+        if not to:
+            questions.append("请问转发给谁？（姓名或邮箱）")
+    # reply：规划可默认 email_id；正文/主题一律不澄清
+
+    if questions:
+        understanding["needs_clarification"] = True
+        understanding["clarification_questions"] = questions[:2]
+    else:
+        understanding["needs_clarification"] = False
+        understanding["clarification_questions"] = []
+    return understanding
+
+
 def refill_weather_city_if_needed(user_message: str, understanding: dict[str, Any]) -> dict[str, Any]:
     """天气 intent 且 city 仍空时，做一次聚焦槽位补抽（LLM，非 regex）。"""
     if str(understanding.get("intent") or "") != "天气":
@@ -481,8 +515,10 @@ def fill_admin_slots(
   创建需 event_title+start_time_expression；列出日程→list（勿误建）；删除全部会议提醒→bulk_delete 且 needs_clarification=false。
 - 待办：详细说明 → task_description；task_action=create|list|complete|delete|modify。列出→list；完成/删除需 task_title 若用户点名。
 - 联系人：contact_action=add|list|search|import。添加需 name+email；列出→list；查某人→search+contact_name。
-- 邮件：email_content 必须是**可发送的完整正文**（称呼+说明+结尾），禁止把用户意图原话（如「说明本周进度…语气正式」）原样填入；若用户只给意图、未口述成稿，email_content 可留空由后续成稿步骤生成。mail_action=list|read|triage|send|reply|search|mark_read|forward|delete|list_attachments|save_attachment|classify。
-  读信/翻译/摘要/抽要点/对正文任意处理→read（禁止 triage）；定位某封→email_id；mail_unread_only；attachment_index。email_subject 写简短主题，勿留空（可据意图拟题）。
+- 邮件（Compose 意图极简）：email_content 仅在用户已口述成稿时填完整正文；禁止把意图原话原样填入；未口述成稿则**留空**（成稿/Compose 补），**不要**因缺正文/主题设 needs_clarification。
+  发送：仅缺 email_to_name_or_email → needs_clarification=true。回复/转发：优先填 email_id；正文可空。
+  mail_action=list|read|triage|send|reply|search|mark_read|forward|delete|list_attachments|save_attachment|classify。
+  读信/翻译/摘要/抽要点→read（禁止 triage）；mail_unread_only；attachment_index。email_subject 可据意图拟题，亦可留空交 Compose。
 - 文件：file_action=list|read|write|move|mkdir；读/写需 file_path；写可填 file_content；移动填 file_dest。
 - 搜索：search_action=web|knowledge；search_query 摘用户要查的内容；知识库/内部资料→knowledge，其余默认 web。
 - list_mode：仅兼容字段；优先填对应 *_action=list。
@@ -690,6 +726,7 @@ def understand_admin_user_message(
 
         understanding = normalize_weather_understanding(understanding)
         understanding = refill_weather_city_if_needed(msg, understanding)
+        understanding = normalize_mail_outbound_understanding(understanding)
 
         return enrich_time_and_literal_sensitivity(understanding, msg, dlg)
     except Exception:

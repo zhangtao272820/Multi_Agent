@@ -2,13 +2,13 @@
    霜白冬雪 Token 为默认；壳层间距见 manager-winter-shell.css。 */
 
 .spring-root.cosmic-theme.cursor-workbench {
-  --mgr-sidebar-w: 248px;
-  --mgr-tools-w: 300px;
-  --mgr-shell-pad: 12px;
-  --mgr-shell-gap: 12px;
-  --chat-col-width: min(740px, calc(100vw - var(--mgr-sidebar-w) - var(--mgr-tools-w) - 72px));
+  --mgr-sidebar-w: 240px;
+  --mgr-tools-w: 280px;
+  --mgr-shell-pad: 10px;
+  --mgr-shell-gap: 10px;
+  --chat-col-width: min(1120px, calc(100vw - var(--mgr-sidebar-w) - var(--mgr-tools-w) - 48px));
   --chat-agent-max: 100%;
-  --chat-user-max: min(480px, 90%);
+  --chat-user-max: min(720px, 92%);
   --chat-max-width: var(--chat-col-width);
   --mgr-glass: rgba(248, 252, 255, 0.48);
   --mgr-glass-strong: rgba(255, 255, 255, 0.62);

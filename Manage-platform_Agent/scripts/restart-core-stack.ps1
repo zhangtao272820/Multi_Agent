@@ -3,10 +3,11 @@
 #
 # 用法：
 #   .\scripts\restart-core-stack.ps1                    # force-recreate（重载 env，保留卷）
-#   .\scripts\restart-core-stack.ps1 -Enterprise          # 叠加 .env.agents-enterprise
+#   .\scripts\restart-core-stack.ps1 -Enterprise          # 叠加 .env.agents-enterprise + overlay
 #   .\scripts\restart-core-stack.ps1 -Build               # 有变更层时才重建镜像（不用 --no-cache）
 #   .\scripts\restart-core-stack.ps1 -BuildManagerOnly    # 仅重建总管（shared 鉴权修复等）
 #   .\scripts\restart-core-stack.ps1 -PruneBuildCache     # 完成后清理 BuildKit 缓存（省硬盘）
+#   .\scripts\restart-core-stack.ps1 -NoMonitor           # 不启 monitoring（本栈本就不含监控服务）
 #
 # 禁止 down -v：见 doc/docker-persist-no-volume-wipe.md
 # manager_agent 仍依赖 lobster_agent（compose depends_on）；本脚本不重建 Lobster，但需其保持运行。
@@ -15,7 +16,8 @@ param(
     [switch]$Build,
     [switch]$BuildManagerOnly,
     [switch]$Enterprise,
-    [switch]$PruneBuildCache
+    [switch]$PruneBuildCache,
+    [switch]$NoMonitor
 )
 
 $ErrorActionPreference = "Stop"
@@ -40,7 +42,8 @@ if ($BuildManagerOnly) {
 }
 
 $useBuildOnUp = $Build -and -not $BuildManagerOnly
-Invoke-AgentsLanCompose -Action up -ForceRecreate -Build:$useBuildOnUp -Enterprise:$Enterprise -Services $Script:CoreStack
+$monitoring = -not $NoMonitor
+Invoke-AgentsLanCompose -Action up -ForceRecreate -Build:$useBuildOnUp -Enterprise:$Enterprise -Monitoring:$monitoring -Services $Script:CoreStack
 
 if ($LASTEXITCODE -ne 0) {
     throw "docker compose failed (exit $LASTEXITCODE)"

@@ -16,6 +16,7 @@ const {
   connected,
   thoughtViewMode,
   streamingSynthText,
+  streamingSynthProvisional,
   streamingSynthDisplayText,
   streamingMarkdownHtml,
   copyAckTurnId,
@@ -500,7 +501,10 @@ watch(streamingSynthText, async () => {
             v-if="isTurnLive(t) && (streamingSynthText || isSynthPhaseActive())"
             :ref="bindStreamingReplyEl"
             class="spring-log-item reply-panel chat-agent-row reply-panel-streaming"
-            :class="t.userFacing?.replyTier ? `reply-tier-${t.userFacing.replyTier}` : ''"
+            :class="[
+              t.userFacing?.replyTier ? `reply-tier-${t.userFacing.replyTier}` : '',
+              streamingSynthProvisional ? 'is-provisional-draft' : 'is-stream-committed'
+            ]"
           >
             <div class="spring-log-bubble reply-panel-inner cosmic-bubble-reply">
               <header class="reply-panel-header">
@@ -510,7 +514,14 @@ watch(streamingSynthText, async () => {
                 <div class="reply-panel-header-body">
                   <div class="reply-panel-header-top">
                     <span class="reply-panel-title">{{ thoughtViewMode === 'user' ? '回答' : '总管' }}</span>
-                    <span v-if="thoughtViewMode === 'developer'" class="reply-panel-kind reply-stream-badge">流式输出</span>
+                    <span
+                      v-if="streamingSynthProvisional"
+                      class="reply-panel-kind reply-stream-badge reply-draft-badge"
+                      >草稿</span
+                    >
+                    <span v-else-if="thoughtViewMode === 'developer'" class="reply-panel-kind reply-stream-badge"
+                      >流式输出</span
+                    >
                     <span v-else class="reply-panel-kind reply-stream-badge">正在生成</span>
                     <span class="reply-stream-dot" aria-hidden="true"></span>
                   </div>

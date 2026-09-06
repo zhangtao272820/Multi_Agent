@@ -113,13 +113,16 @@ fi
 
 PROFILE_ARGS=()
 if (( EXTENDED )); then
-  PROFILE_ARGS=(--profile extended)
+  PROFILE_ARGS+=(--profile extended)
   echo "部署模式: 完整版（extended）"
 else
-  echo "部署模式: 标准版（平台 + Manager 协作链 + 监控）"
+  echo "部署模式: 标准版（平台 + Manager 协作链）"
 fi
 if (( NO_MONITOR )); then
-  echo "监控: 跳过（--no-monitor）"
+  echo "监控: 跳过（--no-monitor；不启 monitoring profile）"
+else
+  PROFILE_ARGS+=(--profile monitoring)
+  echo "监控: 启用（--profile monitoring）"
 fi
 
 UP_ARGS=(up -d "${PROFILE_ARGS[@]}")
@@ -131,10 +134,6 @@ fi
 
 echo "启动 ClawHive 集群..."
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "${UP_ARGS[@]}"
-
-if (( NO_MONITOR )); then
-  docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" stop prometheus grafana alertmanager tempo loki promtail || true
-fi
 
 wait_health() {
   local base="http://127.0.0.1:${CLAWHIVE_BACKEND_PORT:-18000}"

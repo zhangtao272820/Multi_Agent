@@ -8,6 +8,7 @@ export type ManagerChatThreadContext = {
   connected: Ref<boolean>
   thoughtViewMode: Ref<ThoughtViewMode>
   streamingSynthText: Ref<string>
+  streamingSynthProvisional: Ref<boolean>
   streamingSynthDisplayText: ComputedRef<string>
   streamingMarkdownHtml: Ref<string>
   streamingReplyEl: Ref<HTMLElement | null>

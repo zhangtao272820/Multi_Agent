@@ -272,21 +272,43 @@ def run_select(cfg: MysqlConf, sql: str, max_rows: int | None = None) -> list[di
 
 def run_write(cfg: MysqlConf, sql: str) -> dict[str, Any]:
     """Execute a single guarded write statement in a transaction. Returns rowcount meta."""
+    return run_writes(cfg, [sql])
+
+
+def run_writes(cfg: MysqlConf, sqls: list[str]) -> dict[str, Any]:
+    """Execute one or more guarded write statements in a single transaction (all-or-nothing)."""
+    statements = [str(s or "").strip().rstrip(";") for s in sqls if str(s or "").strip()]
+    if not statements:
+        return {"ok": False, "rowcount": 0, "error": "empty_sql", "rowcounts": []}
     with mysql_conn(cfg) as conn:
         prev = bool(getattr(conn, "get_autocommit", lambda: True)())
         try:
             conn.autocommit(False)
+            rowcounts: list[int] = []
             with conn.cursor() as cur:
-                cur.execute(sql)
-                rowcount = int(cur.rowcount or 0)
+                for sql in statements:
+                    cur.execute(sql)
+                    rowcounts.append(int(cur.rowcount or 0))
             conn.commit()
-            return {"ok": True, "rowcount": rowcount, "error": ""}
+            return {
+                "ok": True,
+                "rowcount": sum(rowcounts),
+                "rowcounts": rowcounts,
+                "statement_count": len(statements),
+                "error": "",
+            }
         except Exception as exc:
             try:
                 conn.rollback()
             except Exception:
                 pass
-            return {"ok": False, "rowcount": 0, "error": str(exc)}
+            return {
+                "ok": False,
+                "rowcount": 0,
+                "rowcounts": [],
+                "statement_count": len(statements),
+                "error": str(exc),
+            }
         finally:
             try:
                 conn.autocommit(prev)

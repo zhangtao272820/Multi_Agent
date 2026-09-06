@@ -25,6 +25,7 @@ class Tenant:
     id: str
     title: str
     mysql: MysqlConf
+    mysql_write: MysqlConf | None = None
     table_whitelist_prefixes: list[str] = field(default_factory=list)
     table_whitelist: list[str] = field(default_factory=list)
     skip_list_tables: list[str] = field(default_factory=list)
@@ -43,6 +44,11 @@ class Tenant:
         if n.lower() in lower_map:
             return True
         return any(n.startswith(p) or n.lower().startswith(p.lower()) for p in self.table_whitelist_prefixes)
+
+    def write_mysql(self) -> MysqlConf:
+        """Write role: dedicated mysql_write if configured, else fallback to mysql."""
+        return self.mysql_write or self.mysql
+
 
 
 def _expand(v: Any) -> Any:
@@ -94,16 +100,36 @@ def load_tenants(dir_path: Path | None = None) -> dict[str, Tenant]:
             port = int(port_raw or 3306)
         except (TypeError, ValueError):
             port = 3306
+        mysql_conf = MysqlConf(
+            host=str(_expand(mysql.get("host") or "127.0.0.1") or "127.0.0.1"),
+            port=port,
+            user=str(_expand(mysql.get("user") or "root") or "root"),
+            password=str(password or ""),
+            database=str(_expand(mysql.get("database") or "") or ""),
+        )
+        mysql_write_conf: MysqlConf | None = None
+        mw = raw.get("mysql_write") or raw.get("mysqlWrite")
+        if isinstance(mw, dict) and (mw.get("user") or mw.get("host") or mw.get("database") or mw.get("password_env")):
+            wpass = str(_expand(mw.get("password") or "") or "")
+            if mw.get("password_env"):
+                wpass = os.getenv(str(mw["password_env"]), wpass)
+            wport_raw = _expand(mw.get("port") or mysql_conf.port)
+            try:
+                wport = int(wport_raw or mysql_conf.port)
+            except (TypeError, ValueError):
+                wport = mysql_conf.port
+            mysql_write_conf = MysqlConf(
+                host=str(_expand(mw.get("host") or mysql_conf.host) or mysql_conf.host),
+                port=wport,
+                user=str(_expand(mw.get("user") or mysql_conf.user) or mysql_conf.user),
+                password=str(wpass or mysql_conf.password or ""),
+                database=str(_expand(mw.get("database") or mysql_conf.database) or mysql_conf.database),
+            )
         out[tid] = Tenant(
             id=tid,
             title=str(raw.get("title") or tid),
-            mysql=MysqlConf(
-                host=str(_expand(mysql.get("host") or "127.0.0.1") or "127.0.0.1"),
-                port=port,
-                user=str(_expand(mysql.get("user") or "root") or "root"),
-                password=str(password or ""),
-                database=str(_expand(mysql.get("database") or "") or ""),
-            ),
+            mysql=mysql_conf,
+            mysql_write=mysql_write_conf,
             table_whitelist_prefixes=list(raw.get("table_whitelist_prefixes") or []),
             table_whitelist=list(raw.get("table_whitelist") or []),
             skip_list_tables=[str(x) for x in (raw.get("skip_list_tables") or [])],

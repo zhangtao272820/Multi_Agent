@@ -145,6 +145,14 @@ def main() -> None:
     assert_true("forward_email" in WRITE_GATE_MANAGER_SUMMARY, "summary lists forward_email")
     assert_true(WRITE_GATE_MANAGER_SUMMARY.split("\n")[0] in bypass or "【写闸" in bypass, "summary injected")
 
+    # P1 Compose：intent_routing 与 email_hands 对齐（无 body 不澄清）
+    from app.core.admin_playbook_prompts import get_slot_fill_rules, get_semantic_understanding_rules
+
+    slot_rules = get_slot_fill_rules("邮件")
+    semantic = get_semantic_understanding_rules()
+    assert_true("禁止" in slot_rules and ("正文" in slot_rules or "主题" in slot_rules), "dual-path: no body clarify")
+    assert_true("Compose" in semantic or "主题/正文可空" in semantic or "正文可空" in semantic, "semantic Compose-minimal")
+
     # 旁路目录工具必须 ⊆ MANAGER_ADMIN_TOOLS（抽 catalog 中的 snake_case）
     for t in (
         "send_email",

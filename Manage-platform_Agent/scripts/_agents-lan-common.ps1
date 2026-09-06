@@ -2,10 +2,21 @@
 
 $Script:AgentsLanRoot = Split-Path -Parent $PSScriptRoot
 $Script:ComposeFile = Join-Path $AgentsLanRoot "docker-compose.agents-lan.yml"
+$Script:EnterpriseOverlayFile = Join-Path $AgentsLanRoot "docker-compose.agents-enterprise.overlay.yml"
 $Script:EnvFile = Join-Path $AgentsLanRoot ".env.agents-lan"
 $Script:EnterpriseEnvFile = Join-Path $AgentsLanRoot ".env.agents-enterprise"
 $Script:SyncModelsScript = Join-Path $PSScriptRoot "sync-capability-models.ps1"
 $Script:SyncConvergenceModesScript = Join-Path $PSScriptRoot "sync-convergence-modes.ps1"
+
+# monitoring profile services (main compose: profiles monitoring)
+$Script:MonitoringServices = @(
+    "prometheus",
+    "grafana",
+    "alertmanager",
+    "tempo",
+    "loki",
+    "promtail"
+)
 
 $Script:ManagerStack = @(
     "db_agent",
@@ -43,18 +54,13 @@ $Script:CoreStack = @(
     "manager_agent"
 )
 
+# extended-profile-only business services (monitoring uses its own profile)
 $Script:ExtendedOnlyServices = @(
     "music_agent",
     "video_agent",
     "tavern_agent",
     "ai_agent",
-    "browserless",
-    "prometheus",
-    "grafana",
-    "alertmanager",
-    "tempo",
-    "loki",
-    "promtail"
+    "browserless"
 )
 
 # Agent name -> docker-compose service (matches backend/app/managed_agents.py)
@@ -162,25 +168,45 @@ function Get-ComposeBaseArgs {
 -Enterprise requires $($Script:EnterpriseEnvFile)
 Copy example first:
   Copy-Item .env.agents-enterprise.example .env.agents-enterprise
-See docs/企业档配置指南.md
+See Manage-platform_Agent/doc/enterprise-docker.md
 "@
         }
         $args += @("--env-file", $Script:EnterpriseEnvFile)
     }
     $args += @("-f", $Script:ComposeFile)
+    if ($Enterprise) {
+        if (-not (Test-Path $Script:EnterpriseOverlayFile)) {
+            throw "Enterprise overlay missing: $Script:EnterpriseOverlayFile"
+        }
+        $args += @("-f", $Script:EnterpriseOverlayFile)
+    }
     return $args
 }
 
 function Get-ProfileArgs {
-    param([bool]$Extended)
-    if ($Extended) { return @("--profile", "extended") }
-    return @()
+    param(
+        [bool]$Extended = $false,
+        # default: enable monitoring (same as historical standard stack)
+        [bool]$Monitoring = $true
+    )
+    $out = @()
+    if ($Extended) { $out += @("--profile", "extended") }
+    if ($Monitoring) { $out += @("--profile", "monitoring") }
+    return $out
 }
 
 function Test-RequiresExtendedProfile {
     param([string[]]$Services)
     foreach ($name in $Services) {
         if ($Script:ExtendedOnlyServices -contains $name) { return $true }
+    }
+    return $false
+}
+
+function Test-RequiresMonitoringProfile {
+    param([string[]]$Services)
+    foreach ($name in $Services) {
+        if ($Script:MonitoringServices -contains $name) { return $true }
     }
     return $false
 }
@@ -333,6 +359,8 @@ function Invoke-AgentsLanCompose {
         [ValidateSet("restart", "up")]
         [string]$Action,
         [bool]$Extended = $false,
+        # true = enable monitoring profile; false = skip (no start-then-stop)
+        [bool]$Monitoring = $true,
         [switch]$Build,
         [switch]$ForceRecreate,
         [switch]$Enterprise,
@@ -346,9 +374,10 @@ function Invoke-AgentsLanCompose {
 
     $base = Get-ComposeBaseArgs -Enterprise:$Enterprise
     $useExtended = $Extended -or (Test-RequiresExtendedProfile -Services $Services)
-    $profile = Get-ProfileArgs -Extended $useExtended
+    $useMonitoring = $Monitoring -or (Test-RequiresMonitoringProfile -Services $Services)
+    $profile = Get-ProfileArgs -Extended $useExtended -Monitoring $useMonitoring
     if ($Enterprise) {
-        Write-Host "Enterprise overlay: $Script:EnterpriseEnvFile" -ForegroundColor Yellow
+        Write-Host "Enterprise overlay: $Script:EnterpriseEnvFile + $Script:EnterpriseOverlayFile" -ForegroundColor Yellow
     }
 
     if ($Action -eq "restart") {
@@ -371,6 +400,9 @@ function Invoke-AgentsLanCompose {
 
     if ($useExtended -and -not $Extended) {
         Write-Host "Auto-enabled --profile extended (extended-only service in list)." -ForegroundColor DarkYellow
+    }
+    if ($useMonitoring -and -not $Monitoring) {
+        Write-Host "Auto-enabled --profile monitoring (monitoring service in list)." -ForegroundColor DarkYellow
     }
 
     Write-Host ("docker " + ($cmd -join " ")) -ForegroundColor DarkGray

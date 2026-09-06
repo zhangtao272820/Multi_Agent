@@ -1,4 +1,4 @@
-import { onMounted, nextTick, ref } from "vue";
+import { onMounted, onUnmounted, nextTick, ref, watch } from "vue";
 import type {
   RunMeta,
   RuntimeConfig,
@@ -19,6 +19,11 @@ import {
   profileLabel,
 } from "~/components/db-chat/runMetaLabels";
 import { purgeAllForbiddenClientSessionKeys } from "#agent-shared/agentSessionClientStorage";
+import {
+  FEEDBACK_HYDRATE_COLD_OPTS,
+  FEEDBACK_HYDRATE_WARM_OPTS,
+  retryFeedbackHydrate,
+} from "#agent-shared/feedbackHydrateRetry";
 
 export function useDbChatPage() {
 const SESSION_KEY = "db_agent_session_id";
@@ -451,9 +456,9 @@ const restoreSessionFeedback = () => {
   }
 };
 
-async function hydrateSessionFeedbackFromServer() {
+async function hydrateSessionFeedbackFromServer(): Promise<'ok' | 'empty' | 'auth' | 'error'> {
   const sid = conversationId.value;
-  if (!sid) return;
+  if (!sid) return 'empty';
   try {
     const res = await $fetch<{
       items?: Array<{
@@ -466,14 +471,14 @@ async function hydrateSessionFeedbackFromServer() {
       `/api/session-feedback?sessionId=${encodeURIComponent(sid)}`
     );
     const items = Array.isArray(res?.items) ? res.items : [];
-    if (!items.length) return;
+    if (!items.length) return 'empty';
     const scores = { ...feedbackByUserIndex.value };
     const acks = { ...feedbackAckByUserIndex.value };
     for (const item of items) {
       const uidx = parseFeedbackUserIndexFromItem(item);
       const score = Number(item.score);
       if (uidx == null || (score !== 1 && score !== -1)) continue;
-      if (scores[uidx] === 1 || scores[uidx] === -1) continue;
+      // 服务端为 SSOT：覆盖本地 sessionStorage
       scores[uidx] = score;
       acks[uidx] =
         score === 1 ? "已标记为有帮助 · 感谢反馈（已同步）" : "已标记为不准确 · 感谢反馈（已同步）";
@@ -482,7 +487,25 @@ async function hydrateSessionFeedbackFromServer() {
     feedbackAckByUserIndex.value = acks;
     persistSessionFeedback();
     applyFeedbackToMessages();
-  } catch {}
+    return 'ok';
+  } catch (e: unknown) {
+    const status = Number(
+      (e as { statusCode?: number; status?: number; response?: { status?: number } })?.statusCode ||
+        (e as { status?: number })?.status ||
+        (e as { response?: { status?: number } })?.response?.status ||
+        0
+    );
+    if (status === 401 || status === 403) return 'auth';
+    return 'error';
+  }
+}
+
+async function hydrateFeedbackWithRetry(opts?: { expectFeedback?: boolean }) {
+  const expectFeedback = Boolean(opts?.expectFeedback);
+  await retryFeedbackHydrate(
+    () => hydrateSessionFeedbackFromServer(),
+    expectFeedback ? FEEDBACK_HYDRATE_WARM_OPTS : FEEDBACK_HYDRATE_COLD_OPTS,
+  );
 }
 
 const applyFeedbackToMessages = () => {
@@ -883,7 +906,8 @@ const switchSession = async (id: string) => {
     restoreSessionFeedback();
     const ok = await loadSessionMessages(id);
     if (!ok) resetChatMessages();
-    await hydrateSessionFeedbackFromServer();
+    const expectFeedback = messages.value.some((m) => m.role === "user");
+    await hydrateFeedbackWithRetry({ expectFeedback });
     await scrollToBottom();
     touchCurrentSessionHistory({ bump: false });
   } finally {
@@ -1213,18 +1237,55 @@ async function send(opts?: { regenerateTurnId?: number; userText?: string }) {
     await scrollToBottom();
   }
 }
+  let stopWatchLogin: (() => void) | null = null
+  let onVisibilityOrOnline: (() => void) | null = null
+
   onMounted(() => {
     void loadIntel();
     void loadRuntimeConfig();
     loadSessionHistoryList();
     conversationId.value = getSessionId();
     restoreSessionFeedback();
-    void (async () => {
+    const { token: clawhiveToken, loadFromStorage } = useClawhiveLogin();
+    if (import.meta.client && !clawhiveToken.value) loadFromStorage();
+
+    async function bootstrapFeedback() {
       const ok = await loadSessionMessages(conversationId.value);
       if (!ok) resetChatMessages();
-      await hydrateSessionFeedbackFromServer();
+      const expectFeedback = messages.value.some((m) => m.role === "user");
+      await hydrateFeedbackWithRetry({ expectFeedback });
       touchCurrentSessionHistory({ bump: false });
-    })();
+    }
+    void bootstrapFeedback();
+
+    stopWatchLogin = watch(clawhiveToken, (t, prev) => {
+      if (t && t !== prev) void bootstrapFeedback();
+    });
+
+    onVisibilityOrOnline = () => {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+      if (!conversationId.value) return;
+      const hasTurns = messages.value.some((m) => m.role === "user");
+      // 服务端为 SSOT：勿因本地已有 score 跳过
+      if (!hasTurns) return;
+      void hydrateFeedbackWithRetry({ expectFeedback: true });
+    };
+    if (typeof window !== "undefined") {
+      window.addEventListener("visibilitychange", onVisibilityOrOnline);
+      window.addEventListener("online", onVisibilityOrOnline);
+      window.addEventListener("pageshow", onVisibilityOrOnline);
+    }
+  });
+
+  onUnmounted(() => {
+    stopWatchLogin?.();
+    stopWatchLogin = null;
+    if (onVisibilityOrOnline && typeof window !== "undefined") {
+      window.removeEventListener("visibilitychange", onVisibilityOrOnline);
+      window.removeEventListener("online", onVisibilityOrOnline);
+      window.removeEventListener("pageshow", onVisibilityOrOnline);
+    }
+    onVisibilityOrOnline = null;
   });
 
   return {

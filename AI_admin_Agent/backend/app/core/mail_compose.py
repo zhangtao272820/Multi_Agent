@@ -133,6 +133,41 @@ def compose_prefills_from_report_body(
     )
 
 
+def compose_prefills_from_minutes_actions(
+    actions: list[dict[str, Any]] | None,
+    *,
+    to: str = "",
+    subject: str = "",
+    from_address: str = "",
+) -> dict[str, Any]:
+    """会议待办列表 → 发信 Compose 预填（纯函数，不调 LLM、不发信）。"""
+    lines: list[str] = ["会议纪要待办摘要：", ""]
+    for i, act in enumerate(actions or [], start=1):
+        if not isinstance(act, dict):
+            continue
+        title = str(act.get("title") or "").strip()
+        if not title:
+            continue
+        assignee = str(act.get("assignee") or "").strip()
+        due = str(act.get("due_expression") or "").strip()
+        extra = []
+        if assignee:
+            extra.append(f"负责人：{assignee}")
+        if due:
+            extra.append(f"时间：{due}")
+        suffix = f"（{'；'.join(extra)}）" if extra else ""
+        lines.append(f"{i}. {title}{suffix}")
+    body = "\n".join(lines).strip()
+    if body == "会议纪要待办摘要：":
+        body = ""
+    return compose_prefills_from_report_body(
+        body,
+        to=to,
+        subject=str(subject or "").strip() or "会议纪要待办",
+        from_address=from_address,
+    )
+
+
 def assemble_batch_draft_composes(items: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
     """
     批量回复草稿装配（纯函数）。

@@ -1,6 +1,7 @@
 import { AIMessage, BaseMessage, HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { resolveOrchestratedClientHistory, allowsOrchestratedDialogMerge } from "#agent-shared/turnScope";
 import { isManagerSubAgentSessionId } from "#agent-shared/managerStepSession";
+import { shouldSkipRagStandalonePersist } from "../utils/ragStandalonePersistGate";
 import { buildEvolutionApplied } from "#agent-shared/evolutionApplied";
 import { createAgent } from "../utils/agent";
 import { sanitizeIncomingQuestion, looksLikeManagerRetrievalTask, parseManagerRagTaskFromJson } from "../utils/incoming_question";
@@ -170,11 +171,19 @@ async function persistStandaloneTurn(params: {
   assistantMessage: string;
   userKey?: string;
   isManagerOrchestrated: boolean;
+  hasManagerTrace?: boolean;
   enableLayeredSessionMemory: boolean;
   existingSummary?: string;
 }) {
-  if (params.isManagerOrchestrated) return;
-  if (isManagerSubAgentSessionId(params.sessionId, "rag")) return;
+  if (
+    shouldSkipRagStandalonePersist({
+      sessionId: params.sessionId,
+      isManagerOrchestrated: params.isManagerOrchestrated,
+      hasManagerTrace: params.hasManagerTrace,
+    })
+  ) {
+    return;
+  }
   const user = String(params.userMessage || "").trim();
   const assistant = sanitizeUserFacingAnswer(String(params.assistantMessage || "").trim());
   if (!user || !assistant) return;
@@ -293,6 +302,9 @@ export default defineEventHandler(async (event) => {
     const sessionId = providedSessionId || genConversationId();
     const normalizedHistory = normalizeHistory(history);
     const hasClientHistory = normalizedHistory.length > 0;
+    const hasManagerTrace =
+      Boolean(String(event.node.req.headers["x-run-id"] ?? "").trim()) ||
+      Boolean(String(event.node.req.headers["x-trace-id"] ?? "").trim());
 
     const rawMessage = String(message).trim();
     const managerTask = parseManagerRagTaskFromJson(
@@ -300,16 +312,20 @@ export default defineEventHandler(async (event) => {
     );
     setManagerRagTask(managerTask);
     const sanitizedMessage = sanitizeIncomingQuestion(rawMessage, managerTask) || rawMessage;
-    const isManagerStepSession = isManagerSubAgentSessionId(sessionId, "rag");
+    // 任意 mgr-{run}-{agent}…：禁止回灌独立端会话 / 分层记忆
+    const isManagerStepSession = isManagerSubAgentSessionId(sessionId);
     const isManagerOrchestrated =
       looksLikeManagerRetrievalTask(rawMessage) ||
       Boolean(managerTask) ||
       String(event.node.req.headers["x-manager-orchestrated"] ?? "").trim() === "1";
     setOrchestratedByManager(isManagerOrchestrated);
+    // 独立端会话态（回灌/分层记忆/落库）：总管穿透一律跳过
+    const skipStandaloneSessionState =
+      isManagerOrchestrated || isManagerStepSession || hasManagerTrace;
 
     let serverHistoryItems: ChatHistoryItem[] = [];
-    // 总管步进 session（mgr-*-rag-*）透传时空 history：禁止 readRagSession 回灌
-    if (providedSessionId && !hasClientHistory && !isManagerOrchestrated && !isManagerStepSession) {
+    // 总管步进 / 带 trace 的穿透：禁止 readRagSession 回灌
+    if (providedSessionId && !hasClientHistory && !skipStandaloneSessionState) {
       const serverSession = await readRagSession(sessionId);
       serverHistoryItems = serverSession.messages.map((m) => ({
         role: m.role,
@@ -325,11 +341,11 @@ export default defineEventHandler(async (event) => {
     );
 
     let session =
-      providedSessionId && env.enableLayeredSessionMemory && !isManagerOrchestrated && !isManagerStepSession
+      providedSessionId && env.enableLayeredSessionMemory && !skipStandaloneSessionState
         ? getSessionMemory(sessionId)
         : { summary: "", topics: [], updatedAt: Date.now() };
 
-    if (!isManagerOrchestrated && !isManagerStepSession && providedSessionId && env.enableLayeredSessionMemory) {
+    if (!skipStandaloneSessionState && providedSessionId && env.enableLayeredSessionMemory) {
       const topics = mergeTopics(
         session.topics,
         extractTopicKeywords(sanitizedMessage),
@@ -340,7 +356,7 @@ export default defineEventHandler(async (event) => {
     }
 
     const sessionRetrievalAnchor =
-      !isManagerOrchestrated && !isManagerStepSession && providedSessionId
+      !skipStandaloneSessionState && providedSessionId
         ? getRagSessionRetrievalAnchor(sessionId)
         : null;
 
@@ -364,7 +380,7 @@ export default defineEventHandler(async (event) => {
 
     const docsForScope = await getUploadedDocuments();
     const standaloneEligible =
-      !isManagerOrchestrated && !isManagerStepSession && !managerTask?.turn_scope;
+      !skipStandaloneSessionState && !managerTask?.turn_scope;
     const unifiedBundle =
       standaloneEligible && isRagUnifiedUnderstandEnabled()
         ? await judgeRagUnifiedUnderstand({
@@ -403,7 +419,7 @@ export default defineEventHandler(async (event) => {
 
     const effectiveHistory = isManagerOrchestrated
       ? orchestratedHistory
-      : isManagerStepSession
+      : isManagerStepSession || hasManagerTrace
         ? []
         : standaloneHistory;
     const historyMessages = historyToMessages(effectiveHistory).slice(-12);
@@ -424,6 +440,7 @@ export default defineEventHandler(async (event) => {
           skipMerge:
             (isManagerOrchestrated && !allowsOrchestratedDialogMerge(managerTask?.turn_scope ?? null)) ||
             isManagerStepSession ||
+            hasManagerTrace ||
             Boolean(standaloneTurnScope?.suppress_history && !standaloneTurnScope?.narrow_output_followup),
           suppressAnchor:
             Boolean(managerTask?.turn_scope?.suppress_anchor) ||
@@ -452,7 +469,7 @@ export default defineEventHandler(async (event) => {
             hasDialogContext,
             dialogPreview,
           }),
-      !isManagerOrchestrated && !isManagerStepSession && providedSessionId
+      !skipStandaloneSessionState && providedSessionId
         ? buildFilteredAgentSummaryInjection(session, sanitizedMessage)
         : Promise.resolve(""),
     ]);
@@ -570,6 +587,7 @@ export default defineEventHandler(async (event) => {
           assistantMessage: finalAnswer,
           userKey,
           isManagerOrchestrated,
+          hasManagerTrace,
           enableLayeredSessionMemory: env.enableLayeredSessionMemory,
           existingSummary: session.summary,
         });
@@ -624,6 +642,7 @@ export default defineEventHandler(async (event) => {
           assistantMessage: clarify,
           userKey,
           isManagerOrchestrated,
+          hasManagerTrace,
           enableLayeredSessionMemory: env.enableLayeredSessionMemory,
           existingSummary: session.summary,
         });
@@ -753,7 +772,7 @@ export default defineEventHandler(async (event) => {
         if (nodeName === "LangGraph") {
           if (aiText) graphFinalAnswer = aiText;
           const summary = typeof out?.summary === "string" ? out.summary : null;
-          if (summary !== null && providedSessionId && env.enableLayeredSessionMemory && !isManagerOrchestrated) {
+          if (summary !== null && providedSessionId && env.enableLayeredSessionMemory && !skipStandaloneSessionState) {
             updateSessionMemory(sessionId, { summary });
           }
         }
@@ -841,12 +860,12 @@ export default defineEventHandler(async (event) => {
         assistantMessage: finalAnswer,
         userKey,
         isManagerOrchestrated,
+        hasManagerTrace,
         enableLayeredSessionMemory: env.enableLayeredSessionMemory,
         existingSummary: session.summary,
       });
       if (
-        !isManagerOrchestrated &&
-        !isManagerStepSession &&
+        !skipStandaloneSessionState &&
         providedSessionId &&
         mergedUnderstand.multiTurn &&
         finalAnswer.trim() &&

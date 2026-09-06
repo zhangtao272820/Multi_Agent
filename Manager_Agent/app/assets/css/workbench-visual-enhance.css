@@ -155,28 +155,54 @@
    ═══════════════════════════════════════════════════════════════ */
 .turn-activity {
   width: 100%;
-  margin: 4px 0 10px;
-}
-
-.turn-activity-inner {
-  width: 100%;
-  border-radius: 14px;
+  margin: 4px 0 8px;
+  border-radius: 12px;
   border: 1px solid rgba(122, 168, 212, 0.42);
   background: rgba(255, 255, 255, 0.92);
   overflow: hidden;
 }
 
-.turn-activity.is-running .turn-activity-inner {
+.turn-activity-summary {
+  list-style: none;
+  cursor: pointer;
+  display: block;
+  padding: 0;
+}
+
+.turn-activity-summary::-webkit-details-marker {
+  display: none;
+}
+
+.turn-activity-inner,
+.turn-activity-summary-inner {
+  width: 100%;
+  border-radius: 0;
+  border: none;
+  background: transparent;
+  overflow: hidden;
+}
+
+.turn-activity.is-running {
   border-color: rgba(47, 127, 209, 0.55);
   box-shadow: 0 4px 20px rgba(47, 127, 209, 0.1);
+}
+
+.turn-activity.is-running .turn-activity-inner {
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.turn-activity-body-panel {
+  padding: 0 0 8px;
+  border-top: 1px solid rgba(122, 168, 212, 0.22);
 }
 
 .turn-activity-head {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 14px;
-  border-bottom: 1px solid rgba(122, 168, 212, 0.28);
+  padding: 8px 12px;
+  border-bottom: none;
   background: rgba(238, 245, 252, 0.72);
 }
 
@@ -896,7 +922,7 @@
   --wb-accent: #a78bfa;
   --wb-accent-soft: rgba(167, 139, 250, 0.18);
   --wb-accent-glow: rgba(139, 92, 246, 0.25);
-  --chat-col-width: min(780px, calc(100vw - var(--mgr-sidebar-w, 260px) - var(--mgr-tools-w, 300px) - 56px));
+  --chat-col-width: min(1120px, calc(100vw - var(--mgr-sidebar-w, 240px) - var(--mgr-tools-w, 280px) - 48px));
   --chat-user-max: min(520px, 82%);
   --chat-agent-max: 100%;
   --chat-turn-gap: 1.75rem;
@@ -1105,7 +1131,7 @@
   --wb-accent: #38bdf8;
   --wb-accent-soft: rgba(56, 189, 248, 0.15);
   --wb-accent-glow: rgba(14, 165, 233, 0.28);
-  --chat-col-width: min(920px, calc(100vw - var(--mgr-sidebar-w, 260px) - var(--mgr-tools-w, 300px) - 40px));
+  --chat-col-width: min(1200px, calc(100vw - var(--mgr-sidebar-w, 240px) - var(--mgr-tools-w, 280px) - 40px));
   --chat-user-max: min(560px, 75%);
   --chat-agent-max: 100%;
   --chat-turn-gap: 1.5rem;

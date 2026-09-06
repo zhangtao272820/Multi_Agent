@@ -12,6 +12,7 @@ import {
 import {
   taskSpecFromManagerHints,
   mergeManagerAndUnderstoodTaskSpec,
+  applySiteRecipeFormFillHint,
 } from '../server/services/lobsterManagerTaskSpec'
 import { taskAffirmsSubmit, clampFormFillGoals } from '../server/services/lobsterFormGoals'
 import {
@@ -154,6 +155,56 @@ assert(
 assert(
   selectEngineForTask('给这个B站视频投币', 'https://www.bilibili.com/video/BV1xx') === 'classic',
   'bilibili coin → classic',
+)
+
+assert(
+  resolveEngineFromTaskSpec({
+    spec: toLobsterTaskSpec(
+      {
+        canonical_task: '播放 B站视频',
+        start_url: 'https://www.bilibili.com/video/BV1xx',
+        engine_hint: 'auto',
+        task_kind: 'video_play',
+        needs_login: false,
+        explicitly_avoid_login: false,
+        confidence: 0.9,
+        rationale: 'play',
+      },
+      'fixture',
+      'managed',
+    ),
+    task: '播放 B站视频',
+    startUrl: 'https://www.bilibili.com/video/BV1xx',
+  }).engine === 'classic',
+  'task_kind video_play → classic',
+)
+assert(
+  resolveEngineFromTaskSpec({
+    spec: toLobsterTaskSpec(
+      {
+        canonical_task: '点赞',
+        start_url: 'https://www.bilibili.com/video/BV1xx',
+        engine_hint: 'auto',
+        task_kind: 'social_engagement',
+        needs_login: true,
+        explicitly_avoid_login: false,
+        confidence: 0.9,
+        rationale: 'like',
+      },
+      'fixture',
+      'managed',
+    ),
+    task: '点赞',
+    startUrl: 'https://www.bilibili.com/video/BV1xx',
+  }).engine === 'classic',
+  'task_kind social_engagement → classic',
+)
+assert(
+  recipePreferredEngine(
+    'B站游客搜索',
+    'https://search.bilibili.com/all?keyword=Python',
+  ) === 'stagehand',
+  'bilibili recipe stagehand',
 )
 
 assert(resolveBrowserProfile({ LOBSTER_BROWSER_PROFILE: 'managed' }) === 'managed', 'profile managed')
@@ -300,6 +351,23 @@ assert(placeholderSpec.start_url === undefined, 'reject https://... start_url')
 assert(
   !placeholderSpec.plan_steps.some((s) => s.op === 'goto' && String(s.target || '').includes('...')),
   'reject placeholder goto target',
+)
+
+const unknownForm = taskSpecFromManagerHints({
+  task: '打开表单页填姓名',
+  startUrl: 'https://www.w3school.com.cn/html/html_forms.asp',
+})
+assert(unknownForm?.task_kind === 'unknown', 'manager without kind stays unknown')
+const recipeLifted = applySiteRecipeFormFillHint(
+  unknownForm,
+  '打开表单页填姓名',
+  'https://www.w3school.com.cn/html/html_forms.asp',
+)
+assert(recipeLifted?.task_kind === 'form_fill', 'site recipe formFields lifts unknown → form_fill')
+assert(recipeLifted?.plan_steps.some((s) => s.op === 'type'), 'form_fill plan has type')
+assert(
+  recipeLifted?.rationale.includes('site_recipe_form'),
+  'rationale marks site_recipe_form',
 )
 
 console.log('smoke-task-understand: PASS (TaskSpec + stagehand default + plan_steps + manager hand)')

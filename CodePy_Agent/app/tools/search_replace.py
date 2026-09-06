@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from typing import Any
 
 from app.tools.fs_sandbox import SandboxError, read_file, write_file
+from app.tools.path_allowlist import assert_paths_allowed
+from app.tools.rollback import create_rollback_snapshot
 
 BLOCK_RE = re.compile(
     r"<<<<<<<\s*SEARCH\s*\r?\n([\s\S]*?)\r?\n=======\r?\n([\s\S]*?)\r?\n>>>>>>>\s*REPLACE",
@@ -78,6 +80,7 @@ def preview_search_replace(
     text: str,
     *,
     root_override: str | None = None,
+    allowed_paths: list[str] | None = None,
 ) -> dict[str, Any]:
     blocks = parse_search_replace_document(text)
     if not blocks:
@@ -88,14 +91,18 @@ def preview_search_replace(
             return {"ok": False, "error": "block missing path", "files": [], "unified_diff": ""}
         by_file.setdefault(b.path, []).append(b)
 
+    files = list(by_file.keys())
+    try:
+        assert_paths_allowed(files, allowed_paths)
+    except SandboxError as e:
+        return {"ok": False, "error": str(e), "files": files, "unified_diff": ""}
+
     diffs: list[str] = []
-    files: list[str] = []
     for path, file_blocks in by_file.items():
         original = read_file(path, root_override=root_override)["content"]
         updated = original
         for b in file_blocks:
             updated = apply_single(updated, b.search, b.replace)
-        files.append(path)
         diffs.append(_unified_diff(path, original, updated))
     return {
         "ok": True,
@@ -110,8 +117,10 @@ def apply_search_replace(
     *,
     root_override: str | None = None,
     require_write_enabled: bool = True,
+    allowed_paths: list[str] | None = None,
+    create_rollback: bool = True,
 ) -> dict[str, Any]:
-    preview = preview_search_replace(text, root_override=root_override)
+    preview = preview_search_replace(text, root_override=root_override, allowed_paths=allowed_paths)
     if not preview.get("ok"):
         return preview
     blocks = parse_search_replace_document(text)
@@ -119,19 +128,22 @@ def apply_search_replace(
     for b in blocks:
         assert b.path
         by_file.setdefault(b.path, []).append(b)
-    touched: list[str] = []
+    touched = list(by_file.keys())
+    rollback_ref = ""
+    if create_rollback:
+        rollback_ref = create_rollback_snapshot(touched, root_override=root_override)
     for path, file_blocks in by_file.items():
         original = read_file(path, root_override=root_override)["content"]
         updated = original
         for b in file_blocks:
             updated = apply_single(updated, b.search, b.replace)
         write_file(path, updated, root_override=root_override, require_write_enabled=require_write_enabled)
-        touched.append(path)
     return {
         "ok": True,
         "files": touched,
         "unified_diff": preview.get("unified_diff") or "",
         "files_touched": touched,
+        "rollback_ref": rollback_ref,
     }
 
 

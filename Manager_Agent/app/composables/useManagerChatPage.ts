@@ -1,4 +1,9 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue'
+import {
+  FEEDBACK_HYDRATE_COLD_OPTS,
+  FEEDBACK_HYDRATE_WARM_OPTS,
+  retryFeedbackHydrate
+} from '#agent-shared/feedbackHydrateRetry'
 import { resolveClientMediaUrl } from '#agent-shared/mediaUrls'
 import { normalizeModelReplyHtml } from '#agent-shared/replyHtmlNormalize'
 import { extractAuxBlocksStructural, pickRicherNarrativeWithAuxBlocks } from '#agent-shared/auxBlocks'
@@ -521,6 +526,7 @@ export function useManagerChatPage() {
   
   const currentRunId = ref('')
   const streamingSynthText = ref('')
+  const streamingSynthProvisional = ref(false)
   const streamingReplyEl = ref<HTMLElement | null>(null)
   const streamingSynthDisplayText = computed(() => stripSynthPromptLeakage(String(streamingSynthText.value || '')))
   
@@ -568,6 +574,7 @@ export function useManagerChatPage() {
     cosmicRunPending.value = false
     cancelAfterRunId.value = false
     streamingSynthText.value = ''
+    streamingSynthProvisional.value = false
     if (!runId || pendingPlanPreview.value?.runId === runId) {
       pendingPlanPreview.value = null
       planPreviewSending.value = false
@@ -1100,6 +1107,7 @@ export function useManagerChatPage() {
     streamAgentLabel.value = ''
     resetPlanSteps()
     streamingSynthText.value = ''
+    streamingSynthProvisional.value = false
     stepResultsByTurn.value = {}
   }
   
@@ -4822,17 +4830,27 @@ export function useManagerChatPage() {
   }
   
   const expandedProcessKeys = ref<Set<string>>(new Set())
-  /** 用户手动折叠的思考面板（默认展开，便于查看路由/规划过程） */
+  /** 开发视图：用户手动折叠的思考面板（默认展开） */
   const thoughtPanelCollapsed = ref<Set<number>>(new Set())
+  /** 用户视图：手动展开的思考面板（默认收起，Cursor 式） */
+  const thoughtPanelUserExpanded = ref<Set<number>>(new Set())
   
   function thoughtPanelOpen(t: TurnGroup): boolean {
     if (!hasThoughtContent(t)) return false
     if (collaborationPosture.value === 'debug') return true
+    if (thoughtViewMode.value === 'user') return thoughtPanelUserExpanded.value.has(t.id)
     return !thoughtPanelCollapsed.value.has(t.id)
   }
   
   function onThoughtPanelToggle(t: TurnGroup, e: Event) {
     const open = Boolean((e.target as HTMLDetailsElement)?.open)
+    if (thoughtViewMode.value === 'user') {
+      const next = new Set(thoughtPanelUserExpanded.value)
+      if (open) next.add(t.id)
+      else next.delete(t.id)
+      thoughtPanelUserExpanded.value = next
+      return
+    }
     const next = new Set(thoughtPanelCollapsed.value)
     if (open) next.delete(t.id)
     else next.add(t.id)
@@ -4965,7 +4983,7 @@ export function useManagerChatPage() {
   }
   
   function thoughtPanelLabel(): string {
-    return thoughtViewMode.value === 'user' ? '正在思考' : '思考过程'
+    return thoughtViewMode.value === 'user' ? '工作进展' : '思考过程'
   }
   
   function thoughtPanelPreview(t: TurnGroup): string {
@@ -5422,6 +5440,7 @@ export function useManagerChatPage() {
     latestGuiVncUrl,
     guiVncAutoOpenedRunId,
     streamingSynthText,
+    streamingSynthProvisional,
     streamAgentLabel,
     lastFinalRunId,
     runArtifactsByRunId,
@@ -6095,6 +6114,7 @@ export function useManagerChatPage() {
     connected,
     thoughtViewMode,
     streamingSynthText,
+    streamingSynthProvisional,
     streamingSynthDisplayText,
     streamingMarkdownHtml,
     streamingReplyEl,
@@ -6398,6 +6418,15 @@ export function useManagerChatPage() {
       if (!String(clawhiveToken.value || '').trim()) loadClawhiveAuth()
     }
 
+    async function hydrateFeedbackWithRetry(opts?: { expectFeedback?: boolean }) {
+      const expectFeedback = Boolean(opts?.expectFeedback)
+      // Docker 重建后 PG/鉴权常短暂失败：auth/error 必重试；有历史轮次时 empty 也重试（暖机假空）
+      await retryFeedbackHydrate(
+        () => hydrateSessionFeedbackFromServer(),
+        expectFeedback ? FEEDBACK_HYDRATE_WARM_OPTS : FEEDBACK_HYDRATE_COLD_OPTS
+      )
+    }
+
     async function bootstrapServerSession() {
       await waitForClawhiveAuthReady()
       if (!canTalkToServer()) return
@@ -6411,12 +6440,10 @@ export function useManagerChatPage() {
       if (sid) {
         await hydrateSessionFromServer(sid)
         reconcileTurnFeedbackKeys()
-        const fb = await hydrateSessionFeedbackFromServer()
-        if (fb === 'auth' && authNeeded) {
-          // JWT 尚未生效时短等再试一次（登录门刚关掉）
-          await new Promise((r) => setTimeout(r, 120))
-          await hydrateSessionFeedbackFromServer()
-        }
+        const expectFeedback =
+          userMessageIndexCounter > 0 ||
+          turnGroups.value.some((t) => t.results.length > 0 || t.errors.length > 0)
+        await hydrateFeedbackWithRetry({ expectFeedback })
       }
       connect()
       void hydrateTaskStack()
@@ -6439,6 +6466,22 @@ export function useManagerChatPage() {
         void bootstrapServerSession()
       }
     })
+    // Docker 重建后页签仍开着：token 不变不会触发上面的 watch；可见性恢复时补灌反馈
+    const onVisibilityOrOnline = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
+      if (!canTalkToServer()) return
+      const sid = sessionId.value
+      if (!sid) return
+      const hasTurns =
+        userMessageIndexCounter > 0 ||
+        turnGroups.value.some((t) => t.results.length > 0 || t.errors.length > 0)
+      // 服务端为 SSOT：勿因本地已有 score 跳过；Docker 重建后须强制补灌
+      if (!hasTurns) return
+      void hydrateFeedbackWithRetry({ expectFeedback: true })
+    }
+    window.addEventListener('visibilitychange', onVisibilityOrOnline)
+    window.addEventListener('online', onVisibilityOrOnline)
+    window.addEventListener('pageshow', onVisibilityOrOnline)
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') closeFloatingPanels()
     }
@@ -6448,6 +6491,7 @@ export function useManagerChatPage() {
     ;(window as any).__mgrToolsKey = onKey
     ;(window as any).__mgrResizeKey = onResize
     ;(window as any).__mgrStopWatchLogin = stopWatchLogin
+    ;(window as any).__mgrFeedbackVisibility = onVisibilityOrOnline
     requestBrowserLocation()
     import('echarts').then((m) => {
       echartsModule.value = m
@@ -6484,7 +6528,12 @@ export function useManagerChatPage() {
     chatColumnWheelCleanup = null
     clearPendingAttachment()
     disconnect()
-    const wTools = window as Window & { __mgrToolsKey?: (e: KeyboardEvent) => void; __mgrResizeKey?: () => void }
+    const wTools = window as Window & {
+      __mgrToolsKey?: (e: KeyboardEvent) => void
+      __mgrResizeKey?: () => void
+      __mgrStopWatchLogin?: () => void
+      __mgrFeedbackVisibility?: () => void
+    }
     if (wTools.__mgrToolsKey) {
       window.removeEventListener('keydown', wTools.__mgrToolsKey)
       delete wTools.__mgrToolsKey
@@ -6496,6 +6545,12 @@ export function useManagerChatPage() {
     if (typeof wTools.__mgrStopWatchLogin === 'function') {
       wTools.__mgrStopWatchLogin()
       delete wTools.__mgrStopWatchLogin
+    }
+    if (wTools.__mgrFeedbackVisibility) {
+      window.removeEventListener('visibilitychange', wTools.__mgrFeedbackVisibility)
+      window.removeEventListener('online', wTools.__mgrFeedbackVisibility)
+      window.removeEventListener('pageshow', wTools.__mgrFeedbackVisibility)
+      delete wTools.__mgrFeedbackVisibility
     }
   })
 

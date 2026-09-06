@@ -1,7 +1,7 @@
 ﻿# AI Admin Agent
 
 > **面试讲义**：[备战入口](../docs/面试备战/README.md) · [04 Admin](../docs/面试备战/技术/04-Admin-Agent.md)  
-> **能力升级规划**（Admin Compose / MCP）：[`docs/Admin办公助手对标与Compose升级.md`](../docs/Admin办公助手对标与Compose升级.md)
+> **能力升级 / 手测**：[docs/动手Agent.md](../docs/动手Agent.md)
 
 基于 **FastAPI + React (Vite) + LangGraph** 的个人办公助理。对应平台 `ai_admin_agent`，默认端口 **13105**；总管能力 cap 为 `admin`。
 
@@ -126,6 +126,6 @@ npm run dev
 
 ## 相关文档
 
-- 矩阵总表：[docs/Agent矩阵升级总路线图.md](../docs/Agent矩阵升级总路线图.md)（P2-D 国内 Skill/MCP 加强已取消；趣味能力以本仓为准）
-- 动手升级：[docs/动手Agent升级-Admin与Lobster.md](../docs/动手Agent升级-Admin与Lobster.md)
+- docs 索引：[docs/README.md](../docs/README.md)
+- 动手升级 / 手测：[docs/动手Agent.md](../docs/动手Agent.md)
 - 总管 admin 范围：`Manager_Agent/skills/admin_capabilities/skill.md`

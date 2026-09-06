@@ -102,7 +102,7 @@ async function main() {
         uiMeta: {
           process: [
             { kind: 'thinking', text: '总管 Agent：开始处理…', from: 'manager' },
-            { kind: 'thought_delta', text: '正在汇总草稿…', from: 'manager' }
+            { kind: 'thought_delta', text: '正在撰写回复…', from: 'manager' }
           ]
         }
       }

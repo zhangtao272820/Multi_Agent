@@ -101,6 +101,8 @@ export type ManagerWsInboundCtx = {
   /** 已为哪个 runId 自动打开过 noVNC（每 run 一次） */
   guiVncAutoOpenedRunId: Ref<string>
   streamingSynthText: Ref<string>
+  /** provisional synth 草稿态（审计前真流） */
+  streamingSynthProvisional: Ref<boolean>
   streamAgentLabel: Ref<string>
   lastFinalRunId: Ref<string>
   runArtifactsByRunId: Ref<Record<string, Record<string, unknown>>>
@@ -127,7 +129,7 @@ export type ManagerWsInboundCtx = {
   ) => void
   sanitizeWithdrawnTurns: () => void
   reconcileTurnFeedbackKeys: () => void
-  hydrateSessionFeedbackFromServer: () => void | Promise<void>
+  hydrateSessionFeedbackFromServer: () => void | Promise<void | 'ok' | 'empty' | 'auth' | 'error'>
   touchCurrentSessionHistory: (opts?: { bump?: boolean }) => void
   clearActiveRun: (runId: string) => void
   resetStepProgress: () => void
@@ -268,7 +270,18 @@ export function handleManagerWsInboundMessage(evt: MessageEvent, ctx: ManagerWsI
         }
         ctx.sanitizeWithdrawnTurns()
         ctx.reconcileTurnFeedbackKeys()
-        void ctx.hydrateSessionFeedbackFromServer()
+        void (async () => {
+          const {
+            FEEDBACK_HYDRATE_COLD_OPTS,
+            FEEDBACK_HYDRATE_WARM_OPTS,
+            retryFeedbackHydrate
+          } = await import('#agent-shared/feedbackHydrateRetry')
+          const expectFeedback = ctx.getUserMessageIndexCounter() > 0
+          await retryFeedbackHydrate(async () => {
+            const r = await ctx.hydrateSessionFeedbackFromServer()
+            return r === 'ok' || r === 'empty' || r === 'auth' || r === 'error' ? r : 'ok'
+          }, expectFeedback ? FEEDBACK_HYDRATE_WARM_OPTS : FEEDBACK_HYDRATE_COLD_OPTS)
+        })()
         ctx.touchCurrentSessionHistory({ bump: false })
       }
       if (st === 'turn_withdrawn') {
@@ -826,10 +839,37 @@ export function handleManagerWsInboundMessage(evt: MessageEvent, ctx: ManagerWsI
       }
       return
     }
+    if (event === 'stream_start') {
+      const payload = data?.data && typeof data.data === 'object' ? (data.data as Record<string, unknown>) : {}
+      ctx.streamingSynthProvisional.value = Boolean(payload.provisional)
+      if (String(payload.phase || '') === 'synth' || payload.provisional) {
+        ctx.currentPhase.value = 'synth_stream'
+      }
+      return
+    }
+    if (event === 'stream_revise') {
+      ctx.streamingSynthText.value = ''
+      ctx.streamingSynthProvisional.value = true
+      ctx.currentPhase.value = 'synth_stream'
+      return
+    }
+    if (event === 'stream_commit') {
+      ctx.streamingSynthProvisional.value = false
+      ctx.streamingSynthText.value = ctx.stripSynthPromptLeakage(
+        String(ctx.streamingSynthText.value || '')
+      )
+      return
+    }
     if (event === 'delta') {
       const from = String(data.from || 'assistant').toLowerCase()
       if (from === 'synth') {
-        ctx.streamingSynthText.value += String(data.data || '')
+        const chunk =
+          typeof data.data === 'string'
+            ? data.data
+            : data?.data && typeof data.data === 'object'
+              ? String((data.data as { text?: string }).text || (data.data as { data?: string }).data || '')
+              : String(data.data || '')
+        ctx.streamingSynthText.value += chunk
         return
       }
       if (from === 'rag' || from === 'code') ctx.streamAgentLabel.value = from
@@ -872,6 +912,7 @@ export function handleManagerWsInboundMessage(evt: MessageEvent, ctx: ManagerWsI
       if (runId) ctx.clearActiveRun(runId)
       if (runId) ctx.lastFinalRunId.value = runId
       ctx.streamingSynthText.value = ''
+      ctx.streamingSynthProvisional.value = false
       ctx.resetStepProgress()
       ctx.touchCurrentSessionHistory({ bump: true })
       return

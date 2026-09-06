@@ -44,7 +44,7 @@ from app.protocol import (
     parse_manager_task,
     verify_agent_service_auth,
 )
-from app.write_sql import decide_write_pending, preview_write_turn
+from app.write_sql import classify_read_or_write, decide_write_pending, preview_write_turn
 from app.llm import LlmMeter
 from app.scenes import get_scene, scene_public
 from app.schema_link import cards_for, link_tables
@@ -157,6 +157,8 @@ class PendingDecideBody(BaseModel):
     db_id: str = ""
     confirm_token: str = ""
     blast_radius: str = ""
+    impact_ack: bool = False
+    verify_sql: str = ""
     session_id: str = ""
     sessionId: str = ""
     trace_id: str = ""
@@ -231,6 +233,8 @@ MCP_TOOLS = [
                 "tenant": {"type": "string"},
                 "confirm_token": {"type": "string"},
                 "decision": {"type": "string"},
+                "impact_ack": {"type": "boolean"},
+                "verify_sql": {"type": "string"},
             },
             "required": ["pending_id", "confirm_token"],
         },
@@ -582,6 +586,18 @@ def feedback(body: FeedbackBody, request: Request) -> dict[str, Any]:
     return {**out, "ack": ack}
 
 
+@app.get("/api/session-feedback")
+def get_session_feedback(request: Request, session_id: str = "") -> dict[str, Any]:
+    """Docker 重建后前端按 session 回灌有用/无用按钮态。"""
+    _require_auth(request)
+    sid = str(session_id or "").strip()
+    if not sid:
+        raise HTTPException(400, "session_id 不能为空")
+    from app.learning import list_session_feedback
+
+    return {"items": list_session_feedback(sid)}
+
+
 @app.post("/api/mcp")
 def mcp_endpoint(body: McpBody, request: Request) -> dict[str, Any]:
     if not mcp_token_ok(_headers_dict(request)):
@@ -681,6 +697,8 @@ def _mcp_call(name: str, args: dict[str, Any]) -> dict[str, Any]:
             decision=str(args.get("decision") or "确认"),
             tenant=tenant,
             confirm_token=str(args.get("confirm_token") or ""),
+            impact_ack=bool(args.get("impact_ack")),
+            verify_sql=str(args.get("verify_sql") or ""),
         )
     if name == "promote_golden":
         return promote_golden(
@@ -729,6 +747,8 @@ def pending_decide(body: PendingDecideBody, request: Request) -> dict[str, Any]:
         decision=body.decision,
         tenant=tenant,
         confirm_token=body.confirm_token,
+        impact_ack=bool(body.impact_ack),
+        verify_sql=str(body.verify_sql or ""),
     )
     agent_result = build_db_agent_result(
         answer=str(result.get("text") or ""),
@@ -788,6 +808,12 @@ def ask(body: AskBody, request: Request) -> dict[str, Any]:
         needs_human_confirm=bool(answer_ev.get("needs_human_confirm")),
         pending_actions=list(answer_ev.get("pending_actions") or []),
         pending_id=str(answer_ev.get("pending_id") or ""),
+        impact_estimate=(
+            answer_ev.get("meta", {}).get("impact_estimate")
+            if isinstance(answer_ev.get("meta"), dict)
+            else None
+        )
+        or answer_ev.get("impact_estimate"),
     )
     sid = str(body.session_id or body.sessionId or "")
     return {
@@ -983,15 +1009,33 @@ def _run(
     write_mode = bool(mgr.write_allowed) or (
         pending is not None and str((pending or {}).get("kind") or "") == "write"
     )
+    # 独立端（禄存）：LLM 判定写意图后进入写预览；总管路径仍靠 write_allowed
+    if (
+        not write_mode
+        and not pending
+        and not manager_path
+        and bool(get_settings().vanna_standalone_write)
+    ):
+        mode = classify_read_or_write(question=question, meter=LlmMeter())
+        write_mode = mode == "write"
+        if write_mode:
+            yield {"event": "write_intent", "mode": "write", "reason": "standalone_classify"}
+
     # 写 pending 确认：禁止走 SELECT 执行路径
     if pending and str(pending.get("kind") or "") == "write":
         if confirm:
+            # 独立端点「确认执行」即人在环；补 confirm_token / impact_ack
             token = str(mgr.confirm_token or "").strip()
+            if not token and not manager_path:
+                token = f"standalone:{pending.get('id') or body.pending_id}"
+            impact_ack = bool(getattr(mgr, "impact_ack", False)) or (not manager_path)
             result = decide_write_pending(
                 pending_id=str(pending.get("id") or body.pending_id),
                 decision="确认",
                 tenant=tenant,
                 confirm_token=token,
+                impact_ack=impact_ack,
+                verify_sql=str(getattr(mgr, "verify_sql", "") or ""),
             )
             ev = {
                 "event": "answer",

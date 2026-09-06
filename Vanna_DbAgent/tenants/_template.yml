@@ -7,6 +7,13 @@ mysql:
   user: readonly
   password_env: EXAMPLE_MYSQL_PASSWORD
   database: EXAMPLE
+# 可选：写库最小权限账号（HITL 通过后走此连接；未配则回退 mysql）
+# mysql_write:
+#   host: 127.0.0.1
+#   port: 3306
+#   user: writer
+#   password_env: EXAMPLE_MYSQL_WRITE_PASSWORD
+#   database: EXAMPLE
 table_whitelist_prefixes: []
 table_whitelist: []
 skip_list_tables: []

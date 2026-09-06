@@ -19,10 +19,13 @@ class ManagerCodeTask:
     upstream_facts: list[dict[str, Any]] = field(default_factory=list)
     must_outputs: list[str] = field(default_factory=list)
     hint_files: list[str] = field(default_factory=list)
+    allowed_paths: list[str] = field(default_factory=list)
     write_allowed: bool | None = None
     blast_radius: str = ""
     confirm_token: str = ""
     root: str = ""
+    verify_after_apply: bool = False
+    verify_command: str = ""
     raw: dict[str, Any] = field(default_factory=dict)
 
 
@@ -81,10 +84,13 @@ def parse_manager_task(raw: str | dict[str, Any] | None) -> ManagerCodeTask:
         upstream_facts=facts,
         must_outputs=_as_list_str(data.get("must_outputs") or data.get("mustOutputs")),
         hint_files=_as_list_str(data.get("hint_files") or data.get("hintFiles")),
+        allowed_paths=_as_list_str(data.get("allowed_paths") or data.get("allowedPaths")),
         write_allowed=None if data.get("write_allowed") is None else bool(data.get("write_allowed")),
         blast_radius=str(data.get("blast_radius") or "").strip().lower(),
         confirm_token=str(data.get("confirm_token") or "").strip(),
         root=str(data.get("root") or "").strip(),
+        verify_after_apply=bool(data.get("verify_after_apply") or data.get("verifyAfterApply")),
+        verify_command=str(data.get("verify_command") or data.get("verifyCommand") or "").strip(),
         raw=data,
     )
 

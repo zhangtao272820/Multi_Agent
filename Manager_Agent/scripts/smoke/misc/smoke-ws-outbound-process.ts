@@ -69,7 +69,7 @@ async function main() {
   // --- process accumulator + file session roundtrip ---
   resetRunProcessAccumulatorForTests()
   noteRunProcessEvent('run_smoke_1', 'thinking', '总管 Agent：开始处理…', 'manager')
-  noteRunProcessEvent('run_smoke_1', 'thinking', '正在汇总草稿…', 'manager')
+  noteRunProcessEvent('run_smoke_1', 'thinking', '正在撰写回复…', 'manager')
   noteRunProcessEvent('run_smoke_1', 'delta', 'should-skip', 'synth')
   const uiMeta = takeRunProcessUiMeta('run_smoke_1')
   assert(uiMeta?.process?.length === 2, 'only persistable process events')

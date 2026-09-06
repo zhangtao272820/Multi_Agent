@@ -238,13 +238,14 @@ export function createManagerRuntime(deps: CreateManagerRuntimeDeps) {
       } finally {
         clearInterval(heartbeatTimer)
       }
-    } else if (useStream && typeof (model as { stream?: (messages: unknown[]) => AsyncIterable<unknown> }).stream === 'function') {
-      const stream = await withLlmRateLimitRetry(() =>
-        (model as { stream: (messages: unknown[]) => AsyncIterable<unknown> }).stream(messages)
-      )
+    } else if (useStream && typeof (model as { stream?: (messages: unknown[]) => AsyncIterable<unknown> | Promise<AsyncIterable<unknown>> }).stream === 'function') {
+      const stream = await withLlmRateLimitRetry(async () => {
+        const s = await (model as { stream: (messages: unknown[]) => AsyncIterable<unknown> | Promise<AsyncIterable<unknown>> }).stream(messages)
+        return s
+      })
       for await (const chunk of stream) {
         ensureNotAborted()
-        const delta = String((chunk as { content?: string })?.content ?? '')
+        const delta = extractContentFromStreamChunk(chunk)
         if (!delta) continue
         outText += delta
         invokeOptions!.onDelta!(delta)

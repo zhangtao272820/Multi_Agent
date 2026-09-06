@@ -22,6 +22,7 @@ import {
   parseCodeClarifyFromMeta,
 } from '../../../utils/code/managerCodeMeta'
 import { resolveManagerAgentSessionId } from '../../core/runtime/sessionBridge'
+import { resolveSubAgentStepSessionId } from '../../core/routing/subAgentPassthrough'
 import { hasCodeInResults } from '#agent-shared/codeFirstAuthority'
 import { extractStructuredPayload } from '../../core/shared'
 import { tryCodeAuthorityDownstreamOutput } from '../../../utils/code/managerCodeDownstream'
@@ -249,10 +250,17 @@ export function createFixNode(deps: CreateFixNodeDeps) {
     }
     if (intent === 'rag') {
       let ragEvidence: any = null
+      const ragStepConversationId = resolveSubAgentStepSessionId({
+        runId: opts.runId,
+        agent: 'rag',
+        stepId: 'fix'
+      })
       const ragRes = await callRagAgent({
         ragAgentHttpUrl: opts.ragAgentHttpUrl,
         timeoutMs: Math.min(opts.timeoutMs, 45000),
         message: q,
+        history: [],
+        conversationId: ragStepConversationId,
         userId: opts.userId,
         traceId: opts.runId,
         sendThinking: (t: string) => opts.sendEvent({ event: 'thinking', data: t, from: 'rag' }),

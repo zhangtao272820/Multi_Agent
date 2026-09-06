@@ -1,25 +1,24 @@
 /**
  * 浏览器 JWT：Cookie 同步（主路径）+ $fetch/fetch 头注入（兜底）。
- * 401 login_required / invalid_user_token 时清登录态。
+ * 仅 invalid_user_token（或无本地 token 的 login_required）时清登录态。
  */
+import { shouldForceLogoutOn401 } from '#agent-shared/clawhiveAuthForceLogout'
+
 export default defineNuxtPlugin({
   name: 'clawhive-auth',
   enforce: 'pre',
   setup() {
     if (!import.meta.client) return
-    const { loadFromStorage, authHeaders, logout } = useClawhiveLogin()
+    const { loadFromStorage, authHeaders, logout, token } = useClawhiveLogin()
     loadFromStorage()
 
     function shouldForceLogout(status?: number, statusMessage?: string, body?: unknown): boolean {
-      if (status !== 401) return false
-      const msg = String(statusMessage || '').toLowerCase()
-      if (msg.includes('login_required') || msg.includes('invalid_user_token')) return true
-      const detail =
-        body && typeof body === 'object'
-          ? String((body as any).login_required ?? (body as any).detail ?? (body as any).statusMessage ?? '')
-          : ''
-      if (detail === 'true' || /login_required|invalid_user_token/i.test(detail)) return true
-      return true
+      return shouldForceLogoutOn401({
+        status,
+        statusMessage,
+        body,
+        hasLocalToken: Boolean(String(token.value || '').trim())
+      })
     }
 
     function mergeAuthHeaders(existing?: HeadersInit): Record<string, string> {
@@ -39,7 +38,6 @@ export default defineNuxtPlugin({
       return out
     }
 
-    // 兜底：替换 globalThis.$fetch（部分路径仍读它）；headers 用纯对象，避免 ofetch + Headers 丢字段
     // @ts-expect-error replace global $fetch
     globalThis.$fetch = $fetch.create({
       credentials: 'same-origin',

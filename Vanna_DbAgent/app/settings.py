@@ -41,6 +41,9 @@ class Settings(BaseSettings):
     vanna_history_turns: int = 6
     vanna_mcp_token: str = ""
     vanna_default_tenant: str = "p2604"
+    vanna_write_impact_threshold: int = 500
+    # 独立端（禄存 UI）允许写库预览；仍须点击「确认执行」才落库
+    vanna_standalone_write: bool = True
     agent_service_auth: str = "off"
     agent_service_token: str = ""
     clawhive_internal_token: str = ""

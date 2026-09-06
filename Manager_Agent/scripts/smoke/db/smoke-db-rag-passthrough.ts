@@ -131,9 +131,12 @@ const root = path.resolve(__dirname, '../../..')
 const dbClientSrc = readFileSync(path.join(root, 'server/utils/agents/dbClient.ts'), 'utf8')
 const ragClientSrc = readFileSync(path.join(root, 'server/utils/agents/ragClient.ts'), 'utf8')
 const dbExecSrc = readFileSync(path.join(root, 'server/graph/core/executors/dbExecutor.ts'), 'utf8')
-assert(!/managerTask\s*\?:/.test(dbClientSrc), 'dbClient must not accept managerTask param')
-assert(!/managerTask:/.test(dbClientSrc), 'dbClient must not send managerTask')
 assert(!/MANAGER_ORCHESTRATED_HEADER/.test(dbClientSrc), 'dbClient must not set orchestrated header')
+// managerTask 仅用于写闸 write_allowed，不得作为编排 sidecar 常态字段散播
+assert(
+  /write_allowed/.test(dbClientSrc) && /managerTask\s*\?:/.test(dbClientSrc),
+  'dbClient managerTask is write-gate only'
+)
 assert(!/managerRagTask\s*\?:/.test(ragClientSrc), 'ragClient must not accept managerRagTask')
 assert(!/manager_rag_task_json/.test(ragClientSrc), 'ragClient must not send manager_rag_task_json')
 assert(!/x-manager-orchestrated/.test(ragClientSrc), 'ragClient must not set x-manager-orchestrated')
@@ -153,8 +156,8 @@ assert(
   'ragExecute must gate facts fast-path and still call /api/chat via callRagAgent'
 )
 assert(
-  ragExecSrc.indexOf('isManagerRagRetrieveFirstEnabled()') < ragExecSrc.indexOf('deps.callRagAgent'),
-  'chat path must remain after retrieve-first gate'
+  ragExecSrc.lastIndexOf('deps.callRagAgent') > ragExecSrc.indexOf('isManagerRagRetrieveFirstEnabled()'),
+  'primary chat path must remain after retrieve-first gate'
 )
 
 const ragOrchSrc = readFileSync(

@@ -626,6 +626,54 @@ export async function playwrightFillFormFields(
   return { ok: filled.length > 0, filled, reason: filled.length ? undefined : 'nothing_filled' }
 }
 
+/**
+ * form_fill 失败 → 结构化缺参/缺元素说明（给用户短追问，禁止空成功）。
+ * 纯函数，可 smoke。
+ */
+export function buildFormFillClarifyMessage(input: {
+  reason?: string
+  requestedKeys?: string[]
+  filledKeys?: string[]
+  pageUrl?: string
+}): string {
+  const reason = String(input.reason || '').trim()
+  const requested = (input.requestedKeys || []).map((k) => String(k || '').trim()).filter(Boolean)
+  const filled = new Set((input.filledKeys || []).map((k) => String(k || '').trim()).filter(Boolean))
+  const missing = requested.filter((k) => !filled.has(k))
+  const url = String(input.pageUrl || '').trim()
+
+  if (!requested.length && /no_fields/i.test(reason)) {
+    return [
+      '浏览器填表未完成：任务里没有可映射的字段值。',
+      '请补充要填的字段（例如：First name=张三，Last name=李四）。',
+      url ? `当前页：${url}` : '',
+    ]
+      .filter(Boolean)
+      .join('\n')
+  }
+
+  const fieldHint =
+    missing.length > 0
+      ? `未写入字段：${missing.join('、')}。请确认字段名与取值，或换公开测试页（httpbin / w3school 表单）。`
+      : reason
+        ? `原因：${reason}`
+        : '未能写入任何字段。'
+
+  const code = /element_not_found/i.test(reason)
+    ? 'element_not_found'
+    : /no_fields|nothing_filled/i.test(reason)
+      ? 'success_criteria_unmet'
+      : 'success_criteria_unmet'
+
+  return [
+    `浏览器填表未完成（${code}）。`,
+    fieldHint,
+    url ? `当前页：${url}` : '',
+  ]
+    .filter(Boolean)
+    .join('\n')
+}
+
 /** 确定性抽取：title + h1 + url（不依赖 Stagehand LLM JSON） */
 export async function playwrightExtractBasics(stagehand: any): Promise<{
   title: string

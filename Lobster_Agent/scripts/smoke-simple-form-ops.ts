@@ -190,4 +190,56 @@ const noFill = verifyLobsterRunResult({
 assert.equal(noFill.ok, false, 'title-only form_fill must fail')
 assert.notEqual(noFill.reason, 'navigation_unverified', 'must not use navigation_unverified for form')
 
+import { buildFormFillClarifyMessage } from '../server/services/stagehandPlaywrightBridge'
+const clarifyEmpty = buildFormFillClarifyMessage({
+  reason: 'no_fields',
+  requestedKeys: [],
+  filledKeys: [],
+  pageUrl: 'https://httpbin.org/forms/post',
+})
+assert.match(clarifyEmpty, /没有可映射的字段|补充要填的字段/)
+const clarifyPartial = buildFormFillClarifyMessage({
+  reason: 'element_not_found:email',
+  requestedKeys: ['customer_name', 'email'],
+  filledKeys: ['customer_name'],
+  pageUrl: 'https://httpbin.org/forms/post',
+})
+assert.match(clarifyPartial, /未写入字段：email/)
+assert.match(clarifyPartial, /element_not_found/)
+
+import { playbookCacheKey, savePlaybook, lookupPlaybook } from '../server/services/lobsterPlaybookCache'
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+const pbDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lob-pb-form-'))
+process.env.LOBSTER_PLAYBOOK_DIR = pbDir
+process.env.LOBSTER_PLAYBOOK_CACHE = '1'
+const formKey = playbookCacheKey({
+  startUrl: 'https://httpbin.org/forms/post',
+  taskKind: 'form_fill',
+  goals: { must_submit: false, must_leave_start: false },
+})
+const formKey2 = playbookCacheKey({
+  startUrl: 'https://www.httpbin.org/forms/post',
+  taskKind: 'form_fill',
+  goals: { must_submit: false, must_leave_start: false },
+})
+assert.equal(formKey, formKey2, 'same host+kind+goals → same playbook key')
+savePlaybook({
+  startUrl: 'https://httpbin.org/forms/post',
+  taskKind: 'form_fill',
+  goals: { must_submit: false, must_leave_start: false },
+  plan_steps: [
+    { op: 'goto', target: 'https://httpbin.org/forms/post' },
+    { op: 'type', target: 'custname' },
+  ] as any,
+})
+const hit = lookupPlaybook({
+  startUrl: 'https://httpbin.org/forms/post',
+  taskKind: 'form_fill',
+  goals: { must_submit: false, must_leave_start: false },
+})
+assert.ok(hit, 'form_fill playbook replay hit')
+assert.equal(hit?.taskKind, 'form_fill')
+
 console.log('smoke-simple-form-ops: PASS')

@@ -14,9 +14,12 @@
 | 文件 | 作用 |
 |------|------|
 | `docker-compose.agents-lan.yml` | 编排（模型名不要写进 `services.environment`） |
+| `docker-compose.agents-enterprise.overlay.yml` | **仅** `-Enterprise` 挂载：资源限额 + 监控 healthcheck |
 | `.env.agents-lan` | **基础设施**：`LAN_HOST`、端口、Token、API Key、密码 |
+| `.env.agents-enterprise` | 企业覆盖（从 `.example` 复制；日常可不建） |
 | `.env.capability-models` | 模型名 `CAP_*` |
 | `.env.convergence-modes` | 行为 MODE |
+| [doc/enterprise-docker.md](doc/enterprise-docker.md) | 企业档 Docker 双轨 / 验收 / 回退 |
 
 控制台可改上述内容；落盘仍以这三层文件为准。密钥优先走控制台 Vault。
 

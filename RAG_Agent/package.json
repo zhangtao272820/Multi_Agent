@@ -26,6 +26,7 @@
     "smoke:agentic-jk": "npx --yes tsx scripts/smoke-rag-agentic-jk.ts",
     "smoke:l-wave": "node scripts/smoke-rag-l-wave.mjs",
     "smoke:source-coverage": "npx --yes tsx scripts/smoke-rag-source-coverage.ts",
+    "smoke:standalone-persist": "npx --yes tsx --tsconfig tsconfig.smoke.json scripts/smoke-rag-standalone-persist-gate.ts",
     "reindex": "npx --yes tsx scripts/reindex-from-store.ts"
   },
   "dependencies": {

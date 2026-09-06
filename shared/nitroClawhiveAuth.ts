@@ -204,9 +204,48 @@ export function isPublicAgentPath(path: string): boolean {
     p.startsWith('/api/metrics/') ||
     p === '/api/probe' ||
     p === '/api/auth/config' ||
-    p === '/api/auth/login'
+    p === '/api/auth/login' ||
+    p === '/api/auth/validate'
   ) {
     return true
   }
   return false
+}
+
+/**
+ * 同域 GET /api/auth/validate：本容器 JWT_SECRET 本地验签（不打 clawhive_backend）。
+ * 无 token → ok:false + login_required（HTTP 200，避免客户端误清态）；
+ * 坏 token → ok:false + invalid_user_token。
+ */
+export function buildLocalAuthValidateResponse(
+  event: AuthEventLike,
+  env: NodeJS.ProcessEnv = process.env
+): {
+  ok: boolean
+  reason?: string
+  username?: string
+  user_id?: string
+  role?: string
+  tenant_id?: string
+} {
+  if (!isAgentBrowserAuthEnabled(env)) {
+    return { ok: true, reason: 'auth_open' }
+  }
+  const token = extractBrowserToken(event)
+  if (!token) {
+    return { ok: false, reason: 'login_required' }
+  }
+  try {
+    const user = resolveBrowserUser(token, env)
+    if (event.context) event.context.clawhiveUser = user
+    return {
+      ok: true,
+      username: user.username,
+      user_id: user.userId,
+      role: user.role,
+      tenant_id: user.tenantId
+    }
+  } catch {
+    return { ok: false, reason: 'invalid_user_token' }
+  }
 }

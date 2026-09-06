@@ -4,6 +4,7 @@
 import assert from 'node:assert/strict'
 import {
   BUILTIN_GUI_WORKFLOW_IDS,
+  enrichBilibiliGuestWorkflowArgs,
   isKnownGuiWorkflowId,
   listKnownGuiWorkflowIds,
   listMissingGuiWorkflowArgs,
@@ -12,15 +13,58 @@ import {
   sanitizeGuiWorkflowId,
 } from '../../../server/utils/gui/guiWorkflowAllowlist'
 import { guiOperateKindFromMeta } from '../../../server/utils/gui/guiOperateKindLlm'
-import { isDockerHeadlessMcpGui, resolveGuiBlockedErrorCode } from '../../../server/utils/gui/guiHumanConfirm'
+import { isDockerHeadlessMcpGui, resolveGuiBlockedErrorCode, buildGuiHumanConfirmMessage, extractGuiFormFieldsSummaryFromRaw } from '../../../server/utils/gui/guiHumanConfirm'
 
 assert.ok(BUILTIN_GUI_WORKFLOW_IDS.includes('httpbin-form-fill'))
 assert.ok(BUILTIN_GUI_WORKFLOW_IDS.includes('w3school-form-fill' as (typeof BUILTIN_GUI_WORKFLOW_IDS)[number]))
 assert.ok(BUILTIN_GUI_WORKFLOW_IDS.includes('w3school-form-submit' as (typeof BUILTIN_GUI_WORKFLOW_IDS)[number]))
 assert.ok(BUILTIN_GUI_WORKFLOW_IDS.includes('runoob-click-extract' as (typeof BUILTIN_GUI_WORKFLOW_IDS)[number]))
 assert.ok(BUILTIN_GUI_WORKFLOW_IDS.includes('httpbin-form-submit' as (typeof BUILTIN_GUI_WORKFLOW_IDS)[number]))
+assert.ok(BUILTIN_GUI_WORKFLOW_IDS.includes('oa-multifield-form-fill' as (typeof BUILTIN_GUI_WORKFLOW_IDS)[number]))
+assert.ok(BUILTIN_GUI_WORKFLOW_IDS.includes('bilibili-guest-search' as (typeof BUILTIN_GUI_WORKFLOW_IDS)[number]))
 assert.ok(listKnownGuiWorkflowIds().includes('httpbin-form-fill'))
-assert.ok(listKnownGuiWorkflowIds().includes('w3school-form-fill'))
+assert.ok(listKnownGuiWorkflowIds().includes('oa-multifield-form-fill'))
+assert.ok(listKnownGuiWorkflowIds().includes('bilibili-guest-search'))
+assert.equal(resolveGuiWorkflowForTaskKind('bilibili-guest-search', 'search').ok, true)
+assert.equal(resolveGuiWorkflowForTaskKind('bilibili-guest-search', 'extract').ok, true)
+assert.equal(resolveGuiWorkflowForTaskKind('bilibili-guest-search', 'form_fill').ok, false)
+assert.equal(resolveGuiWorkflowForTaskKind('bilibili-guest-search', 'video_play').ok, false)
+assert.equal(
+  resolveGuiWorkflowWithArgs('bilibili-guest-search', 'search', { keyword: 'Python' }).ok,
+  true,
+)
+assert.equal(resolveGuiWorkflowWithArgs('bilibili-guest-search', 'search', {}).ok, false)
+assert.deepEqual(listMissingGuiWorkflowArgs('bilibili-guest-search', { startUrl: 'https://x' }), [
+  'keyword',
+])
+const enriched = enrichBilibiliGuestWorkflowArgs('bilibili-guest-search', { keyword: 'LangGraph' })
+assert.equal(
+  String(enriched.startUrl),
+  'https://search.bilibili.com/all?keyword=LangGraph',
+  'auto startUrl from keyword',
+)
+assert.ok(BUILTIN_GUI_WORKFLOW_IDS.includes('bilibili-video-play' as (typeof BUILTIN_GUI_WORKFLOW_IDS)[number]))
+assert.equal(resolveGuiWorkflowForTaskKind('bilibili-video-play', 'video_play').ok, true)
+assert.equal(resolveGuiWorkflowForTaskKind('bilibili-video-play', 'search').ok, false)
+assert.equal(
+  resolveGuiWorkflowWithArgs('bilibili-video-play', 'video_play', {
+    startUrl: 'https://www.bilibili.com/video/BV1xx',
+  }).ok,
+  true,
+)
+assert.equal(resolveGuiWorkflowForTaskKind('oa-multifield-form-fill', 'form_fill').ok, true)
+assert.equal(
+  resolveGuiWorkflowWithArgs(
+    'oa-multifield-form-fill',
+    'form_fill',
+    { customer_name: '王五', email: 'w@ex.com', phone: '13800000000' },
+  ).ok,
+  true,
+)
+assert.equal(
+  resolveGuiWorkflowWithArgs('oa-multifield-form-fill', 'form_fill', { customer_name: '王五' }).ok,
+  false,
+)
 assert.equal(resolveGuiWorkflowForTaskKind('w3school-form-fill', 'form_fill').ok, true)
 assert.equal(resolveGuiWorkflowForTaskKind('w3school-form-submit', 'navigate').ok, false)
 assert.ok(listKnownGuiWorkflowIds().includes('runoob-click-extract'))
@@ -152,5 +196,34 @@ assert.equal(resolveGuiBlockedErrorCode('need_human'), 'need_human')
 assert.equal(resolveGuiBlockedErrorCode('captcha'), 'captcha')
 assert.equal(resolveGuiBlockedErrorCode(''), 'task_blocked')
 assert.equal(resolveGuiBlockedErrorCode('navigation_unverified'), 'navigation_unverified')
+
+const formConfirm = buildGuiHumanConfirmMessage({
+  failureType: 'form_submit',
+  task: '提交请假单',
+  finalUrl: 'https://httpbin.org/forms/post',
+  formFieldsSummary: [
+    { key: 'customer_name', value: '王五' },
+    { key: 'email', value: 'w@ex.com' },
+  ],
+})
+assert.match(formConfirm.message, /将确认字段：customer_name=王五/)
+assert.match(formConfirm.title, /核对字段/)
+
+const biliConfirm = buildGuiHumanConfirmMessage({
+  failureType: 'social_engagement',
+  task: '给这个B站视频点赞',
+  finalUrl: 'https://www.bilibili.com/video/BV1',
+})
+assert.match(biliConfirm.title, /B站写互动/)
+assert.match(biliConfirm.message, /点赞|投币|收藏|关注/)
+
+const fieldsFromRaw = extractGuiFormFieldsSummaryFromRaw({
+  result: {
+    filled: [{ key: 'first_name', value: '张三' }],
+    items: [{ title: 'last_name', text: '李四' }],
+  },
+})
+assert.equal(fieldsFromRaw?.[0]?.key, 'first_name')
+assert.equal(fieldsFromRaw?.find((f) => f.key === 'last_name')?.value, '李四')
 
 console.log('smoke: gui workflow allowlist ok')

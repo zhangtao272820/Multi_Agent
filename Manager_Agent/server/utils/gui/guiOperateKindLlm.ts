@@ -13,6 +13,7 @@ import {
 import {
   listKnownGuiWorkflowIds,
   listMissingGuiWorkflowArgs,
+  enrichBilibiliGuestWorkflowArgs,
   resolveGuiWorkflowForTaskKind,
 } from './guiWorkflowAllowlist'
 
@@ -68,24 +69,31 @@ function systemPrompt(): string {
     '- search：站内搜索（打开搜索页、输入词、点结果）',
     '- extract：抽取标题/链接/列表（可在搜索或导航之后）',
     '- navigate：仅打开/跳转 URL，无明显搜索或填表',
-    '- video_play：播放/观看视频',
-    '- social_engagement：点赞/投币/关注/收藏等',
+    '- video_play：播放/观看视频（含 B 站打开视频页并播放）',
+    '- social_engagement：点赞/投币/关注/收藏等写互动（B 站互动默认 needs_login=true）',
     '- desktop_app / mobile_app：原生桌面或 Android',
     '- multi_step：明确的多阶段复合操作',
     '- unknown：无法判断',
     '',
-    'needs_login：任务明确需要登录态或登录页时为 true。',
+    'needs_login：任务明确需要登录态或登录页时为 true；social_engagement 默认 true；B 站游客搜索/抽标题为 false。',
     '',
-    'workflow_id（可选）：仅当用户原话明确写出「工作流:xxx / 宏:xxx」且能给出该宏全部必填参数时填写。',
+    'B 站（bilibili.com / b23.tv）分流：',
+    '- 搜索关键词并打开结果/抽取标题或 UP 主（且不要播放/不要互动）→ task_kind=search 或 extract；explicit 游客。',
+    '- 有明确搜索词时可填 workflow_id=bilibili-guest-search，workflow_args 必含 keyword；startUrl 可写 https://search.bilibili.com/all?keyword=…（缺 startUrl 时服务端会按 keyword 补全）。',
+    '- 播放/观看且有明确视频 URL 时可填 workflow_id=bilibili-video-play，workflow_args 必含 startUrl；勿挂 guest-search 宏。',
+    '- 点赞/投币/收藏/关注 → social_engagement + needs_login=true；勿挂 guest-search / video-play 宏。',
+    '',
+    'workflow_id（可选）：用户写出「工作流:xxx / 宏:xxx」，或语义明确对应已有宏且参数齐全时填写。',
     `- 允许的宏 id（禁止编造其它 id）：${known}`,
     '- 普通自然语言填表（如「打开 w3school.com.cn 表单，First name 填张三」）→ 禁止填 workflow_id，只出 task_kind=form_fill。',
-    '- w3school-form-* 必填 workflow_args.first_name + last_name；httpbin-form-* 必填 customer_name；缺任一键则省略 workflow_id。',
-    '- navigate / extract / search / multi_step：必须省略 workflow_id（禁止误挂 form 宏）',
+    '- w3school-form-* 必填 workflow_args.first_name + last_name；httpbin-form-* 必填 customer_name；oa-multifield-form-fill 必填 customer_name+email+phone；bilibili-guest-search 必填 keyword；bilibili-video-play 必填 startUrl；缺任一键则省略 workflow_id。',
+    '- navigate / video_play / social_engagement / form_fill / login：禁止误挂 bilibili-guest-search 或 form 宏（除非该宏兼容当前 task_kind）。',
+    '- runoob-click-extract 兼容 navigate|extract|multi_step；bilibili-guest-search 兼容 search|extract|multi_step；bilibili-video-play 兼容 video_play|navigate。',
     '- 不确定 → 省略 workflow_id，只出 task_kind',
     'workflow_args：仅在填写 workflow_id 时给出完整参数对象；startUrl 可从任务 URL 写入。',
     '勿把普通填表误判为必须走宏；无明确宏意图或参数不全时只出 task_kind。',
     '',
-    '「怎么学 Python / 教程推荐」等资讯问答不属于本分类器（应由上层判 search_chat）。',
+    '「怎么学 Python / 教程推荐 / B站有哪些好课」等资讯问答不属于本分类器（应由上层判 search_chat）。',
     'schema: {"task_kind":"...","needs_login":boolean,"confidence":number,"rationale":string,"workflow_id"?:string,"workflow_args"?:object}',
   ].join('\n')
 }
@@ -103,10 +111,11 @@ function decisionFromParsed(data: z.infer<typeof GuiOperateKindSchema>): GuiOper
   const kind = normalizeManagerGuiTaskKind(data.task_kind)
   if (!kind) return null
   const rawWf = String(data.workflow_id || '').trim() || undefined
-  const workflow_args =
+  let workflow_args =
     data.workflow_args && typeof data.workflow_args === 'object' && !Array.isArray(data.workflow_args)
       ? (data.workflow_args as Record<string, unknown>)
       : undefined
+  workflow_args = enrichBilibiliGuestWorkflowArgs(rawWf, workflow_args)
   const resolved = resolveGuiWorkflowForTaskKind(rawWf, kind)
   let workflow_id = resolved.ok ? resolved.id : undefined
   let dropped_workflow_id =

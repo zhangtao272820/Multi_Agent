@@ -1,0 +1,45 @@
+{
+  "id": "bilibili-video-play",
+  "name": "B站打开视频并尝试播放",
+  "description": "打开指定 BV/视频 URL，关闭可选弹窗，点击播放控件，抽取标题（不点赞不投币）",
+  "args": ["startUrl"],
+  "steps": [
+    {
+      "action": "goto",
+      "url": "{{startUrl}}",
+      "waitUntil": "domcontentloaded"
+    },
+    {
+      "action": "wait",
+      "ms": 800
+    },
+    {
+      "action": "click",
+      "selector": "button:has-text('暂不登录'), .bili-mini-close-icon, [aria-label='关闭']",
+      "timeoutMs": 2500,
+      "optional": true
+    },
+    {
+      "action": "click",
+      "selector": ".bpx-player-ctrl-play, .bpx-player-ctrl-btn[aria-label*='播放'], .bpx-player-video-wrap, video",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "wait",
+      "ms": 1200
+    },
+    {
+      "action": "extract",
+      "selector": "h1, .video-title, [class*='video-title'], title",
+      "assignTo": "page_title"
+    },
+    {
+      "action": "snapshot",
+      "assignTo": "play_landing"
+    },
+    {
+      "action": "finish",
+      "answer": "工作流 bilibili-video-play 完成。标题={{page_title}}；落地={{play_landing}}"
+    }
+  ]
+}

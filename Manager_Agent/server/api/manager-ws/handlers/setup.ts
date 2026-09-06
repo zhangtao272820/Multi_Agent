@@ -146,8 +146,15 @@ export async function setupWsMessage(peer: any, message: any): Promise<WsSetupRe
     markWsPeerAuthed(peer)
   }
 
-  const { resolveManagerUserFromMessage } = await import('../../../utils/platform/managerUserAuth')
-  const userAuth = resolveManagerUserFromMessage(payloadRaw as Record<string, unknown>)
+  const { resolveManagerUserFromMessage, isManagerUserAuthEnabled } = await import(
+    '../../../utils/platform/managerUserAuth'
+  )
+  const peerMeta = peerRequestMeta(peer)
+  const userAuth = resolveManagerUserFromMessage(
+    payloadRaw as Record<string, unknown>,
+    process.env,
+    peerMeta.headers
+  )
   if (!userAuth.ok) {
     send('error', userAuth.reason, 'manager')
     return { ok: false, send }
@@ -172,8 +179,9 @@ export async function setupWsMessage(peer: any, message: any): Promise<WsSetupRe
     if (payload.runId) noteRunProcessEvent(payload.runId, payload.event, payload.data, payload.from)
   })
   peerUnregister.set(peer, unreg)
-  // 启用用户登录时强制 JWT.sub，忽略客户端伪造 userId
-  const explicitUserId = jwtUserId || ('userId' in payload && payload.userId ? payload.userId : undefined)
+  // 浏览器鉴权开启时强制 JWT.sub，禁止客户端伪造 userId 冒充 admin
+  const clientUserId = 'userId' in payload && payload.userId ? String(payload.userId) : undefined
+  const explicitUserId = jwtUserId || (isManagerUserAuthEnabled() ? undefined : clientUserId)
   const boundUserId = await ensureUserBinding(sessionId, explicitUserId).catch(() => null)
   const tenantId =
     jwtTenant || ('tenantId' in payload && payload.tenantId ? payload.tenantId : undefined)

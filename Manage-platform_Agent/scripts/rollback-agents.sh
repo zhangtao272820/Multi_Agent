@@ -45,14 +45,14 @@ echo "回滚到 CLAWHIVE_IMAGE_TAG=${TAG}"
 # shellcheck disable=SC1090
 source "$ENV_FILE" 2>/dev/null || true
 
-PROFILE_ARGS=()
+PROFILE_ARGS=(--profile monitoring)
 if (( EXTENDED )); then
-  PROFILE_ARGS=(--profile extended)
+  PROFILE_ARGS+=(--profile extended)
 fi
 
 echo "force-recreate（--no-build，使用已加载镜像）..."
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" \
-  up -d --no-build --force-recreate "${PROFILE_ARGS[@]}"
+  "${PROFILE_ARGS[@]}" up -d --no-build --force-recreate
 
 wait_health() {
   local base="http://127.0.0.1:${CLAWHIVE_BACKEND_PORT:-18000}"

@@ -76,28 +76,40 @@ export async function loginWithClawhive(opts: {
   authBase?: string
   username: string
   password: string
+  /** warming 时额外自动重试次数（客户端），默认 1 */
+  warmingRetries?: number
 }): Promise<ClawhiveLoginResult & { username: string }> {
   const base = String(opts.authBase ?? resolveClawhiveAuthBase()).replace(/\/+$/, '')
   const url = base ? `${base}/api/auth/login` : '/api/auth/login'
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify({ username: opts.username, password: opts.password })
-  })
-  const data = (await res.json().catch(() => ({}))) as Record<string, unknown>
-  if (!res.ok) {
-    throw new Error(String(data.detail || data.message || `login_failed_${res.status}`))
+  const warmingRetries = Math.max(0, Math.floor(opts.warmingRetries ?? 1))
+  let lastErr = 'login_failed'
+
+  for (let i = 0; i <= warmingRetries; i++) {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ username: opts.username, password: opts.password })
+    })
+    const data = (await res.json().catch(() => ({}))) as Record<string, unknown>
+    if (res.ok) {
+      const access_token = String(data.access_token || '').trim()
+      if (!access_token) throw new Error('login_missing_token')
+      const username = String(opts.username || peekJwtSub(access_token)).trim()
+      storeClawhiveSession(access_token, username)
+      return {
+        access_token,
+        role: data.role != null ? String(data.role) : undefined,
+        tenant_id: data.tenant_id != null ? String(data.tenant_id) : undefined,
+        username
+      }
+    }
+    const detail = String(data.detail || data.message || `login_failed_${res.status}`)
+    lastErr = detail
+    const warming = /clawhive_login_warming|clawhive_login_unreachable/i.test(detail) || res.status === 502
+    if (!warming || i >= warmingRetries) break
+    await new Promise((r) => setTimeout(r, 800 * (i + 1)))
   }
-  const access_token = String(data.access_token || '').trim()
-  if (!access_token) throw new Error('login_missing_token')
-  const username = String(opts.username || peekJwtSub(access_token)).trim()
-  storeClawhiveSession(access_token, username)
-  return {
-    access_token,
-    role: data.role != null ? String(data.role) : undefined,
-    tenant_id: data.tenant_id != null ? String(data.tenant_id) : undefined,
-    username
-  }
+  throw new Error(lastErr)
 }
 
 export function authHeaders(extra?: Record<string, string>): Record<string, string> {

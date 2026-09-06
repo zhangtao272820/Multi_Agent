@@ -32,8 +32,10 @@ $backendPort = "18000"
 $m = Select-String -Path $envFile -Pattern "^CLAWHIVE_BACKEND_PORT=(.+)$" | Select-Object -First 1
 if ($m) { $backendPort = $m.Matches.Groups[1].Value.Trim() }
 
-$composeArgs = @("--env-file", $envFile, "-f", $composeFile, "up", "-d", "--no-build", "--force-recreate")
-if ($Extended) { $composeArgs = @("--env-file", $envFile, "-f", $composeFile, "--profile", "extended", "up", "-d", "--no-build", "--force-recreate") }
+$composeArgs = @("--env-file", $envFile, "-f", $composeFile, "--profile", "monitoring", "up", "-d", "--no-build", "--force-recreate")
+if ($Extended) {
+    $composeArgs = @("--env-file", $envFile, "-f", $composeFile, "--profile", "extended", "--profile", "monitoring", "up", "-d", "--no-build", "--force-recreate")
+}
 
 Write-Host "force-recreate（--no-build）..."
 docker compose @composeArgs

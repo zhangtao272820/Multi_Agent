@@ -10,7 +10,10 @@ export const BUILTIN_GUI_WORKFLOW_IDS = [
   'w3school-form-submit',
   'httpbin-form-fill',
   'httpbin-form-submit',
+  'oa-multifield-form-fill',
   'runoob-click-extract',
+  'bilibili-guest-search',
+  'bilibili-video-play',
 ] as const
 
 /** 内置宏允许的 task_kind（未列出的 env 扩展宏：无 kind 约束） */
@@ -19,7 +22,10 @@ export const GUI_WORKFLOW_COMPATIBLE_KINDS: Record<string, readonly string[]> = 
   'w3school-form-submit': ['form_fill'],
   'httpbin-form-fill': ['form_fill'],
   'httpbin-form-submit': ['form_fill'],
+  'oa-multifield-form-fill': ['form_fill'],
   'runoob-click-extract': ['navigate', 'extract', 'multi_step'],
+  'bilibili-guest-search': ['search', 'extract', 'multi_step'],
+  'bilibili-video-play': ['video_play', 'navigate'],
 }
 
 /**
@@ -31,6 +37,25 @@ export const GUI_WORKFLOW_REQUIRED_ARGS: Record<string, readonly string[]> = {
   'w3school-form-submit': ['first_name', 'last_name'],
   'httpbin-form-fill': ['customer_name'],
   'httpbin-form-submit': ['customer_name'],
+  'oa-multifield-form-fill': ['customer_name', 'email', 'phone'],
+  'bilibili-guest-search': ['keyword'],
+  'bilibili-video-play': ['startUrl'],
+}
+
+/** B站游客宏：有 keyword 无 startUrl 时补直达搜索页（结构性 URL，非意图路由） */
+export function enrichBilibiliGuestWorkflowArgs(
+  workflowId: string | undefined,
+  args: Record<string, unknown> | null | undefined,
+): Record<string, unknown> {
+  const id = String(workflowId || '').trim()
+  const out: Record<string, unknown> = { ...(args && typeof args === 'object' ? args : {}) }
+  if (id !== 'bilibili-guest-search') return out
+  const keyword = String(out.keyword ?? '').trim()
+  const startUrl = String(out.startUrl ?? out.start_url ?? '').trim()
+  if (keyword && !startUrl) {
+    out.startUrl = `https://search.bilibili.com/all?keyword=${encodeURIComponent(keyword)}`
+  }
+  return out
 }
 
 export function listMissingGuiWorkflowArgs(

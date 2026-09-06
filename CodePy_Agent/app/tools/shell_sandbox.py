@@ -28,6 +28,9 @@ _ALLOWED_PREFIXES = (
     "git",
 )
 
+# verify profile: only test runners (still denied: network / destructive tokens)
+_VERIFY_PREFIXES = frozenset({"python", "python3", "py", "pytest", "npm", "npx"})
+
 _GIT_SUB = frozenset({"status", "diff", "log", "show", "branch", "rev-parse"})
 
 _DENIED = re.compile(
@@ -35,6 +38,37 @@ _DENIED = re.compile(
     r"[|&;`$<>]|\b(sudo|su)\b",
     re.I,
 )
+
+ShellProfile = str  # "default" | "verify"
+
+
+def _normalize_profile(profile: str | None) -> str:
+    p = str(profile or "default").strip().lower()
+    if p in {"verify", "test", "ci"}:
+        return "verify"
+    return "default"
+
+
+def _is_verify_command(parts: list[str], base: str) -> bool:
+    """Allow pytest / python -m pytest / npm test|run test|run test:* only."""
+    if base not in _VERIFY_PREFIXES:
+        return False
+    if base == "pytest":
+        return True
+    if base in {"python", "python3", "py"}:
+        # python -m pytest ...
+        return len(parts) >= 3 and parts[1] == "-m" and parts[2].lower() == "pytest"
+    if base in {"npm", "npx"}:
+        if len(parts) < 2:
+            return False
+        sub = parts[1].lower()
+        if sub == "test":
+            return True
+        if sub == "run" and len(parts) >= 3:
+            script = parts[2].lower()
+            return script == "test" or script.startswith("test:")
+        return False
+    return False
 
 
 @dataclass
@@ -73,7 +107,7 @@ def _resolve_cwd(cwd: str | None, root_override: str | None = None) -> Path:
     return cand
 
 
-def validate_shell_command(command: str) -> tuple[bool, str]:
+def validate_shell_command(command: str, *, profile: str | None = None) -> tuple[bool, str]:
     raw = str(command or "").strip()
     if not raw:
         return False, "empty command"
@@ -91,6 +125,11 @@ def validate_shell_command(command: str) -> tuple[bool, str]:
     # Windows: strip .exe / path basename
     base = Path(head).name
     base = re.sub(r"\.(exe|cmd|bat)$", "", base, flags=re.I).lower()
+    prof = _normalize_profile(profile)
+    if prof == "verify":
+        if not _is_verify_command(parts, base):
+            return False, "verify profile only allows pytest / python -m pytest / npm test"
+        return True, "ok"
     if base not in _ALLOWED_PREFIXES and head not in _ALLOWED_PREFIXES:
         return False, f"command not allowlisted: {base or head}"
     if base == "git" or head == "git":
@@ -106,8 +145,9 @@ def run_terminal(
     root_override: str | None = None,
     timeout_s: float | None = None,
     max_output: int = 12_000,
+    profile: str | None = None,
 ) -> dict[str, Any]:
-    ok, reason = validate_shell_command(command)
+    ok, reason = validate_shell_command(command, profile=profile)
     if not ok:
         return ShellResult(
             ok=False,

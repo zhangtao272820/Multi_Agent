@@ -2,6 +2,9 @@
 **/.env
 **/.env.*
 !**/.env.example
+# Trackable LAN / enterprise overlay templates (no secrets)
+!**/.env.agents-lan.example
+!**/.env.agents-enterprise.example
 
 # Python bytecode
 __pycache__/
@@ -41,6 +44,10 @@ local-learning/
 **/docs/**
 doc/**
 docs/**
+# Tracked ops shortdocs (enterprise Docker dual-track)
+!Manage-platform_Agent/doc/
+!Manage-platform_Agent/doc/enterprise-docker.md
+!Manage-platform_Agent/doc/docker-persist-no-volume-wipe.md
 
 # Cursor IDE config (all agents, local only — never push)
 **/.cursor/

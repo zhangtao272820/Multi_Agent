@@ -12,7 +12,7 @@ import {
   loadLobsterWorkflow,
   resolveWorkflowArgs,
 } from '../server/services/lobsterWorkflowLoader'
-import { isLobsterWorkflowId } from '../server/services/lobsterWorkflowRunner'
+import { isLobsterWorkflowId, workflowFillWithVerify } from '../server/services/lobsterWorkflowRunner'
 
 function assert(cond: unknown, msg: string) {
   if (!cond) throw new Error(msg)
@@ -26,6 +26,7 @@ assert(ids.includes('w3school-form-fill'), 'w3school-form-fill macro')
 assert(ids.includes('w3school-form-submit'), 'w3school-form-submit macro')
 assert(ids.includes('runoob-click-extract'), 'runoob-click-extract macro')
 assert(ids.includes('bilibili-guest-search'), 'bilibili-guest-search macro')
+assert(ids.includes('bilibili-video-play'), 'bilibili-video-play macro')
 
 const def = loadLobsterWorkflow('httpbin-form-fill')
 assert(def.steps.length >= 4, 'steps')
@@ -41,6 +42,19 @@ assert(bili.steps.some((s) => s.action === 'goto'), 'bili goto')
 assert(bili.steps.some((s) => s.action === 'click'), 'bili click')
 assert(bili.steps.some((s) => s.action === 'extract'), 'bili extract')
 assert(bili.args.includes('keyword'), 'bili keyword arg')
+assert(
+  bili.steps.filter((s) => s.action === 'extract').length >= 2,
+  'bili extract title+up',
+)
+assert(
+  bili.steps.some((s) => s.action === 'click' && (s as { optional?: boolean }).optional === true),
+  'bili optional dismiss click',
+)
+
+const biliPlay = loadLobsterWorkflow('bilibili-video-play')
+assert(biliPlay.args.includes('startUrl'), 'bili play startUrl')
+assert(biliPlay.steps.some((s) => s.action === 'click'), 'bili play click')
+assert(biliPlay.steps.some((s) => s.action === 'extract'), 'bili play extract')
 
 const submit = loadLobsterWorkflow('httpbin-form-submit')
 assert(submit.steps.some((s) => s.action === 'approve'), 'submit approve')
@@ -106,5 +120,65 @@ assert(!ids.some((id) => id.toLowerCase() === invented), 'invented id not in lis
 
 const roundtrip = parseLobsterWorkflowDef(JSON.parse(JSON.stringify(def)))
 assert(roundtrip.id === def.id, 'parse roundtrip')
+
+// fill+回读校验（无浏览器）：mock page
+{
+  const store: Record<string, string> = { fname: 'Bill', lname: 'Gates' }
+  const mockPage = {
+    locator(sel: string) {
+      const key = /fname|firstname/i.test(sel) ? 'fname' : /lname|lastname/i.test(sel) ? 'lname' : 'x'
+      const self = {
+        first() {
+          return self
+        },
+        async waitFor() {
+          return
+        },
+        async fill(v: string) {
+          store[key] = v
+        },
+        async type(v: string) {
+          store[key] = (store[key] || '') + v
+        },
+        async inputValue() {
+          return store[key] || ''
+        },
+      }
+      return self
+    },
+  } as any
+  await workflowFillWithVerify(mockPage, 'input#fname, input[name="fname"]', 'Lobster')
+  assert(store.fname === 'Lobster', 'fill verify overwrites Bill→Lobster')
+  let mismatch = false
+  try {
+    // 模拟 fill 写不进去
+    const bad = {
+      locator() {
+        const self = {
+          first() {
+            return self
+          },
+          async waitFor() {
+            return
+          },
+          async fill() {
+            /* no-op */
+          },
+          async type() {
+            /* no-op */
+          },
+          async inputValue() {
+            return 'Bill'
+          },
+        }
+        return self
+      },
+    } as any
+    await workflowFillWithVerify(bad, 'input#fname', 'Lobster')
+  } catch (e: any) {
+    mismatch = String(e?.message || e).includes('workflow_fill_failed')
+  }
+  assert(mismatch, 'value mismatch must fail closed')
+}
 
 console.log('smoke-workflow-macro: PASS')

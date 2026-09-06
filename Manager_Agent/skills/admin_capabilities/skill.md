@@ -44,7 +44,8 @@ compatible_agents:
 ## PlannerHints
 
 - admin 步骤 query 只写上述子任务，保留用户原话中的地点、时间、起终点、收件人、文件名。
-- **可写字段**：用户给出的标题、详细内容/说明、待办描述、邮件正文或回复内容必须保留在 admin queryFocus/子句中，禁止摘要丢掉；侧车 `source_user_task` 为字段权威，Admin 规划须写入 `description`/`content` args。
+- **可写字段**：用户给出的标题、详细内容/说明、待办描述须保留；**发信意图极简**：短意图即可进 Compose，禁止要求用户在 chat 粘贴全文正文；侧车 `source_user_task` 为字段权威。
+- 收件人仅为姓名时走联系人静默解析（`get_contact_email`）；周报/纪要工具返回 `mail_compose` 预填。
 - 会议/「创建日程」必须规划 `add_event`，禁止只用 `add_reminder`（日历页读不到）；`description` 填详细内容，禁止用标题顶替。
 - 地图子任务默认**无需** dependsOn rag/db/crawler，除非用户明确「根据查询结果再出行」。
-- 写文件 / 纪要落待办须走写闸 HITL，勿假设 auto_confirm。
+- 写文件 / 纪要落待办 / 发信须走写闸 HITL（Compose Card），勿假设 auto_confirm。

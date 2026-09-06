@@ -19,7 +19,7 @@ export const LOBSTER_PRESET_GROUPS: Array<{ id: LobsterTaskPreset['group']; labe
   { id: 'search', label: '搜索 / 导航' },
   { id: 'form', label: '填表' },
   { id: 'login', label: '登录态' },
-  { id: 'bilibili', label: 'B站准备' },
+  { id: 'bilibili', label: 'B站' },
   { id: 'desktop', label: '桌面' },
 ]
 
@@ -116,6 +116,31 @@ export const LOBSTER_TASK_PRESETS: LobsterTaskPreset[] = [
       keyword: 'Python 教程',
       startUrl: 'https://search.bilibili.com/all?keyword=Python%20%E6%95%99%E7%A8%8B',
     },
+  },
+  {
+    id: 'bilibili-play',
+    label: 'B站播放视频',
+    hint: '宏 bilibili-video-play · classic/有头',
+    group: 'bilibili',
+    task:
+      '打开 https://www.bilibili.com/video/BV1GJ411x7h7 ，播放该视频（不要点赞、不要投币、不要发弹幕）。',
+    startUrl: 'https://www.bilibili.com/video/BV1GJ411x7h7',
+    engine: 'classic',
+    workflowId: 'bilibili-video-play',
+    workflowArgs: {
+      startUrl: 'https://www.bilibili.com/video/BV1GJ411x7h7',
+    },
+  },
+  {
+    id: 'bilibili-like',
+    label: 'B站点赞（须登录+HITL）',
+    hint: 'social_engagement · 确认后才点',
+    group: 'bilibili',
+    task:
+      '打开 https://www.bilibili.com/video/BV1GJ411x7h7 ，给这个视频点个赞（需要登录态；先确认再操作）。',
+    startUrl: 'https://www.bilibili.com/video/BV1GJ411x7h7',
+    engine: 'classic',
+    browserProfile: 'user',
   },
   {
     id: 'notepad-desktop',

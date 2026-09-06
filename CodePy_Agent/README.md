@@ -33,7 +33,10 @@ python scripts/smoke_fs.py
 python scripts/smoke_compute.py
 python scripts/smoke_shell_sandbox.py
 python scripts/smoke_edit_pending.py
+python scripts/smoke_hands_safety.py
 ```
+
+写库侧（Vanna）：`python scripts/smoke_write_impact.py`、`python scripts/smoke_write_guard.py`
 
 ## 目录
 

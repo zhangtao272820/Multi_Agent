@@ -127,6 +127,8 @@ const RECIPES: SiteRecipe[] = [
     actTemplate: '在 custname 输入框填写用户指定的值',
     formFields: [
       { key: 'customer_name', selectors: ['input[name="custname"]', '#custname'], aliases: ['custname', 'Customer name'] },
+      { key: 'email', selectors: ['input[name="custemail"]', '#custemail'], aliases: ['custemail', 'Customer email', '邮箱'] },
+      { key: 'phone', selectors: ['input[name="custtel"]', '#custtel'], aliases: ['custtel', 'Customer telephone', '电话'] },
     ],
   },
   {
@@ -153,13 +155,13 @@ const RECIPES: SiteRecipe[] = [
     formFields: [
       {
         key: 'first_name',
-        selectors: ['input#fname', 'input[name="fname"]'],
-        aliases: ['fname', 'First name', '名'],
+        selectors: ['input#fname', 'input[name="fname"]', 'input[name="firstname"]'],
+        aliases: ['fname', 'First name', '名', 'firstname'],
       },
       {
         key: 'last_name',
-        selectors: ['input#lname', 'input[name="lname"]'],
-        aliases: ['lname', 'Last name', '姓'],
+        selectors: ['input#lname', 'input[name="lname"]', 'input[name="lastname"]'],
+        aliases: ['lname', 'Last name', '姓', 'lastname'],
       },
     ],
   },
@@ -226,25 +228,27 @@ const RECIPES: SiteRecipe[] = [
   {
     id: 'bilibili',
     hosts: /bilibili\.com|b23\.tv/i,
-    // 游客搜索/抽取优先 Stagehand；播放/投币/弹幕等互动仍 hard_guard → classic（见 engineSelector）
+    // 游客搜索/抽取优先 Stagehand；播放/投币等互动 hard_guard → classic（见 engineSelector + bilibiliEngagement）
     preferredEngine: 'stagehand',
     complex: true,
     mcpHints: [
       'B 站为重度 SPA；游客任务直达 search.bilibili.com，无需登录。',
       '首页登录推广弹窗点「暂不登录」或 Escape。',
-      '播放/点赞/投币/弹幕：下一阶段 B 站专属 MCP（skills/bilibili-engagement）；当前走 classic HITL。',
+      '播放/点赞/投币/关注：bilibiliEngagement 工具 + HITL；弹幕本阶段不自动发。',
     ],
     stagehandHints: [
-      '游客搜索：startUrl 用 https://search.bilibili.com/all?keyword=…，explicitly_avoid_login。',
+      '游客搜索：startUrl 用 https://search.bilibili.com/all?keyword=…，explicitly_avoid_login；优先宏 bilibili-guest-search。',
+      '成功须进 /video/ 或详情标题可读；禁止停在首页宣称成功。',
       '登录墙出现则 finish 说明需 cookie；可 POST /api/lobster/session/import 导入登录态。',
-      '弹窗/青少年模式提示先 observe 关闭按钮再 act。',
-      '专属互动（弹幕/播放/投币）→ 后续 MCP，本轮禁止自动执行。',
+      '弹窗/青少年模式提示先关闭再搜索。',
+      'social_engagement：须 HITL；未登录不得假成功。',
     ],
     actTemplate: '在 B 站搜索指定关键词，打开第一条视频详情页，提取标题、UP 主与链接（不播放、不点赞、不投币）',
     resultPageHints: {
-      urlIncludes: ['search.bilibili.com', 'keyword='],
+      // 游客宏最终应落在视频详情；搜索页仅中间态
+      urlIncludes: ['/video/', 'bilibili.com/video'],
       listSelector: '.video-list, .search-content, .bili-video-card',
-      resultRootSelector: '.bili-video-card, .video-list .bili-video-card, .search-content',
+      resultRootSelector: 'h1, .video-title, video, .bpx-player-container',
     },
   },
   {

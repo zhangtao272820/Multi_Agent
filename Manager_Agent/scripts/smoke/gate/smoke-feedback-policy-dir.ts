@@ -63,7 +63,7 @@ assert(
 const bootstrap = readSource('Manager_Agent/app/composables/useManagerChatPage.ts')
 assert(bootstrap.includes('waitForClawhiveAuthReady'), 'bootstrap waits for auth ready')
 assert(
-  /await hydrateSessionFromServer\(sid\)[\s\S]{0,200}reconcileTurnFeedbackKeys\(\)[\s\S]{0,200}await hydrateSessionFeedbackFromServer\(\)/.test(
+  /await hydrateSessionFromServer\(sid\)[\s\S]{0,280}reconcileTurnFeedbackKeys\(\)[\s\S]{0,280}hydrateFeedbackWithRetry/.test(
     bootstrap
   ),
   'bootstrap sequences session→reconcile→feedback like switchSession'
@@ -71,5 +71,10 @@ assert(
 
 const hydrate = readSource('Manager_Agent/app/composables/useManagerSession.ts')
 assert(hydrate.includes("return 'auth'"), 'feedback hydrate surfaces auth failure (not silent catch)')
+assert(hydrate.includes('retryFeedbackHydrate'), 'switchSession retries feedback hydrate after docker warm')
+
+const chatPage = readSource('Manager_Agent/app/composables/useManagerChatPage.ts')
+assert(chatPage.includes('hydrateFeedbackWithRetry'), 'bootstrap uses hydrateFeedbackWithRetry')
+assert(chatPage.includes('visibilitychange'), 'bootstrap rehydrates feedback on visibility after docker recreate')
 
 console.log('smoke-feedback-policy-dir: ok')

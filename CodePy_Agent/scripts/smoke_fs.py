@@ -56,7 +56,11 @@ def main() -> int:
     assert prev.get("ok") and prev.get("unified_diff"), prev
     mgr_deny = parse_manager_task({"source": "manager", "task_kind": "edit", "write_allowed": False})
     assert write_apply_allowed(mgr_deny, task_kind="edit") is False
-    mgr_ok = parse_manager_task({"source": "manager", "task_kind": "edit", "write_allowed": True})
+    mgr_no_token = parse_manager_task({"source": "manager", "task_kind": "edit", "write_allowed": True})
+    assert write_apply_allowed(mgr_no_token, task_kind="edit") is False
+    mgr_ok = parse_manager_task(
+        {"source": "manager", "task_kind": "edit", "write_allowed": True, "confirm_token": "tok"}
+    )
     assert write_apply_allowed(mgr_ok, task_kind="edit") is True
     print("OK edit golden path contract")
 

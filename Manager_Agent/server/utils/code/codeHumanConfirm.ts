@@ -152,8 +152,10 @@ export async function requestCodeEditHumanConfirm(input: {
       diffStat: input.preview.diff_stat,
       unifiedDiff: String(input.preview.unified_diff || '').slice(0, 8000),
       branch: input.preview.branch,
+      pending_patch_id: input.preview.pending_patch_id,
       riskTier: riskPolicy.tier,
-      blast_radius: riskPolicy.blast_radius
+      blast_radius: riskPolicy.blast_radius,
+      riskPolicyDecision: riskPolicy
     },
     from: 'manager',
   })

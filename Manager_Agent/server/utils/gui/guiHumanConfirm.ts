@@ -310,14 +310,65 @@ export function resolveGuiFailureType(input: {
     .toLowerCase()
 }
 
+/** 从 Lobster 原始结果提取已填字段摘要（脱敏后由调用方保证） */
+export function extractGuiFormFieldsSummaryFromRaw(
+  raw: unknown,
+): Array<{ key: string; value: string }> | undefined {
+  const row = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}
+  const result = row.result && typeof row.result === 'object' ? (row.result as Record<string, unknown>) : row
+  const out: Array<{ key: string; value: string }> = []
+  const push = (key: string, value: string) => {
+    const k = String(key || '').trim()
+    const v = String(value || '').trim()
+    if (!k || !v || out.some((x) => x.key === k)) return
+    out.push({ key: k.slice(0, 64), value: v.slice(0, 80) })
+  }
+
+  const filled = result.filled || row.filled
+  if (Array.isArray(filled)) {
+    for (const f of filled) {
+      if (!f || typeof f !== 'object') continue
+      const o = f as Record<string, unknown>
+      push(String(o.key || o.name || ''), String(o.value || o.text || ''))
+    }
+  }
+
+  const items = result.items || result.data || row.items
+  if (Array.isArray(items)) {
+    for (const it of items) {
+      if (!it || typeof it !== 'object') continue
+      const o = it as Record<string, unknown>
+      const title = String(o.title || o.key || '').trim()
+      const text = String(o.text || o.value || '').trim()
+      // stagehand form 证据：{ title: key, text: value }
+      if (title && text && title.length <= 64 && !/^https?:/i.test(text)) {
+        push(title, text)
+      }
+    }
+  }
+
+  return out.length ? out.slice(0, 12) : undefined
+}
+
 export function buildGuiHumanConfirmMessage(input: {
   failureType: string
   task: string
   finalUrl?: string
+  /** 提交/支付/删除前：已填或将填字段摘要（脱敏后） */
+  formFieldsSummary?: Array<{ key: string; value: string }> | string
 }): { title: string; message: string } {
   const ft = String(input.failureType || 'need_human').trim().toLowerCase()
   const url = String(input.finalUrl || '').trim()
   const taskLine = `任务：${String(input.task || '').trim().slice(0, 240)}`
+  const fieldsRaw = input.formFieldsSummary
+  const fieldsLine = Array.isArray(fieldsRaw)
+    ? fieldsRaw.length
+      ? `将确认字段：${fieldsRaw
+          .slice(0, 12)
+          .map((f) => `${f.key}=${String(f.value || '').slice(0, 40)}`)
+          .join('；')}`
+      : ''
+    : String(fieldsRaw || '').trim()
   if (ft === 'captcha') {
     return {
       title: '浏览器验证码需人工处理',
@@ -346,11 +397,39 @@ export function buildGuiHumanConfirmMessage(input: {
         .join('\n')
     }
   }
+  if (ft === 'form_submit' || ft === 'approve_submit' || fieldsLine) {
+    return {
+      title: '确认提交前请核对字段',
+      message: [
+        '即将执行提交/高风险网页操作，请先核对字段摘要。',
+        fieldsLine || '（无结构化字段摘要；请结合截图核对）',
+        url ? `页面：${url}` : '',
+        '确认后继续；取消则中止。验证码/支付仍须人工完成，系统不会自动过码。',
+        taskLine,
+      ]
+        .filter(Boolean)
+        .join('\n'),
+    }
+  }
+  if (ft === 'social_engagement' || ft === 'bili_engagement') {
+    return {
+      title: '确认 B站写互动',
+      message: [
+        '即将在 B站执行点赞/投币/收藏/关注等写操作（需登录态）。',
+        '确认后才会调用浏览器；取消则中止。发弹幕本阶段不自动执行。',
+        url ? `页面：${url}` : '',
+        taskLine,
+      ]
+        .filter(Boolean)
+        .join('\n'),
+    }
+  }
   return {
     title: '浏览器任务需人工介入',
     message: [
       '当前 GUI 步骤被站点拦截或需人工处理，自动化无法继续。',
       url ? `页面：${url}` : '',
+      fieldsLine || '',
       '请人工处理后点击「确认继续」重试本任务；取消则中止。',
       taskLine
     ]
@@ -367,6 +446,7 @@ export async function requestGuiHumanConfirm(input: {
   finalUrl?: string
   screenshotDataUrl?: string
   lobsterRunId?: string
+  formFieldsSummary?: Array<{ key: string; value: string }> | string
   meta?: unknown
   sendThinking?: (t: string) => void
   sendEvent?: (event: { event: string; data?: unknown; from?: string }) => void
@@ -430,8 +510,13 @@ export async function requestGuiHumanConfirm(input: {
       pageUrl,
       screenshotDataUrl,
       lobsterRunId: input.lobsterRunId,
+      formFieldsSummary: Array.isArray(input.formFieldsSummary)
+        ? input.formFieldsSummary
+        : undefined,
+      risk: riskPolicy.level,
+      actionKind: 'gui_write',
       riskTier: riskPolicy.tier,
-      blast_radius: riskPolicy.blast_radius
+      blast_radius: riskPolicy.blast_radius,
     },
     from: 'manager',
   })

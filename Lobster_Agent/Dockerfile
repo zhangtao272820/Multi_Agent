@@ -37,6 +37,8 @@ COPY --chown=pwuser:pwuser shared/agentServiceAuth.ts /app/agent-repo-shared/
 COPY --chown=pwuser:pwuser shared/securityProfile.ts /app/agent-repo-shared/
 COPY --chown=pwuser:pwuser shared/tenantScope.ts /app/agent-repo-shared/
 COPY --chown=pwuser:pwuser shared/clawhiveJwt.ts /app/agent-repo-shared/
+COPY --chown=pwuser:pwuser shared/clawhiveLoginProxy.ts /app/agent-repo-shared/
+COPY --chown=pwuser:pwuser shared/clawhiveAuthForceLogout.ts /app/agent-repo-shared/
 COPY --chown=pwuser:pwuser shared/brand /app/agent-repo-shared/brand
 
 USER pwuser

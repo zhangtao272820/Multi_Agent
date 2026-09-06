@@ -1,0 +1,62 @@
+{
+  "id": "oa-multifield-form-fill",
+  "name": "OA 风格多字段表单（公开页黄金宏）",
+  "description": "在 httpbin forms/post 上填写客户名+邮箱+电话，模拟 OA 多字段登记；HITL 确认后结束（默认不提交）",
+  "args": ["customer_name", "email", "phone", "startUrl"],
+  "steps": [
+    {
+      "action": "goto",
+      "url": "{{startUrl}}",
+      "waitUntil": "domcontentloaded"
+    },
+    {
+      "action": "snapshot",
+      "assignTo": "landing"
+    },
+    {
+      "action": "type",
+      "selector": "input[name=\"custname\"]",
+      "text": "{{customer_name}}",
+      "clear": true
+    },
+    {
+      "action": "type",
+      "selector": "input[name=\"custemail\"]",
+      "text": "{{email}}",
+      "clear": true
+    },
+    {
+      "action": "type",
+      "selector": "input[name=\"custtel\"]",
+      "text": "{{phone}}",
+      "clear": true
+    },
+    {
+      "action": "approve",
+      "title": "确认多字段表单",
+      "message": "已填：姓名={{customer_name}}，邮箱={{email}}，电话={{phone}}。确认后结束（默认不点提交）。"
+    },
+    {
+      "action": "extract",
+      "selector": "input[name=\"custname\"]",
+      "attr": "value",
+      "assignTo": "filled_name"
+    },
+    {
+      "action": "extract",
+      "selector": "input[name=\"custemail\"]",
+      "attr": "value",
+      "assignTo": "filled_email"
+    },
+    {
+      "action": "extract",
+      "selector": "input[name=\"custtel\"]",
+      "attr": "value",
+      "assignTo": "filled_phone"
+    },
+    {
+      "action": "finish",
+      "answer": "工作流 oa-multifield-form-fill 完成。name={{filled_name}}；email={{filled_email}}；phone={{filled_phone}}；落地={{landing}}"
+    }
+  ]
+}

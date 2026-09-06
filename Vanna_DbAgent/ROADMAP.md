@@ -68,7 +68,19 @@ NLU / 快路径 / 约束评估：[docs/nlu-capability-assessment.md](docs/nlu-ca
 - 写路径始终 pending → `POST /api/pending/decide` + `confirm_token`（T2）；总管 `MANAGER_DB_WRITE_ALLOWED=1` 或 meta.`dbWriteAllowed` 才进写预览。
 - Skill：`skills/write_gate.md`。
 
-## 明确不做（除非另开需求）
+## 动手安全提效（P0–P2）
+
+在写闸骨架上抬安全、减无谓打断：
+
+| 项 | 说明 |
+|----|------|
+| 双账号 | 租户 `mysql`（只读）+ 可选 `mysql_write`（最小写权限）；执行走 `write_mysql()` |
+| 影响预览 | pending 带 `impact_estimate`（WHERE→COUNT 预估）；超 `VANNA_WRITE_IMPACT_THRESHOLD` 须 `impact_ack` |
+| 事务包裹 | 单 pending 多语句 `run_writes` 同事务；失败全回滚 |
+| 批量 HITL | 同计划多 DML 合成一个 `pending_id`，一张确认卡 |
+| 确认后校验 | decide 可选校验 SELECT；约束错误已事务回滚 |
+
+### 明确不做（除非另开需求）
 
 - 不把旧 LangGraph 十三段 LLM 搬过来。
 - 第一期不对 DROP/TRUNCATE 做「二次确认放行」。

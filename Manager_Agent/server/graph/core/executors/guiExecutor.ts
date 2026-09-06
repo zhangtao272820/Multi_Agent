@@ -20,6 +20,7 @@ import { isManagerMcpToolNodeEnabled, resolveMcpDirectCallFromMeta } from '../..
 import {
   buildGuiFailureUserMessage,
   detectGuiSemanticBlockFromState,
+  extractGuiFormFieldsSummaryFromRaw,
   extractGuiObservationFromRaw,
   isDockerHeadlessMcpGui,
   isGuiHumanHandoffFailure,
@@ -36,6 +37,7 @@ import {
   resolveGuiOperateKindByLlm,
 } from '../../../utils/gui/guiOperateKindLlm'
 import {
+  enrichBilibiliGuestWorkflowArgs,
   resolveGuiWorkflowWithArgs,
   sanitizeGuiWorkflowId,
 } from '../../../utils/gui/guiWorkflowAllowlist'
@@ -227,6 +229,7 @@ async function maybeHumanConfirmAndRetryMcpGui(input: {
     finalUrl: input.parsed.finalUrl,
     screenshotDataUrl: input.parsed.screenshotDataUrl,
     lobsterRunId: input.parsed.lobsterRunId,
+    formFieldsSummary: extractGuiFormFieldsSummaryFromRaw(input.mcpOut.raw),
     sendThinking: input.sendThinking,
     sendEvent: input.sendEvent,
     timeoutMs: input.guiTimeoutMs,
@@ -366,11 +369,14 @@ export async function executeGuiStep(
   // workflow：LLM 优先；显式 `工作流:` hint 仅作 overlay。未知/不兼容/缺参宏丢弃。
   const rawWorkflowId =
     String(operateKind?.workflow_id || '').trim() || String(hints.workflowId || '').trim() || undefined
-  const mergedWorkflowArgsPreview: Record<string, unknown> = {
-    ...(operateKind?.workflow_args || {}),
-    ...(hints.workflowArgs || {}),
-    ...(startUrl ? { startUrl } : {}),
-  }
+  const mergedWorkflowArgsPreview: Record<string, unknown> = enrichBilibiliGuestWorkflowArgs(
+    rawWorkflowId,
+    {
+      ...(operateKind?.workflow_args || {}),
+      ...(hints.workflowArgs || {}),
+      ...(startUrl ? { startUrl } : {}),
+    },
+  )
   const wfSanitized = resolveGuiWorkflowWithArgs(rawWorkflowId, taskKind, mergedWorkflowArgsPreview)
   const workflowId = wfSanitized.ok ? wfSanitized.id : undefined
   if (!wfSanitized.ok && wfSanitized.dropped) {
@@ -439,11 +445,11 @@ export async function executeGuiStep(
       ? 'mobile'
       : hints.engineHint || undefined
 
-  const workflowArgs: Record<string, unknown> = {
+  const workflowArgs: Record<string, unknown> = enrichBilibiliGuestWorkflowArgs(workflowId, {
     ...(operateKind?.workflow_args || {}),
     ...(hints.workflowArgs || {}),
     ...(startUrl ? { startUrl } : {}),
-  }
+  })
   if (workflowId) {
     input.sendThinking(
       `GUI Workflow Macro：${workflowId}${
@@ -454,7 +460,9 @@ export async function executeGuiStep(
 
   const successCriteria =
     String((operateKind as { success_criteria?: string } | null)?.success_criteria || '').trim() ||
-    undefined
+    (taskKind === 'form_fill' || taskKind === 'login'
+      ? JSON.stringify({ filledMin: taskKind === 'form_fill' ? 1 : 1 })
+      : undefined)
   const maxInteractionStepsRaw = Number(
     (operateKind as { max_interaction_steps?: number } | null)?.max_interaction_steps,
   )
@@ -506,6 +514,33 @@ export async function executeGuiStep(
       // 首轮无 confirm：仍允许 Lobster 规划/探路；真正副作用由 GUI HITL / handoff 路径带 token
       input.sendThinking(`GUI：${gate.reason}`)
     }
+  }
+
+  // B站写互动：事前 HITL（与 Lobster 侧 confirm 双闸；取消则零副作用）
+  if (taskKind === 'social_engagement' && !guiConfirmToken) {
+    const approvedEngagement = await requestGuiHumanConfirm({
+      runId: opts.runId,
+      failureType: 'social_engagement',
+      task,
+      finalUrl: startUrl,
+      sendThinking: input.sendThinking,
+      sendEvent: opts.sendEvent,
+      timeoutMs: guiTimeoutMs,
+      meta: input.state.meta,
+      onConfirmToken: (tok) => {
+        if (envelope) envelope.confirm_token = tok
+      },
+    })
+    if (!approvedEngagement) {
+      return {
+        ok: false,
+        agent: 'gui',
+        output: '已取消 B站写互动（点赞/投币/收藏/关注未执行）。',
+        query: task,
+        error: 'user_cancelled_gui_handoff',
+      }
+    }
+    input.sendThinking('GUI：B站写互动已确认，继续调用 Lobster…')
   }
 
   const runOnce = async (
@@ -900,6 +935,7 @@ export async function executeGuiStep(
         finalUrl: wsObs.pageUrl || String((normalized.raw as Record<string, unknown>)?.finalUrl || ''),
         screenshotDataUrl: wsObs.screenshotDataUrl,
         lobsterRunId: wsObs.lobsterRunId,
+        formFieldsSummary: extractGuiFormFieldsSummaryFromRaw(normalized.raw),
         sendThinking: input.sendThinking,
         sendEvent: opts.sendEvent,
         timeoutMs: guiTimeoutMs,

@@ -123,7 +123,7 @@
 .spring-root.cursor-workbench .chat-thread,
 .spring-root.cursor-workbench.cosmic-theme .chat-thread {
   width: 100% !important;
-  max-width: min(var(--chat-col-width, 780px), 100%) !important;
+  max-width: 100% !important;
   box-sizing: border-box !important;
   padding-inline: 2px !important;
 }
@@ -288,16 +288,15 @@
 .spring-root.cursor-workbench.cosmic-theme .chat-thread .cosmic-bubble-user,
 .spring-root.cosmic-theme.cursor-workbench .chat-user-row .cosmic-bubble-user,
 .spring-root.cursor-workbench .chat-thread .cosmic-bubble-user {
-  background:
-    linear-gradient(155deg, rgba(255, 255, 255, 0.72) 0%, rgba(226, 239, 252, 0.78) 48%, rgba(196, 222, 248, 0.7) 100%) !important;
-  border: 1px solid rgba(122, 168, 212, 0.55) !important;
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.85) inset,
-    0 8px 24px rgba(40, 90, 150, 0.12) !important;
-  color: #0b1220 !important;
-  border-radius: 16px 16px 4px 16px !important;
-  backdrop-filter: blur(14px) saturate(1.2) !important;
-  -webkit-backdrop-filter: blur(14px) saturate(1.2) !important;
+  max-width: min(var(--chat-user-max, 760px), 100%) !important;
+  background: rgba(255, 255, 255, 0.92) !important;
+  border: 1px solid rgba(148, 163, 184, 0.32) !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05) !important;
+  color: #0f172a !important;
+  border-radius: 14px !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  padding: 12px 16px !important;
 }
 
 .spring-root.cosmic-theme.cursor-workbench .chat-thread .cosmic-bubble-user .spring-log-text,
@@ -305,12 +304,14 @@
 .spring-root.cosmic-theme.cursor-workbench .chat-user-row .cosmic-bubble-user .spring-log-text,
 .spring-root.cosmic-theme.cursor-workbench .chat-thread .cosmic-bubble-user pre.spring-log-text,
 .spring-root.cursor-workbench.cosmic-theme .chat-thread .cosmic-bubble-user pre.spring-log-text {
-  color: #0b1220 !important;
-  -webkit-text-fill-color: #0b1220 !important;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
   background: transparent !important;
   text-shadow: none !important;
   opacity: 1 !important;
-  font-weight: 600 !important;
+  font-weight: 450 !important;
+  font-size: 15.5px !important;
+  line-height: 1.7 !important;
 }
 
 .spring-root.cosmic-theme.cursor-workbench .chat-thread .cosmic-bubble-user .spring-log-meta,
@@ -431,4 +432,124 @@
   border-color: #1d4ed8 !important;
   box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.22) !important;
   outline: none !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   DeepSeek Harness 终裁（压过 winter）：宽主列 · 文档流 · 保留执行面板
+   ═══════════════════════════════════════════════════════════════ */
+
+.spring-root.cosmic-theme.cursor-workbench,
+.spring-root.cursor-workbench {
+  --chat-col-width: min(1120px, calc(100vw - var(--mgr-sidebar-w, 240px) - var(--mgr-tools-w, 280px) - 40px)) !important;
+  --chat-user-max: min(780px, 94%) !important;
+  --chat-font-body: 15.5px !important;
+  --chat-font-body-lh: 1.75 !important;
+}
+
+.spring-root.cursor-workbench.cosmic-theme.mode-professional {
+  --chat-col-width: min(1200px, calc(100vw - var(--mgr-sidebar-w, 240px) - var(--mgr-tools-w, 280px) - 36px)) !important;
+}
+
+.spring-root.cursor-workbench .chat-rail-stack {
+  max-width: var(--chat-col-width) !important;
+  width: 100% !important;
+}
+
+.spring-root.cursor-workbench .spring-log.chat-scroll {
+  padding: 10px 8px 18px !important;
+}
+
+/* 回复：近文档，弱边框；功能区（表/图/动作卡）仍在面板内 */
+.spring-root.cursor-workbench.cosmic-theme .chat-thread .reply-panel .reply-panel-inner.cosmic-bubble-reply,
+.spring-root.cosmic-theme.cursor-workbench .chat-thread .reply-panel .reply-panel-inner.cosmic-bubble-reply,
+.spring-root.cursor-workbench .reply-panel .reply-panel-inner.cosmic-bubble-reply {
+  background: rgba(255, 255, 255, 0.88) !important;
+  border: 1px solid rgba(148, 163, 184, 0.26) !important;
+  border-left: 2px solid rgba(37, 99, 235, 0.45) !important;
+  box-shadow: none !important;
+  border-radius: 12px !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  padding: 14px 16px 12px !important;
+}
+
+.spring-root.cursor-workbench.cosmic-theme .chat-thread .reply-panel-header {
+  background: transparent !important;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.9) !important;
+  margin-bottom: 8px !important;
+  padding-bottom: 6px !important;
+  opacity: 0.85;
+}
+
+.spring-root.cursor-workbench.cosmic-theme .chat-thread .reply-chat,
+.spring-root.cursor-workbench.cosmic-theme .chat-thread .md-body.reply-chat,
+.spring-root.cursor-workbench.cosmic-theme .chat-thread .reply-chat .md-p {
+  font-size: 15.5px !important;
+  line-height: 1.75 !important;
+  color: #0f172a !important;
+  font-weight: 450 !important;
+}
+
+/* 执行面板：保留完整能力，视觉收成轻条 */
+.spring-root.cursor-workbench .turn-activity {
+  border: 1px solid rgba(148, 163, 184, 0.3) !important;
+  border-radius: 12px !important;
+  background: rgba(255, 255, 255, 0.78) !important;
+  box-shadow: none !important;
+}
+
+.spring-root.cursor-workbench .turn-activity.is-running {
+  border-color: rgba(37, 99, 235, 0.4) !important;
+  background: rgba(239, 246, 255, 0.82) !important;
+}
+
+.spring-root.cursor-workbench .turn-activity-summary-route {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 2px;
+  padding: 0 12px 8px;
+}
+
+.spring-root.cursor-workbench .turn-activity:not(.is-collapsed) .turn-activity-summary-route {
+  display: none;
+}
+
+.spring-root.cursor-workbench .cursor-thought-panel.process-panel {
+  border: 1px solid rgba(148, 163, 184, 0.26) !important;
+  background: rgba(248, 250, 252, 0.72) !important;
+  box-shadow: none !important;
+}
+
+/* 输入坞：圆角悬浮，姿态/附件/发送功能不变 */
+.spring-root.cursor-workbench.cosmic-theme .spring-input.cosmic-input-dock,
+.spring-root.cosmic-theme.cursor-workbench .spring-input.cosmic-input-dock,
+.spring-root.cursor-workbench .spring-input.cosmic-input-dock {
+  border-radius: 18px !important;
+  border: 1px solid rgba(148, 163, 184, 0.34) !important;
+  background: rgba(255, 255, 255, 0.94) !important;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08) !important;
+  padding: 10px 12px !important;
+}
+
+.spring-root.cursor-workbench .spring-input-field.spring-input-area {
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  min-height: 52px !important;
+  font-size: 15px !important;
+  color: #0f172a !important;
+}
+
+.spring-root.cursor-workbench .composer-posture-seg {
+  border-radius: 999px !important;
+  background: #f1f5f9 !important;
+  border: 1px solid #e2e8f0 !important;
+}
+
+@media (min-width: 1600px) {
+  .spring-root.cosmic-theme.cursor-workbench,
+  .spring-root.cursor-workbench {
+    --chat-col-width: min(1280px, calc(100vw - var(--mgr-sidebar-w, 240px) - var(--mgr-tools-w, 280px) - 32px)) !important;
+  }
 }

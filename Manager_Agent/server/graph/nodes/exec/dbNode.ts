@@ -3,6 +3,7 @@ import { pickRichestDbQuestion } from '../../../utils/db/managerDbQuestionLlm'
 import type { Intent } from '../../../utils/shared/taskPlan'
 import { buildAgentError, emitAgentError, emitAgentEvidence } from '../../core/agent/agentErrors'
 import { buildAgentExecutorBundle, computePolicyDbTimeoutMs, executeDbStep, resolveRagRetrievalBundle } from '../../core/executors'
+import { resolveSubAgentStepSessionId } from '../../core/routing/subAgentPassthrough'
 import { resolveExecutionQuery } from '../../core/routing/clauses'
 import { hasOrchestratedDbScope, resolveDbStepQuestionSync } from '../../core/db/dbStepQuestion'
 import { emitSingleStepPlanEvent } from '../../core/plan/planStepsEvent'
@@ -163,13 +164,18 @@ export function buildDbNode(deps: CreateExecutionNodesDeps) {
             turnKind: String(state.meta?.turnKind || '').trim() || null
           }
         )
+        const ragStepConversationId = resolveSubAgentStepSessionId({
+          runId: opts.runId,
+          agent: 'rag',
+          stepId: 'db_supplement'
+        })
         const ragCall = await callRagAgent({
           ragAgentHttpUrl: opts.ragAgentHttpUrl,
           timeoutMs: Math.min(opts.timeoutMs, 45000),
           message: ragBundle.message || ragBundle.leanQuery,
           retrievalQuery: ragBundle.leanQuery,
-          history: opts.ragHistory,
-          conversationId: opts.ragConversationId,
+          history: [],
+          conversationId: ragStepConversationId,
           userId: opts.userId,
           traceId: opts.runId,
           sendThinking: (t: string) => opts.sendEvent({ event: 'thinking', data: t, from: 'rag' }),
@@ -219,13 +225,18 @@ export function buildDbNode(deps: CreateExecutionNodesDeps) {
           turnKind: String(state.meta?.turnKind || '').trim() || null
         }
       )
+      const ragStepConversationId = resolveSubAgentStepSessionId({
+        runId: opts.runId,
+        agent: 'rag',
+        stepId: 'db_fallback'
+      })
       const ragCall = await callRagAgent({
         ragAgentHttpUrl: opts.ragAgentHttpUrl,
         timeoutMs: opts.timeoutMs,
         message: ragBundle.message || ragBundle.leanQuery,
         retrievalQuery: ragBundle.leanQuery,
-        history: opts.ragHistory,
-        conversationId: opts.ragConversationId,
+        history: [],
+        conversationId: ragStepConversationId,
         userId: opts.userId,
         traceId: opts.runId,
         sendThinking: (t: string) => opts.sendEvent({ event: 'thinking', data: t, from: 'rag' }),

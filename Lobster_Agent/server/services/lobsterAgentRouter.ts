@@ -7,7 +7,11 @@ import type { LobsterEngineId } from './engineSelector'
 import { requiresDesktopEngine, requiresMobileEngine } from './engineSelector'
 import { resolveRunStoragePaths } from './sessionStorageBridge'
 import { understandLobsterTask } from './lobsterTaskUnderstand'
-import { taskSpecFromManagerHints, mergeManagerAndUnderstoodTaskSpec } from './lobsterManagerTaskSpec'
+import {
+  taskSpecFromManagerHints,
+  mergeManagerAndUnderstoodTaskSpec,
+  applySiteRecipeFormFillHint,
+} from './lobsterManagerTaskSpec'
 import { applyLobsterTaskUnderstand } from './lobsterTaskUnderstandSchema'
 import {
   buildEngineChainFromPick,
@@ -33,6 +37,10 @@ import { listLobsterWorkflowIds } from './lobsterWorkflowLoader'
 import { runLobsterGuiPlusAgent } from './lobsterGuiPlusAgent'
 import { shouldAttemptGuiPlusFallback } from './lobsterGuiPlusFallback'
 import { wrapLobsterOutput } from './lobsterResultEnvelope'
+import {
+  runBilibiliEngagementAgent,
+  shouldRunBilibiliEngagementAgent,
+} from './bilibiliEngagementAgent'
 
 /** 里程碑日志（禁 DOM/JSON 刷屏；总管侧再硬截断） */
 function emitMilestone(params: RunParams, message: string) {
@@ -261,7 +269,13 @@ export async function runLobsterWithRouter(params: RunParams) {
       signal: params.signal,
     })) ?? null
 
-  const understood = mergeManagerAndUnderstoodTaskSpec(managerSpec, understoodRaw) ?? managerSpec
+  if (!understoodRaw) {
+    emitWarn(params, 'understand：LLM 未返回有效 TaskSpec，尝试 manager/recipe 兜底')
+  }
+
+  let understood =
+    mergeManagerAndUnderstoodTaskSpec(managerSpec, understoodRaw) ?? managerSpec
+  understood = applySiteRecipeFormFillHint(understood, params.task, params.startUrl)
 
   const mergedTask = understood
     ? {
@@ -297,6 +311,21 @@ export async function runLobsterWithRouter(params: RunParams) {
         : taskSpec ?? params.taskSpec,
   }
 
+  if (
+    shouldRunBilibiliEngagementAgent({
+      taskKind: taskSpec?.task_kind,
+      task: runParams.task,
+      startUrl: runParams.startUrl,
+    })
+  ) {
+    emitMilestone(params, `路由：B站专属 ${taskSpec?.task_kind}`)
+    const out = await runBilibiliEngagementAgent(runParams)
+    return ensureLobsterGuiFinalPayload(
+      { ...(out && typeof out === 'object' ? out : {}), engine: 'classic', actualEngine: 'classic' },
+      runParams.task,
+    )
+  }
+
   const storage = await resolveRunStoragePaths({
     startUrl: runParams.startUrl,
     sessionId: runParams.sessionId,
@@ -327,8 +356,11 @@ export async function runLobsterWithRouter(params: RunParams) {
       taskSpec: taskSpec
         ? {
             task_kind: taskSpec.task_kind,
+            engine_hint: taskSpec.engine_hint,
             plan_steps: (taskSpec.plan_steps || []).slice(0, 6).map((s) => s.op),
             goals: taskSpec.goals,
+            confidence: taskSpec.confidence,
+            rationale: String(taskSpec.rationale || '').slice(0, 200),
           }
         : undefined,
       picked: {

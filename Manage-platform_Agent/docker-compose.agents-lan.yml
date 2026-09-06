@@ -252,6 +252,8 @@ services:
     depends_on:
       clawhive_postgres:
         condition: service_healthy
+      clawhive_backend:
+        condition: service_healthy
     healthcheck:
       test:
         [
@@ -348,6 +350,8 @@ services:
         condition: service_healthy
       clawhive_postgres:
         condition: service_healthy
+      clawhive_backend:
+        condition: service_healthy
     healthcheck:
       test:
         [
@@ -424,6 +428,9 @@ services:
       - "${CODE_PORT:-13103}:${CODE_PORT:-13103}"
     volumes:
       - ../:/workspace
+    depends_on:
+      clawhive_backend:
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import os,urllib.request;p=os.environ.get('CODE_PORT') or os.environ.get('PORT') or '13103';urllib.request.urlopen('http://127.0.0.1:'+p+'/api/health',timeout=5)\""]
       interval: 10s
@@ -666,6 +673,8 @@ services:
       start_period: 45s
     depends_on:
       clawhive_postgres:
+        condition: service_healthy
+      clawhive_backend:
         condition: service_healthy
       searxng:
         condition: service_started
@@ -938,6 +947,8 @@ services:
     ports:
       - "${MANAGER_PORT:-13106}:${MANAGER_PORT:-13106}"
     depends_on:
+      clawhive_backend:
+        condition: service_healthy
       searxng:
         condition: service_healthy
       clawhive_postgres:
@@ -1144,6 +1155,8 @@ services:
       # 5900 在部分 Windows 主机被系统保留；需直连 VNC 客户端时可设 LOBSTER_RAW_VNC_PORT=15900
       - "${LOBSTER_RAW_VNC_PORT:-15900}:5900"
     depends_on:
+      clawhive_backend:
+        condition: service_healthy
       playwright_mcp:
         condition: service_started
     volumes:
@@ -1428,7 +1441,9 @@ services:
       - ../AI_Agent/video:/app/video:ro
     restart: unless-stopped
 
+  # profiles: monitoring — scripts 默认传 --profile monitoring；-NoMonitor 则不启（勿再先起再 stop）
   tempo:
+    profiles: ["monitoring"]
     image: docker.1ms.run/grafana/tempo:2.6.1
     container_name: clawhive_tempo
     command: ["-config.file=/etc/tempo/tempo.yml"]
@@ -1441,6 +1456,7 @@ services:
     restart: unless-stopped
 
   loki:
+    profiles: ["monitoring"]
     image: docker.1ms.run/grafana/loki:3.1.1
     container_name: clawhive_loki
     command: ["-config.file=/etc/loki/loki.yml"]
@@ -1452,6 +1468,7 @@ services:
     restart: unless-stopped
 
   promtail:
+    profiles: ["monitoring"]
     image: docker.1ms.run/grafana/promtail:3.1.1
     container_name: clawhive_promtail
     command: ["-config.file=/etc/promtail/promtail.yml"]
@@ -1465,6 +1482,7 @@ services:
     restart: unless-stopped
 
   prometheus:
+    profiles: ["monitoring"]
     image: docker.1ms.run/prom/prometheus:v2.55.1
     container_name: clawhive_prometheus
     volumes:
@@ -1486,6 +1504,7 @@ services:
     restart: unless-stopped
 
   alertmanager:
+    profiles: ["monitoring"]
     image: docker.1ms.run/prom/alertmanager:v0.27.0
     container_name: clawhive_alertmanager
     environment:
@@ -1504,6 +1523,7 @@ services:
     restart: unless-stopped
 
   grafana:
+    profiles: ["monitoring"]
     image: docker.1ms.run/grafana/grafana:11.2.2
     container_name: clawhive_grafana
     environment:
@@ -1608,6 +1628,7 @@ services:
       VANNA_MAX_PROMPT_CHARS: "6000"
       VANNA_MAX_QUESTION_CHARS: "400"
       VANNA_DEFAULT_TENANT: p2026
+      VANNA_STANDALONE_WRITE: ${VANNA_STANDALONE_WRITE:-1}
       EXPERIENCE_RECALL_CONFIRMED_ONLY: ${EXPERIENCE_RECALL_CONFIRMED_ONLY:-1}
       EXPERIENCE_STANDALONE_EXCLUDE_FEDERATED: ${EXPERIENCE_STANDALONE_EXCLUDE_FEDERATED:-1}
       P2026_MYSQL_HOST: ${DB_AGENT_MYSQL_HOST:-host.docker.internal}

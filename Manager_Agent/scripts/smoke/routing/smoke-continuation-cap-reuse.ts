@@ -130,6 +130,24 @@ async function main() {
   })
   assert(!multiLine.ok && multiLine.reasons.includes('structural_multi_lines'), 'multi-line blocks')
 
+  // 低置信续轮 → 不 bypass（强制全量编排）
+  const lowConf = resolveContinuationRouteBypass({
+    turnScope: { ...contScope, confidence: 0.55 },
+    sessionAnchor: {
+      primaryIntent: 'db',
+      primaryPlane: 'db',
+      planShortcut: 'db_only',
+      isDbAnchored: true,
+      isMulti: false,
+      coalescedTask: '查销售Top5',
+      lastExecutedAgents: ['db'],
+      updatedAt: new Date().toISOString()
+    },
+    lastUser: '只要前3名',
+    probe: { db: { executable: true }, rag: { hits: 0 } }
+  })
+  assert(!lowConf.ok && lowConf.reasons.includes('low_confidence'), 'low confidence blocks bypass')
+
   // Phase3：续轮单源跳过 intent RAG recall
   assert(
     shouldSkipOrchestratorRagRecall({
@@ -147,6 +165,25 @@ async function main() {
     }),
     'multi anchor still may recall'
   )
+
+  // 本轮新附件禁止续轮 bypass（须重跑 caption+编排）
+  const withAtt = resolveContinuationRouteBypass({
+    turnScope: contScope,
+    sessionAnchor: {
+      primaryIntent: 'db',
+      primaryPlane: 'db',
+      planShortcut: 'db_only',
+      isDbAnchored: true,
+      isMulti: false,
+      coalescedTask: '查销售Top5',
+      lastExecutedAgents: ['db'],
+      updatedAt: new Date().toISOString()
+    },
+    lastUser: '只要前3名',
+    attachment: { filePath: '/tmp/shot.png' }
+  })
+  assert(!withAtt.ok, 'attachment blocks bypass')
+  assert(withAtt.reasons.includes('new_attachment'), 'reason new_attachment')
 
   console.log('smoke:continuation-cap-reuse: OK')
 }

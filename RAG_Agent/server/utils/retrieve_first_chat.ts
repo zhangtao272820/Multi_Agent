@@ -62,6 +62,17 @@ const pickStreamChunkText = (chunk: unknown): string => {
   return chunk != null ? String(chunk) : "";
 };
 
+const pickStreamReasoningText = (chunk: unknown): string => {
+  if (!chunk || typeof chunk !== "object") return "";
+  const c = chunk as Record<string, unknown>;
+  if (typeof c.reasoning_content === "string" && c.reasoning_content) return c.reasoning_content;
+  const ak = (c.additional_kwargs ?? (c.message as Record<string, unknown> | undefined)?.additional_kwargs) as
+    | Record<string, unknown>
+    | undefined;
+  if (typeof ak?.reasoning_content === "string") return ak.reasoning_content;
+  return "";
+};
+
 export function buildContextFromEvidenceItems(items: EvidenceItem[]): string {
   const env = getRagAgentEnv();
   const lines: string[] = [];
@@ -223,6 +234,8 @@ async function streamGenerateAnswer(
     question: questionForGenerate,
   });
   for await (const chunk of stream) {
+    const reasoning = pickStreamReasoningText(chunk);
+    if (reasoning) onEvent({ type: "reasoning", content: reasoning });
     const content = (chunk as { content?: unknown })?.content;
     const tokenText = pickStreamChunkText(content);
     if (tokenText && !isUnsafeStreamToken(tokenText)) {

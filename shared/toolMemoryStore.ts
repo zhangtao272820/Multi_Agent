@@ -1,10 +1,12 @@
 /**
- * Tool Memory：子 Agent / 工具调用成功率 → 路由偏好信号
+ * Tool Memory：子 Agent / 工具调用成功率 → 路由偏好信号（租户隔离）
  */
 
 import { agentPgQuery, isAgentPgConfigured } from './agentPgClient'
+import { requireTenantId, ScopeRequiredError } from './tenantScope'
 
 export type ToolMemoryRow = {
+  tenantId: string
   agent: string
   toolName: string
   contextKey: string
@@ -21,8 +23,18 @@ export function isToolMemoryEnabled(env: NodeJS.ProcessEnv = process.env): boole
   return String(env.MGR_TOOL_MEMORY ?? '1').trim() !== '0'
 }
 
+function resolveToolTenantId(raw: unknown, env: NodeJS.ProcessEnv): string | null {
+  try {
+    return requireTenantId(raw, env)
+  } catch (e) {
+    if (e instanceof ScopeRequiredError) return null
+    throw e
+  }
+}
+
 export async function recordToolMemoryEvent(
   input: {
+    tenantId?: string
     agent: string
     toolName: string
     contextKey?: string
@@ -34,15 +46,18 @@ export async function recordToolMemoryEvent(
   env: NodeJS.ProcessEnv = process.env
 ): Promise<void> {
   if (!isToolMemoryEnabled(env) || !isAgentPgConfigured()) return
+  const tenantId = resolveToolTenantId(input.tenantId, env)
+  if (!tenantId) return
   const agent = String(input.agent || 'unknown').slice(0, 32)
   const toolName = String(input.toolName || 'unknown').slice(0, 128)
   const contextKey = String(input.contextKey || '__global__').slice(0, 128)
   const ms = Number(input.ms ?? 0) || 0
 
   await agentPgQuery(
-    `INSERT INTO mgr_tool_memory (agent, tool_name, context_key, trials, successes, failures, avg_ms, last_ok, last_error, metadata, updated_at)
-     VALUES ($1, $2, $3, 1, $4, $5, $6, $7, $8, $9, NOW())
-     ON CONFLICT (agent, tool_name, context_key) DO UPDATE SET
+    `INSERT INTO mgr_tool_memory
+       (tenant_id, agent, tool_name, context_key, trials, successes, failures, avg_ms, last_ok, last_error, metadata, updated_at)
+     VALUES ($1, $2, $3, $4, 1, $5, $6, $7, $8, $9, $10, NOW())
+     ON CONFLICT (tenant_id, agent, tool_name, context_key) DO UPDATE SET
        trials = mgr_tool_memory.trials + 1,
        successes = mgr_tool_memory.successes + EXCLUDED.successes,
        failures = mgr_tool_memory.failures + EXCLUDED.failures,
@@ -56,6 +71,7 @@ export async function recordToolMemoryEvent(
        metadata = EXCLUDED.metadata,
        updated_at = NOW()`,
     [
+      tenantId,
       agent,
       toolName,
       contextKey,
@@ -71,15 +87,18 @@ export async function recordToolMemoryEvent(
 }
 
 export async function queryToolMemoryTop(
-  opts?: { agent?: string; contextKey?: string; limit?: number },
+  opts?: { tenantId?: string; agent?: string; contextKey?: string; limit?: number },
   env: NodeJS.ProcessEnv = process.env
 ): Promise<ToolMemoryRow[]> {
   if (!isAgentPgConfigured()) return []
+  const tenantId = resolveToolTenantId(opts?.tenantId, env)
+  if (!tenantId) return []
   const limit = Math.max(1, Math.min(20, opts?.limit ?? 8))
   const agent = opts?.agent ? String(opts.agent).slice(0, 32) : null
   const contextKey = opts?.contextKey ? String(opts.contextKey).slice(0, 128) : null
 
   const res = await agentPgQuery<{
+    tenant_id: string
     agent: string
     tool_name: string
     context_key: string
@@ -91,20 +110,22 @@ export async function queryToolMemoryTop(
     last_error: string | null
   }>(
     agent
-      ? `SELECT agent, tool_name, context_key, trials, successes, failures, avg_ms, last_ok, last_error
+      ? `SELECT tenant_id, agent, tool_name, context_key, trials, successes, failures, avg_ms, last_ok, last_error
          FROM mgr_tool_memory
-         WHERE agent = $1 AND ($2::varchar IS NULL OR context_key = $2)
+         WHERE tenant_id = $1 AND agent = $2 AND ($3::varchar IS NULL OR context_key = $3)
          ORDER BY (successes::float / GREATEST(trials, 1)) DESC, trials DESC
-         LIMIT $3`
-      : `SELECT agent, tool_name, context_key, trials, successes, failures, avg_ms, last_ok, last_error
+         LIMIT $4`
+      : `SELECT tenant_id, agent, tool_name, context_key, trials, successes, failures, avg_ms, last_ok, last_error
          FROM mgr_tool_memory
+         WHERE tenant_id = $1
          ORDER BY trials DESC
-         LIMIT $1`,
-    agent ? [agent, contextKey, limit] : [limit],
+         LIMIT $2`,
+    agent ? [tenantId, agent, contextKey, limit] : [tenantId, limit],
     env
   )
 
   return (res?.rows ?? []).map((r) => ({
+    tenantId: r.tenant_id,
     agent: r.agent,
     toolName: r.tool_name,
     contextKey: r.context_key,

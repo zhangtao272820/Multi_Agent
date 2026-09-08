@@ -174,7 +174,9 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  # 旧 Nuxt DB_Agent（13101）：已被 vanna_db_agent 替代；默认不启。回滚：--profile legacy-db
   db_agent:
+    profiles: ["legacy-db"]
     build:
       context: ..
       dockerfile: Manage-platform_Agent/docker/nuxt-agent/Dockerfile
@@ -323,6 +325,8 @@ services:
       RAG_HEAVY_PARSE: ${RAG_HEAVY_PARSE:-1}
       MINERU_API_URL: ${MINERU_API_URL:-http://mineru_api:8080}
       RAG_HEAVY_PARSE_TIMEOUT_MS: ${RAG_HEAVY_PARSE_TIMEOUT_MS:-120000}
+      RAG_HEAVY_PARSE_STRICT: ${RAG_HEAVY_PARSE_STRICT:-1}
+      RAG_HEAVY_PARSE_MIN_CHARS: ${RAG_HEAVY_PARSE_MIN_CHARS:-80}
       RAG_ENABLE_AGENTIC_TOOL_LOOP: ${RAG_ENABLE_AGENTIC_TOOL_LOOP:-1}
       RAG_AGENTIC_TOOL_MAX_ROUNDS: ${RAG_AGENTIC_TOOL_MAX_ROUNDS:-4}
       # L 波：门控 HyDE（默认关）+ 企业制度 Graph 双车道
@@ -806,6 +810,8 @@ services:
       MANAGER_RUNTIME: docker
       MANAGER_ROUTE_MODE: ${MANAGER_ROUTE_MODE:-convergence}
       MANAGER_PRO_MODE: ${MANAGER_PRO_MODE:-strong}
+      # 轻量/核心栈默认踢出 music/video/gui；Lobster 仅 --profile extended。清空本键并 -Extended 才开 GUI
+      MANAGER_DISABLED_AGENTS: ${MANAGER_DISABLED_AGENTS:-music,video,gui}
       EVO_MODE: ${EVO_MODE:-convergence}
       ARTIFACT_FEEDBACK_MODE: ${ARTIFACT_FEEDBACK_MODE:-strict}
       DB_AGENT_WS_URL: ws://vanna_db_agent:13121/api/chat.ws
@@ -965,8 +971,7 @@ services:
         condition: service_started
       ai_admin_agent:
         condition: service_healthy
-      lobster_agent:
-        condition: service_healthy
+      # lobster_agent 仅 --profile extended；核心/公网弱机不硬依赖 GUI
     healthcheck:
       test:
         [
@@ -1059,8 +1064,9 @@ services:
       - "${PLAYWRIGHT_MCP_PORT:-18931}:8931"
     restart: unless-stopped
 
-  # Lobster_Agent（Nuxt + Playwright；Stagehand 主 / MCP 旁路 / classic=视频·HITL）
+  # Lobster_Agent（GUI）：仅 --profile extended；标准/核心栈不启（MANAGER_DISABLED_AGENTS 默认含 gui）
   lobster_agent:
+    profiles: ["extended"]
     build:
       context: ..
       dockerfile: Lobster_Agent/Dockerfile

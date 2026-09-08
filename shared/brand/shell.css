@@ -564,3 +564,146 @@
   border-color: #ffe7a8;
   color: #1a1510;
 }
+
+/* —— DeepSeek Harness 壳层原语 —— */
+
+.brand-shell {
+  font-family: var(--brand-font-sans);
+  color: var(--brand-text);
+  -webkit-font-smoothing: antialiased;
+}
+
+.brand-btn--pill {
+  appearance: none;
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--harness-border, rgba(15, 23, 42, 0.08));
+  background: var(--harness-bg, #f8f9fa);
+  color: var(--brand-ink);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: none;
+  transition:
+    background 0.15s var(--brand-ease),
+    border-color 0.15s var(--brand-ease),
+    color 0.15s var(--brand-ease);
+}
+
+.brand-btn--pill:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--brand-accent) 8%, #fff);
+  border-color: color-mix(in srgb, var(--brand-accent) 35%, transparent);
+  color: var(--brand-accent-hover);
+  box-shadow: none;
+  transform: none;
+}
+
+.brand-btn--pill:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.brand-send-fab,
+.ch-send-fab {
+  appearance: none;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--brand-send-fab-size, 36px);
+  height: var(--brand-send-fab-size, 36px);
+  min-width: var(--brand-send-fab-size, 36px);
+  min-height: var(--brand-send-fab-size, 36px);
+  padding: 0;
+  border-radius: 999px;
+  border: none;
+  background: var(--brand-accent);
+  color: var(--brand-accent-contrast, #fff);
+  cursor: pointer;
+  flex: 0 0 auto;
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--brand-accent) 35%, transparent);
+  transition:
+    background 0.15s var(--brand-ease),
+    transform 0.12s var(--brand-ease),
+    box-shadow 0.15s var(--brand-ease),
+    opacity 0.15s var(--brand-ease);
+}
+
+.brand-send-fab:hover:not(:disabled),
+.ch-send-fab:hover:not(:disabled) {
+  background: var(--brand-accent-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--brand-accent) 40%, transparent);
+}
+
+.brand-send-fab:disabled,
+.ch-send-fab:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.brand-send-fab.is-cancel,
+.ch-send-fab.is-cancel {
+  background: #dc2626;
+  box-shadow: 0 1px 3px rgba(220, 38, 38, 0.35);
+}
+
+.brand-send-fab.is-cancel:hover:not(:disabled),
+.ch-send-fab.is-cancel:hover:not(:disabled) {
+  background: #b91c1c;
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.4);
+}
+
+.brand-send-fab__icon,
+.ch-send-fab__icon {
+  display: block;
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
+}
+
+.brand-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--brand-text-secondary);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s var(--brand-ease), color 0.12s var(--brand-ease);
+}
+
+.brand-nav-item:hover {
+  background: color-mix(in srgb, var(--brand-accent) 6%, transparent);
+  color: var(--brand-ink);
+}
+
+.brand-nav-item.is-active {
+  background: var(--harness-active-bg, #eff6ff);
+  color: var(--brand-ink);
+  font-weight: 600;
+  box-shadow: inset 3px 0 0 var(--brand-accent);
+}
+
+.brand-rail {
+  background: var(--harness-bg, #f8f9fa);
+  border-right: 1px solid var(--harness-border, rgba(15, 23, 42, 0.08));
+}
+
+.brand-main-surface {
+  background: var(--harness-surface, #ffffff);
+}

@@ -1,4 +1,4 @@
-/* RAG · 靛青知识 · 精品控件层（背景氛围保持） */
+/* RAG · 靛青知识 · 工作区透景底图 + 玻璃面板 */
 
 .rag-season-bg,
 .rag-shell .brand-motif,
@@ -11,9 +11,43 @@
 .rag-shell,
 .rag-shell[data-agent="rag"] {
   --brand-motif-opacity: 0;
-  color: var(--brand-text);
+  --brand-accent: #4f6fd4;
+  --brand-accent-hover: #3d59b8;
+  --brand-accent-soft: rgba(79, 111, 212, 0.14);
+  --brand-accent-border: rgba(79, 111, 212, 0.38);
+  --brand-accent-muted: #6b86d8;
+  --harness-bg: transparent;
+  --harness-surface: rgba(255, 255, 255, 0.94);
+  --harness-muted: #5c6688;
+  --harness-border: rgba(79, 111, 212, 0.18);
+  --harness-active-bg: rgba(79, 111, 212, 0.12);
+  /* 压过 season 青绿，与靛青底图一致 */
+  --rag-accent: #4f6fd4;
+  --rag-accent-soft: rgba(79, 111, 212, 0.14);
+  --rag-accent-glow: rgba(79, 111, 212, 0.28);
+  --rag-glass-bg: rgba(251, 252, 255, 0.82);
+  --rag-glass-bg-bar: rgba(248, 250, 255, 0.86);
+  --rag-glass-bg-soft: rgba(255, 255, 255, 0.72);
+  --rag-glass-bg-composer: rgba(255, 255, 255, 0.94);
+  --rag-glass-bg-message: rgba(255, 255, 255, 0.94);
+  --rag-glass-bg-input: transparent;
+  --rag-glass-border: rgba(79, 111, 212, 0.2);
+  --rag-glass-border-strong: rgba(79, 111, 212, 0.34);
+  --rag-glass-highlight: rgba(255, 255, 255, 0.78);
+  --rag-glass-blur: 22px;
+  --rag-glass-blur-bar: 18px;
+  --rag-glass-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.72) inset,
+    0 14px 40px rgba(20, 30, 70, 0.12),
+    0 2px 10px rgba(20, 30, 70, 0.06);
+  --rag-text: #12162a;
+  --rag-text-secondary: #2a3350;
+  --rag-text-muted: #5c6688;
+  --rag-text-faint: rgba(92, 102, 136, 0.9);
+  font-family: var(--brand-font-sans);
+  color: var(--rag-text);
   background:
-    linear-gradient(165deg, rgba(228, 234, 248, 0.55) 0%, rgba(236, 240, 250, 0.58) 42%, rgba(212, 220, 237, 0.55) 100%),
+    linear-gradient(165deg, rgba(228, 234, 248, 0.42) 0%, rgba(236, 240, 250, 0.38) 42%, rgba(212, 220, 237, 0.48) 100%),
     url("/brand/backgrounds/theme/rag-workbench.png") center / cover no-repeat fixed !important;
 }
 
@@ -30,17 +64,25 @@
     url("/brand/backgrounds/theme/rag-workbench.png") center / cover no-repeat fixed !important;
 }
 
-/* 侧栏 */
+/* 侧栏：雾面玻璃，缝隙与边缘透出底图 */
 .rag-shell .rag-sidebar,
-.rag-shell aside,
 .rag-shell .sidebar,
 .rag-shell .history-rail,
-.rag-shell .rag-history-aside {
-  background: rgba(251, 252, 255, 0.88) !important;
-  border-right: 1px solid rgba(79, 111, 212, 0.2) !important;
-  box-shadow: 8px 0 32px rgba(20, 30, 70, 0.08) !important;
+.rag-shell .rag-history-aside.is-open {
+  background: var(--rag-glass-bg, rgba(251, 252, 255, 0.82)) !important;
+  border: 1px solid var(--rag-glass-border, rgba(79, 111, 212, 0.2)) !important;
+  box-shadow: var(--rag-glass-shadow) !important;
   color: #12162a !important;
-  backdrop-filter: blur(14px);
+  backdrop-filter: blur(var(--rag-glass-blur, 22px)) saturate(1.15) !important;
+  -webkit-backdrop-filter: blur(var(--rag-glass-blur, 22px)) saturate(1.15) !important;
+}
+
+.rag-shell .rag-history-aside:not(.is-open) {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 .rag-shell .rag-main,
@@ -86,23 +128,37 @@
   box-sizing: border-box !important;
 }
 
-/* 主对话滚动区 */
 .rag-shell .rag-chat-scroll {
-  padding: 1.5rem 1.75rem 1.85rem !important;
+  padding: 1.25rem 1.5rem 1.5rem !important;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .rag-shell .rag-chat-scroll > * + * {
-  margin-top: 1.35rem !important;
+  margin-top: 1.2rem !important;
+}
+
+.rag-shell .rag-history-aside .brand-empty {
+  margin: 1.25rem 1rem;
+  padding: 1rem 0.85rem;
+  text-align: center;
+  font-size: 12px;
+  line-height: 1.55;
+  color: #5c6688;
+  border-radius: 12px;
+  border: 1px dashed rgba(79, 111, 212, 0.28);
+  background: rgba(255, 255, 255, 0.55);
 }
 
 /* 对话：气泡内边距与排版（视觉气泡在内层，勿贴边） */
 .rag-shell .brand-msg {
-  max-width: min(720px, 92%);
+  max-width: min(var(--ch-max, 760px), 92%);
   padding: 0 !important;
   border: none !important;
   background: transparent !important;
   box-shadow: none !important;
   backdrop-filter: none !important;
+  margin-inline: auto;
 }
 
 .rag-shell .assistant-message-shell,
@@ -220,26 +276,49 @@
   animation: ch-caret-blink 1s steps(1) infinite;
 }
 
-/* Composer */
-.rag-shell .rag-compose,
-.rag-shell .rag-compose__row {
-  background: rgba(255, 255, 255, 0.96) !important;
-  border: 1px solid rgba(79, 111, 212, 0.28) !important;
+/* Composer：一体壳，输入区不再套第二层框 */
+.rag-shell .rag-compose {
+  background: rgba(255, 255, 255, 0.94) !important;
+  border: 1px solid rgba(79, 111, 212, 0.26) !important;
   border-radius: 18px !important;
-  box-shadow: 0 16px 44px rgba(20, 30, 70, 0.12) !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.85) inset,
+    0 16px 44px rgba(20, 30, 70, 0.14) !important;
+  backdrop-filter: blur(16px) saturate(1.1) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(1.1) !important;
 }
 
-.rag-shell textarea,
-.rag-shell input:not([type="checkbox"]):not([type="radio"]),
+.rag-shell .rag-compose__row {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+}
+
 .rag-shell .rag-compose__input {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  color: #12162a !important;
+  border-radius: 0 !important;
+}
+
+.rag-shell .rag-compose__input:focus {
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+.rag-shell input:not(.rag-compose__input):not([type="checkbox"]):not([type="radio"]),
+.rag-shell textarea:not(.rag-compose__input) {
   background: #f7f9ff !important;
   border: 1px solid rgba(100, 116, 150, 0.35) !important;
   color: #12162a !important;
   border-radius: 11px !important;
 }
 
-.rag-shell input:focus,
-.rag-shell textarea:focus {
+.rag-shell input:not(.rag-compose__input):focus,
+.rag-shell textarea:not(.rag-compose__input):focus {
   border-color: #4f6fd4 !important;
   box-shadow: 0 0 0 3px rgba(79, 111, 212, 0.22) !important;
   outline: none !important;
@@ -248,23 +327,50 @@
 /* 按钮 */
 .rag-shell .send-btn,
 .rag-shell button.primary,
-.rag-shell .brand-btn--primary,
-.rag-shell .rag-send-cancel {
+.rag-shell .brand-btn--primary {
   background: linear-gradient(135deg, #7b97e4, #4f6fd4 48%, #3d59b8) !important;
   color: #fff !important;
   border-color: #3d59b8 !important;
-  font-weight: 800 !important;
-  box-shadow: 0 8px 22px rgba(79, 111, 212, 0.38) !important;
-  border-radius: 11px !important;
+  font-weight: 700 !important;
+  box-shadow: 0 6px 18px rgba(79, 111, 212, 0.32) !important;
+  border-radius: 10px !important;
+}
+
+.rag-shell .brand-btn--primary.rag-btn-compact,
+.rag-shell .brand-btn--ghost.rag-btn-compact,
+.rag-shell .brand-btn--secondary.rag-btn-compact {
+  border-radius: 999px !important;
+  padding: 6px 12px !important;
+  font-size: 11px !important;
+}
+
+.rag-shell .brand-send-fab.rag-send-cancel,
+.rag-shell .rag-send-cancel.brand-send-fab {
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px !important;
+  min-height: 36px !important;
+  padding: 0 !important;
+  border-radius: 999px !important;
+  border: none !important;
+  background: linear-gradient(135deg, #7b97e4, #4f6fd4) !important;
+  color: #fff !important;
+  box-shadow: 0 6px 16px rgba(79, 111, 212, 0.35) !important;
+  font-size: 0 !important;
+}
+
+.rag-shell .brand-send-fab.rag-send-cancel.is-cancel {
+  background: #dc2626 !important;
+  box-shadow: 0 6px 16px rgba(220, 38, 38, 0.35) !important;
 }
 
 .rag-shell .brand-btn--secondary,
 .rag-shell .brand-btn--ghost {
-  background: rgba(255, 255, 255, 0.92) !important;
-  border: 1px solid rgba(79, 111, 212, 0.28) !important;
+  background: rgba(255, 255, 255, 0.88) !important;
+  border: 1px solid rgba(79, 111, 212, 0.22) !important;
   color: #12162a !important;
-  font-weight: 650;
-  border-radius: 10px !important;
+  font-weight: 600;
+  border-radius: 999px !important;
 }
 
 /* Modal（覆盖 Tailwind 内联色） */
@@ -312,11 +418,14 @@
 
 /* —— 主区顶栏 / 空态 / 抽屉 —— */
 .rag-shell .rag-main__topbar {
-  background: rgba(255, 255, 255, 0.9) !important;
+  background: rgba(248, 250, 255, 0.86) !important;
+  border: 1px solid rgba(79, 111, 212, 0.2) !important;
   border-bottom: 1px solid rgba(79, 111, 212, 0.2) !important;
-  box-shadow: 0 10px 32px rgba(20, 30, 70, 0.08) !important;
-  backdrop-filter: blur(14px);
+  box-shadow: var(--rag-glass-shadow) !important;
+  backdrop-filter: blur(18px) saturate(1.12) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(1.12) !important;
   padding: 12px 18px !important;
+  border-radius: 16px !important;
 }
 
 .rag-shell .rag-main__title {
@@ -331,14 +440,18 @@
 
 .rag-shell .rag-chat-empty,
 .rag-shell .rag-welcome {
-  margin: 2.5rem auto;
-  max-width: 520px;
-  padding: 2rem 1.75rem;
+  margin: 3.25rem auto 2rem;
+  max-width: 480px;
+  padding: 1.85rem 1.65rem;
   text-align: center;
-  border-radius: 18px;
-  border: 1px solid rgba(79, 111, 212, 0.2);
-  background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 14px 40px rgba(20, 30, 70, 0.1);
+  border-radius: 20px;
+  border: 1px solid rgba(79, 111, 212, 0.22);
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.8) inset,
+    0 18px 48px rgba(20, 30, 70, 0.12);
+  backdrop-filter: blur(14px) saturate(1.1);
+  -webkit-backdrop-filter: blur(14px) saturate(1.1);
   color: #12162a;
 }
 
@@ -388,8 +501,10 @@
 }
 
 .rag-shell .rag-compose {
-  margin: 0 16px 16px;
-  padding: 12px 14px;
+  margin: 0 auto 14px;
+  padding: 12px 14px 10px;
+  max-width: var(--ch-max, 760px);
+  width: calc(100% - 28px);
 }
 
 .rag-shell .rag-source-drawer {

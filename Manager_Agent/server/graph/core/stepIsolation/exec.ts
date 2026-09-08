@@ -199,6 +199,28 @@ export function buildMediaExecMessage(
   return appendSerpContextToQuery(base, meta, agent)
 }
 
+/** 无上游步骤时，用路由预读 caption 接地 db/rag query */
+function captionContextFromMeta(meta?: Record<string, unknown> | null): string {
+  if (!meta || typeof meta !== 'object') return ''
+  const cap = String(meta.routeImageCaption || '').trim()
+  if (!cap) {
+    const att = meta.mediaAttachment
+    if (att && typeof att === 'object' && !Array.isArray(att)) {
+      const fromAtt = String((att as { caption?: string }).caption || '').trim()
+      if (!fromAtt) return ''
+      const ocrAtt = String((att as { ocrSnippet?: string }).ocrSnippet || '').trim()
+      const lines = [`【附件画面摘要】${fromAtt}`]
+      if (ocrAtt) lines.push(`【画面文字】${ocrAtt.slice(0, 80)}`)
+      return lines.join('\n')
+    }
+    return ''
+  }
+  const ocr = String(meta.routeImageOcr || '').trim()
+  const lines = [`【附件画面摘要】${cap}`]
+  if (ocr) lines.push(`【画面文字】${ocr.slice(0, 80)}`)
+  return lines.join('\n')
+}
+
 /**
  * multi / 单步执行：按 agent 类型生成 effQuery（执行类收口，其它 agent 保留通用上下文拼接）。
  */
@@ -211,10 +233,11 @@ export function buildActionExecEffectiveQuery(
 ): string {
   const base = String(step.query || '').trim() || userTask
   const ctx = String(upstreamContext || '').trim()
+  const captionCtx = !ctx ? captionContextFromMeta(meta) : ''
 
   if (step.agent === 'admin') {
     const readOnly = isAdminReadOnlyOrchestrationStep(base)
-    return buildAdminEffectiveQuery(base, userTask, ctx, autoConfirm, readOnly)
+    return buildAdminEffectiveQuery(base, userTask, ctx || captionCtx, autoConfirm, readOnly)
   }
   if (MEDIA_EXEC_AGENTS.has(step.agent)) {
     const mediaBase = buildMediaExecMessage(step.agent as 'multimodal' | 'music' | 'video', base, userTask, meta)
@@ -223,8 +246,9 @@ export function buildActionExecEffectiveQuery(
     }
     return mediaBase
   }
-  if (ctx && !isActionExecAgent(step.agent)) {
-    return `${base}\n\n已知信息（来自上游步骤，仅供事实参考）：\n${ctx}`
+  const factCtx = ctx || captionCtx
+  if (factCtx && !isActionExecAgent(step.agent)) {
+    return `${base}\n\n已知信息（来自上游步骤，仅供事实参考）：\n${factCtx}`
   }
   return base
 }

@@ -1,0 +1,7 @@
+# Ignore local training artifacts (keep sample data tracked)
+outputs/
+.venv/
+__pycache__/
+*.pt
+*.bin
+*.safetensors

@@ -34,4 +34,20 @@ assert(isLlmFirstRouteEnabled(env), 'llm-first from convergence preset')
 assert(resolveManagerEnvBool('MANAGER_UNIFIED_ORCHESTRATOR', env) === true, 'unified orchestrator preset')
 assert(isManagerDockerRuntime(env), 'docker runtime')
 
+assert(
+  resolveManagerRouteMode({ MANAGER_ROUTE_MODE: 'heuristic' } as NodeJS.ProcessEnv) === 'convergence',
+  'heuristic without allow → convergence'
+)
+assert(
+  resolveManagerRouteMode({
+    MANAGER_ROUTE_MODE: 'heuristic',
+    MANAGER_ALLOW_HEURISTIC_ROUTE: '1'
+  } as NodeJS.ProcessEnv) === 'heuristic',
+  'heuristic with allow flag'
+)
+assert(
+  resolveManagerRouteMode({ MANAGER_ORCHESTRATOR_HEURISTIC: '1' } as NodeJS.ProcessEnv) === 'convergence',
+  'ORCHESTRATOR_HEURISTIC without allow → convergence'
+)
+
 console.log('managerEnvModes.unit: OK')

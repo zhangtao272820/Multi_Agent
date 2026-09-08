@@ -1,10 +1,8 @@
 import { ChatOpenAI } from '@langchain/openai'
-import { isQwen3HybridModel, withQwenModelKwargs } from '#agent-shared/qwenModelKwargs'
+import { isQwen3HybridModel, readQwenEnableThinkingFromEnv, withQwenModelKwargs } from '#agent-shared/qwenModelKwargs'
 import {
-  readAgentLlmJsonMaxTokens,
   readAgentLlmMaxRetries,
-  readAgentLlmRequestTimeoutMs,
-  readAgentLlmSynthMaxTokens
+  readAgentLlmRequestTimeoutMs
 } from '#agent-shared/agentLlmSpeed'
 
 export function createManagerChatOpenAI(input: {
@@ -15,13 +13,30 @@ export function createManagerChatOpenAI(input: {
   maxTokens?: number
   /** 轻量 JSON/对齐调用默认关思考，避免 qwen3 混合模型拖慢 */
   skipThinking?: boolean
-  /** 路由流式思考：须配合 stream + MANAGER_ROUTE_THOUGHT_STREAM */
+  /**
+   * 思考开关：
+   * - true：强制开（路由 thought 流 / 用户可见回答）
+   * - false：强制关（结构化）
+   * - undefined + honorEnvThinking：跟随 QWEN_ENABLE_THINKING / CAP_ENABLE_THINKING
+   * - undefined（默认）：混合模型关（安全默认，供大量 JSON 调用方）
+   */
   enableThinking?: boolean
+  /** synth 等用户可见回答：尊重全局 env，不默认硬关 */
+  honorEnvThinking?: boolean
 }): ChatOpenAI {
   const modelName = String(input.modelName || '').trim()
-  const enableThinking = input.enableThinking === true
-  const forceNoThinking =
-    !enableThinking && (input.skipThinking === true || isQwen3HybridModel(modelName))
+  let thinkingOpts: { enableThinking?: boolean } | undefined
+  if (input.skipThinking === true || input.enableThinking === false) {
+    thinkingOpts = { enableThinking: false }
+  } else if (input.enableThinking === true) {
+    thinkingOpts = { enableThinking: true }
+  } else if (input.honorEnvThinking === true) {
+    thinkingOpts = { enableThinking: readQwenEnableThinkingFromEnv() }
+  } else if (isQwen3HybridModel(modelName)) {
+    thinkingOpts = { enableThinking: false }
+  } else {
+    thinkingOpts = undefined
+  }
   const base = withQwenModelKwargs(
     modelName,
     {
@@ -34,7 +49,7 @@ export function createManagerChatOpenAI(input: {
       timeout: readAgentLlmRequestTimeoutMs(),
       maxRetries: readAgentLlmMaxRetries()
     },
-    forceNoThinking ? { enableThinking: false } : enableThinking ? { enableThinking: true } : undefined
+    thinkingOpts
   )
   return new ChatOpenAI(base as ConstructorParameters<typeof ChatOpenAI>[0])
 }

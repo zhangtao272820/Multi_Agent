@@ -127,6 +127,10 @@ export const RAG_AGENT_DEFAULTS = {
   enableHeavyParse: true,
   mineruApiUrl: "" as string,
   heavyParseTimeoutMs: 120_000,
+  /** 生产严格：PDF/Office/图片 MinerU 失败则拒收（本地默认关） */
+  heavyParseStrict: false,
+  /** MinerU 成功但正文过短视为失败 */
+  heavyParseMinChars: 80,
   /** P2：从 rag-learning-signals 调检索偏好 */
   enableLearningLoop: true,
   /** P2：gte-rerank 等；未配则词法 + LLM */
@@ -353,6 +357,11 @@ export function getRagAgentEnv(opts?: { docCount?: number }): RagAgentEnv {
     heavyParseTimeoutMs: Math.max(
       5_000,
       Math.floor(envNum(process.env.RAG_HEAVY_PARSE_TIMEOUT_MS, d.heavyParseTimeoutMs))
+    ),
+    heavyParseStrict: envBool(process.env.RAG_HEAVY_PARSE_STRICT, d.heavyParseStrict),
+    heavyParseMinChars: Math.max(
+      1,
+      Math.floor(envNum(process.env.RAG_HEAVY_PARSE_MIN_CHARS, d.heavyParseMinChars))
     ),
     enableLearningLoop: envBool(process.env.RAG_ENABLE_LEARNING_LOOP, d.enableLearningLoop),
     enableCrossEncoderRerank: envBool(process.env.RAG_ENABLE_CROSS_ENCODER, d.enableCrossEncoderRerank),

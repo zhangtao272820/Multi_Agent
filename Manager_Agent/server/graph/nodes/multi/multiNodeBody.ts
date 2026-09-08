@@ -71,7 +71,8 @@ import {
   shouldConsiderLocalReplan,
   shouldForcePlanRollback,
   filterStepsExcludingCircuitAgents,
-  resolveCircuitBlockedReplan
+  resolveCircuitBlockedReplan,
+  classifyStepObservationFailure
 } from '../../core/plan/localReplan'
 import { llmPhaseContinue, maxRunPhases } from '../../core/plan/phaseContinue'
 import {
@@ -1666,6 +1667,11 @@ export async function runMultiNodeBody(state: any, deps: any) {
                   from: 'manager'
                 })
                 opts.sendEvent({ event: 'phase', data: 'plan_preview', from: 'manager' })
+                opts.sendEvent({
+                  event: 'posture_hint',
+                  data: { suggest: 'plan', reason: 'local_replan_exhausted_or_circuit' },
+                  from: 'manager'
+                })
                 const previewId = crypto.randomUUID()
                 const payload = buildPlanPreviewPayload(pendingSteps, opts.runId, previewId, {
                   intent: state.intent,
@@ -1673,6 +1679,8 @@ export async function runMultiNodeBody(state: any, deps: any) {
                   meta: {
                     ...(state.meta || {}),
                     collaborationPosture: 'plan',
+                    suggestedPosture: 'plan',
+                    needsPlanPreview: true,
                     forcePlanRollback: true,
                     worldModelRisk: Math.max(0.65, Number(state.meta?.worldModelRisk || 0))
                   }
@@ -1809,12 +1817,24 @@ export async function runMultiNodeBody(state: any, deps: any) {
                   step: s,
                   status,
                   output: clipObsSummary(String(output || '')),
-                  error: error ? clipObsSummary(String(error)) : error
+                  error: error ? clipObsSummary(String(error)) : error,
+                  observationKind: classifyStepObservationFailure({
+                    status,
+                    output: String(output || ''),
+                    error: error ? String(error) : undefined,
+                    agent: String(s.agent || failedAgent || '')
+                  })
                 },
                 pendingSteps,
                 completedSummaries,
                 planConstraints: String(state?.meta?.planConstraints || '').trim(),
-                maxTotalSteps: 8
+                maxTotalSteps: 8,
+                imageCaption: String(
+                  (state?.mediaAttachment as { caption?: string } | null)?.caption ||
+                    state?.meta?.routeImageCaption ||
+                    ''
+                ).trim(),
+                localReplanCount
               }).catch(() => null)
               if (replan?.remainingSteps?.length) {
                 const filteredRemaining = filterStepsExcludingCircuitAgents(
@@ -2093,7 +2113,15 @@ export async function runMultiNodeBody(state: any, deps: any) {
         lastStepRecords,
         ...(lastReplanReason ? { lastReplanReason } : {}),
         ...(circuitShortCircuitCount > 0 ? { circuitShortCircuitCount } : {}),
-        ...(forcePlanRollback ? { forcePlanRollback: true, collaborationPosture: 'plan' } : {}),
+        ...(forcePlanRollback
+          ? {
+              forcePlanRollback: true,
+              collaborationPosture: 'plan',
+              suggestedPosture: 'plan',
+              needsPlanPreview: true,
+              upgradeReason: 'local_replan_exhausted_or_circuit'
+            }
+          : {}),
         ...(Object.keys(hardDownMap).length ? { expertHardDown: hardDownMap } : {}),
         ...(adminWriteTerminal ? { adminWriteTerminal: true } : {})
       }

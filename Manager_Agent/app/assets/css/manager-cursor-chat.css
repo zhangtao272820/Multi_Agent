@@ -1,7 +1,7 @@
 /* 总管 Agent · Cursor 对话可读性 · 霜白冬雪 Token */
 
 .spring-root.cosmic-theme.cursor-workbench {
-  --chat-col-width: min(1120px, calc(100vw - var(--mgr-sidebar-w, 240px) - var(--mgr-tools-w, 280px) - 48px));
+  --chat-col-width: min(840px, calc(100vw - var(--mgr-sidebar-w, 240px) - var(--mgr-tools-w, 280px) - 48px));
   --chat-font-body: 15.5px;
   --chat-font-body-lh: 1.75;
   --chat-font-secondary: 14px;
@@ -612,7 +612,7 @@
 
 @media (min-width: 1400px) {
   .spring-root.cosmic-theme.cursor-workbench {
-    --chat-col-width: min(1200px, calc(100vw - var(--mgr-sidebar-w, 240px) - var(--mgr-tools-w, 280px) - 40px));
+    --chat-col-width: min(840px, calc(100vw - var(--mgr-sidebar-w, 240px) - var(--mgr-tools-w, 280px) - 48px));
   }
 }
 
@@ -1453,11 +1453,222 @@
 @media (min-width: 1600px) {
   .spring-root.cursor-workbench.cosmic-theme {
     --chat-rail-max: min(
-      1280px,
+      840px,
       calc(100vw - var(--mgr-sidebar-w, 240px) - var(--mgr-tools-w, 280px) - 2 * var(--chat-rail-pad-x, 18px) - 20px)
     );
     --chat-col-width: var(--chat-rail-max);
   }
 }
 
+/* ── 数据看板：浅色深字 + 单行纵向 KV ── */
+.spring-root.cursor-workbench.cosmic-theme .chat-thread .data-table-wrap,
+.spring-root.cursor-workbench.cosmic-theme .data-table-wrap.md-body {
+  margin: 0.65rem 0 0.85rem !important;
+  padding: 0 !important;
+  border-radius: 14px !important;
+  border: 1px solid rgba(148, 180, 214, 0.45) !important;
+  background: rgba(255, 255, 255, 0.96) !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.95) inset,
+    0 8px 22px rgba(40, 70, 110, 0.06) !important;
+  overflow: hidden !important;
+  color: #122536 !important;
+}
+
+.spring-root.cursor-workbench.cosmic-theme .chat-thread .data-table,
+.spring-root.cursor-workbench.cosmic-theme .data-table-wrap .data-table,
+.spring-root.cursor-workbench.cosmic-theme .data-table-wrap table.data-table {
+  width: 100% !important;
+  margin: 0 !important;
+  color: #122536 !important;
+  font-family: var(--brand-font-sans, "Manrope", "Noto Sans SC", sans-serif) !important;
+  font-size: 13.5px !important;
+  line-height: 1.55 !important;
+  white-space: normal !important;
+  background: transparent !important;
+}
+
+.spring-root.cursor-workbench.cosmic-theme .data-table-grid {
+  border-collapse: collapse !important;
+  display: table !important;
+}
+
+.spring-root.cursor-workbench.cosmic-theme .data-table-grid th,
+.spring-root.cursor-workbench.cosmic-theme .data-table-grid td {
+  padding: 10px 14px !important;
+  text-align: left !important;
+  vertical-align: top !important;
+  border-bottom: 1px solid rgba(186, 210, 236, 0.55) !important;
+  color: #122536 !important;
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed !important;
+  white-space: normal !important;
+  word-break: break-word !important;
+}
+
+.spring-root.cursor-workbench.cosmic-theme .data-table-grid thead th {
+  background: rgba(239, 246, 255, 0.95) !important;
+  color: #0e2744 !important;
+  font-weight: 700 !important;
+  font-size: 12.5px !important;
+  border-bottom-color: rgba(148, 180, 214, 0.55) !important;
+}
+
+.spring-root.cursor-workbench.cosmic-theme .data-table-grid tbody tr:nth-child(even) td {
+  background: rgba(248, 250, 252, 0.85) !important;
+}
+
+/* 单行：纵向键值（左标签 · 右值） */
+.spring-root.cursor-workbench.cosmic-theme .data-table-kv {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0 !important;
+  padding: 4px 0 !important;
+}
+
+.spring-root.cursor-workbench.cosmic-theme .data-kv-row {
+  display: grid !important;
+  grid-template-columns: minmax(108px, 30%) minmax(0, 1fr) !important;
+  gap: 10px 16px !important;
+  padding: 11px 16px !important;
+  border-bottom: 1px solid rgba(186, 210, 236, 0.42) !important;
+  align-items: start !important;
+}
+
+.spring-root.cursor-workbench.cosmic-theme .data-kv-row:last-child {
+  border-bottom: none !important;
+}
+
+.spring-root.cursor-workbench.cosmic-theme .data-kv-row:nth-child(odd) {
+  background: rgba(239, 246, 255, 0.45) !important;
+}
+
+.spring-root.cursor-workbench.cosmic-theme .data-kv-k {
+  font-size: 12.5px !important;
+  font-weight: 700 !important;
+  color: #1e5a96 !important;
+  line-height: 1.5 !important;
+  word-break: keep-all !important;
+}
+
+.spring-root.cursor-workbench.cosmic-theme .data-kv-v {
+  font-size: 13.5px !important;
+  font-weight: 550 !important;
+  color: #0f172a !important;
+  line-height: 1.55 !important;
+  word-break: break-word !important;
+}
+
+/* ── 思考过程：更充实的高级卡片（展开态） ── */
+.spring-root.cursor-workbench .cursor-thought-panel.harness-think-only[open] .process-panel-body {
+  min-height: 7.5rem;
+}
+
+.spring-root.cursor-workbench .harness-think {
+  gap: 1rem !important;
+}
+
+.spring-root.cursor-workbench .harness-think-stages {
+  gap: 0.35rem !important;
+  padding: 0.15rem 0 0.25rem !important;
+  position: relative;
+}
+
+.spring-root.cursor-workbench .harness-think-stages::before {
+  content: '';
+  position: absolute;
+  left: 11px;
+  top: 14px;
+  bottom: 14px;
+  width: 2px;
+  border-radius: 999px;
+  background: linear-gradient(
+    180deg,
+    rgba(37, 99, 235, 0.45),
+    rgba(148, 163, 184, 0.22) 70%,
+    transparent
+  );
+  pointer-events: none;
+}
+
+.spring-root.cursor-workbench .harness-think-stage {
+  padding: 0.55rem 0.75rem 0.55rem 0.35rem !important;
+  margin-left: 0 !important;
+  border-radius: 12px !important;
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid transparent;
+}
+
+.spring-root.cursor-workbench .harness-think-stage.is-done {
+  background: rgba(255, 255, 255, 0.72);
+  border-color: rgba(186, 210, 236, 0.35);
+}
+
+.spring-root.cursor-workbench .harness-think-stage.is-active {
+  background: linear-gradient(105deg, rgba(239, 246, 255, 0.95), rgba(255, 255, 255, 0.88)) !important;
+  border-color: rgba(147, 197, 253, 0.55) !important;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.07);
+}
+
+.spring-root.cursor-workbench .harness-think-stage-sum {
+  font-size: 13.5px !important;
+  font-weight: 650 !important;
+  color: #0f2744 !important;
+  gap: 0.7rem !important;
+  position: relative;
+  z-index: 1;
+}
+
+.spring-root.cursor-workbench .harness-think-stage-dot {
+  width: 10px !important;
+  height: 10px !important;
+  flex-basis: 10px !important;
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.92), 0 0 0 5px rgba(37, 99, 235, 0.18) !important;
+}
+
+.spring-root.cursor-workbench .harness-think-stage-body {
+  margin: 0.45rem 0 0.1rem 1.35rem !important;
+  padding: 0.45rem 0.65rem !important;
+  border-radius: 8px !important;
+  background: rgba(248, 250, 252, 0.85) !important;
+  color: #334155 !important;
+  font-size: 13px !important;
+  line-height: 1.7 !important;
+}
+
+.spring-root.cursor-workbench .harness-created-plan {
+  margin-top: 0.35rem !important;
+  padding: 0.85rem 1rem 0.9rem !important;
+  border-radius: 14px !important;
+  border: 1px solid rgba(37, 99, 235, 0.22) !important;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(239, 246, 255, 0.9)) !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.95) inset,
+    0 8px 20px rgba(37, 99, 235, 0.06) !important;
+}
+
+.spring-root.cursor-workbench .harness-created-plan-title {
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  color: #0f2744 !important;
+  letter-spacing: 0.02em;
+}
+
+.spring-root.cursor-workbench .harness-plan-chip {
+  padding: 6px 12px !important;
+  border-radius: 999px !important;
+  font-size: 12.5px !important;
+  font-weight: 650 !important;
+  color: #0a4a86 !important;
+  background: rgba(219, 234, 254, 0.95) !important;
+  border: 1px solid rgba(37, 99, 235, 0.28) !important;
+}
+
+.spring-root.cursor-workbench .harness-think-stream {
+  padding: 0.55rem 0.65rem 0.55rem 0.15rem !important;
+  border-radius: 12px !important;
+  background: rgba(255, 255, 255, 0.55);
+  min-height: 3.2rem;
+}
 

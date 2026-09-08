@@ -157,12 +157,21 @@ def test_guard() -> None:
 def test_scenes() -> None:
     ids = {s["id"] for s in scene_public()}
     assert_true(ids == set(SCENES), "all scenes must be listed")
+    assert_true(get_scene(None).id == "auto", "default scene is auto")
+    assert_true(get_scene("auto").auto_deliverables and get_scene("auto").allow_chart, "auto deliverables")
+    assert_true(get_scene("smart").id == "auto", "smart alias")
     assert_true(get_scene("assistant").force_checkpoint, "assistant checkpoint on")
     assert_true(get_scene("dba").allow_sys_schema, "dba sys schema")
     assert_true(get_scene("audit").strict_secrets, "audit strict secrets")
     assert_true(get_scene("analyst").allow_chart, "analyst chart")
     assert_true(get_scene("embed").stub and get_scene("etl").stub, "embed/etl stub")
     assert_true(get_scene("saas").id == "embed", "saas alias")
+    from app.scenes import scene_with_sys_meta
+
+    auto = get_scene("auto")
+    bumped = scene_with_sys_meta(auto, sys_meta=True)
+    assert_true(bumped.allow_sys_schema and bumped.id == "auto", "sys_meta turn bump")
+    assert_true(not auto.allow_sys_schema, "original auto unchanged")
 
 
 def _mock_golden_route(*, tables: list[str] | None = None, intent: str = "count") -> dict:
@@ -482,7 +491,9 @@ def test_budget_and_ui() -> None:
     with TestClient(app) as client:
         page = client.get("/")
         html = page.text
-        assert_true("select-wrap" in html and "toolbar" in html, "light toolbar selects")
+        assert_true("scene-advanced" in html and "id=\"scene\"" in html, "advanced scene override")
+        assert_true("智能问数" in html or "currentScene" in html, "auto deliverables ui")
+        assert_true("buildChart" in html and "chart-wrap" in html, "chart render helpers")
         assert_true("color-scheme: light" in html, "selects use light color-scheme")
         assert_true("目前突发事件有几个，分别是什么" in html, "real golden example")
         meta = client.get("/api/meta").json()
@@ -495,7 +506,7 @@ def test_budget_and_ui() -> None:
         assert_true(budget.get("polish") is True, "meta polish on")
         assert_true("新对话" in html and "历史会话" in html and "查询记录" in html, "agent session ui")
         assert_true("msg-action-btn" in html and "撤回" in html and "重新生成" in html, "message actions ui")
-        assert_true("agent-process" in html and "思考过程" in html, "collapsible agent process")
+        assert_true("agent-process" in html and ("已思考" in html or "思考过程" in html), "collapsible agent process")
         assert_true("收入黄金" in html, "promote golden button")
         assert_true("字段说明" in html and "有用" in html and "无用" in html, "field details and feedback ui")
         too_long = client.post(
@@ -810,7 +821,6 @@ def test_present_from_comments() -> None:
         tables=["Cultivate_Examination"],
     )
     exam_keys = list((exam_shown["rows"][0] or {}).keys())
-    assert_true(len(exam_keys) <= 3, f"only ask-related cols, got {exam_keys}")
     assert_true(
         any("名称" in k or k == "Name" for k in exam_keys),
         f"name col kept, got {exam_keys}",
@@ -819,8 +829,47 @@ def test_present_from_comments() -> None:
         any("类型" in k or k == "Type" for k in exam_keys),
         f"type col kept, got {exam_keys}",
     )
-    assert_true("创建人" not in exam_keys and "总分" not in exam_keys, f"extra cols trimmed, got {exam_keys}")
+    # 注释判为有用的业务列（如总分）必须保留；审计/开关仍隐藏
+    assert_true(
+        any("总分" in k or k == "Score" for k in exam_keys),
+        f"useful Score kept by comment, got {exam_keys}",
+    )
+    assert_true("创建人" not in exam_keys, f"audit still stripped, got {exam_keys}")
     assert_true(len(exam_shown.get("field_details") or []) == len(exam_keys), "details match shown cols")
+
+    rich = present_rows(
+        tenant,
+        question="王建国的基本信息",
+        rows=[
+            {
+                "cus_name": "王建国",
+                "cus_birth": "1958-07-23",
+                "cus_sex": "男",
+                "cus_nation": "汉",
+                "cus_address": "北京",
+                "report_time": "2025-11-17",
+                "service_doc_name": "陈医",
+                "height": 170,
+                "weight": 70,
+                "heart_rate": 72,
+                "systolic_bp": 130,
+                "diastolic_bp": 80,
+                "Creator": "admin",
+                "Id": 1,
+            }
+        ],
+        tables=["Cultivate_Examination"],
+    )
+    rich_keys = list((rich["rows"][0] or {}).keys())
+    assert_true(len(rich_keys) >= 8, f"all useful cols kept (not capped at 6), got {rich_keys}")
+    assert_true("创建人" not in rich_keys and "Id" not in rich_keys, f"audit/pk stripped, got {rich_keys}")
+    rich_text = format_answer("王建国的基本信息", rich["rows"], "SELECT 1")
+    assert_true("已查到" in rich_text and "1 条" in rich_text, f"summarizes single row, got {rich_text}")
+    assert_true("你可以接着问" in rich_text, f"includes follow-up tips, got {rich_text}")
+    assert_true("见下方表格" not in rich_text or "完整字段见下方" in rich_text, "assistant-style close")
+    from app.format_answer import suggest_followups
+    tips = suggest_followups("王建国的基本信息", rich["rows"])
+    assert_true(len(tips) >= 1, f"suggestions nonempty, got {tips}")
 
     zero = format_answer("谁参加", [], "SELECT 1 WHERE IsOpen=1", empty_note=empty_message("SELECT 1 WHERE IsOpen=1"))
     assert_true("0 行" in zero and "编造" in zero, "empty db still replies")
@@ -1143,6 +1192,76 @@ def test_chart_types() -> None:
         analyst,
     )
     assert_true(bar and bar.get("type") == "bar", f"many classes -> bar, got {bar}")
+    auto = get_scene("auto")
+    blocked = infer_chart(
+        [{"级别": "一级", "人数": 3}, {"级别": "二级", "人数": 5}],
+        auto,
+        want_chart=False,
+    )
+    assert_true(blocked is None, "want_chart false blocks even on auto")
+    allowed = infer_chart(
+        [{"级别": "一级", "人数": 3}, {"级别": "二级", "人数": 5}],
+        auto,
+        want_chart=True,
+    )
+    assert_true(allowed and allowed.get("type") == "pie", "want_chart true on auto")
+    assist = get_scene("assistant")
+    assert_true(
+        infer_chart([{"级别": "一级", "人数": 3}, {"级别": "二级", "人数": 5}], assist) is None,
+        "assistant scene still no chart without want",
+    )
+
+
+def test_router_deliverables_and_polish_gate() -> None:
+    from app.router import parse_router, should_polish
+
+    trend = parse_router(
+        {
+            "path": "llm_sql",
+            "intent": "trend",
+            "tables": ["Cultivate_Examination"],
+            "confidence": 0.9,
+            "reason": "趋势",
+        }
+    )
+    assert_true(trend.get("need_chart") is True and trend.get("need_interpret") is True, "trend defaults")
+    assert_true(trend.get("sys_meta") is False, "trend not sys_meta")
+    listing = parse_router(
+        {
+            "path": "llm_sql",
+            "intent": "list",
+            "tables": ["Cultivate_Examination"],
+            "confidence": 0.9,
+            "need_chart": False,
+            "need_interpret": False,
+            "reason": "名单",
+        }
+    )
+    assert_true(listing.get("need_chart") is False and listing.get("need_interpret") is False, "list explicit")
+    meta = parse_router(
+        {
+            "path": "llm_sql",
+            "intent": "meta",
+            "tables": [],
+            "confidence": 0.9,
+            "reason": "表结构",
+        }
+    )
+    assert_true(meta.get("sys_meta") is True, "meta forces sys_meta")
+    chitchat = parse_router({"path": "chitchat", "intent": "chitchat", "clarify": "你好"})
+    assert_true(
+        not chitchat.get("need_chart") and not chitchat.get("need_interpret") and not chitchat.get("sys_meta"),
+        "chitchat no deliverables",
+    )
+    assert_true(should_polish(need_interpret=True, polish_enabled=True, exec_ok=True), "polish when needed")
+    assert_true(
+        not should_polish(need_interpret=False, polish_enabled=True, exec_ok=True),
+        "skip polish when not interpret",
+    )
+    assert_true(
+        not should_polish(need_interpret=True, polish_enabled=False, exec_ok=True),
+        "respect polish off",
+    )
 
 
 def test_fk_seed_joins_and_template() -> None:
@@ -1273,6 +1392,15 @@ def test_protocol_envelope() -> None:
     clar = build_db_agent_result(answer="请说明对象", needs_clarify=True)
     assert_true(clar.get("needs_clarify") is True and clar.get("error_code") == "needs_clarify", "clarify code")
     assert_true(clar.get("ok") is False, "clarify still fails")
+    charted = build_db_agent_result(
+        answer="分布如下",
+        chart={"type": "pie", "points": [{"label": "A", "value": 1}, {"label": "B", "value": 2}]},
+        deliverables={"need_chart": True, "need_interpret": True, "sys_meta": False},
+        rows=[{"级别": "A", "人数": 1}],
+    )
+    st = charted.get("structured") or {}
+    assert_true(st.get("chart", {}).get("type") == "pie", "structured.chart")
+    assert_true(st.get("deliverables", {}).get("need_chart") is True, "structured.deliverables")
 
 
 def test_sql_match_normalize_and_location_filters() -> None:
@@ -1710,6 +1838,7 @@ def main() -> None:
     test_nl_eval_contract()
     test_golden_source_metering()
     test_chart_types()
+    test_router_deliverables_and_polish_gate()
     test_fk_seed_joins_and_template()
     test_browser_jwt_not_blocked_by_service_auth()
     test_protocol_envelope()

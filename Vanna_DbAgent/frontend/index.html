@@ -4,33 +4,67 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>禄存 · 库问数</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>
     :root {
       --bg: #e6f4f2;
       --surface: #f7fffe;
       --ink: #0c1918;
       --muted: #4d6b66;
-      --line: #9fc9c2;
+      --line: rgba(13, 148, 136, 0.22);
+      --line-strong: rgba(13, 148, 136, 0.38);
       --accent: #0d9488;
       --accent-hover: #0f766e;
-      --accent-soft: rgba(13, 148, 136, 0.16);
-      --sidebar-bg: #f0faf8;
+      --accent-soft: rgba(13, 148, 136, 0.14);
+      --sidebar-bg: rgba(240, 250, 248, 0.92);
       --warn: #b45309;
       --ok: #0f766e;
-      --sql: #0c1618;
-      --sqlink: #f2fbf9;
-      --shadow-sm: 0 1px 2px rgba(12, 25, 24, 0.06);
-      --shadow: 0 10px 32px rgba(12, 25, 24, 0.1);
+      --sql: #0f1c1e;
+      --sqlink: #e8f7f4;
+      --shadow-sm: 0 1px 2px rgba(12, 25, 24, 0.05), 0 1px 3px rgba(12, 25, 24, 0.04);
+      --shadow: 0 12px 36px rgba(12, 40, 36, 0.1);
+      --shadow-panel: 0 8px 28px rgba(12, 40, 36, 0.08);
       --radius: 12px;
       --radius-lg: 16px;
-      --chat-max: 780px;
-      --rail-width: 300px;
+      --radius-xl: 20px;
+      --chat-max: 720px;
+      --rail-width: 292px;
+      --sb-size: 5px;
+      --sb-thumb: rgba(13, 148, 136, 0.28);
+      --sb-thumb-hover: rgba(13, 148, 136, 0.5);
       --font-sans: "Manrope", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
       --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     }
     * { box-sizing: border-box; }
     html { color-scheme: light; }
     html, body { margin: 0; height: 100%; overflow: hidden; }
+    /* 全局细滚动条（含对话 / 侧栏 / 结果表 / 审计轨内嵌块） */
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: var(--sb-thumb) transparent;
+    }
+    *::-webkit-scrollbar {
+      width: var(--sb-size);
+      height: var(--sb-size);
+    }
+    *::-webkit-scrollbar-track {
+      background: transparent;
+      margin: 4px 0;
+    }
+    *::-webkit-scrollbar-thumb {
+      background: var(--sb-thumb);
+      border-radius: 999px;
+      border: 1px solid transparent;
+      background-clip: padding-box;
+      min-height: 28px;
+    }
+    *::-webkit-scrollbar-thumb:hover {
+      background: var(--sb-thumb-hover);
+      background-clip: padding-box;
+    }
+    *::-webkit-scrollbar-corner { background: transparent; }
     body {
       font-family: var(--font-sans);
       color: var(--ink);
@@ -51,17 +85,17 @@
       grid-template-columns: 260px minmax(0, 1fr) var(--rail-width);
     }
     aside.sidebar {
-      background: rgba(247, 255, 254, 0.94);
-      border-right: 1px solid rgba(13, 148, 136, 0.2);
+      background: rgba(247, 255, 254, 0.88);
+      border-right: 1px solid var(--line);
       display: flex;
       flex-direction: column;
       min-height: 0;
       overflow: hidden;
-      box-shadow: 8px 0 32px rgba(12, 40, 36, 0.08);
-      backdrop-filter: blur(14px);
+      box-shadow: var(--shadow-panel);
+      backdrop-filter: blur(16px) saturate(1.08);
     }
     .sidebar-head {
-      padding: 16px 14px 12px;
+      padding: 18px 16px 14px;
       border-bottom: 1px solid var(--line);
     }
     .brand {
@@ -73,7 +107,7 @@
     }
     .brand small {
       display: block;
-      margin-top: 4px;
+      margin-top: 5px;
       font-size: 12px;
       font-weight: 400;
       line-height: 1.45;
@@ -81,22 +115,25 @@
     }
     .new-chat {
       width: 100%;
-      margin-top: 12px;
-      border: 1px solid var(--line);
-      background: var(--surface);
-      color: var(--ink);
-      border-radius: 10px;
-      padding: 9px 12px;
+      margin-top: 14px;
+      border: 1px solid var(--line-strong);
+      background: linear-gradient(180deg, #ffffff, color-mix(in srgb, var(--accent-soft) 35%, #fff));
+      color: var(--accent-hover);
+      border-radius: 11px;
+      padding: 10px 14px;
       cursor: pointer;
       font-size: 13px;
-      font-weight: 600;
-      transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      transition: background 0.15s, border-color 0.15s, box-shadow 0.15s, transform 0.12s;
       box-shadow: var(--shadow-sm);
     }
     .new-chat:hover {
-      background: color-mix(in srgb, var(--accent-soft) 50%, var(--surface));
+      background: color-mix(in srgb, var(--accent-soft) 70%, #fff);
       border-color: var(--accent);
+      box-shadow: 0 4px 14px rgba(13, 148, 136, 0.18);
     }
+    .new-chat:active { transform: translateY(1px); }
     .sidebar-scroll {
       flex: 1;
       min-height: 0;
@@ -162,22 +199,22 @@
       background: transparent;
       color: var(--ink);
       border: 0;
-      border-radius: 8px;
-      padding: 8px 10px;
+      border-radius: 10px;
+      padding: 9px 12px;
       cursor: pointer;
       font-size: 13px;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      transition: background 0.12s;
+      transition: background 0.12s, color 0.12s;
     }
     .sess button.pick:hover { background: rgba(13, 148, 136, 0.1); }
     .sess button.pick.on {
-      background: rgba(13, 148, 136, 0.12);
+      background: color-mix(in srgb, var(--accent-soft) 85%, #fff);
       color: var(--accent-hover);
       font-weight: 700;
       box-shadow: inset 3px 0 0 var(--accent);
-      border-radius: 8px;
+      border-radius: 10px;
     }
     .sess .del {
       border: 0;
@@ -194,45 +231,61 @@
     .sess:hover .del { opacity: 0.7; }
     .sess .del:hover { opacity: 1; background: #fee2e2; color: #b91c1c; }
     .sidebar-foot {
-      padding: 12px 14px 14px;
+      padding: 14px 16px 16px;
       border-top: 1px solid var(--line);
       background: var(--sidebar-bg);
+      backdrop-filter: blur(8px);
     }
     .sidebar-foot .logout-row {
-      margin-bottom: 10px;
+      margin-bottom: 12px;
     }
     .sidebar-foot .logout-btn {
       width: 100%;
       border: 1px solid var(--line);
-      background: var(--surface);
+      background: rgba(255, 255, 255, 0.85);
       color: var(--ink);
-      border-radius: 8px;
-      padding: 7px 12px;
+      border-radius: 10px;
+      padding: 8px 12px;
       font-size: 12px;
+      font-weight: 600;
       cursor: pointer;
-      transition: background 0.12s, border-color 0.12s;
+      transition: background 0.12s, border-color 0.12s, color 0.12s;
     }
     .sidebar-foot .logout-btn:hover {
       background: #fef2f2;
       border-color: #fecaca;
       color: #b91c1c;
     }
-    .sidebar-foot .field { margin-bottom: 10px; }
+    .sidebar-foot .field { margin-bottom: 12px; }
     .sidebar-foot .field label {
       display: block;
-      margin: 0 0 4px;
+      margin: 0 0 5px;
       font-size: 11px;
-      font-weight: 600;
+      font-weight: 650;
+      letter-spacing: 0.04em;
       color: var(--muted);
     }
     .sidebar-foot select {
       width: 100%;
-      padding: 7px 10px;
+      padding: 8px 10px;
       border: 1px solid var(--line);
-      border-radius: 8px;
-      background: var(--surface);
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.92);
       color: var(--ink);
       font-size: 12px;
+      box-shadow: var(--shadow-sm);
+      transition: border-color 0.12s, box-shadow 0.12s;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%234d6b66' d='M1.4 0.6L6 5.2 10.6 0.6 12 2 6 8 0 2z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      padding-right: 28px;
+    }
+    .sidebar-foot select:hover { border-color: var(--line-strong); }
+    .sidebar-foot select:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.18);
     }
     .status {
       margin: 8px 0 0;
@@ -253,11 +306,11 @@
       align-items: center;
       justify-content: space-between;
       gap: 12px;
-      padding: 12px 20px;
-      border-bottom: 1px solid rgba(13, 148, 136, 0.2);
-      background: rgba(255, 255, 255, 0.9);
-      box-shadow: 0 10px 32px rgba(12, 40, 36, 0.08);
-      backdrop-filter: blur(14px);
+      padding: 14px 22px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.86);
+      box-shadow: 0 8px 24px rgba(12, 40, 36, 0.06);
+      backdrop-filter: blur(16px) saturate(1.06);
       flex-shrink: 0;
     }
     .chat-header-title {
@@ -278,22 +331,27 @@
       flex-shrink: 0;
     }
     .header-btn {
-      border: 1px solid rgba(13, 148, 136, 0.28);
+      border: 1px solid var(--line);
       background: rgba(255, 255, 255, 0.92);
       color: var(--ink);
       border-radius: 10px;
-      padding: 6px 12px;
+      padding: 7px 13px;
       font-size: 12px;
       font-weight: 650;
       cursor: pointer;
-      transition: background 0.12s, border-color 0.12s;
+      transition: background 0.12s, border-color 0.12s, box-shadow 0.12s;
+      box-shadow: var(--shadow-sm);
     }
-    .header-btn:hover { background: rgba(13, 148, 136, 0.1); border-color: var(--accent); }
+    .header-btn:hover {
+      background: rgba(13, 148, 136, 0.1);
+      border-color: var(--accent);
+    }
     .header-btn.on {
       background: var(--accent-soft);
-      border-color: rgba(13, 148, 136, 0.45);
+      border-color: var(--line-strong);
       color: var(--accent-hover);
       font-weight: 750;
+      box-shadow: inset 0 0 0 1px rgba(13, 148, 136, 0.12);
     }
     .thread-wrap {
       flex: 1;
@@ -315,11 +373,12 @@
       flex: 1;
       min-height: 0;
       overflow: auto;
-      padding: 20px 4px 20px;
+      padding: 20px 8px 24px 4px;
       display: flex;
       flex-direction: column;
-      gap: 20px;
+      gap: 22px;
       box-sizing: border-box;
+      scrollbar-gutter: stable;
     }
     .empty-welcome {
       flex: 1;
@@ -332,16 +391,16 @@
       min-height: 280px;
     }
     .empty-welcome .welcome-icon {
-      width: 48px;
-      height: 48px;
-      border-radius: 14px;
-      background: linear-gradient(135deg, #3b82f6, #6366f1);
+      width: 52px;
+      height: 52px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, #2dd4bf, #0d9488 55%, #0f766e);
       color: #fff;
       display: grid;
       place-items: center;
       font-size: 22px;
       margin-bottom: 16px;
-      box-shadow: 0 8px 24px rgba(37, 99, 235, 0.25);
+      box-shadow: 0 10px 28px rgba(13, 148, 136, 0.32);
     }
     .empty-welcome h2 {
       margin: 0 0 8px;
@@ -365,18 +424,20 @@
     }
     .welcome-chip {
       border: 1px solid var(--line);
-      background: var(--surface);
+      background: rgba(255, 255, 255, 0.92);
       color: var(--ink);
       border-radius: 999px;
       padding: 8px 14px;
       font-size: 13px;
       cursor: pointer;
-      transition: background 0.12s, border-color 0.12s, box-shadow 0.12s;
+      transition: background 0.12s, border-color 0.12s, box-shadow 0.12s, color 0.12s;
+      box-shadow: var(--shadow-sm);
     }
     .welcome-chip:hover {
-      background: #f4f4f5;
-      border-color: #d4d4d8;
-      box-shadow: var(--shadow-sm);
+      background: color-mix(in srgb, var(--accent-soft) 55%, #fff);
+      border-color: var(--accent);
+      color: var(--accent-hover);
+      box-shadow: 0 4px 14px rgba(13, 148, 136, 0.14);
     }
     .msg-row {
       display: flex;
@@ -408,24 +469,37 @@
     }
     .msg-row.user .role { text-align: right; }
     .bubble {
-      background: var(--surface);
+      background: rgba(255, 255, 255, 0.96);
       border: 1px solid var(--line);
       border-radius: var(--radius-lg);
-      padding: 12px 16px;
+      padding: 14px 18px;
       white-space: pre-wrap;
       line-height: 1.72;
       font-size: 15px;
       color: var(--ink);
       box-shadow: var(--shadow-sm);
+      display: inline-block;
+      max-width: 100%;
+      width: fit-content;
+      min-width: min(240px, 100%);
+      min-height: 1.72em;
+      box-sizing: border-box;
     }
     .msg-row.user .bubble {
-      background: color-mix(in srgb, var(--accent) 88%, #0f172a);
-      border-color: color-mix(in srgb, var(--accent) 55%, #0f172a);
+      background: linear-gradient(145deg, #14b8a6, #0d9488 55%, #0f766e);
+      border-color: transparent;
       color: #f4fffd;
-      border-radius: var(--radius-lg) var(--radius-lg) 4px var(--radius-lg);
+      border-radius: 16px 16px 5px 16px;
+      margin-left: auto;
+      box-shadow: 0 6px 18px rgba(13, 148, 136, 0.28);
     }
     .msg-row.assistant .bubble {
-      border-radius: var(--radius-lg) var(--radius-lg) var(--radius-lg) 4px;
+      width: 100%;
+      max-width: var(--chat-max);
+      border-radius: 16px 16px 16px 5px;
+      background:
+        linear-gradient(165deg, color-mix(in srgb, var(--accent) 5%, transparent), transparent 48%),
+        rgba(255, 255, 255, 0.96);
     }
     .bubble.is-streaming::after {
       content: "";
@@ -452,18 +526,80 @@
     }
     .agent-card {
       margin: 0 0 10px;
-      background: var(--surface);
+      background: rgba(248, 252, 251, 0.95);
       border: 1px solid var(--line);
-      border-radius: var(--radius);
+      border-radius: 14px;
       padding: 12px 14px;
       box-shadow: var(--shadow-sm);
+      max-width: var(--chat-max);
     }
-    .agent-card.is-running { border-color: #93c5fd; }
+    .agent-card.is-running { border-color: rgba(13, 148, 136, 0.45); }
     .agent-card.is-await { border-color: #fdba74; background: #fffbeb; }
     .agent-head {
       display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-      margin: 0 0 8px; font-size: 13px; color: var(--ink); font-weight: 600;
+      margin: 0; font-size: 13px; color: var(--ink); font-weight: 600;
     }
+    .agent-process {
+      margin-top: 8px;
+      border-top: 1px solid #e2e8f0;
+      padding-top: 8px;
+    }
+    .agent-process > summary {
+      cursor: pointer;
+      list-style: none;
+      font-size: 13px;
+      color: #64748b;
+      font-weight: 550;
+      font-style: italic;
+      padding: 2px 0 6px;
+      user-select: none;
+      letter-spacing: 0.01em;
+    }
+    .agent-process > summary::-webkit-details-marker { display: none; }
+    .agent-process > summary::before {
+      content: "▸ ";
+      color: #94a3b8;
+      font-style: normal;
+    }
+    .agent-process[open] > summary::before { content: "▾ "; }
+    .vanna-harness-think {
+      margin: 0 0 8px;
+      padding: 2px 0 2px 12px;
+      border-left: 2px solid rgba(148, 163, 184, 0.55);
+      color: #64748b;
+      font-size: 13px;
+      line-height: 1.65;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .vanna-harness-think.is-live {
+      border-left-color: rgba(13, 148, 136, 0.55);
+    }
+    .bubble.stream-answer {
+      margin-top: 8px;
+      max-width: var(--chat-max);
+    }
+    .bubble.stream-answer.ch-streaming::after {
+      content: "";
+      display: inline-block;
+      width: 0.4em;
+      height: 1em;
+      margin-left: 2px;
+      vertical-align: text-bottom;
+      background: rgba(100, 116, 139, 0.5);
+      animation: vanna-caret 1s steps(1) infinite;
+    }
+    @keyframes vanna-caret { 50% { opacity: 0; } }
+    .agent-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+    .agent-step {
+      display: grid; grid-template-columns: 14px minmax(0, 1fr) auto; gap: 8px; align-items: start;
+      font-size: 13px; color: var(--ink);
+      padding: 4px 0;
+      border: none;
+      background: transparent;
+      min-height: 1.4em;
+    }
+    .agent-step + .agent-step { border-top: 1px solid #f1f5f9; }
     .agent-mark {
       width: 22px; height: 22px; border-radius: 7px; display: inline-grid; place-items: center;
       background: #18181b; color: #fafafa; font-size: 11px; font-weight: 700;
@@ -476,15 +612,16 @@
     .agent-live.is-done { color: #15803d; background: #dcfce7; }
     .agent-count { font-size: 12px; color: var(--muted); font-weight: 500; }
     .agent-progress {
-      height: 4px; border-radius: 999px; background: #d5dee8; overflow: hidden; margin: 0 0 10px;
+      height: 4px; border-radius: 999px; background: rgba(13, 148, 136, 0.14); overflow: hidden; margin: 0 0 10px;
     }
     .agent-progress > i {
       display: block; height: 100%; width: 0; border-radius: inherit;
-      background: linear-gradient(90deg, #2f5d8a, #5b8fc4);
+      background: linear-gradient(90deg, #14b8a6, #0d9488);
       transition: width 0.25s ease;
     }
     .agent-card.is-running .agent-progress > i {
       background-size: 200% 100%;
+      background-image: linear-gradient(90deg, #2dd4bf, #0d9488, #2dd4bf);
       animation: agentPulse 1.4s linear infinite;
     }
     @keyframes agentPulse {
@@ -519,13 +656,14 @@
     .agent-step.is-failed .st { color: #b91c1c; }
     .chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
     .chip-tag {
-      display: inline-block; font-size: 11px; line-height: 1.3; padding: 2px 7px;
-      border-radius: 999px; background: #e8eef5; color: #243447; border: 1px solid #c9d5e3;
+      display: inline-block; font-size: 11px; line-height: 1.3; padding: 2px 8px;
+      border-radius: 999px; background: var(--accent-soft); color: var(--accent-hover); border: 1px solid var(--line);
       max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
     .tool-sql {
-      margin-top: 10px; border: 1px solid #31445c; border-radius: 10px; background: #15202b; color: #e7eef6;
+      margin-top: 10px; border: 1px solid rgba(15, 28, 30, 0.55); border-radius: 12px; background: var(--sql); color: var(--sqlink);
       overflow: hidden;
+      box-shadow: var(--shadow-sm);
     }
     .tool-sql summary {
       cursor: pointer; list-style: none; padding: 8px 10px; font-size: 12px; font-weight: 650;
@@ -549,61 +687,184 @@
     .hitl p { margin: 0 0 8px; font-size: 13px; line-height: 1.45; }
     .actions { display: flex; gap: 8px; flex-wrap: wrap; }
     .actions button, .go, .primary, .ghost {
-      border-radius: 8px; padding: 7px 12px; cursor: pointer; font-size: 13px;
-      font-weight: 500;
+      border-radius: 10px; padding: 7px 12px; cursor: pointer; font-size: 13px;
+      font-weight: 600;
+      transition: background 0.12s, border-color 0.12s, box-shadow 0.12s;
     }
     .primary, .go { background: var(--accent); color: #fff; border: 0; }
     .primary:hover, .go:hover { background: var(--accent-hover); }
-    .ghost { background: var(--surface); border: 1px solid var(--line); color: var(--ink); }
-    .ghost:hover { background: #f4f4f5; }
+    .ghost { background: rgba(255, 255, 255, 0.92); border: 1px solid var(--line); color: var(--ink); }
+    .ghost:hover { background: var(--accent-soft); border-color: var(--accent); }
     .go:disabled { opacity: 0.45; cursor: not-allowed; }
     .result-wrap {
-      margin-top: 10px; background: var(--surface); border: 1px solid var(--line);
-      border-radius: var(--radius); overflow: auto; max-height: 280px; box-shadow: var(--shadow-sm);
+      margin-top: 12px;
+      background: rgba(255, 255, 255, 0.98);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      overflow: auto;
+      max-height: 360px;
+      box-shadow: var(--shadow-sm);
+      -webkit-overflow-scrolling: touch;
     }
-    table { width: 100%; border-collapse: collapse; font-size: 12px; background: var(--surface); }
-    th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; color: var(--ink); }
-    th { background: #f4f4f5; position: sticky; top: 0; font-weight: 600; }
-    .field-details {
-      margin-top: 10px; padding: 10px 12px; border-radius: var(--radius);
-      background: #fafafa; border: 1px dashed var(--line); color: #3f3f46; font-size: 12px;
+    .result-kv {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      padding: 2px 0;
     }
-    .field-details h4 {
-      margin: 0 0 6px; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
-      color: #5c6b7a; font-weight: 700;
+    .result-kv .kv {
+      display: grid;
+      grid-template-columns: minmax(112px, 32%) 1fr;
+      gap: 12px 16px;
+      padding: 12px 16px;
+      border-bottom: 1px solid rgba(13, 148, 136, 0.1);
+      align-items: start;
     }
-    .field-details ul { margin: 0; padding-left: 16px; }
-    .field-details li { margin: 0 0 4px; line-height: 1.45; }
-    .field-details code {
-      font-size: 11px; color: #64748b; background: #eef2f7; padding: 1px 5px; border-radius: 4px;
+    .result-kv .kv:last-child { border-bottom: none; }
+    .result-kv .kv:nth-child(odd) { background: rgba(13, 148, 136, 0.035); }
+    .result-kv .k {
+      font-size: 12.5px;
+      font-weight: 700;
+      color: var(--accent-hover);
+      line-height: 1.5;
+      white-space: normal;
+      word-break: keep-all;
     }
+    .result-kv .v {
+      font-size: 13.5px;
+      color: var(--ink);
+      line-height: 1.55;
+      word-break: break-word;
+      font-weight: 500;
+    }
+    table {
+      width: max-content;
+      min-width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      font-size: 12.5px;
+      background: transparent;
+    }
+    th, td {
+      border-bottom: 1px solid rgba(13, 148, 136, 0.12);
+      padding: 10px 14px;
+      text-align: left;
+      color: var(--ink);
+      vertical-align: top;
+    }
+    th {
+      background: color-mix(in srgb, var(--accent-soft) 55%, #f4fffc);
+      position: sticky;
+      top: 0;
+      font-weight: 700;
+      font-size: 11.5px;
+      letter-spacing: 0.02em;
+      color: var(--accent-hover);
+      border-bottom: 1px solid var(--line);
+      z-index: 1;
+      white-space: nowrap;
+      writing-mode: horizontal-tb;
+      min-width: 5.5em;
+    }
+    td {
+      white-space: nowrap;
+      max-width: 280px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    thead tr:first-child th:first-child { border-top-left-radius: 13px; }
+    thead tr:first-child th:last-child { border-top-right-radius: 13px; }
+    tbody tr:last-child td { border-bottom: 0; }
+    tbody tr:nth-child(even) td {
+      background: rgba(13, 148, 136, 0.03);
+    }
+    tbody tr:hover td {
+      background: color-mix(in srgb, var(--accent-soft) 45%, transparent);
+    }
+    .suggest-wrap {
+      margin-top: 12px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: color-mix(in srgb, var(--accent-soft) 28%, #fff);
+      box-shadow: var(--shadow-sm);
+    }
+    .suggest-wrap .suggest-title {
+      margin: 0 0 8px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+    }
+    .suggest-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .suggest-chip {
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.95);
+      color: var(--ink);
+      border-radius: 999px;
+      padding: 7px 12px;
+      font-size: 12.5px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: background 0.12s, border-color 0.12s, color 0.12s;
+    }
+    .suggest-chip:hover {
+      background: color-mix(in srgb, var(--accent-soft) 55%, #fff);
+      border-color: var(--accent);
+      color: var(--accent-hover);
+    }
+    .field-details { display: none !important; }
     .feedback-row {
       display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-      margin-top: 10px; font-size: 12px; color: var(--muted);
+      margin-top: 12px; font-size: 12px; color: var(--muted);
     }
+    .chart-wrap {
+      margin-top: 12px; padding: 14px; background: rgba(255, 255, 255, 0.98); border: 1px solid var(--line);
+      border-radius: 14px; box-shadow: var(--shadow-sm);
+    }
+    .chart-wrap h4 {
+      margin: 0 0 8px; font-size: 12px; color: var(--muted); font-weight: 650;
+    }
+    .chart-wrap svg { display: block; width: 100%; max-width: 420px; height: auto; }
+    .scene-advanced summary {
+      cursor: pointer; font-size: 12px; color: var(--muted); margin-bottom: 6px;
+    }
+    .scene-advanced select { width: 100%; margin-top: 4px; }
     .feedback-row .fb {
-      border: 1px solid var(--line); background: var(--surface); color: var(--ink);
-      border-radius: 8px; padding: 5px 10px; cursor: pointer; font-size: 12px;
+      border: 1px solid var(--line); background: rgba(255, 255, 255, 0.92); color: var(--ink);
+      border-radius: 999px; padding: 5px 12px; cursor: pointer; font-size: 12px; font-weight: 600;
+      transition: border-color 0.12s, color 0.12s, background 0.12s;
     }
-    .feedback-row .fb:hover { border-color: var(--accent); color: var(--accent); }
-    .feedback-row .fb-neg:hover { border-color: var(--warn); color: var(--warn); }
+    .feedback-row .fb:hover { border-color: var(--accent); color: var(--accent-hover); background: var(--accent-soft); }
+    .feedback-row .fb-neg:hover { border-color: var(--warn); color: var(--warn); background: #fff7ed; }
     .feedback-row .fb:disabled { opacity: 0.55; cursor: default; }
     .feedback-ack { margin: 0; color: var(--ok); font-weight: 600; }
     .composer {
       flex-shrink: 0;
-      padding: 12px 24px 18px;
-      background: linear-gradient(to top, color-mix(in srgb, var(--bg) 88%, transparent) 70%, transparent);
+      padding: 10px 24px 20px;
+      background: linear-gradient(to top, color-mix(in srgb, var(--bg) 92%, transparent) 55%, transparent);
     }
     .composer-inner {
       max-width: calc(var(--chat-max) + 48px);
       margin: 0 auto;
     }
     .ask-card {
-      background: rgba(255, 255, 255, 0.96);
-      border: 1px solid rgba(13, 148, 136, 0.28);
-      border-radius: 18px;
-      box-shadow: 0 16px 44px rgba(12, 40, 36, 0.12);
+      background: rgba(255, 255, 255, 0.97);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-xl);
+      box-shadow: 0 14px 40px rgba(12, 40, 36, 0.11);
       padding: 6px 6px 6px 16px;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .ask-card:focus-within {
+      border-color: var(--accent);
+      box-shadow:
+        0 0 0 3px rgba(13, 148, 136, 0.16),
+        0 16px 44px rgba(12, 40, 36, 0.12);
     }
     .ask {
       display: grid;
@@ -628,9 +889,9 @@
     }
     textarea:focus { outline: none; }
     .go {
-      border-radius: 11px;
-      padding: 10px 18px;
-      min-height: 40px;
+      border-radius: 12px;
+      padding: 10px 20px;
+      min-height: 42px;
       background: linear-gradient(135deg, #2dd4bf, #0d9488 48%, #0f766e) !important;
       color: #fff !important;
       font-weight: 800;
@@ -639,29 +900,36 @@
       cursor: pointer;
       align-self: center;
       margin: 4px 4px 4px 0;
+      transition: transform 0.12s, box-shadow 0.12s, filter 0.12s;
     }
+    .go:hover:not(:disabled) {
+      filter: brightness(1.04);
+      box-shadow: 0 10px 26px rgba(13, 148, 136, 0.42);
+    }
+    .go:active:not(:disabled) { transform: translateY(1px); }
     .meta-row {
       display: flex;
       justify-content: space-between;
-      gap: 12px;
-      align-items: center;
-      margin-top: 8px;
-      padding: 0 4px;
+      gap: 16px;
+      align-items: flex-start;
+      margin-top: 10px;
+      padding: 0 6px;
     }
     .cost {
       display: flex;
-      gap: 14px;
+      gap: 12px;
       font-size: 11px;
       color: var(--muted);
       flex-wrap: wrap;
+      line-height: 1.55;
     }
-    .cost b { color: var(--ink); font-weight: 600; }
+    .cost b { color: var(--ink); font-weight: 650; }
     .legend,
     #budgetHint {
       margin: 0;
       font-size: 11px;
       color: var(--muted);
-      line-height: 1.45;
+      line-height: 1.55;
       background: transparent !important;
       background-color: transparent !important;
       box-shadow: none !important;
@@ -670,6 +938,8 @@
       -webkit-text-fill-color: var(--muted);
       user-select: none;
       -webkit-user-select: none;
+      max-width: 42%;
+      text-align: right;
     }
     #budgetHint::selection,
     .legend::selection {
@@ -677,9 +947,9 @@
       color: var(--muted);
     }
     .rail {
-      background: var(--surface);
+      background: rgba(247, 255, 254, 0.9);
       border-left: 1px solid var(--line);
-      padding: 16px 14px;
+      padding: 16px 14px 16px 16px;
       display: flex;
       flex-direction: column;
       gap: 10px;
@@ -687,62 +957,96 @@
       min-height: 0;
       min-width: 0;
       overflow: hidden;
+      box-shadow: -8px 0 28px rgba(12, 40, 36, 0.06);
+      backdrop-filter: blur(16px) saturate(1.06);
     }
     .rail.hidden { display: none; }
     .rail code, .audit-item code {
-      font-family: Consolas, "Courier New", monospace;
+      font-family: var(--font-mono);
     }
-    .rail h2 { margin: 0; flex: 0 0 auto; font-size: 14px; color: var(--ink); font-weight: 650; }
-    .rail > .legend { flex: 0 0 auto; color: var(--muted); font-size: 12px; }
+    .rail h2 {
+      margin: 0;
+      flex: 0 0 auto;
+      font-size: 14px;
+      color: var(--ink);
+      font-weight: 750;
+      letter-spacing: -0.01em;
+    }
+    .rail > .legend {
+      flex: 0 0 auto;
+      color: var(--muted);
+      font-size: 12px;
+      max-width: none;
+      text-align: left;
+      line-height: 1.5;
+    }
     #auditList {
       overflow-x: hidden;
       overflow-y: auto;
       flex: 1 1 auto;
       min-height: 0;
-      padding-right: 4px;
+      padding-right: 2px;
+      scrollbar-gutter: stable;
     }
     .audit-item {
       font-size: 12px;
-      background: #fafafa;
+      background: rgba(255, 255, 255, 0.94);
       border: 1px solid var(--line);
-      border-radius: var(--radius);
-      padding: 10px 12px;
-      margin: 0 0 8px;
+      border-radius: 14px;
+      padding: 12px 14px;
+      margin: 0 0 12px;
       line-height: 1.5;
       color: var(--ink);
+      box-shadow: var(--shadow-sm);
+      transition: border-color 0.12s, box-shadow 0.12s;
+    }
+    .audit-item:hover {
+      border-color: var(--line-strong);
+      box-shadow: 0 4px 16px rgba(12, 40, 36, 0.08);
     }
     .audit-item .q {
-      font-weight: 600;
+      font-weight: 650;
       color: var(--ink);
-      margin: 0 0 6px;
+      margin: 0 0 8px;
       word-break: break-word;
       font-size: 13px;
+      line-height: 1.45;
     }
     .audit-item code {
       display: block;
-      margin-top: 8px;
+      margin-top: 10px;
       font-size: 11px;
-      line-height: 1.5;
+      line-height: 1.55;
       color: var(--sqlink);
       background: var(--sql);
-      border-radius: 8px;
-      padding: 8px 10px;
+      border-radius: 10px;
+      padding: 10px 12px;
       white-space: pre-wrap;
       word-break: break-word;
       max-height: 9.5em;
       overflow: auto;
+      border: 1px solid rgba(255, 255, 255, 0.06);
     }
     .badge {
       display: inline-block;
       font-size: 11px;
-      font-weight: 600;
-      padding: 2px 8px;
+      font-weight: 650;
+      padding: 3px 9px;
       border-radius: 999px;
+      letter-spacing: 0.01em;
     }
     .ok { color: #15803d; }
     .warn { color: #c2410c; }
-    .badge.ok { background: #dcfce7; color: #15803d; }
-    .badge.warn { background: #ffedd5; color: #c2410c; }
+    .badge.ok {
+      background: color-mix(in srgb, #dcfce7 70%, var(--accent-soft));
+      color: #0f766e;
+      border: 1px solid rgba(15, 118, 110, 0.18);
+    }
+    .badge.warn {
+      background: #ffedd5;
+      color: #c2410c;
+      border: 1px solid rgba(194, 65, 12, 0.16);
+    }
     .message-actions {
       display: flex;
       flex-wrap: wrap;
@@ -787,6 +1091,8 @@
       .shell, .shell.audit-open { grid-template-columns: 1fr; }
       aside.sidebar { display: none; }
       .message-actions { opacity: 1; }
+      .legend, #budgetHint { max-width: 100%; text-align: left; }
+      .meta-row { flex-direction: column; gap: 6px; }
     }
   </style>
 </head>
@@ -821,10 +1127,12 @@
           <label for="tenant">租户</label>
           <select id="tenant"></select>
         </div>
-        <div class="field">
-          <label for="scene">场景</label>
+        <details class="field scene-advanced" id="sceneAdvanced">
+          <summary>高级策略（可选）</summary>
+          <label for="scene">覆盖场景</label>
           <select id="scene"></select>
-        </div>
+          <p class="legend" style="margin-top:6px">默认智能问数：Agent 自判查数 / 制图 / 解读。仅 DBA、审计等需显式覆盖。</p>
+        </details>
         <p class="status" id="catalogStatus">正在读取目录…</p>
       </div>
     </aside>
@@ -1009,10 +1317,13 @@
         `<option value="${t.id}">${t.title} (${t.id})</option>`
       ).join("");
       scenes = meta.scenes || [];
+      const preferred = scenes.find((s) => s.id === "auto") || scenes[0];
       $("scene").innerHTML = scenes.map((s) =>
-        `<option value="${s.id}">${s.title}${s.stub ? " · 建设中" : ""}</option>`
+        `<option value="${s.id}">${s.title}${s.stub ? " · 建设中" : ""}${s.auto_deliverables ? " · 默认" : ""}</option>`
       ).join("");
+      if (preferred) $("scene").value = preferred.id;
       onScene();
+      $("sceneHint").textContent = "智能问数：Agent 自判是否查库、制图与解读。先预览 SQL，确认后再执行。";
       const budget = meta.budget || {};
       $("cLlmMax").textContent = budget.max_llm_calls ?? 1;
       $("cEmbMax").textContent = budget.max_embed_calls ?? 1;
@@ -1044,12 +1355,20 @@
 
     function onScene() {
       const s = scenes.find((x) => x.id === $("scene").value);
-      if (!s) { $("sceneHint").textContent = ""; return; }
-      $("sceneHint").textContent = s.stub
-        ? "本场景入口已通，深度能力尚未实现。"
-        : "先预览 SQL，确认后再执行。回复会用模型写成助手口吻。";
+      if (!s) { return; }
+      if (s.auto_deliverables || s.id === "auto") {
+        $("sceneHint").textContent = "智能问数：Agent 自判查数 / 制图 / 解读。先预览 SQL，确认后再执行。";
+      } else if (s.stub) {
+        $("sceneHint").textContent = "本策略入口已通，深度能力尚未实现。";
+      } else {
+        $("sceneHint").textContent = `高级策略「${s.title}」：先预览 SQL，确认后再执行。`;
+      }
     }
     $("scene").addEventListener("change", onScene);
+
+    function currentScene() {
+      return $("scene").value || "auto";
+    }
 
     $("auditToggle").addEventListener("click", () => {
       const rail = $("auditRail");
@@ -1068,7 +1387,7 @@
       const created = await api("/api/sessions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tenant: $("tenant").value || "p2604", scene: $("scene").value || "assistant" }),
+        body: JSON.stringify({ tenant: $("tenant").value || "p2604", scene: currentScene() }),
       }).then((r) => r.json());
       sessionId = created.id;
       localStorage.setItem(SESSION_KEY, sessionId);
@@ -1109,27 +1428,46 @@
     async function loadThread() {
       const doc = await api("/api/sessions/" + sessionId).then((r) => r.ok ? r.json() : null);
       const msgs = (doc && doc.messages) || [];
-      $("thread").innerHTML = "";
       loadFeedbackMap();
-      await hydrateFeedbackFromServer({ expectFeedback: msgs.length > 0 });
+      // 先画消息再 hydrate，避免清空后长时间空白（对话区闪消失）
+      const thread = $("thread");
+      thread.innerHTML = "";
       if (!msgs.length) {
         showWelcome();
-        return;
-      }
-      msgs.forEach((m) => {
-        if (m.role === "user" && m.content) lastQuestion = m.content;
-        appendBubble(m.role, m.content, m.meta || {}, { id: m.id || "" });
-      });
-      // 恢复最近一条待确认的 pending
-      for (let i = msgs.length - 1; i >= 0; i--) {
-        const meta = msgs[i].meta || {};
-        if (msgs[i].role === "assistant" && meta.checkpoint && meta.pending_id) {
-          pendingId = meta.pending_id;
-          lastSql = meta.sql || "";
-          break;
+      } else {
+        msgs.forEach((m) => {
+          if (m.role === "user" && m.content) lastQuestion = m.content;
+          appendBubble(m.role, m.content, m.meta || {}, { id: m.id || "" });
+        });
+        for (let i = msgs.length - 1; i >= 0; i--) {
+          const meta = msgs[i].meta || {};
+          if (msgs[i].role === "assistant" && meta.checkpoint && meta.pending_id) {
+            pendingId = meta.pending_id;
+            lastSql = meta.sql || "";
+            break;
+          }
         }
+        thread.scrollTop = thread.scrollHeight;
       }
-      $("thread").scrollTop = $("thread").scrollHeight;
+      void hydrateFeedbackFromServer({ expectFeedback: msgs.length > 0 });
+    }
+
+    async function syncThreadAfterAsk() {
+      // 回答已就地画好：只补 message id，避免整页清空重绘闪烁
+      try {
+        const doc = await api("/api/sessions/" + sessionId).then((r) => r.ok ? r.json() : null);
+        const msgs = (doc && doc.messages) || [];
+        const rows = Array.from($("thread").querySelectorAll(".msg-row"));
+        if (msgs.length && rows.length === msgs.length) {
+          msgs.forEach((m, i) => {
+            if (m && m.id && rows[i]) rows[i].dataset.msgId = m.id;
+          });
+          void hydrateFeedbackFromServer({ expectFeedback: true });
+          return true;
+        }
+      } catch {}
+      await loadThread();
+      return false;
     }
 
     async function truncateFrom(messageId) {
@@ -1221,7 +1559,7 @@
         await ask({
           question: q,
           tenant: $("tenant").value,
-          scene: $("scene").value,
+          scene: currentScene(),
           confirm: false,
         }, { userText: q });
       });
@@ -1246,7 +1584,7 @@
       await ask({
         question: q,
         tenant: $("tenant").value,
-        scene: $("scene").value,
+        scene: currentScene(),
         confirm: false,
       }, { userText: q });
     }
@@ -1368,20 +1706,25 @@
             </div>`
           : "");
       const processBody = `
+        ${state.reasoning ? `<div class="vanna-harness-think${running ? " is-live" : ""}">${escapeHtml(state.reasoning)}</div>` : ""}
         <div class="agent-progress" aria-hidden="true"><i style="width:${Math.max(pct, running ? 8 : 0)}%"></i></div>
         <ul class="agent-steps">${stepsHtml}</ul>
         ${sqlBlock}
         ${hitl}`;
+      // DeepSeek 式：默认折叠过程；运行中才展开
       const processBlock = (running || awaiting)
-        ? processBody
+        ? `<details class="agent-process" open>
+            <summary>${running ? "think" : "已思考"} · ${done}/${steps.length} 步</summary>
+            ${processBody}
+          </details>`
         : `<details class="agent-process" ${state.forceOpen ? "open" : ""}>
-            <summary>思考过程 · ${done}/${steps.length} 步</summary>
+            <summary>已思考 · ${done}/${steps.length} 步</summary>
             ${processBody}
           </details>`;
       return `<div class="agent-card ${cardClass}">
         <div class="agent-head">
           <span class="agent-mark" aria-hidden="true">⬡</span>
-          <span>活动</span>
+          <span>库问数</span>
           <span class="agent-count">${done}/${steps.length} 步</span>
           <span class="agent-live ${liveClass}">${live}</span>
         </div>
@@ -1401,6 +1744,13 @@
         if (s.status === "running") s.status = "success";
       });
       if (nextId) setStep(steps, nextId, "running", "");
+    }
+
+    function stripFollowupTail(text) {
+      const raw = String(text || "");
+      const mark = "\n\n你可以接着问：";
+      const i = raw.indexOf(mark);
+      return i >= 0 ? raw.slice(0, i).trimEnd() : raw;
     }
 
     function appendBubble(role, text, meta, opts) {
@@ -1438,8 +1788,11 @@
           running: !!m.running,
         };
         const showCard = state.steps.length || state.sql || state.checkpoint || state.running;
-        const bubble = text ? `<div class="bubble">${escapeHtml(text)}</div>` : "";
-        const copyAns = (!m.running && text)
+        const rawText = text || "";
+        const tips = Array.isArray(m.suggestions) ? m.suggestions : [];
+        const displayText = tips.length ? stripFollowupTail(rawText) : rawText;
+        const bubble = displayText ? `<div class="bubble">${escapeHtml(displayText)}</div>` : "";
+        const copyAns = (!m.running && displayText)
           ? `<div class="message-actions"><button type="button" class="msg-action-btn" data-act="copy">复制</button></div>`
           : "";
         wrap.innerHTML = `<div class="msg-avatar" aria-hidden="true">${avatar}</div>
@@ -1449,22 +1802,24 @@
             ${bubble}
             ${copyAns}
           </div>`;
+        if (m.chart && m.chart.points && m.chart.points.length >= 2) {
+          wrap.querySelector(".msg-body").appendChild(buildChart(m.chart));
+        }
         if (m.rows && m.rows.length) {
           const box = document.createElement("div");
           box.className = "result-wrap";
-          box.appendChild(buildTable(m.rows));
+          box.appendChild(buildResultView(m.rows));
           wrap.querySelector(".msg-body").appendChild(box);
         }
-        const details = Array.isArray(m.field_details) ? m.field_details : [];
-        if (details.length && m.executed && !m.checkpoint) {
-          wrap.querySelector(".msg-body").appendChild(buildFieldDetails(details));
+        if (tips.length && m.executed && !m.checkpoint && !m.running) {
+          wrap.querySelector(".msg-body").appendChild(buildSuggestions(tips));
         }
-        if (m.executed && !m.checkpoint && !m.running && text) {
+        if (m.executed && !m.checkpoint && !m.running && displayText) {
           wrap.querySelector(".msg-body").appendChild(buildFeedbackRow(msgId, m));
         }
       }
       $("thread").appendChild(wrap);
-      bindMsgActions(wrap, role, text, m, msgId);
+      bindMsgActions(wrap, role, role === "assistant" ? (Array.isArray(m.suggestions) && m.suggestions.length ? stripFollowupTail(text || "") : (text || "")) : text, m, msgId);
       $("thread").scrollTop = $("thread").scrollHeight;
       return wrap;
     }
@@ -1473,13 +1828,19 @@
       if (!wrap) return;
       const body = wrap.querySelector(".msg-body");
       if (!body) return;
-      const bubble = body.querySelector(".bubble");
-      const bubbleHtml = bubble ? bubble.outerHTML : "";
-      const result = body.querySelector(".result-wrap");
       const roleEl = body.querySelector(".role");
-      const roleHtml = roleEl ? roleEl.outerHTML : "<div class=\"role\">助手</div>";
-      body.innerHTML = `${roleHtml}${renderAgentCard(state)}${bubbleHtml}`;
-      if (result) body.appendChild(result);
+      const cardHtml = renderAgentCard(state);
+      const tmp = document.createElement("div");
+      tmp.innerHTML = cardHtml;
+      const nextCard = tmp.firstElementChild;
+      const prevCard = body.querySelector(".agent-card");
+      if (prevCard && nextCard) {
+        prevCard.replaceWith(nextCard);
+      } else if (nextCard) {
+        if (roleEl && roleEl.nextSibling) body.insertBefore(nextCard, roleEl.nextSibling);
+        else body.appendChild(nextCard);
+      }
+      // 过程卡按钮需重新绑定；不整段重写 body，避免闪白
       bindMsgActions(wrap, "assistant", "", { sql: state.sql }, "");
       $("thread").scrollTop = $("thread").scrollHeight;
     }
@@ -1490,26 +1851,131 @@
       });
     }
 
-    function buildTable(rows) {
+    function buildResultView(rows) {
+      if (!rows || !rows.length) {
+        return document.createElement("div");
+      }
+      // 单行：键值网格，避免宽表把中文表头挤成竖排
+      if (rows.length === 1) {
+        const el = document.createElement("div");
+        el.className = "result-kv";
+        const row = rows[0] || {};
+        el.innerHTML = Object.keys(row).map((k) =>
+          `<div class="kv"><div class="k">${escapeHtml(k)}</div><div class="v" title="${escapeHtml(row[k])}">${escapeHtml(row[k])}</div></div>`
+        ).join("");
+        return el;
+      }
       const el = document.createElement("table");
       const keys = Object.keys(rows[0] || {});
       el.innerHTML = `<thead><tr>${keys.map((k) => `<th>${escapeHtml(k)}</th>`).join("")}</tr></thead>` +
-        `<tbody>${rows.map((r) => `<tr>${keys.map((k) => `<td>${escapeHtml(r[k])}</td>`).join("")}</tr>`).join("")}</tbody>`;
+        `<tbody>${rows.map((r) => `<tr>${keys.map((k) => `<td title="${escapeHtml(r[k])}">${escapeHtml(r[k])}</td>`).join("")}</tr>`).join("")}</tbody>`;
       return el;
     }
 
-    function buildFieldDetails(details) {
+    function buildSuggestions(tips) {
       const el = document.createElement("div");
-      el.className = "field-details";
-      const items = (details || []).map((d) => {
-        const label = escapeHtml(d.label || d.comment || d.column || "");
-        const col = escapeHtml(d.column || "");
-        const cmt = escapeHtml(d.comment || d.label || "");
-        const table = d.table ? ` · <code>${escapeHtml(d.table)}</code>` : "";
-        return `<li><strong>${label}</strong>：${cmt}${col && col !== label ? ` <code>${col}</code>` : ""}${table}</li>`;
-      }).join("");
-      el.innerHTML = `<h4>字段说明</h4><ul>${items}</ul><p class="legend" style="margin-top:6px">仅展示与本次问句相关的列，不铺开全部字段。</p>`;
+      el.className = "suggest-wrap";
+      const chips = (tips || []).map((t) =>
+        `<button type="button" class="suggest-chip" data-q="${escapeHtml(t)}">${escapeHtml(t)}</button>`
+      ).join("");
+      el.innerHTML = `<div class="suggest-title">还可以这样问</div><div class="suggest-chips">${chips}</div>`;
+      el.querySelectorAll(".suggest-chip").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          if (asking) return;
+          const q = btn.getAttribute("data-q") || btn.textContent || "";
+          $("q").value = q;
+          $("q").focus();
+          ask({
+            question: q,
+            tenant: $("tenant").value,
+            scene: currentScene(),
+            confirm: false,
+          }, { userText: q });
+        });
+      });
       return el;
+    }
+
+    function deliverablesLabel(d) {
+      if (!d || typeof d !== "object") return "";
+      const parts = ["查数"];
+      if (d.need_chart) parts.push("制图");
+      if (d.need_interpret) parts.push("解读");
+      if (d.sys_meta) parts.push("元数据");
+      return parts.join(" · ");
+    }
+
+    function buildChart(chart) {
+      const wrap = document.createElement("div");
+      wrap.className = "chart-wrap";
+      const points = (chart && chart.points) || [];
+      if (points.length < 2) {
+        wrap.innerHTML = "<h4>图表</h4><p class='legend'>数据不足以绘图</p>";
+        return wrap;
+      }
+      const type = String(chart.type || "bar");
+      const w = 400;
+      const h = 200;
+      const pad = 28;
+      const maxV = Math.max(...points.map((p) => Number(p.value) || 0), 1);
+      let svg = "";
+      if (type === "pie") {
+        const cx = w / 2;
+        const cy = h / 2;
+        const r = Math.min(cx, cy) - 16;
+        const total = points.reduce((s, p) => s + Math.max(0, Number(p.value) || 0), 0) || 1;
+        let ang = -Math.PI / 2;
+        const colors = ["#2563eb", "#0d9488", "#d97706", "#dc2626", "#7c3aed", "#059669"];
+        const slices = points.map((p, i) => {
+          const v = Math.max(0, Number(p.value) || 0);
+          const sweep = (v / total) * Math.PI * 2;
+          const x1 = cx + r * Math.cos(ang);
+          const y1 = cy + r * Math.sin(ang);
+          ang += sweep;
+          const x2 = cx + r * Math.cos(ang);
+          const y2 = cy + r * Math.sin(ang);
+          const large = sweep > Math.PI ? 1 : 0;
+          return `<path d="M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2} Z" fill="${colors[i % colors.length]}" opacity="0.9"/>`;
+        }).join("");
+        const legend = points.map((p, i) =>
+          `<span style="display:inline-flex;align-items:center;gap:4px;margin-right:8px"><i style="width:8px;height:8px;border-radius:2px;background:${colors[i % colors.length]}"></i>${escapeHtml(p.label)} ${escapeHtml(p.value)}</span>`
+        ).join("");
+        svg = `<svg viewBox="0 0 ${w} ${h}" role="img">${slices}</svg><div class="legend" style="margin-top:8px">${legend}</div>`;
+      } else {
+        const n = points.length;
+        const bw = (w - pad * 2) / n;
+        const bars = points.map((p, i) => {
+          const v = Number(p.value) || 0;
+          const bh = ((h - pad * 2) * v) / maxV;
+          const x = pad + i * bw + bw * 0.15;
+          const y = h - pad - bh;
+          const barW = bw * 0.7;
+          const lab = escapeHtml(String(p.label).slice(0, 8));
+          if (type === "line") {
+            return "";
+          }
+          return `<rect x="${x}" y="${y}" width="${barW}" height="${bh}" fill="#2563eb" rx="2"/><text x="${x + barW / 2}" y="${h - 8}" text-anchor="middle" font-size="9" fill="#64748b">${lab}</text>`;
+        }).join("");
+        let linePath = "";
+        if (type === "line") {
+          const pts = points.map((p, i) => {
+            const v = Number(p.value) || 0;
+            const x = pad + i * bw + bw / 2;
+            const y = h - pad - ((h - pad * 2) * v) / maxV;
+            return `${x},${y}`;
+          });
+          linePath = `<polyline fill="none" stroke="#2563eb" stroke-width="2" points="${pts.join(" ")}"/>` +
+            pts.map((xy, i) => {
+              const [x, y] = xy.split(",");
+              const lab = escapeHtml(String(points[i].label).slice(0, 8));
+              return `<circle cx="${x}" cy="${y}" r="3" fill="#2563eb"/><text x="${x}" y="${h - 8}" text-anchor="middle" font-size="9" fill="#64748b">${lab}</text>`;
+            }).join("");
+        }
+        svg = `<svg viewBox="0 0 ${w} ${h}" role="img"><line x1="${pad}" y1="${h - pad}" x2="${w - pad}" y2="${h - pad}" stroke="#e4e4e7"/><line x1="${pad}" y1="${pad}" x2="${pad}" y2="${h - pad}" stroke="#e4e4e7"/>${type === "line" ? linePath : bars}</svg>`;
+      }
+      const title = escapeHtml(chart.value_key || chart.label_key || type);
+      wrap.innerHTML = `<h4>图表 · ${title}</h4>${svg}`;
+      return wrap;
     }
 
     function loadFeedbackMap() {
@@ -1718,13 +2184,52 @@
       let repair = false;
       let execError = "";
       let streamError = false;
+      let streamText = "";
+      let reasoningText = "";
+      let lastAnswerMeta = null;
       await readSSE(res, (_, ev) => {
+        if (ev.event === "reasoning") {
+          reasoningText += String(ev.text || "");
+          liveState.reasoning = reasoningText;
+          paintLive(liveCard, liveState);
+        }
+        if (ev.event === "token") {
+          const chunk = String(ev.text || "");
+          if (!chunk) return;
+          streamText += chunk;
+          const body = liveCard && liveCard.querySelector(".msg-body");
+          if (body) {
+            let bubble = body.querySelector(".bubble.stream-answer");
+            if (!bubble) {
+              bubble = document.createElement("div");
+              bubble.className = "bubble stream-answer ch-streaming";
+              body.appendChild(bubble);
+            }
+            bubble.textContent = streamText;
+            $("thread").scrollTop = $("thread").scrollHeight;
+          }
+          setStep(steps, "answer", "running", "正在生成回复…");
+          paintLive(liveCard, liveState);
+        }
         if (ev.event === "retrieve") {
           tables = ev.tables || [];
           liveState.tables = tables;
           setStep(steps, "retrieve", "success", tables.length ? `命中 ${tables.length} 张表` : "未命中表");
           advanceRunning(steps, "understand");
           setStep(steps, "understand", "running", "正在理解问题…");
+          paintLive(liveCard, liveState);
+        }
+        if (ev.event === "route") {
+          const dels = ev.deliverables || {
+            need_chart: !!ev.need_chart,
+            need_interpret: !!ev.need_interpret,
+            sys_meta: !!ev.sys_meta,
+          };
+          intent = ev.intent || intent;
+          reason = ev.reason || reason;
+          const dLabel = deliverablesLabel(dels);
+          setStep(steps, "understand", "success",
+            [intent, dLabel, reason].filter(Boolean).join(" · ") || "已完成");
           paintLive(liveCard, liveState);
         }
         if (ev.event === "understand") {
@@ -1734,7 +2239,14 @@
             tables = ev.tables;
             liveState.tables = tables;
           }
-          setStep(steps, "understand", "success", [intent, reason].filter(Boolean).join(" · ") || "已完成");
+          const dels = ev.deliverables || {
+            need_chart: !!ev.need_chart,
+            need_interpret: !!ev.need_interpret,
+            sys_meta: !!ev.sys_meta,
+          };
+          const dLabel = deliverablesLabel(dels);
+          setStep(steps, "understand", "success",
+            [intent, dLabel, reason].filter(Boolean).join(" · ") || "已完成");
           advanceRunning(steps, "sql");
           setStep(steps, "sql", "running", "正在生成 SQL…");
           paintLive(liveCard, liveState);
@@ -1823,6 +2335,10 @@
             checkpoint: ev.checkpoint,
             pending_id: ev.pending_id,
             rows: ev.rows || [],
+            field_details: ev.field_details || [],
+            chart: ev.chart || null,
+            deliverables: ev.deliverables || {},
+            suggestions: ev.suggestions || [],
             row_count: (ev.rows || []).length || (ev.cost && 0),
             cost: ev.cost,
             error_code: ev.error_code || "",
@@ -1832,6 +2348,8 @@
           lastSql = meta.sql;
           pendingId = ev.checkpoint ? (ev.pending_id || "") : "";
           rows = ev.rows || [];
+          streamText = String(ev.text || streamText || "");
+          lastAnswerMeta = meta;
           if (ev.error_code && ev.error_code !== "needs_clarify" && !ev.checkpoint) {
             streamError = true;
             if (liveCard) {
@@ -1840,13 +2358,19 @@
             setCost(ev.cost);
             return;
           }
-          liveCard.remove();
-          // 统一从会话重载，拿到 message id（复制/编辑/撤回）并合并确认轮
+          // 先就地画出结果，避免 session 回灌失败时只剩底栏行数、主区空白
+          if (liveCard && liveCard.parentNode) liveCard.remove();
+          appendBubble("assistant", streamText, meta);
           setCost(ev.cost);
         }
       });
       if (!streamError) {
-      await loadThread();
+      const synced = await syncThreadAfterAsk();
+      // 会话回灌为空时，用本地 answer 快照重画（含 rows 表）
+      if (!synced && !$("thread").querySelectorAll(".msg-row").length && lastAnswerMeta) {
+        if (lastQuestion) appendBubble("user", lastQuestion, {});
+        appendBubble("assistant", streamText || "查询完成。", lastAnswerMeta);
+      }
       await refreshSessions();
       await refreshAudit();
       }
@@ -1874,7 +2398,7 @@
           question: q,
           sql,
           tenant: $("tenant").value,
-          scene: $("scene").value,
+          scene: currentScene(),
           tables: (meta && meta.tables) || [],
         }),
       });
@@ -1891,7 +2415,7 @@
       await ask({
         question: $("q").value.trim() || "确认执行",
         tenant: $("tenant").value,
-        scene: $("scene").value,
+        scene: currentScene(),
         pending_id: pendingId,
         sql: lastSql,
         confirm: true,
@@ -1905,7 +2429,7 @@
       ask({
         question: q,
         tenant: $("tenant").value,
-        scene: $("scene").value,
+        scene: currentScene(),
         confirm: false,
       }, { userText: q });
       $("q").value = "";

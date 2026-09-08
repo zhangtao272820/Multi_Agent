@@ -3,18 +3,26 @@
 :root {
   color-scheme: light;
 
-  --brand-bg: #e6ebf4;
+  --brand-bg: #f4f6f9;
   --brand-bg-elevated: #ffffff;
-  --brand-bg-subtle: #d8e0ec;
-  --brand-bg-hover: #cfd8e6;
-  --brand-panel: rgba(255, 255, 255, 0.94);
+  --brand-bg-subtle: #eef1f5;
+  --brand-bg-hover: #e8ecf2;
+  --brand-panel: rgba(255, 255, 255, 0.98);
   --brand-panel-solid: #ffffff;
-  --brand-ink: #0f141c;
-  --brand-text: #121826;
-  --brand-text-secondary: #3a4558;
-  --brand-text-muted: #5a6578;
-  --brand-border: #b8c4d6;
-  --brand-border-strong: #8f9eb4;
+  --brand-ink: #0f172a;
+  --brand-text: #0f172a;
+  --brand-text-secondary: #334155;
+  --brand-text-muted: #475569;
+  --brand-border: rgba(15, 23, 42, 0.14);
+  --brand-border-strong: rgba(15, 23, 42, 0.2);
+
+  /* DeepSeek Harness 壳层表面 */
+  --harness-bg: #f4f6f9;
+  --harness-surface: #ffffff;
+  --harness-muted: #475569;
+  --harness-border: rgba(15, 23, 42, 0.14);
+  --harness-accent: var(--brand-accent);
+  --harness-active-bg: #e8eef8;
   --brand-sidebar: #12161f;
   --brand-sidebar-elevated: #1a2030;
   --brand-sidebar-text: #e6ebf4;
@@ -39,8 +47,9 @@
   --brand-radius: 12px;
   --brand-radius-sm: 8px;
   --brand-radius-xs: 5px;
-  --brand-sidebar-width: 260px;
-  --brand-topbar-height: 58px;
+  --brand-sidebar-width: 240px;
+  --brand-topbar-height: 44px;
+  --brand-send-fab-size: 36px;
   --brand-content-gutter: clamp(16px, 2.8vw, 32px);
 
   --brand-shadow-sm: 0 1px 2px rgba(15, 20, 28, 0.06);

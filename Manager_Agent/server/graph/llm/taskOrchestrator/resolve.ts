@@ -49,7 +49,24 @@ export type OrchestratorLlmResult = {
 }
 
 const COMPACT_SCHEMA_HINT =
-  '{"turnScopeMode":"current_only|topic_shift","dataSources":["rag"|"crawler"],"suggestedAgents":["rag"],"allowedAgents":["rag","crawler","clean","code","visualize"],"isDbAnchored":false,"needsWeb":true,"needsAdmin":false,"explicitWantsVisualize":true,"explicitWantsReport":false,"isMulti":true,"planShortcut":"none","requiresAgentPipeline":true,"allowChatWebDirect":false,"routedQuery":"...","confidence":0.7,"rationale":"...","complexity":"low|mid|high","needsPlanPreview":false,"suggestedPosture":"agent","upgradeReason":"","upgradeConfidence":0.7}'
+  '{"turnScopeMode":"current_only|topic_shift","dataSources":["rag"|"crawler"],"suggestedAgents":["rag"],"allowedAgents":["rag","crawler","clean","code","visualize"],"isDbAnchored":false,"needsWeb":true,"needsAdmin":false,"explicitWantsVisualize":true,"explicitWantsReport":false,"isMulti":true,"planShortcut":"none","requiresAgentPipeline":true,"allowChatWebDirect":false,"routedQuery":"...","confidence":0.7,"rationale":"...","complexity":"low|mid|high","needsPlanPreview":false,"suggestedPosture":"agent","upgradeReason":"","upgradeConfidence":0.7,"sourceCommitment":"clear|ambiguous|none","webFetchKind":"none|policy_page|general_page","adminCapabilityHints":["weather"|"map"|...]}'
+
+/** 全量编排：字段 glossary（Zod 仍是校验 SSOT；勿再贴巨型 JSON 样例） */
+const FULL_SCHEMA_GLOSSARY = [
+  '字段：turnScopeMode,turnKind,directChitchatSynth,coalescedTask,',
+  'clauses[{id,text,agents,taskForm}],timeHints,timeRange,subjectHints,fieldHints,taskForm,',
+  'wantsVisualize,wantsReport,dataSources[db|rag|crawler],taskIntent,',
+  'sourceCommitment[clear|ambiguous|none],committedPlanes,webFetchKind[none|policy_page|general_page],',
+  'adminCapabilityHints[weather|calendar|map|...],primaryIntent,isMulti,suggestedAgents,',
+  'isDbAnchored,needsAdmin,needsWeb,explicitWantsReport,explicitWantsVisualize,',
+  'planShortcut[none|db_only|rag_only|admin_only|...],requiresAgentPipeline,allowChatWebDirect,',
+  'intent,allowedAgents,routedQuery,needsWebSearch,needsClarify,clarifyKind,clarifyQuestions,',
+  'planBlueprint{rationale,steps[{agent,queryFocus,taskForm}]},',
+  'confidence,rationale,complexity,needsPlanPreview,suggestedPosture,upgradeReason,upgradeConfidence',
+  '例：{"sourceCommitment":"clear","committedPlanes":["admin"],"webFetchKind":"none","adminCapabilityHints":["weather"],',
+  '"allowedAgents":["admin"],"clauses":[{"id":"c1","text":"查天津天气","agents":["admin"]}],',
+  '"planShortcut":"admin_only","needsAdmin":true,"confidence":0.85}'
+].join('')
 
 async function invokeOrchestratorLlm(
   input: {
@@ -94,7 +111,7 @@ async function invokeOrchestratorLlm(
   const schemaHint =
     mode === 'compact'
       ? `schema: ${COMPACT_SCHEMA_HINT}`
-      : 'schema: {"turnScopeMode":"current_only|continuation|topic_shift|chitchat","directChitchatSynth":bool,"coalescedTask":string,"clauses":[{"id":"c1","text":"...","agents":["rag"],"taskForm":"rag_standard"}],"timeHints":[],"timeRange":{"start":"ISO","end":"ISO","label":"..."},"subjectHints":[],"fieldHints":[],"taskForm":"db_count|rag_standard|admin_weather|...","wantsVisualize":bool,"wantsReport":bool,"dataSources":["rag"|"db"|"crawler"],"taskIntent":"structured_query|document_retrieval|hybrid|action|chitchat|unknown","sourceCommitment":"clear|ambiguous|none","committedPlanes":["db"|"rag"|"crawler"|"admin"|...],"webFetchKind":"none|policy_page|general_page","adminCapabilityHints":["weather"|"calendar"|"map"|...],"primaryIntent":"...","isMulti":bool,"suggestedAgents":[],"isDbAnchored":bool,"needsAdmin":bool,"needsWeb":bool,"explicitWantsReport":bool,"explicitWantsVisualize":bool,"planShortcut":"none|db_only|rag_only|...","requiresAgentPipeline":bool,"allowChatWebDirect":bool,"intent":"...","allowedAgents":[],"routedQuery":"...","needsWebSearch":bool,"needsClarify":bool,"clarifyKind":"none|slot|plane|output_disambiguation","clarifyQuestions":[],"planBlueprint":{"rationale":"","steps":[{"agent":"rag","queryFocus":"...","taskForm":"rag_standard"}]},"confidence":0-1,"rationale":"...","complexity":"low|mid|high","needsPlanPreview":bool,"suggestedPosture":"ask|plan|agent|debug","upgradeReason":"...","upgradeConfidence":0-1}'
+      : `schema glossary: ${FULL_SCHEMA_GLOSSARY}`
 
   return input.llmInvoke(
     'route',

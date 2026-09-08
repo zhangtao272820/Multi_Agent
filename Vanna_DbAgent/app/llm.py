@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Callable
 
 from openai import OpenAI
 
@@ -90,7 +91,7 @@ def _check_llm_budget(meter: LlmMeter | None, *, repair: bool = False, answer: b
 
 def _note_usage(
     meter: LlmMeter | None,
-    resp: object,
+    resp: object | None,
     *,
     llm: bool = False,
     embed: bool = False,
@@ -107,6 +108,8 @@ def _note_usage(
         meter.answer_calls += 1
     if embed:
         meter.embed_calls += 1
+    if resp is None:
+        return
     usage = getattr(resp, "usage", None)
     if usage:
         meter.prompt_tokens += int(getattr(usage, "prompt_tokens", 0) or 0)
@@ -137,6 +140,15 @@ def embed_texts(texts: list[str], meter: LlmMeter | None = None) -> list[list[fl
     return out
 
 
+def _qwen_enable_thinking() -> bool:
+    raw = str(os.getenv("QWEN_ENABLE_THINKING") or os.getenv("CAP_ENABLE_THINKING") or "off").strip().lower()
+    return raw in {"1", "true", "yes", "on"}
+
+
+def _is_qwen3_hybrid(model: str) -> bool:
+    return str(model or "").strip().lower().startswith("qwen3")
+
+
 def chat_text(
     system: str,
     user: str,
@@ -144,21 +156,89 @@ def chat_text(
     max_tokens: int = 700,
     *,
     answer: bool = False,
+    on_token: Callable[[str], None] | None = None,
+    on_reasoning: Callable[[str], None] | None = None,
 ) -> str:
     _check_llm_budget(meter, answer=answer)
     _forbid_live_model()
     s = get_settings()
-    resp = client().chat.completions.create(
-        model=s.openai_model,
-        temperature=0.2 if answer else 0,
-        max_tokens=max_tokens,
-        messages=[
+    kwargs: dict = {
+        "model": s.openai_model,
+        "temperature": 0.2 if answer else 0,
+        "max_tokens": max_tokens,
+        "messages": [
             {"role": "system", "content": system},
             {"role": "user", "content": user},
         ],
-    )
+    }
+    # 自然语言答：stream + 跟随 env 开思考；SQL/结构化调用 answer=False 强制关
+    if answer and _is_qwen3_hybrid(s.openai_model):
+        kwargs["stream"] = True
+        kwargs["extra_body"] = {"enable_thinking": _qwen_enable_thinking()}
+        parts: list[str] = []
+        stream = client().chat.completions.create(**kwargs)
+        for chunk in stream:
+            choice = (chunk.choices or [None])[0]
+            if not choice:
+                continue
+            delta = getattr(choice, "delta", None)
+            content = getattr(delta, "content", None) if delta else None
+            if isinstance(content, str) and content:
+                parts.append(content)
+                if on_token:
+                    try:
+                        on_token(content)
+                    except Exception:
+                        pass
+            reasoning = None
+            if delta is not None:
+                reasoning = getattr(delta, "reasoning_content", None)
+                if reasoning is None:
+                    ak = getattr(delta, "model_extra", None) or {}
+                    if isinstance(ak, dict):
+                        reasoning = ak.get("reasoning_content")
+            if isinstance(reasoning, str) and reasoning and on_reasoning:
+                try:
+                    on_reasoning(reasoning)
+                except Exception:
+                    pass
+        _note_usage(meter, None, llm=not answer, answer=answer)
+        return "".join(parts).strip()
+    if answer:
+        try:
+            kwargs["stream"] = True
+            parts: list[str] = []
+            stream = client().chat.completions.create(**kwargs)
+            for chunk in stream:
+                choice = (chunk.choices or [None])[0]
+                if not choice:
+                    continue
+                delta = getattr(choice, "delta", None)
+                content = getattr(delta, "content", None) if delta else None
+                if isinstance(content, str) and content:
+                    parts.append(content)
+                    if on_token:
+                        try:
+                            on_token(content)
+                        except Exception:
+                            pass
+            _note_usage(meter, None, llm=not answer, answer=answer)
+            return "".join(parts).strip()
+        except Exception:
+            kwargs.pop("stream", None)
+    if _is_qwen3_hybrid(s.openai_model):
+        kwargs["extra_body"] = {"enable_thinking": False}
+    resp = client().chat.completions.create(**kwargs)
     _note_usage(meter, resp, llm=not answer, answer=answer)
-    return str(resp.choices[0].message.content or "").strip()
+    text = str(resp.choices[0].message.content or "").strip()
+    if answer and on_token and text:
+        step = 12
+        for i in range(0, len(text), step):
+            try:
+                on_token(text[i : i + step])
+            except Exception:
+                pass
+    return text
 
 
 def chat_json(
@@ -181,6 +261,8 @@ def chat_json(
             {"role": "user", "content": user},
         ],
     }
+    if _is_qwen3_hybrid(s.openai_model):
+        kwargs["extra_body"] = {"enable_thinking": False}
     try:
         resp = client().chat.completions.create(**kwargs, response_format={"type": "json_object"})
     except TypeError:

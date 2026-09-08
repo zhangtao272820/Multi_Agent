@@ -1,6 +1,6 @@
 import path from 'node:path'
 import { z } from 'zod'
-import { normalizeTenantId } from '#agent-shared/tenantScope'
+import { requireTenantId, ScopeRequiredError } from '#agent-shared/tenantScope'
 import { bindSessionToUser, listSessionsForUser, sanitizeUserId } from '../../graph/core/task/userIdentity'
 import {
   clearManagerMemory,
@@ -19,7 +19,15 @@ const BodySchema = z.object({
 
 export default defineEventHandler(async (event) => {
   const body = BodySchema.parse(await readBody(event))
-  const tid = normalizeTenantId(body.tenantId)
+  let tid: string
+  try {
+    tid = requireTenantId(body.tenantId)
+  } catch (e) {
+    if (e instanceof ScopeRequiredError) {
+      throw createError({ statusCode: 401, statusMessage: 'tenant_required' })
+    }
+    throw e
+  }
   const policyDir = resolveManagerPolicyDir(tid)
   const uid = sanitizeUserId(body.userId)
   let sessionIds: string[] | undefined

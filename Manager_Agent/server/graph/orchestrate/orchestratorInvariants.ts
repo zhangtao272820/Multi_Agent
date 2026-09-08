@@ -14,6 +14,7 @@ import {
 } from './routeOrchestration'
 import { alignAllowedAgentsWithUnderstanding } from '../core/routing/routeUnderstandAlign'
 import { filterAgentsRespectingWriteGate } from '../core/db/writeGate'
+import { stripDisabledAgents } from '../core/agent/agentRegistry'
 import {
   finalizeLlmAllowedAgents,
   finalizeLlmRouteIntent,
@@ -471,6 +472,7 @@ function applyFrozenPuOrchestratorDecision(input: {
     capFloor
   )
   allowed = filterAgentsRespectingWriteGate(allowed, input.state ?? {}) as ExecutableAgent[]
+  allowed = stripDisabledAgents(allowed) as ExecutableAgent[]
   classify = syncDbAnchorFromOrchestratorEvidence(classify, clauses, allowed)
 
   // 冻结 PU 路径也须天气/地图契约（否则 bypass LLM 编排时 crawler 误绑无法纠正）
@@ -636,6 +638,7 @@ function applyLlmFirstOrchestratorDecision(input: {
   allowed = aligned.allowed
   classify = aligned.classify
   allowed = filterAgentsRespectingWriteGate(allowed, input.state ?? {}) as ExecutableAgent[]
+  allowed = stripDisabledAgents(allowed) as ExecutableAgent[]
   let planBlueprint = collapsed.planBlueprint ?? null
   const routingMeta = input.state?.meta
   let alignedDraft = collapsed.stepDispatchDraft?.length
@@ -859,6 +862,7 @@ function applyClassicOrchestratorDecision(input: {
   allowed = aligned.allowed
   classify = aligned.classify
   allowed = filterAgentsRespectingWriteGate(allowed, input.state ?? {}) as ExecutableAgent[]
+  allowed = stripDisabledAgents(allowed) as ExecutableAgent[]
   allowed = sortAgentsByPipelineOrder(allowed) as ExecutableAgent[]
   let classicDraft =
     input.bundle.stepDispatchDraft?.length

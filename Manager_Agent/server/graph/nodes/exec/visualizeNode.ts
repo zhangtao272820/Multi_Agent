@@ -37,10 +37,17 @@ export function buildVisualizeNode(deps: CreateExecutionNodesDeps) {
     const fromDbTabular = tryDeterministicVisualizeFromDbTabular(mergedResults, extractStructuredPayload)
     if (fromDbTabular) {
       await appendMetrics({ runId: opts.runId, phase: 'visualize', ms: Date.now() - t0 })
-      const visualizeEvidence = { kind: 'visualize' as const, query: question, mode: 'db_tabular_deterministic' }
+      const mode = mergedResults.db_vanna_chart ? 'vanna_chart_deterministic' : 'db_tabular_deterministic'
+      const visualizeEvidence = { kind: 'visualize' as const, query: question, mode }
       emitTrace({ type: 'step_end', agent: 'visualize', ms: Date.now() - t0, status: 'ok', evidence: visualizeEvidence, outputSummary: summarize(fromDbTabular), at: new Date().toISOString() })
-      opts.sendEvent({ event: 'thinking', data: 'Visualize：DB tabular 数据确定性出图（跳过 LLM）', from: 'manager' })
-      emitCollabPreview(opts.sendEvent, 'visualize', fromDbTabular, 'db_tabular_deterministic')
+      opts.sendEvent({
+        event: 'thinking',
+        data: mode === 'vanna_chart_deterministic'
+          ? 'Visualize：Vanna chart 确定性出图（跳过 LLM）'
+          : 'Visualize：DB tabular 数据确定性出图（跳过 LLM）',
+        from: 'manager'
+      })
+      emitCollabPreview(opts.sendEvent, 'visualize', fromDbTabular, mode)
       return { results: { visualize: fromDbTabular }, evidence: [visualizeEvidence], resources: state.resources, meta: state.meta }
     }
     if (hasCodeInResults(mergedResults)) {

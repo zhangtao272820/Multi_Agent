@@ -1,4 +1,4 @@
-# 重启 Manager_Agent 及其协作依赖的全部子 Agent（含 Multimodal / Music / Video）
+# 重启 Manager_Agent 及其协作依赖的全部子 Agent（轻量栈：不含 Music/Video；extended 需 -Extended）
 # 用法：
 #   .\scripts\restart-manager-stack.ps1           # force-recreate（重载 env，保留卷）
 #   .\scripts\restart-manager-stack.ps1 -Build  # 重新构建镜像后启动
@@ -22,7 +22,7 @@ Write-Host ($Script:ManagerStack -join ", ")
 Stop-LegacyOlderAgent
 
 $monitoring = -not $NoMonitor
-# Manager 栈含 music/video → 自动带 extended；默认带 monitoring
+# 轻量 Manager 栈默认不含 music/video（extended profile）
 Invoke-AgentsLanCompose -Action up -ForceRecreate -Build:$Build -Enterprise:$Enterprise -Monitoring:$monitoring -Services $Script:ManagerStack
 
 if ($LASTEXITCODE -ne 0) {
@@ -35,5 +35,4 @@ $lan = Get-AgentsLanLanHost
 Write-Host "  Manager      http://${lan}:13106"
 Write-Host "  Lobster GUI  http://${lan}:13108"
 Write-Host "  Multimodal   http://${lan}:13107"
-Write-Host "  Music        http://${lan}:13110"
-Write-Host "  Video        http://${lan}:13111"
+Write-Host "  (Music/Video/Tavern/AI/旧DB 已踢出轻量栈；extended: up-agents-lan.ps1 -Extended；旧DB: --profile legacy-db)"

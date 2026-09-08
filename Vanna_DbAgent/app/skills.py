@@ -15,9 +15,14 @@ def scene_skill_path(scene_id: str) -> Path:
 
 def load_scene_skill(scene_id: str) -> str:
     path = scene_skill_path(scene_id)
-    if not path.is_file():
-        return ""
-    return path.read_text(encoding="utf-8").strip()
+    if path.is_file():
+        return path.read_text(encoding="utf-8").strip()
+    # auto 缺文件时回退助手技能，避免空 prompt
+    if str(scene_id or "").strip().lower() in {"auto", "smart", "default", ""}:
+        fallback = scene_skill_path("assistant")
+        if fallback.is_file():
+            return fallback.read_text(encoding="utf-8").strip()
+    return ""
 
 
 def tenant_skills_dir(tenant: Tenant) -> Path | None:

@@ -32,6 +32,8 @@ function createDbChatOpenAI(input: {
   baseURL: string;
   maxTokens?: number;
   jsonTask?: boolean;
+  /** 自然语言答跟随 env；SQL/JSON 默认关 */
+  honorEnvThinking?: boolean;
 }): ChatOpenAI {
   return new ChatOpenAI(
     withQwenModelKwargs(
@@ -50,7 +52,11 @@ function createDbChatOpenAI(input: {
               ? readAgentLlmJsonMaxTokens()
               : readAgentLlmSynthMaxTokens(),
       },
-      { enableThinking: false },
+      input.jsonTask
+        ? { enableThinking: false }
+        : input.honorEnvThinking
+          ? undefined
+          : { enableThinking: false },
     ) as ConstructorParameters<typeof ChatOpenAI>[0],
   );
 }

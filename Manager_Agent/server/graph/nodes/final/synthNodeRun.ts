@@ -96,7 +96,7 @@ import {
   parseCrawlerPayload,
 } from '../../../utils/crawler/managerCrawlerTaskPayload'
 import { buildCrawlerSourcesTaggedBlock, resolveCrawlerTableMarkdown, extractCrawlerItemsFromText } from '../../../utils/crawler/crawlerItemsParse'
-import { pickRicherNarrativeWithAuxBlocks, extractAuxBlocksStructural } from '#agent-shared/auxBlocks'
+import { pickRicherNarrativeWithAuxBlocks, extractAuxBlocksStructural, tableDataBlockHasValues } from '#agent-shared/auxBlocks'
 import { polishFinalPayload } from '../../core/output/replyPolish'
 import { isReportDeferredToSynth } from '#agent-shared/reportSynthDefer'
 import { stripSynthPromptLeakage, isReportTierSummaryTooThin } from '#agent-shared/synthOutputSanitize'
@@ -442,7 +442,14 @@ export function buildSynthNodeRun(deps: CreateFinalNodesDeps) {
                 conversationalDbSynth: true,
                 orchestrationThickness: 'single_source',
                 presentationPlan,
-                synthStreamBody: finalText
+                synthStreamBody: finalText,
+                // 单源早流：把有数终稿记作 provisional，供 finalize 夺回（防定稿空表）
+                ...(tableDataBlockHasValues(finalText)
+                  ? {
+                      synthProvisionalStreamed: true,
+                      synthProvisionalRaw: finalText
+                    }
+                  : {})
               }),
             }
           } catch {

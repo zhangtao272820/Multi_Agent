@@ -296,15 +296,7 @@ CREATE TABLE IF NOT EXISTS mgr_session_turns_archive (
 CREATE INDEX IF NOT EXISTS idx_mgr_session_turns_archive_session
   ON mgr_session_turns_archive(session_id, turn_index);
 
-CREATE OR REPLACE VIEW shared_user_context_view AS
-SELECT
-  COALESCE(d.user_key, m.user_key) AS user_key,
-  d.payload AS db_preferences,
-  d.updated_at AS db_updated_at,
-  m.payload AS mgr_profile,
-  m.updated_at AS mgr_updated_at
-FROM db_user_preferences d
-FULL OUTER JOIN mgr_user_profiles m ON d.user_key = m.user_key;
+-- 视图在 tenant_id 补列之后再创建（见文件末尾），避免 CREATE OR REPLACE 因列变少报 cannot drop columns from view
 
 CREATE INDEX IF NOT EXISTS idx_mgr_sessions_user_id ON mgr_sessions(user_id);
 
@@ -462,4 +454,19 @@ ALTER TABLE mgr_session_turns_archive ADD COLUMN IF NOT EXISTS ui_meta JSONB;
 CREATE INDEX IF NOT EXISTS idx_mgr_session_turns_run_id
   ON mgr_session_turns(run_id)
   WHERE run_id IS NOT NULL;
+
+-- 偏好/画像视图：先 DROP 再 CREATE，兼容历史多列定义
+DROP VIEW IF EXISTS shared_user_context_view;
+CREATE VIEW shared_user_context_view AS
+SELECT
+  COALESCE(d.tenant_id, m.tenant_id, 'default') AS tenant_id,
+  COALESCE(d.user_key, m.user_key) AS user_key,
+  d.payload AS db_preferences,
+  d.updated_at AS db_updated_at,
+  m.payload AS mgr_profile,
+  m.updated_at AS mgr_updated_at
+FROM db_user_preferences d
+FULL OUTER JOIN mgr_user_profiles m
+  ON d.user_key = m.user_key
+ AND COALESCE(d.tenant_id, 'default') = COALESCE(m.tenant_id, 'default');
 `

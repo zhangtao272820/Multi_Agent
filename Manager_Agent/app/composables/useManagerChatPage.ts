@@ -96,14 +96,19 @@ export function useManagerChatPage() {
   const clientLocation = ref<ClientLocation | null>(null)
   
   const WORKBENCH_MODE_KEY = 'manager_workbench_mode'
-  const workbenchMode = ref<WorkbenchMode>('chat')
+  /** 默认专业工作台；对话/专业会话槽彻底分轨 */
+  const workbenchMode = ref<WorkbenchMode>('professional')
   
   function loadWorkbenchMode() {
     if (typeof localStorage === 'undefined') return
     const raw = String(localStorage.getItem(WORKBENCH_MODE_KEY) || '').trim().toLowerCase()
     if (raw === 'chat' || raw === 'professional' || raw === 'pro') {
       workbenchMode.value = raw === 'chat' ? 'chat' : 'professional'
+      return
     }
+    // 无历史偏好时落盘默认专业，避免与旧默认「对话」混淆
+    localStorage.setItem(WORKBENCH_MODE_KEY, 'professional')
+    workbenchMode.value = 'professional'
   }
   
   function setWorkbenchMode(mode: WorkbenchMode) {
@@ -119,6 +124,8 @@ export function useManagerChatPage() {
     workbenchMode.value = mode
     if (typeof localStorage !== 'undefined') localStorage.setItem(WORKBENCH_MODE_KEY, mode)
 
+    // 切换工作区时展开历史侧栏，让列表过滤与模式 hint 立刻可见
+    historyPanelOpen.value = true
     sidebarOpen.value = false
     if (mode === 'chat') {
       thoughtViewMode.value = 'user'
@@ -143,6 +150,12 @@ export function useManagerChatPage() {
       }
     }
     rememberSessionForMode(mode, sessionId.value)
+    add(
+      'status',
+      mode === 'professional' ? '已切换到专业工作台（独立会话槽）' : '已切换到对话模式（独立会话槽）',
+      undefined,
+      0
+    )
   }
 
   async function selectHistorySession(id: string) {
@@ -174,16 +187,13 @@ export function useManagerChatPage() {
   const thoughtViewMode = ref<ThoughtViewMode>('user')
   
   function loadThoughtViewMode() {
-    if (typeof localStorage === 'undefined') return
-    const raw = String(localStorage.getItem(THOUGHT_VIEW_MODE_KEY) || '').trim().toLowerCase()
-    if (raw === 'user' || raw === 'developer' || raw === 'dev') {
-      thoughtViewMode.value = raw === 'developer' || raw === 'dev' ? 'developer' : 'user'
-    }
+    thoughtViewMode.value = 'user'
+    if (typeof localStorage !== 'undefined') localStorage.setItem(THOUGHT_VIEW_MODE_KEY, 'user')
   }
   
-  function setThoughtViewMode(mode: ThoughtViewMode) {
-    thoughtViewMode.value = mode
-    if (typeof localStorage !== 'undefined') localStorage.setItem(THOUGHT_VIEW_MODE_KEY, mode)
+  function setThoughtViewMode(_mode: ThoughtViewMode) {
+    thoughtViewMode.value = 'user'
+    if (typeof localStorage !== 'undefined') localStorage.setItem(THOUGHT_VIEW_MODE_KEY, 'user')
   }
 
   const COLLABORATION_POSTURE_KEY = 'manager_collaboration_posture'
@@ -199,7 +209,6 @@ export function useManagerChatPage() {
     if (raw === 'ask' || raw === 'plan' || raw === 'agent' || raw === 'debug') {
       collaborationPosture.value = raw
       if (raw === 'debug') {
-        thoughtViewMode.value = 'developer'
         debugObservationPanelOpen.value = true
       }
     }
@@ -209,9 +218,7 @@ export function useManagerChatPage() {
     collaborationPosture.value = mode
     if (typeof localStorage !== 'undefined') localStorage.setItem(COLLABORATION_POSTURE_KEY, mode)
     if (mode === 'debug') {
-      thoughtViewMode.value = 'developer'
       debugObservationPanelOpen.value = true
-      if (typeof localStorage !== 'undefined') localStorage.setItem(THOUGHT_VIEW_MODE_KEY, 'developer')
     } else {
       debugObservationPanelOpen.value = false
     }
@@ -534,7 +541,44 @@ export function useManagerChatPage() {
     const p = String(currentPhase.value || '')
     return p === 'synth' || p === 'synth_stream'
   }
-  
+
+  /** 主栏运行态胶囊：思考中 / 调度专才 / 生成中（用户面） */
+  function turnRunStatusPill(
+    t: TurnGroup
+  ): { label: string; kind: 'think' | 'dispatch' | 'synth'; elapsed?: string } | null {
+    if (!isTurnRunning(t) && !isTurnLive(t)) return null
+    const phase = String(currentPhase.value || '')
+    const steps = turnAgentPipelineSteps(t)
+    const specialistBusy = steps.some((s) => s.status === 'running' || s.status === 'replan')
+    const hasSpecialists =
+      specialistBusy ||
+      Boolean(turnRouteCap(t)?.agents?.length) ||
+      phase.startsWith('execute:')
+
+    let kind: 'think' | 'dispatch' | 'synth' = 'think'
+    let label = '思考中'
+    if (isSynthPhaseActive() || (isTurnLive(t) && streamingSynthText.value)) {
+      kind = 'synth'
+      label = '生成中'
+    } else if (hasSpecialists && (specialistBusy || phase.startsWith('execute:') || phase === 'multi')) {
+      kind = 'dispatch'
+      label = '调度专才'
+    } else if (phase === 'planner' || phase === 'plan_preview') {
+      kind = 'think'
+      label = '制定计划'
+    } else if (phase === 'route' || phase === 'prefetch' || !phase) {
+      kind = 'think'
+      label = '思考中'
+    } else if (hasSpecialists) {
+      kind = 'dispatch'
+      label = '调度专才'
+    }
+
+    const ms = runObservabilityLive.value?.wallClockMs
+    const elapsed = ms != null && ms > 0 ? formatObsMs(ms) : undefined
+    return { label, kind, elapsed }
+  }
+
   const planStepsTodo = ref<PlanStepTodo[]>([])
   const routeCapLive = ref<{ intent: string; agents: string[]; capLabel: string; dag?: string } | null>(null)
   const pendingPlanPreview = ref<{
@@ -702,13 +746,14 @@ export function useManagerChatPage() {
     if (thoughtViewMode.value === 'user') {
       const gui = turnGuiVisuals(t)
       return (
+        userThoughtStreamText(t).length > 0 ||
         userThoughtNarrative(t).length > 0 ||
         t.searchSources.length > 0 ||
         Boolean(gui.shot || gui.vncUrl) ||
-        (isTurnRunning(t) && t.process.length > 0)
+        isTurnRunning(t)
       )
     }
-    return !!(t.process.length || t.ragEvidence.length || t.codePatches.length || t.searchSources.length)
+    return !!(t.process.length || t.ragEvidence.length || t.codePatches.length || t.searchSources.length || isTurnRunning(t))
   }
   
   function stepResultIcon(sr: StepResultItem): string {
@@ -1454,8 +1499,23 @@ export function useManagerChatPage() {
     const s = String(text || '')
     const start = s.indexOf('<!--TABLE_DATA-->')
     const end = s.indexOf('<!--/TABLE_DATA-->')
-    if (start >= 0 && end > start) {
-      return s.slice(start + '<!--TABLE_DATA-->'.length, end).trim()
+    if (start < 0 || end <= start) return ''
+    const raw = s.slice(start + '<!--TABLE_DATA-->'.length, end).trim()
+    if (!raw) return ''
+    // 空壳（仅表头）视为无表，避免打开空白「数据看板」
+    const lines = raw
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .filter((l) => l.includes('|'))
+    for (const line of lines.slice(1)) {
+      if (/^\|?\s*:?-{3,}/.test(line)) continue
+      const cells = line
+        .replace(/^\|/, '')
+        .replace(/\|$/, '')
+        .split('|')
+        .map((c) => c.trim())
+      if (cells.some((c) => c.length > 0)) return raw
     }
     return ''
   }
@@ -1648,11 +1708,42 @@ export function useManagerChatPage() {
   function userFacingTableHtml(turn?: TurnGroup): string {
     const table = turn?.userFacing?.table
     if (!table?.headers?.length || !table.rows?.length) return ''
-    const head = `<tr>${table.headers.map((h) => `<th>${escapeHtmlBasic(h)}</th>`).join('')}</tr>`
-    const body = table.rows
-      .map((row) => `<tr>${row.map((c) => `<td>${escapeHtmlBasic(String(c ?? ''))}</td>`).join('')}</tr>`)
+    // 仅有表头/空单元格时不抢占 Markdown TABLE_DATA 回退（避免「一闪有数 → 定稿空表」）
+    const hasValues = table.rows.some((row) =>
+      (row || []).some((c) => String(c ?? '').trim())
+    )
+    if (!hasValues) return ''
+    return renderStructuredTableHtml(table.headers, table.rows)
+  }
+
+  /** 单行 → 纵向键值；多行 → 常规表（避免宽表把头挤成竖排） */
+  function renderStructuredTableHtml(headers: string[], rows: string[][]): string {
+    const cols = (headers || []).map((h) => String(h ?? '').trim())
+    const bodyRows = (rows || []).filter((row) => (row || []).some((c) => String(c ?? '').trim()))
+    if (!cols.length || !bodyRows.length) return ''
+
+    // 单行明细：竖向 KV，可读性远好于横向宽表
+    if (bodyRows.length === 1) {
+      const row = bodyRows[0] || []
+      const items = cols
+        .map((h, i) => {
+          const v = String(row[i] ?? '').trim()
+          if (!h && !v) return ''
+          return `<div class="data-kv-row"><div class="data-kv-k">${escapeHtmlBasic(h || '—')}</div><div class="data-kv-v">${escapeHtmlBasic(v || '—')}</div></div>`
+        })
+        .filter(Boolean)
+        .join('')
+      return `<div class="data-table data-table-kv" role="table">${items}</div>`
+    }
+
+    const head = `<tr>${cols.map((h) => `<th>${escapeHtmlBasic(h)}</th>`).join('')}</tr>`
+    const body = bodyRows
+      .map((row) => {
+        const cells = cols.map((_, i) => `<td>${escapeHtmlBasic(String(row[i] ?? ''))}</td>`).join('')
+        return `<tr>${cells}</tr>`
+      })
       .join('')
-    return `<table class="data-table"><thead>${head}</thead><tbody>${body}</tbody></table>`
+    return `<table class="data-table data-table-grid"><thead>${head}</thead><tbody>${body}</tbody></table>`
   }
 
   function escapeHtmlBasic(s: string): string {
@@ -1778,25 +1869,18 @@ export function useManagerChatPage() {
     if (thoughtViewMode.value === 'user' && turn?.userFacing?.summary) {
       const uf = String(turn.userFacing.summary || '').trim()
       const finalText = String(text || '').trim()
-      // 与流式对齐：userFacing 若是步骤/库表 dump、被截断、或明显短于 final，则取更完整正文
+      // 始终与 final 做有数表合并，禁止 userFacing 空壳盖掉 final/流式已有 TABLE_DATA
       if (!uf) {
         source = finalText
-      } else if (
-        looksLikeStepDumpSummary(uf) ||
-        looksLikeTruncatedSummary(uf) ||
-        (turn?.userFacing?.replyTier === 'report' && isReportTierSummaryTooThin(uf, 'report')) ||
-        (finalText.length > uf.length * 1.15 && finalText.length >= 80)
-      ) {
+      } else {
         const cleanedFinal = stripStructuredExecReport(finalText)
         source = pickRicherNarrativeWithAuxBlocks(uf, cleanedFinal || finalText)
         if (
           (looksLikeTruncatedSummary(source) || looksLikeStepDumpSummary(source)) &&
           (cleanedFinal || finalText).length > source.length
         ) {
-          source = cleanedFinal || finalText
+          source = pickRicherNarrativeWithAuxBlocks(cleanedFinal || finalText, source)
         }
-      } else {
-        source = uf
       }
     }
     const { narrative } = extractAuxBlocksStructural(source)
@@ -2433,7 +2517,34 @@ export function useManagerChatPage() {
   function renderTableDataHtml(text: string): string {
     const raw = extractTableData(text)
     if (!raw) return ''
-    return renderAssistantMarkdown(raw)
+    // 空壳表（仅表头）不渲染，避免定稿后「数据看板」空白闪烁
+    const lines = raw
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .filter((l) => l.includes('|'))
+    if (lines.length < 2) return ''
+
+    const splitRow = (line: string) =>
+      line
+        .replace(/^\|/, '')
+        .replace(/\|$/, '')
+        .split('|')
+        .map((c) => c.trim())
+
+    const headers = splitRow(lines[0] || '')
+    const dataRows: string[][] = []
+    for (const line of lines.slice(1)) {
+      if (/^\|?\s*:?-{3,}/.test(line)) continue
+      const cells = splitRow(line)
+      if (cells.every((c) => !c)) continue
+      while (cells.length < headers.length) cells.push('')
+      dataRows.push(cells.slice(0, headers.length))
+    }
+    if (!dataRows.length || !headers.some((h) => h)) return ''
+    const hasCell = dataRows.some((row) => row.some((c) => String(c ?? '').trim()))
+    if (!hasCell) return ''
+    return renderStructuredTableHtml(headers, dataRows)
   }
   
   function resultKindLabel(r: LogItem): string {
@@ -3398,6 +3509,12 @@ export function useManagerChatPage() {
     if (tStart >= 0 && tEnd > tStart) {
       s = s.slice(0, tStart) + s.slice(tEnd + '<!--/TABLE_DATA-->'.length)
     }
+    // 历史终稿可能残留「本次展示字段」清单；用户面不再展示
+    s = removeMarkdownSection(s, '### 本次展示字段')
+    s = removeMarkdownSection(s, '## 本次展示字段')
+    s = s.replace(/\n*仅展示与本次问句相关的列。?\n*/g, '\n')
+    // 表已进数据看板时，「查询结果」空标题无意义
+    s = s.replace(/(^|\n)#{2,3}\s*查询结果\s*(?=\n|$)/g, '\n')
     const cStart = s.indexOf('<!--CRAWLER_TABLE-->')
     const cEnd = s.indexOf('<!--/CRAWLER_TABLE-->')
     if (cStart >= 0 && cEnd > cStart) {
@@ -4337,6 +4454,8 @@ export function useManagerChatPage() {
         continue
       }
       if (isPlanStepsJsonLog(String(m.text || ''))) continue
+      // 正文流只进回复气泡，不进过程时间线（避免「流式」扁卡片墙）
+      if (k === 'delta') continue
       if (String(m.kind || '').toLowerCase() === 'thinking') {
         const txt = String(m.text || '').trim()
         if (txt.startsWith('记忆提案')) continue
@@ -4838,7 +4957,11 @@ export function useManagerChatPage() {
   function thoughtPanelOpen(t: TurnGroup): boolean {
     if (!hasThoughtContent(t)) return false
     if (collaborationPosture.value === 'debug') return true
-    if (thoughtViewMode.value === 'user') return thoughtPanelUserExpanded.value.has(t.id)
+    if (thoughtViewMode.value === 'user') {
+      // 运行中默认展开流式思考；结束后收起，用户可手动点开
+      if (isTurnRunning(t)) return true
+      return thoughtPanelUserExpanded.value.has(t.id)
+    }
     return !thoughtPanelCollapsed.value.has(t.id)
   }
   
@@ -4878,34 +5001,100 @@ export function useManagerChatPage() {
     if (isPlanStepsJsonLog(s)) return true
     if (s.includes('工具健康')) return true
     if (/^▸\s*(manager|db|rag|crawler|code)\s*·/.test(s)) return true
+    if (/治理建议|allowedAgents|blueprintDag|prioritize_|bandit|canary|HITL|error_code|agent_result|ops_token|trace_id/i.test(s)) {
+      return true
+    }
+    if (/status=\s*(start|end|running|queued)/i.test(s)) return true
     return false
+  }
+
+  /** 内部过程日志 → 用户可读一句；无法翻译则丢弃 */
+  function toUserFacingThoughtLine(text: string): string {
+    let s = String(text || '').trim().replace(/^▸\s*/, '')
+    if (!s || isUserThoughtBoilerplate(s)) return ''
+
+    if (/^Synth[：:]/i.test(s) || /对话式解读|整理回答|standard\s*档/i.test(s)) return '正在整理回答…'
+    if (/^预取[：:]/i.test(s) || /prefetch/i.test(s)) {
+      if (/DB|数据库|\bdb\b/i.test(s)) return '正在准备数据库查询…'
+      if (/RAG|知识/i.test(s)) return '正在准备知识库检索…'
+      return '正在准备相关资料…'
+    }
+    if (/侦察完成|库表\/知识库\/服务可用性/i.test(s)) return '已了解可用资料…'
+    if (/写库预览|须.*确认后执行|写操作.*确认/i.test(s)) return '涉及写入，需你确认后才会执行'
+    if (/正在理解你的问题|选择能力/i.test(s)) return '正在理解你的问题…'
+    if (/专才执行中/i.test(s)) return '正在处理中…'
+
+    const agentStep = s.match(
+      /^(?:数据库|RAG|网页爬虫|代码助手|个人助手|GUI|音乐|视频|多模态)\s*Agent[：:]\s*(.+)$/i
+    )
+    if (agentStep) {
+      const rest = String(agentStep[1] || '').trim()
+      const step = rest.toLowerCase()
+      if (step === 'understand' || /理解/.test(rest)) return '正在理解查询需求…'
+      if (step === 'sql' || /生成.*sql|写.*sql/i.test(rest)) return '正在生成查询…'
+      if (step === 'guard' || /安全|预检|guard/i.test(rest)) return '正在做安全检查…'
+      if (step === 'execute' || /执行|查询中|调用中/i.test(rest)) return '正在查询数据…'
+      if (/http|websocket|ws\b|备用地址|服务尚未就绪/i.test(rest)) return '正在连接服务…'
+      if (/检索/i.test(rest)) return '正在检索资料…'
+      if (/失败|错误|error/i.test(rest)) return '处理时遇到问题，正在重试或换路…'
+      if (rest.length <= 24 && /^[a-z0-9_\-.=]+$/i.test(rest)) return '正在处理中…'
+      if (rest.length > 120) return `${rest.slice(0, 100)}…`
+      return rest
+    }
+
+    if (/^RAG\s*(Agent|思考)[：:]/i.test(s)) return '正在检索知识库…'
+    if (/WebSocket|HTTP\s*调用|dev\s*服务/i.test(s)) return '正在连接服务…'
+    if (/\b(understand|sql|guard|execute|prefetch|orchestrate|multi)\b/i.test(s) && s.length < 96) {
+      return ''
+    }
+    if (/^[a-z][a-z0-9_\-]*(?:\s*[→>\-]+\s*[a-z][a-z0-9_\-]*)+$/i.test(s)) return ''
+    if (/^[\w.\-]+\s*(WS|HTTP)\b/i.test(s)) return ''
+
+    s = s
+      .replace(/\bHITL\b/gi, '人工确认')
+      .replace(/\ballowedAgents\b/gi, '能力')
+      .replace(/\bDB\s*plan\b/gi, '数据库查询')
+      .replace(/\bRAG\b/g, '知识库')
+      .replace(/\bSynth\b/gi, '回答整理')
+    if (s.length > 180) s = `${s.slice(0, 180)}…`
+    return s
   }
   
   function sanitizeUserThoughtRaw(text: string): string {
     let s = String(text || '').trim()
     if (!s || isUserThoughtBoilerplate(s)) return ''
     if (s.includes('<!--CRAWLER_TABLE-->') || s.includes('### 网页抓取列表')) return '正在搜索网页资料…'
-    return s
+    return toUserFacingThoughtLine(s)
   }
   
   function formatUserThoughtText(text: string, kind: string): string {
     const k = String(kind || '').toLowerCase()
+    if (k === 'phase') {
+      return userPhaseLabel(String(text || '').trim())
+    }
     const raw = sanitizeUserThoughtRaw(text)
     if (!raw) return ''
-    if (k === 'phase') {
-      const phase = raw.startsWith('execute:') ? raw.slice('execute:'.length) : raw
-      return userPhaseLabel(phase)
+    if (k === 'thinking' || k === 'thought_delta' || k === 'status') {
+      return raw.length > 220 ? `${raw.slice(0, 220)}…` : raw
     }
-    if (k === 'thinking') {
-      const cleaned = raw.replace(/^▸\s*/, '').replace(/\s+/g, ' ')
-      return cleaned.length > 220 ? `${cleaned.slice(0, 220)}…` : cleaned
-    }
-    if (k === 'thought_delta') {
-      const cleaned = raw.replace(/^▸\s*/, '').replace(/\s+/g, ' ')
-      return cleaned.length > 2400 ? `${cleaned.slice(0, 2400)}…` : cleaned
-    }
-    if (k === 'status') return raw.replace(/^▸\s*/, '')
     return raw
+  }
+
+  /** 用户面执行计划：中文专才名，不展示 raw agent key / DAG */
+  function userCreatedPlanLabels(t: TurnGroup): string[] {
+    const card = turnRoutePlanCard(t)
+    const raw = card?.dataSources?.length
+      ? card.dataSources
+      : turnRouteCap(t)?.agents || []
+    const out: string[] = []
+    const seen = new Set<string>()
+    for (const a of raw) {
+      const label = planAgentLabel(String(a || ''))
+      if (!label || seen.has(label)) continue
+      seen.add(label)
+      out.push(label)
+    }
+    return out
   }
   
   function userThoughtNarrative(t: TurnGroup): UserThoughtLine[] {
@@ -4975,15 +5164,148 @@ export function useManagerChatPage() {
 
     return lines
   }
-  
+
+  /** DeepSeek harness：用户面思考为连续灰字流，不拆成状态行列表 */
+  function userThoughtStreamText(t: TurnGroup): string {
+    const parts: string[] = []
+    let deltaBuf = ''
+    const flushDelta = () => {
+      const cleaned = sanitizeUserThoughtRaw(deltaBuf.replace(/^▸\s*/, ''))
+      if (cleaned.trim()) parts.push(cleaned.trim())
+      deltaBuf = ''
+    }
+    for (const p of t.process) {
+      const k = String(p.kind || '').toLowerCase()
+      if (isDevProcessKind(k)) continue
+      if (k === 'thought_delta') {
+        deltaBuf += String(p.text || '')
+        continue
+      }
+      flushDelta()
+      if (k === 'trace') {
+        try {
+          const o = JSON.parse(String(p.text || '')) as Record<string, unknown>
+          const type = String(o.type || '')
+          if (type === 'step_start') {
+            parts.push(`正在${planAgentLabel(String(o.agent || ''))}…`)
+          } else if (type === 'step_end') {
+            const summary = String(o.outputSummary || '').trim()
+            if (summary && !isUserThoughtBoilerplate(summary)) {
+              parts.push(previewText(summary, 200))
+            } else if (String(o.status) === 'success') {
+              parts.push(`${planAgentLabel(String(o.agent || ''))}已完成`)
+            }
+          }
+        } catch {
+          /* skip */
+        }
+        continue
+      }
+      if (!isUserVisibleProcessKind(k)) continue
+      const text = formatUserThoughtText(String(p.text || ''), k)
+      if (text) parts.push(text)
+    }
+    flushDelta()
+    if (t.ragEvidence.length) parts.push(`查阅了 ${t.ragEvidence.length} 条知识库资料`)
+    return parts.join('\n\n').trim()
+  }
+
+  /** Cursor 风：按阶段折叠 Thought（编排 / 看图 / 规划 / 执行） */
+  function turnThoughtStages(t: TurnGroup): Array<{ label: string; text: string; secs?: number }> {
+    type StageKey = 'orchestrate' | 'caption' | 'plan' | 'exec' | 'other'
+    const buckets: Record<StageKey, string[]> = {
+      orchestrate: [],
+      caption: [],
+      plan: [],
+      exec: [],
+      other: []
+    }
+    const classify = (raw: string): StageKey => {
+      const s = String(raw || '')
+      if (/看图摘要|画面摘要|轻量 VL|附件预读/.test(s)) return 'caption'
+      if (/编排|路由结论|续轮复用|姿态/.test(s)) return 'orchestrate'
+      if (/计划|蓝图|Plan Mode|局部修订|plan_preview|Created Plan/.test(s)) return 'plan'
+      if (/正在|已完成|专才|执行|多模态|查库|知识库|Building/.test(s)) return 'exec'
+      return 'other'
+    }
+    let deltaBuf = ''
+    const flushDelta = () => {
+      const cleaned = sanitizeUserThoughtRaw(deltaBuf.replace(/^▸\s*/, '')).trim()
+      if (cleaned) buckets[classify(cleaned)].push(cleaned)
+      deltaBuf = ''
+    }
+    for (const p of t.process) {
+      const k = String(p.kind || '').toLowerCase()
+      if (isDevProcessKind(k)) continue
+      if (k === 'thought_delta') {
+        deltaBuf += String(p.text || '')
+        continue
+      }
+      flushDelta()
+      if (k === 'phase') {
+        const ph = String(p.text || '').toLowerCase()
+        if (ph.includes('orchestrate')) buckets.orchestrate.push('编排决策中…')
+        else if (ph.includes('plan')) buckets.plan.push('规划步骤中…')
+        else if (ph.includes('execute') || ph.includes('multi')) buckets.exec.push('专才执行中…')
+        continue
+      }
+      if (k === 'trace') {
+        try {
+          const o = JSON.parse(String(p.text || '')) as Record<string, unknown>
+          if (String(o.type || '') === 'step_start') {
+            buckets.exec.push(`正在${planAgentLabel(String(o.agent || ''))}…`)
+          } else if (String(o.type || '') === 'step_end') {
+            buckets.exec.push(`${planAgentLabel(String(o.agent || ''))}已完成`)
+          }
+        } catch {
+          /* skip */
+        }
+        continue
+      }
+      if (!isUserVisibleProcessKind(k)) continue
+      const text = formatUserThoughtText(String(p.text || ''), k)
+      if (text) buckets[classify(text)].push(text)
+    }
+    flushDelta()
+    const labels: Record<StageKey, string> = {
+      orchestrate: '理解问题',
+      caption: '看图',
+      plan: '制定计划',
+      exec: '处理中',
+      other: '思考'
+    }
+    const order: StageKey[] = ['orchestrate', 'caption', 'plan', 'exec', 'other']
+    const startedTs =
+      Date.parse(String(t.user?.ts || t.process[0]?.ts || '')) || 0
+    const elapsed =
+      startedTs > 0 ? Math.max(1, Math.round((Date.now() - startedTs) / 1000)) : undefined
+    const out: Array<{ label: string; text: string; secs?: number }> = []
+    for (const key of order) {
+      const lines = buckets[key].filter(Boolean)
+      if (!lines.length) continue
+      const uniq: string[] = []
+      for (const line of lines) {
+        if (!uniq.includes(line)) uniq.push(line)
+      }
+      out.push({
+        label: labels[key],
+        text: uniq.slice(-6).join('\n'),
+        secs: out.length === 0 ? elapsed : undefined
+      })
+    }
+    return out
+  }
+
   function userThoughtPreviewText(t: TurnGroup): string {
+    const stream = userThoughtStreamText(t)
+    if (stream) return stream.replace(/\s+/g, ' ').slice(0, 120)
     const lines = userThoughtNarrative(t)
     const active = lines.find((l) => l.active) || lines[lines.length - 1]
     return active?.text?.slice(0, 120) || ''
   }
   
   function thoughtPanelLabel(): string {
-    return thoughtViewMode.value === 'user' ? '工作进展' : '思考过程'
+    return '思考过程'
   }
   
   function thoughtPanelPreview(t: TurnGroup): string {
@@ -5196,6 +5518,16 @@ export function useManagerChatPage() {
     if (k === 'event' || k === 'trace' || k === 'status') {
       const t = raw.trim()
       if (t.startsWith('{') || t.startsWith('[')) {
+        // 用户过程区：一行摘要，禁止 pretty-print 占屏
+        if (thoughtViewMode.value === 'user') {
+          try {
+            const o = JSON.parse(t) as Record<string, unknown>
+            const ev = String(o.event || o.type || o.status || '').trim()
+            return ev ? `系统事件：${ev}` : '系统事件'
+          } catch {
+            return '系统事件'
+          }
+        }
         try {
           return JSON.stringify(JSON.parse(t), null, 2)
         } catch {}
@@ -5354,16 +5686,18 @@ export function useManagerChatPage() {
     const k = String(kind || '').toLowerCase()
     const formatted = formatLogText(k, text)
     if (k === 'error' && !String(formatted || '').trim()) return
-    if (k === 'delta') {
+    // DeepSeek 式：流式 delta / thought_delta 追加到同一条，禁止每 token 一张扁卡片
+    if (k === 'delta' || k === 'thought_delta') {
       const last = logs.value.length ? logs.value[logs.value.length - 1] : null
       if (
         last &&
         last.turn === turn &&
         String(last.runId || '') === String(runId || '') &&
-        String(last.kind || '').toLowerCase() === 'delta' &&
+        String(last.kind || '').toLowerCase() === k &&
         String(last.from || '') === String(from || '')
       ) {
         last.text = String(last.text || '') + formatted
+        last.ts = new Date().toLocaleTimeString()
       } else {
         logs.value.push({
           ts: new Date().toLocaleTimeString(),
@@ -5472,6 +5806,7 @@ export function useManagerChatPage() {
     absorbProactiveNudges,
     applyTaskStackFromServer,
     isPlanStepsJsonLog,
+    thoughtViewMode,
     bogusFinalText: BOGUS_FINAL_TEXT,
     applyPostureHint,
     notePostureWriteFiltered(turn, runId) {
@@ -6158,6 +6493,9 @@ export function useManagerChatPage() {
     executionStepCountForTurn,
     thoughtLogCountForTurn,
     userThoughtNarrative,
+    userThoughtStreamText,
+    turnThoughtStages,
+    userCreatedPlanLabels,
     turnGuiVisuals,
     thoughtPanelPreview,
     processStepKey,
@@ -6166,6 +6504,7 @@ export function useManagerChatPage() {
     formatProcessText,
     toggleProcessStep,
     isSynthPhaseActive,
+    turnRunStatusPill,
     onReplyMarkdownClick,
     renderAssistantMarkdown,
     cachedResultMarkdownHtml,
@@ -6341,7 +6680,10 @@ export function useManagerChatPage() {
     clearPendingAttachment,
     onFileSelected,
     onAttachmentFile,
-    chatComposerRef
+    chatComposerRef,
+    runObservabilityLive,
+    formatObsMs,
+    formatTokenCount
   })
 
   watch(

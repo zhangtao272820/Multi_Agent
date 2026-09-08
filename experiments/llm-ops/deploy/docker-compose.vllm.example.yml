@@ -1,0 +1,60 @@
+# Example vLLM stack — NOT wired into main Agent compose by default.
+# Usage (on GPU Linux host):
+#   cp .env.vllm.example .env.vllm
+#   docker compose -f docker-compose.vllm.example.yml --env-file .env.vllm up -d
+#
+# Bind to localhost by default; Agent on same host uses http://127.0.0.1:8000/v1
+# Cross-host: put both on private VPC and set OPENAI_BASE_URL accordingly.
+
+services:
+  vllm:
+    # Pin a tag you have verified; update deliberately.
+    image: ${VLLM_IMAGE:-vllm/vllm-openai:v0.8.5}
+    container_name: clawhive-vllm-example
+    restart: unless-stopped
+    ports:
+      - "${VLLM_HOST_BIND:-127.0.0.1}:${VLLM_PORT:-8000}:8000"
+    environment:
+      HUGGING_FACE_HUB_TOKEN: ${HF_TOKEN:-}
+      # Optional: vLLM may honor API key via proxy; prefer gateway auth in prod.
+    volumes:
+      - ${HF_CACHE_DIR:-vllm_hf_cache}:/root/.cache/huggingface
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: ${VLLM_GPU_COUNT:-1}
+              capabilities: [gpu]
+    # Older compose: use device_requests via --gpus all on CLI if deploy. is ignored.
+    ipc: host
+    command:
+      - --model
+      - ${MODEL:-Qwen/Qwen2.5-7B-Instruct}
+      - --served-model-name
+      - ${SERVED_MODEL_NAME:-qwen2.5-7b}
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+      - --dtype
+      - ${DTYPE:-auto}
+      - --max-model-len
+      - ${MAX_MODEL_LEN:-4096}
+      - --gpu-memory-utilization
+      - ${GPU_MEMORY_UTILIZATION:-0.85}
+      - --api-key
+      - ${VLLM_API_KEY:-sk-local-change-me}
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -fsS http://127.0.0.1:8000/v1/models -H 'Authorization: Bearer ${VLLM_API_KEY:-sk-local-change-me}' || exit 1",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 120s
+
+volumes:
+  vllm_hf_cache:

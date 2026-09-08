@@ -314,5 +314,47 @@
     "expect_sources": ["养老机构服务规范"],
     "tags": ["stale", "policy"],
     "expect_stale_hint": true
+  },
+  {
+    "id": "refuse_jupiter_moons",
+    "question": "木星一共有多少颗卫星？",
+    "expect_refuse": true,
+    "tags": ["refuse", "out_of_corpus"],
+    "notes": "库外天文问题：应澄清/空证据/拒答，勿编造数字"
+  },
+  {
+    "id": "refuse_crypto_price",
+    "question": "比特币今天收盘价是多少美元？",
+    "expect_refuse": true,
+    "tags": ["refuse", "out_of_corpus"],
+    "notes": "实时行情不在知识库"
+  },
+  {
+    "id": "refuse_unrelated_recipe",
+    "question": "番茄炒蛋的标准做法步骤是什么？",
+    "expect_refuse": true,
+    "tags": ["refuse", "out_of_corpus"]
+  },
+  {
+    "id": "ctx_kw_staffing",
+    "question": "养老机构护理人员配比有什么要求？",
+    "expect_sources": ["养老机构服务规范"],
+    "expect_evidence_keywords": ["配比"],
+    "tags": ["context_relevance", "policy", "fact_lookup"],
+    "notes": "证据正文须含关键词，测 context relevance"
+  },
+  {
+    "id": "ctx_kw_oral_care",
+    "question": "口腔护理频次分别是多少？",
+    "expect_sources": ["养老机构服务规范"],
+    "expect_evidence_keywords": ["口腔"],
+    "tags": ["context_relevance", "policy"]
+  },
+  {
+    "id": "ctx_kw_infection",
+    "question": "养老机构感染防控有哪些基本要求？",
+    "expect_sources": ["养老机构服务规范"],
+    "expect_evidence_keywords": ["感染"],
+    "tags": ["context_relevance", "policy"]
   }
 ]

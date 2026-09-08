@@ -1,5 +1,5 @@
 import type { CapabilityId, CapabilityProfile } from './capabilities'
-import { CAPABILITY_REGISTRY } from './capabilities'
+import { CAPABILITY_REGISTRY, activeCapabilityRegistry, parseDisabledAgents } from './capabilities'
 import { agentWsUrlToHttpOrigin, resolveAgentUrl } from '../../../utils/platform/agentEndpoints'
 
 const DATA_AGENTS = ['db', 'rag', 'crawler'] as const
@@ -70,7 +70,7 @@ export function buildAgentRegistry(env: NodeJS.ProcessEnv = process.env): AgentR
     report: {}
   }
 
-  const entries: AgentRegistryEntry[] = CAPABILITY_REGISTRY.map((c) => {
+  const entries: AgentRegistryEntry[] = activeCapabilityRegistry(env).map((c) => {
     const ep = endpointById[c.id] || {}
     const httpBase = ep.httpBase
     return {
@@ -81,6 +81,16 @@ export function buildAgentRegistry(env: NodeJS.ProcessEnv = process.env): AgentR
   })
 
   return { updatedAt: new Date().toISOString(), entries }
+}
+
+/** 从 allowedAgents 剥离 MANAGER_DISABLED_AGENTS（编排 invariants 共用） */
+export function stripDisabledAgents<T extends string>(
+  agents: T[],
+  env: NodeJS.ProcessEnv = process.env
+): T[] {
+  const disabled = parseDisabledAgents(env)
+  if (!disabled.size || !agents.length) return agents
+  return agents.filter((a) => !disabled.has(String(a).trim().toLowerCase() as CapabilityId))
 }
 
 export function registryContextText(snapshot?: AgentRegistrySnapshot) {

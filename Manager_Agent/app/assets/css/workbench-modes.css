@@ -275,47 +275,41 @@
 .composer-posture-trigger {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  min-height: 34px;
+  gap: 6px;
+  min-height: 28px;
   padding: 0 10px;
   border-radius: 8px;
-  border: 1px solid rgba(100, 150, 200, 0.42);
-  background: rgba(255, 255, 255, 0.78);
-  color: #1e4060;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  background: #fff;
+  color: #18181b;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0;
   cursor: pointer;
   white-space: nowrap;
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.8) inset;
+  box-shadow: none;
 }
 
-.composer-posture-trigger:hover {
-  border-color: rgba(47, 127, 209, 0.5);
-  background: rgba(230, 242, 255, 0.95);
+.composer-posture-trigger:hover,
+.composer-posture-trigger.is-open {
+  border-color: rgba(15, 23, 42, 0.2);
+  background: #f4f4f5;
+  color: #0f172a;
 }
 
-.composer-posture-trigger.is-ask {
-  color: #1e5a96;
-  border-color: rgba(47, 127, 209, 0.45);
-  background: rgba(47, 127, 209, 0.08);
-}
-
-.composer-posture-trigger.is-plan {
-  color: #1e4a78;
-  border-color: rgba(47, 127, 209, 0.5);
-  background: rgba(47, 127, 209, 0.12);
-}
-
-.composer-posture-trigger.is-debug {
-  color: #8a4e10;
-  border-color: rgba(184, 106, 26, 0.45);
-  background: rgba(184, 106, 26, 0.1);
+.composer-posture-trigger.is-ask,
+.composer-posture-trigger.is-plan,
+.composer-posture-trigger.is-debug,
+.composer-posture-trigger.is-agent {
+  color: #18181b;
+  border-color: rgba(15, 23, 42, 0.14);
+  background: #fff;
 }
 
 .composer-posture-chevron {
   font-size: 10px;
-  opacity: 0.75;
+  opacity: 0.7;
+  color: #475569;
 }
 
 .composer-posture-menu {
@@ -326,12 +320,10 @@
   min-width: 248px;
   max-width: min(320px, 80vw);
   padding: 6px;
-  border-radius: 12px;
-  border: 1px solid rgba(100, 150, 200, 0.42);
-  background: rgba(255, 252, 255, 0.96);
-  box-shadow: 0 14px 36px rgba(40, 70, 110, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(16px) saturate(1.15);
-  -webkit-backdrop-filter: blur(16px) saturate(1.15);
+  border-radius: 10px;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  background: #fff;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.14);
 }
 
 .composer-posture-option {
@@ -345,14 +337,14 @@
   border: none;
   border-radius: 8px;
   background: transparent;
-  color: #1a2f44;
+  color: #0f172a;
   text-align: left;
   cursor: pointer;
 }
 
 .composer-posture-option:hover,
 .composer-posture-option.is-active {
-  background: rgba(47, 127, 209, 0.12);
+  background: #e8eef8;
 }
 
 .composer-posture-option-label {
@@ -363,7 +355,7 @@
 .composer-posture-option-desc {
   font-size: 11px;
   line-height: 1.35;
-  color: #5a738c;
+  color: #475569;
 }
 
 .composer-posture-option-check {
@@ -371,7 +363,7 @@
   right: 10px;
   top: 50%;
   transform: translateY(-50%);
-  color: #2f7fd1;
+  color: #1d4ed8;
   font-size: 12px;
 }
 

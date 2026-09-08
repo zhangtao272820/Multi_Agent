@@ -124,6 +124,30 @@ export const CAPABILITY_REGISTRY: CapabilityProfile[] = [
   }
 ]
 
+/** 轻量集群：从环境变量踢出能力（逗号分隔）。例：MANAGER_DISABLED_AGENTS=music,video */
+export function parseDisabledAgents(env: NodeJS.ProcessEnv = process.env): Set<CapabilityId> {
+  const raw = String(env.MANAGER_DISABLED_AGENTS ?? '').trim()
+  if (!raw) return new Set()
+  const known = new Set(CAPABILITY_REGISTRY.map((c) => c.id))
+  const out = new Set<CapabilityId>()
+  for (const part of raw.split(/[,;\s]+/)) {
+    const id = String(part || '').trim().toLowerCase() as CapabilityId
+    if (known.has(id)) out.add(id)
+  }
+  return out
+}
+
+export function isCapabilityDisabled(id: string, env: NodeJS.ProcessEnv = process.env): boolean {
+  return parseDisabledAgents(env).has(String(id || '').trim().toLowerCase() as CapabilityId)
+}
+
+/** 当前部署启用的能力清单（边界 Prompt / 注册表共用） */
+export function activeCapabilityRegistry(env: NodeJS.ProcessEnv = process.env): CapabilityProfile[] {
+  const disabled = parseDisabledAgents(env)
+  if (!disabled.size) return CAPABILITY_REGISTRY
+  return CAPABILITY_REGISTRY.filter((c) => !disabled.has(c.id))
+}
+
 export function capabilityContextText() {
   return registryContextText()
 }

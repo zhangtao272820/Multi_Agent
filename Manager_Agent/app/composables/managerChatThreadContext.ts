@@ -68,6 +68,9 @@ export type ManagerChatThreadContext = {
     active?: boolean
     failed?: boolean
   }>
+  userThoughtStreamText: (t: TurnGroup) => string
+  turnThoughtStages: (t: TurnGroup) => Array<{ label: string; text: string; secs?: number }>
+  userCreatedPlanLabels: (t: TurnGroup) => string[]
   turnGuiVisuals: (t: TurnGroup) => { shot?: string; vncUrl?: string }
   thoughtPanelPreview: (t: TurnGroup) => string
   processStepKey: (t: TurnGroup, idx: number) => string
@@ -76,6 +79,11 @@ export type ManagerChatThreadContext = {
   formatProcessText: (text: string, kind: string) => string
   toggleProcessStep: (t: TurnGroup, idx: number) => void
   isSynthPhaseActive: () => boolean
+  turnRunStatusPill: (t: TurnGroup) => {
+    label: string
+    kind: 'think' | 'dispatch' | 'synth'
+    elapsed?: string
+  } | null
   onReplyMarkdownClick: (e: MouseEvent) => void
   renderAssistantMarkdown: (text: string, sources?: SearchSourceItem[]) => string
   cachedResultMarkdownHtml: (text: string, turn: TurnGroup, resultIdx: number) => string

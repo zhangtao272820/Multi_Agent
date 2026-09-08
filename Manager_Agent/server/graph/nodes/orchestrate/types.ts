@@ -6,6 +6,8 @@ export type CreateOrchestrateNodeDeps = {
   opts: {
     sendEvent: (event: { event: string; data?: any; from?: string }) => void
     runId?: string
+    multimodalAgentHttpUrl?: string
+    signal?: AbortSignal
   }
   lastUserText: (messages: any[]) => string
   llmInvoke: LlmInvokeFn

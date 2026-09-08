@@ -135,9 +135,8 @@ export async function recordMemory(
     await agentPgQuery(
       `INSERT INTO db_user_preferences (user_key, payload, tenant_id, updated_at)
        VALUES ($1, $2, $3, NOW())
-       ON CONFLICT (user_key) DO UPDATE SET
+       ON CONFLICT (tenant_id, user_key) DO UPDATE SET
          payload = EXCLUDED.payload,
-         tenant_id = EXCLUDED.tenant_id,
          updated_at = NOW()`,
       [userKey, JSON.stringify(event.payload), tenantId],
       env
@@ -150,9 +149,8 @@ export async function recordMemory(
     await agentPgQuery(
       `INSERT INTO mgr_user_profiles (user_key, payload, tenant_id, updated_at)
        VALUES ($1, $2::jsonb, $3, NOW())
-       ON CONFLICT (user_key) DO UPDATE SET
+       ON CONFLICT (tenant_id, user_key) DO UPDATE SET
          payload = EXCLUDED.payload,
-         tenant_id = EXCLUDED.tenant_id,
          updated_at = NOW()`,
       [userKey, JSON.stringify(event.payload), tenantId],
       env
@@ -180,17 +178,31 @@ export async function recallMemory(
 
   if (scope.agent === 'manager' && isPostgresStorageEnabled(backend)) {
     const types = scope.types?.length ? scope.types : (['experience'] as MemoryEventType[])
+    const userKey = String(scope.userKey || '').trim()
     const res = await agentPgQuery<{
       id: string
       entry_type: string
       ts: string
       payload: Record<string, unknown>
     }>(
-      `SELECT id, entry_type, ts, payload FROM mgr_memory_entries
-       WHERE tenant_id = $1 AND entry_type = ANY($2)
-         AND COALESCE(payload->>'deleted_at', '') = ''
-       ORDER BY ts DESC LIMIT $3`,
-      [tenantId, types, Math.min(200, limit * 20)],
+      userKey
+        ? `SELECT id, entry_type, ts, payload FROM mgr_memory_entries
+           WHERE tenant_id = $1 AND entry_type = ANY($2)
+             AND COALESCE(payload->>'deleted_at', '') = ''
+             AND (
+               user_id = $4
+               OR payload->>'userId' = $4
+               OR payload->>'user_key' = $4
+               OR COALESCE(user_id, '') = ''
+             )
+           ORDER BY ts DESC LIMIT $3`
+        : `SELECT id, entry_type, ts, payload FROM mgr_memory_entries
+           WHERE tenant_id = $1 AND entry_type = ANY($2)
+             AND COALESCE(payload->>'deleted_at', '') = ''
+           ORDER BY ts DESC LIMIT $3`,
+      userKey
+        ? [tenantId, types, Math.min(200, limit * 20), userKey]
+        : [tenantId, types, Math.min(200, limit * 20)],
       env
     )
     const rows = res?.rows ?? []

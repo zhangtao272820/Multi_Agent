@@ -153,6 +153,7 @@ export function formatSourceCommitmentPromptRule(): string {
     '- clear：意图明确（可隐晦）→ 锁面；库存盖不住 → clarify，禁静默改道；',
     '- ambiguous：说不清库/文档/公网/办事/附件 → needsClarify+plane，禁赌 Agent；',
     '- none：db/rag 按 taskIntent+catalog 推断（仅此时可单源翻面）；',
-    '- **通道固定**：未点公网的天气/出行/日程/邮件 → admin；清晰联网/爬取/网页正文 → crawler；打开站点点选登录 → gui；附件 → multimodal。'
+    '- **通道固定**：未点公网的天气/出行/日程/邮件 → admin + adminCapabilityHints；清晰联网/爬取/网页正文 → crawler + webFetchKind；打开站点点选登录 → gui；附件 → multimodal；',
+    '- 天气/地图：API 通道须填 sourceCommitment/webFetchKind/adminCapabilityHints（weather|map）；「联网搜天气/搜路线政策」须 clear+crawler，勿只写天气词却不填清晰度。'
   ].join('\n')
 }

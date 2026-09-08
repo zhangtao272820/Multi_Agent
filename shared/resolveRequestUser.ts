@@ -13,6 +13,7 @@ import {
   requireBrowserOrInternalAuth,
   type AuthEventLike
 } from './nitroClawhiveAuth'
+import { isTenantFailClosed, normalizeTenantId, requireTenantId, ScopeRequiredError } from './tenantScope'
 
 export type AuthMode = 'browser' | 'internal' | 'open'
 
@@ -115,7 +116,18 @@ export function resolveRequestUserId(
     return createError({ statusCode: picked.statusCode, statusMessage: picked.statusMessage })
   }
 
-  const tenantId = String(auth.user?.tenantId || ctxUser?.tenantId || 'default').trim() || 'default'
+  const rawTenant = String(auth.user?.tenantId || ctxUser?.tenantId || '').trim()
+  let tenantId: string
+  try {
+    tenantId = isTenantFailClosed(opts?.env)
+      ? requireTenantId(rawTenant, opts?.env)
+      : normalizeTenantId(rawTenant || 'default', opts?.env)
+  } catch (e) {
+    if (e instanceof ScopeRequiredError) {
+      return createError({ statusCode: 401, statusMessage: 'tenant_required' })
+    }
+    throw e
+  }
   return {
     userId: picked.userId,
     mode: auth.mode,

@@ -898,8 +898,12 @@ function App() {
   );
 
   const isProcessExpanded = useCallback(
-    (turnId?: number) => turnId != null && expandedProcessTurns.has(turnId),
-    [expandedProcessTurns],
+    (turnId?: number) => {
+      if (turnId == null) return false;
+      if (loading && activeTurnId === turnId) return true;
+      return expandedProcessTurns.has(turnId);
+    },
+    [expandedProcessTurns, loading, activeTurnId],
   );
 
   const toggleProcessPanel = useCallback((turnId?: number) => {
@@ -1512,14 +1516,40 @@ function App() {
         ws.onmessage = (event) => {
           try {
             const data = JSON.parse(event.data);
-            if (data.type === 'thought') {
+            if (data.type === 'thought' || data.type === 'thought_delta') {
+              const pendingId = pendingAgentIdRef.current;
+              if (!pendingId) return;
+              const chunk = String(data.content || '');
+              if (!chunk) return;
+              setMessages((prev) =>
+                prev.map((msg) =>
+                  msg.id === pendingId
+                    ? { ...msg, thoughts: [...(msg.thoughts ?? []), chunk] }
+                    : msg,
+                ),
+              );
+              return;
+            }
+
+            if (data.type === 'stream_start') {
               const pendingId = pendingAgentIdRef.current;
               if (!pendingId) return;
               setMessages((prev) =>
                 prev.map((msg) =>
-                  msg.id === pendingId
-                    ? { ...msg, thoughts: [...(msg.thoughts ?? []), data.content] }
-                    : msg,
+                  msg.id === pendingId ? { ...msg, content: msg.content || '' } : msg,
+                ),
+              );
+              return;
+            }
+
+            if (data.type === 'delta') {
+              const pendingId = pendingAgentIdRef.current;
+              if (!pendingId) return;
+              const chunk = String(data.content || '');
+              if (!chunk) return;
+              setMessages((prev) =>
+                prev.map((msg) =>
+                  msg.id === pendingId ? { ...msg, content: String(msg.content || '') + chunk } : msg,
                 ),
               );
               return;
@@ -1539,9 +1569,11 @@ function App() {
                 setMessages((prev) => {
                   const next = prev.map((msg) => {
                     if (msg.id === pendingId) {
+                      const streamed = String(msg.content || '').trim();
+                      const finalBody = String(data.response || '').trim() || streamed;
                       return {
                         ...msg,
-                        content: data.response,
+                        content: finalBody,
                         thoughts: [...(msg.thoughts ?? []), ...(data.thoughts || []), '回答完成'].filter(
                           (t: string, i: number, arr: string[]) => arr.indexOf(t) === i,
                         ),
@@ -2275,12 +2307,13 @@ function App() {
       );
 
       const streamedThoughts: string[] = [];
+      let streamedAnswer = '';
       await new Promise<void>((resolve, reject) => {
         ws.onmessage = (event) => {
           try {
             const data = JSON.parse(event.data);
-            if (data.type === 'thought') {
-              const thought = String(data.content || '').trim();
+            if (data.type === 'thought' || data.type === 'thought_delta') {
+              const thought = String(data.content || '');
               if (!thought) return;
               streamedThoughts.push(thought);
               setMessages((prev) =>
@@ -2292,9 +2325,27 @@ function App() {
               );
               return;
             }
+            if (data.type === 'stream_start') {
+              streamedAnswer = '';
+              return;
+            }
+            if (data.type === 'delta') {
+              const chunk = String(data.content || '');
+              if (!chunk) return;
+              streamedAnswer += chunk;
+              setMessages((prev) =>
+                prev.map((msg) =>
+                  msg.id === streamingAgentId
+                    ? { ...msg, content: streamedAnswer }
+                    : msg,
+                ),
+              );
+              return;
+            }
             if (data.type === 'final') {
               const resultText =
                 String(data.response || '').trim()
+                || streamedAnswer
                 || (decision === '确认' ? '已确认执行。' : '已取消操作。');
               applyDecisionResult(resultText, streamedThoughts);
               ws.close();
@@ -2531,8 +2582,8 @@ function App() {
               >
                 历史
               </button>
-              <button type="button" className="admin-toolbar-btn" onClick={() => newSession()}>
-                新会话
+              <button type="button" className="admin-toolbar-btn brand-btn--pill admin-new-session-btn" onClick={() => newSession()}>
+                + 新会话
               </button>
               <button
                 type="button"
@@ -2576,8 +2627,8 @@ function App() {
               <div className="admin-history-inner">
                 <div className="admin-chat-toolbar">
                   <span className="admin-chat-toolbar-title">历史会话</span>
-                  <button type="button" className="admin-toolbar-btn" onClick={() => newSession()}>
-                    新会话
+                  <button type="button" className="brand-btn--pill admin-new-session-btn" onClick={() => newSession()}>
+                    + 新会话
                   </button>
                 </div>
                 {!sessionHistoryItems.length ? (
@@ -2774,8 +2825,8 @@ function App() {
                                   aria-expanded={isProcessExpanded(msg.turnId)}
                                 >
                                   <span className="admin-process-dot" aria-hidden />
-                                  <span className="admin-process-toggle__label">
-                                    {isTurnRunning(msg.turnId) ? '思考中' : '处理过程'}
+                                  <span className="admin-process-toggle__label admin-think-label">
+                                    {isTurnRunning(msg.turnId) ? 'think' : '已思考'}
                                   </span>
                                   <span className="admin-process-toggle__summary">
                                     {processToggleSummary(msg.thoughts ?? [], isTurnRunning(msg.turnId))}
@@ -2785,14 +2836,14 @@ function App() {
                                   </span>
                                 </button>
                                 {isProcessExpanded(msg.turnId) && (
-                                  <div className="admin-process-steps">
-                                    {visibleThoughts(msg.thoughts).map((thought, tIdx) => (
-                                      <div key={tIdx} className="admin-process-step">
-                                        <span className="admin-process-step__idx">{tIdx + 1}</span>
-                                        <span className="admin-process-step__text">{thought}</span>
-                          </div>
-                        ))}
-                      </div>
+                                  <div className="admin-harness-think">
+                                    <span className="admin-harness-think-text">
+                                      {visibleThoughts(msg.thoughts).join('\n\n')}
+                                    </span>
+                                    {isTurnRunning(msg.turnId) && !msg.content?.trim() ? (
+                                      <span className="admin-harness-think-caret" aria-hidden />
+                                    ) : null}
+                                  </div>
                                 )}
                               </div>
                             )}
@@ -3001,12 +3052,28 @@ function App() {
                 />
                 <button
                           onClick={() => void onSendOrCancel()}
-                          className={`admin-composer__send ${loading ? 'is-cancel' : ''}`}
+                          className={`brand-send-fab admin-composer__send admin-send-cancel ${loading ? 'is-cancel' : ''}`}
                           disabled={!loading && !input.trim()}
-                  type="button"
-                >
-                          {loading ? '停止' : '发送'}
-                </button>
+                          type="button"
+                          title={loading ? '停止' : '发送'}
+                          aria-label={loading ? '停止' : '发送'}
+                        >
+                          {loading ? (
+                            <svg className="brand-send-fab__icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                              <rect x="6" y="6" width="12" height="12" rx="2" />
+                            </svg>
+                          ) : (
+                            <svg className="brand-send-fab__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                              <path
+                                d="M12 19V5M12 5l-6 6M12 5l6 6"
+                                stroke="currentColor"
+                                strokeWidth="2.2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
+                            </svg>
+                          )}
+                        </button>
                       </div>
               </div>
             </footer>

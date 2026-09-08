@@ -152,6 +152,18 @@ function pickStreamChunkText(chunk: unknown): string {
   return chunk != null ? String(chunk) : "";
 }
 
+/** Qwen 混合思考：从 LangChain/OpenAI 兼容 chunk 取 reasoning_content */
+function pickStreamReasoningText(chunk: unknown): string {
+  if (!chunk || typeof chunk !== "object") return "";
+  const c = chunk as Record<string, unknown>;
+  if (typeof c.reasoning_content === "string" && c.reasoning_content) return c.reasoning_content;
+  const ak = (c.additional_kwargs ?? (c.message as Record<string, unknown> | undefined)?.additional_kwargs) as
+    | Record<string, unknown>
+    | undefined;
+  if (typeof ak?.reasoning_content === "string") return ak.reasoning_content;
+  return "";
+}
+
 const historyToMessages = (items: ChatHistoryItem[]): BaseMessage[] => {
   const out: BaseMessage[] = [];
   for (const it of items) {
@@ -697,7 +709,12 @@ export default defineEventHandler(async (event) => {
         const lgNode = String(eventMsg.metadata?.langgraph_node ?? "").trim();
         // 屏蔽路由/摘要节点流式输出（避免会话摘要、用户偏好块泄漏到前端）
         if (STREAM_BLOCK_NODES.has(lgNode)) continue;
-        const content = eventMsg.data?.chunk?.content;
+        const chunk = eventMsg.data?.chunk;
+        const reasoning = pickStreamReasoningText(chunk);
+        if (reasoning) {
+          sendData({ type: "reasoning", content: reasoning });
+        }
+        const content = chunk?.content;
         const tokenText = pickStreamChunkText(content);
         if (tokenText && !isUnsafeStreamToken(tokenText)) {
           streamedAnswer += tokenText;

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import threading
@@ -74,7 +75,7 @@ class AskBody(BaseModel):
     tenant: str = ""
     dbId: str = ""
     db_id: str = ""
-    scene: str = "assistant"
+    scene: str = "auto"
     confirm: bool = False
     pending_id: str = ""
     sql: str = ""
@@ -90,7 +91,7 @@ class AskBody(BaseModel):
 
 class SessionBody(BaseModel):
     tenant: str = "p2604"
-    scene: str = "assistant"
+    scene: str = "auto"
     title: str = ""
 
 
@@ -642,7 +643,7 @@ def _mcp_call(name: str, args: dict[str, Any]) -> dict[str, Any]:
         ask_body = AskBody(
             question=str(args.get("question") or ""),
             tenant=str(args.get("tenant") or "p2604"),
-            scene=str(args.get("scene") or "assistant"),
+            scene=str(args.get("scene") or "auto"),
             confirm=False,
         )
         events = list(_run(ask_body, headers=None, force_manager=False))
@@ -671,7 +672,7 @@ def _mcp_call(name: str, args: dict[str, Any]) -> dict[str, Any]:
         }
     if name == "preview_write_sql":
         tenant = _tenant_or_404(str(args.get("tenant") or "p2604"))
-        scene = get_scene(str(args.get("scene") or "assistant"))
+        scene = get_scene(str(args.get("scene") or "auto"))
         events = list(
             preview_write_turn(
                 tenant=tenant,
@@ -740,6 +741,8 @@ def pending_decide(body: PendingDecideBody, request: Request) -> dict[str, Any]:
             error_code=str(answer_ev.get("error_code") or ""),
             tables=list(answer_ev.get("tables") or []),
             rows=list(answer_ev.get("rows") or [])[:30],
+            chart=answer_ev.get("chart"),
+            deliverables=answer_ev.get("deliverables") if isinstance(answer_ev.get("deliverables"), dict) else None,
         )
         return {"ok": bool(agent_result.get("ok")), "answer": text, "sql": sql, "agentResult": agent_result}
     result = decide_write_pending(
@@ -814,6 +817,8 @@ def ask(body: AskBody, request: Request) -> dict[str, Any]:
             else None
         )
         or answer_ev.get("impact_estimate"),
+        chart=answer_ev.get("chart"),
+        deliverables=answer_ev.get("deliverables") if isinstance(answer_ev.get("deliverables"), dict) else None,
     )
     sid = str(body.session_id or body.sessionId or "")
     return {
@@ -828,6 +833,10 @@ def ask(body: AskBody, request: Request) -> dict[str, Any]:
         "needs_human_confirm": bool(answer_ev.get("needs_human_confirm")),
         "pending_actions": answer_ev.get("pending_actions") or [],
         "rows": answer_ev.get("rows") or [],
+        "field_details": answer_ev.get("field_details") or [],
+        "suggestions": answer_ev.get("suggestions") or [],
+        "chart": answer_ev.get("chart"),
+        "deliverables": answer_ev.get("deliverables") or {},
         "session_id": sid,
         "ok": bool(agent_result.get("ok")),
     }
@@ -901,9 +910,49 @@ async def chat_ws(ws: WebSocket) -> None:
     trace_id = str(body.trace_id or body.traceId or payload.get("trace_id") or "")
     try:
         await ws.send_json({"event": "status", "data": "start"})
-        await ws.send_json({"event": "thinking", "data": "数据库 Agent：处理中…"})
-        events = list(_run(body, headers=headers, force_manager=True))
-        answer_ev = next((e for e in reversed(events) if e.get("event") == "answer"), {})
+        # 不加「数据库 Agent：」前缀：总管 dbClient 会再包一层
+        await ws.send_json({"event": "thinking", "data": "处理中…"})
+        answer_ev: dict[str, Any] = {}
+        sql_source = ""
+        streamed_answer_tokens = False
+        # 边跑边推：禁止 list(_run) 整包后再单条 message
+        for ev in _run(body, headers=headers, force_manager=True):
+            if not isinstance(ev, dict):
+                continue
+            name = str(ev.get("event") or "")
+            if name == "token":
+                tok = str(ev.get("text") or "")
+                if tok:
+                    if not streamed_answer_tokens:
+                        await ws.send_json({"event": "stream_start", "data": {"phase": "answer"}})
+                        streamed_answer_tokens = True
+                    await ws.send_json({"event": "delta", "data": tok, "from": "db"})
+                continue
+            if name == "reasoning":
+                reason = str(ev.get("text") or "")
+                if reason:
+                    await ws.send_json({"event": "thought_delta", "data": reason, "from": "db"})
+                continue
+            if name == "answer":
+                answer_ev = ev
+                text = str(ev.get("text") or "")
+                # 若前面已真流 token，则不再整段伪流
+                if text and not streamed_answer_tokens:
+                    await ws.send_json({"event": "stream_start", "data": {"phase": "answer"}})
+                    chunk = 14
+                    for i in range(0, len(text), chunk):
+                        await ws.send_json({"event": "delta", "data": text[i : i + chunk]})
+                        await asyncio.sleep(0.012)
+                continue
+            if name == "sql":
+                sql_source = str(ev.get("source") or sql_source)
+            # 管道进度 → thinking（非 raw JSON 整包）
+            label = str(ev.get("label") or ev.get("phase") or name or "").strip()
+            if label and name not in {"answer", "meta", "token", "reasoning"}:
+                await ws.send_json({"event": "thinking", "data": label})
+            if name in {"retrieve", "sql", "guard", "repair", "clarify", "status"}:
+                await ws.send_json({"event": name, "data": {k: v for k, v in ev.items() if k != "event"}})
+
         text = str(answer_ev.get("text") or "")
         sql = str(answer_ev.get("sql") or "")
         empty = bool(answer_ev.get("empty"))
@@ -913,12 +962,16 @@ async def chat_ws(ws: WebSocket) -> None:
             "error_code": answer_ev.get("error_code") or ("empty_result" if empty else None),
             "executed_sql": sql,
             "needs_clarification": needs_clarify,
-            "path": next((e.get("source") for e in events if e.get("event") == "sql"), ""),
+            "path": sql_source,
             "fail_reason": "ok" if not empty and not needs_clarify else (answer_ev.get("error_code") or "no_data_or_unmatched"),
             "rows": list(answer_ev.get("rows") or [])[:30],
             "field_details": list(answer_ev.get("field_details") or [])[:12],
+            "suggestions": list(answer_ev.get("suggestions") or [])[:4],
+            "chart": answer_ev.get("chart"),
+            "deliverables": answer_ev.get("deliverables") or {},
         }
-        await ws.send_json({"event": "meta", "data": meta})
+        # Decimal/datetime 等须可 JSON 序列化，否则 meta 整包失败 → 总管丢 rows
+        await ws.send_json({"event": "meta", "data": json.loads(json.dumps(meta, ensure_ascii=False, default=str))})
         await ws.send_json({"event": "message", "data": text})
         await ws.send_json({"event": "status", "data": "end"})
     except WebSocketDisconnect:
@@ -1131,6 +1184,9 @@ def _run(
             "error": trace_meta.get("error") or "",
             "rows": list(answer_ev.get("rows") or [])[:30],
             "field_details": list(answer_ev.get("field_details") or [])[:12],
+            "suggestions": list(answer_ev.get("suggestions") or [])[:4],
+            "chart": answer_ev.get("chart"),
+            "deliverables": answer_ev.get("deliverables") or {},
             "needs_clarify": bool(answer_ev.get("needs_clarify")),
         }
         text = str(answer_ev.get("text") or "")

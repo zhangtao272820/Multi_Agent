@@ -4,11 +4,11 @@
    ═══════════════════════════════════════════════════════════════ */
 
 .spring-root.cursor-workbench.cosmic-theme {
-  /* DeepSeek Harness 风：主列吃满中间栏，上限放宽 */
+  /* DeepSeek Harness：居中窄栏 760–840，禁止拉满中间栏 */
   --chat-rail-pad-x: 18px;
-  --chat-rail-gap: 8px;
+  --chat-rail-gap: 10px;
   --chat-rail-max: min(
-    1120px,
+    840px,
     calc(100vw - var(--mgr-sidebar-w, 248px) - var(--mgr-tools-w, 300px) - 2 * var(--chat-rail-pad-x, 18px) - 16px)
   );
   --chat-col-width: var(--chat-rail-max);
@@ -16,7 +16,7 @@
 
 .spring-root.cursor-workbench.cosmic-theme.mode-professional {
   --chat-rail-max: min(
-    1200px,
+    840px,
     calc(100vw - var(--mgr-sidebar-w, 248px) - var(--mgr-tools-w, 300px) - 2 * var(--chat-rail-pad-x, 18px) - 16px)
   );
 }

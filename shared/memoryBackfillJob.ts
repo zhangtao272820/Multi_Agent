@@ -46,8 +46,8 @@ export async function rebuildToolMemoryFromExperiences(
   if (!isAgentPgConfigured()) return { scanned: 0, recorded: 0, agents: {} }
 
   const maxRows = Math.max(1, Math.min(5000, opts?.maxRows ?? 800))
-  const res = await agentPgQuery<{ payload: ExperiencePayload }>(
-    `SELECT payload FROM mgr_memory_entries
+  const res = await agentPgQuery<{ payload: ExperiencePayload; tenant_id: string }>(
+    `SELECT payload, tenant_id FROM mgr_memory_entries
      WHERE entry_type = 'experience'
      ORDER BY ts ASC
      LIMIT $1`,
@@ -67,15 +67,19 @@ export async function rebuildToolMemoryFromExperiences(
     const planAgents = parsePlanAgents(payload)
     if (!planAgents.length) continue
     const scenarioKey = String(payload.scenarioKey || payload.scenario_key || '__global__').slice(0, 128)
-    const durationMs = Number(payload.durationMs ?? payload.duration_ms ?? 0) || 0
+    const durationMs = Number(payload.durationMs || payload.duration_ms || 0) || 0
     const msPerAgent = Math.round(durationMs / Math.max(1, planAgents.length))
     const failureCategory = String(payload.failureCategory || payload.failure_category || '')
+    const tenantId = String(
+      row.tenant_id || payload.tenantId || payload.tenant_id || 'default'
+    ).trim() || 'default'
 
     for (const agentName of planAgents) {
       const ok = inferToolSuccessFromExperience(payload, agentName)
       if (!opts?.dryRun) {
         await recordToolMemoryEvent(
           {
+            tenantId,
             agent: 'manager',
             toolName: agentName,
             contextKey: scenarioKey,

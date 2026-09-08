@@ -5,8 +5,15 @@ from typing import Any
 from app.scenes import Scene
 
 
-def infer_chart(rows: list[dict[str, Any]], scene: Scene) -> dict[str, Any] | None:
-    if not scene.allow_chart or not rows or len(rows) < 2:
+def infer_chart(
+    rows: list[dict[str, Any]],
+    scene: Scene,
+    *,
+    want_chart: bool | None = None,
+) -> dict[str, Any] | None:
+    """0-LLM 启发式制图。want_chart 优先；None 时回退 scene.allow_chart。"""
+    allow = bool(scene.allow_chart) if want_chart is None else bool(want_chart)
+    if not allow or not rows or len(rows) < 2:
         return None
     keys = list(rows[0].keys())
     if len(keys) < 2:

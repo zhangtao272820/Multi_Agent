@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from .config import Settings
-from .llm import text_qa, transcribe_audio_file, vision_describe
+from .llm import text_qa, transcribe_audio_file, vision_caption, vision_describe
 from .processors import AudioProcessor, ImageProcessor, VideoProcessor
 
 logger = logging.getLogger(__name__)
@@ -98,6 +98,22 @@ class MultimodalAgent:
         self.image = ImageProcessor(settings)
         self.video = VideoProcessor(settings)
         self.audio = AudioProcessor(settings)
+
+    def caption_image(self, path: Path, question: str = "") -> dict[str, Any]:
+        """总管路由用短 caption（≤80 字），不走 helper 精炼。"""
+        ok, msg = self.image.validate(path)
+        if not ok:
+            return {"ok": False, "error": msg, "caption": "", "ocr_snippet": ""}
+        vl_path = self.image.prepare_for_vl(path)
+        cap = vision_caption(self.settings, image_path=vl_path, question=question)
+        return {
+            "ok": True,
+            "media_type": "image",
+            "caption": str(cap.get("caption") or "").strip()[:80],
+            "ocr_snippet": str(cap.get("ocr_snippet") or "").strip()[:120],
+            "confidence": float(cap.get("confidence", 0.7) or 0.7),
+            "raw": cap,
+        }
 
     def analyze_image(self, path: Path, question: str = "", *, on_stage: StageFn = None) -> dict[str, Any]:
         _stage(on_stage, "validate", "校验图像格式与大小…")

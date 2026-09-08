@@ -40,7 +40,8 @@ export function createRagChatOpenAI(input: {
         maxTokens,
         ...(input.streaming ? { streaming: true } : {}),
       },
-      { enableThinking: false },
+      // 结构化 JSON/condense/evidence 强制关；chat 回答跟随 CAP/QWEN env
+      input.jsonTask ? { enableThinking: false } : undefined,
     ) as ConstructorParameters<typeof ChatOpenAI>[0],
   );
 }

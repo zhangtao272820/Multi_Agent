@@ -149,6 +149,8 @@ export type ManagerWsInboundCtx = {
   absorbProactiveNudges: (nudges: unknown[] | undefined) => void
   applyTaskStackFromServer: (items: unknown[]) => void
   isPlanStepsJsonLog: (text: string) => boolean
+  /** 用户/开发视图：未识别 WS 帧仅开发视图落盘 */
+  thoughtViewMode: Ref<'user' | 'developer'>
   bogusFinalText: RegExp
   applyPostureHint: (payload: unknown) => void
   notePostureWriteFiltered: (turn: number, runId?: string) => void
@@ -596,8 +598,8 @@ export function handleManagerWsInboundMessage(evt: MessageEvent, ctx: ManagerWsI
           : payload && typeof payload === 'object'
             ? String((payload as { text?: string }).text || '')
             : ''
-      const line = text.trim()
-      if (line) ctx.add('thought_delta', line, data.from, turn, runId)
+      // 保留增量空格，禁止 trim 导致流式拼词粘连
+      if (text) ctx.add('thought_delta', text, data.from, turn, runId)
       return
     }
     if (event === 'run_report') {
@@ -981,9 +983,15 @@ export function handleManagerWsInboundMessage(evt: MessageEvent, ctx: ManagerWsI
     }
     if (event === 'trace') {
       if (runId) ctx.activeTraceId.value = runId
-      ctx.add('trace', JSON.stringify(data.data ?? {}), data.from, turn, runId)
+      // 开发视图才进过程区；用户主对话不 dump JSON
+      if (ctx.thoughtViewMode?.value === 'developer') {
+        ctx.add('trace', JSON.stringify(data.data ?? {}), data.from, turn, runId)
+      }
       return
     }
-    if (ctx.isPlanStepsJsonLog(JSON.stringify(data))) return
-    ctx.add('event', JSON.stringify(data), data.from, turn, runId)
+    // 未识别帧：禁止 pretty JSON 进用户过程区（握手/connected 等噪音）
+    if (ctx.thoughtViewMode?.value === 'developer') {
+      if (ctx.isPlanStepsJsonLog(JSON.stringify(data))) return
+      ctx.add('event', JSON.stringify(data), data.from, turn, runId)
+    }
 }

@@ -59,11 +59,19 @@ const filtered = applyPresentationToSlots(
   {
     metrics: [{ label: 'x', value: '1' }],
     chart: { title: 't', option: {} },
-    table: { headers: ['a'], rows: [['1']] }
+    table: { headers: ['a'], rows: [['']] } // 无有效值 → 可剥
   },
   singlePlan
 )
-assert(!filtered.chart && !filtered.table && !filtered.metrics, 'single plan strips widgets')
+assert(!filtered.chart && !filtered.table && !filtered.metrics, 'single plan strips empty widgets')
+
+const keepValued = applyPresentationToSlots(
+  {
+    table: { headers: ['姓名'], rows: [['王建国']] }
+  },
+  singlePlan
+)
+assert(keepValued.table?.rows?.[0]?.[0] === '王建国', 'valued db table survives plan without table module')
 
 const complexFallback = assembleStructuralPresentationFallback({
   thickness: 'complex',
@@ -173,6 +181,6 @@ const singleFallback = assembleStructuralPresentationFallback({
   thickness: 'single_source',
   artifacts: [{ kind: 'db_result', label: 'db', rowCount: 12 }]
 })
-assert(singleFallback.modules.some((m) => m.type === 'table' && m.collapsed), 'single_source table collapsed')
+assert(singleFallback.modules.some((m) => m.type === 'table' && !m.collapsed), 'single_source table inline (not collapsed)')
 
 console.log('smoke-presentation-plan: ok')

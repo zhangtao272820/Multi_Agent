@@ -23,10 +23,10 @@
 
 ## 现在就能用（对照验收）
 
-- 打开 http://127.0.0.1:13120 ，租户 `p2026`（或已 ingest 的租户），场景「后台助手」。
+- 打开 http://127.0.0.1:13120 ，租户 `p2026`（或已 ingest 的租户），默认「智能问数」（无需选手动场景）。
 - 总管 http://127.0.0.1:13106 ：`cap=db` 打 Vanna；联机用例脚本：`python scripts/live_p2026_manager_cases.py`
 - 黄金问句：白名单表计数/名单 + 手工 JOIN。执行成功后可点「收入黄金」（不自动晋级）。
-- **LLM 次数**：ask 主路径 **始终 1 次 Understand**；`path=golden` 时省第二次 SQL LLM；`path=llm_sql` 再加 1 次写 SQL（失败可修）。精确黄金/指标别名经归一化后仍走 Understand，由 Router 确认 `path=golden`。
+- **LLM 次数**：ask 主路径 **始终 1 次 Understand**（含交付物）；`path=golden` 时省第二次 SQL LLM；`path=llm_sql` 再加 1 次写 SQL（失败可修）；`need_interpret` 才用 answer polish；制图 0 LLM。
 - Docker：`vanna_db_web:13120`、`vanna_db_agent:13121`（总管 DB）；旧 `db_agent:13101` 仅回滚用。
 
 真实问句清单：[docs/p2604-real-questions.md](docs/p2604-real-questions.md)（内容为 **p2026**）。  
@@ -59,7 +59,7 @@ NLU / 快路径 / 约束评估：[docs/nlu-capability-assessment.md](docs/nlu-ca
 
 - 用户登录与 ERP JWT 打通（P2604 后台 9990 浮窗仍未做）。
 - 只读 MySQL 账号（当前可用 root，生产应换成 SELECT-only；**写库账号应单独最小权限**，勿用无边界 root 当唯一防线）。
-- 场景自动识别（开关默认关，避免再变成多次 LLM）。
+- Understand 交付物（`need_chart` / `need_interpret` / `sys_meta`）塞进同一次 Router；默认 `scene=auto`，UI 高级策略可覆盖 dba/audit。不另开 `scene_detect` LLM。
 
 ## 写库 HITL（已交付 · p2026）
 

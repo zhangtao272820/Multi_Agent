@@ -51,6 +51,44 @@ export function probeStrongSolePlane(probe?: RouteSkipProbeHint | null): 'db' | 
   return null
 }
 
+export function isRouteCascadeEnabled(): boolean {
+  const v = String(process.env.MANAGER_ROUTE_CASCADE ?? '0').trim().toLowerCase()
+  return v === '1' || v === 'true' || v === 'on' || v === 'yes'
+}
+
+/** 编排 selfCheck.needsSecondPass：仅 flag 开启且显式 false 才扩 skip */
+export function applyCascadeSelfCheckSkip(
+  base: RouteReviewSkipDecision,
+  sourceCommitmentRaw?: Record<string, unknown> | null
+): RouteReviewSkipDecision {
+  if (!isRouteCascadeEnabled()) return base
+  if (base.reasons.includes('ambiguous') || base.reasons.includes('true_multi') || base.reasons.includes('needs_web')) {
+    return base
+  }
+  const raw = sourceCommitmentRaw && typeof sourceCommitmentRaw === 'object' ? sourceCommitmentRaw : {}
+  const selfCheck =
+    (raw.selfCheck as { needsSecondPass?: boolean; reason?: string } | undefined) ||
+    (raw.self_check as { needsSecondPass?: boolean; reason?: string } | undefined)
+  if (!selfCheck || typeof selfCheck !== 'object') return base
+  if (selfCheck.needsSecondPass === true) {
+    return {
+      skipAlign: true,
+      skipPlane: false,
+      skipWebAlign: base.skipWebAlign,
+      reasons: [...base.reasons, 'cascade_needs_second_pass']
+    }
+  }
+  if (selfCheck.needsSecondPass === false) {
+    return {
+      skipAlign: true,
+      skipPlane: true,
+      skipWebAlign: true,
+      reasons: [...base.reasons, 'cascade_no_second_pass']
+    }
+  }
+  return base
+}
+
 /**
  * 是否跳过路由审查 LLM（align / plane）。
  * 条件均为结构信号：sourceCommitment、planShortcut、allowedAgents、probe 强弱。
@@ -83,6 +121,8 @@ export function shouldSkipRouteReviewLlm(input: {
     return { skipAlign: false, skipPlane: false, skipWebAlign: false, reasons: ['needs_web'] }
   }
 
+  let decision: RouteReviewSkipDecision | null = null
+
   // 基线：清晰单数据面
   if (
     isClearSolePlaneNoWeb({
@@ -94,50 +134,56 @@ export function shouldSkipRouteReviewLlm(input: {
     })
   ) {
     reasons.push('clear_sole_plane')
-    return { skipAlign: true, skipPlane: true, skipWebAlign: true, reasons }
+    decision = { skipAlign: true, skipPlane: true, skipWebAlign: true, reasons: [...reasons] }
   }
 
   // admin_only + clear：无 db/rag 混面，审查价值低
-  if (shortcut === 'admin_only' && slice.sourceCommitment === 'clear') {
+  if (!decision && shortcut === 'admin_only' && slice.sourceCommitment === 'clear') {
     const data = agents.filter((a) => a === 'db' || a === 'rag')
     if (data.length === 0) {
       reasons.push('admin_only_clear')
-      return { skipAlign: true, skipPlane: true, skipWebAlign: true, reasons }
+      decision = { skipAlign: true, skipPlane: true, skipWebAlign: true, reasons: [...reasons] }
     }
   }
 
   // probe 强单源与 orchestrator shortcut / 单 agent 一致 → 跳过 plane
   const strong = probeStrongSolePlane(input.probe)
   if (
+    !decision &&
     strong === 'db' &&
     (shortcut === 'db_only' ||
       (agents.filter((a) => a === 'db' || a === 'rag').length === 1 && agents.includes('db')))
   ) {
     reasons.push('probe_strong_db')
     const clearEnough = slice.sourceCommitment === 'clear' || shortcut === 'db_only'
-    return {
+    decision = {
       skipAlign: clearEnough,
       skipPlane: true,
       skipWebAlign: true,
-      reasons
+      reasons: [...reasons]
     }
   }
   if (
+    !decision &&
     strong === 'rag' &&
     (shortcut === 'rag_only' ||
       (agents.filter((a) => a === 'db' || a === 'rag').length === 1 && agents.includes('rag')))
   ) {
     reasons.push('probe_strong_rag')
     const clearEnough = slice.sourceCommitment === 'clear' || shortcut === 'rag_only'
-    return {
+    decision = {
       skipAlign: clearEnough,
       skipPlane: true,
       skipWebAlign: true,
-      reasons
+      reasons: [...reasons]
     }
   }
 
-  return { skipAlign: false, skipPlane: false, skipWebAlign: false, reasons: ['no_skip'] }
+  if (!decision) {
+    decision = { skipAlign: false, skipPlane: false, skipWebAlign: false, reasons: reasons.length ? reasons : ['default_review'] }
+  }
+
+  return applyCascadeSelfCheckSkip(decision, input.sourceCommitmentRaw)
 }
 
 /** 从 meta / pipeline 结果组装 routeSkips 埋点 */

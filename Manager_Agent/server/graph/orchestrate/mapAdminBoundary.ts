@@ -16,12 +16,20 @@ import {
   sourceCommitmentFromRaw
 } from './sourceCommitment'
 
+/** 过宽词：单独出现不足以把 crawler 重绑为 admin（避免「地址/附近」误伤政策页） */
+const WEAK_MAP_REMATERIALIZE_TERMS = new Set(['地址', '附近'])
+
 /** Admin 地图/出行能力域标记（SSOT：adminCapabilities 混合任务组 routeTerms） */
 export function adminMapCapabilityTerms(): readonly string[] {
   const g = ADMIN_CAPABILITY_GROUPS.find((x) => x.intent === '混合任务')
   return g?.routeTerms?.length
     ? g.routeTerms
     : ['路线', '多久', '地铁', '公交', '驾车', '怎么走', '通勤', '出行', '高德', '地图']
+}
+
+/** rematerialize 用的强信号（排除裸「地址」「附近」） */
+export function adminMapRematerializeStrongTerms(): readonly string[] {
+  return adminMapCapabilityTerms().filter((t) => !WEAK_MAP_REMATERIALIZE_TERMS.has(t))
 }
 
 /** 真网页/政策类信号：保留 crawler（与天气边界同构，避免地图词误伤政策抓取） */
@@ -60,7 +68,8 @@ export function textLooksLikeAdminMapCapability(text: string): boolean {
   ) {
     return false
   }
-  return includesAny(lean, adminMapCapabilityTerms())
+  // rematerialize：须有强出行信号；裸「地址/附近」不够（防误绑）
+  return includesAny(lean, adminMapRematerializeStrongTerms())
 }
 
 export function clauseIsMapBoundToCrawler(clause: TaskClause): boolean {

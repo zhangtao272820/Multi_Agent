@@ -26,7 +26,10 @@ async function loadPgModule(): Promise<typeof import('pg') | null> {
   }
   const roots = [
     process.cwd(),
+    // Nitro 生产产物：pg 装在 .output/server/node_modules
+    path.join(process.cwd(), '.output', 'server'),
     path.join(process.cwd(), 'Manager_Agent'),
+    path.join(process.cwd(), 'Manager_Agent', '.output', 'server'),
     path.join(process.cwd(), '..', 'Manager_Agent'),
     path.join(__sharedDir, '..', 'Manager_Agent'),
     path.join(__sharedDir, '..', 'DB_Agent')

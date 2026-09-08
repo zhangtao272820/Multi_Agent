@@ -42,6 +42,7 @@ async function main() {
   const block = formatProcessMemoryBlock([
     {
       id: 1,
+      tenantId: 'default',
       scenarioKey: 'finance',
       questionNorm: 'abc',
       toolChain: ['db', 'rag'],
@@ -69,12 +70,13 @@ async function main() {
     assert(items.length >= 1, 'list tool call audit')
 
     await upsertProcessMemory({
+      tenantId: 'default',
       question: '查询财务并生成报告',
       toolChain: ['db', 'report'],
       hint: 'smoke process path',
       successScore: 0.88
     })
-    const recalled = await recallProcessMemory('财务报告', { limit: 3 })
+    const recalled = await recallProcessMemory('财务报告', { tenantId: 'default', limit: 3 })
     assert(recalled.length >= 0, 'recall process memory')
     console.log(`smoke-p1-harness: pg roundtrip audit=${items.length} process=${recalled.length}`)
   } else {

@@ -73,6 +73,7 @@ function finishOrchestrateTurn(input: {
   opts: CreateOrchestrateNodeDeps['opts']
   sessionId?: string
   policyDir?: string
+  mediaAttachment?: unknown
 }) {
   const { state, turnScope, decision, orchestratorSource, pipelineResult, mergeMeta, opts } = input
   const judgeAccept =
@@ -210,6 +211,9 @@ function finishOrchestrateTurn(input: {
       data: `轻编排：单源 ${routedIntent}，跳过 Planner → 直连专才`,
       from: 'manager',
     })
+  }
+  if (input.mediaAttachment) {
+    return { ...next, mediaAttachment: input.mediaAttachment }
   }
   return next
 }
@@ -412,7 +416,10 @@ export function createOrchestrateNode(deps: CreateOrchestrateNodeDeps) {
       evolutionHint,
       llmInvoke,
       mergeMeta,
-      onThinking
+      onThinking,
+      multimodalAgentHttpUrl: String(opts.multimodalAgentHttpUrl || '').trim() || undefined,
+      signal: opts.signal,
+      traceId: opts.runId
     }
 
     // Phase2：续轮单源 cap 复用 — 跳过编排 LLM（probe 冲突则降级全量）
@@ -421,7 +428,8 @@ export function createOrchestrateNode(deps: CreateOrchestrateNodeDeps) {
       sessionAnchor: turnScope.suppressSessionAnchor ? null : sessionAnchor,
       lastUser: lastOnly,
       probe: state.probe,
-      meta: state.meta
+      meta: state.meta,
+      attachment: state.mediaAttachment
     })
     if (contBypass.ok) {
       const decision = buildContinuationBypassDecision({
@@ -519,7 +527,8 @@ export function createOrchestrateNode(deps: CreateOrchestrateNodeDeps) {
         mergeMeta,
         opts,
         sessionId,
-        policyDir
+        policyDir,
+        mediaAttachment: unified.mediaAttachment ?? state.mediaAttachment
       })
     } catch (e) {
       const detail = e instanceof Error ? e.message : String(e)

@@ -298,12 +298,15 @@ export async function composeManagerPromptContext(
     if (trimBlock(rulesText)) blocks.push(rulesText)
 
     if (isToolMemoryEnabled()) {
-      const toolRows = await queryToolMemoryTop({ limit: 6 }).catch(() => [])
+      const tenantId = String(state?.tenantId || state?.meta?.tenantId || '').trim() || undefined
+      const toolRows = await queryToolMemoryTop({ tenantId, limit: 6 }).catch(() => [])
       const toolBlock = formatToolMemoryBlock(toolRows)
       if (trimBlock(toolBlock)) blocks.push(toolBlock)
     }
 
+    const processTenantId = String(state?.tenantId || state?.meta?.tenantId || '').trim() || undefined
     const processRows = await recallProcessMemory(heuristicsText, {
+      tenantId: processTenantId,
       scenarioKey: String(state?.meta?.scenarioKey || state?.intent || '').trim() || undefined,
       limit: 3
     }).catch(() => [])

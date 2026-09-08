@@ -82,8 +82,8 @@ export async function classifyTurnScopeByLlm(input: {
             '仅以【用户末轮】原文描述任务；rationale 不得从锚点/历史虚构用户未说的第二任务。',
             'mode：chitchat | topic_shift | continuation | current_only',
             'turnKind（与 mode 对齐）：',
-            '- new_task：独立新任务（末轮自包含）',
-            '- continuation：短句承接上一轮任务（继续/同上/接着）',
+            '- new_task：独立新任务（末轮自包含，无需依赖上轮才能执行）',
+            '- continuation：短句/指代承接上一轮同一任务（继续/同上/接着改条件）',
             '- output_followup：追问上一轮**输出/结果**（如「同上面是 A 还是 B」「刚才说的是什么意思」），不是新查库任务',
             '- slot_answer：用户正在回答系统上一轮澄清问题（补全区域/对象/时间）',
             '- chitchat：寒暄确认',
@@ -92,7 +92,8 @@ export async function classifyTurnScopeByLlm(input: {
             '- slot：缺必填槽位（区域/对象/时间），须编排 needsClarify',
             '- plane：rag/db 数据面说不清且末轮无明确指向',
             '- output_disambiguation：用户对上轮结果二选一，needsClarify 应为 false',
-            '相似主题的新任务若未提及数据库/上一轮人名，必须 new_task + current_only，禁止 continuation。',
+            '末轮若本身是完整新任务（自足可执行），即使主题相近也必须 new_task + current_only，禁止 continuation。',
+            '仅当末轮依赖指代/省略（同上、刚才、再细一点、只要前3名）才可 continuation。',
             '「同上面/刚才/上文」且在对上轮答案消歧 → output_followup + output_disambiguation。',
             '只输出 JSON，无 markdown。'
           ].join('\n')

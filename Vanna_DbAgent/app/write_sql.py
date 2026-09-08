@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+import re
 from typing import Any, Iterator
 
 from app.db import run_select, run_write, run_writes
@@ -38,6 +40,28 @@ _CLASSIFY_SYS = """判断用户是否在请求改库（建表/改字段/插入�
 """
 
 
+def parse_llm_json(raw: str | dict[str, Any] | None) -> dict[str, Any]:
+    """chat_json 返回 str；兼容已解析 dict。"""
+    if isinstance(raw, dict):
+        return raw
+    text = str(raw or "").strip()
+    if not text:
+        return {}
+    try:
+        data = json.loads(text)
+        return data if isinstance(data, dict) else {}
+    except json.JSONDecodeError:
+        pass
+    m = re.search(r"\{[\s\S]*\}", text)
+    if not m:
+        return {}
+    try:
+        data = json.loads(m.group(0))
+        return data if isinstance(data, dict) else {}
+    except json.JSONDecodeError:
+        return {}
+
+
 def classify_read_or_write(*, question: str, meter: LlmMeter | None = None) -> str:
     """LLM 判定 read|write；失败默认 read。"""
     meter = meter or LlmMeter()
@@ -45,7 +69,7 @@ def classify_read_or_write(*, question: str, meter: LlmMeter | None = None) -> s
     if not q:
         return "read"
     try:
-        raw = chat_json(_CLASSIFY_SYS, f"用户：{q}", meter, max_tokens=120) or {}
+        raw = parse_llm_json(chat_json(_CLASSIFY_SYS, f"用户：{q}", meter, max_tokens=120))
     except Exception:
         return "read"
     mode = str(raw.get("mode") or "").strip().lower()
@@ -76,7 +100,7 @@ def plan_write_sql(
         f"用户请求：{question}\n\n"
         f"库表元数据：\n{cards or '(无卡片，仅可 CREATE TABLE 或澄清)'}\n"
     )
-    raw = chat_json(_WRITE_PLAN_SYS, user, meter, max_tokens=600) or {}
+    raw = parse_llm_json(chat_json(_WRITE_PLAN_SYS, user, meter, max_tokens=600))
     intent = str(raw.get("intent") or "").strip().lower()
     sql = str(raw.get("sql") or "").strip()
     return {

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { CollaborationPosture, PendingAttachment, WorkbenchMode } from '~/composables/managerChatTypes'
-import { COLLABORATION_POSTURE_OPTIONS } from '~/composables/managerChatTypes'
-import { computed, ref } from 'vue'
+import { COLLABORATION_POSTURE_OPTIONS, collaborationPostureLabel } from '~/composables/managerChatTypes'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
 const input = defineModel<string>({ required: true })
 
@@ -15,7 +15,25 @@ const props = defineProps<{
   pendingAttachment: PendingAttachment | null
   /** Plan 待确认时显示姿态条 */
   planAwaitingConfirm?: boolean
+  /** Harness 底栏：本轮耗时 / Token（有则显示） */
+  runWallClockMs?: number | null
+  runTotalTokens?: number | null
+  formatObsMs?: (ms: number) => string
+  formatTokenCount?: (n: number) => string
 }>()
+
+const metricsLine = computed(() => {
+  const parts: string[] = []
+  const fmtMs = props.formatObsMs
+  const fmtTok = props.formatTokenCount
+  if (props.runWallClockMs != null && props.runWallClockMs > 0 && fmtMs) {
+    parts.push(`耗时 ${fmtMs(props.runWallClockMs)}`)
+  }
+  if (props.runTotalTokens != null && props.runTotalTokens > 0 && fmtTok) {
+    parts.push(`Token ${fmtTok(props.runTotalTokens)}`)
+  }
+  return parts.join(' · ')
+})
 
 const emit = defineEmits<{
   setCollaborationPosture: [mode: CollaborationPosture]
@@ -27,6 +45,8 @@ const emit = defineEmits<{
 }>()
 
 const fileInputEl = ref<HTMLInputElement | null>(null)
+const postureWrapEl = ref<HTMLElement | null>(null)
+const postureMenuOpen = ref(false)
 const dragOver = ref(false)
 let dragDepth = 0
 
@@ -37,6 +57,19 @@ const postureHint = computed(() => {
   return ''
 })
 
+const postureLabel = computed(() => collaborationPostureLabel(props.collaborationPosture))
+
+const POSTURE_GLYPH: Record<CollaborationPosture, string> = {
+  ask: '问',
+  plan: '策',
+  agent: '行',
+  debug: '验'
+}
+
+function postureGlyph(id: CollaborationPosture | string): string {
+  return POSTURE_GLYPH[id as CollaborationPosture] || '行'
+}
+
 function openFilePicker() {
   fileInputEl.value?.click()
 }
@@ -45,8 +78,17 @@ function resetFileInput() {
   if (fileInputEl.value) fileInputEl.value.value = ''
 }
 
+function closePostureMenu() {
+  postureMenuOpen.value = false
+}
+
+function togglePostureMenu() {
+  postureMenuOpen.value = !postureMenuOpen.value
+}
+
 function selectPosture(mode: CollaborationPosture) {
   emit('setCollaborationPosture', mode)
+  closePostureMenu()
 }
 
 /** Cursor 式：Shift+Tab 轮转 Ask → Plan → Agent → Debug */
@@ -67,6 +109,30 @@ function onTextareaKeydown(e: KeyboardEvent) {
   }
   emit('inputKeydown', e)
 }
+
+function onDocPointerDown(e: PointerEvent) {
+  if (!postureMenuOpen.value) return
+  const root = postureWrapEl.value
+  if (root && e.target instanceof Node && root.contains(e.target)) return
+  closePostureMenu()
+}
+
+function onDocKeydown(e: KeyboardEvent) {
+  if (e.key === 'Escape' && postureMenuOpen.value) {
+    e.preventDefault()
+    closePostureMenu()
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('pointerdown', onDocPointerDown, true)
+  document.addEventListener('keydown', onDocKeydown, true)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('pointerdown', onDocPointerDown, true)
+  document.removeEventListener('keydown', onDocKeydown, true)
+})
 
 function pickImageFromDataTransfer(dt: DataTransfer | null): File | null {
   if (!dt) return null
@@ -143,7 +209,7 @@ defineExpose({ resetFileInput })
 <template>
   <div
     class="spring-input cosmic-input-dock cosmic-comms-console"
-    :class="{ 'is-drag-over': dragOver }"
+    :class="{ 'is-drag-over': dragOver, 'has-posture-menu': postureMenuOpen }"
     @dragenter="onDragEnter"
     @dragover="onDragOver"
     @dragleave="onDragLeave"
@@ -165,7 +231,7 @@ defineExpose({ resetFileInput })
     <div class="spring-input-col">
       <div class="cosmic-input-head">
         <span class="cosmic-input-hint">{{
-          isRunActive ? 'Esc 或点击取消停止' : 'Enter 发送 · Shift+Tab 切换姿态'
+          isRunActive ? 'Esc 或点击取消停止' : 'Enter 发送 · Shift+Tab / 下拉切换姿态'
         }}</span>
       </div>
 
@@ -197,7 +263,11 @@ defineExpose({ resetFileInput })
         v-model="input"
         :disabled="!connected"
         class="spring-input-field spring-input-area"
-        placeholder="输入问题，或粘贴/拖拽/上传图片后提问（Enter 发送）"
+        :placeholder="
+          workbenchMode === 'professional'
+            ? '向总管发送消息…'
+            : '输入问题，或粘贴/拖拽/上传图片后提问（Enter 发送）'
+        "
         rows="3"
         @keydown="onTextareaKeydown"
         @paste="onPaste"
@@ -205,40 +275,90 @@ defineExpose({ resetFileInput })
 
       <div class="composer-toolbar">
         <div class="composer-toolbar-left">
-          <div class="composer-posture-seg" role="group" aria-label="协作姿态">
-            <button
-              v-for="p in COLLABORATION_POSTURE_OPTIONS"
-              :key="p.id"
-              type="button"
-              class="composer-posture-seg-btn"
-              :class="{ 'is-active': collaborationPosture === p.id }"
-              :title="p.title"
-              :aria-pressed="collaborationPosture === p.id"
-              @click="selectPosture(p.id)"
-            >
-              {{ p.label }}
-            </button>
-          </div>
-
           <button
             type="button"
-            class="spring-btn alt spring-attach-btn"
+            class="composer-icon-btn"
             :disabled="!connected || uploadingAttachment"
-            title="上传图片/音视频（也可粘贴或拖拽）"
+            title="上传附件（也可粘贴或拖拽）"
             @click="openFilePicker"
           >
-            附件
+            +
           </button>
+          <div ref="postureWrapEl" class="composer-posture-wrap">
+            <button
+              type="button"
+              class="composer-posture-trigger"
+              :class="[`is-${collaborationPosture}`, { 'is-open': postureMenuOpen }]"
+              :aria-expanded="postureMenuOpen"
+              aria-haspopup="listbox"
+              aria-label="协作姿态"
+              :title="COLLABORATION_POSTURE_OPTIONS.find((p) => p.id === collaborationPosture)?.title"
+              @click="togglePostureMenu"
+            >
+              <span class="composer-posture-glyph" aria-hidden="true">{{ postureGlyph(collaborationPosture) }}</span>
+              <span class="composer-posture-trigger-label">{{ postureLabel }}</span>
+              <span class="composer-posture-chevron" aria-hidden="true">▾</span>
+            </button>
+            <div
+              v-if="postureMenuOpen"
+              class="composer-posture-menu"
+              role="listbox"
+              aria-label="选择协作姿态"
+            >
+              <button
+                v-for="p in COLLABORATION_POSTURE_OPTIONS"
+                :key="p.id"
+                type="button"
+                class="composer-posture-option"
+                role="option"
+                :data-posture="p.id"
+                :class="{ 'is-active': collaborationPosture === p.id }"
+                :aria-selected="collaborationPosture === p.id"
+                @click="selectPosture(p.id)"
+              >
+                <span class="composer-posture-option-glyph" aria-hidden="true">{{ postureGlyph(p.id) }}</span>
+                <span class="composer-posture-option-label">{{ p.label }}</span>
+                <span class="composer-posture-option-desc">{{ p.title }}</span>
+                <span v-if="collaborationPosture === p.id" class="composer-posture-option-check" aria-hidden="true">✓</span>
+              </button>
+            </div>
+          </div>
         </div>
 
         <button
-          class="spring-btn spring-btn-send-cancel"
+          type="button"
+          class="brand-send-fab spring-btn-send-cancel"
           :class="{ 'is-cancel': isRunActive }"
           :disabled="sendCancelDisabled"
+          :title="isRunActive ? '取消' : '发送'"
+          :aria-label="isRunActive ? '取消' : '发送'"
           @click="emit('sendOrCancel')"
         >
-          {{ isRunActive ? '取消' : '发送' }}
+          <svg
+            v-if="!isRunActive"
+            class="brand-send-fab__icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            aria-hidden="true"
+          >
+            <path
+              d="M12 19V5M12 5l-6 6M12 5l6 6"
+              stroke="currentColor"
+              stroke-width="2.2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+          <svg v-else class="brand-send-fab__icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <rect x="6" y="6" width="12" height="12" rx="2" />
+          </svg>
         </button>
+      </div>
+
+      <div v-if="metricsLine || workbenchMode === 'professional'" class="composer-metrics-row" aria-label="本轮指标">
+        <span v-if="metricsLine" class="composer-metrics-text">{{ metricsLine }}</span>
+        <span v-else class="composer-metrics-text is-muted">就绪</span>
+        <span class="composer-metrics-hint">Enter 发送 · Shift+Tab / 下拉切换姿态</span>
       </div>
     </div>
   </div>

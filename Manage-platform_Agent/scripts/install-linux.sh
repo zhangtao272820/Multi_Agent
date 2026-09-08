@@ -5,6 +5,8 @@
 #   bash scripts/install-linux.sh                 # 标准版（含多模态理解 + 监控）
 #   bash scripts/install-linux.sh --extended      # + 音乐/视频 / Lobster
 #   bash scripts/install-linux.sh --no-monitor    # 弱机跳过 Prom/Grafana/AM/Tempo/Loki
+#   bash scripts/install-linux.sh --core --enterprise --public --no-monitor
+#       # 4C8G 公网推荐：核心栈 + 企业鉴权 + 本机绑端口
 #   bash scripts/install-linux.sh --offline       # 从 offline/images.tar 加载
 #   bash scripts/install-linux.sh --no-build
 
@@ -12,14 +14,39 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 COMPOSE_FILE="$ROOT/docker-compose.agents-lan.yml"
+ENTERPRISE_OVERLAY="$ROOT/docker-compose.agents-enterprise.overlay.yml"
+PUBLIC_OVERLAY="$ROOT/docker-compose.agents-public.overlay.yml"
 ENV_FILE="$ROOT/.env.agents-lan"
+ENTERPRISE_ENV="$ROOT/.env.agents-enterprise"
 EXAMPLE="$ROOT/.env.agents-lan.example"
+ENTERPRISE_EXAMPLE="$ROOT/.env.agents-enterprise.example"
 OFFLINE_DIR="$ROOT/offline"
 EXTENDED=0
 NO_BUILD=0
 NO_MONITOR=0
 OFFLINE=0
+ENTERPRISE=0
+PUBLIC=0
+CORE=0
 HEALTH_TIMEOUT_SEC=180
+
+CORE_SERVICES=(
+  clawhive_postgres
+  clawhive_redis
+  searxng
+  crw
+  rag_pgvector
+  vanna_db_agent
+  vanna_db_web
+  clawhive_backend
+  clawhive_frontend
+  rag_agent
+  code_assistent_agent
+  extractor_agent
+  ai_admin_agent
+  multimodal_agent
+  manager_agent
+)
 
 for arg in "$@"; do
   case "$arg" in
@@ -27,8 +54,12 @@ for arg in "$@"; do
     --no-build) NO_BUILD=1 ;;
     --no-monitor) NO_MONITOR=1 ;;
     --offline) OFFLINE=1; NO_BUILD=1 ;;
+    --enterprise) ENTERPRISE=1 ;;
+    --public) PUBLIC=1 ;;
+    --core) CORE=1 ;;
     -h|--help)
-      echo "用法: bash scripts/install-linux.sh [--extended] [--no-build] [--no-monitor] [--offline]"
+      echo "用法: bash scripts/install-linux.sh [--core] [--enterprise] [--public] [--extended] [--no-build] [--no-monitor] [--offline]"
+      echo "  4C8G 公网推荐: --core --enterprise --public --no-monitor"
       exit 0
       ;;
     *) echo "未知参数: $arg"; exit 1 ;;
@@ -56,6 +87,38 @@ if [[ ! -f "$ENV_FILE" ]]; then
   exit 1
 fi
 
+if (( ENTERPRISE )); then
+  if [[ ! -f "$ENTERPRISE_ENV" ]]; then
+    if [[ -f "$ENTERPRISE_EXAMPLE" ]]; then
+      cp "$ENTERPRISE_EXAMPLE" "$ENTERPRISE_ENV"
+      echo "已创建 $ENTERPRISE_ENV，请对齐 CLAWHIVE_INTERNAL_TOKEN / JWT / MANAGER_WS_TOKEN 后重跑"
+      exit 1
+    fi
+    echo "错误: 缺少 $ENTERPRISE_ENV（见 .env.agents-enterprise.example）"
+    exit 1
+  fi
+  if [[ ! -f "$ENTERPRISE_OVERLAY" ]]; then
+    echo "错误: 缺少 $ENTERPRISE_OVERLAY"
+    exit 1
+  fi
+fi
+
+if (( PUBLIC )); then
+  if [[ ! -f "$PUBLIC_OVERLAY" ]]; then
+    echo "错误: 缺少 $PUBLIC_OVERLAY"
+    exit 1
+  fi
+fi
+
+# 核心/公网：强制踢出 gui（Lobster 仅 --extended）；写入 lan env 以免插值盖掉 overlay
+if (( CORE || PUBLIC )); then
+  if grep -q '^MANAGER_DISABLED_AGENTS=' "$ENV_FILE"; then
+    sed -i.bak 's/^MANAGER_DISABLED_AGENTS=.*/MANAGER_DISABLED_AGENTS=music,video,gui/' "$ENV_FILE"
+  else
+    echo 'MANAGER_DISABLED_AGENTS=music,video,gui' >> "$ENV_FILE"
+  fi
+fi
+
 # shellcheck disable=SC1090
 source "$ENV_FILE" 2>/dev/null || true
 
@@ -63,6 +126,10 @@ missing=()
 [[ -z "${LAN_HOST:-}" || "$LAN_HOST" == *"请"* ]] && missing+=("LAN_HOST")
 [[ -z "${CLAWHIVE_INTERNAL_TOKEN:-}" || "$CLAWHIVE_INTERNAL_TOKEN" == *"请"* ]] && missing+=("CLAWHIVE_INTERNAL_TOKEN")
 [[ -z "${OPENAI_API_KEY:-}${QWEN_API_KEY:-}${DASHSCOPE_API_KEY:-}" ]] && missing+=("OPENAI_API_KEY 或 QWEN_API_KEY")
+if (( PUBLIC || ENTERPRISE )); then
+  [[ -z "${MANAGER_WS_TOKEN:-}" || "$MANAGER_WS_TOKEN" == *"请"* || "$MANAGER_WS_TOKEN" == change-* ]] && missing+=("MANAGER_WS_TOKEN")
+  [[ -z "${CLAWHIVE_JWT_SECRET:-}" || "$CLAWHIVE_JWT_SECRET" == *"请"* || "$CLAWHIVE_JWT_SECRET" == change-* ]] && missing+=("CLAWHIVE_JWT_SECRET")
+fi
 if ((${#missing[@]})); then
   echo "错误: .env.agents-lan 尚未配置: ${missing[*]}"
   exit 1
@@ -111,12 +178,28 @@ if (( OFFLINE )); then
   docker load -i "$OFFLINE_DIR/images.tar"
 fi
 
+COMPOSE_ARGS=(--env-file "$ENV_FILE")
+if (( ENTERPRISE )); then
+  COMPOSE_ARGS+=(--env-file "$ENTERPRISE_ENV")
+fi
+COMPOSE_ARGS+=(-f "$COMPOSE_FILE")
+if (( ENTERPRISE )); then
+  COMPOSE_ARGS+=(-f "$ENTERPRISE_OVERLAY")
+  echo "企业档: $ENTERPRISE_ENV + overlay"
+fi
+if (( PUBLIC )); then
+  COMPOSE_ARGS+=(-f "$PUBLIC_OVERLAY")
+  echo "公网 overlay: 127.0.0.1 绑定 + 4C8G 内存顶"
+fi
+
 PROFILE_ARGS=()
 if (( EXTENDED )); then
   PROFILE_ARGS+=(--profile extended)
-  echo "部署模式: 完整版（extended）"
+  echo "部署模式: 完整版（extended，含 Lobster/music/video）"
+elif (( CORE )); then
+  echo "部署模式: 核心栈（无 Lobster / 无 extended）"
 else
-  echo "部署模式: 标准版（平台 + Manager 协作链）"
+  echo "部署模式: 标准版（平台 + Manager 协作链；Lobster 须 --extended）"
 fi
 if (( NO_MONITOR )); then
   echo "监控: 跳过（--no-monitor；不启 monitoring profile）"
@@ -133,7 +216,11 @@ else
 fi
 
 echo "启动 ClawHive 集群..."
-docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "${UP_ARGS[@]}"
+if (( CORE )); then
+  docker compose "${COMPOSE_ARGS[@]}" "${UP_ARGS[@]}" "${CORE_SERVICES[@]}"
+else
+  docker compose "${COMPOSE_ARGS[@]}" "${UP_ARGS[@]}"
+fi
 
 wait_health() {
   local base="http://127.0.0.1:${CLAWHIVE_BACKEND_PORT:-18000}"
@@ -154,11 +241,19 @@ if ! wait_health; then
   exit 1
 fi
 
+HOST_SHOW="${LAN_HOST}"
+if (( PUBLIC )); then
+  HOST_SHOW="127.0.0.1"
+fi
+
 echo ""
 echo "========== 部署完成 =========="
-echo "管理平台:  http://${LAN_HOST}:${CLAWHIVE_FRONTEND_PORT:-18073}  （admin / 见 .env.agents-lan）"
-echo "Manager UI: http://${LAN_HOST}:${MANAGER_PORT:-13106}"
-echo "后端健康:  http://${LAN_HOST}:${CLAWHIVE_BACKEND_PORT:-18000}/health"
+echo "管理平台:  http://${HOST_SHOW}:${CLAWHIVE_FRONTEND_PORT:-18073}  （admin / 见 .env.agents-lan）"
+echo "Manager UI: http://${HOST_SHOW}:${MANAGER_PORT:-13106}"
+echo "后端健康:  http://${HOST_SHOW}:${CLAWHIVE_BACKEND_PORT:-18000}/health"
+if (( PUBLIC )); then
+  echo "公网入口: 配置 docker/public/Caddyfile.example（安全组仅 80/443）"
+fi
 if (( ! NO_MONITOR )); then
   echo "Grafana:    http://${LAN_HOST}:${CLAWHIVE_GRAFANA_PORT:-13000}"
   echo "Prometheus: http://${LAN_HOST}:${CLAWHIVE_PROMETHEUS_PORT:-19090}"

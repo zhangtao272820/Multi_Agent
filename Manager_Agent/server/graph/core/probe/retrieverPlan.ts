@@ -136,8 +136,14 @@ export function buildManagerRagTaskPayload(input: {
   queryIntent?: string
   turnScopeMode?: string | null
   turnKind?: string | null
+  imageCaption?: string
 }): ManagerRagTaskPayload {
-  const lean = String(input.leanQuery ?? '').trim()
+  const leanBase = String(input.leanQuery ?? '').trim()
+  const caption = String(input.imageCaption || '').trim().slice(0, 80)
+  const lean =
+    caption && leanBase && !leanBase.includes(caption)
+      ? `${leanBase}（图意：${caption}）`.slice(0, 900)
+      : leanBase
   const userTask = String(input.userTask ?? '').trim()
   const mode = parseTurnScopeMode(input.turnScopeMode)
   const turn_scope: TurnScopePayload | undefined = mode
@@ -152,7 +158,10 @@ export function buildManagerRagTaskPayload(input: {
     !turn_scope?.suppress_anchor && userTask.length > lean.length + 12 && userTask !== lean
       ? userTask.slice(0, 600)
       : undefined
-  const keywords = (input.retrievalKeywords || []).filter(Boolean).slice(0, 12)
+  const keywords = [
+    ...(input.retrievalKeywords || []).filter(Boolean),
+    ...(caption ? [caption] : [])
+  ].slice(0, 12)
   const exclude = (input.excludeHints || []).filter(Boolean).slice(0, 8)
   return {
     source: 'manager',
@@ -166,6 +175,7 @@ export function buildManagerRagTaskPayload(input: {
     output_style: 'manager_bullets',
     exclude_hints: exclude.length ? exclude : undefined,
     turn_scope,
+    ...(caption ? { image_caption: caption } : {})
   }
 }
 

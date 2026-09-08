@@ -18,9 +18,9 @@ from app.schema_link import load_schema
 from app.settings import get_settings
 from app.tenants import Tenant
 
-_ROUTER_SYS = """你是只读库问数的 Understand（意图与槽位裁判）。根据用户自然语言、表目录与领域蓝图决定怎么查。
+_ROUTER_SYS = """你是只读库问数的 Understand（意图与槽位裁判）。根据用户自然语言、表目录与领域蓝图决定怎么查，并判定本轮交付物。
 只输出 JSON：
-{"path":"golden|llm_sql|chitchat|clarify","intent":"count|list|aggregate|join|trend|clarify|chitchat|meta","data_domain":"general","tables":["表名"],"entities":{"names":[],"locations":[]},"filters":{"time_range":{"relative":"","start":"","end":""},"slots":[{"field_hint":"姓名","value":"陈明宇","sql_match_value":"陈明宇"}]},"join_needed":false,"golden_ok":false,"confidence":0.8,"reason":"一句话","clarify":""}
+{"path":"golden|llm_sql|chitchat|clarify","intent":"count|list|aggregate|join|trend|clarify|chitchat|meta","data_domain":"general","tables":["表名"],"entities":{"names":[],"locations":[]},"filters":{"time_range":{"relative":"","start":"","end":""},"slots":[{"field_hint":"姓名","value":"陈明宇","sql_match_value":"陈明宇"}]},"join_needed":false,"golden_ok":false,"confidence":0.8,"need_chart":false,"need_interpret":false,"sys_meta":false,"reason":"一句话","clarify":""}
 规则：
 - path 由你判定：golden=可直接复用候选黄金 SQL；llm_sql=需自行写 SQL；chitchat=与库无关；clarify=表目录完全对不上。
 - path=golden：仅当候选黄金与问题语义高度一致且无额外姓名/时间/地区过滤；golden_ok=true。一旦有额外过滤必须 path=llm_sql 并抽出 slots。
@@ -31,6 +31,9 @@ _ROUTER_SYS = """你是只读库问数的 Understand（意图与槽位裁判）�
 - 地点（区县/省市区）：sql_match_value 用用户说的短地名（如「河西区」）；后续 SQL 须 LIKE '%短名%' 包含匹配，禁止对复合省市区列做短字符串精确等值。
 - 时间：relative 或 start/end（YYYY-MM-DD），供后续 SQL 写入，勿省略。
 - join_needed：需多表关联时为 true；蓝图要求附带明细表时须一并写入 tables。
+- need_chart：趋势/分布/对比/占比/分组统计适合可视化时 true；纯名单、单值计数、闲聊 false。
+- need_interpret：需要归纳对比、异常说明、经营解读时 true；纯名单/基本信息回显或确认性计数 false（省 answer LLM；展示层仍会按字段注释回显全部有用列并做确定性摘要）。
+- sys_meta：仅当明确问表结构/列/索引/information_schema 等元数据时 true；业务问数 false。
 - 禁止编造表目录外的表名；禁止因说法不标准就 clarify。
 """
 
@@ -246,6 +249,7 @@ def parse_router(raw: str | dict[str, Any], tenant: Tenant | None = None) -> dic
         slots = []
         if not str(data.get("clarify") or "").strip():
             data = {**data, "clarify": "问题不够明确，请补充要查的对象（表/名单/人员/时间）。"}
+    need_chart, need_interpret, sys_meta = _parse_deliverables(data, path=path, intent=intent)
     return {
         "path": path,
         "intent": intent,
@@ -256,10 +260,56 @@ def parse_router(raw: str | dict[str, Any], tenant: Tenant | None = None) -> dic
         "join_needed": bool(data.get("join_needed")),
         "golden_ok": golden_ok,
         "confidence": confidence,
+        "need_chart": need_chart,
+        "need_interpret": need_interpret,
+        "sys_meta": sys_meta,
         "reason": str(data.get("reason") or "").strip()[:200],
         "clarify": str(data.get("clarify") or "").strip()[:400],
         "need_clarify": path == "clarify",
     }
+
+
+def _coerce_bool(raw: Any, default: bool) -> bool:
+    if raw is None:
+        return default
+    if isinstance(raw, bool):
+        return raw
+    s = str(raw).strip().lower()
+    if s in {"1", "true", "yes", "y", "on"}:
+        return True
+    if s in {"0", "false", "no", "n", "off"}:
+        return False
+    return default
+
+
+def _parse_deliverables(data: dict[str, Any], *, path: str, intent: str) -> tuple[bool, bool, bool]:
+    """交付物：优先模型字段；缺省按 intent 推，避免名单误开图/解读。"""
+    if path in {"chitchat", "clarify"}:
+        return False, False, False
+    chart_default = intent in {"aggregate", "trend", "join"}
+    interpret_default = intent in {"aggregate", "trend", "join", "meta"}
+    sys_default = intent == "meta"
+    need_chart = _coerce_bool(data.get("need_chart"), chart_default)
+    need_interpret = _coerce_bool(data.get("need_interpret"), interpret_default)
+    sys_meta = _coerce_bool(data.get("sys_meta"), sys_default)
+    if intent == "meta":
+        sys_meta = True
+    return need_chart, need_interpret, sys_meta
+
+
+def deliverables_summary(plan: dict[str, Any] | None) -> dict[str, bool]:
+    if not plan:
+        return {"need_chart": False, "need_interpret": False, "sys_meta": False}
+    return {
+        "need_chart": bool(plan.get("need_chart")),
+        "need_interpret": bool(plan.get("need_interpret")),
+        "sys_meta": bool(plan.get("sys_meta")),
+    }
+
+
+def should_polish(*, need_interpret: bool, polish_enabled: bool, exec_ok: bool) -> bool:
+    """Answer LLM 仅在需要解读且开关开启、执行成功时调用。"""
+    return bool(need_interpret and polish_enabled and exec_ok)
 
 
 def _is_location_slot(hint: str) -> bool:
@@ -334,6 +384,9 @@ def run_router(
             "join_needed": False,
             "golden_ok": False,
             "confidence": 1.0,
+            "need_chart": False,
+            "need_interpret": False,
+            "sys_meta": False,
             "reason": "empty_catalog",
             "clarify": "没有在当前租户目录里找到对应的表。请说明要查的对象，或换一个说法。",
             "need_clarify": True,

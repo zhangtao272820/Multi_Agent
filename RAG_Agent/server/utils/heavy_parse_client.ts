@@ -1,5 +1,6 @@
 /**
- * K 波：调用 MinerU 重解析侧车（multipart），失败由调用方回落本地解析。
+ * K 波：调用 MinerU 重解析侧车（multipart），失败由调用方回落本地解析；
+ * 严格模式（RAG_HEAVY_PARSE_STRICT）下失败则拒收。
  */
 import { getRagAgentEnv } from "./rag_agent_env";
 
@@ -25,6 +26,14 @@ export type HeavyParseSkip = {
   reason: string;
 };
 
+export class HeavyParseStrictError extends Error {
+  readonly code = "heavy_parse_strict_failed";
+  constructor(message: string) {
+    super(message);
+    this.name = "HeavyParseStrictError";
+  }
+}
+
 const HEAVY_EXTS = new Set([
   "pdf",
   "docx",
@@ -37,12 +46,77 @@ const HEAVY_EXTS = new Set([
   "webp",
 ]);
 
+export function isHeavyParseExtension(fileName: string): boolean {
+  const ext = fileName.split(".").pop()?.toLowerCase() || "";
+  return HEAVY_EXTS.has(ext);
+}
+
 export function shouldAttemptHeavyParse(fileName: string): boolean {
   const env = getRagAgentEnv();
   if (!env.enableHeavyParse) return false;
   if (!String(env.mineruApiUrl || "").trim()) return false;
-  const ext = fileName.split(".").pop()?.toLowerCase() || "";
-  return HEAVY_EXTS.has(ext);
+  return isHeavyParseExtension(fileName);
+}
+
+/**
+ * 严格模式且扩展名需 MinerU 时，失败应拒收（不写空向量）。
+ * 不要求 URL 已配置——未配置时同样拒收，避免静默回落。
+ */
+export function shouldRejectOnHeavyFailure(params: { fileName: string }): boolean {
+  const env = getRagAgentEnv();
+  if (!env.heavyParseStrict) return false;
+  return isHeavyParseExtension(params.fileName);
+}
+
+export function isHeavyParseTooShort(chars: number, minChars?: number): boolean {
+  const env = getRagAgentEnv();
+  const min = minChars ?? env.heavyParseMinChars;
+  return Math.max(0, Math.floor(chars)) < Math.max(1, min);
+}
+
+/** ready 探测：strict 时不可达则阻断；非 strict 仅观测 */
+export async function probeMineruHealth(opts?: {
+  timeoutMs?: number;
+}): Promise<{ ok: boolean; detail: string; status?: number }> {
+  const env = getRagAgentEnv();
+  const base = String(env.mineruApiUrl || "").trim().replace(/\/+$/, "");
+  if (!env.enableHeavyParse || !base) {
+    return { ok: false, detail: "heavy_parse_disabled_or_no_url" };
+  }
+  const timeoutMs = Math.max(1000, Math.floor(opts?.timeoutMs ?? 4000));
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    for (const path of ["/health", "/"]) {
+      try {
+        const res = await fetch(`${base}${path}`, {
+          method: "GET",
+          signal: controller.signal,
+        });
+        if (res.ok || res.status === 404) {
+          // 404 on / 仍表示服务在听端口；/health 优先
+          if (path === "/health" && res.ok) {
+            return { ok: true, detail: "health_ok", status: res.status };
+          }
+          if (path === "/health" && !res.ok) continue;
+          if (path === "/") {
+            return { ok: true, detail: `root_${res.status}`, status: res.status };
+          }
+        }
+        if (path === "/health" && res.status >= 500) {
+          return { ok: false, detail: `health_${res.status}`, status: res.status };
+        }
+      } catch {
+        /* try next path */
+      }
+    }
+    return { ok: false, detail: "unreachable" };
+  } catch (e: any) {
+    const msg = e?.name === "AbortError" ? `timeout_${timeoutMs}ms` : String(e?.message || e);
+    return { ok: false, detail: msg };
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export async function parseWithMineru(params: {
@@ -94,6 +168,13 @@ export async function parseWithMineru(params: {
     if (!body.ok || !text) {
       return { ok: false, reason: "empty_mineru_text" };
     }
+    const chars = Number(body.chars ?? text.length) || text.length;
+    if (isHeavyParseTooShort(chars)) {
+      return {
+        ok: false,
+        reason: `too_short_${chars}_lt_${env.heavyParseMinChars}`,
+      };
+    }
     return {
       ok: true,
       text,
@@ -101,7 +182,7 @@ export async function parseWithMineru(params: {
       blocks: Array.isArray(body.blocks) ? body.blocks : [],
       provider: String(body.provider || "mineru"),
       parser: "mineru",
-      chars: Number(body.chars ?? text.length) || text.length,
+      chars,
       ms,
     };
   } catch (e: any) {

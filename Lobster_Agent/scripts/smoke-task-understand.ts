@@ -200,6 +200,37 @@ assert(
   'task_kind social_engagement → classic',
 )
 assert(
+  resolveEngineFromTaskSpec({
+    spec: toLobsterTaskSpec(
+      {
+        canonical_task: 'B站搜索教程并提取标题（不要播放）',
+        start_url: 'https://search.bilibili.com/all?keyword=Python',
+        engine_hint: 'auto',
+        task_kind: 'search',
+        needs_login: false,
+        explicitly_avoid_login: true,
+        confidence: 0.9,
+        rationale: 'guest search',
+      },
+      'fixture',
+      'managed',
+    ),
+    // 任务原文含「播放」也不应覆盖已有 TaskSpec.search
+    task: 'B站搜索并打开第一条，提取标题，不要播放',
+    startUrl: 'https://search.bilibili.com/all?keyword=Python',
+  }).engine === 'stagehand',
+  'task_kind search + 播放字样 → 仍 stagehand（无 utterance hard_guard 覆盖）',
+)
+
+assert(
+  resolveEngineFromTaskSpec({
+    task: '打开 B站播放这个视频',
+    startUrl: 'https://www.bilibili.com/video/BV1xx',
+  }).engine === 'classic',
+  '无 TaskSpec 时 utterance hard_guard → classic',
+)
+
+assert(
   recipePreferredEngine(
     'B站游客搜索',
     'https://search.bilibili.com/all?keyword=Python',

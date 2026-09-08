@@ -92,6 +92,9 @@ async function executeSingleSourceRagDirectChat(
         input.sendDelta?.(d)
         opts.sendEvent({ event: 'delta', data: d, from: 'rag' })
       },
+      sendThoughtDelta: (t: string) => {
+        opts.sendEvent({ event: 'thought_delta', data: { text: t, done: false }, from: 'rag' })
+      },
       signal: opts.signal,
       onEvidence: (e: unknown) => {
         ragEvidence = (e as Record<string, unknown>) || null
@@ -424,11 +427,14 @@ export async function executeRagStep(
       userId: opts.userId,
       traceId: opts.runId,
       skipCache: extra?.skipCache ?? revisionSkipCache,
-      deferStreamDelta: true,
+      deferStreamDelta: false,
       sendThinking: input.sendThinking,
       sendDelta: (d: string) => {
         input.sendDelta?.(d)
         opts.sendEvent({ event: 'delta', data: d, from: 'rag' })
+      },
+      sendThoughtDelta: (t: string) => {
+        opts.sendEvent({ event: 'thought_delta', data: { text: t, done: false }, from: 'rag' })
       },
       signal: opts.signal,
       onEvidence: (e: unknown) => {

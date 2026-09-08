@@ -209,6 +209,8 @@ export type ManagerRagTaskPayload = {
   exclude_hints?: string[];
   /** 轮次范围：下游据此决定是否携带 history / 锚点 / 经验回放 */
   turn_scope?: TurnScopePayload;
+  /** 总管路由预读画面摘要（图意接地检索，非像素） */
+  image_caption?: string;
 };
 
 /** 总管 → DB 结构化侧车（与 ManagerDbTaskPayload 字段对齐） */

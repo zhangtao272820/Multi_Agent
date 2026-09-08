@@ -250,11 +250,11 @@
 
 .admin-chat-thread {
   width: 100%;
-  max-width: 820px;
+  max-width: var(--ch-max, 760px);
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 1.35rem;
+  gap: 1.5rem;
 }
 
 .admin-chat-turn {
@@ -770,7 +770,7 @@
   background: rgba(0, 0, 0, 0.12);
   overflow: hidden;
   width: 100%;
-  max-width: min(92%, 560px);
+  max-width: min(100%, 760px);
 }
 
 .admin-process-panel.is-running {
@@ -780,6 +780,47 @@
 
 .admin-process-panel.is-open {
   border-color: rgba(125, 211, 252, 0.2);
+}
+
+.admin-think-label {
+  font-style: italic;
+  font-weight: 550 !important;
+  letter-spacing: 0.01em;
+  opacity: 0.9;
+}
+
+.admin-harness-think {
+  padding: 0.45rem 0.75rem 0.65rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.admin-harness-think-text {
+  display: block;
+  padding-left: 0.75rem;
+  border-left: 2px solid rgba(148, 163, 184, 0.45);
+  color: rgba(186, 198, 214, 0.88);
+  font-size: 13px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.admin-process-panel.is-running .admin-harness-think-text {
+  border-left-color: rgba(125, 211, 252, 0.55);
+}
+
+.admin-harness-think-caret {
+  display: inline-block;
+  width: 0.4em;
+  height: 1em;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  background: rgba(186, 198, 214, 0.55);
+  animation: admin-think-blink 1s steps(1) infinite;
+}
+
+@keyframes admin-think-blink {
+  50% { opacity: 0; }
 }
 
 .admin-process-toggle {
@@ -889,7 +930,7 @@
 
 .admin-composer__inner {
   width: 100%;
-  max-width: 820px;
+  max-width: var(--ch-max, 760px);
   margin: 0 auto;
 }
 
@@ -927,43 +968,49 @@
 .admin-composer__send {
   flex-shrink: 0;
   align-self: flex-end;
-  min-width: 72px;
-  padding: 0.65rem 1rem;
-  border-radius: 12px;
-  border: 1px solid rgba(125, 211, 252, 0.32);
-  background: linear-gradient(135deg, rgba(14, 165, 233, 0.35), rgba(56, 189, 248, 0.22));
-  font-size: 14px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.96);
+}
+
+.admin-composer__send.brand-send-fab {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  padding: 0;
+  border-radius: 999px;
+  border: none;
+  background: var(--brand-accent, #b8860b);
+  font-size: 0;
+  color: #fff;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--brand-accent) 35%, transparent);
 }
 
-.admin-composer__send:hover:not(:disabled) {
-  background: linear-gradient(135deg, rgba(14, 165, 233, 0.48), rgba(56, 189, 248, 0.32));
+.admin-composer__send.brand-send-fab:hover:not(:disabled) {
+  background: var(--brand-accent-hover, #9a7009);
 }
 
-.admin-composer__send:disabled {
+.admin-composer__send.brand-send-fab:disabled {
   opacity: 0.42;
   cursor: not-allowed;
 }
 
-.admin-composer__send.is-cancel {
-  border-color: rgba(248, 113, 113, 0.42) !important;
-  background: rgba(239, 68, 68, 0.82) !important;
+.admin-composer__send.brand-send-fab.is-cancel {
+  background: #dc2626 !important;
+  border: none !important;
 }
 
-.admin-composer__send.is-cancel:hover:not(:disabled) {
-  background: rgba(248, 113, 113, 0.92) !important;
+.admin-composer__send.brand-send-fab.is-cancel:hover:not(:disabled) {
+  background: #b91c1c !important;
 }
 
 .admin-send-cancel.is-cancel {
-  background: rgba(239, 68, 68, 0.88) !important;
-  border-color: rgba(248, 113, 113, 0.45) !important;
+  background: #dc2626 !important;
+  border-color: transparent !important;
 }
 
 .admin-send-cancel.is-cancel:hover:not(:disabled) {
-  background: rgba(248, 113, 113, 0.92) !important;
+  background: #b91c1c !important;
 }
 
 .admin-agent-bubble.is-streaming .admin-agent-bubble__text::after {

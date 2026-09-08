@@ -33,6 +33,8 @@ let policyCount = 0;
 let staleHintCount = 0;
 let clarifyOrCiteCount = 0;
 let faithfulnessCount = 0;
+let refuseCount = 0;
+let evidenceKwCount = 0;
 for (const c of cases) {
   assert(c && typeof c === "object", "case must be object");
   assert(String(c.id || "").trim(), "case.id required");
@@ -40,7 +42,9 @@ for (const c of cases) {
   ids.add(c.id);
   assert(String(c.question || "").trim(), `case.question required for ${c.id}`);
   assert(Array.isArray(c.tags) && c.tags.length >= 1, `case.tags required for ${c.id}`);
-  if (c.expect_intent) {
+  if (c.expect_refuse === true) {
+    refuseCount += 1;
+  } else if (c.expect_intent) {
     assert(typeof c.expect_intent === "string", `${c.id}: expect_intent must be string`);
   } else {
     assert(Array.isArray(c.expect_sources) && c.expect_sources.length >= 1, `${c.id}: expect_sources required`);
@@ -51,6 +55,13 @@ for (const c of cases) {
   if (c.expect_clarify_or_cite != null) {
     assert(c.expect_clarify_or_cite === true, `${c.id}: expect_clarify_or_cite must be true when set`);
   }
+  if (c.expect_evidence_keywords != null) {
+    assert(
+      Array.isArray(c.expect_evidence_keywords) && c.expect_evidence_keywords.length >= 1,
+      `${c.id}: expect_evidence_keywords must be non-empty array`
+    );
+    evidenceKwCount += 1;
+  }
   if (c.tags.includes("policy")) policyCount += 1;
   if (c.tags.includes("faithfulness")) faithfulnessCount += 1;
   if (c.expect_stale_hint === true) staleHintCount += 1;
@@ -60,7 +71,9 @@ assert(policyCount >= 10, `need >=10 policy-tagged questions, got ${policyCount}
 assert(faithfulnessCount >= 3, `H5/I1: need >=3 faithfulness-tagged questions, got ${faithfulnessCount}`);
 assert(staleHintCount >= 1, `G5: need >=1 expect_stale_hint case, got ${staleHintCount}`);
 assert(clarifyOrCiteCount >= 1, `G5: need >=1 expect_clarify_or_cite case, got ${clarifyOrCiteCount}`);
+assert(refuseCount >= 3, `need >=3 expect_refuse cases, got ${refuseCount}`);
+assert(evidenceKwCount >= 3, `need >=3 expect_evidence_keywords cases, got ${evidenceKwCount}`);
 
 console.log(
-  `gate-rag-eval-offline OK: ${cases.length} questions (${policyCount} policy, ${faithfulnessCount} faithfulness, ${staleHintCount} stale_hint, ${clarifyOrCiteCount} clarify_or_cite)`
+  `gate-rag-eval-offline OK: ${cases.length} questions (${policyCount} policy, ${faithfulnessCount} faithfulness, ${staleHintCount} stale_hint, ${clarifyOrCiteCount} clarify_or_cite, ${refuseCount} refuse, ${evidenceKwCount} evidence_kw)`
 );

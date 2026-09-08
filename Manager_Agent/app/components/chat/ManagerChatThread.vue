@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import AmapReplyCards from '~/components/AmapReplyCards.vue'
 import CosmicMidiPlayer from '~/components/CosmicMidiPlayer.vue'
-import ManagerTurnActivity from '~/components/chat/ManagerTurnActivity.vue'
+import ManagerSpecialistCards from '~/components/chat/ManagerSpecialistCards.vue'
 import type { TurnGroup } from '~/composables/managerChatTypes'
 import { MANAGER_CHAT_THREAD_KEY } from '~/composables/managerChatThreadContext'
 import { FEEDBACK_PENDING_ACK } from '~/composables/useManagerSession'
@@ -14,7 +14,6 @@ const {
   editDraft,
   currentRunId,
   connected,
-  thoughtViewMode,
   streamingSynthText,
   streamingSynthProvisional,
   streamingSynthDisplayText,
@@ -58,6 +57,9 @@ const {
   executionStepCountForTurn,
   thoughtLogCountForTurn,
   userThoughtNarrative,
+  userThoughtStreamText,
+  turnThoughtStages,
+  userCreatedPlanLabels,
   turnGuiVisuals,
   thoughtPanelPreview,
   processStepKey,
@@ -66,6 +68,7 @@ const {
   formatProcessText,
   toggleProcessStep,
   isSynthPhaseActive,
+  turnRunStatusPill,
   onReplyMarkdownClick,
   renderAssistantMarkdown,
   cachedResultMarkdownHtml,
@@ -268,61 +271,28 @@ watch(streamingSynthText, async () => {
             </div>
           </div>
 
-          <!-- Cursor 式活动时间线：模式 / 计划 / 专才步骤 -->
-          <ManagerTurnActivity
-            v-if="hasTurnActivity(t)"
-            :turn="t"
-            :workbench-mode="workbenchMode"
-            :running="isTurnRunning(t)"
-            :steps="turnAgentPipelineSteps(t)"
-            :done-count="turnAgentPipelineDoneCount(t)"
-            :route-agents="turnRouteCap(t)?.agents"
-            :posture="turnCollaborationPosture(t)"
-            :posture-note="turnPostureNote(t)"
-            :suggested-posture="turnSuggestedPosture(t)"
-            :awaiting-plan-confirm="turnAwaitingPlanConfirm(t)"
-            :plan-step-count="pendingPlanPreview?.steps.filter((s) => s.enabled).length"
-            :hitl-title="turnHitlInfo(t).title"
-            :hitl-agent="turnHitlInfo(t).agent"
-            :has-user-posture-badge="!!turnCollaborationPosture(t)"
-            :clause-texts="
-              workbenchMode === 'professional'
-                ? (turnRoutePlanCard(t)?.clauses || []).map((c) => previewText(c.text, thoughtViewMode === 'user' ? 72 : 120))
-                : []
-            "
-            :status-label="agentPipelineStatusLabel"
-          />
-
-          <details
-            v-if="thoughtViewMode === 'developer' && hasTurnActivity(t) && turnRoutePlanCard(t)"
-            class="turn-agent-pipeline-dev chat-agent-stack"
+          <div
+            v-if="turnRunStatusPill(t) || hasThoughtContent(t) || turnRouteCap(t)?.agents?.length || turnAgentPipelineSteps(t).length"
+            class="turn-storyline"
           >
-            <summary>编排技术详情</summary>
-            <div v-if="turnRoutePlanCard(t)?.dataSources?.length" class="turn-agent-dev-row">
-              <span class="turn-agent-dev-k">数据面</span>
-              <span>{{ turnRoutePlanCard(t)!.dataSources!.join(' + ') }}</span>
-            </div>
-            <div v-if="turnRoutePlanCard(t)?.blueprintDag" class="turn-agent-dev-row">
-              <span class="turn-agent-dev-k">蓝图</span>
-              <code class="turn-agent-dev-code">{{ turnRoutePlanCard(t)!.blueprintDag }}</code>
-            </div>
-            <div v-if="turnPlanOutline(t)?.dag" class="turn-agent-dev-row">
-              <span class="turn-agent-dev-k">DAG</span>
-              <code class="turn-agent-dev-code">{{ turnPlanOutline(t)!.dag }}</code>
-            </div>
-            <ul v-if="turnRoutePlanCard(t)?.lintIssues?.length" class="turn-agent-dev-lint">
-              <li v-for="(issue, li) in turnRoutePlanCard(t)!.lintIssues!.slice(0, 4)" :key="li">{{ issue }}</li>
-            </ul>
-          </details>
+          <div
+            v-for="pill in [turnRunStatusPill(t)].filter(Boolean)"
+            :key="`${t.id}-pill`"
+            class="harness-status-pill"
+            :class="[`is-${pill!.kind}`, { 'is-live': isTurnRunning(t) || isTurnLive(t) }]"
+            role="status"
+          >
+            <span class="harness-status-pill-dot" aria-hidden="true"></span>
+            <span class="harness-status-pill-label">{{ pill!.label }}</span>
+            <span v-if="pill!.elapsed" class="harness-status-pill-elapsed">{{ pill!.elapsed }}</span>
+          </div>
 
           <details
             v-if="hasThoughtContent(t)"
-            class="cursor-thought-panel process-panel chat-agent-stack"
+            class="cursor-thought-panel process-panel chat-agent-stack thought-panel-user harness-think-only"
             :class="{
               'is-running': isTurnRunning(t),
-              'is-collapsed': !thoughtPanelOpen(t),
-              'thought-panel-user': thoughtViewMode === 'user',
-              'thought-panel-developer': thoughtViewMode === 'developer'
+              'is-collapsed': !thoughtPanelOpen(t)
             }"
             :open="thoughtPanelOpen(t)"
             @toggle="onThoughtPanelToggle(t, $event)"
@@ -330,28 +300,14 @@ watch(streamingSynthText, async () => {
             <summary class="process-panel-summary">
               <div class="process-panel-summary-row">
                 <span class="process-chevron" aria-hidden="true"></span>
+                <span class="process-panel-spark" aria-hidden="true"></span>
                 <span class="process-panel-label">{{ thoughtPanelLabel() }}</span>
                 <span v-if="isTurnRunning(t)" class="cursor-thought-spinner" aria-hidden="true"></span>
                 <div class="process-panel-summary-meta">
-                  <template v-if="thoughtViewMode === 'developer'">
-                    <span
-                      v-if="executionStepCountForTurn(t) || thoughtLogCountForTurn(t)"
-                      class="process-panel-badge"
-                    >
-                      <template v-if="executionStepCountForTurn(t)">{{ executionStepCountForTurn(t) }} 步</template>
-                      <template v-if="executionStepCountForTurn(t) && thoughtLogCountForTurn(t)"> · </template>
-                      <template v-if="thoughtLogCountForTurn(t)">{{ thoughtLogCountForTurn(t) }} 日志</template>
-                    </span>
-                    <span v-if="t.ragEvidence.length" class="process-panel-badge process-panel-badge-muted"
-                      >RAG {{ t.ragEvidence.length }}</span
-                    >
-                  </template>
-                  <template v-else>
-                    <span v-if="isTurnRunning(t)" class="process-panel-badge process-panel-badge-live">进行中</span>
-                    <span v-else-if="userThoughtNarrative(t).length" class="process-panel-badge process-panel-badge-muted"
-                      >{{ userThoughtNarrative(t).length }} 条</span
-                    >
-                  </template>
+                  <span v-if="isTurnRunning(t)" class="process-panel-badge process-panel-badge-live">进行中</span>
+                  <span v-else-if="userThoughtStreamText(t)" class="process-panel-badge process-panel-badge-muted"
+                    >已思考</span
+                  >
                 </div>
               </div>
               <span
@@ -360,23 +316,53 @@ watch(streamingSynthText, async () => {
               >{{ thoughtPanelPreview(t) }}</span>
             </summary>
             <div class="process-panel-body process-panel-scroll">
-              <!-- 用户视图：自然语言进展 -->
-              <div v-if="thoughtViewMode === 'user'" class="user-thought-narrative" aria-label="思考进展">
+              <div class="harness-think" aria-label="思考进展">
                 <div
-                  v-if="isTurnRunning(t) && !userThoughtNarrative(t).length"
-                  class="user-thought-line is-active"
+                  v-if="turnThoughtStages(t).length"
+                  class="harness-think-stages"
+                  aria-label="分阶段思考"
                 >
-                  <span class="user-thought-dot" aria-hidden="true"></span>
-                  <span class="user-thought-text">正在理解并处理你的问题…</span>
+                  <details
+                    v-for="(stage, si) in turnThoughtStages(t)"
+                    :key="si"
+                    class="harness-think-stage"
+                    :class="{
+                      'is-active': si === turnThoughtStages(t).length - 1 && isTurnRunning(t),
+                      'is-done': si < turnThoughtStages(t).length - 1 || !isTurnRunning(t)
+                    }"
+                    :open="si === turnThoughtStages(t).length - 1 && isTurnRunning(t)"
+                  >
+                    <summary class="harness-think-stage-sum">
+                      <span class="harness-think-stage-dot" aria-hidden="true"></span>
+                      <span class="harness-think-stage-label">{{ stage.label }}</span>
+                      <span v-if="stage.secs != null" class="harness-think-stage-secs">{{ stage.secs }}s</span>
+                    </summary>
+                    <div class="harness-think-stage-body">{{ stage.text }}</div>
+                  </details>
                 </div>
                 <div
-                  v-for="(line, ni) in userThoughtNarrative(t)"
-                  :key="`uth-${ni}-${line.text.slice(0, 24)}`"
-                  class="user-thought-line"
-                  :class="{ 'is-done': line.done, 'is-active': line.active, 'is-failed': line.failed, 'is-stream': line.active }"
+                  v-else
+                  class="harness-think-stream"
+                  :class="{ 'is-live': isTurnRunning(t) }"
                 >
-                  <span class="user-thought-dot" aria-hidden="true"></span>
-                  <span class="user-thought-text">{{ line.text }}</span>
+                  <span class="harness-think-rail" aria-hidden="true"></span>
+                  <div class="harness-think-stream-body">
+                    <template v-if="userThoughtStreamText(t)">{{ userThoughtStreamText(t) }}</template>
+                    <template v-else-if="isTurnRunning(t)">正在理解并处理你的问题…</template>
+                    <span v-if="isTurnRunning(t)" class="harness-think-caret" aria-hidden="true"></span>
+                  </div>
+                </div>
+                <div v-if="userCreatedPlanLabels(t).length" class="harness-created-plan">
+                  <div class="harness-created-plan-head">
+                    <span class="harness-created-plan-icon" aria-hidden="true"></span>
+                    <div class="harness-created-plan-title">处理计划</div>
+                  </div>
+                  <div class="harness-created-plan-agents" role="list">
+                    <template v-for="(label, ai) in userCreatedPlanLabels(t)" :key="ai">
+                      <span v-if="ai > 0" class="harness-plan-arrow" aria-hidden="true">→</span>
+                      <span class="harness-plan-chip" role="listitem">{{ label }}</span>
+                    </template>
+                  </div>
                 </div>
                 <div
                   v-if="turnGuiVisuals(t).shot || turnGuiVisuals(t).vncUrl"
@@ -385,7 +371,7 @@ watch(streamingSynthText, async () => {
                   <img
                     v-if="turnGuiVisuals(t).shot"
                     :src="turnGuiVisuals(t).shot"
-                    alt="GUI 截图预览"
+                    alt="操作画面预览"
                     class="gui-screenshot-preview"
                   />
                   <a
@@ -394,7 +380,7 @@ watch(streamingSynthText, async () => {
                     :href="turnGuiVisuals(t).vncUrl"
                     target="_blank"
                     rel="noopener noreferrer"
-                  >打开浏览器画面（noVNC）</a>
+                  >打开实时画面</a>
                 </div>
                 <details v-if="t.searchSources.length" class="user-thought-sources">
                   <summary>参考来源（{{ t.searchSources.length }}）</summary>
@@ -406,96 +392,18 @@ watch(streamingSynthText, async () => {
                   </ul>
                 </details>
               </div>
-
-              <!-- 开发视图：原始日志 -->
-              <template v-else>
-              <details v-if="t.ragEvidence.length" class="spring-search-sources-panel">
-                <summary>知识库引用（{{ t.ragEvidence.length }}）</summary>
-                <ul class="spring-search-sources-list">
-                  <li v-for="(hit, ri) in t.ragEvidence" :key="ri">
-                    <a v-if="hit.url" :href="hit.url" target="_blank" rel="noopener noreferrer">{{ hit.title || hit.source || hit.url }}</a>
-                    <span v-else>{{ hit.title || hit.source || '（无标题）' }}</span>
-                    <span v-if="hit.excerpt" class="rag-evidence-excerpt">{{ hit.excerpt.slice(0, 120) }}</span>
-                  </li>
-                </ul>
-              </details>
-              <details v-if="t.searchSources.length" class="spring-search-sources-panel">
-                <summary>参考来源（{{ t.searchSources.length }}）</summary>
-                <ul class="spring-search-sources-list">
-                  <li v-for="(hit, si) in t.searchSources" :key="si">
-                    <a v-if="hit.url" :href="hit.url" target="_blank" rel="noopener noreferrer">{{ hit.title || hit.url }}</a>
-                    <span v-else>{{ hit.title || '（无链接）' }}</span>
-                  </li>
-                </ul>
-              </details>
-              <div v-if="t.process.length" class="process-timeline">
-                <div
-                  v-for="(p, idx) in t.process"
-                  :key="idx"
-                  class="process-step"
-                  :class="[
-                    kindClass(p.kind),
-                    p.from ? `from-${String(p.from).toLowerCase()}` : '',
-                    {
-                      'is-expanded': expandedProcessKeys.has(processStepKey(t, idx)),
-                      'is-clampable': isProcessStepClampable(p.text, p.kind),
-                      'is-latest': idx === t.process.length - 1,
-                      'is-latest-live': idx === t.process.length - 1 && isTurnRunning(t)
-                    }
-                  ]"
-                >
-                  <div class="process-step-marker" aria-hidden="true">
-                    <span class="process-step-dot"></span>
-                  </div>
-                  <div class="process-step-body">
-                    <div class="process-step-meta">
-                      <span class="process-step-kind">{{ kindLabel(p.kind) }}</span>
-                      <span v-if="p.from" class="process-step-from">{{ p.from }}</span>
-                      <span v-if="phaseLabel(p)" class="process-step-phase">{{ phaseLabel(p) }}</span>
-                      <span class="meta-time">{{ p.ts }}</span>
-                    </div>
-                    <div v-if="String(p.kind).toLowerCase() !== 'phase'" class="process-step-text">{{ formatProcessText(p.text, p.kind) }}</div>
-                    <img
-                      v-if="p.guiScreenshot"
-                      :src="p.guiScreenshot"
-                      alt="GUI 截图预览"
-                      class="gui-screenshot-preview"
-                    />
-                    <a
-                      v-if="p.guiVncUrl"
-                      class="gui-live-view-link"
-                      :href="p.guiVncUrl"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >打开浏览器画面（noVNC）</a>
-                    <button
-                      v-if="isProcessStepClampable(p.text, p.kind)"
-                      type="button"
-                      class="process-step-expand-btn"
-                      @click="toggleProcessStep(t, idx)"
-                    >
-                      {{ expandedProcessKeys.has(processStepKey(t, idx)) ? '收起' : '展开' }}
-                    </button>
-                  </div>
-                </div>
-              </div>
-              <div v-if="t.codePatches.length" class="process-timeline process-timeline-patches">
-                <div v-for="(patch, idx) in t.codePatches" :key="idx" class="process-step from-code">
-                  <div class="process-step-marker" aria-hidden="true">
-                    <span class="process-step-dot"></span>
-                  </div>
-                  <div class="process-step-body">
-                    <div class="process-step-meta">
-                      <span class="process-step-kind">patch</span>
-                      <span class="process-step-from">code</span>
-                    </div>
-                    <pre class="process-step-text process-step-code">{{ patch }}</pre>
-                  </div>
-                </div>
-              </div>
-              </template>
             </div>
           </details>
+
+          <ManagerSpecialistCards
+            v-if="turnRouteCap(t)?.agents?.length || turnAgentPipelineSteps(t).length"
+            :turn="t"
+            :running="isTurnRunning(t)"
+            :steps="turnAgentPipelineSteps(t)"
+            :route-agents="turnRouteCap(t)?.agents"
+            :status-label="agentPipelineStatusLabel"
+          />
+          </div>
 
           <div
             v-if="isTurnLive(t) && (streamingSynthText || isSynthPhaseActive())"
@@ -509,20 +417,17 @@ watch(streamingSynthText, async () => {
             <div class="spring-log-bubble reply-panel-inner cosmic-bubble-reply">
               <header class="reply-panel-header">
                 <div class="reply-panel-avatar" aria-hidden="true">
-                  <span class="reply-panel-avatar-mark">{{ thoughtViewMode === 'user' ? '答' : '总' }}</span>
+                  <span class="reply-panel-avatar-mark">答</span>
                 </div>
                 <div class="reply-panel-header-body">
                   <div class="reply-panel-header-top">
-                    <span class="reply-panel-title">{{ thoughtViewMode === 'user' ? '回答' : '总管' }}</span>
+                    <span class="reply-panel-title">回答</span>
                     <span
                       v-if="streamingSynthProvisional"
                       class="reply-panel-kind reply-stream-badge reply-draft-badge"
                       >草稿</span
                     >
-                    <span v-else-if="thoughtViewMode === 'developer'" class="reply-panel-kind reply-stream-badge"
-                      >流式输出</span
-                    >
-                    <span v-else class="reply-panel-kind reply-stream-badge">正在生成</span>
+                    <span v-else class="reply-panel-kind reply-stream-badge">整理中…</span>
                     <span class="reply-stream-dot" aria-hidden="true"></span>
                   </div>
                 </div>
@@ -566,15 +471,15 @@ watch(streamingSynthText, async () => {
             <div class="spring-log-bubble reply-panel-inner cosmic-bubble cosmic-bubble-reply">
               <header class="reply-panel-header">
                 <div class="reply-panel-avatar" aria-hidden="true">
-                  <span class="reply-panel-avatar-mark">{{ thoughtViewMode === 'user' ? '答' : '总' }}</span>
+                  <span class="reply-panel-avatar-mark">答</span>
                 </div>
                 <div class="reply-panel-header-body">
                   <div class="reply-panel-header-top">
-                    <span class="reply-panel-title">{{ thoughtViewMode === 'user' ? '回答' : '总管' }}</span>
+                    <span class="reply-panel-title">回答</span>
                     <span
-                      v-if="thoughtViewMode === 'developer' || t.userFacing?.replyTier === 'lite'"
+                      v-if="t.userFacing?.replyTier === 'lite'"
                       class="reply-panel-kind"
-                    >{{ resultKindLabel(r) }}</span>
+                    >简答</span>
                     <span class="meta-time">{{ r.ts }}</span>
                   </div>
                 </div>
@@ -665,7 +570,7 @@ watch(streamingSynthText, async () => {
 
               <!-- 正文：headline 置顶 + DeepSeek 式文章体 -->
               <p
-                v-if="thoughtViewMode === 'user' && shouldShowUserFacingHeadline(t)"
+                v-if="shouldShowUserFacingHeadline(t)"
                 class="reply-headline"
               >{{ t.userFacing.headline }}</p>
               <section v-if="replyMarkdownBody(r.text, t)" class="reply-primary-section reply-article" aria-label="回复正文">
@@ -684,7 +589,7 @@ watch(streamingSynthText, async () => {
 
               <!-- Cursor Artifact 面板入口（report 档 chart/table/report 不进气泡） -->
               <div
-                v-if="thoughtViewMode === 'user' && turnReportEditedBadge(t)"
+                v-if="turnReportEditedBadge(t)"
                 class="reply-revision-banner"
                 role="status"
               >
@@ -700,7 +605,7 @@ watch(streamingSynthText, async () => {
                 </button>
               </div>
               <div
-                v-if="thoughtViewMode === 'user' && shouldShowArtifactLaunchBar(t)"
+                v-if="shouldShowArtifactLaunchBar(t)"
                 class="reply-artifact-launch"
                 aria-label="分析面板"
               >
@@ -798,7 +703,7 @@ watch(streamingSynthText, async () => {
               </details>
 
               <div
-                v-if="thoughtViewMode === 'user' && t.userFacing?.suggestions?.length"
+                v-if="t.userFacing?.suggestions?.length"
                 class="reply-suggestions"
                 aria-label="可接着问"
               >
@@ -965,27 +870,9 @@ watch(streamingSynthText, async () => {
                 {{ t.userFacing.badgeLabel || (t.userFacing.badge === 'evidence_rejected' ? '无证据拒答' : '需补充信息') }}
               </div>
 
-              <!-- 开发视图保留知识库/联网分栏；用户视图统一走上方「依据与来源」 -->
-              <details
-                v-if="thoughtViewMode === 'developer' && t.ragEvidence.length"
-                class="reply-evidence-first"
-                open
-              >
-                <summary>
-                  依据与引用
-                  <span class="reply-attachments-badge">{{ t.ragEvidence.length }}</span>
-                </summary>
-                <ul class="spring-search-sources-list">
-                  <li v-for="(hit, ri) in t.ragEvidence" :key="'rag-' + ri">
-                    <strong>{{ hit.source || '文档' }}</strong>
-                    <span v-if="hit.excerpt" class="rag-evidence-excerpt">{{ hit.excerpt.slice(0, 160) }}</span>
-                  </li>
-                </ul>
-              </details>
-
-              <!-- 用户视图：完成态不展示执行摘要；失败/待确认仅短状态条 -->
+              <!-- 用户面：完成态不展示执行摘要；失败/待确认仅短状态条 -->
               <div
-                v-if="thoughtViewMode === 'user' && replyUserOutcomeBanner(t)"
+                v-if="replyUserOutcomeBanner(t)"
                 class="reply-outcome-banner"
                 :class="{
                   'is-outcome-fail': replyUserOutcomeBanner(t)?.tone === 'fail',
@@ -995,21 +882,6 @@ watch(streamingSynthText, async () => {
               >
                 {{ replyUserOutcomeBanner(t)?.label }}
               </div>
-              <details
-                v-else-if="thoughtViewMode === 'developer' && replyExecutionSummaryMarkdown(r.text, t)"
-                class="reply-exec-summary"
-                :class="{
-                  'is-outcome-ok': replyExecSummaryTone(r.text, t) === 'ok',
-                  'is-outcome-fail': replyExecSummaryTone(r.text, t) === 'fail',
-                  'is-outcome-human': replyExecSummaryTone(r.text, t) === 'human'
-                }"
-              >
-                <summary>执行摘要</summary>
-                <div
-                  class="md-body reply-chat reply-exec-summary-body"
-                  v-html="renderAssistantMarkdown(replyExecutionSummaryMarkdown(r.text, t))"
-                ></div>
-              </details>
 
               <!-- 详细说明：可折叠，默认收起，避免与主回复重复灌屏 -->
               <details
@@ -1042,41 +914,9 @@ watch(streamingSynthText, async () => {
                 </div>
               </details>
 
-              <details
-                v-if="thoughtViewMode === 'developer' && (t.userFacing?.sources?.length || replyHasCollapsibleSources(r.text, t))"
-                class="reply-attachments"
-              >
-                <summary class="reply-attachments-summary">
-                  <span class="reply-attachments-icon" aria-hidden="true"></span>
-                  参考来源
-                  <span
-                    v-if="t.userFacing?.sources?.length || replySourceCount(r, t)"
-                    class="reply-attachments-badge"
-                    >来源 {{ t.userFacing?.sources?.length || replySourceCount(r, t) }}</span
-                  >
-                </summary>
-                <div class="reply-attachments-body">
-                  <div class="reply-toolbar">
-                    <button type="button" class="reply-tool-btn" @click="downloadMarkdown(`report_${t.id}_${idx}.md`, r.text)">下载完整回复 .md</button>
-                  </div>
-                  <details
-                    v-if="replySourceCount(r, t)"
-                    class="sources-panel"
-                    open
-                  >
-                    <summary class="sources-panel-summary">参考来源（{{ replySourceCount(r, t) }}）</summary>
-                    <div
-                      class="sources-panel-body md-body reply-rich"
-                      v-html="renderAssistantMarkdown(replySourcesMarkdown(r, t))"
-                    ></div>
-                  </details>
-                </div>
-              </details>
-
               <p
                 v-if="
                   !replyMarkdownBody(r.text, t) &&
-                  !replyExecutionSummaryMarkdown(r.text, t) &&
                   !replyUserOutcomeBanner(t) &&
                   !replyUserDetailAppendix(t, r.text) &&
                   !hasMediaContent(r.text) &&
@@ -1084,9 +924,7 @@ watch(streamingSynthText, async () => {
                 "
                 class="spring-log-empty"
               >
-                {{ thoughtViewMode === 'user'
-                  ? '（正文为空，请展开上方「正在思考」查看进展说明）'
-                  : '（正文为空，请展开上方「思考过程」查看各 Agent 输出）' }}
+                （正文为空，请展开上方「思考过程」查看进展说明）
               </p>
               </div>
               <footer class="reply-panel-footer">
@@ -1106,7 +944,7 @@ watch(streamingSynthText, async () => {
                     下载 .md
                   </button>
                   <span
-                    v-if="thoughtViewMode === 'user' && turnUnifiedCiteSources(t).length"
+                    v-if="turnUnifiedCiteSources(t).length"
                     class="reply-actions-meta"
                   >来源 {{ turnUnifiedCiteSources(t).length }}</span>
                 </div>

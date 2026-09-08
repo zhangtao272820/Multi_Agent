@@ -61,9 +61,15 @@ export default defineEventHandler(async (event) => {
     };
   } catch (error: any) {
     console.error(`[Upload Error] File: ${fileName}, Error:`, error.message);
+    const isStrict =
+      error?.code === "heavy_parse_strict_failed" ||
+      error?.name === "HeavyParseStrictError" ||
+      /严格模式|MinerU/.test(String(error?.message || ""));
     throw createError({
-      statusCode: 500,
-      statusMessage: `Error processing document: ${error.message}`,
+      statusCode: isStrict ? 422 : 500,
+      statusMessage: isStrict
+        ? `文档重解析失败，已拒绝入库。扫描版 PDF/复杂版面需 MinerU 可用：${error.message}`
+        : `Error processing document: ${error.message}`,
     });
   }
 });

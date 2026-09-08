@@ -257,6 +257,8 @@ def build_db_agent_result(
     pending_actions: list[dict[str, Any]] | None = None,
     pending_id: str = "",
     impact_estimate: dict[str, Any] | None = None,
+    chart: Any = None,
+    deliverables: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     if needs_clarify:
         code = error_code or "needs_clarify"
@@ -302,6 +304,14 @@ def build_db_agent_result(
         structured["rows"] = rows[:30]
     if field_details:
         structured["field_details"] = field_details[:12]
+    if chart is not None:
+        structured["chart"] = chart
+    if deliverables:
+        structured["deliverables"] = {
+            "need_chart": bool(deliverables.get("need_chart")),
+            "need_interpret": bool(deliverables.get("need_interpret")),
+            "sys_meta": bool(deliverables.get("sys_meta")),
+        }
     structured["evolutionApplied"] = {
         "promptPatches": 0,
         "experienceHits": max(0, int(experience_hits)),

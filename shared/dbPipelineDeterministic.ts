@@ -1,6 +1,6 @@
 import type { ExtractPayloadFn } from './codeFirstAuthority'
 import { formatFactsAsDeepSeekReply } from './deepSeekReplyFormat'
-import { assembleVisualizeFromChartPlan } from './codeAuthorityPayload'
+import { assembleVisualizeFromChartPlan, type ChartPanelType, type LlmChartPlan } from './codeAuthorityPayload'
 import { buildChartPlanFromTabularRows, parseTabularRowsFromData, parseMarkdownTableAsTabularRows, rowsFromRankedFacts } from './tabularChartSchema'
 
 function dbRawFromResults(results: Record<string, unknown>): string {
@@ -239,6 +239,8 @@ export function tryDeterministicVisualizeFromDbTabular(
   results: Record<string, unknown>,
   extractPayload: ExtractPayloadFn
 ): string | null {
+  const fromVanna = tryDeterministicVisualizeFromVannaChart(results)
+  if (fromVanna) return fromVanna
   if (!isDbPrimaryPipeline(results)) return null
   const dbRaw = dbRawFromResults(results)
   const parsed = extractPayload(dbRaw)
@@ -259,6 +261,74 @@ export function tryDeterministicVisualizeFromDbTabular(
   const plan = buildChartPlanFromTabularRows(rows, title || '数据库图表')
   if (!plan) return null
   return assembleVisualizeFromChartPlan(plan, '【确定性】基于数据库 tabular 数据生成图表')
+}
+
+/** Vanna 启发式 chart（points）→ ChartPlan → ECharts markdown（0 LLM） */
+export type VannaChartPayload = {
+  type?: string
+  label_key?: string
+  value_key?: string
+  points?: Array<{ label?: string; value?: number | string }>
+}
+
+export function readVannaChartFromResults(results: Record<string, unknown>): VannaChartPayload | null {
+  const direct = results.db_vanna_chart
+  if (direct && typeof direct === 'object') return direct as VannaChartPayload
+  const nested = (results as { meta?: { db_vanna_chart?: unknown } }).meta?.db_vanna_chart
+  if (nested && typeof nested === 'object') return nested as VannaChartPayload
+  return null
+}
+
+export function buildChartPlanFromVannaChart(
+  chart: VannaChartPayload,
+  title = '数据库图表'
+): LlmChartPlan | null {
+  const points = Array.isArray(chart.points) ? chart.points : []
+  const series = points
+    .map((p) => {
+      const label = String(p?.label ?? '').trim()
+      const n = typeof p?.value === 'number' ? p.value : Number(p?.value)
+      if (!label || !Number.isFinite(n)) return null
+      return {
+        label,
+        value: n,
+        displayValue: String(p?.value ?? n),
+        sourceKey: label,
+        unitKind: 'count' as const,
+        comparableGroup: 'vanna_chart'
+      }
+    })
+    .filter(Boolean) as LlmChartPlan['panels'][0]['series']
+  if (series.length < 2) return null
+  const rawType = String(chart.type || 'bar').toLowerCase()
+  let chartType: ChartPanelType = 'bar'
+  if (rawType === 'line') chartType = 'line'
+  else if (rawType === 'pie') chartType = 'pie'
+  else if (series.length > 6) chartType = 'horizontal_bar'
+  const chartTitle = String(title || chart.value_key || chart.label_key || '数据库图表').trim().slice(0, 48)
+  return {
+    chartTitle: chartTitle || '数据库图表',
+    chartNote: '基于 Vanna need_chart 启发式结果确定性生成（未调用 visualize LLM）',
+    panels: [
+      {
+        panelTitle: chartTitle || '数据库图表',
+        chartType,
+        unitKind: 'count',
+        visualRole: chartType === 'line' ? 'trend' : chartType === 'pie' ? 'composition' : 'comparison',
+        comparableGroup: 'vanna_chart',
+        series
+      }
+    ],
+    tableRows: series.map((s) => ({ label: s.label, value: s.displayValue ?? String(s.value) }))
+  }
+}
+
+export function tryDeterministicVisualizeFromVannaChart(results: Record<string, unknown>): string | null {
+  const chart = readVannaChartFromResults(results)
+  if (!chart) return null
+  const plan = buildChartPlanFromVannaChart(chart)
+  if (!plan) return null
+  return assembleVisualizeFromChartPlan(plan, '【确定性】基于 Vanna chart 生成图表')
 }
 
 function isReadableSummary(s: string): boolean {

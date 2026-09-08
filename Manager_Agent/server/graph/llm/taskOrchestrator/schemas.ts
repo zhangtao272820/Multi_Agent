@@ -170,7 +170,14 @@ export const TaskOrchestratorSchema = z.object({
   needsPlanPreview: z.boolean().default(false),
   suggestedPosture: z.enum(['ask', 'plan', 'agent', 'debug']).default('agent'),
   upgradeReason: z.string().max(200).default(''),
-  upgradeConfidence: z.number().min(0).max(1).default(0.65)
+  upgradeConfidence: z.number().min(0).max(1).default(0.65),
+  /** Phase4 cascade：显式 false 且 MANAGER_ROUTE_CASCADE=1 时可跳过 align/plane */
+  selfCheck: z
+    .object({
+      needsSecondPass: z.boolean().optional(),
+      reason: z.string().max(200).optional()
+    })
+    .optional()
 })
 
 export type TaskOrchestratorRaw = z.infer<typeof TaskOrchestratorSchema>
@@ -230,7 +237,13 @@ const COMPACT_ORCHESTRATOR_SCHEMA = z.object({
   needsPlanPreview: z.boolean().default(false),
   suggestedPosture: z.enum(['ask', 'plan', 'agent', 'debug']).default('agent'),
   upgradeReason: z.string().max(200).default(''),
-  upgradeConfidence: z.number().min(0).max(1).default(0.62)
+  upgradeConfidence: z.number().min(0).max(1).default(0.62),
+  selfCheck: z
+    .object({
+      needsSecondPass: z.boolean().optional(),
+      reason: z.string().max(200).optional()
+    })
+    .optional()
 })
 
 export type OrchestratorParseFailure = {

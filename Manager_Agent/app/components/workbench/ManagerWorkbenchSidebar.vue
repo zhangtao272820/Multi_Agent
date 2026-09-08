@@ -72,8 +72,8 @@ const {
   addTaskToStack
 } = ctx
 
-type SidebarTab = 'run' | 'agents' | 'workbench'
-const sidebarTab = ref<SidebarTab>('run')
+type SidebarTab = 'ops' | 'agents' | 'workbench'
+const sidebarTab = ref<SidebarTab>('workbench')
 
 const localLearningChartEl = ref<HTMLElement | null>(null)
 watch(localLearningChartEl, (el) => {
@@ -124,11 +124,11 @@ function stepStatusLabel(status: string) {
           type="button"
           class="sidebar-tab-btn"
           role="tab"
-          :class="{ 'is-active': sidebarTab === 'run' }"
-          :aria-selected="sidebarTab === 'run'"
-          @click="sidebarTab = 'run'"
+          :class="{ 'is-active': sidebarTab === 'ops' }"
+          :aria-selected="sidebarTab === 'ops'"
+          @click="sidebarTab = 'ops'"
         >
-          本轮
+          观测
         </button>
         <button
           type="button"
@@ -152,15 +152,36 @@ function stepStatusLabel(status: string) {
         </button>
       </div>
 
-      <!-- 本轮 -->
-      <div v-show="sidebarTab === 'run'" class="sidebar-tab-panel">
+      <!-- 观测 -->
+      <div v-show="sidebarTab === 'ops'" class="sidebar-tab-panel">
         <section class="spring-side-section">
           <div class="spring-side-title">协作姿态</div>
-          <div class="sidebar-agent-row">
-            <span class="pipeline-posture-badge" :class="`is-${collaborationPosture}`">
-              {{ collaborationPostureLabel(collaborationPosture) }}
-            </span>
-            <span class="sidebar-agent-meta">Ask 只读 · Plan 先批 · Agent 自主 · Debug 重验</span>
+          <div class="harness-posture-card" :class="`is-${collaborationPosture}`">
+            <div class="harness-posture-card-row">
+              <span class="harness-posture-glyph-lg" aria-hidden="true">{{
+                collaborationPosture === 'ask'
+                  ? '问'
+                  : collaborationPosture === 'plan'
+                    ? '策'
+                    : collaborationPosture === 'debug'
+                      ? '验'
+                      : '行'
+              }}</span>
+              <div style="min-width: 0">
+                <div class="harness-posture-card-label">{{ collaborationPostureLabel(collaborationPosture) }}</div>
+                <div class="harness-posture-card-hint">
+                  {{
+                    collaborationPosture === 'ask'
+                      ? '只读探查，不会执行写操作'
+                      : collaborationPosture === 'plan'
+                        ? '先对齐方案，确认后再执行'
+                        : collaborationPosture === 'debug'
+                          ? '按步证据定点重验'
+                          : '按风险策略自主推进'
+                  }}
+                </div>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -211,22 +232,22 @@ function stepStatusLabel(status: string) {
             class="spring-run-obs-stats"
           >
             <div v-if="runObservabilityLive?.wallClockMs" class="spring-run-obs-stat-card">
-              <span class="spring-run-obs-stat-icon" aria-hidden="true">⏱</span>
+              <span class="spring-run-obs-stat-icon" aria-hidden="true">耗时</span>
               <div class="spring-run-obs-stat-body">
                 <span class="spring-run-obs-stat-value">{{ formatObsMs(runObservabilityLive.wallClockMs) }}</span>
                 <span class="spring-run-obs-stat-label">总耗时</span>
               </div>
             </div>
             <div v-if="runObservabilityLive?.tokenSummary?.totalTokens" class="spring-run-obs-stat-card">
-              <span class="spring-run-obs-stat-icon" aria-hidden="true">◈</span>
+              <span class="spring-run-obs-stat-icon" aria-hidden="true">Token</span>
               <div class="spring-run-obs-stat-body">
                 <span class="spring-run-obs-stat-value">{{ formatTokenCount(runObservabilityLive.tokenSummary.totalTokens) }}</span>
                 <span class="spring-run-obs-stat-label">{{
                   runObservabilityLive?.tokenSummary?.tokenAccounting === 'actual'
-                    ? 'Token'
+                    ? '用量'
                     : runObservabilityLive?.tokenSummary?.tokenAccounting === 'mixed'
-                      ? 'Token·混合'
-                      : 'Token·估算'
+                      ? '混合'
+                      : '估算'
                 }}</span>
               </div>
             </div>
@@ -235,7 +256,7 @@ function stepStatusLabel(status: string) {
               class="spring-run-obs-stat-card"
               title="本轮估算费用"
             >
-              <span class="spring-run-obs-stat-icon" aria-hidden="true">$</span>
+              <span class="spring-run-obs-stat-icon" aria-hidden="true">费用</span>
               <div class="spring-run-obs-stat-body">
                 <span class="spring-run-obs-stat-value">{{
                   Number(runObservabilityLive.tokenSummary.totalUsd).toFixed(4)
@@ -323,7 +344,7 @@ function stepStatusLabel(status: string) {
           <div
             v-for="agent in involvedAgents"
             :key="agent"
-            class="sidebar-agent-row"
+            class="sidebar-agent-row harness-agent-row"
             :class="`agent-tone-${agent}`"
           >
             <span

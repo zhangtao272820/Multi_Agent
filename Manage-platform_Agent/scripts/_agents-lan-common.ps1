@@ -3,6 +3,7 @@
 $Script:AgentsLanRoot = Split-Path -Parent $PSScriptRoot
 $Script:ComposeFile = Join-Path $AgentsLanRoot "docker-compose.agents-lan.yml"
 $Script:EnterpriseOverlayFile = Join-Path $AgentsLanRoot "docker-compose.agents-enterprise.overlay.yml"
+$Script:PublicOverlayFile = Join-Path $AgentsLanRoot "docker-compose.agents-public.overlay.yml"
 $Script:EnvFile = Join-Path $AgentsLanRoot ".env.agents-lan"
 $Script:EnterpriseEnvFile = Join-Path $AgentsLanRoot ".env.agents-enterprise"
 $Script:SyncModelsScript = Join-Path $PSScriptRoot "sync-capability-models.ps1"
@@ -19,22 +20,19 @@ $Script:MonitoringServices = @(
 )
 
 $Script:ManagerStack = @(
-    "db_agent",
     "vanna_db_agent",
     "vanna_db_web",
     "rag_agent",
     "code_assistent_agent",
     "extractor_agent",
     "ai_admin_agent",
-    "music_agent",
-    "video_agent",
     "multimodal_agent",
     "playwright_mcp",
     "lobster_agent",
     "manager_agent"
 )
 
-# Core LAN stack: platform + DB + crawler deps + business agents (no Lobster/monitoring/fun)
+# Core LAN stack: platform + Vanna + crawler deps + business agents (no legacy db_agent / Lobster / monitoring / fun)
 $Script:CoreStack = @(
     "clawhive_postgres",
     "clawhive_redis",
@@ -43,7 +41,6 @@ $Script:CoreStack = @(
     "rag_pgvector",
     "vanna_db_agent",
     "vanna_db_web",
-    "db_agent",
     "clawhive_backend",
     "clawhive_frontend",
     "rag_agent",
@@ -56,11 +53,17 @@ $Script:CoreStack = @(
 
 # extended-profile-only business services (monitoring uses its own profile)
 $Script:ExtendedOnlyServices = @(
+    "lobster_agent",
     "music_agent",
     "video_agent",
     "tavern_agent",
     "ai_agent",
     "browserless"
+)
+
+# Legacy DB_Agent: only with --profile legacy-db
+$Script:LegacyDbServices = @(
+    "db_agent"
 )
 
 # Agent name -> docker-compose service (matches backend/app/managed_agents.py)
@@ -83,7 +86,6 @@ $Script:AgentDockerServiceMap = @{
 }
 
 $Script:AllCapabilityServices = @(
-    "db_agent",
     "vanna_db_agent",
     "vanna_db_web",
     "rag_agent",
@@ -92,11 +94,7 @@ $Script:AllCapabilityServices = @(
     "ai_admin_agent",
     "manager_agent",
     "multimodal_agent",
-    "lobster_agent",
-    "tavern_agent",
-    "music_agent",
-    "video_agent",
-    "ai_agent"
+    "lobster_agent"
 )
 
 # UTF-8 helpers: Windows PowerShell 5.1 Set-Content -Encoding utf8 writes BOM and
@@ -110,7 +108,9 @@ function Read-EnvFileUtf8 {
     try {
         $list = New-Object System.Collections.Generic.List[string]
         while ($null -ne ($line = $reader.ReadLine())) { [void]$list.Add($line) }
-        return ,$list.ToArray()
+        # Write-Output -NoEnumerate：既避免单行 env 被解包成标量，又让 foreach 能按行迭代
+        # （旧版 `return ,$arr` 在 foreach (@(...)) 下会把整表当成一行 → $Matches 为空）
+        Write-Output -NoEnumerate ([string[]]$list.ToArray())
     } finally {
         $reader.Dispose()
     }
@@ -159,7 +159,9 @@ function Get-AgentsLanLanHost {
 
 function Get-ComposeBaseArgs {
     param(
-        [switch]$Enterprise
+        [switch]$Enterprise,
+        # 公网弱机：127.0.0.1 绑端口 + 4C8G 内存顶（须叠在 enterprise 之后）
+        [switch]$Public
     )
     $args = @("--env-file", $Script:EnvFile)
     if ($Enterprise) {
@@ -180,6 +182,12 @@ See Manage-platform_Agent/doc/enterprise-docker.md
         }
         $args += @("-f", $Script:EnterpriseOverlayFile)
     }
+    if ($Public) {
+        if (-not (Test-Path $Script:PublicOverlayFile)) {
+            throw "Public overlay missing: $Script:PublicOverlayFile"
+        }
+        $args += @("-f", $Script:PublicOverlayFile)
+    }
     return $args
 }
 
@@ -187,11 +195,13 @@ function Get-ProfileArgs {
     param(
         [bool]$Extended = $false,
         # default: enable monitoring (same as historical standard stack)
-        [bool]$Monitoring = $true
+        [bool]$Monitoring = $true,
+        [bool]$LegacyDb = $false
     )
     $out = @()
     if ($Extended) { $out += @("--profile", "extended") }
     if ($Monitoring) { $out += @("--profile", "monitoring") }
+    if ($LegacyDb) { $out += @("--profile", "legacy-db") }
     return $out
 }
 
@@ -199,6 +209,14 @@ function Test-RequiresExtendedProfile {
     param([string[]]$Services)
     foreach ($name in $Services) {
         if ($Script:ExtendedOnlyServices -contains $name) { return $true }
+    }
+    return $false
+}
+
+function Test-RequiresLegacyDbProfile {
+    param([string[]]$Services)
+    foreach ($name in $Services) {
+        if ($Script:LegacyDbServices -contains $name) { return $true }
     }
     return $false
 }
@@ -364,6 +382,7 @@ function Invoke-AgentsLanCompose {
         [switch]$Build,
         [switch]$ForceRecreate,
         [switch]$Enterprise,
+        [switch]$Public,
         [string[]]$Services = @()
     )
 
@@ -372,12 +391,16 @@ function Invoke-AgentsLanCompose {
         Invoke-DockerBaseImagePull -Extended $useExtendedForPull
     }
 
-    $base = Get-ComposeBaseArgs -Enterprise:$Enterprise
+    $base = Get-ComposeBaseArgs -Enterprise:$Enterprise -Public:$Public
     $useExtended = $Extended -or (Test-RequiresExtendedProfile -Services $Services)
     $useMonitoring = $Monitoring -or (Test-RequiresMonitoringProfile -Services $Services)
-    $profile = Get-ProfileArgs -Extended $useExtended -Monitoring $useMonitoring
+    $useLegacyDb = Test-RequiresLegacyDbProfile -Services $Services
+    $profile = Get-ProfileArgs -Extended $useExtended -Monitoring $useMonitoring -LegacyDb $useLegacyDb
     if ($Enterprise) {
         Write-Host "Enterprise overlay: $Script:EnterpriseEnvFile + $Script:EnterpriseOverlayFile" -ForegroundColor Yellow
+    }
+    if ($Public) {
+        Write-Host "Public overlay: $Script:PublicOverlayFile (bind 127.0.0.1 + 4C8G limits)" -ForegroundColor Yellow
     }
 
     if ($Action -eq "restart") {
@@ -400,6 +423,9 @@ function Invoke-AgentsLanCompose {
 
     if ($useExtended -and -not $Extended) {
         Write-Host "Auto-enabled --profile extended (extended-only service in list)." -ForegroundColor DarkYellow
+    }
+    if ($useLegacyDb) {
+        Write-Host "Auto-enabled --profile legacy-db (old db_agent in list)." -ForegroundColor DarkYellow
     }
     if ($useMonitoring -and -not $Monitoring) {
         Write-Host "Auto-enabled --profile monitoring (monitoring service in list)." -ForegroundColor DarkYellow

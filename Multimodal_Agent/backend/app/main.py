@@ -73,6 +73,13 @@ class UnifiedRequest(BaseModel):
     trace_id: str | None = None
 
 
+class CaptionRequest(BaseModel):
+    """总管编排前轻量看图：仅 file_path，短 caption。"""
+    file_path: str
+    query: str = ""
+    trace_id: str | None = None
+
+
 def _resolve_trace_id(request: Request | None, body_trace: str | None = None) -> str | None:
     if request is not None:
         hdr = str(request.headers.get("x-trace-id") or request.headers.get("x-run-id") or "").strip()
@@ -163,6 +170,25 @@ async def describe(file: UploadFile = File(...), media_type: str = Form("image")
         return {"description": r.get("transcript"), **r}
     r = agent.analyze_image(path)
     return {"description": r.get("description"), **r}
+
+
+@app.post("/api/multimodal/caption")
+async def caption_for_route(body: CaptionRequest, request: Request):
+    """路由用短 caption：硬顶 token，超时由调用方控制；失败返回空 caption。"""
+    started = time.time()
+    trace_id = _resolve_trace_id(request, body.trace_id)
+    fp = Path(body.file_path) if body.file_path else None
+    if fp and not fp.is_absolute():
+        fp = resolve_proj_path(body.file_path)
+    if not fp or not fp.is_file():
+        raise HTTPException(400, "file_path 无效或文件不存在")
+    raw = agent.caption_image(fp, body.query or "")
+    payload = raw if isinstance(raw, dict) else {"caption": str(raw or "")}
+    payload.setdefault("caption", "")
+    payload["latency_ms"] = int((time.time() - started) * 1000)
+    if trace_id:
+        payload["trace_id"] = trace_id
+    return payload
 
 
 @app.post("/api/multimodal/qa")

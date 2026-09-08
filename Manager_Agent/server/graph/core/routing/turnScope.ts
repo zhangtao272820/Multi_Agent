@@ -33,6 +33,8 @@ export type TurnRoutingScope = {
   directChitchatSynth: boolean
   /** 本轮是否应刷新 sessionIntentAnchor（话题切换或闲聊） */
   refreshSessionAnchor: boolean
+  /** turnScope LLM 置信（无 LLM 时缺省；续轮 cap 复用须 ≥0.7） */
+  confidence?: number
 }
 
 const LLM_CONF_FLOOR = 0.48
@@ -78,7 +80,8 @@ function scopeFromMode(
   messages: BaseMessage[],
   directChitchatSynth?: boolean,
   turnKind?: TurnKind,
-  clarifyKind?: ClarifyKind
+  clarifyKind?: ClarifyKind,
+  confidence?: number
 ): TurnRoutingScope {
   const kind: TurnKind =
     turnKind ??
@@ -90,6 +93,10 @@ function scopeFromMode(
           ? 'new_task'
           : 'new_task')
   const ck: ClarifyKind = clarifyKind ?? 'none'
+  const conf =
+    typeof confidence === 'number' && Number.isFinite(confidence)
+      ? Math.min(1, Math.max(0, confidence))
+      : undefined
   if (mode === 'chitchat') {
     return {
       mode: 'chitchat',
@@ -100,7 +107,8 @@ function scopeFromMode(
       suppressSessionAnchor: true,
       suppressMultiTurnMerge: true,
       directChitchatSynth: true,
-      refreshSessionAnchor: true
+      refreshSessionAnchor: true,
+      confidence: conf
     }
   }
   if (mode === 'topic_shift') {
@@ -113,7 +121,8 @@ function scopeFromMode(
       suppressSessionAnchor: true,
       suppressMultiTurnMerge: true,
       directChitchatSynth: false,
-      refreshSessionAnchor: true
+      refreshSessionAnchor: true,
+      confidence: conf
     }
   }
   if (mode === 'continuation') {
@@ -127,7 +136,8 @@ function scopeFromMode(
       suppressSessionAnchor: false,
       suppressMultiTurnMerge: false,
       directChitchatSynth: false,
-      refreshSessionAnchor: false
+      refreshSessionAnchor: false,
+      confidence: conf
     }
   }
   if (kind === 'output_followup') {
@@ -140,7 +150,8 @@ function scopeFromMode(
       suppressSessionAnchor: false,
       suppressMultiTurnMerge: true,
       directChitchatSynth: Boolean(directChitchatSynth),
-      refreshSessionAnchor: false
+      refreshSessionAnchor: false,
+      confidence: conf
     }
   }
   return {
@@ -152,7 +163,8 @@ function scopeFromMode(
     suppressSessionAnchor: kind !== 'slot_answer',
     suppressMultiTurnMerge: true,
     directChitchatSynth: Boolean(directChitchatSynth),
-    refreshSessionAnchor: false
+    refreshSessionAnchor: false,
+    confidence: conf
   }
 }
 
@@ -249,15 +261,31 @@ export function resolveTurnRoutingScope(input: {
         Boolean(input.sessionAnchor) &&
         !shouldRunNlCoalesce(input.messages, lastOnly)
       if (anchorBreak) {
-        return scopeFromMode('topic_shift', lastOnly, input.messages, false, forcedKind, llm.clarifyKind)
+        return scopeFromMode('topic_shift', lastOnly, input.messages, false, forcedKind, llm.clarifyKind, llm.confidence)
       }
-      return scopeFromMode('current_only', lastOnly, input.messages, false, forcedKind, llm.clarifyKind)
+      return scopeFromMode('current_only', lastOnly, input.messages, false, forcedKind, llm.clarifyKind, llm.confidence)
     }
     if (llm.turnKind === 'output_followup') {
-      return scopeFromMode('current_only', lastOnly, input.messages, llm.directChitchatSynth, 'output_followup', llm.clarifyKind)
+      return scopeFromMode(
+        'current_only',
+        lastOnly,
+        input.messages,
+        llm.directChitchatSynth,
+        'output_followup',
+        llm.clarifyKind,
+        llm.confidence
+      )
     }
     // Wave6：高置信 topic_shift 保持 mode（不因 preferCurrentTurnScope 降级为 current_only）
-    return scopeFromMode(llm.mode, lastOnly, input.messages, llm.directChitchatSynth, llm.turnKind, llm.clarifyKind)
+    return scopeFromMode(
+      llm.mode,
+      lastOnly,
+      input.messages,
+      llm.directChitchatSynth,
+      llm.turnKind,
+      llm.clarifyKind,
+      llm.confidence
+    )
   }
 
   if (

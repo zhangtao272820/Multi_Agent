@@ -29,6 +29,11 @@ export type RouteAuthorityChain = {
   orchestratorSource: string
   routeSkips: Record<string, boolean>
   routeLlmCalls: number
+  /** 轻量看图 SLI */
+  routeCaptionMs?: number
+  routeCaptionChars?: number
+  routeCaptionSource?: string
+  localReplanCount?: number
 }
 
 export function buildRouteAuthorityChain(input: {
@@ -81,6 +86,11 @@ export function buildRouteAuthorityChain(input: {
         skipWebAlign: routeSkips.webAlign
       })
 
+  const captionMs = Number(meta.routeCaptionMs)
+  const captionChars = Number(meta.routeCaptionChars)
+  const captionSource = String(meta.routeCaptionSource || '').trim()
+  const localReplanCount = Number(meta.localReplanCount)
+
   return {
     sourceCommitment: slice.sourceCommitment,
     committedPlanes: [...slice.committedPlanes],
@@ -93,7 +103,15 @@ export function buildRouteAuthorityChain(input: {
     orchestrationThickness,
     orchestratorSource,
     routeSkips,
-    routeLlmCalls
+    routeLlmCalls,
+    ...(Number.isFinite(captionMs) && captionMs >= 0 ? { routeCaptionMs: Math.floor(captionMs) } : {}),
+    ...(Number.isFinite(captionChars) && captionChars >= 0
+      ? { routeCaptionChars: Math.floor(captionChars) }
+      : {}),
+    ...(captionSource ? { routeCaptionSource: captionSource } : {}),
+    ...(Number.isFinite(localReplanCount) && localReplanCount >= 0
+      ? { localReplanCount: Math.floor(localReplanCount) }
+      : {})
   }
 }
 
@@ -112,6 +130,10 @@ export function routeAuthorityMetricExtra(chain: RouteAuthorityChain): Record<st
     orchestratorSource: chain.orchestratorSource,
     routeSkips: chain.routeSkips,
     routeLlmCalls: chain.routeLlmCalls,
+    ...(chain.routeCaptionMs != null ? { routeCaptionMs: chain.routeCaptionMs } : {}),
+    ...(chain.routeCaptionChars != null ? { routeCaptionChars: chain.routeCaptionChars } : {}),
+    ...(chain.routeCaptionSource ? { routeCaptionSource: chain.routeCaptionSource } : {}),
+    ...(chain.localReplanCount != null ? { localReplanCount: chain.localReplanCount } : {}),
     goldenHit: null as boolean | null
   }
 }

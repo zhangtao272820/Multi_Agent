@@ -1,6 +1,10 @@
 import { extractCrawlerTableMarkdown } from '../../../utils/crawler/managerCrawlerTaskPayload'
 import { extractCrawlerItemsFromText, formatSourcesTableMarkdown } from '../../../utils/crawler/crawlerItemsParse'
-import { AUX_BLOCK_TAGS, extractAuxBlocksStructural, mergeMissingAuxBlocksFrom, type AuxBlockTag } from '#agent-shared/auxBlocks'
+import {
+  AUX_BLOCK_TAGS,
+  extractAuxBlocksStructural,
+  tableDataBlockHasValues
+} from '#agent-shared/auxBlocks'
 import { normalizeModelReplyHtml } from '#agent-shared/replyHtmlNormalize'
 
 /** 轻量收尾：保留 Synth 流式正文，仅分离/回挂附属块与 HTML 归一（不用正则删段落/表格） */
@@ -17,6 +21,12 @@ export function polishFinalPayload(text: string): string {
       const compact = compactCrawlerTableMarkdown(crawlerMd, 5)
       blocks.set('CRAWLER_TABLE', `<!--CRAWLER_TABLE-->\n${compact}\n<!--/CRAWLER_TABLE-->`)
     }
+  }
+
+  // 空 TABLE_DATA 不得回挂（否则数据看板只剩表头）
+  const tableBlock = blocks.get('TABLE_DATA')
+  if (tableBlock && !tableDataBlockHasValues(tableBlock)) {
+    blocks.delete('TABLE_DATA')
   }
 
   const ordered: string[] = []

@@ -73,6 +73,13 @@ import {
   type PresentationReplyTier
 } from '#agent-shared/presentationPlan'
 import { buildReplyArtifactSlots } from '#agent-shared/presentationSurfaces'
+import {
+  tableFromDbEvidence,
+  scrubProsePreservingTableData,
+  collectDbSchemaIdentifiers,
+  structuredTableHasValues
+} from './dbExpertDataBlock'
+import { tableDataBlockHasValues } from '#agent-shared/auxBlocks'
 
 /** 用户态回复文体档位（Presentation Plan LLM 优先，结构信号兜底） */
 export type ReplyTier = PresentationReplyTier
@@ -622,6 +629,7 @@ function collectModuleSlots(input: {
   results?: Record<string, unknown>
   meta?: Record<string, unknown>
   synth?: string
+  evidence?: unknown[]
 }): {
   metrics?: UserFacingMetric[]
   chart?: { title: string; option: object }
@@ -686,29 +694,41 @@ function collectModuleSlots(input: {
     extractTaggedBlock(synth, 'TABLE_DATA') ||
     extractTaggedBlock(String(bag.report || ''), 'TABLE_DATA')
   let table = tableMd ? parseMarkdownTable(tableMd) : null
-  if (!table && clean?.tables?.length) {
+  // 无有效单元格视为空壳，回退 evidence（对齐 Vanna meta.rows）
+  if (!structuredTableHasValues(table)) {
+    const fromEv = tableFromDbEvidence(input.evidence)
+    if (structuredTableHasValues(fromEv)) {
+      table = dropSystemAuditColumns(fromEv!)
+    } else {
+      table = null
+    }
+  }
+  if (!structuredTableHasValues(table) && clean?.tables?.length) {
     const t0 = clean.tables[0]!
     const headers = (t0.columns || []).map((c) => humanizeFieldKey(String(c)))
-    const rows = (t0.rows || []).slice(0, 40).map((row) =>
-      headers.map((_, i) => {
-        const col = t0.columns?.[i]
-        const v = col && row && typeof row === 'object' ? (row as Record<string, unknown>)[col] : ''
-        return String(v ?? '').slice(0, 120)
-      })
-    )
+    const rows = (t0.rows || [])
+      .slice(0, 40)
+      .map((row) =>
+        headers.map((_, i) => {
+          const col = t0.columns?.[i]
+          const v = col && row && typeof row === 'object' ? (row as Record<string, unknown>)[col] : ''
+          return String(v ?? '').slice(0, 120)
+        })
+      )
+      .filter((row) => row.some((c) => String(c || '').trim()))
     if (headers.length && rows.length) table = dropSystemAuditColumns({ headers, rows })
   }
-  // 单行 ORM 实体宽表：多源对照任务过滤；单源 DB 查数必须展示完整结果表
-  if (table) {
+  // 单行 ORM 实体宽表：多源对照任务过滤；只要有 DB 结果就必须展示查询表
+  if (structuredTableHasValues(table) && table) {
     const headers = table.headers
+    const hasDbResult = Boolean(String(input.results?.db ?? '').trim())
     const singleSourceDb =
-      String(input.meta?.orchestrationThickness || '') === 'single_source' &&
-      Boolean(String(input.results?.db ?? '').trim())
+      String(input.meta?.orchestrationThickness || '') === 'single_source' && hasDbResult
     const looksLikeEntityDump =
       table.rows.length <= 2 &&
       headers.length >= 3 &&
       !headers.some((h) => /指标|测值|测量|参考|状态|标准|结论/.test(String(h)))
-    if (!looksLikeEntityDump || singleSourceDb) out.table = table
+    if (!looksLikeEntityDump || singleSourceDb || hasDbResult) out.table = table
   }
 
   return out
@@ -1010,6 +1030,16 @@ export function buildUserFacingPayload(input: {
     stripStructuredExecReport(stripDeveloperJargon(stripSynthPromptLeakage(summary)))
   )
   summary = stripPhaseStepLabels(summary)
+  // DB 用户面：剥表名/字段原名；TABLE_DATA 单元格不得被掏空
+  if (Boolean(String(input.results?.db ?? '').trim()) || collectDbSchemaIdentifiers(input.evidence).length) {
+    summary = scrubProsePreservingTableData(summary, collectDbSchemaIdentifiers(input.evidence))
+  }
+  // 剥掉 summary 里的空 TABLE_DATA，避免与有数 final 冲突后仍留空壳看板
+  summary = summary.replace(
+    /<!--\s*TABLE_DATA\s*-->[\s\S]*?<!--\s*\/TABLE_DATA\s*-->/gi,
+    (full) => (tableDataBlockHasValues(full) ? full : '')
+  )
+  summary = summary.replace(/\n{3,}/g, '\n\n').trim()
   // report 档过短：若完整 synth 更长且含分段，回升（避免 Code answer 一句带过）
   if (
     replyTier === 'report' &&
@@ -1043,7 +1073,12 @@ export function buildUserFacingPayload(input: {
     : []
 
   const slots = applyPresentationToSlots(
-    collectModuleSlots({ results: input.results, meta, synth }),
+    collectModuleSlots({
+      results: input.results,
+      meta,
+      synth,
+      evidence: input.evidence
+    }),
     presentationPlan
   )
   const actions = resolveActions({ meta, actions: input.actions })
@@ -1104,7 +1139,8 @@ export function buildUserFacingPayload(input: {
   if (sources.length) payload.sources = sources
   if (slots.metrics?.length) payload.metrics = slots.metrics
   if (slots.chart) payload.chart = slots.chart
-  if (slots.table) payload.table = slots.table
+  // 无有效单元格的表不进 userFacing，避免气泡「数据看板」空壳盖掉 Markdown
+  if (slots.table && structuredTableHasValues(slots.table)) payload.table = slots.table
   if (actions?.length) payload.actions = actions
   if (
     presentationPlan?.suggestions?.length &&

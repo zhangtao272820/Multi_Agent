@@ -11,10 +11,14 @@
 .db-body,
 .db-shell[data-agent="db"] {
   --brand-motif-opacity: 0;
+  --harness-bg: #f8f9fa;
+  --harness-surface: #ffffff;
+  --harness-muted: #64748b;
+  --harness-border: rgba(15, 23, 42, 0.08);
+  --harness-active-bg: color-mix(in srgb, var(--brand-accent) 12%, #fff);
+  font-family: var(--brand-font-sans);
   color: var(--brand-text);
-  background:
-    linear-gradient(165deg, rgba(223, 243, 240, 0.55) 0%, rgba(230, 244, 242, 0.58) 42%, rgba(207, 232, 228, 0.55) 100%),
-    url("/brand/backgrounds/theme/db-workbench.png") center / cover no-repeat fixed !important;
+  background: var(--harness-bg, #f8f9fa) !important;
 }
 
 .db-shell.brand-shell::before,
@@ -34,12 +38,13 @@
 .db-shell .db-glass--bar,
 .db-shell header.db-header-bar,
 .db-shell .db-glass.db-header-bar {
-  background: rgba(255, 255, 255, 0.9) !important;
-  border-bottom: 1px solid rgba(13, 148, 136, 0.22) !important;
-  box-shadow: 0 10px 32px rgba(12, 40, 36, 0.1) !important;
-  backdrop-filter: blur(14px) saturate(1.1) !important;
-  -webkit-backdrop-filter: blur(14px) saturate(1.1) !important;
-  color: #0c1918 !important;
+  background: var(--harness-surface, #fff) !important;
+  border-bottom: 1px solid var(--harness-border) !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  color: #0f172a !important;
+  min-height: 44px !important;
 }
 
 .db-shell .header-brand,
@@ -54,19 +59,19 @@
 .db-shell .sidebar,
 .db-shell .db-history-aside,
 .db-shell .db-history-inner {
-  background: rgba(247, 255, 254, 0.94) !important;
-  border-right: 1px solid rgba(13, 148, 136, 0.2) !important;
-  box-shadow: 8px 0 32px rgba(12, 40, 36, 0.08) !important;
-  color: #0c1918 !important;
-  backdrop-filter: blur(14px);
+  background: var(--harness-bg, #f8f9fa) !important;
+  border-right: 1px solid var(--harness-border) !important;
+  box-shadow: none !important;
+  color: #0f172a !important;
+  backdrop-filter: none;
 }
 
 .db-shell .db-history-row.is-active,
 .db-shell .db-history-item.is-active,
 .db-shell .brand-list-row.is-active {
-  background: rgba(13, 148, 136, 0.12) !important;
-  border: 1px solid rgba(13, 148, 136, 0.35) !important;
-  box-shadow: inset 3px 0 0 #0d9488 !important;
+  background: var(--harness-active-bg) !important;
+  border: none !important;
+  box-shadow: inset 3px 0 0 var(--brand-accent) !important;
 }
 
 /* 看板 / 面板 */
@@ -170,26 +175,52 @@
 .db-shell button.primary,
 .db-shell .btn-primary,
 .db-shell .brand-btn--primary,
-.db-shell .send,
-.db-shell .db-send-cancel,
 .db-shell .intel-btn.primary,
 .db-shell .db-modal-btn-primary {
-  background: linear-gradient(135deg, #2dd4bf, #0d9488 48%, #0f766e) !important;
-  border-color: #0f766e !important;
+  background: var(--brand-accent) !important;
+  border-color: var(--brand-accent-hover) !important;
   color: #fff !important;
-  font-weight: 800 !important;
-  box-shadow: 0 8px 22px rgba(13, 148, 136, 0.38) !important;
-  border-radius: 11px !important;
+  font-weight: 650 !important;
+  box-shadow: none !important;
+  border-radius: 10px !important;
+}
+
+.db-shell .send.brand-send-fab,
+.db-shell .db-send-cancel.brand-send-fab,
+.db-shell .brand-send-fab.send {
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px !important;
+  min-height: 36px !important;
+  padding: 0 !important;
+  border-radius: 999px !important;
+  border: none !important;
+  background: var(--brand-accent) !important;
+  color: #fff !important;
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--brand-accent) 35%, transparent) !important;
+  font-size: 0 !important;
+}
+
+.db-shell .brand-send-fab.is-cancel {
+  background: #dc2626 !important;
 }
 
 .db-shell .brand-btn--secondary,
 .db-shell .db-toolbar-btn,
 .db-shell .db-modal-btn-secondary {
-  background: rgba(255, 255, 255, 0.92) !important;
-  border: 1px solid rgba(13, 148, 136, 0.28) !important;
-  color: #0c1918 !important;
-  font-weight: 650;
-  border-radius: 10px !important;
+  background: var(--harness-surface) !important;
+  border: 1px solid var(--harness-border) !important;
+  color: #0f172a !important;
+  font-weight: 600;
+  border-radius: 8px !important;
+}
+
+.db-shell .composer,
+.db-shell .composer-row {
+  background: var(--harness-surface) !important;
+  border: 1px solid var(--harness-border) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.06) !important;
 }
 
 /* Modal */

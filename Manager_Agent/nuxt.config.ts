@@ -51,6 +51,8 @@ export default defineNuxtConfig({
     '~/assets/css/manager-winter-balance.css',
     /* 主题层：废节气身份，高对比 Harness 风编排台 */
     '~/assets/css/manager-theme.css',
+    /* 精致浅色高级层：故事线 / 姿态 / 观测仪表 */
+    '~/assets/css/manager-premium-harness.css',
   ],
   compatibilityDate: '2025-07-15',
   devtools: { enabled: process.env.NODE_ENV !== 'production' },

@@ -20,9 +20,6 @@ const {
   planAgentLabel,
   planPreviewSending,
   respondPlanPreview,
-  planStepsTodo,
-  planStepsDoneCount,
-  planStepStatusIcon,
   quickQuestions,
   quickCardTitle,
   onQuickQuestion,
@@ -46,7 +43,10 @@ const {
   onSendOrCancel,
   clearPendingAttachment,
   onFileSelected,
-  onAttachmentFile
+  onAttachmentFile,
+  runObservabilityLive,
+  formatObsMs,
+  formatTokenCount
 } = ctx
 const chatComposerRef = ctx.chatComposerRef
 
@@ -222,46 +222,7 @@ watch(localLogEl, (el) => {
       </div>
     </div>
 
-    <div v-else-if="planStepsTodo.length" class="spring-plan-todo conv-plan-panel cursor-plan-rail run-todo-panel" aria-label="执行计划">
-      <div class="spring-plan-todo-head conv-plan-head">
-        <div class="run-todo-title-wrap">
-          <span class="spring-plan-todo-title">本轮进度</span>
-          <div class="run-todo-progress-track" aria-hidden="true">
-            <div
-              class="run-todo-progress-fill"
-              :style="{ width: `${planStepsTodo.length ? Math.round((planStepsDoneCount / planStepsTodo.length) * 100) : 0}%` }"
-            />
-          </div>
-        </div>
-        <span class="spring-plan-todo-count">{{ planStepsDoneCount }}/{{ planStepsTodo.length }}</span>
-      </div>
-      <ol class="spring-plan-todo-list">
-        <li
-          v-for="(step, si) in planStepsTodo"
-          :key="step.id"
-          class="spring-plan-todo-item"
-          :class="`is-${step.status}`"
-          :title="step.query"
-        >
-          <span class="run-todo-index" aria-hidden="true">{{ si + 1 }}</span>
-          <span class="spring-plan-todo-check" aria-hidden="true">{{ planStepStatusIcon(step.status) }}</span>
-          <span class="spring-plan-todo-agent">{{ planAgentLabel(step.agent) }}</span>
-          <span v-if="step.optional" class="spring-plan-todo-optional">可选</span>
-          <span class="spring-plan-todo-query">{{ previewText(step.query, 88) }}</span>
-          <span class="spring-plan-todo-status">{{
-            step.status === 'running'
-              ? '进行中'
-              : step.status === 'success'
-                ? '完成'
-                : step.status === 'failed'
-                  ? '失败'
-                  : step.status === 'skipped'
-                    ? '已跳过'
-                    : '待执行'
-          }}</span>
-        </li>
-      </ol>
-    </div>
+    <!-- 进度 SSOT 在对话流内（harness 思考 + 专才卡），中栏顶不再重复清单 -->
 
     <details v-if="!pendingPlanPreview" class="spring-examples cosmic-examples-strip">
       <summary class="spring-examples-summary">✦ 快捷示例（{{ quickQuestions.length }}）</summary>
@@ -290,7 +251,7 @@ watch(localLogEl, (el) => {
           <p class="cosmic-chat-empty-title">{{ workbenchMode === 'professional' ? '专业工作台就绪' : '开始对话' }}</p>
           <p class="cosmic-chat-empty-hint">
             {{ workbenchMode === 'professional'
-              ? '输入领域任务，总管将读题分析、冻结能力集合并分步编排执行；进展会显示在下方活动时间线与「正在思考」面板。'
+              ? '输入领域任务，总管将读题分析、冻结能力集合并分步编排；进展显示在对话流内的思考与专才卡片。'
               : '像成熟 Agent 一样：下方切换 Ask / Plan / Agent / Debug；总管会按姿态调度专才。' }}
           </p>
           <div class="empty-posture-tips" aria-label="协作姿态说明">
@@ -309,7 +270,11 @@ watch(localLogEl, (el) => {
           <p class="cosmic-chat-empty-title">暂无可见对话</p>
           <p class="cosmic-chat-empty-hint">发送新问题开始对话；若曾撤回全部消息，可直接在下方输入。系统信号见上方折叠区。</p>
         </div>
-        <details v-if="systemEvents.length" class="spring-thoughts spring-thoughts-system" :open="!visibleTurnGroups.length">
+        <details
+          v-if="systemEvents.length"
+          class="spring-thoughts spring-thoughts-system"
+          :open="false"
+        >
           <summary>系统信号（{{ systemEvents.length }}）</summary>
           <div class="spring-thoughts-list">
             <div v-for="(m, idx) in systemEvents" :key="idx" class="spring-thoughts-item" :class="kindClass(m.kind)">
@@ -346,6 +311,10 @@ watch(localLogEl, (el) => {
       :uploading-attachment="uploadingAttachment"
       :pending-attachment="pendingAttachment"
       :plan-awaiting-confirm="!!pendingPlanPreview"
+      :run-wall-clock-ms="runObservabilityLive?.wallClockMs ?? null"
+      :run-total-tokens="runObservabilityLive?.tokenSummary?.totalTokens ?? null"
+      :format-obs-ms="formatObsMs"
+      :format-token-count="formatTokenCount"
       @set-collaboration-posture="setCollaborationPosture"
       @input-keydown="onInputKeydown"
       @send-or-cancel="onSendOrCancel"

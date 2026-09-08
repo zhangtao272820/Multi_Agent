@@ -219,6 +219,12 @@ export async function executeAdminStep(
         managerTask
       ),
       sendThinking: input.sendThinking,
+      sendDelta: (d: string) => {
+        opts.sendEvent({ event: 'delta', data: d, from: 'admin' })
+      },
+      sendThoughtDelta: (t: string) => {
+        opts.sendEvent({ event: 'thought_delta', data: { text: t, done: false }, from: 'admin' })
+      },
       signal: opts.signal
     })
     const { answer: adminTextRaw, agentResult: agentResultRaw } = unwrapAgentCall(res as string | AgentCallResult)

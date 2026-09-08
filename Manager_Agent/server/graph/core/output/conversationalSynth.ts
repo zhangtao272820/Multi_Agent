@@ -19,17 +19,17 @@ export type ConversationalSynthKind = 'rag' | 'db' | 'report' | 'multi_hint'
 
 const FINAL_HINT: Record<ConversationalSynthKind, string> = {
   rag: '【最终指示】像 Cursor 文档助手：先给可用结论，再按需 ### 分段；末段 1～2 句自然拓展；禁止「暂未找到/查不到」。',
-  db: '【最终指示】像 Cursor 数据助手：只写解读/对照/建议；完整查询结果表由系统追加，勿自建缩略表替代。末段 1～2 句拓展；禁止库表审计字段与「查数据库：」前缀。',
-  report: '【最终指示】像 Cursor 分析报告：首段结论 → ### 关键发现 → 对照/表 → ### 建议 → 1～2 句拓展；禁止执行摘要与管线回显。',
+  db: '【最终指示】像 Cursor 数据助手：只写解读/对照/建议；完整查询结果表由系统追加，勿自建缩略表。严禁表名/字段原名/SQL，只许中文注释名。末段 1～2 句拓展；禁止「查数据库：」前缀。',
+  report: '【最终指示】像 Cursor 分析报告：首段结论 → ### 关键发现 → 对照/表 → ### 建议 → 1～2 句拓展；禁止执行摘要与管线回显；禁止库表/字段原名。',
   multi_hint:
-    '【最终指示】复杂多源任务：各源结论对照写清采信口径；分 ### 主题作答；末段 1～2 句拓展（可接着验证/深挖的方向）。',
+    '【最终指示】复杂多源任务：各源结论对照写清采信口径；分 ### 主题作答；末段 1～2 句拓展；DB 相关禁止表名/字段原名。',
 }
 
 const SOURCE_LABEL: Record<ConversationalSynthKind, string> = {
   rag: '【知识库专家原文·采信事实，禁止复述检索过程】',
-  db: '【数据库查询结果·采信数字，禁止复述 SQL/表结构/审计字段】',
+  db: '【数据库查询结果·采信数字与中文列名，禁止复述 SQL/表名/字段原名/审计字段】',
   report: '【报告草稿·提炼为用户可读正文，勿整段粘贴附录】',
-  multi_hint: '【专家输出摘要·采信事实，禁止 agent: 列表】',
+  multi_hint: '【专家输出摘要·采信事实，禁止 agent: 列表；DB 侧禁止表名/字段原名】',
 }
 
 export function buildConversationalSynthAssembleInput(input: {

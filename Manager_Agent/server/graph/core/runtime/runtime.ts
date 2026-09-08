@@ -8,22 +8,23 @@ import {
   isManagerRouteThoughtStreamEnabled,
   sanitizeRouteThoughtForUser
 } from '../../../utils/chat/routeThoughtStream'
+import { readQwenEnableThinkingFromEnv } from '#agent-shared/qwenModelKwargs'
 
 export function isManagerSynthStreamEnabled(): boolean {
   const v = String(process.env.MANAGER_SYNTH_STREAM ?? '1').trim().toLowerCase()
   return !(v === '0' || v === 'false' || v === 'off' || v === 'no')
 }
 
-/** 将已生成正文按块回放为 delta（审计通过后伪流；小块匀速，避免「一块一块蹦」） */
+/** 将已生成正文按块回放为 delta（定稿/薄路径伪流；可见匀速，避免「整段蹦出」） */
 export async function emitSynthStreamChunks(
   text: string,
   onDelta: (delta: string) => void,
   ensureNotAborted: () => void,
-  chunkSize = 14
+  chunkSize = 10
 ): Promise<void> {
   const s = String(text ?? '')
   if (!s) return
-  const delayMs = 8
+  const delayMs = 18
   for (let i = 0; i < s.length; i += chunkSize) {
     ensureNotAborted()
     onDelta(s.slice(i, i + chunkSize))
@@ -45,7 +46,7 @@ export type CreateManagerRuntimeDeps = {
   getModel: (
     modelName: string,
     temperature?: number,
-    modelOpts?: { enableThinking?: boolean }
+    modelOpts?: { enableThinking?: boolean; honorEnvThinking?: boolean; skipThinking?: boolean }
   ) => {
     invoke: (messages: any[]) => Promise<any>
     stream?: (messages: any[]) => Promise<AsyncIterable<unknown>>
@@ -180,8 +181,15 @@ export function createManagerRuntime(deps: CreateManagerRuntimeDeps) {
       (stage === 'route' || stage === 'plan') &&
       !invokeOptions?.quiet &&
       !Boolean(state.meta?.lowCostMode) &&
-      isManagerRouteThoughtStreamEnabled()
-    const model = getModel(effectiveModel, 0, useRouteThoughtStream ? { enableThinking: true } : undefined)
+      isManagerRouteThoughtStreamEnabled() &&
+      // 全局关思考时不推 reasoning 碎片，避免前端扁卡片墙
+      readQwenEnableThinkingFromEnv()
+    const model =
+      stage === 'synth'
+        ? getModel(effectiveModel, 0, { honorEnvThinking: true })
+        : useRouteThoughtStream
+          ? getModel(effectiveModel, 0, { enableThinking: true })
+          : getModel(effectiveModel, 0, { skipThinking: true })
     const useStream =
       (stage === 'synth' && isManagerSynthStreamEnabled() && typeof invokeOptions?.onDelta === 'function') ||
       useRouteThoughtStream
@@ -245,6 +253,10 @@ export function createManagerRuntime(deps: CreateManagerRuntimeDeps) {
       })
       for await (const chunk of stream) {
         ensureNotAborted()
+        if (stage === 'synth') {
+          const reasoning = extractReasoningFromStreamChunk(chunk)
+          if (reasoning) emitThoughtDelta(reasoning)
+        }
         const delta = extractContentFromStreamChunk(chunk)
         if (!delta) continue
         outText += delta

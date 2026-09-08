@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 
 @dataclass(frozen=True)
@@ -17,6 +17,8 @@ class Scene:
     stub_message: str = ""
     prompt_extra: str = ""
     depth_later: str = ""
+    # 智能档：交付物由 Understand 判定，不绑死图表策略
+    auto_deliverables: bool = False
 
 
 _STUB_EMBED = (
@@ -29,6 +31,18 @@ _STUB_ETL = (
 )
 
 SCENES: dict[str, Scene] = {
+    "auto": Scene(
+        id="auto",
+        title="智能问数",
+        allow_chart=True,
+        auto_deliverables=True,
+        prompt_extra=(
+            "统一问数入口：名单/计数/聚合/趋势均可。"
+            "用户问「分别是什么」时必须选出名称列，不要只 COUNT。"
+            "适合可视化时给出分类列与数值列；需要解读时再归纳，勿编造数字。"
+        ),
+        depth_later="Understand 交付物 need_chart / need_interpret / sys_meta",
+    ),
     "assistant": Scene(
         id="assistant",
         title="后台助手",
@@ -91,16 +105,25 @@ SCENES: dict[str, Scene] = {
     ),
 }
 
-DEFAULT_SCENE = "assistant"
+DEFAULT_SCENE = "auto"
 
 
 def get_scene(scene_id: str | None) -> Scene:
     key = str(scene_id or DEFAULT_SCENE).strip().lower()
+    if key in {"", "default", "smart"}:
+        key = "auto"
     if key in {"saas", "embedded"}:
         key = "embed"
     if key in {"dq", "quality"}:
         key = "etl"
     return SCENES.get(key) or SCENES[DEFAULT_SCENE]
+
+
+def scene_with_sys_meta(scene: Scene, *, sys_meta: bool) -> Scene:
+    """本 turn 临时允许 sys schema（不切换整页高级场景）。"""
+    if not sys_meta or scene.allow_sys_schema:
+        return scene
+    return replace(scene, allow_sys_schema=True)
 
 
 def scene_public() -> list[dict]:
@@ -113,6 +136,7 @@ def scene_public() -> list[dict]:
             "allow_chart": s.allow_chart,
             "allow_sys_schema": s.allow_sys_schema,
             "strict_secrets": s.strict_secrets,
+            "auto_deliverables": s.auto_deliverables,
             "depth_later": s.depth_later,
         }
         for s in SCENES.values()

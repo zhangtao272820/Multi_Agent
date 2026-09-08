@@ -1,4 +1,6 @@
 import { recallProcessMemory } from '#agent-shared/processMemoryStore'
+import { requireTenantId, ScopeRequiredError } from '#agent-shared/tenantScope'
+import { resolveManagerHttpUser } from '../../utils/platform/managerRequestUser'
 
 export default defineEventHandler(async (event) => {
   const query = getQuery(event)
@@ -11,9 +13,21 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'q 不能为空' })
   }
 
+  const auth = resolveManagerHttpUser(event)
+  let tenantId: string
+  try {
+    tenantId = requireTenantId(auth.tenantId || query.tenant_id || query.tenantId)
+  } catch (e) {
+    if (e instanceof ScopeRequiredError) {
+      throw createError({ statusCode: 401, statusMessage: 'tenant_required' })
+    }
+    throw e
+  }
+
   const items = await recallProcessMemory(question, {
+    tenantId,
     scenarioKey: scenarioKey || undefined,
     limit
   })
-  return { ok: true, count: items.length, items }
+  return { ok: true, tenantId, count: items.length, items }
 })

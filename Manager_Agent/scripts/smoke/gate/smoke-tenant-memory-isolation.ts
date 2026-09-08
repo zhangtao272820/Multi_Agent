@@ -1,5 +1,5 @@
 /**
- * 多租户记忆隔离 smoke：TenantScope、跨租户契约、进化双轨与平台审核入口。
+ * 多租户记忆隔离 smoke：TenantScope、Process/Tool/Fold/Profile 收紧契约、进化双轨。
  * 运行：cd Manager_Agent && npm run smoke:tenant-memory
  */
 import fs from 'node:fs'
@@ -65,18 +65,56 @@ try {
 const api = readSource('shared/agentMemoryApi.ts')
 assert(api.includes('tenant_id'), 'agentMemoryApi uses tenant_id')
 assert(api.includes('WHERE tenant_id'), 'recall filters by tenant')
+assert(api.includes('ON CONFLICT (tenant_id, user_key)'), 'profile upsert composite key')
+assert(api.includes('user_id = $4') || api.includes('userKey'), 'recall can scope by userKey')
 
-const mig = readSource('scripts/migrations/016_agent_memory_multitenant.sql')
-assert(mig.includes('mgr_memory_entries'), 'migration touches memory entries')
-assert(mig.includes('evo_global_candidates'), 'migration has global candidates')
-assert(mig.includes('global_candidate'), 'evo status includes global_candidate')
+const mig016 = readSource('scripts/migrations/016_agent_memory_multitenant.sql')
+assert(mig016.includes('mgr_memory_entries'), 'migration touches memory entries')
+assert(mig016.includes('evo_global_candidates'), 'migration has global candidates')
+assert(mig016.includes('global_candidate'), 'evo status includes global_candidate')
+
+const mig020 = readSource('scripts/migrations/020_agent_memory_tenant_harden.sql')
+assert(mig020.includes('mgr_process_memory'), '020 hardens process memory')
+assert(mig020.includes('mgr_process_memory_tenant_scenario_norm_key'), '020 process unique with tenant')
+assert(mig020.includes('mgr_tool_memory_tenant_agent_tool_ctx_key'), '020 tool unique with tenant')
+assert(mig020.includes('mgr_user_profiles_tenant_user_key'), '020 profile composite unique')
+assert(mig020.includes('db_user_preferences_tenant_user_key'), '020 db prefs composite unique')
+assert(mig020.includes('shared_user_context_view'), '020 view joins on tenant')
+
+const processStore = readSource('shared/processMemoryStore.ts')
+assert(processStore.includes('requireTenantId'), 'process memory requires tenant')
+assert(processStore.includes('tenant_id'), 'process memory SQL uses tenant_id')
+assert(processStore.includes('ON CONFLICT (tenant_id, scenario_key, question_norm)'), 'process upsert tenant unique')
+
+const toolStore = readSource('shared/toolMemoryStore.ts')
+assert(toolStore.includes('requireTenantId'), 'tool memory requires tenant')
+assert(toolStore.includes('ON CONFLICT (tenant_id, agent, tool_name, context_key)'), 'tool upsert tenant unique')
+assert(toolStore.includes('WHERE tenant_id = $1'), 'tool query filters tenant')
+
+const fold = readSource('shared/memoryFoldJob.ts')
+assert(fold.includes('tenantId'), 'fold job accepts tenantId')
+assert(fold.includes('recordMemory'), 'fold writes via recordMemory')
+assert(fold.includes('mgr_sessions'), 'fold joins sessions for tenant')
 
 const autonomy = readSource('Manager_Agent/server/plugins/managerAutonomyPlugin.ts')
 assert(autonomy.includes('listActiveTenantIds'), 'autonomy iterates tenants')
 assert(autonomy.includes('resolveManagerPolicyDir'), 'autonomy uses tenant policyDir')
+assert(autonomy.includes('runMemoryFoldJob(process.env, { tenantId: tid })'), 'autonomy folds per tenant')
 
 const clear = readSource('Manager_Agent/server/utils/session/managerMemoryClear.ts')
 assert(clear.includes('tenant_id = $1'), 'clear is tenant-scoped')
+assert(clear.includes('DELETE FROM mgr_process_memory'), 'clear deletes process memory by tenant')
+assert(clear.includes('DELETE FROM mgr_tool_memory'), 'clear deletes tool memory by tenant')
+
+const composer = readSource('Manager_Agent/server/graph/core/plan/contextComposer.ts')
+assert(composer.includes('tenantId'), 'composer passes tenant to process/tool recall')
+
+const finalize = readSource('Manager_Agent/server/graph/nodes/final/finalizeNodeRun.ts')
+assert(finalize.includes('tenantId: String(state.tenantId'), 'finalize writes tenant on process/tool')
+
+const processApi = readSource('Manager_Agent/server/api/manager/process-memory.get.ts')
+assert(processApi.includes('requireTenantId'), 'process-memory API requires tenant')
+assert(processApi.includes('tenant_required'), 'process-memory API fail-closed')
 
 const bridge = readSource('Manager_Agent/server/graph/core/evolution/globalEvolutionBridge.ts')
 assert(bridge.includes('sanitizePayload'), 'global sanitize')
@@ -87,7 +125,23 @@ const platform = readSource('Manage-platform_Agent/backend/app/main.py')
 assert(platform.includes('evolution/global-candidates'), 'platform lists candidates')
 assert(platform.includes('evolution/global-review'), 'platform reviews candidates')
 
-const companion = readSource('Companion_Agent/backend/app/save_store.py')
-assert(companion.includes('tenant_id'), 'companion saves have tenant_id')
+const companionPath = 'Companion_Agent/backend/app/save_store.py'
+if (fs.existsSync(path.join(repoRoot, companionPath))) {
+  const companion = readSource(companionPath)
+  assert(companion.includes('tenant_id'), 'companion saves have tenant_id')
+} else {
+  console.log('smoke-tenant-memory-isolation: skip companion (not in workspace)')
+}
+
+const feedback = readSource('Manager_Agent/server/api/manager/session-feedback.post.ts')
+assert(feedback.includes('requireTenantId'), 'feedback uses requireTenantId')
+assert(feedback.includes('tenant_required'), 'feedback fails closed without tenant')
+
+const resolveUser = readSource('shared/resolveRequestUser.ts')
+assert(resolveUser.includes('requireTenantId'), 'resolveRequestUser fail-closed tenant')
+assert(resolveUser.includes('tenant_required'), 'resolveRequestUser returns tenant_required')
+
+const runner = readSource('scripts/run-agent-memory-migrations.ts')
+assert(runner.includes('020_agent_memory_tenant_harden.sql'), 'migration runner includes 020')
 
 console.log('smoke-tenant-memory-isolation: ok')

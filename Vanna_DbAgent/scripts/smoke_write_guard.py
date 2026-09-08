@@ -57,6 +57,31 @@ def main() -> None:
         g = guard_write_sql(sql, tenant=tenant, scene=scene)
         assert_true(not g.ok, f"expected deny for: {sql} (got {g.reason})")
 
+    # chat_json returns str JSON — classify / plan must parse, not call .get on str
+    from unittest.mock import patch
+
+    from app.llm import LlmMeter
+    from app.write_sql import classify_read_or_write, parse_llm_json, plan_write_sql
+
+    assert_true(parse_llm_json('{"mode":"read","confidence":0.9}')["mode"] == "read", "parse str json")
+    assert_true(parse_llm_json({"mode": "write"})["mode"] == "write", "parse dict passthrough")
+    assert_true(parse_llm_json("not-json") == {}, "bad json empty")
+    with patch("app.write_sql.chat_json", return_value='{"mode":"write","confidence":0.9,"reason":"建表"}'):
+        assert_true(classify_read_or_write(question="新建一张演示表", meter=LlmMeter()) == "write", "classify write from str")
+    with patch("app.write_sql.chat_json", return_value='{"mode":"read","confidence":0.95,"reason":"查数"}'):
+        assert_true(
+            classify_read_or_write(question="河西区70到79岁老人男女各多少人", meter=LlmMeter()) == "read",
+            "classify read from str",
+        )
+    with patch("app.write_sql.link_tables", return_value=[]), patch(
+        "app.write_sql.cards_for", return_value=""
+    ), patch(
+        "app.write_sql.chat_json",
+        return_value='{"intent":"create_table","need_clarify":false,"clarify":"","reason":"ok","sql":"CREATE TABLE t (id INT)"}',
+    ):
+        planned = plan_write_sql(tenant=tenant, scene=scene, question="建表", meter=LlmMeter())
+        assert_true(planned.get("intent") == "create_table" and "CREATE TABLE" in planned.get("sql", ""), "plan_write parses str")
+
     # pending decide without token
     from app.write_sql import decide_write_pending
     from app.pending import save_pending, drop_pending

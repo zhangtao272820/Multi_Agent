@@ -28,15 +28,24 @@ function resolveRagPrefetchQuestion(state: any, lastUser: string, question: stri
     }) || lastUser
   const turnKind = String(state.meta?.turnKind || '').trim()
   const anchor = sessionIntentAnchorFromMeta(state.meta)?.coalescedTask || ''
+  let grounded = lean
   if (shouldGroundFollowupQuery({ turnKind, lastUser, anchorTask: anchor })) {
-    return groundFollowupQuery({
+    grounded = groundFollowupQuery({
       lastUser,
       turnKind,
       anchorTask: anchor,
       candidate: lean
     })
   }
-  return lean
+  const caption = String(
+    state?.mediaAttachment?.caption || state?.meta?.routeImageCaption || ''
+  )
+    .trim()
+    .slice(0, 80)
+  if (caption && grounded && !grounded.includes(caption)) {
+    return `${grounded}（图意：${caption}）`.slice(0, 900)
+  }
+  return grounded
 }
 
 import type { CreatePrefetchNodeDeps } from './types'

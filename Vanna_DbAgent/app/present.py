@@ -1,6 +1,7 @@
-"""用字段注释决定结果表展示：有意义列回显，敏感/审计/无用列隐藏。
+"""用字段注释决定结果表展示：有意义列全部回显，敏感/审计/无用列隐藏。
 
 不调 LLM。分类依据 schema snapshot 的列注释 + 列名，不是用户原话正则路由。
+问句只用于排序（相关列靠前），不得用来丢掉已判为有用的列。
 """
 from __future__ import annotations
 
@@ -11,6 +12,9 @@ from app.schema_link import load_schema
 from app.sql_guard import SECRET_FIELD_NAMES
 from app.tenants import Tenant
 from app.understand import normalize_question
+
+# SELECT * 防爆：注释判为 show 的列也设软上限；优先保留问句相关列
+_MAX_DISPLAY_COLS = 24
 
 AUDIT_FIELD_NAMES = {
     "modifier",
@@ -162,12 +166,8 @@ def present_rows(
         keep = [(0, k, k, {}) for k in keys]
         hidden = []
         labels = {k: k for k in keys}
-    preferred = [x for x in keep if x[0] > 0]
-    # 问句已点名姓名/名称/类型等时，只展示贴合列，避免 SELECT * 铺一长串
-    if preferred:
-        keep = preferred[:6]
-    else:
-        keep = keep[:6]
+    # 问句相关列靠前；不得因问句命中而丢掉其它「注释判为有用」的列
+    keep = keep[:_MAX_DISPLAY_COLS]
     out_rows: list[dict[str, Any]] = []
     for row in rows:
         item: dict[str, Any] = {}
@@ -215,4 +215,8 @@ def select_hint(tenant: Tenant, tables: list[str], question: str) -> str:
             break
     if not shown:
         return ""
-    return "可展示列（注释判断；* 更贴近问题；不要 SELECT 主键/审计/敏感列）：\n" + "\n".join(f"- {x}" for x in shown)
+    return (
+        "可展示列（注释判断；* 更贴近问题；不要 SELECT 主键/审计/敏感列；"
+        "业务有用列请尽量选出，展示层会全部回显并总结）：\n"
+        + "\n".join(f"- {x}" for x in shown)
+    )

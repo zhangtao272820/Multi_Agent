@@ -1550,7 +1550,7 @@ async def websocket_endpoint(websocket: WebSocket):
                         "verification_result": "处理已取消或超时，未继续执行。",
                     }
 
-            # Send final response
+            # Send final response — 先推 thought/delta，再 final（Manager 可真流展示）
             response_text = _graph_response_text(final_result)
             latency_ms = int((time.time() - started) * 1000)
             agent_result = build_admin_agent_result(
@@ -1580,6 +1580,32 @@ async def websocket_endpoint(websocket: WebSocket):
                 latency_ms=latency_ms,
             )
             maybe_run_lightweight_curator()
+
+            thoughts = list(final_result.get("thoughts") or [])
+            for thought in thoughts[-12:]:
+                msg = str(thought or "").strip()
+                if msg:
+                    await manager.send_personal_message(
+                        json.dumps({"type": "thought_delta", "content": msg}, ensure_ascii=False),
+                        websocket,
+                    )
+
+            body = str(response_text or "")
+            if body:
+                await manager.send_personal_message(
+                    json.dumps({"type": "stream_start", "phase": "answer"}, ensure_ascii=False),
+                    websocket,
+                )
+                chunk_size = 12
+                for i in range(0, len(body), chunk_size):
+                    piece = body[i : i + chunk_size]
+                    await manager.send_personal_message(
+                        json.dumps({"type": "delta", "content": piece}, ensure_ascii=False),
+                        websocket,
+                    )
+                    if i + chunk_size < len(body):
+                        await asyncio.sleep(0.016)
+
             response_data = {
                 "type": "final",
                 "response": response_text,
@@ -1589,7 +1615,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     response_text
                 ),
                 "status": "success",
-                "thoughts": final_result.get("thoughts", []),
+                "thoughts": thoughts,
                 "cards": final_result.get("ui_cards") or [],
                 "agentResult": agent_result,
             }

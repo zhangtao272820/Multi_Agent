@@ -96,11 +96,12 @@ export function resolveEngineFromTaskSpec(input: {
     }
   }
 
-  if (requiresClassicEngine(input.task, input.startUrl)) {
+  // utterance hard_guard 仅在无 TaskSpec.task_kind 时兜底；有 kind 时信任 LLM Understand
+  if (!kind && requiresClassicEngine(input.task, input.startUrl)) {
     return {
       engine: 'classic',
       confidence: 0.95,
-      reason: 'hard_guard: video / B站互动需 classic',
+      reason: 'hard_guard: video / B站互动需 classic（无 TaskSpec）',
       source: 'regex',
     }
   }

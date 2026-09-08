@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# EXAMPLE ONLY — review before running on a real GPU host.
+# Target: Ubuntu 22.04 / 24.04 with NVIDIA GPU for vLLM / training.
+set -euo pipefail
+
+echo "==> Checking nvidia-smi (install NVIDIA driver first if this fails)"
+if ! command -v nvidia-smi >/dev/null 2>&1; then
+  echo "nvidia-smi not found."
+  echo "Install driver via Ubuntu 'Additional Drivers' or NVIDIA CUDA repo, then reboot."
+  echo "Docs: https://docs.nvidia.com/datacenter/tesla/driver-installation-guide/"
+  exit 1
+fi
+nvidia-smi
+
+echo "==> Checking Docker"
+if ! command -v docker >/dev/null 2>&1; then
+  echo "Docker not found. On this monorepo you can use:"
+  echo "  sudo bash Manage-platform_Agent/scripts/bootstrap-docker-ubuntu.sh"
+  exit 1
+fi
+docker version
+
+echo "==> Checking NVIDIA Container Toolkit (docker --gpus)"
+if ! docker info 2>/dev/null | grep -qi nvidia; then
+  echo "NVIDIA runtime may be missing. Install toolkit, then:"
+  echo "  https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html"
+  echo "Typical:"
+  echo "  sudo nvidia-ctk runtime configure --runtime=docker"
+  echo "  sudo systemctl restart docker"
+fi
+
+echo "==> GPU smoke in container"
+docker run --rm --gpus all nvidia/cuda:12.4.0-base-ubuntu22.04 nvidia-smi
+
+echo "==> Disk tip: put HF cache on large volume, e.g."
+echo "  export HF_HOME=/data/hf"
+echo "  mkdir -p /data/hf && df -h /data"
+
+echo "OK: host looks ready for experiments/llm-ops/deploy vLLM compose."

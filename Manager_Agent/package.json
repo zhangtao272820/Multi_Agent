@@ -99,6 +99,7 @@
     "smoke:route-matrix-ws": "npx --yes tsx scripts/smoke/route/smoke-route-matrix-ws.ts",
     "smoke:env-modes": "npx --yes tsx scripts/smoke/gate/smoke-env-modes.ts",
     "smoke:security-profile": "npx --yes tsx --tsconfig tsconfig.smoke.json scripts/smoke/gate/smoke-security-profile.ts",
+    "smoke:disabled-agents": "npx --yes tsx --tsconfig tsconfig.smoke.json scripts/smoke/routing/smoke-disabled-agents.ts",
     "verify:enterprise-docker": "powershell -NoProfile -ExecutionPolicy Bypass -File ../Manage-platform_Agent/scripts/verify-enterprise-docker.ps1",
     "test:unit": "npx --yes tsx scripts/test/managerEnvModes.unit.ts",
     "smoke:phase2": "npx --yes tsx scripts/smoke/gate/smoke-phase2-upgrades.ts",

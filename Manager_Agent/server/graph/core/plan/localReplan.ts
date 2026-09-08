@@ -84,23 +84,71 @@ export function resolveCircuitBlockedReplan(input: {
   return { kind: 'strip_circuit', kept, skipped }
 }
 
+export type ObservationFailureKind =
+  | 'error'
+  | 'empty_output'
+  | 'empty_evidence'
+  | 'protocol_malformed'
+  | 'vl_failed'
+  | null
+
+/**
+ * 从子 Agent Observation 结构化判定失败类（工具返回体/状态，非用户原话）。
+ */
+export function classifyStepObservationFailure(input: {
+  status?: string
+  output?: string
+  error?: string
+  agent?: string
+  emptyEvidence?: boolean
+  protocolMalformed?: boolean
+}): ObservationFailureKind {
+  const status = String(input.status || '').toLowerCase()
+  const err = String(input.error || '').trim()
+  const out = String(input.output || '').trim()
+  const agent = String(input.agent || '').toLowerCase()
+
+  if (input.protocolMalformed) return 'protocol_malformed'
+  if (status === 'error' || status === 'failed') {
+    if (agent === 'multimodal' || /vl|vision|multimodal/i.test(err)) return 'vl_failed'
+    return 'error'
+  }
+  if (err) {
+    if (agent === 'multimodal') return 'vl_failed'
+    return 'error'
+  }
+  if (input.emptyEvidence) return 'empty_evidence'
+  if (!out || out.length < 12) return 'empty_output'
+  if (
+    out.includes('<RAG_NEEDS_CLARIFY>') ||
+    out.includes('【需要补充信息】') ||
+    out.includes('"row_count":0') ||
+    out.includes('"rows":[]') ||
+    out.includes('暂未找到相关') ||
+    out.includes('知识库检索未找到')
+  ) {
+    return 'empty_evidence'
+  }
+  if (out.includes('多模态服务暂不可用') || out.includes('处理失败')) {
+    return agent === 'multimodal' ? 'vl_failed' : 'error'
+  }
+  return null
+}
+
 export function shouldConsiderLocalReplan(input: {
   status?: string
   output?: string
   error?: string
   agent?: string
-  /** 该 Agent 已 hard-down / 熔断 → 禁止烧 LLM replan */
   expertHardDown?: boolean
   circuitOpen?: boolean
+  emptyEvidence?: boolean
+  protocolMalformed?: boolean
+  observationKind?: ObservationFailureKind | null
 }): boolean {
   if (input.expertHardDown || input.circuitOpen) return false
-  const status = String(input.status || '').toLowerCase()
-  if (status === 'error' || status === 'failed') return true
-  const err = String(input.error || '').trim()
-  if (err) return true
-  const out = String(input.output || '').trim()
-  if (!out || out.length < 12) return true
-  return false
+  const kind = input.observationKind || classifyStepObservationFailure(input)
+  return Boolean(kind)
 }
 
 export type StepCompleteObservation = {
@@ -108,6 +156,9 @@ export type StepCompleteObservation = {
   status: string
   output?: string
   error?: string
+  observationKind?: ObservationFailureKind | null
+  emptyEvidence?: boolean
+  protocolMalformed?: boolean
 }
 
 /** 结构性纠偏：禁止 admin 伪 tool-call / preamble 写入剩余计划 */
@@ -135,6 +186,9 @@ export async function llmLocalReplanRemaining(opts: {
   completedSummaries: Array<{ id: string; agent: string; status: string; summary: string }>
   planConstraints?: string
   maxTotalSteps?: number
+  /** 路由预读画面摘要，供纠偏改写下游 query */
+  imageCaption?: string
+  localReplanCount?: number
 }): Promise<{ reason: string; remainingSteps: Step[] } | null> {
   const pending = Array.isArray(opts.pendingSteps) ? opts.pendingSteps : []
   if (!pending.length) return null
@@ -151,6 +205,14 @@ export async function llmLocalReplanRemaining(opts: {
   const doneLines = keepLastObservations(opts.completedSummaries)
     .map((s) => `- ${s.id} [${s.agent}/${s.status}] ${clipObsSummary(s.summary).slice(0, 120)}`)
     .join('\n')
+  const failKind =
+    opts.observation.observationKind ||
+    classifyStepObservationFailure({
+      ...opts.observation,
+      agent: opts.observation.step.agent
+    })
+  const caption = String(opts.imageCaption || '').trim().slice(0, 80)
+  const replanCount = Number(opts.localReplanCount) || 0
 
   try {
     const r = await opts.llmInvoke(
@@ -167,6 +229,7 @@ export async function llmLocalReplanRemaining(opts: {
             '- 仅在失败、空结果、证据不足时 shouldReplan=true',
             '- remainingSteps 替换全部剩余 pending（可改写/删减/新增，条数≤预算）',
             '- 保留合理依赖；禁止编造权威数字；agent 必须是已有能力枚举',
+            '- 空证据/空表时可改写下游 query，或补 multimodal 前序（dependsOn）再查库/文档',
             '- confidence<0.5 视为不修订',
             '- admin 的 query 必须是用户侧自然语言子任务（保留会议标题与时间表达），禁止写成 add_event(...) / tool(arg=...) 伪代码；工具选择由个人助手执行',
             '- admin 的 query 禁止只写能力边界/系统指令（如「仅处理下列个人助理能力」）'
@@ -177,6 +240,9 @@ export async function llmLocalReplanRemaining(opts: {
           [
             `用户目标：${String(opts.question || '').slice(0, 800)}`,
             opts.planConstraints ? `用户约束：${opts.planConstraints.slice(0, 400)}` : '',
+            caption ? `画面摘要：${caption}` : '',
+            `本轮已局部 replan 次数：${replanCount}`,
+            `失败类：${failKind || 'unknown'}`,
             `刚完成：${opts.observation.step.id} [${opts.observation.step.agent}] status=${opts.observation.status}`,
             `输出摘要：${clipObsSummary(String(opts.observation.output || opts.observation.error || ''))}`,
             `已完成：\n${doneLines || '（无）'}`,

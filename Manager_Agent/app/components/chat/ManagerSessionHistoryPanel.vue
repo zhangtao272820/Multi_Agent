@@ -30,6 +30,16 @@ function modeLabel(mode?: WorkbenchMode) {
 const visibleItems = computed(() =>
   props.items.filter((item) => !item.workbenchMode || item.workbenchMode === props.workbenchMode)
 )
+
+const modeHint = computed(() =>
+  props.workbenchMode === 'professional'
+    ? '专业工作台 · 独立会话与编排工具'
+    : '对话模式 · 轻量聊天，独立会话槽'
+)
+
+function onModeClick(mode: WorkbenchMode) {
+  emit('setWorkbenchMode', mode)
+}
 </script>
 
 <template>
@@ -38,43 +48,58 @@ const visibleItems = computed(() =>
     class="spring-history-backdrop"
     @click="emit('closeBackdrop')"
   />
-  <aside class="spring-history-sidebar" :class="{ collapsed: !open }" aria-label="历史会话">
-    <div class="spring-history-head">
-      <span class="spring-history-title">历史会话</span>
-      <button type="button" class="spring-btn alt spring-btn-xs" @click="emit('newSession')">新会话</button>
-    </div>
-    <div class="spring-history-mode-row" role="group" aria-label="工作台模式">
-      <button
-        type="button"
-        class="spring-history-mode-btn"
-        :class="{ 'is-active': workbenchMode === 'chat' }"
-        title="对话模式：DeepSeek 式网页聊天"
-        @click="emit('setWorkbenchMode', 'chat')"
-      >
-        对话
-      </button>
-      <button
-        type="button"
-        class="spring-history-mode-btn"
-        :class="{ 'is-active': workbenchMode === 'professional' }"
-        title="专业模式：PU-Stack 编排工作台"
-        @click="emit('setWorkbenchMode', 'professional')"
-      >
-        专业
+  <aside class="spring-history-sidebar brand-rail" :class="{ collapsed: !open }" aria-label="历史会话">
+    <div class="spring-history-head harness-history-head">
+      <div class="harness-rail-brand">
+        <img class="harness-rail-logo" src="/brand/logos/manager.svg" alt="" width="28" height="28" />
+        <div class="harness-rail-titles">
+          <span class="harness-rail-name">天机 · 总管</span>
+          <span class="harness-rail-sub">{{ workbenchMode === 'professional' ? '专业工作台' : '对话' }}</span>
+        </div>
+      </div>
+      <button type="button" class="harness-new-session-btn" @click="emit('newSession')">
+        + 新会话
       </button>
     </div>
-    <p class="spring-history-mode-hint">
-      {{
-        workbenchMode === 'professional'
-          ? '当前：专业工作台 · 会话与对话互不影响'
-          : '当前：普通对话 · 不处理专业编排功能'
-      }}
-    </p>
+
+    <div class="spring-history-mode-block">
+      <div class="spring-history-mode-row" role="tablist" aria-label="工作台模式">
+        <button
+          type="button"
+          role="tab"
+          class="spring-history-mode-btn"
+          :class="{ 'is-active': workbenchMode === 'professional' }"
+          :aria-selected="workbenchMode === 'professional'"
+          title="专业模式：PU-Stack 编排工作台"
+          @click="onModeClick('professional')"
+        >
+          专业
+        </button>
+        <button
+          type="button"
+          role="tab"
+          class="spring-history-mode-btn"
+          :class="{ 'is-active': workbenchMode === 'chat' }"
+          :aria-selected="workbenchMode === 'chat'"
+          title="对话模式：网页聊天（独立会话槽）"
+          @click="onModeClick('chat')"
+        >
+          对话
+        </button>
+      </div>
+      <p class="spring-history-mode-hint" :key="workbenchMode">{{ modeHint }}</p>
+    </div>
+
+    <div class="spring-history-section-label">
+      工作区
+      <span class="spring-history-count">{{ visibleItems.length }}</span>
+    </div>
+
     <div v-if="!visibleItems.length" class="spring-history-empty">
       {{
         workbenchMode === 'professional'
-          ? '暂无历史记录，在专业模式发送消息后会自动保存。'
-          : '暂无历史记录，发送消息后会自动保存。'
+          ? '暂无专业会话。发送消息后会自动保存到本工作区。'
+          : '暂无对话会话。切换到对话模式后发送消息会保存在此。'
       }}
     </div>
     <ul v-else class="spring-history-list">
@@ -84,7 +109,13 @@ const visibleItems = computed(() =>
         class="spring-history-row"
         :class="{ active: item.id === sessionId }"
       >
-        <button type="button" class="spring-history-item" :title="item.title" @click="emit('select', item.id)">
+        <button
+          type="button"
+          class="spring-history-item brand-nav-item"
+          :class="{ 'is-active': item.id === sessionId }"
+          :title="item.title"
+          @click="emit('select', item.id)"
+        >
           <span class="spring-history-item-title-row">
             <span
               class="spring-history-mode-badge"
@@ -106,3 +137,67 @@ const visibleItems = computed(() =>
     </ul>
   </aside>
 </template>
+
+<style scoped>
+.harness-rail-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.harness-rail-logo {
+  flex: 0 0 auto;
+  border-radius: 8px;
+}
+
+.harness-rail-titles {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.harness-rail-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--brand-ink, #0f172a);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.harness-rail-sub {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--brand-text-muted, #64748b);
+}
+
+.spring-history-mode-hint {
+  margin: 8px 2px 0;
+  padding: 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--brand-text-muted, #64748b);
+  animation: harness-mode-hint-in 0.28s var(--brand-ease, ease);
+}
+
+@keyframes harness-mode-hint-in {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.spring-history-count {
+  margin-left: 6px;
+  font-weight: 600;
+  color: var(--brand-text-muted, #94a3b8);
+  letter-spacing: 0;
+  text-transform: none;
+}
+</style>

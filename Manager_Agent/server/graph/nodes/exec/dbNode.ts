@@ -134,6 +134,10 @@ export function buildDbNode(deps: CreateExecutionNodesDeps) {
       const answer = outcome.output
       const isEmpty = Boolean((outcome.evidence as { empty?: boolean })?.empty)
       const dbEvidence = outcome.evidence ?? { kind: 'db', query: questionForDb, empty: isEmpty }
+      const vannaChart = (dbEvidence as { chart?: unknown }).chart
+        ?? (outcome.meta as { agentResult?: { structured?: { chart?: unknown } } } | undefined)?.agentResult?.structured?.chart
+      const dbResultsBase: Record<string, unknown> = { db: answer }
+      if (vannaChart != null) dbResultsBase.db_vanna_chart = vannaChart
       emitTrace({ type: 'step_end', agent: 'db', ms: Date.now() - t0, status: 'ok', empty: isEmpty, evidence: dbEvidence, outputSummary: summarize(answer), at: new Date().toISOString() })
       emitAgentEvidence(opts.sendEvent, 'db', dbEvidence as Record<string, unknown>)
       const shouldAlsoRag =
@@ -145,11 +149,11 @@ export function buildDbNode(deps: CreateExecutionNodesDeps) {
         opts.sendEvent({ event: 'thinking', data: '数据库暂未查到结果，将结合其他信息汇总报告。', from: 'manager' })
         const emptyText = String(answer || '').trim() || '数据库中未找到相关记录。'
         return {
-          results: { db: emptyText },
+          results: { ...dbResultsBase, db: emptyText },
           evidence: [{ ...dbEvidence, empty: true, reason: (dbEvidence as { reason?: string }).reason || 'No data' }]
         }
       }
-      if (!allowRagSupplement) return { results: { db: answer }, evidence: [dbEvidence] }
+      if (!allowRagSupplement) return { results: dbResultsBase, evidence: [dbEvidence] }
       try {
         const t1 = Date.now()
         let ragEvidence: any = null
@@ -194,7 +198,7 @@ export function buildDbNode(deps: CreateExecutionNodesDeps) {
           ? mergeTaskPlan(state.taskPlan ?? null, { needsClarification: true, clarificationQuestions: ragClarify.questions }, nextIntent, getEffectivePlanSteps(state as any))
           : (state.taskPlan ?? null)
         return {
-          results: { db: answer, rag: ragAnswerText },
+          results: { ...dbResultsBase, rag: ragAnswerText },
           intent: nextIntent,
           evidence: [dbEvidence, ...(ragEvidence ? [ragEvidence] : [])],
           meta: ragClarify.needsClarify ? mergeMeta(state, { needsClarify: true, clarifyQuestions: ragClarify.questions, uncertainty: 'high' }) : undefined,
@@ -203,7 +207,7 @@ export function buildDbNode(deps: CreateExecutionNodesDeps) {
       } catch (e: any) {
         emitTrace({ type: 'step_end', agent: 'rag', status: 'error', error: String(e?.message || e), at: new Date().toISOString() })
         opts.sendEvent({ event: 'thinking', data: `RAG 回退失败：${String(e?.message || e)}`, from: 'manager' })
-        return { results: { db: answer }, evidence: [dbEvidence] }
+        return { results: dbResultsBase, evidence: [dbEvidence] }
       }
     } catch (e: any) {
       emitTrace({ type: 'step_end', agent: 'db', status: 'error', error: String(e?.message || e), at: new Date().toISOString() })

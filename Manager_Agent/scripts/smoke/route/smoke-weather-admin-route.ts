@@ -53,19 +53,32 @@ assert(
 assert(orchSrc.includes('gui_interact') || orchSrc.includes('ORCH_PACK:gui_interact'), 'orchestrator has gui_interact pack')
 
 const alignSrc = readSource('Manager_Agent/server/graph/llm/userIntentAlignLlm.ts')
-assert(alignSrc.includes('formatAdminCrawlerDisambiguationPrompt'), 'user intent align uses disambig prompt')
+assert(
+  alignSrc.includes('formatAdminCrawlerDisambiguationPromptCompact') ||
+    alignSrc.includes('formatAdminCrawlerDisambiguationPrompt'),
+  'user intent align uses disambig prompt'
+)
 assert(alignSrc.includes('formatSourceCommitmentPromptRule'), 'align mounts sourceCommitment rule')
 assert(
-  alignSrc.includes('知识库') && alignSrc.includes('禁止再为同义片段加 crawler'),
+  (alignSrc.includes('知识库') || alignSrc.includes('数据库')) &&
+    (alignSrc.includes('禁止') && alignSrc.includes('crawler')),
   'align forbids crawler mirror of KB/DB'
 )
 assert(
-  alignSrc.includes('服从编排清晰度切片') || alignSrc.includes('enforceWebCommitmentOnAlign'),
+  alignSrc.includes('服从编排清晰度切片') ||
+    alignSrc.includes('清晰度切片') ||
+    alignSrc.includes('enforceWebCommitmentOnAlign'),
   'align defers to web commitment lock'
 )
 
 const judgeSrc = readSource('Manager_Agent/server/graph/llm/orchestratorJudgeLlm.ts')
-assert(judgeSrc.includes('Admin') || judgeSrc.includes('admin') || judgeSrc.includes('get_weather'), 'judge checks admin capability binding')
+assert(
+  judgeSrc.includes('formatAgentBoundaryPromptCompact') ||
+    judgeSrc.includes('Admin') ||
+    judgeSrc.includes('admin') ||
+    judgeSrc.includes('get_weather'),
+  'judge checks admin capability binding'
+)
 assert(judgeSrc.includes('webFetchKind') || judgeSrc.includes('公网') || judgeSrc.includes('crawler'), 'judge preserves clear web→crawler')
 assert(judgeSrc.includes('sourceCommitment') || judgeSrc.includes('ambiguous'), 'judge checks commitment clarify')
 

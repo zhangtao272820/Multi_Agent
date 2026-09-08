@@ -212,6 +212,7 @@ function buildManagerHintsBlock(task?: ManagerRagTaskPayload | null): string {
   if (!task) return "";
   const lines: string[] = [];
   if (task.scope_hint) lines.push(`检索范围说明：${String(task.scope_hint).slice(0, 400)}`);
+  if (task.image_caption) lines.push(`画面摘要（图意接地）：${String(task.image_caption).slice(0, 80)}`);
   if (task.retrieval_keywords?.length) lines.push(`已有扩展词：${task.retrieval_keywords.join("、")}`);
   if (task.sub_queries?.length) lines.push(`已有子问句：${task.sub_queries.join("；")}`);
   return lines.length ? `\n\n【编排侧车（可合并，勿重复）】\n${lines.join("\n")}` : "";
@@ -320,7 +321,8 @@ const withRetry = async <T>(fn: () => Promise<T>, retries = 2, delay = 800): Pro
 };
 
 /**
- * 构建 RAG 查询计划：规则快路径 + 可选 LLM 增强（可注入知识库目录）。
+ * 构建 RAG 查询计划。
+ * 默认走 catalog-grounded（与主路径一致）；仅 RAG_LEGACY_QUERY_PLAN=1 时用旧 QUERY_PLAN_PROMPT。
  */
 export async function buildRagQueryPlan(
   question: string,
@@ -331,6 +333,18 @@ export async function buildRagQueryPlan(
 
   const heuristic = heuristicRagQueryPlan(q);
   if (opts?.fast && isRagHeuristicAllowed()) return heuristic;
+
+  const useLegacy =
+    String(process.env.RAG_LEGACY_QUERY_PLAN ?? "").trim() === "1" ||
+    String(process.env.RAG_LEGACY_QUERY_PLAN ?? "").trim().toLowerCase() === "true";
+
+  if (!useLegacy) {
+    const grounded = await buildCatalogGroundedQueryPlan(q, {
+      docCatalog: opts?.docCatalog,
+      rawMessage: q,
+    });
+    return grounded.plan;
+  }
 
   const shouldUseLlm = ENABLE_RAG_QUERY_PLAN() && q.length >= QUERY_PLAN_MIN_LEN();
 

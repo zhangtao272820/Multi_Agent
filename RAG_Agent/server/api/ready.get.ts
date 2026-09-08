@@ -2,8 +2,10 @@ import { auditVectorStoreHealth, getUploadedDocuments, getVectorBackend, getVect
 import { getRagMemoryStatus } from '../../utils/learning_signal_store'
 import { getAmpSummary } from '#agent-shared/agentMemoryPolicy'
 import { resolveInternalAuthReady } from '#agent-shared/nitroClawhiveAuth'
+import { getRagAgentEnv } from '../utils/rag_agent_env'
+import { probeMineruHealth } from '../utils/heavy_parse_client'
 
-/** 总管 probe：health=进程存活，ready=向量库 + 记忆 PG 可达 + 鉴权可服务间调用 */
+/** 总管 probe：health=进程存活，ready=向量库 + 记忆 PG 可达 + 鉴权；strict 时含 MinerU */
 export default defineEventHandler(async () => {
   const auth = resolveInternalAuthReady()
   try {
@@ -18,19 +20,49 @@ export default defineEventHandler(async () => {
       memory.backend === 'file' ||
       (memory.backend === 'dual' && (!memory.pgConfigured || memory.pgReachable)) ||
       (memory.backend === 'postgres' && memory.pgConfigured && memory.pgReachable)
-    const ready = vectorReady && memoryReady && auth.ok
+
+    const env = getRagAgentEnv()
+    let heavyParse: { enabled: boolean; strict: boolean; ok: boolean | null; detail: string } = {
+      enabled: env.enableHeavyParse,
+      strict: env.heavyParseStrict,
+      ok: null,
+      detail: 'skipped',
+    }
+    if (env.enableHeavyParse && String(env.mineruApiUrl || '').trim()) {
+      const probe = await probeMineruHealth({ timeoutMs: 4000 })
+      heavyParse = {
+        enabled: true,
+        strict: env.heavyParseStrict,
+        ok: probe.ok,
+        detail: probe.detail,
+      }
+    } else if (env.enableHeavyParse) {
+      heavyParse = {
+        enabled: true,
+        strict: env.heavyParseStrict,
+        ok: false,
+        detail: 'no_mineru_url',
+      }
+    }
+
+    const heavyBlocksReady = env.heavyParseStrict && env.enableHeavyParse && heavyParse.ok !== true
+    const ready = vectorReady && memoryReady && auth.ok && !heavyBlocksReady
     const error_code = !auth.ok
       ? 'auth_misconfigured'
-      : !vectorReady
-        ? 'vector_not_ready'
-        : !memoryReady
+      : heavyBlocksReady
+        ? 'heavy_parse_not_ready'
+        : !vectorReady
           ? 'vector_not_ready'
-          : undefined
+          : !memoryReady
+            ? 'vector_not_ready'
+            : undefined
     const detail = !auth.ok
       ? String(auth.detail || 'internal_token_missing_with_browser_auth')
-      : ready
-        ? `vector_${backend}_memory_${memory.backend}`
-        : `vector_${vectorReady ? 'ok' : 'drift'}_memory_${memory.backend}`
+      : heavyBlocksReady
+        ? `mineru_${heavyParse.detail}`
+        : ready
+          ? `vector_${backend}_memory_${memory.backend}`
+          : `vector_${vectorReady ? 'ok' : 'drift'}_memory_${memory.backend}`
     return {
       ok: true,
       ready,
@@ -48,6 +80,7 @@ export default defineEventHandler(async () => {
         pgReachable: memory.pgReachable,
         policyVersion: amp.version
       },
+      heavyParse,
       detail,
       ...(error_code ? { error_code } : {}),
       ts: new Date().toISOString()

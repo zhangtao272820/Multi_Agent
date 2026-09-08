@@ -77,6 +77,56 @@ def _helper_refine(settings: Settings, draft: str, question: str) -> dict[str, A
     return out
 
 
+_CAPTION_SYS = "用中文一句话概括画面要点与可读文字。JSON:caption,ocr_snippet。仅JSON，caption≤80字。"
+_CAPTION_MAX_TOKENS = 128
+
+
+def vision_caption(
+    settings: Settings,
+    *,
+    image_path: Path,
+    question: str = "",
+) -> dict[str, Any]:
+    """路由用轻量 VL 摘要：硬顶 max_tokens，不做 helper 精炼。"""
+    if not image_path or not image_path.is_file():
+        return {"caption": "", "ocr_snippet": "", "confidence": 0.0}
+
+    key = (settings.openai_api_key or settings.dashscope_api_key or "").strip()
+    if not key and settings.use_mock_when_no_key:
+        return {
+            "caption": f"[mock] 图片摘要 {image_path.name}",
+            "ocr_snippet": "",
+            "confidence": 0.5,
+            "mock": True,
+        }
+
+    model = (settings.qwen_vl_model or "qwen-vl-plus").strip()
+    user_q = (question or "概括画面主体、关键文字与可识别实体。").strip()[:200]
+    content: list[dict[str, Any]] = [
+        {"type": "text", "text": user_q},
+        {"type": "image_url", "image_url": {"url": _image_data_url(image_path)}},
+    ]
+    resp = _client(settings).chat.completions.create(
+        model=model,
+        messages=[{"role": "system", "content": _CAPTION_SYS}, {"role": "user", "content": content}],
+        temperature=0.1,
+        max_tokens=_CAPTION_MAX_TOKENS,
+    )
+    raw = (resp.choices[0].message.content or "").strip()
+    out = _parse_json_object(raw)
+    caption = str(out.get("caption") or out.get("description") or raw or "").strip()
+    if len(caption) > 80:
+        caption = caption[:80].rstrip()
+    ocr = str(out.get("ocr_snippet") or out.get("ocr_text") or "").strip()[:120]
+    return {
+        "caption": caption,
+        "ocr_snippet": ocr,
+        "confidence": float(out.get("confidence", 0.7) or 0.7),
+        "vl_model": model,
+        "max_tokens": _CAPTION_MAX_TOKENS,
+    }
+
+
 def vision_describe(
     settings: Settings,
     *,

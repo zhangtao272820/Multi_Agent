@@ -1,6 +1,7 @@
 # 企业档 Docker 本地验收（不调 LLM、不发副作用）
 # 用法（在 Manage-platform_Agent/）:
 #   .\scripts\verify-enterprise-docker.ps1
+#   .\scripts\verify-enterprise-docker.ps1 -Public -NoMonitor   # 公网弱机叠加
 #   .\scripts\verify-enterprise-docker.ps1 -SkipRecreate   # 仅断言已跑中的企业档容器 + smoke
 #   .\scripts\verify-enterprise-docker.ps1 -SkipSmoke      # 仅 Docker env / health
 #
@@ -9,7 +10,8 @@
 param(
     [switch]$SkipRecreate,
     [switch]$SkipSmoke,
-    [switch]$NoMonitor
+    [switch]$NoMonitor,
+    [switch]$Public
 )
 
 $ErrorActionPreference = "Stop"
@@ -38,6 +40,9 @@ Align CLAWHIVE_INTERNAL_TOKEN / JWT_SECRET / MANAGER_WS_TOKEN with .env.agents-l
 if (-not (Test-Path $Script:EnterpriseOverlayFile)) {
     throw "Missing overlay: $Script:EnterpriseOverlayFile"
 }
+if ($Public -and -not (Test-Path $Script:PublicOverlayFile)) {
+    throw "Missing public overlay: $Script:PublicOverlayFile"
+}
 
 $verifyServices = @(
     "clawhive_postgres",
@@ -50,8 +55,8 @@ $verifyServices = @(
 
 $monitoring = -not $NoMonitor
 if (-not $SkipRecreate) {
-    Write-Host "Force-recreate core subset with -Enterprise (volumes kept)..." -ForegroundColor Yellow
-    Invoke-AgentsLanCompose -Action up -ForceRecreate -Enterprise -Monitoring:$monitoring -Services $verifyServices
+    Write-Host "Force-recreate core subset with -Enterprise$(if ($Public) { ' -Public' }) (volumes kept)..." -ForegroundColor Yellow
+    Invoke-AgentsLanCompose -Action up -ForceRecreate -Enterprise -Public:$Public -Monitoring:$monitoring -Services $verifyServices
     if ($LASTEXITCODE -ne 0) {
         throw "docker compose recreate failed (exit $LASTEXITCODE)"
     }
@@ -65,28 +70,62 @@ Assert-Ok "manager_agent running" ([bool]$mgrCid)
 if ($mgrCid) {
     $profile = (docker exec $mgrCid printenv AGENT_SECURITY_PROFILE 2>$null)
     $auth = (docker exec $mgrCid printenv AGENT_SERVICE_AUTH 2>$null)
+    $disabled = (docker exec $mgrCid printenv MANAGER_DISABLED_AGENTS 2>$null)
     Assert-Ok "AGENT_SECURITY_PROFILE=enterprise" ($profile -eq "enterprise") "got='$profile'"
     Assert-Ok "AGENT_SERVICE_AUTH=require" ($auth -eq "require") "got='$auth'"
+    Assert-Ok "MANAGER_DISABLED_AGENTS includes gui" ($disabled -match '(^|,)gui(,|$)') "got='$disabled'"
+    $runTok = (docker exec $mgrCid printenv MANAGER_RUN_MAX_TOKENS 2>$null)
+    $runTokOk = $false
+    if ($runTok -match '^\d+$') {
+        $runTokOk = ([int]$runTok -gt 0)
+    }
+    Assert-Ok "MANAGER_RUN_MAX_TOKENS>0" $runTokOk "got='$runTok'"
+    $maxRetry = (docker exec $mgrCid printenv MANAGER_MAX_RETRY 2>$null)
+    Assert-Ok "MANAGER_MAX_RETRY set" ($maxRetry -match '^\d+$') "got='$maxRetry'"
+}
+
+if ($Public -and $mgrCid) {
+    $ports = (docker port $mgrCid 2>$null)
+    Assert-Ok "manager port bound to 127.0.0.1" ($ports -match '127\.0\.0\.1:') "ports='$ports'"
 }
 
 $backendPort = "18000"
 if (Test-Path $Script:EnvFile) {
-    $bp = (Read-EnvFileUtf8 $Script:EnvFile | Where-Object { $_ -match '^\s*CLAWHIVE_BACKEND_PORT\s*=' -and $_ -notmatch '^\s*#' } | Select-Object -First 1)
-    if ($bp) { $backendPort = ($bp -replace '^\s*CLAWHIVE_BACKEND_PORT\s*=\s*', '').Trim().Split(" ")[0] }
-}
-
-Write-Host "Health poll backend /health/ready ..." -ForegroundColor Cyan
-$deadline = (Get-Date).AddSeconds(120)
-$ready = $false
-while ((Get-Date) -lt $deadline) {
-    try {
-        $resp = Invoke-WebRequest -Uri "http://127.0.0.1:${backendPort}/health/ready" -UseBasicParsing -TimeoutSec 5
-        if ($resp.StatusCode -ge 200 -and $resp.StatusCode -lt 300) {
-            $ready = $true
+    foreach ($line in @(Read-EnvFileUtf8 $Script:EnvFile)) {
+        $m = [regex]::Match([string]$line, '^\s*CLAWHIVE_BACKEND_PORT\s*=\s*(\d+)\s*$')
+        if ($m.Success) {
+            $backendPort = [string]$m.Groups[1].Value
             break
         }
-    } catch {
-        Start-Sleep -Seconds 3
+    }
+}
+if ([string]::IsNullOrWhiteSpace($backendPort)) { $backendPort = "18000" }
+
+Write-Host "Health poll backend /health/ready (port $backendPort) ..." -ForegroundColor Cyan
+# Wait for docker health first (avoids racing HTTP while container still starting)
+$healthDeadline = (Get-Date).AddSeconds(180)
+$backendHealthy = $false
+while ((Get-Date) -lt $healthDeadline) {
+    $cid = docker ps --filter "name=^clawhive_backend$" --filter "status=running" --format "{{.ID}}" 2>$null
+    if ($cid) {
+        $h = (docker inspect --format "{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}" $cid 2>$null)
+        if ($h -eq "healthy" -or $h -eq "none") { $backendHealthy = $true; break }
+    }
+    Start-Sleep -Seconds 3
+}
+$ready = $false
+if ($backendHealthy) {
+    $httpDeadline = (Get-Date).AddSeconds(60)
+    while ((Get-Date) -lt $httpDeadline) {
+        try {
+            $resp = Invoke-WebRequest -Uri ("http://127.0.0.1:{0}/health/ready" -f $backendPort) -UseBasicParsing -TimeoutSec 5
+            if ($resp.StatusCode -ge 200 -and $resp.StatusCode -lt 300) {
+                $ready = $true
+                break
+            }
+        } catch {
+            Start-Sleep -Seconds 2
+        }
     }
 }
 Assert-Ok "backend /health/ready" $ready
@@ -97,11 +136,17 @@ foreach ($svc in @("clawhive_postgres", "clawhive_redis", "clawhive_backend", "m
         Assert-Ok "$svc healthy" $false "not running"
         continue
     }
-    $h = (docker inspect --format "{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}" $cid 2>$null)
+    $waitUntil = (Get-Date).AddSeconds(120)
+    $h = ""
+    while ((Get-Date) -lt $waitUntil) {
+        $h = (docker inspect --format "{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}" $cid 2>$null)
+        if ($h -eq "healthy" -or $h -eq "none") { break }
+        Start-Sleep -Seconds 3
+    }
     if ($h -eq "none" -or [string]::IsNullOrWhiteSpace($h)) {
         Assert-Ok "$svc running (no healthcheck)" $true
     } else {
-        Assert-Ok "$svc health=$h" ($h -eq "healthy") 
+        Assert-Ok "$svc health=$h" ($h -eq "healthy")
     }
 }
 
@@ -116,7 +161,11 @@ if (-not $SkipSmoke) {
             "smoke:envelope-auth",
             "smoke:ws-auth",
             "smoke:content-trust-strict",
-            "smoke:pii-policy"
+            "smoke:pii-policy",
+            "smoke:budget",
+            "smoke:blast-radius",
+            "smoke:expert-failover",
+            "smoke:disabled-agents"
         )
         Push-Location $managerRoot
         try {

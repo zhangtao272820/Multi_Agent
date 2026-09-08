@@ -189,6 +189,9 @@ def _sync_agents_lan_cap(
         if str(models.get(cap_id) or "").strip()
     }
     updates = {**cap_updates, **docker_updates}
+    # 思考开关 SSOT 在 CAP_ENABLE_THINKING；须写入 agents-lan，避免仅靠 convergence 覆盖
+    if SSOT_FILE.is_file():
+        updates.update(_load_ssot_global_env(SSOT_FILE))
     result = _write_env_keys(AGENTS_LAN_ENV, updates, agent_name="agents-lan", dry_run=dry_run)
     return {"skipped": False, **result}
 

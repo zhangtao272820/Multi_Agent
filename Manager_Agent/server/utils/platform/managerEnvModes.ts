@@ -89,11 +89,27 @@ export function resolveManagerProMode(env: NodeJS.ProcessEnv = process.env): Man
 
 /** 路由/编排档位 */
 export function resolveManagerRouteMode(env: NodeJS.ProcessEnv = process.env): ManagerRouteMode | null {
+  const allowHeuristic = isEnvOnToken(env.MANAGER_ALLOW_HEURISTIC_ROUTE)
   const explicit = parseRouteMode(String(env.MANAGER_ROUTE_MODE ?? ''))
+  if (explicit === 'heuristic' && !allowHeuristic) {
+    if (String(env.MANAGER_ROUTE_MODE ?? '').trim()) {
+      console.warn(
+        '[managerEnvModes] MANAGER_ROUTE_MODE=heuristic ignored without MANAGER_ALLOW_HEURISTIC_ROUTE=1; using convergence'
+      )
+    }
+    return 'convergence'
+  }
   if (explicit) return explicit
   if (isEnvOffToken(env.MANAGER_UNIFIED_ORCHESTRATOR)) return 'legacy'
-  if (isEnvOnToken(env.MANAGER_ORCHESTRATOR_HEURISTIC)) return 'heuristic'
-  if (isEnvOffToken(env.MANAGER_ORCHESTRATOR_LLM_ONLY)) return 'heuristic'
+  if (isEnvOnToken(env.MANAGER_ORCHESTRATOR_HEURISTIC) || isEnvOffToken(env.MANAGER_ORCHESTRATOR_LLM_ONLY)) {
+    if (!allowHeuristic) {
+      console.warn(
+        '[managerEnvModes] heuristic env flags ignored without MANAGER_ALLOW_HEURISTIC_ROUTE=1; using convergence'
+      )
+      return 'convergence'
+    }
+    return 'heuristic'
+  }
   return null
 }
 
@@ -390,7 +406,8 @@ export function resolveManagerEnvBool(key: string, env: NodeJS.ProcessEnv = proc
 }
 
 export const MANAGER_ENV_MODE_DOCS = {
-  MANAGER_ROUTE_MODE: 'convergence | legacy | heuristic',
+  MANAGER_ROUTE_MODE: 'convergence | legacy | heuristic（heuristic 须另开 MANAGER_ALLOW_HEURISTIC_ROUTE=1，否则回落 convergence）',
+  MANAGER_ALLOW_HEURISTIC_ROUTE: '1=允许 MANAGER_ROUTE_MODE=heuristic / ORCHESTRATOR_HEURISTIC（仅 smoke/实验）',
   MANAGER_PRO_MODE: 'strong | fast | off',
   MANAGER_LLM_FIRST_ROUTE: '1=编排 LLM 单层决策，少 Judge/规则兜底（convergence 默认）',
   MANAGER_AUTO_MODEL_TIER: 'convergence 默认开：简单单意图辅助 LLM 走 T0 flash',

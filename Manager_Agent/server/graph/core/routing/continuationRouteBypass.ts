@@ -11,9 +11,12 @@ import type { ExecutableAgent } from './routeFinalize'
 import { probeStrongSolePlane, type RouteSkipProbeHint } from './routeSkipCascade'
 import { buildTopologyBlueprintFromCap } from '../../llm/planBlueprintLlm'
 import { EMPTY_TASK_CONSTRAINTS } from '../../llm/taskConstraintsLlm'
+import { turnScopeLlmFromMeta } from '../../llm/turnScopeLlm'
 
 const CONT_KINDS = new Set(['continuation', 'output_followup', 'slot_answer'])
 const DATA_PLANES = new Set(['db', 'rag', 'crawler', 'admin'])
+/** 续轮跳过编排 LLM 的最低置信；灰区（<0.7）强制全量编排 */
+export const CONTINUATION_BYPASS_MIN_CONFIDENCE = 0.7
 
 export type ContinuationBypassResult = {
   ok: boolean
@@ -71,6 +74,8 @@ export function resolveContinuationRouteBypass(input: {
   lastUser?: string | null
   probe?: RouteSkipProbeHint | null
   meta?: unknown
+  /** 本轮新附件 → 禁止 bypass，须重跑 caption+编排 */
+  attachment?: { filePath?: string } | null
 }): ContinuationBypassResult {
   const reasons: string[] = []
   const scope = input.turnScope
@@ -79,8 +84,33 @@ export function resolveContinuationRouteBypass(input: {
   if (scope.mode === 'topic_shift') {
     return { ok: false, reasons: ['topic_shift'], allowedAgents: [], primaryIntent: '', planShortcut: 'none', coalescedTask: '' }
   }
+  if (input.attachment?.filePath) {
+    return {
+      ok: false,
+      reasons: ['new_attachment'],
+      allowedAgents: [],
+      primaryIntent: '',
+      planShortcut: 'none',
+      coalescedTask: ''
+    }
+  }
   if (!CONT_KINDS.has(scope.turnKind)) {
     return { ok: false, reasons: ['not_continuation_kind'], allowedAgents: [], primaryIntent: '', planShortcut: 'none', coalescedTask: '' }
+  }
+  const scopeConf = Number(scope.confidence)
+  const metaLlm = turnScopeLlmFromMeta(input.meta)
+  const conf = Number.isFinite(scopeConf)
+    ? scopeConf
+    : Number(metaLlm?.confidence)
+  if (!Number.isFinite(conf) || conf < CONTINUATION_BYPASS_MIN_CONFIDENCE) {
+    return {
+      ok: false,
+      reasons: ['low_confidence'],
+      allowedAgents: [],
+      primaryIntent: '',
+      planShortcut: 'none',
+      coalescedTask: ''
+    }
   }
   if (scope.directChitchatSynth || scope.mode === 'chitchat') {
     return { ok: false, reasons: ['chitchat'], allowedAgents: [], primaryIntent: '', planShortcut: 'none', coalescedTask: '' }

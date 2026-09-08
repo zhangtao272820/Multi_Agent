@@ -24,7 +24,7 @@
 | 向量后端 | 内存向量（开发）或 `pgvector`（持久化） |
 | **L 波（已落地）** | 门控 HyDE + Query 门控 + 企业制度 Graph 双车道（见升级文档） |
 
-企业化细节见 [doc/企业化升级方案.md](doc/企业化升级方案.md)；L 波见 [doc/L波-普通RAG与GraphRAG升级方案.md](doc/L波-普通RAG与GraphRAG升级方案.md)。守门 `npm run smoke:enterprise-h` / `npm run smoke:agentic-jk` / `npm run smoke:l-wave`。
+企业化细节见 [doc/企业化升级方案.md](doc/企业化升级方案.md)；L 波见 [doc/L波-普通RAG与GraphRAG升级方案.md](doc/L波-普通RAG与GraphRAG升级方案.md)。守门 `npm run smoke:enterprise-h` / `npm run smoke:agentic-jk` / `npm run smoke:l-wave` / `npm run smoke:bm25-index` / `npm run smoke:heavy-parse-strict` / `npm run smoke:eval-metrics` / `npm run gate:rag-eval`。
 
 ## 技术栈
 
@@ -84,16 +84,19 @@ npm run dev
 
 - **适合**：内部文档问答、带出处的解释、资料列表检索、跨文档对比（Agentic）
 - **不适合**：实时公网搜索、大规模爬虫、无文档依据的开放闲聊
-- **明确不做**：完整 RAGAS 流水线、Neo4j 强依赖、多租户物理隔离、无限 Agent 探索
+- **明确不做**：完整 RAGAS 流水线、Neo4j 强依赖、多租户物理隔离、无限 Agent 探索、Elasticsearch 级独立搜索集群
 - **L 波已落地**：门控 HyDE、Query 门控、制度 GraphRAG（勿面试说「完全没做图」或「默认全开 HyDE」）
+- **N 已落地**：倒排 BM25（含 pgvector）、MinerU 生产 strict、eval precision@k/拒答题
 
-## 环境变量（J/K / L 波）
+## 环境变量（J/K / L / N 波）
 
 ```bash
 # K：MinerU 重解析（Compose 默认 http://mineru_api:8080）
 RAG_HEAVY_PARSE=1
 MINERU_API_URL=http://127.0.0.1:8798
 RAG_HEAVY_PARSE_TIMEOUT_MS=120000
+# RAG_HEAVY_PARSE_STRICT=1            # Compose 生产默认 on；本地无侧车请 off
+# RAG_HEAVY_PARSE_MIN_CHARS=80
 
 # J：专家内 Agentic 工具多跳
 RAG_ENABLE_AGENTIC_TOOL_LOOP=1
@@ -104,6 +107,9 @@ RAG_AGENTIC_TOOL_MAX_ROUNDS=4
 # RAG_ENABLE_POLICY_GRAPH=on
 # RAG_RRF_GRAPH_WEIGHT=1.15
 # RAG_RRF_HYDE_WEIGHT=0.9
+
+# N：倒排 BM25 冷启动分页（pgvector）
+# RAG_BM25_REBUILD_PAGE=500
 ```
 
 ## Docker / 平台编排

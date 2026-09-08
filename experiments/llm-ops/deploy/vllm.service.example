@@ -1,0 +1,35 @@
+# EXAMPLE systemd unit — adjust User=, WorkingDirectory=, and venv path.
+# sudo cp vllm.service.example /etc/systemd/system/vllm.service
+# sudo systemctl daemon-reload && sudo systemctl enable --now vllm
+
+[Unit]
+Description=vLLM OpenAI-compatible server (example)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/opt/vllm
+Environment=HF_HOME=/data/hf
+Environment=CUDA_VISIBLE_DEVICES=0
+# Prefer Docker compose in many shops; native pip install example:
+ExecStart=/opt/vllm/.venv/bin/python -m vllm.entrypoints.openai.api_server \
+  --model Qwen/Qwen2.5-7B-Instruct \
+  --served-model-name qwen2.5-7b \
+  --host 127.0.0.1 \
+  --port 8000 \
+  --api-key sk-local-change-me \
+  --max-model-len 4096 \
+  --gpu-memory-utilization 0.85
+Restart=on-failure
+RestartSec=10
+LimitNOFILE=65535
+
+# Hardening (tune per site)
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

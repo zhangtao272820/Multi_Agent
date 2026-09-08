@@ -49,6 +49,10 @@ const GraphState = Annotation.Root({
     filePath: string
     mediaType: 'image' | 'video' | 'audio'
     filename?: string
+    caption?: string
+    ocrSnippet?: string
+    captionMs?: number
+    captionSource?: 'vl' | 'reuse' | 'skip' | 'timeout' | 'error'
   } | null>({
     reducer: (_x, y) => (y === null || y === undefined ? null : y),
     default: () => null

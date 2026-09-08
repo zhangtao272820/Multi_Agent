@@ -21,15 +21,22 @@
 .spring-root.cosmic-theme.cursor-workbench,
 .spring-root.cursor-workbench,
 .manager-shell .spring-root.cosmic-theme.cursor-workbench {
-  --mgr-glass: rgba(255, 255, 255, 0.9) !important;
-  --mgr-glass-strong: rgba(255, 255, 255, 0.96) !important;
-  --mgr-border: rgba(29, 78, 216, 0.22) !important;
-  --mgr-ice-border: rgba(29, 78, 216, 0.34) !important;
-  --mgr-frost-blur: none !important;
-  --mgr-frost-card-bg: rgba(255, 255, 255, 0.94) !important;
-  color: #0b1220 !important;
+  --mgr-glass: rgba(255, 255, 255, 0.88) !important;
+  --mgr-glass-strong: rgba(255, 255, 255, 0.94) !important;
+  --mgr-border: rgba(29, 78, 216, 0.14) !important;
+  --mgr-ice-border: rgba(29, 78, 216, 0.22) !important;
+  --mgr-frost-blur: blur(14px) !important;
+  --mgr-frost-card-bg: rgba(255, 255, 255, 0.9) !important;
+  --harness-bg: #f4f6f9;
+  --harness-surface: #ffffff;
+  --harness-muted: #475569;
+  --harness-border: rgba(15, 23, 42, 0.14);
+  --harness-accent: #2563eb;
+  --harness-active-bg: #e8eef8;
+  font-family: var(--brand-font-sans) !important;
+  color: #0f172a !important;
   background:
-    linear-gradient(165deg, rgba(220, 232, 248, 0.55) 0%, rgba(236, 242, 250, 0.62) 40%, rgba(210, 226, 246, 0.58) 100%),
+    linear-gradient(165deg, rgba(226, 236, 250, 0.55) 0%, rgba(240, 245, 252, 0.5) 45%, rgba(218, 230, 246, 0.58) 100%),
     url("/brand/backgrounds/theme/manager-workbench.png") center / cover no-repeat fixed !important;
 }
 
@@ -43,25 +50,46 @@
   z-index: 1;
 }
 
-/* 顶栏 */
+/* 顶栏 — 半透明玻璃条，露出底图 */
 .spring-root.cursor-workbench .spring-topbar,
 .spring-root.cursor-workbench .workbench-topbar,
 .spring-root.cursor-workbench .mgr-workbench-header,
-.spring-root.cursor-workbench header.workbench-header {
-  background: rgba(255, 255, 255, 0.9) !important;
-  border-bottom: 1px solid rgba(29, 78, 216, 0.2) !important;
-  box-shadow: 0 10px 32px rgba(15, 40, 90, 0.1) !important;
-  backdrop-filter: blur(14px) !important;
-  color: #0b1220 !important;
+.spring-root.cursor-workbench header.workbench-header,
+.spring-root.cursor-workbench .harness-slim-header {
+  background: rgba(255, 255, 255, 0.94) !important;
+  border-bottom: 1px solid var(--harness-border) !important;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.8) inset !important;
+  backdrop-filter: blur(16px) saturate(1.1) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(1.1) !important;
+  color: #0f172a !important;
+  min-height: 52px !important;
+  padding: 10px 18px !important;
+}
+
+.spring-root.cursor-workbench .harness-slim-header .spring-topbar-primary,
+.spring-root.cursor-workbench .harness-topbar-primary {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 16px !important;
+  min-height: 36px !important;
+  width: 100% !important;
+}
+
+.spring-root.cursor-workbench .harness-slim-header .spring-brand-avatar,
+.spring-root.cursor-workbench .harness-slim-header .spring-topbar-secondary {
+  display: none !important;
 }
 
 .spring-root.cursor-workbench .spring-title,
 .spring-root.cursor-workbench .workbench-title,
 .spring-root.cursor-workbench .mgr-brand-title {
-  color: #0b1220 !important;
-  font-weight: 850 !important;
+  color: #0f172a !important;
+  font-family: var(--brand-font-sans) !important;
+  font-size: 15px !important;
+  font-weight: 700 !important;
   background: none !important;
-  -webkit-text-fill-color: #0b1220 !important;
+  -webkit-text-fill-color: #0f172a !important;
 }
 
 .spring-root.cursor-workbench .workbench-sub,
@@ -69,24 +97,27 @@
   color: #334155 !important;
 }
 
-/* 历史侧栏 */
+/* 历史侧栏 — 玻璃侧栏，底图从边缘透出 */
 .spring-root.cursor-workbench .spring-history-sidebar,
 .spring-root.cursor-workbench .spring-sidebar,
 .spring-root.cursor-workbench .history-panel,
 .spring-root.cursor-workbench aside.spring-history {
-  background: rgba(248, 251, 255, 0.92) !important;
-  border-right: 1px solid rgba(29, 78, 216, 0.2) !important;
-  box-shadow: 8px 0 32px rgba(15, 40, 90, 0.08) !important;
-  color: #0b1220 !important;
-  backdrop-filter: blur(14px) !important;
+  background: rgba(248, 250, 252, 0.92) !important;
+  border-right: 1px solid var(--harness-border, rgba(15, 23, 42, 0.14)) !important;
+  box-shadow: none !important;
+  color: #0f172a !important;
+  backdrop-filter: blur(18px) saturate(1.1) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(1.1) !important;
+  font-family: var(--brand-font-sans) !important;
 }
 
 .spring-root.cursor-workbench .spring-history-item.is-active,
 .spring-root.cursor-workbench .history-item.is-active,
-.spring-root.cursor-workbench .session-row.is-active {
-  background: rgba(29, 78, 216, 0.12) !important;
-  border: 1px solid rgba(29, 78, 216, 0.35) !important;
-  box-shadow: inset 3px 0 0 #1d4ed8 !important;
+.spring-root.cursor-workbench .session-row.is-active,
+.spring-root.cursor-workbench .brand-nav-item.is-active {
+  background: var(--harness-active-bg, #e8eef8) !important;
+  border: 1px solid rgba(37, 99, 235, 0.22) !important;
+  box-shadow: inset 3px 0 0 var(--harness-accent, #2563eb) !important;
 }
 
 .spring-root.cursor-workbench .spring-chat-column,
@@ -435,19 +466,21 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   DeepSeek Harness 终裁（压过 winter）：宽主列 · 文档流 · 保留执行面板
+   DeepSeek Harness 终裁：窄主列 · 文档流 · 保留执行面板
    ═══════════════════════════════════════════════════════════════ */
 
 .spring-root.cosmic-theme.cursor-workbench,
 .spring-root.cursor-workbench {
-  --chat-col-width: min(1120px, calc(100vw - var(--mgr-sidebar-w, 240px) - var(--mgr-tools-w, 280px) - 40px)) !important;
-  --chat-user-max: min(780px, 94%) !important;
+  --chat-col-width: min(840px, calc(100vw - var(--mgr-sidebar-w, 240px) - var(--mgr-tools-w, 280px) - 48px)) !important;
+  --chat-agent-max: min(760px, 100%) !important;
+  --chat-user-max: min(640px, 88%) !important;
+  --chat-turn-gap: 1.5rem !important;
   --chat-font-body: 15.5px !important;
   --chat-font-body-lh: 1.75 !important;
 }
 
 .spring-root.cursor-workbench.cosmic-theme.mode-professional {
-  --chat-col-width: min(1200px, calc(100vw - var(--mgr-sidebar-w, 240px) - var(--mgr-tools-w, 280px) - 36px)) !important;
+  --chat-col-width: min(840px, calc(100vw - var(--mgr-sidebar-w, 240px) - var(--mgr-tools-w, 280px) - 48px)) !important;
 }
 
 .spring-root.cursor-workbench .chat-rail-stack {
@@ -550,6 +583,1744 @@
 @media (min-width: 1600px) {
   .spring-root.cosmic-theme.cursor-workbench,
   .spring-root.cursor-workbench {
-    --chat-col-width: min(1280px, calc(100vw - var(--mgr-sidebar-w, 240px) - var(--mgr-tools-w, 280px) - 32px)) !important;
+    /* Harness：大屏仍保持可读栏，勿拉到扁条墙 */
+    --chat-col-width: min(840px, calc(100vw - var(--mgr-sidebar-w, 240px) - var(--mgr-tools-w, 280px) - 48px)) !important;
+    --chat-agent-max: min(760px, 100%) !important;
+    --chat-user-max: min(640px, 88%) !important;
   }
 }
+
+/* ── DeepSeek Harness：过程区一行摘要，禁止每步一张宽扁卡片 ── */
+.spring-root.cursor-workbench .cursor-thought-panel.process-panel {
+  width: 100% !important;
+  max-width: var(--chat-agent-max, 760px) !important;
+  margin: 0 0 10px !important;
+  border-radius: 12px !important;
+  border: 1px solid rgba(148, 163, 184, 0.28) !important;
+  background: rgba(248, 250, 252, 0.92) !important;
+  box-shadow: none !important;
+}
+
+.spring-root.cursor-workbench .cursor-thought-panel .process-panel-body,
+.spring-root.cursor-workbench .cursor-thought-panel .process-panel-scroll {
+  max-height: min(42vh, 360px) !important;
+  padding: 8px 12px 12px !important;
+}
+
+.spring-root.cursor-workbench .cursor-thought-panel .process-step,
+.spring-root.cursor-workbench .cursor-thought-panel .process-step-body {
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding: 4px 0 !important;
+  margin: 0 !important;
+}
+
+.spring-root.cursor-workbench .cursor-thought-panel .process-step.kind-thinking .process-step-body,
+.spring-root.cursor-workbench .cursor-thought-panel .process-step.kind-phase .process-step-body,
+.spring-root.cursor-workbench .cursor-thought-panel .process-step.kind-status .process-step-body,
+.spring-root.cursor-workbench .cursor-thought-panel .process-step.kind-thought_delta .process-step-body {
+  border: none !important;
+  border-left: none !important;
+  background: transparent !important;
+  padding: 2px 0 !important;
+}
+
+.spring-root.cursor-workbench .cursor-thought-panel .process-step + .process-step {
+  border-top: 1px solid rgba(226, 232, 240, 0.7) !important;
+}
+
+.spring-root.cursor-workbench .cursor-thought-panel .process-step-text {
+  white-space: pre-wrap !important;
+  word-break: break-word !important;
+  line-height: 1.65 !important;
+  font-size: 13.5px !important;
+  color: #475569 !important;
+}
+
+.spring-root.cursor-workbench .chat-thread .reply-panel,
+.spring-root.cursor-workbench .chat-thread .reply-panel .reply-panel-inner {
+  max-width: var(--chat-agent-max, 760px) !important;
+  width: 100% !important;
+}
+
+.spring-root.cursor-workbench .chat-thread .spring-log-item.chat-user-row {
+  max-width: var(--chat-user-max, 640px) !important;
+  margin-left: auto !important;
+}
+
+.spring-root.cursor-workbench .user-thought-line {
+  padding: 3px 0 !important;
+  border: none !important;
+  background: transparent !important;
+}
+
+/* DeepSeek harness 思考流 · 高对比霜玻璃时间线 */
+.spring-root.cursor-workbench .harness-think {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  max-width: 100%;
+}
+
+.spring-root.cursor-workbench .harness-think-stream {
+  position: relative;
+  display: flex;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  border-left: none;
+  color: #1e293b;
+  font-family: var(--brand-font-sans);
+  font-size: 13.5px;
+  line-height: 1.72;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-weight: 480;
+  letter-spacing: 0.01em;
+}
+
+.spring-root.cursor-workbench .harness-think-rail {
+  position: relative;
+  flex: 0 0 14px;
+  width: 14px;
+  margin-right: 2px;
+  align-self: stretch;
+}
+
+.spring-root.cursor-workbench .harness-think-rail::before {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 4px;
+  bottom: 4px;
+  width: 2px;
+  border-radius: 999px;
+  background: linear-gradient(
+    180deg,
+    rgba(37, 99, 235, 0.55) 0%,
+    rgba(148, 163, 184, 0.35) 55%,
+    rgba(148, 163, 184, 0.12) 100%
+  );
+}
+
+.spring-root.cursor-workbench .harness-think-rail::after {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #2563eb;
+  box-shadow:
+    0 0 0 3px rgba(37, 99, 235, 0.16),
+    0 0 12px rgba(37, 99, 235, 0.28);
+}
+
+.spring-root.cursor-workbench .harness-think-stream-body {
+  flex: 1;
+  min-width: 0;
+  padding: 0 0.15rem 0.1rem;
+}
+
+.spring-root.cursor-workbench .harness-think-stream.is-live {
+  color: #0f172a;
+}
+
+.spring-root.cursor-workbench .harness-think-stream.is-live .harness-think-rail::before {
+  background: linear-gradient(
+    180deg,
+    rgba(37, 99, 235, 0.75) 0%,
+    rgba(56, 189, 248, 0.45) 50%,
+    rgba(148, 163, 184, 0.2) 100%
+  );
+  animation: harness-rail-flow 2.4s ease-in-out infinite;
+}
+
+.spring-root.cursor-workbench .harness-think-stream.is-live .harness-think-rail::after {
+  animation: harness-dot-pulse 1.6s ease-in-out infinite;
+}
+
+.spring-root.cursor-workbench .harness-think-stages {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  position: relative;
+  padding-left: 0.15rem;
+}
+
+.spring-root.cursor-workbench .harness-think-stage {
+  position: relative;
+  border-left: none;
+  padding-left: 0;
+  padding: 0.35rem 0.55rem 0.35rem 0.15rem;
+  border-radius: 10px;
+  transition: background 0.2s var(--brand-ease, ease);
+}
+
+.spring-root.cursor-workbench .harness-think-stage.is-active {
+  background: linear-gradient(90deg, rgba(37, 99, 235, 0.08), transparent 70%);
+}
+
+.spring-root.cursor-workbench .harness-think-stage-sum {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 620;
+  letter-spacing: 0.01em;
+}
+
+.spring-root.cursor-workbench .harness-think-stage-sum::-webkit-details-marker {
+  display: none;
+}
+
+.spring-root.cursor-workbench .harness-think-stage-dot {
+  flex: 0 0 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #94a3b8;
+  box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.18);
+}
+
+.spring-root.cursor-workbench .harness-think-stage.is-done .harness-think-stage-dot {
+  background: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.16);
+}
+
+.spring-root.cursor-workbench .harness-think-stage.is-active .harness-think-stage-dot {
+  background: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2), 0 0 10px rgba(37, 99, 235, 0.35);
+  animation: harness-dot-pulse 1.6s ease-in-out infinite;
+}
+
+.spring-root.cursor-workbench .harness-think-stage-secs {
+  margin-left: auto;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 550;
+  color: #475569;
+  background: rgba(241, 245, 249, 0.9);
+  border: 1px solid rgba(148, 163, 184, 0.28);
+}
+
+.spring-root.cursor-workbench .harness-think-stage-body {
+  margin: 0.35rem 0 0.15rem 1.1rem;
+  color: #334155;
+  font-size: 13px;
+  line-height: 1.68;
+  white-space: pre-wrap;
+}
+
+.spring-root.cursor-workbench .harness-created-plan {
+  position: relative;
+  margin-top: 0.15rem;
+  padding: 0.7rem 0.85rem 0.75rem 0.95rem;
+  border: 1px solid rgba(37, 99, 235, 0.2);
+  border-radius: 12px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(239, 246, 255, 0.88));
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 8px 22px rgba(37, 99, 235, 0.07);
+  overflow: hidden;
+}
+
+.spring-root.cursor-workbench .harness-created-plan::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: linear-gradient(180deg, #2563eb, #38bdf8);
+}
+
+.spring-root.cursor-workbench .harness-created-plan-head {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.4rem;
+}
+
+.spring-root.cursor-workbench .harness-created-plan-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  background-color: #2563eb;
+  opacity: 0.9;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='%23000' d='M3 2.5h4v1.3H4.3v8.4H7v1.3H3zm6 0h4v1.3h-2.7v3h2.7v1.3h-2.7v3.7H13v1.3H9z'/%3E%3C/svg%3E") center / contain no-repeat;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='%23000' d='M3 2.5h4v1.3H4.3v8.4H7v1.3H3zm6 0h4v1.3h-2.7v3h2.7v1.3h-2.7v3.7H13v1.3H9z'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.spring-root.cursor-workbench .harness-created-plan-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #1e3a5f;
+  letter-spacing: 0.04em;
+}
+
+.spring-root.cursor-workbench .harness-created-plan-agents {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.25rem;
+  margin-top: 0;
+  font-size: 12.5px;
+  color: #334155;
+}
+
+.spring-root.cursor-workbench .harness-plan-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.22rem 0.6rem;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #0a4a86;
+  background: rgba(219, 234, 254, 0.85);
+  border: 1px solid rgba(37, 99, 235, 0.28);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.7) inset;
+}
+
+.spring-root.cursor-workbench .harness-plan-arrow {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 500;
+  opacity: 0.75;
+  padding: 0 0.1rem;
+}
+
+.spring-root.cursor-workbench .harness-created-plan-dag {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 11.5px;
+  color: #475569;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.spring-root.cursor-workbench .harness-think-caret {
+  display: inline-block;
+  width: 0.45em;
+  height: 1.05em;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  border-radius: 1px;
+  background: linear-gradient(180deg, #2563eb, #38bdf8);
+  animation: harness-think-blink 1s steps(1) infinite;
+}
+
+@keyframes harness-think-blink {
+  50% { opacity: 0; }
+}
+
+@keyframes harness-dot-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18), 0 0 8px rgba(37, 99, 235, 0.25);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 0 5px rgba(37, 99, 235, 0.12), 0 0 14px rgba(37, 99, 235, 0.4);
+    transform: scale(1.08);
+  }
+}
+
+@keyframes harness-rail-flow {
+  0%, 100% { opacity: 0.85; filter: saturate(1); }
+  50% { opacity: 1; filter: saturate(1.25); }
+}
+
+@keyframes harness-spark-twinkle {
+  0%, 100% { opacity: 0.75; transform: scale(1) rotate(0deg); }
+  50% { opacity: 1; transform: scale(1.12) rotate(8deg); }
+}
+
+.spring-root.cursor-workbench .cursor-thought-panel.thought-panel-user .process-panel-label {
+  font-style: normal;
+  font-weight: 650;
+  color: #1e3a5f !important;
+  letter-spacing: 0.02em;
+}
+
+.spring-root.cursor-workbench .process-panel-spark {
+  flex: 0 0 14px;
+  width: 14px;
+  height: 14px;
+  margin-right: 1px;
+  background: #2563eb;
+  opacity: 0.9;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='%23000' d='M8 0l1.2 4.8L14 6l-4.8 1.2L8 12l-1.2-4.8L2 6l4.8-1.2z'/%3E%3C/svg%3E") center / contain no-repeat;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='%23000' d='M8 0l1.2 4.8L14 6l-4.8 1.2L8 12l-1.2-4.8L2 6l4.8-1.2z'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.spring-root.cursor-workbench .cursor-thought-panel.is-running .process-panel-spark {
+  animation: harness-spark-twinkle 1.8s ease-in-out infinite;
+}
+
+.spring-root.cursor-workbench .spring-thoughts-item {
+  border-radius: 8px !important;
+  padding: 6px 10px !important;
+  margin: 0 0 6px !important;
+}
+
+/* ── 专业模式 Harness 降噪：进度只在对话流 ── */
+.spring-root.mode-professional.cursor-workbench .spring-topbar-secondary {
+  padding: 4px 12px 8px !important;
+  min-height: 0 !important;
+}
+
+.spring-root.mode-professional.cursor-workbench .conv-phase-track-slim {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.spring-root.mode-professional.cursor-workbench .conv-live-bar {
+  max-width: min(720px, 100%);
+}
+
+.spring-root.mode-professional.cursor-workbench .cursor-thought-panel.harness-think-only {
+  border: 1px solid rgba(37, 99, 235, 0.16) !important;
+  border-radius: 14px !important;
+  background:
+    linear-gradient(165deg, rgba(255, 255, 255, 0.92), rgba(239, 246, 255, 0.78)) !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.95) inset,
+    0 10px 28px rgba(30, 64, 120, 0.08) !important;
+  backdrop-filter: blur(14px) saturate(1.12) !important;
+  -webkit-backdrop-filter: blur(14px) saturate(1.12) !important;
+  padding: 0 !important;
+  margin: 0.15rem 0 0.7rem !important;
+  overflow: hidden !important;
+}
+
+.spring-root.mode-professional.cursor-workbench .cursor-thought-panel.harness-think-only > .process-panel-summary {
+  padding: 0.65rem 0.9rem !important;
+  border: none !important;
+  border-bottom: 1px solid transparent !important;
+  background: linear-gradient(90deg, rgba(37, 99, 235, 0.07), transparent 72%) !important;
+  gap: 4px !important;
+}
+
+.spring-root.mode-professional.cursor-workbench .cursor-thought-panel.harness-think-only[open] > .process-panel-summary {
+  border-bottom-color: rgba(37, 99, 235, 0.12) !important;
+  background: linear-gradient(90deg, rgba(37, 99, 235, 0.09), transparent 75%) !important;
+}
+
+.spring-root.mode-professional.cursor-workbench .cursor-thought-panel.harness-think-only.is-running > .process-panel-summary {
+  background: linear-gradient(90deg, rgba(37, 99, 235, 0.12), rgba(56, 189, 248, 0.06) 55%, transparent) !important;
+}
+
+.spring-root.mode-professional.cursor-workbench .cursor-thought-panel.harness-think-only .process-panel-body,
+.spring-root.mode-professional.cursor-workbench .cursor-thought-panel.harness-think-only .process-panel-scroll {
+  padding: 0.7rem 0.95rem 0.85rem !important;
+  margin-left: 0 !important;
+  border: none !important;
+  border-left: none !important;
+  background: transparent !important;
+  max-height: min(48vh, 520px) !important;
+}
+
+.spring-root.mode-professional.cursor-workbench .cursor-thought-panel.harness-think-only .process-panel-summary-row {
+  gap: 7px;
+}
+
+.spring-root.mode-professional.cursor-workbench .cursor-thought-panel.harness-think-only .process-panel-summary-row .process-panel-label {
+  flex: 0 1 auto;
+}
+
+.spring-root.mode-professional.cursor-workbench .cursor-thought-panel.harness-think-only .process-panel-summary-meta {
+  margin-left: 0.15rem;
+}
+
+.spring-root.mode-professional.cursor-workbench .cursor-thought-panel.harness-think-only .process-chevron {
+  width: 16px !important;
+  height: 16px !important;
+  border-radius: 5px !important;
+  background: rgba(37, 99, 235, 0.1) !important;
+}
+
+.spring-root.mode-professional.cursor-workbench .cursor-thought-panel.harness-think-only .process-chevron::before {
+  border-color: #2563eb !important;
+}
+
+.spring-root.mode-professional.cursor-workbench .cursor-thought-panel.harness-think-only .process-panel-badge,
+.spring-root.mode-professional.cursor-workbench .cursor-thought-panel.harness-think-only .process-panel-badge-muted {
+  font-size: 11px !important;
+  font-weight: 650 !important;
+  padding: 2px 9px !important;
+  border-radius: 999px !important;
+  color: #0a4a86 !important;
+  background: rgba(219, 234, 254, 0.92) !important;
+  border: 1px solid rgba(37, 99, 235, 0.28) !important;
+  letter-spacing: 0.02em;
+}
+
+.spring-root.mode-professional.cursor-workbench .cursor-thought-panel.harness-think-only .process-panel-badge-live {
+  color: #0a4a86 !important;
+  background: rgba(191, 219, 254, 0.95) !important;
+  border-color: rgba(37, 99, 235, 0.4) !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+  animation: harness-dot-pulse 2s ease-in-out infinite;
+}
+
+.spring-root.mode-professional.cursor-workbench .cursor-thought-panel.harness-think-only .process-panel-preview {
+  padding-left: 38px !important;
+  color: #475569 !important;
+  font-size: 12px !important;
+}
+
+.spring-root.mode-professional.cursor-workbench .mgr-tool-rail {
+  margin-bottom: 0.65rem !important;
+}
+
+.spring-root.mode-professional.cursor-workbench .mgr-tool-call {
+  border-radius: 10px !important;
+  box-shadow: none !important;
+  border-width: 1px !important;
+}
+
+.spring-root.mode-professional.cursor-workbench .mgr-tool-call-sub {
+  display: none;
+}
+
+.spring-root.mode-professional.cursor-workbench .reply-panel .reply-panel-inner {
+  box-shadow: none !important;
+  border-color: rgba(148, 163, 184, 0.35) !important;
+}
+
+.spring-root.mode-professional.cursor-workbench .chat-rail-stack {
+  gap: 0.55rem !important;
+}
+
+/* 对话模式：隐藏专业编排壳层痕迹，与专业彻底分轨 */
+.spring-root.mode-chat.cursor-workbench .spring-topbar-secondary,
+.spring-root.mode-chat.cursor-workbench .mgr-tool-rail-flow {
+  display: none !important;
+}
+
+.spring-root.mode-chat.cursor-workbench .spring-brand-sub {
+  display: none !important;
+}
+
+/* ════════════════════════════════════════════════════════════
+   DeepSeek Harness 专业壳层（白底、细边、浮层输入、Think 流）
+   ════════════════════════════════════════════════════════════ */
+
+.spring-root.mode-professional.cursor-workbench {
+  --harness-surface: #ffffff;
+  --harness-muted: #475569;
+  --harness-border: rgba(15, 23, 42, 0.14);
+  --harness-accent: #2563eb;
+  --harness-active-bg: #e8eef8;
+  --harness-bg: transparent;
+  background:
+    linear-gradient(165deg, rgba(226, 236, 250, 0.5) 0%, rgba(240, 245, 252, 0.46) 45%, rgba(218, 230, 246, 0.55) 100%),
+    url("/brand/backgrounds/theme/manager-workbench.png") center / cover no-repeat fixed !important;
+}
+
+.spring-root.mode-professional.cursor-workbench .spring-container,
+.spring-root.mode-professional.cursor-workbench .cosmic-command-deck {
+  background: transparent !important;
+}
+
+.spring-root.mode-professional.cursor-workbench .spring-topbar {
+  border-radius: 0 !important;
+  border: none !important;
+  border-bottom: 1px solid var(--harness-border) !important;
+  background: rgba(255, 255, 255, 0.92) !important;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.8) inset !important;
+  backdrop-filter: blur(16px) saturate(1.1) !important;
+}
+
+.spring-root.mode-professional.cursor-workbench .spring-topbar-secondary {
+  border-top: 1px solid rgba(15, 23, 42, 0.05);
+  background: rgba(250, 251, 252, 0.72) !important;
+}
+
+.spring-root.mode-professional.cursor-workbench .spring-history-sidebar,
+.spring-root.mode-professional.cursor-workbench .spring-sidebar {
+  border-radius: 0 !important;
+  border: none !important;
+  border-right: 1px solid var(--harness-border) !important;
+  background: rgba(248, 250, 252, 0.92) !important;
+  box-shadow: none !important;
+  backdrop-filter: blur(18px) saturate(1.1) !important;
+}
+
+.spring-root.mode-professional.cursor-workbench .spring-sidebar {
+  border-right: none !important;
+  border-left: 1px solid var(--harness-border) !important;
+}
+
+.spring-root.mode-professional.cursor-workbench .spring-history-sidebar::before,
+.spring-root.mode-professional.cursor-workbench .spring-sidebar::before {
+  display: none !important;
+}
+
+/* 历史侧栏：成熟编排台（统一 8px，禁胶囊堆叠） */
+.spring-root.cursor-workbench .harness-history-head,
+.spring-root.mode-professional.cursor-workbench .harness-history-head,
+.spring-root.mode-chat.cursor-workbench .harness-history-head {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 14px !important;
+  padding: 16px 14px 10px !important;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06) !important;
+}
+
+.spring-root.cursor-workbench .harness-new-session-btn,
+.spring-root.mode-professional.cursor-workbench .harness-new-session-btn,
+.spring-root.mode-chat.cursor-workbench .harness-new-session-btn {
+  display: flex !important;
+  width: 100% !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  min-height: 36px !important;
+  padding: 8px 14px !important;
+  border-radius: var(--brand-radius-sm, 8px) !important;
+  border: 1px solid rgba(15, 23, 42, 0.12) !important;
+  background: #fff !important;
+  color: #0f172a !important;
+  font-size: 13px !important;
+  font-weight: 650 !important;
+  cursor: pointer !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease !important;
+}
+
+.spring-root.cursor-workbench .harness-new-session-btn:hover,
+.spring-root.mode-professional.cursor-workbench .harness-new-session-btn:hover {
+  background: var(--brand-accent-soft, rgba(37, 99, 235, 0.14)) !important;
+  border-color: var(--brand-accent-border, rgba(37, 99, 235, 0.42)) !important;
+  color: var(--brand-accent-hover, #1d4ed8) !important;
+}
+
+.spring-root.cursor-workbench .spring-history-mode-block,
+.spring-root.cosmic-theme.cursor-workbench .spring-history-mode-block {
+  padding: 12px 14px 4px !important;
+}
+
+.spring-root.cursor-workbench .spring-history-mode-row,
+.spring-root.mode-professional.cursor-workbench .spring-history-mode-row,
+.spring-root.mode-chat.cursor-workbench .spring-history-mode-row,
+.spring-root.cosmic-theme.cursor-workbench .spring-history-mode-row {
+  display: flex !important;
+  align-items: center !important;
+  gap: 3px !important;
+  margin: 0 !important;
+  padding: 3px !important;
+  border-radius: var(--brand-radius-sm, 8px) !important;
+  background: var(--brand-bg-subtle, #eef1f5) !important;
+  border: 1px solid rgba(15, 23, 42, 0.1) !important;
+  box-shadow: none !important;
+}
+
+.spring-root.cursor-workbench .spring-history-mode-btn,
+.spring-root.mode-professional.cursor-workbench .spring-history-mode-btn,
+.spring-root.mode-chat.cursor-workbench .spring-history-mode-btn,
+.spring-root.cosmic-theme.cursor-workbench .spring-history-mode-btn {
+  flex: 1 !important;
+  border: none !important;
+  border-radius: 6px !important;
+  background: transparent !important;
+  color: #64748b !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  min-height: 30px !important;
+  padding: 0 10px !important;
+  cursor: pointer !important;
+  box-shadow: none !important;
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease !important;
+}
+
+.spring-root.cursor-workbench .spring-history-mode-btn:hover,
+.spring-root.cosmic-theme.cursor-workbench .spring-history-mode-btn:hover {
+  color: #0f172a !important;
+  background: rgba(255, 255, 255, 0.55) !important;
+}
+
+.spring-root.cursor-workbench .spring-history-mode-btn.is-active,
+.spring-root.mode-professional.cursor-workbench .spring-history-mode-btn.is-active,
+.spring-root.mode-chat.cursor-workbench .spring-history-mode-btn.is-active,
+.spring-root.cosmic-theme.cursor-workbench .spring-history-mode-btn.is-active {
+  background: #fff !important;
+  color: var(--brand-accent-hover, #1d4ed8) !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08) !important;
+  font-weight: 700 !important;
+}
+
+.spring-root.cursor-workbench .spring-history-mode-hint,
+.spring-root.cosmic-theme.cursor-workbench .spring-history-mode-hint {
+  margin: 8px 2px 0 !important;
+  color: #64748b !important;
+  font-size: 11px !important;
+  line-height: 1.4 !important;
+}
+
+.spring-root.cursor-workbench .spring-history-section-label,
+.spring-root.mode-professional.cursor-workbench .spring-history-section-label {
+  display: flex !important;
+  align-items: center !important;
+  margin: 14px 14px 8px !important;
+  font-size: 11px !important;
+  font-weight: 650 !important;
+  letter-spacing: 0.04em !important;
+  color: var(--harness-muted, #64748b) !important;
+  text-transform: uppercase !important;
+}
+
+.spring-root.cursor-workbench .spring-history-list,
+.spring-root.cosmic-theme.cursor-workbench .spring-history-list {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
+  padding: 0 10px 14px !important;
+  margin: 0 !important;
+  list-style: none !important;
+}
+
+.spring-root.cursor-workbench .spring-history-empty,
+.spring-root.cosmic-theme.cursor-workbench .spring-history-empty {
+  margin: 4px 14px 16px !important;
+  padding: 14px 12px !important;
+  border-radius: 8px !important;
+  border: 1px dashed rgba(15, 23, 42, 0.12) !important;
+  background: rgba(255, 255, 255, 0.55) !important;
+  color: #64748b !important;
+  font-size: 12px !important;
+  line-height: 1.5 !important;
+}
+
+.spring-root.cursor-workbench .spring-history-row,
+.spring-root.mode-professional.cursor-workbench .spring-history-row,
+.spring-root.cosmic-theme.cursor-workbench .spring-history-row {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0 !important;
+  margin: 0 !important;
+  border-radius: 8px !important;
+  border: 1px solid transparent !important;
+  background: transparent !important;
+  overflow: hidden !important;
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease !important;
+}
+
+.spring-root.cursor-workbench .spring-history-row:hover,
+.spring-root.cosmic-theme.cursor-workbench .spring-history-row:hover {
+  background: rgba(255, 255, 255, 0.82) !important;
+  border-color: rgba(15, 23, 42, 0.1) !important;
+}
+
+.spring-root.cursor-workbench .spring-history-row.active,
+.spring-root.mode-professional.cursor-workbench .spring-history-row.active,
+.spring-root.cosmic-theme.cursor-workbench .spring-history-row.active {
+  background: var(--harness-active-bg, #e8eef8) !important;
+  border-color: rgba(37, 99, 235, 0.28) !important;
+  box-shadow: inset 3px 0 0 var(--harness-accent, #2563eb) !important;
+}
+
+.spring-root.cursor-workbench .spring-history-item,
+.spring-root.mode-professional.cursor-workbench .spring-history-item,
+.spring-root.cosmic-theme.cursor-workbench .spring-history-item {
+  width: 100% !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 10px 12px 6px !important;
+  text-align: left !important;
+  cursor: pointer !important;
+}
+
+.spring-root.mode-professional.cursor-workbench .spring-history-row.active .spring-history-item,
+.spring-root.mode-professional.cursor-workbench .spring-history-item.is-active {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.spring-root.cursor-workbench .spring-history-mode-badge,
+.spring-root.cosmic-theme.cursor-workbench .spring-history-mode-badge {
+  border-radius: 6px !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  padding: 2px 6px !important;
+}
+
+.spring-root.cursor-workbench .spring-history-mode-badge.is-pro,
+.spring-root.cosmic-theme.cursor-workbench .spring-history-mode-badge.is-pro {
+  color: #1d4ed8 !important;
+  background: rgba(37, 99, 235, 0.12) !important;
+  border: 1px solid rgba(37, 99, 235, 0.28) !important;
+}
+
+.spring-root.cursor-workbench .spring-history-mode-badge.is-chat,
+.spring-root.cosmic-theme.cursor-workbench .spring-history-mode-badge.is-chat {
+  color: #0f766e !important;
+  background: rgba(15, 118, 110, 0.1) !important;
+  border: 1px solid rgba(15, 118, 110, 0.28) !important;
+}
+
+.spring-root.cursor-workbench .spring-history-mode-badge.is-untagged,
+.spring-root.cosmic-theme.cursor-workbench .spring-history-mode-badge.is-untagged {
+  color: #64748b !important;
+  background: rgba(100, 116, 139, 0.1) !important;
+  border: 1px solid rgba(100, 116, 139, 0.22) !important;
+}
+
+.spring-root.mode-professional.cursor-workbench .cosmic-hud-shell,
+.spring-root.mode-professional.cursor-workbench .cosmic-panel,
+.spring-root.mode-professional.cursor-workbench .spring-log.chat-scroll {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+.spring-root.mode-professional.cursor-workbench .spring-examples,
+.spring-root.mode-professional.cursor-workbench .cosmic-examples-strip,
+.spring-root.mode-professional.cursor-workbench .cosmic-chat-empty {
+  background: rgba(255, 255, 255, 0.88) !important;
+  border: 1px solid rgba(15, 23, 42, 0.06) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 8px 28px rgba(15, 40, 90, 0.06) !important;
+  backdrop-filter: blur(12px) !important;
+}
+
+.spring-root.mode-professional.cursor-workbench .cursor-thought-panel.harness-think-only .process-panel-label {
+  font-size: 13.5px !important;
+  font-weight: 700 !important;
+  font-style: normal !important;
+  color: #0f2744 !important;
+  letter-spacing: 0.02em !important;
+}
+
+.spring-root.mode-professional.cursor-workbench .harness-think-stream {
+  font-family: var(--brand-font-sans) !important;
+  font-size: 13.5px !important;
+  line-height: 1.72 !important;
+  color: #1e293b !important;
+  border-left: none !important;
+  padding-left: 0 !important;
+}
+
+.spring-root.mode-professional.cursor-workbench .harness-think-stage-body {
+  color: #334155 !important;
+}
+
+.spring-root.mode-professional.cursor-workbench .harness-created-plan {
+  border-color: rgba(37, 99, 235, 0.22) !important;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(239, 246, 255, 0.92)) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spring-root.cursor-workbench .harness-think-stream.is-live .harness-think-rail::before,
+  .spring-root.cursor-workbench .harness-think-stream.is-live .harness-think-rail::after,
+  .spring-root.cursor-workbench .harness-think-stage.is-active .harness-think-stage-dot,
+  .spring-root.cursor-workbench .cursor-thought-panel.is-running .process-panel-spark,
+  .spring-root.mode-professional.cursor-workbench .cursor-thought-panel.harness-think-only .process-panel-badge-live,
+  .spring-root.cursor-workbench .harness-think-caret {
+    animation: none !important;
+  }
+}
+
+.spring-root.mode-professional.cursor-workbench .reply-panel {
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.spring-root.mode-professional.cursor-workbench .reply-panel .reply-panel-inner {
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0.25rem 0 0.5rem !important;
+}
+
+.spring-root.mode-professional.cursor-workbench .reply-panel-header {
+  margin-bottom: 0.35rem !important;
+  padding-bottom: 0 !important;
+  border: none !important;
+}
+
+.spring-root.mode-professional.cursor-workbench .reply-panel-avatar {
+  display: none !important;
+}
+
+.spring-root.mode-professional.cursor-workbench .reply-panel-title {
+  font-size: 12px !important;
+  font-weight: 650 !important;
+  color: var(--harness-muted) !important;
+}
+
+.spring-root.mode-professional.cursor-workbench .mgr-tool-call {
+  background: #f8fafc !important;
+  border-color: var(--harness-border) !important;
+}
+
+.spring-root.mode-professional.cursor-workbench .spring-input.cosmic-input-dock {
+  background: var(--harness-surface) !important;
+  border: 1px solid var(--harness-border) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.06) !important;
+  padding: 10px 12px 8px !important;
+}
+
+.spring-root.mode-professional.cursor-workbench .cosmic-input-head {
+  display: none !important;
+}
+
+.spring-root.mode-professional.cursor-workbench .spring-input-field {
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  min-height: 72px !important;
+  font-size: 14.5px !important;
+  color: #0f172a !important;
+}
+
+.spring-root.mode-professional.cursor-workbench .composer-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.spring-root.mode-professional.cursor-workbench .composer-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.spring-root.mode-professional.cursor-workbench .composer-icon-btn {
+  box-sizing: border-box;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: #fff;
+  color: #3f3f46;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: none;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+
+.spring-root.mode-professional.cursor-workbench .composer-icon-btn:hover:not(:disabled) {
+  background: #f4f4f5;
+  border-color: rgba(15, 23, 42, 0.18);
+  color: #18181b;
+}
+
+.spring-root.mode-professional.cursor-workbench .composer-posture-wrap {
+  position: relative;
+  z-index: 40;
+}
+
+.spring-root.mode-professional.cursor-workbench .composer-posture-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  background: #fff;
+  color: #18181b;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: none;
+}
+
+.spring-root.mode-professional.cursor-workbench .composer-posture-trigger:hover,
+.spring-root.mode-professional.cursor-workbench .composer-posture-trigger.is-open {
+  background: #f4f4f5;
+  border-color: rgba(15, 23, 42, 0.2);
+  color: #0f172a;
+}
+
+.spring-root.mode-professional.cursor-workbench .composer-posture-trigger.is-ask,
+.spring-root.mode-professional.cursor-workbench .composer-posture-trigger.is-plan,
+.spring-root.mode-professional.cursor-workbench .composer-posture-trigger.is-debug,
+.spring-root.mode-professional.cursor-workbench .composer-posture-trigger.is-agent {
+  color: #18181b;
+  border-color: rgba(15, 23, 42, 0.14);
+  background: #fff;
+}
+
+.spring-root.mode-professional.cursor-workbench .composer-posture-menu {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 8px);
+  z-index: 90;
+  min-width: 248px;
+  max-width: min(320px, 80vw);
+  padding: 6px;
+  border-radius: 10px;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  background: #fff;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.14);
+  backdrop-filter: none;
+}
+
+.spring-root.mode-professional.cursor-workbench .composer-posture-option {
+  color: #0f172a;
+}
+
+.spring-root.mode-professional.cursor-workbench .composer-posture-option:hover,
+.spring-root.mode-professional.cursor-workbench .composer-posture-option.is-active {
+  background: #e8eef8;
+}
+
+.spring-root.mode-professional.cursor-workbench .composer-posture-option-desc {
+  color: #475569;
+}
+
+.spring-root.mode-professional.cursor-workbench .composer-posture-option-check {
+  color: #1d4ed8;
+}
+
+.spring-root.mode-professional.cursor-workbench .composer-metrics-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 6px;
+  padding-top: 2px;
+  font-size: 11px;
+  color: #475569;
+  border-top: none;
+}
+
+.spring-root.mode-professional.cursor-workbench .composer-metrics-text.is-muted {
+  opacity: 1;
+  color: #475569;
+}
+
+.spring-root.mode-professional.cursor-workbench .composer-metrics-hint {
+  margin-left: auto;
+  opacity: 0.85;
+  font-size: 10.5px;
+  color: #64748b;
+}
+
+.spring-root.mode-professional.cursor-workbench .sidebar-tabs {
+  background: #e2e8f0;
+  border-radius: 8px;
+  padding: 3px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+}
+
+.spring-root.mode-professional.cursor-workbench .sidebar-tab-btn {
+  border: none !important;
+  border-radius: 6px !important;
+  background: transparent !important;
+  color: #475569 !important;
+  font-weight: 600 !important;
+}
+
+.spring-root.mode-professional.cursor-workbench .sidebar-tab-btn.is-active {
+  background: #fff !important;
+  color: #0f172a !important;
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.12), 0 1px 2px rgba(15, 23, 42, 0.06) !important;
+}
+
+.spring-root.mode-professional.cursor-workbench .spring-side-section {
+  border: 1px solid var(--harness-border) !important;
+  border-radius: 10px !important;
+  background: #fff !important;
+  box-shadow: none !important;
+}
+
+.spring-root.mode-professional.cursor-workbench .spring-side-actions,
+.spring-root.cursor-workbench .spring-side-actions {
+  display: flex !important;
+  flex-direction: column !important;
+  flex-wrap: nowrap !important;
+  gap: 6px !important;
+  align-items: stretch !important;
+}
+
+.spring-root.mode-professional.cursor-workbench .harness-side-action,
+.spring-root.cursor-workbench .harness-side-action {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  width: 100% !important;
+  min-height: 32px !important;
+  padding: 6px 10px !important;
+  border-radius: 8px !important;
+  border: 1px solid rgba(15, 23, 42, 0.14) !important;
+  background: #fff !important;
+  color: #0f172a !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  text-align: left !important;
+  box-shadow: none !important;
+  cursor: pointer;
+}
+
+.spring-root.mode-professional.cursor-workbench .harness-side-action:hover:not(:disabled),
+.spring-root.cursor-workbench .harness-side-action:hover:not(:disabled) {
+  background: #f1f5f9 !important;
+  border-color: rgba(15, 23, 42, 0.2) !important;
+}
+
+.spring-root.mode-professional.cursor-workbench .harness-side-action.is-danger,
+.spring-root.cursor-workbench .harness-side-action.is-danger {
+  color: #7f1d1d !important;
+  border-color: rgba(127, 29, 29, 0.22) !important;
+}
+
+.spring-root.mode-professional.cursor-workbench .harness-side-action:disabled,
+.spring-root.cursor-workbench .harness-side-action:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* —— Cursor 风发送 fab：高对比圆钮（浅色壳用深底白箭） —— */
+.spring-root.cursor-workbench .composer-toolbar .brand-send-fab.spring-btn-send-cancel,
+.spring-root.cursor-workbench .composer-toolbar .brand-send-fab,
+.spring-root.cosmic-theme.cursor-workbench .composer-toolbar .brand-send-fab.spring-btn-send-cancel,
+.spring-root.mode-professional.cursor-workbench .composer-toolbar .brand-send-fab.spring-btn-send-cancel,
+.spring-root.mode-chat.cursor-workbench .composer-toolbar .brand-send-fab.spring-btn-send-cancel {
+  width: 28px !important;
+  height: 28px !important;
+  min-width: 28px !important;
+  min-height: 28px !important;
+  padding: 0 !important;
+  border-radius: 999px !important;
+  border: none !important;
+  background: #18181b !important;
+  color: #fff !important;
+  box-shadow: none !important;
+  font-size: 0 !important;
+  line-height: 0 !important;
+  overflow: hidden !important;
+}
+
+.spring-root.cursor-workbench .composer-toolbar .brand-send-fab.spring-btn-send-cancel:hover:not(:disabled),
+.spring-root.cursor-workbench .composer-toolbar .brand-send-fab:hover:not(:disabled) {
+  background: #27272a !important;
+  transform: none;
+  box-shadow: none !important;
+}
+
+.spring-root.cursor-workbench .composer-toolbar .brand-send-fab.spring-btn-send-cancel.is-cancel,
+.spring-root.cursor-workbench .composer-toolbar .brand-send-fab.is-cancel {
+  background: #dc2626 !important;
+  box-shadow: none !important;
+}
+
+.spring-root.cursor-workbench .composer-toolbar .brand-send-fab.spring-btn-send-cancel.is-cancel:hover:not(:disabled),
+.spring-root.cursor-workbench .composer-toolbar .brand-send-fab.is-cancel:hover:not(:disabled) {
+  background: #b91c1c !important;
+}
+
+.spring-root.cursor-workbench .composer-toolbar .brand-send-fab:disabled {
+  opacity: 0.35 !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+  background: #a1a1aa !important;
+}
+
+.spring-root.cursor-workbench .composer-toolbar .brand-send-fab__icon {
+  width: 14px !important;
+  height: 14px !important;
+}
+
+.spring-root.cursor-workbench .spring-chat-column,
+.spring-root.cursor-workbench .cursor-chat-main,
+.spring-root.mode-professional.cursor-workbench .spring-chat-column {
+  background: transparent !important;
+}
+
+.spring-root.cursor-workbench .spring-input.cosmic-input-dock,
+.spring-root.mode-chat.cursor-workbench .spring-input.cosmic-input-dock {
+  background: rgba(255, 255, 255, 0.92) !important;
+  border: 1px solid rgba(15, 23, 42, 0.08) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 12px 36px rgba(15, 40, 90, 0.08) !important;
+  backdrop-filter: blur(16px) saturate(1.1) !important;
+  font-family: var(--brand-font-sans) !important;
+}
+
+.spring-root.cursor-workbench .spring-input-field,
+.spring-root.cursor-workbench .reply-panel,
+.spring-root.cursor-workbench .chat-thread {
+  font-family: var(--brand-font-sans) !important;
+}
+
+/* ── 顶栏工具条：分组 + 统一圆角，禁胶囊混搭（含 cosmic-theme 压过 winter） ── */
+.spring-root.cursor-workbench .harness-topbar-actions,
+.spring-root.cursor-workbench .spring-topbar-actions,
+.spring-root.cosmic-theme.cursor-workbench .harness-topbar-actions,
+.spring-root.cosmic-theme.cursor-workbench .spring-topbar-actions {
+  display: inline-flex !important;
+  align-items: center !important;
+  flex-wrap: wrap !important;
+  justify-content: flex-end !important;
+  gap: 12px !important;
+  row-gap: 8px !important;
+  margin-left: auto !important;
+}
+
+.spring-root.cursor-workbench .harness-toolbar-cluster,
+.spring-root.cursor-workbench .harness-toolbar-meta,
+.spring-root.cosmic-theme.cursor-workbench .harness-toolbar-cluster,
+.spring-root.cosmic-theme.cursor-workbench .harness-toolbar-meta {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+.spring-root.cursor-workbench .harness-toolbar-divider,
+.spring-root.cosmic-theme.cursor-workbench .harness-toolbar-divider {
+  width: 1px !important;
+  height: 18px !important;
+  flex: 0 0 auto !important;
+  background: rgba(15, 23, 42, 0.14) !important;
+  border: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  margin: 0 2px !important;
+}
+
+.spring-root.cursor-workbench .harness-toolbar-btn,
+.spring-root.cursor-workbench .harness-toolbar-cluster .spring-seg-btn,
+.spring-root.cursor-workbench .harness-toolbar-btn.spring-trace-id-btn,
+.spring-root.cosmic-theme.cursor-workbench .harness-toolbar-btn,
+.spring-root.cosmic-theme.cursor-workbench .harness-toolbar-cluster .spring-seg-btn,
+.spring-root.cosmic-theme.cursor-workbench .harness-toolbar-btn.spring-trace-id-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  min-height: 32px !important;
+  padding: 0 12px !important;
+  border-radius: var(--brand-radius-sm, 8px) !important;
+  border: 1px solid rgba(15, 23, 42, 0.12) !important;
+  background: #fff !important;
+  color: #334155 !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  line-height: 1 !important;
+  box-shadow: none !important;
+  cursor: pointer !important;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease !important;
+}
+
+.spring-root.cursor-workbench .harness-toolbar-btn:hover,
+.spring-root.cursor-workbench .harness-toolbar-cluster .spring-seg-btn:hover,
+.spring-root.cosmic-theme.cursor-workbench .harness-toolbar-btn:hover,
+.spring-root.cosmic-theme.cursor-workbench .harness-toolbar-cluster .spring-seg-btn:hover {
+  background: var(--brand-bg-hover, #e8ecf2) !important;
+  border-color: rgba(15, 23, 42, 0.18) !important;
+  color: #0f172a !important;
+}
+
+.spring-root.cursor-workbench .harness-toolbar-btn.is-active,
+.spring-root.cursor-workbench .harness-toolbar-cluster .spring-seg-btn.is-active,
+.spring-root.cosmic-theme.cursor-workbench .harness-toolbar-btn.is-active,
+.spring-root.cosmic-theme.cursor-workbench .harness-toolbar-cluster .spring-seg-btn.is-active {
+  background: var(--brand-accent-soft, rgba(37, 99, 235, 0.14)) !important;
+  border-color: var(--brand-accent-border, rgba(37, 99, 235, 0.42)) !important;
+  color: var(--brand-accent-hover, #1d4ed8) !important;
+  box-shadow: none !important;
+}
+
+.spring-root.cursor-workbench .harness-toolbar-seg,
+.spring-root.cursor-workbench .spring-thought-view-toggle,
+.spring-root.cosmic-theme.cursor-workbench .harness-toolbar-seg,
+.spring-root.cosmic-theme.cursor-workbench .spring-thought-view-toggle,
+.spring-root.cosmic-theme.cursor-workbench .spring-seg.spring-thought-view-toggle {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 2px !important;
+  padding: 3px !important;
+  min-height: 32px !important;
+  box-sizing: border-box !important;
+  border-radius: var(--brand-radius-sm, 8px) !important;
+  border: 1px solid rgba(15, 23, 42, 0.12) !important;
+  background: var(--brand-bg-subtle, #eef1f5) !important;
+  box-shadow: none !important;
+}
+
+.spring-root.cursor-workbench .harness-toolbar-seg > button,
+.spring-root.cursor-workbench .spring-thought-view-toggle > button,
+.spring-root.cosmic-theme.cursor-workbench .harness-toolbar-seg > button,
+.spring-root.cosmic-theme.cursor-workbench .spring-thought-view-toggle > button,
+.spring-root.cosmic-theme.cursor-workbench .spring-seg.spring-thought-view-toggle > button {
+  border: none !important;
+  border-radius: 6px !important;
+  background: transparent !important;
+  color: #475569 !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  padding: 0 12px !important;
+  min-height: 26px !important;
+  box-shadow: none !important;
+  cursor: pointer !important;
+}
+
+.spring-root.cursor-workbench .harness-toolbar-seg > button.is-active,
+.spring-root.cursor-workbench .spring-thought-view-toggle > button.is-active,
+.spring-root.cosmic-theme.cursor-workbench .harness-toolbar-seg > button.is-active,
+.spring-root.cosmic-theme.cursor-workbench .spring-thought-view-toggle > button.is-active,
+.spring-root.cosmic-theme.cursor-workbench .spring-seg.spring-thought-view-toggle > button.is-active {
+  background: #fff !important;
+  color: #0f172a !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08) !important;
+  border-color: transparent !important;
+}
+
+.spring-root.cursor-workbench .spring-tools-badge,
+.spring-root.cosmic-theme.cursor-workbench .spring-tools-badge {
+  min-width: 16px !important;
+  height: 16px !important;
+  padding: 0 5px !important;
+  border-radius: 999px !important;
+  background: var(--brand-accent, #2563eb) !important;
+  color: #fff !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  line-height: 16px !important;
+}
+
+.spring-root.cursor-workbench .spring-conn,
+.spring-root.cosmic-theme.cursor-workbench .spring-conn {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 7px !important;
+  border: none !important;
+  background: transparent !important;
+  color: #475569 !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  padding: 0 4px !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  min-height: 32px !important;
+}
+
+.spring-root.cursor-workbench .spring-conn.on,
+.spring-root.cosmic-theme.cursor-workbench .spring-conn.on {
+  color: #0f766e !important;
+}
+
+.spring-root.cursor-workbench .spring-conn-dot,
+.spring-root.cosmic-theme.cursor-workbench .spring-conn-dot {
+  width: 7px !important;
+  height: 7px !important;
+  border-radius: 50% !important;
+  background: #94a3b8 !important;
+  box-shadow: none !important;
+}
+
+.spring-root.cursor-workbench .spring-conn.on .spring-conn-dot,
+.spring-root.cosmic-theme.cursor-workbench .spring-conn.on .spring-conn-dot {
+  background: #0f766e !important;
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.14) !important;
+}
+
+.spring-root.cursor-workbench .mgr-user-menu-trigger,
+.spring-root.cursor-workbench .mgr-user-menu-btn,
+.spring-root.cursor-workbench .manager-user-menu,
+.spring-root.cursor-workbench button.mgr-user-chip,
+.spring-root.cosmic-theme.cursor-workbench .mgr-user-menu-trigger {
+  border: 1px solid rgba(15, 23, 42, 0.12) !important;
+  background: #fff !important;
+  border-radius: var(--brand-radius-sm, 8px) !important;
+  box-shadow: none !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  color: #0f172a !important;
+  min-height: 32px !important;
+  padding: 4px 10px 4px 5px !important;
+}
+
+.spring-root.cursor-workbench .mgr-user-menu-avatar,
+.spring-root.cosmic-theme.cursor-workbench .mgr-user-menu-avatar {
+  border-radius: 6px !important;
+  background: var(--brand-accent, #2563eb) !important;
+}
+
+/* ── 历史会话：操作文字链，间距拉开；悬停/选中可见 ── */
+.spring-root.cursor-workbench .spring-history-item-actions,
+.spring-root.cosmic-theme.cursor-workbench .spring-history-item-actions {
+  display: flex !important;
+  justify-content: flex-end !important;
+  align-items: center !important;
+  gap: 4px !important;
+  margin: 0 !important;
+  padding: 0 10px 8px !important;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.14s ease;
+}
+
+.spring-root.cursor-workbench .spring-history-row:hover .spring-history-item-actions,
+.spring-root.cursor-workbench .spring-history-row.active .spring-history-item-actions,
+.spring-root.cursor-workbench .spring-history-row:focus-within .spring-history-item-actions,
+.spring-root.cosmic-theme.cursor-workbench .spring-history-row:hover .spring-history-item-actions,
+.spring-root.cosmic-theme.cursor-workbench .spring-history-row.active .spring-history-item-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.spring-root.cursor-workbench .spring-history-action-btn,
+.spring-root.cosmic-theme.cursor-workbench .spring-history-action-btn {
+  flex: 0 0 auto !important;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: #64748b !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  padding: 4px 10px !important;
+  border-radius: 6px !important;
+  min-height: 26px !important;
+  cursor: pointer !important;
+}
+
+.spring-root.cursor-workbench .spring-history-action-btn + .spring-history-action-btn,
+.spring-root.cosmic-theme.cursor-workbench .spring-history-action-btn + .spring-history-action-btn {
+  margin-left: 4px !important;
+}
+
+.spring-root.cursor-workbench .spring-history-action-btn:hover,
+.spring-root.cosmic-theme.cursor-workbench .spring-history-action-btn:hover {
+  background: rgba(37, 99, 235, 0.1) !important;
+  color: #1d4ed8 !important;
+}
+
+.spring-root.cursor-workbench .spring-history-action-btn.danger,
+.spring-root.cosmic-theme.cursor-workbench .spring-history-action-btn.danger {
+  color: #94a3b8 !important;
+}
+
+.spring-root.cursor-workbench .spring-history-action-btn.danger:hover,
+.spring-root.cosmic-theme.cursor-workbench .spring-history-action-btn.danger:hover {
+  background: rgba(185, 28, 28, 0.08) !important;
+  color: #b91c1c !important;
+}
+
+.spring-root.cursor-workbench .spring-history-item-meta,
+.spring-root.cosmic-theme.cursor-workbench .spring-history-item-meta {
+  display: block !important;
+  font-size: 11px !important;
+  color: #94a3b8 !important;
+  margin-top: 2px !important;
+}
+
+.spring-root.cursor-workbench .spring-history-item-title,
+.spring-root.cosmic-theme.cursor-workbench .spring-history-item-title {
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: #0f172a !important;
+  line-height: 1.35 !important;
+}
+
+/* ── 快捷示例 ── */
+.spring-root.cursor-workbench .spring-examples.cosmic-examples-strip,
+.spring-root.cursor-workbench .spring-examples {
+  margin: 8px 0 6px !important;
+  padding: 2px 0 8px !important;
+  max-width: var(--chat-col-width, 840px);
+  width: 100%;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  border-radius: 14px !important;
+  border: 1px solid rgba(15, 23, 42, 0.06) !important;
+  background: rgba(255, 255, 255, 0.86) !important;
+  box-shadow: 0 8px 28px rgba(15, 40, 90, 0.05) !important;
+  backdrop-filter: blur(12px) !important;
+}
+
+.spring-root.cursor-workbench .spring-examples-summary {
+  padding: 8px 14px 6px !important;
+  font-size: 12px !important;
+  font-weight: 650 !important;
+  color: #475569 !important;
+  letter-spacing: 0.01em !important;
+}
+
+.spring-root.cursor-workbench .spring-examples[open] .spring-quick-start,
+.spring-root.cursor-workbench .spring-quick-start {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 8px !important;
+  padding: 2px 12px 10px !important;
+  max-height: 132px !important;
+}
+
+.spring-root.cursor-workbench .example-chip,
+.spring-root.cursor-workbench .spring-example-chip,
+.spring-root.cursor-workbench .cosmic-chat-empty button,
+.spring-root.cursor-workbench .spring-quick-start > button {
+  border: 1px solid rgba(37, 99, 235, 0.14) !important;
+  background: linear-gradient(180deg, #fff, #f8fafc) !important;
+  color: #334155 !important;
+  border-radius: 999px !important;
+  padding: 6px 12px !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  line-height: 1.3 !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.spring-root.cursor-workbench .example-chip:hover,
+.spring-root.cursor-workbench .spring-example-chip:hover,
+.spring-root.cursor-workbench .spring-quick-start > button:hover {
+  border-color: rgba(37, 99, 235, 0.35) !important;
+  background: #eff6ff !important;
+  color: #1d4ed8 !important;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.12) !important;
+}
+
+/* ── 系统信号 ── */
+.spring-root.cursor-workbench .spring-thoughts.spring-thoughts-system,
+.spring-root.cursor-workbench details.spring-thoughts-system {
+  margin: 6px auto 10px !important;
+  max-width: var(--chat-col-width, 840px);
+  width: 100%;
+  padding: 4px 10px 10px !important;
+  border-radius: 14px !important;
+  border: 1px solid rgba(15, 23, 42, 0.06) !important;
+  background: rgba(248, 250, 252, 0.82) !important;
+  box-shadow: 0 8px 24px rgba(15, 40, 90, 0.04) !important;
+  backdrop-filter: blur(10px) !important;
+}
+
+.spring-root.cursor-workbench .spring-thoughts.spring-thoughts-system > summary {
+  padding: 8px 4px !important;
+  font-size: 12px !important;
+  font-weight: 650 !important;
+  color: #475569 !important;
+}
+
+.spring-root.cursor-workbench .spring-thoughts-item {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 4px !important;
+  padding: 8px 12px !important;
+  margin-bottom: 6px !important;
+  border-radius: 10px !important;
+  border: 1px solid rgba(15, 23, 42, 0.05) !important;
+  border-left: 3px solid rgba(37, 99, 235, 0.35) !important;
+  background: rgba(255, 255, 255, 0.92) !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03) !important;
+}
+
+.spring-root.cursor-workbench .spring-thoughts-text {
+  font-size: 12.5px !important;
+  line-height: 1.55 !important;
+  color: #334155 !important;
+  font-family: var(--brand-font-sans) !important;
+}
+
+.spring-root.cursor-workbench .spring-thoughts-item .meta-pill,
+.spring-root.cursor-workbench .spring-thoughts-item .badge {
+  display: inline-flex !important;
+  align-items: center !important;
+  padding: 1px 8px !important;
+  border-radius: 999px !important;
+  background: rgba(37, 99, 235, 0.1) !important;
+  color: #1d4ed8 !important;
+  border: none !important;
+  font-size: 11px !important;
+  font-weight: 650 !important;
+}
+
+/* ── 消息操作：低调文字链 ── */
+.spring-root.cursor-workbench .message-actions,
+.spring-root.cursor-workbench .message-actions-user {
+  gap: 2px !important;
+  margin-top: 6px !important;
+  padding-top: 4px !important;
+  border-top: none !important;
+}
+
+.spring-root.cursor-workbench .message-action-btn {
+  border: none !important;
+  background: transparent !important;
+  color: #94a3b8 !important;
+  border-radius: 6px !important;
+  padding: 3px 8px !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  box-shadow: none !important;
+}
+
+.spring-root.cursor-workbench .message-action-btn:hover:not(:disabled) {
+  background: rgba(37, 99, 235, 0.08) !important;
+  color: #1d4ed8 !important;
+}
+
+/* ── Cursor 姿态段：浅灰 pill 轨 + 白胶囊激活 ── */
+.spring-root.cursor-workbench .composer-toolbar {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 10px !important;
+}
+
+.spring-root.cursor-workbench .composer-toolbar-left {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+.spring-root.cursor-workbench .composer-icon-btn {
+  box-sizing: border-box !important;
+  width: 28px !important;
+  height: 28px !important;
+  min-width: 28px !important;
+  padding: 0 !important;
+  border-radius: 8px !important;
+  border: 1px solid rgba(15, 23, 42, 0.12) !important;
+  background: #fff !important;
+  color: #3f3f46 !important;
+  font-size: 16px !important;
+  font-weight: 500 !important;
+  line-height: 1 !important;
+  box-shadow: none !important;
+}
+
+.spring-root.cursor-workbench .composer-icon-btn:hover:not(:disabled) {
+  background: #f4f4f5 !important;
+  border-color: rgba(15, 23, 42, 0.18) !important;
+  color: #18181b !important;
+}
+
+.spring-root.cursor-workbench .composer-posture-wrap,
+.spring-root.mode-professional.cursor-workbench .composer-posture-wrap {
+  position: relative !important;
+  z-index: 40 !important;
+}
+
+.spring-root.cursor-workbench .composer-posture-trigger,
+.spring-root.mode-professional.cursor-workbench .composer-posture-trigger {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  min-height: 28px !important;
+  padding: 0 10px !important;
+  border-radius: 8px !important;
+  border: 1px solid rgba(15, 23, 42, 0.14) !important;
+  background: #fff !important;
+  color: #18181b !important;
+  font-size: 12.5px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0 !important;
+  box-shadow: none !important;
+}
+
+.spring-root.cursor-workbench .composer-posture-trigger:hover,
+.spring-root.cursor-workbench .composer-posture-trigger.is-open,
+.spring-root.mode-professional.cursor-workbench .composer-posture-trigger:hover,
+.spring-root.mode-professional.cursor-workbench .composer-posture-trigger.is-open {
+  background: #f4f4f5 !important;
+  border-color: rgba(15, 23, 42, 0.2) !important;
+  color: #0f172a !important;
+}
+
+.spring-root.cursor-workbench .composer-posture-trigger.is-ask,
+.spring-root.cursor-workbench .composer-posture-trigger.is-plan,
+.spring-root.cursor-workbench .composer-posture-trigger.is-debug,
+.spring-root.cursor-workbench .composer-posture-trigger.is-agent,
+.spring-root.mode-professional.cursor-workbench .composer-posture-trigger.is-ask,
+.spring-root.mode-professional.cursor-workbench .composer-posture-trigger.is-plan,
+.spring-root.mode-professional.cursor-workbench .composer-posture-trigger.is-debug,
+.spring-root.mode-professional.cursor-workbench .composer-posture-trigger.is-agent {
+  color: #18181b !important;
+  border-color: rgba(15, 23, 42, 0.14) !important;
+  background: #fff !important;
+}
+
+.spring-root.cursor-workbench .composer-posture-chevron,
+.spring-root.mode-professional.cursor-workbench .composer-posture-chevron {
+  font-size: 10px !important;
+  opacity: 0.7 !important;
+  color: #475569 !important;
+}
+
+.spring-root.cursor-workbench .composer-posture-menu,
+.spring-root.mode-professional.cursor-workbench .composer-posture-menu {
+  border: 1px solid rgba(15, 23, 42, 0.14) !important;
+  background: #fff !important;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.14) !important;
+  backdrop-filter: none !important;
+  border-radius: 10px !important;
+}
+
+.spring-root.cursor-workbench .composer-posture-option,
+.spring-root.mode-professional.cursor-workbench .composer-posture-option {
+  color: #0f172a !important;
+}
+
+.spring-root.cursor-workbench .composer-posture-option:hover,
+.spring-root.cursor-workbench .composer-posture-option.is-active,
+.spring-root.mode-professional.cursor-workbench .composer-posture-option:hover,
+.spring-root.mode-professional.cursor-workbench .composer-posture-option.is-active {
+  background: #e8eef8 !important;
+}
+
+.spring-root.cursor-workbench .composer-posture-option-desc,
+.spring-root.mode-professional.cursor-workbench .composer-posture-option-desc {
+  color: #475569 !important;
+}
+
+.spring-root.mode-professional.cursor-workbench .spring-input.cosmic-input-dock {
+  background: rgba(255, 255, 255, 0.98) !important;
+  border: 1px solid rgba(15, 23, 42, 0.14) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 14px 40px rgba(15, 40, 90, 0.1) !important;
+  backdrop-filter: blur(16px) !important;
+  padding: 12px 12px 8px !important;
+}
+
+.spring-root.mode-professional.cursor-workbench .reply-panel .reply-panel-inner,
+.spring-root.mode-professional.cursor-workbench .chat-user-row .cosmic-bubble-user {
+  background: rgba(255, 255, 255, 0.96) !important;
+  border: 1px solid rgba(15, 23, 42, 0.12) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 4px 18px rgba(15, 40, 90, 0.05) !important;
+  backdrop-filter: blur(8px) !important;
+  padding: 0.85rem 1rem !important;
+}
+
+.spring-root.mode-professional.cursor-workbench .reply-panel {
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+

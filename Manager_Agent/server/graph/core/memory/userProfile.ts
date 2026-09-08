@@ -455,9 +455,8 @@ async function savePgUserProfile(
   await agentPgQuery(
     `INSERT INTO mgr_user_profiles (user_key, payload, tenant_id, updated_at)
      VALUES ($1, $2::jsonb, $3, NOW())
-     ON CONFLICT (user_key) DO UPDATE SET
+     ON CONFLICT (tenant_id, user_key) DO UPDATE SET
        payload = EXCLUDED.payload,
-       tenant_id = EXCLUDED.tenant_id,
        updated_at = NOW()`,
     [key, JSON.stringify(profile), tid],
     env

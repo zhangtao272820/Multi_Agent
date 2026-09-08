@@ -101,6 +101,15 @@ export type PresentationModuleSlots = {
   table?: unknown
 }
 
+function slotTableHasValues(table: unknown): boolean {
+  if (!table || typeof table !== 'object') return false
+  const rows = (table as { rows?: unknown }).rows
+  if (!Array.isArray(rows) || !rows.length) return false
+  return rows.some(
+    (r) => Array.isArray(r) && r.some((c) => String(c ?? '').trim())
+  )
+}
+
 export function applyPresentationToSlots<T extends PresentationModuleSlots>(
   slots: T,
   plan: PresentationPlan | null | undefined
@@ -109,7 +118,8 @@ export function applyPresentationToSlots<T extends PresentationModuleSlots>(
   const out = { ...slots }
   if (!planHasModule(plan, 'metrics')) delete out.metrics
   if (!planHasModule(plan, 'chart')) delete out.chart
-  if (!planHasModule(plan, 'table')) delete out.table
+  // 有真实行的查询表不可被展示计划静默剥掉（否则总管数据看板空壳 / 一闪而过）
+  if (!planHasModule(plan, 'table') && !slotTableHasValues(out.table)) delete out.table
   return out
 }
 
@@ -173,13 +183,25 @@ export function formatPresentationPlanForSynth(plan: PresentationPlan): string {
 }
 
 function countDbRows(evidence?: unknown[]): number {
+  let best = 0
   for (const ev of Array.isArray(evidence) ? evidence : []) {
-    if (String((ev as { kind?: string })?.kind || '') !== 'db') continue
-    const rows = (ev as { agentResult?: { structured?: { rows?: unknown[] } } })?.agentResult?.structured
-      ?.rows
-    if (Array.isArray(rows)) return rows.length
+    const row = ev as {
+      kind?: string
+      agent?: string
+      rows?: unknown[]
+      agentResult?: { structured?: { rows?: unknown[] } }
+    }
+    const kind = String(row?.kind || '').trim()
+    const isDb =
+      kind === 'db' || (kind === 'agent_result' && String(row?.agent || '').trim() === 'db')
+    if (!isDb) continue
+    const top = Array.isArray(row?.rows) ? row.rows.length : 0
+    const ar = Array.isArray(row?.agentResult?.structured?.rows)
+      ? row!.agentResult!.structured!.rows!.length
+      : 0
+    best = Math.max(best, top, ar)
   }
-  return 0
+  return best
 }
 
 /** 从专家结果结构枚举可用 artifacts（不读用户原话） */
@@ -263,7 +285,7 @@ export function assembleStructuralPresentationFallback(input: {
   }
   if (input.thickness === 'single_source') {
     const modules: PresentationModule[] = [{ type: 'prose' }]
-    if (kinds.has('db_result')) modules.push({ type: 'table', collapsed: true, maxItems: 20 })
+    if (kinds.has('db_result')) modules.push({ type: 'table', collapsed: false, maxItems: 40 })
     if (kinds.has('rag_result') || kinds.has('crawler_sources')) modules.push({ type: 'sources' })
     return {
       replyTier: 'standard',

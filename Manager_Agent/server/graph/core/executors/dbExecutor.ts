@@ -153,6 +153,9 @@ export async function executeDbStep(
       timeoutMs: input.timeoutMs,
       messages: [{ role: 'user', content: finalDbMessage }],
       sendThinking: input.sendThinking,
+      sendDelta: (d: string) => {
+        opts.sendEvent({ event: 'delta', data: d, from: 'db' })
+      },
       ...(String(process.env.MANAGER_DB_HTTP_ONLY ?? '').trim() === '1' ? { httpOnly: true as const } : {}),
       signal: opts.signal,
       ...(managerTask ? { managerTask } : {})
@@ -327,6 +330,30 @@ export async function executeDbStep(
     const errorCode = softEmpty
       ? undefined
       : String(ar?.error_code || (isEmpty ? 'empty_result' : '')).trim() || undefined
+    const fieldDetails = Array.isArray(ar?.structured?.field_details)
+      ? ar!.structured!.field_details
+      : Array.isArray(ar?.structured?.fieldDetails)
+        ? ar!.structured!.fieldDetails
+        : undefined
+    const dbEvidenceBase = {
+      kind: 'db' as const,
+      query: finalDbMessage,
+      transport: dbRes.transport,
+      run_id: dbRes.run_id,
+      trace_id: dbRes.trace_id || opts.runId,
+      sources: ar?.sources,
+      executed_sql: ar?.structured?.executed_sql,
+      ...(explainPreflight.length ? { explain_preflight: explainPreflight } : {}),
+      ...(ar?.structured?.chart != null ? { chart: ar.structured.chart } : {}),
+      ...(ar?.structured?.deliverables && typeof ar.structured.deliverables === 'object'
+        ? { deliverables: ar.structured.deliverables }
+        : {}),
+      ...(Array.isArray(ar?.structured?.rows) && ar.structured.rows.length
+        ? { rows: ar.structured.rows }
+        : {}),
+      ...(Array.isArray(fieldDetails) && fieldDetails.length ? { field_details: fieldDetails } : {}),
+      ...(ar ? { agentResult: ar } : {})
+    }
     if (!stepOk) {
       return {
         ok: false,
@@ -336,17 +363,10 @@ export async function executeDbStep(
         parsed: extractStructuredPayload(output),
         error: errorCode || dbRes.reason || 'db_step_failed',
         evidence: {
-          kind: 'db',
-          query: finalDbMessage,
-          transport: dbRes.transport,
-          run_id: dbRes.run_id,
-          trace_id: dbRes.trace_id || opts.runId,
-          sources: ar?.sources,
+          ...dbEvidenceBase,
           empty: isEmpty,
           reason: dbRes.reason,
-          error_code: errorCode,
-          executed_sql: ar?.structured?.executed_sql,
-          ...(explainPreflight.length ? { explain_preflight: explainPreflight } : {})
+          error_code: errorCode
         },
         meta: ar ? { agentResult: ar } : {}
       }
@@ -358,17 +378,10 @@ export async function executeDbStep(
       query: finalDbMessage,
       parsed: extractStructuredPayload(output),
       evidence: {
-        kind: 'db',
-        query: finalDbMessage,
-        transport: dbRes.transport,
-        run_id: dbRes.run_id,
-        trace_id: dbRes.trace_id || opts.runId,
-        sources: ar?.sources,
+        ...dbEvidenceBase,
         empty: softEmpty ? true : false,
         reason: softEmpty ? 'empty_result' : dbRes.reason,
-        error_code: errorCode,
-        executed_sql: ar?.structured?.executed_sql,
-        ...(explainPreflight.length ? { explain_preflight: explainPreflight } : {})
+        error_code: errorCode
       },
       meta: ar ? { agentResult: ar, ...(writeAllowed ? { dbWrite: true } : {}) } : {}
     }

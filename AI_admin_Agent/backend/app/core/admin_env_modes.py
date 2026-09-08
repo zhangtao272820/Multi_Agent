@@ -15,10 +15,18 @@ def resolve_admin_nlu_mode() -> str:
     if mode in ("full", "default", "on", "1"):
         return "full"
     if mode in ("legacy", "classic"):
+        print(
+            "[admin_env_modes] ADMIN_NLU_MODE=legacy：关键词意图路径（仅 smoke/迁移）；生产请用 full",
+            flush=True,
+        )
         return "legacy"
     if mode in ("fast", "lite", "minimal"):
         return "fast"
     if _token("ADMIN_NLU") in _OFF:
+        print(
+            "[admin_env_modes] ADMIN_NLU=off → legacy 关键词路径；生产请保持 ADMIN_NLU_MODE=full",
+            flush=True,
+        )
         return "legacy"
     return "full"
 

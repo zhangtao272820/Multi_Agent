@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import queue
+import threading
 import time
 from typing import Any, Iterator
 
@@ -9,13 +11,13 @@ from app.chart import infer_chart
 from app.db import apply_value_maps, run_select
 from app.domain_patch import blueprint_prompt_block
 from app.filter_gate import assert_plan_filters, values_from_must_filter_lines
-from app.format_answer import format_answer
+from app.format_answer import format_answer, suggest_followups
 from app.llm import LlmMeter, chat_json, chat_text
 from app.metrics_catalog import metrics_prompt_block
 from app.pending import drop_pending, save_pending
 from app.present import empty_message, present_rows, select_hint
-from app.router import catalog_nonempty, plan_to_must_filters, run_router
-from app.scenes import Scene, get_scene
+from app.router import catalog_nonempty, deliverables_summary, plan_to_must_filters, run_router, should_polish
+from app.scenes import Scene, get_scene, scene_with_sys_meta
 from app.schema_link import cards_for, join_prompt_for
 from app.settings import get_settings
 from app.skills import skill_prompt_block
@@ -35,6 +37,7 @@ _PLAN_SYS = """你是只读数据库助手。先理解用户问题与「查询�
 - 省市区/地址类文本列：库内常存「省+市+区」复合串。用户只给区县短名时必须用 LIKE '%短名%'（或注释要求的包含匹配），禁止短字符串精确等值（禁止 provinces_and_cities = '河西区' 这类写法）。
 - 时间条件必须用卡片注释标明的时间列（如 create_time）；相对时间按「最近一周/本月」写成区间。
 - 选出的列必须是注释上可展示的业务字段；不要 SELECT 主键、创建人/修改时间、密码证件。
+- 查某人基本信息/档案/体检体征时：按注释把相关有用列一次选全（姓名、人口学、地址、服务、体征指标等），不要只挑两三列；展示层会隐藏敏感列并总结回复。
 - 涉及两个业务对象必须 JOIN，JOIN 只能用提供的关系，禁止无 ON 的笛卡尔积。
 - 禁止 INSERT/UPDATE/DELETE/DDL、多语句、INTO OUTFILE、SLEEP、UserPwd/password/id_card。
 - need_clarify=true 的唯一条件：通读元数据后仍找不到任何可对上的业务表。禁止因说法不标准就澄清。
@@ -56,8 +59,8 @@ _REPAIR_SYS = """你是只读 SQL 修复器。根据 MySQL 报错或「缺失过
 _ANSWER_SYS = """你是数据库问数助手。根据查询结果用中文自然回复用户。
 规则：
 - 只使用提供的行数据与数字，禁止编造。0 行就说库里按当前条件没有记录，并提示可能是过滤过严或确实没数据。
-- 像同事口头汇报：先答结论，再补关键细节；不要复述 SQL。
-- 表头已是字段注释，直接用这些中文列名。
+- 像同事口头汇报：先答结论，再把有用字段用中文列名逐项说清；不要复述 SQL，也不要只说「见下方表格」。
+- 表头已是字段注释，直接用这些中文列名；样例里出现的有用列都应写进回复。
 - 若行数很多，概括并举 3～8 个例子。
 - 枚举值若已是中文（如文本/视频）直接用。
 """
@@ -178,6 +181,7 @@ def _answer_event(
     error_code: str = "",
     executed: bool = False,
     field_details: list[dict[str, str]] | None = None,
+    suggestions: list[str] | None = None,
 ) -> dict[str, Any]:
     return {
         "event": "answer",
@@ -193,6 +197,7 @@ def _answer_event(
         "error_code": error_code,
         "executed": executed,
         "field_details": field_details or [],
+        "suggestions": list(suggestions or [])[:4],
     }
 
 
@@ -349,6 +354,16 @@ def run_turn(
         sql = str(sql_override or pending.get("sql") or "").strip()
         hits = list(pending.get("hits") or [])
         source = str(pending.get("source") or "pending")
+        plan = {
+            "intent": str(pending.get("intent") or "list"),
+            "tables": list(pending.get("tables") or []),
+        }
+        if any(k in pending for k in ("need_chart", "need_interpret", "sys_meta")):
+            plan["need_chart"] = bool(pending.get("need_chart"))
+            plan["need_interpret"] = bool(pending.get("need_interpret"))
+            plan["sys_meta"] = bool(pending.get("sys_meta"))
+        if plan.get("sys_meta"):
+            scene = scene_with_sys_meta(scene, sys_meta=True)
         yield {
             "event": "retrieve",
             "tables": _tables_from_hits(hits),
@@ -468,7 +483,13 @@ def run_turn(
             plan["clarify"] = str(route.get("clarify") or "")
             plan["need_clarify"] = bool(route.get("need_clarify"))
             plan["confidence"] = float(route.get("confidence") or 0.6)
+            plan["need_chart"] = bool(route.get("need_chart"))
+            plan["need_interpret"] = bool(route.get("need_interpret"))
+            plan["sys_meta"] = bool(route.get("sys_meta"))
+            if plan.get("sys_meta"):
+                scene = scene_with_sys_meta(scene, sys_meta=True)
             slots = (plan.get("filters") or {}).get("slots") or []
+            dels = deliverables_summary(plan)
             yield {
                 "event": "route",
                 "path": path,
@@ -478,6 +499,10 @@ def run_turn(
                 "golden_ok": bool(route.get("golden_ok")),
                 "confidence": plan["confidence"],
                 "reason": plan["reason"],
+                "need_chart": dels["need_chart"],
+                "need_interpret": dels["need_interpret"],
+                "sys_meta": dels["sys_meta"],
+                "deliverables": dels,
                 "slots": [
                     {"field_hint": s.get("field_hint"), "value": s.get("value")}
                     for s in slots
@@ -498,6 +523,10 @@ def run_turn(
                     "reason": plan["reason"],
                     "need_clarify": path == "clarify",
                     "path": path,
+                    "need_chart": bool(plan.get("need_chart")),
+                    "need_interpret": bool(plan.get("need_interpret")),
+                    "sys_meta": bool(plan.get("sys_meta")),
+                    "deliverables": deliverables_summary(plan),
                 }
                 yield {"event": "sql", "sql": "", "source": source}
                 yield _answer_event(
@@ -771,6 +800,10 @@ def run_turn(
                 "hits": hits,
                 "source": source,
                 "tables": guarded.tables,
+                "need_chart": bool(plan.get("need_chart")),
+                "need_interpret": bool(plan.get("need_interpret")),
+                "sys_meta": bool(plan.get("sys_meta")),
+                "intent": str(plan.get("intent") or ""),
             }
         )
         yield {
@@ -812,7 +845,7 @@ def run_turn(
         rows = []
         exec_ok = False
         exec_err = str(exc)
-        if scene.id == "dba" and any(
+        if (scene.id == "dba" or scene.allow_sys_schema) and any(
             x in exec_err.lower() for x in ("denied", "access", "privilege", "1142", "1227")
         ):
             exec_err = f"目标库没有该元数据权限，未放开写操作。原始错误：{exc}"
@@ -872,36 +905,98 @@ def run_turn(
         "error": exec_err,
     }
 
+    suggestions: list[str] = []
     if exec_ok:
         shown = present_rows(tenant, question=q, rows=rows, tables=guarded.tables)
         rows = shown.get("rows") or []
         field_details = list(shown.get("field_details") or [])
         text = format_answer(q, rows, guarded.sql, empty_note=empty_message(guarded.sql))
+        suggestions = suggest_followups(q, rows)
     else:
         text = exec_err
         field_details = []
-    if settings.vanna_polish and exec_ok:
+    if "need_interpret" in plan:
+        want_interpret = bool(plan.get("need_interpret"))
+    else:
+        # 旧 pending / 无交付物字段：保持全局 polish 行为
+        want_interpret = True
+    if should_polish(need_interpret=want_interpret, polish_enabled=settings.vanna_polish, exec_ok=exec_ok):
         try:
-            polished = chat_text(
-                _ANSWER_SYS,
-                (
-                    f"用户问题：{q}\n"
-                    f"行数：{len(rows)}\n"
-                    f"样例（最多 12 行）：{rows[:12]}\n"
-                    f"模板摘要：{text}"
-                ),
-                meter,
-                max_tokens=320,
-                answer=True,
-            )
-            if polished:
-                text = polished
+            q_events: queue.Queue[tuple[str, str | None]] = queue.Queue()
+            holder: dict[str, str] = {"text": ""}
+
+            def _on_token(tok: str) -> None:
+                q_events.put(("token", tok))
+
+            def _on_reasoning(tok: str) -> None:
+                q_events.put(("reasoning", tok))
+
+            def _worker() -> None:
+                try:
+                    polished = chat_text(
+                        _ANSWER_SYS,
+                        (
+                            f"用户问题：{q}\n"
+                            f"行数：{len(rows)}\n"
+                            f"样例（最多 12 行）：{rows[:12]}\n"
+                            f"模板摘要：{text}"
+                        ),
+                        meter,
+                        max_tokens=320,
+                        answer=True,
+                        on_token=_on_token,
+                        on_reasoning=_on_reasoning,
+                    )
+                    if polished:
+                        holder["text"] = polished
+                except Exception as exc:
+                    holder["err"] = str(exc)
+                finally:
+                    q_events.put(("done", None))
+
+            threading.Thread(target=_worker, daemon=True).start()
+            while True:
+                kind, payload = q_events.get()
+                if kind == "done":
+                    break
+                if kind == "token" and payload:
+                    yield {"event": "token", "text": payload}
+                elif kind == "reasoning" and payload:
+                    yield {"event": "reasoning", "text": payload}
+            err = holder.get("err")
+            if err and "llm_budget" not in err:
+                raise RuntimeError(err)
+            if holder.get("text"):
+                text = holder["text"]
+            else:
+                # polish 未产出：回放模板正文
+                body = str(text or "")
+                step = 14
+                for i in range(0, len(body), step):
+                    yield {"event": "token", "text": body[i : i + step]}
         except RuntimeError as exc:
             if "llm_budget" not in str(exc):
                 raise
-    chart = infer_chart(rows, scene) if exec_ok else None
+            body = str(text or "")
+            step = 14
+            for i in range(0, len(body), step):
+                yield {"event": "token", "text": body[i : i + step]}
+    else:
+        # 无 polish：把最终正文按块推 token，避免整段蹦出
+        body = str(text or "")
+        step = 14
+        for i in range(0, len(body), step):
+            yield {"event": "token", "text": body[i : i + step]}
+    if exec_ok:
+        if scene.auto_deliverables or "need_chart" in plan:
+            want_chart: bool | None = bool(plan.get("need_chart"))
+        else:
+            want_chart = None  # 回退 scene.allow_chart（analyst/exec）
+        chart = infer_chart(rows, scene, want_chart=want_chart)
+    else:
+        chart = None
     empty = bool(exec_ok and len(rows) == 0)
-    yield _answer_event(
+    answer_ev = _answer_event(
         text=text,
         rows=rows,
         sql=guarded.sql,
@@ -912,7 +1007,10 @@ def run_turn(
         error_code="empty_result" if empty else ("" if exec_ok else "business"),
         executed=exec_ok,
         field_details=field_details,
+        suggestions=suggestions,
     )
+    answer_ev["deliverables"] = deliverables_summary(plan)
+    yield answer_ev
     if pending:
         drop_pending(str(pending.get("id") or ""))
     _audit(

@@ -4,7 +4,8 @@ param(
     [switch]$Extended,
     [switch]$NoMonitor,
     [switch]$SkipHealthGate,
-    [switch]$Enterprise
+    [switch]$Enterprise,
+    [switch]$Public
 )
 
 $ErrorActionPreference = "Stop"
@@ -51,10 +52,13 @@ if ($NoMonitor) {
 if ($Enterprise) {
     Write-Host "Enterprise: env + compose overlay" -ForegroundColor Yellow
 }
+if ($Public) {
+    Write-Host "Public: 127.0.0.1 bind + 4C8G limits" -ForegroundColor Yellow
+}
 
 Write-Host "Starting agent stack for LAN access..." -ForegroundColor Cyan
 $build = -not $NoBuild
-Invoke-AgentsLanCompose -Action up -Build:$build -Extended:$Extended -Monitoring:$monitoring -Enterprise:$Enterprise
+Invoke-AgentsLanCompose -Action up -Build:$build -Extended:$Extended -Monitoring:$monitoring -Enterprise:$Enterprise -Public:$Public
 if ($LASTEXITCODE -ne 0) {
     throw "docker compose up failed. Please check output above."
 }

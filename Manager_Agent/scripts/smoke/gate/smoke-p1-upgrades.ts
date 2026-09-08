@@ -7,7 +7,7 @@ import { buildChartPlanFromTabularRows, parseTabularRowsFromData, parseMatrixFro
 import { isRenderableChartOption } from '#agent-shared/chartOption'
 import { assembleVisualizeFromChartPlan, buildChartPlanFromFactsStructural } from '#agent-shared/codeAuthorityPayload'
 import { assembleReportFromPlan, validateReportPlanEvidence, readReportBlock } from '#agent-shared/reportPlan'
-import { tryDeterministicVisualizeFromDbTabular } from '#agent-shared/dbPipelineDeterministic'
+import { tryDeterministicVisualizeFromDbTabular, tryDeterministicVisualizeFromVannaChart, buildChartPlanFromVannaChart } from '#agent-shared/dbPipelineDeterministic'
 import { extractStructuredPayload } from '../../../server/graph/core/shared'
 
 function assert(cond: unknown, msg: string): void {
@@ -27,6 +27,43 @@ const plan = buildChartPlanFromTabularRows(rows!, 'Top3')
 assert(plan && plan.panels.length === 1, 'chart plan from tabular')
 const viz = assembleVisualizeFromChartPlan(plan!)
 assert(viz.includes('ECHARTS_OPTION'), 'assemble visualize markdown')
+
+const vannaPlan = buildChartPlanFromVannaChart({
+  type: 'pie',
+  points: [
+    { label: '东区', value: 12 },
+    { label: '西区', value: 8 }
+  ]
+})
+assert(vannaPlan && vannaPlan.panels[0]?.chartType === 'pie', 'vanna chart plan pie')
+const vannaViz = tryDeterministicVisualizeFromVannaChart({
+  db: '分区人数',
+  db_vanna_chart: {
+    type: 'bar',
+    points: [
+      { label: 'A', value: 3 },
+      { label: 'B', value: 5 },
+      { label: 'C', value: 2 }
+    ]
+  }
+})
+assert(vannaViz && vannaViz.includes('ECHARTS_OPTION'), 'vanna chart → echarts')
+assert(
+  tryDeterministicVisualizeFromDbTabular(
+    {
+      db: '分区人数',
+      db_vanna_chart: {
+        type: 'line',
+        points: [
+          { label: '2024-01', value: 1 },
+          { label: '2024-02', value: 2 }
+        ]
+      }
+    },
+    extractStructuredPayload
+  )?.includes('ECHARTS_OPTION'),
+  'db tabular path prefers vanna chart'
+)
 
 const dbViz = tryDeterministicVisualizeFromDbTabular(
   {

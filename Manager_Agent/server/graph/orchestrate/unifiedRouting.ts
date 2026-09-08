@@ -5,7 +5,7 @@
  * legacy decompose → intent_classify → route 在统一模式下旁路。
  */
 
-import { CAPABILITY_REGISTRY } from '../core/agent/capabilities'
+import { CAPABILITY_REGISTRY, activeCapabilityRegistry } from '../core/agent/capabilities'
 import { adminTaskLlmToolCatalog } from '#agent-shared/adminCapabilities'
 import { intentClassifyFromMeta } from '../llm/intentClassifyLlm'
 import { resolveManagerInteractionMode } from '../../utils/platform/managerInteractionMode'
@@ -103,20 +103,35 @@ export function resolveOrchestratorRoutingContext(turnScope: {
 
 /** 附件 hint 注入编排 LLM */
 export function formatAttachmentHintForOrchestrator(
-  attachment?: { filePath?: string; mediaType?: string } | null,
+  attachment?: {
+    filePath?: string
+    mediaType?: string
+    caption?: string
+    ocrSnippet?: string
+  } | null,
   compositeMedia?: string[] | null
 ): string {
   if (!attachment?.filePath) return ''
   const mt = String(attachment.mediaType || 'unknown').trim()
   const media = compositeMedia?.length ? compositeMedia.join('+') : 'multimodal'
-  return [
+  const caption = String(attachment.caption || '').trim()
+  const ocr = String(attachment.ocrSnippet || '').trim()
+  const lines = [
     '【用户附件】已上传，须纳入 allowedAgents 与 planBlueprint：',
     `- 附件类型：${mt}`,
     `- 建议 Agent：${media}（识图/理解附件）；若用户还要求生成音乐/视频则含 music/video`,
     '- 图片/附件是问题描述的一部分：须先由 multimodal 理解，理解结果供下游 Agent 消费',
     '- 若本轮还要查库/文档/爬虫/日程等：intent=multi，planBlueprint 中 multimodal 为前序，下游 dependsOn multimodal',
     '- multimodal 负责理解附件；rag/db/crawler/admin 负责文本任务；勿把识图/OCR 写进 rag/db queryFocus'
-  ].join('\n')
+  ]
+  if (caption) {
+    lines.push(`- 【画面摘要·已预读】${caption}`)
+    lines.push('- 编排须据画面摘要决定下游 queryFocus（人名/实体/表意）；仍须 multimodal 前序除非仅需摘要即可')
+  }
+  if (ocr) {
+    lines.push(`- 【画面文字片段】${ocr.slice(0, 80)}`)
+  }
+  return lines.join('\n')
 }
 
 /** Admin 结构化能力 vs Crawler：Admin/GUI/联网通道能力面固定，可点名工具；db/rag 勿绑业务域 */
@@ -128,6 +143,31 @@ export function formatAdminCrawlerDisambiguationPrompt(): string {
     '- 「查一下 + 天气/出行/日程」仍是 **admin**，≠ 联网抓网页；禁止再挂镜像 crawler 步；',
     '- **crawler**：清晰要公网网页正文/最新公开页/联网搜/爬取（webFetchKind≠none）→ crawler+needsWeb；主题即使是天气/政策，用户要公网则跟 crawler，**禁止**改绑 admin；',
     '- 联网搜索/链接精读/问数 **禁止**经 admin；浏览器登录填表 → **gui**。'
+  ].join('\n')
+}
+
+/**
+ * Align/Judge 用短版：不注入 Admin 工具目录（编排主路径已含完整边界）。
+ * 避免二次 LLM 重复烧 catalog token。
+ */
+export function formatAdminCrawlerDisambiguationPromptCompact(): string {
+  return [
+    '【Admin vs Crawler】（通道固定）',
+    '- **admin**：未点公网的天气/出行/日程/邮件等 API；',
+    '- **crawler**：webFetchKind≠none 或 clear+crawler → 公网正文；禁止改绑 admin；',
+    '- 「联网搜天气」→ crawler；「今天天气」未点公网 → admin。'
+  ].join('\n')
+}
+
+/** Judge/Align 短边界：只列 id/purpose，不含工具目录 */
+export function formatAgentBoundaryPromptCompact(): string {
+  const caps = activeCapabilityRegistry().map((c) => `- **${c.id}**：${c.purpose}`).join('\n')
+  return [
+    '【Agent 边界·摘要】',
+    caps,
+    '- db/rag 对照 catalog；admin/gui/crawler 通道固定；',
+    formatAdminCrawlerDisambiguationPromptCompact(),
+    formatGuiCrawlerDisambiguationPrompt()
   ].join('\n')
 }
 
@@ -144,7 +184,7 @@ export function formatGuiCrawlerDisambiguationPrompt(): string {
 
 /** 注入编排/Planner LLM：Agent 职责边界（来自能力注册表，非正则判意图） */
 export function formatAgentBoundaryPrompt(): string {
-  const caps = CAPABILITY_REGISTRY.map(
+  const caps = activeCapabilityRegistry().map(
     (c) => `- **${c.id}**（${c.label}）：${c.purpose}`
   ).join('\n')
   return [
@@ -154,7 +194,7 @@ export function formatAgentBoundaryPrompt(): string {
     '- **admin/gui/crawler**（通道固定，可点名能力）：见下方 Admin/GUI 边界',
     formatAdminCrawlerDisambiguationPrompt(),
     formatGuiCrawlerDisambiguationPrompt(),
-    '- multimodal=附件理解（可并列，附件时为前序）；music/video=媒体生成',
+    '- multimodal=附件理解（可并列，附件时为前序）；music/video=媒体生成（若未在边界列出则本部署已禁用）',
     '- clean/code/visualize/report=加工链；单源查数可不要',
     '- queryFocus 写该步职责，禁复制整段原话；识图勿写入 rag/db 焦点'
   ].join('\n')

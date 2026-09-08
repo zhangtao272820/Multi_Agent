@@ -40,6 +40,8 @@ type AdminWsCallParams = {
   userId?: string
   clientContext?: Record<string, unknown>
   sendThinking?: (text: string) => void
+  sendDelta?: (delta: string) => void
+  sendThoughtDelta?: (text: string) => void
   signal?: AbortSignal
   buildOpenPayload: () => Record<string, unknown>
 }
@@ -84,13 +86,27 @@ async function callAiAdminWs(params: AdminWsCallParams): Promise<AgentCallResult
         try {
           const data = JSON.parse(String(raw || '{}')) as any
           const type = String(data?.type || '')
-          if (type === 'thought') {
-            const t = String(data?.content || '')
-            if (t) params.sendThinking?.(`个人助手 Agent：${t}`)
+          if (type === 'thought' || type === 'thought_delta') {
+            const t = String(data?.content || data?.text || '')
+            if (t) {
+              params.sendThoughtDelta?.(t)
+              params.sendThinking?.(`个人助手 Agent：${t}`)
+            }
+            return
+          }
+          if (type === 'delta') {
+            const d = String(data?.content || data?.data || '')
+            if (d) {
+              params.sendDelta?.(d)
+              finalText += d
+            }
+            return
+          }
+          if (type === 'stream_start') {
             return
           }
           if (type === 'final') {
-            finalText = String(data?.response || '')
+            finalText = String(data?.response || finalText || '')
             cleanup()
             const fallback = wrapAdminResult(finalText, params.traceId)
             const agentResult = coalesceAgentResult(data?.agentResult as AgentResult | undefined, fallback)
@@ -163,6 +179,8 @@ export async function callAiAdminAgent(params: {
   /** 浏览器定位等上下文，透传给个人助手 */
   clientContext?: Record<string, unknown>
   sendThinking?: (text: string) => void
+  sendDelta?: (delta: string) => void
+  sendThoughtDelta?: (text: string) => void
   signal?: AbortSignal
 }): Promise<AgentCallResult> {
   params.sendThinking?.('个人助手 Agent：正在处理请求…')
@@ -175,6 +193,8 @@ export async function callAiAdminAgent(params: {
     userId: uid || undefined,
     clientContext: params.clientContext,
     sendThinking: params.sendThinking,
+    sendDelta: params.sendDelta,
+    sendThoughtDelta: params.sendThoughtDelta,
     signal: params.signal,
     buildOpenPayload: () => ({
       message: params.message,

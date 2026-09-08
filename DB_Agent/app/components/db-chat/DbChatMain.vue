@@ -223,8 +223,32 @@ const {
           rows="3"
           @keydown="onInputKeydown"
         />
-        <button class="send db-send-cancel" type="submit" :class="{ 'is-cancel': loading }" :disabled="!loading && !input.trim()">
-          {{ loading ? '取消' : '发送' }}
+        <button
+          class="send db-send-cancel brand-send-fab"
+          type="submit"
+          :class="{ 'is-cancel': loading }"
+          :disabled="!loading && !input.trim()"
+          :title="loading ? '取消' : '发送'"
+          :aria-label="loading ? '取消' : '发送'"
+        >
+          <svg
+            v-if="!loading"
+            class="brand-send-fab__icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            aria-hidden="true"
+          >
+            <path
+              d="M12 19V5M12 5l-6 6M12 5l6 6"
+              stroke="currentColor"
+              stroke-width="2.2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+          <svg v-else class="brand-send-fab__icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <rect x="6" y="6" width="12" height="12" rx="2" />
+          </svg>
         </button>
       </div>
       <label class="db-stream-toggle">

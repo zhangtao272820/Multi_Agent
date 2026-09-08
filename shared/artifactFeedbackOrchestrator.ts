@@ -35,6 +35,7 @@ import { normalizeDbQuestionKey } from './dbExperienceBridge'
 export type ShadowArtifactInput = {
   runId: string
   sessionId?: string
+  tenantId?: string
   question: string
   planAgents: string[]
   subArtifacts: Record<string, FeedbackArtifact>
@@ -65,6 +66,7 @@ export async function saveShadowRunArtifacts(input: ShadowArtifactInput, env: No
     {
       runId: input.runId,
       sessionId: input.sessionId,
+      tenantId: input.tenantId,
       question: input.question,
       toolChain: input.planAgents,
       subArtifacts: input.subArtifacts,
@@ -227,7 +229,8 @@ export async function promoteFederationFromRun(runId: string, env: NodeJS.Proces
 export async function confirmRunArtifacts(
   runId: string,
   artifact?: FeedbackArtifact | null,
-  env: NodeJS.ProcessEnv = process.env
+  env: NodeJS.ProcessEnv = process.env,
+  opts?: { tenantId?: string }
 ): Promise<{ ok: boolean; promoted: string[] }> {
   const row = await getMgrRunArtifact(runId, env)
   const art = normalizeArtifact(artifact)
@@ -247,6 +250,7 @@ export async function confirmRunArtifacts(
   for (const agentName of chain) {
     await recordToolMemoryEvent(
       {
+        tenantId: opts?.tenantId,
         agent: 'manager',
         toolName: agentName,
         contextKey: `feedback_confirmed:${runId.slice(0, 16)}`,
@@ -263,7 +267,8 @@ export async function confirmRunArtifacts(
 export async function revokeRunArtifacts(
   runId: string,
   artifact?: FeedbackArtifact | null,
-  env: NodeJS.ProcessEnv = process.env
+  env: NodeJS.ProcessEnv = process.env,
+  opts?: { tenantId?: string }
 ): Promise<{ ok: boolean; revoked: string[] }> {
   const row = await getMgrRunArtifact(runId, env)
   const art = normalizeArtifact(artifact)
@@ -287,6 +292,7 @@ export async function revokeRunArtifacts(
   for (const agentName of chain) {
     await recordToolMemoryEvent(
       {
+        tenantId: opts?.tenantId,
         agent: 'manager',
         toolName: agentName,
         contextKey: `feedback_revoked:${runId.slice(0, 16)}`,

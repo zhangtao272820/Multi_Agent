@@ -178,6 +178,42 @@ class QwenLLM:
             f"(status_code={status_code}, code={code}, message={message}, request_id={request_id}, model={self._resolve_model()})"
         )
 
+    def chat_text_stream(self, messages: List[Dict[str, str]], *, max_tokens: int | None = None):
+        """
+        用户可见终答流：yield ("reasoning"|"content", text)。
+        百炼混合模型仅在 stream=True 时可开 enable_thinking。
+        """
+        mt = max_tokens or _llm_synth_max_tokens()
+        if _use_openai_compatible():
+            stream = self._chat_openai_compatible(messages, stream=True, max_tokens=mt)
+            for chunk in stream:
+                choice = (chunk.choices or [None])[0]
+                if not choice:
+                    continue
+                delta = getattr(choice, "delta", None)
+                if not delta:
+                    continue
+                rc = getattr(delta, "reasoning_content", None)
+                if isinstance(rc, str) and rc:
+                    yield ("reasoning", rc)
+                content = getattr(delta, "content", None)
+                if isinstance(content, str) and content:
+                    yield ("content", content)
+            return
+
+        response = self.chat(messages, stream=True, max_tokens=mt)
+        for chunk in response:
+            try:
+                msg = chunk.output.choices[0].message
+            except Exception:
+                continue
+            rc = getattr(msg, "reasoning_content", None)
+            if isinstance(rc, str) and rc:
+                yield ("reasoning", rc)
+            content = getattr(msg, "content", None)
+            if isinstance(content, str) and content:
+                yield ("content", content)
+
     def chat_text_json(self, messages: List[Dict[str, str]]) -> str:
         """结构化 JSON 输出：较短 max_tokens，加快 NLU/路由类调用。"""
         return self.chat_text(messages, max_tokens=_llm_json_max_tokens())

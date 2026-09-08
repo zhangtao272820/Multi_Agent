@@ -8,7 +8,8 @@ import path from "path";
 import { Pool } from "pg";
 import { splitDocumentsStructured } from "./chunk_text";
 import { getRagAgentEnv } from "./rag_agent_env";
-import { rankBm25Docs, type Bm25Hit } from "./bm25_lexical";
+import { type Bm25Hit } from "./bm25_lexical";
+import { Bm25InvertedIndex } from "./bm25_inverted_index";
 import { performOCR } from "./ocr";
 import { looksLikeHtmlDocument, stripHtmlToPlainText } from "./html_text";
 import { extractPptxText, isLegacyPptOle } from "./pptx_text";
@@ -23,8 +24,13 @@ import {
 const DATA_DIR = path.join(process.cwd(), ".data");
 const VECTOR_STORE_PATH = path.join(DATA_DIR, "vector_store.json");
 const DOCS_METADATA_PATH = path.join(DATA_DIR, "docs_metadata.json");
+const BM25_INDEX_PATH = path.join(DATA_DIR, "bm25_index.json");
 const LEGACY_VECTOR_STORE_PATH = path.join(process.cwd(), "data/vector_store.json");
 const LEGACY_DOCS_METADATA_PATH = path.join(process.cwd(), "data/docs_metadata.json");
+
+const bm25Index = new Bm25InvertedIndex();
+let bm25Ready = false;
+let bm25RebuildLock: Promise<void> | null = null;
 
 type AnyVectorStore = MemoryVectorStore | PGVectorStore;
 
@@ -76,6 +82,8 @@ export type ProcessDocumentOptions = {
   /** K 波解析器标记 */
   parser?: string;
   parser_provider?: string;
+  /** 非严格模式：MinerU 失败回落本地 */
+  parser_fallback?: string;
 };
 
 const getDefaultLimits = (): ProcessLimits => ({
@@ -324,6 +332,142 @@ export const getUploadedDocuments = async () => {
   return uploadedDocuments;
 };
 
+const bm25RebuildPageSize = () => {
+  const n = Number.parseInt(process.env.RAG_BM25_REBUILD_PAGE ?? "500", 10);
+  return Number.isFinite(n) && n > 0 ? Math.min(5000, n) : 500;
+};
+
+const collectBm25DocsFromMemory = (): { pageContent: string; metadata: Record<string, unknown> }[] => {
+  const docs: { pageContent: string; metadata: Record<string, unknown> }[] = [];
+  if (vectorStore && vectorBackend === "memory") {
+    const memoryStore = vectorStore as MemoryVectorStore;
+    for (const vec of memoryStore.memoryVectors ?? []) {
+      const content = String((vec as any)?.content ?? "").trim();
+      if (!content) continue;
+      docs.push({
+        pageContent: content,
+        metadata: ((vec as any)?.metadata ?? {}) as Record<string, unknown>,
+      });
+    }
+  }
+  if (docs.length) return docs;
+  if (!fs.existsSync(VECTOR_STORE_PATH)) return [];
+  try {
+    const vectors = JSON.parse(fs.readFileSync(VECTOR_STORE_PATH, "utf-8"));
+    if (!Array.isArray(vectors)) return [];
+    for (const vec of vectors) {
+      const content = String(vec?.content ?? vec?.pageContent ?? "").trim();
+      if (!content) continue;
+      docs.push({
+        pageContent: content,
+        metadata: (vec?.metadata ?? {}) as Record<string, unknown>,
+      });
+    }
+  } catch {
+    return [];
+  }
+  return docs;
+};
+
+const collectBm25DocsFromPg = async (): Promise<
+  { pageContent: string; metadata: Record<string, unknown> }[]
+> => {
+  if (!pgPool || vectorBackend !== "pgvector") return [];
+  const cfg = getPgRuntimeConfig();
+  const page = bm25RebuildPageSize();
+  const out: { pageContent: string; metadata: Record<string, unknown> }[] = [];
+  let offset = 0;
+  for (;;) {
+    const res = await pgPool.query(
+      `SELECT "${cfg.contentColumnName}" AS content, "${cfg.metadataColumnName}" AS metadata
+       FROM "${cfg.tableName}"
+       ORDER BY "${cfg.idColumnName}"
+       LIMIT $1 OFFSET $2`,
+      [page, offset]
+    );
+    const rows = res.rows ?? [];
+    if (!rows.length) break;
+    for (const r of rows) {
+      const content = String(r?.content ?? "").trim();
+      if (!content) continue;
+      out.push({ pageContent: content, metadata: toPgJson(r?.metadata) });
+    }
+    if (rows.length < page) break;
+    offset += page;
+  }
+  return out;
+};
+
+const persistBm25Index = () => {
+  try {
+    ensureDataDir();
+    fs.writeFileSync(BM25_INDEX_PATH, JSON.stringify(bm25Index.toJSON()));
+  } catch (e) {
+    console.warn("[BM25] persist skipped:", e);
+  }
+};
+
+const tryLoadBm25FromDisk = (): boolean => {
+  if (!fs.existsSync(BM25_INDEX_PATH)) return false;
+  try {
+    const raw = JSON.parse(fs.readFileSync(BM25_INDEX_PATH, "utf-8"));
+    const n = bm25Index.loadFromJSON(raw);
+    return n > 0;
+  } catch (e) {
+    console.warn("[BM25] load from disk failed:", e);
+    return false;
+  }
+};
+
+/** 从当前向量后端全量重建倒排（带锁） */
+export const rebuildBm25Index = async (opts?: { preferDisk?: boolean }): Promise<number> => {
+  if (bm25RebuildLock) {
+    await bm25RebuildLock;
+    return bm25Index.size;
+  }
+  bm25RebuildLock = (async () => {
+    try {
+      if (opts?.preferDisk && tryLoadBm25FromDisk()) {
+        bm25Ready = true;
+        console.log(`[BM25] loaded inverted index from disk docs=${bm25Index.size}`);
+        return;
+      }
+      await getVectorStore();
+      const docs =
+        vectorBackend === "pgvector"
+          ? await collectBm25DocsFromPg()
+          : collectBm25DocsFromMemory();
+      const n = bm25Index.rebuildFromDocs(docs);
+      bm25Ready = true;
+      persistBm25Index();
+      console.log(`[BM25] rebuilt inverted index docs=${n} backend=${vectorBackend}`);
+    } finally {
+      bm25RebuildLock = null;
+    }
+  })();
+  await bm25RebuildLock;
+  return bm25Index.size;
+};
+
+const ensureBm25Index = async () => {
+  await getVectorStore();
+  if (bm25Ready && bm25Index.size > 0) return;
+  if (bm25Ready && bm25Index.size === 0) return;
+  await rebuildBm25Index({ preferDisk: true });
+};
+
+const syncBm25AfterUpsert = (docs: { pageContent?: string; metadata?: Record<string, unknown> }[]) => {
+  for (const d of docs) {
+    const content = String(d.pageContent ?? "").trim();
+    if (!content) continue;
+    bm25Index.upsertDoc({ pageContent: content, metadata: d.metadata ?? {} });
+  }
+  bm25Ready = true;
+  persistBm25Index();
+};
+
+export const getBm25IndexStats = () => bm25Index.getStats();
+
 /** H1：按 source 清除向量（不依赖元数据列表是否存在） */
 export const purgeVectorsBySource = async (fileName: string): Promise<number> => {
   await getVectorStore();
@@ -348,6 +492,8 @@ export const purgeVectorsBySource = async (fileName: string): Promise<number> =>
       removed = Number(res.rowCount ?? 0);
     }
   }
+  bm25Index.removeBySource(fileName);
+  if (bm25Ready) persistBm25Index();
   return removed;
 };
 
@@ -397,6 +543,10 @@ export const getVectorStore = async () => {
         ? await loadPgVectorStore(embeddings)
         : await loadMemoryFromDisk(embeddings);
     console.log(`[VectorStore] backend=${vectorBackend}`);
+    // 冷启动：优先磁盘倒排，否则从向量后端重建（含 pgvector）
+    void rebuildBm25Index({ preferDisk: true }).catch((e) =>
+      console.warn("[BM25] boot rebuild failed:", e)
+    );
   }
   return vectorStore;
 };
@@ -615,50 +765,22 @@ export const searchKeywordCandidates = async (params: {
 
 export type Bm25Candidate = Bm25Hit;
 
-/** BM25 词法检索（进程内；与向量结果 RRF 融合） */
+/** BM25 词法检索（倒排索引；与向量结果 RRF 融合；含 pgvector 通路） */
 export const searchBm25Candidates = async (params: {
   terms: string[];
   sources?: string[];
   limit?: number;
 }): Promise<Bm25Candidate[]> => {
-  await getVectorStore();
-  const terms = Array.from(new Set((params.terms ?? []).map((t) => String(t || "").trim().toLowerCase()).filter(Boolean)));
+  await ensureBm25Index();
+  const terms = Array.from(
+    new Set((params.terms ?? []).map((t) => String(t || "").trim().toLowerCase()).filter(Boolean))
+  );
   if (!terms.length) return [];
   const limit = Math.max(1, Math.min(200, Math.floor(Number(params.limit ?? 24))));
-  const sourceFilters = Array.from(new Set((params.sources ?? []).map((s) => String(s || "").trim()).filter(Boolean)));
-
-  const collectDocs = (): { pageContent: string; metadata: Record<string, unknown> }[] => {
-    const docs: { pageContent: string; metadata: Record<string, unknown> }[] = [];
-    const memoryStore = vectorStore as MemoryVectorStore;
-    const memoryVectors = (memoryStore as any)?.memoryVectors ?? [];
-    for (const vec of memoryVectors) {
-      const metadata = (vec?.metadata ?? {}) as Record<string, unknown>;
-      const source = String(metadata?.source ?? "");
-      if (sourceFilters.length > 0 && !sourceFilters.includes(source)) continue;
-      const content = String(vec?.content ?? "");
-      if (!content.trim()) continue;
-      docs.push({ pageContent: content, metadata });
-    }
-    if (docs.length) return docs;
-    if (!fs.existsSync(VECTOR_STORE_PATH)) return [];
-    try {
-      const vectors = JSON.parse(fs.readFileSync(VECTOR_STORE_PATH, "utf-8"));
-      if (!Array.isArray(vectors)) return [];
-      for (const vec of vectors) {
-        const metadata = (vec?.metadata ?? {}) as Record<string, unknown>;
-        const source = String(metadata?.source ?? "");
-        if (sourceFilters.length > 0 && !sourceFilters.includes(source)) continue;
-        const content = String(vec?.content ?? vec?.pageContent ?? "");
-        if (!content.trim()) continue;
-        docs.push({ pageContent: content, metadata });
-      }
-    } catch {
-      return [];
-    }
-    return docs;
-  };
-
-  return rankBm25Docs(collectDocs(), terms, limit);
+  const sourceFilters = Array.from(
+    new Set((params.sources ?? []).map((s) => String(s || "").trim()).filter(Boolean))
+  );
+  return bm25Index.search(terms, limit, sourceFilters.length ? sourceFilters : undefined);
 };
 
 const generateSummary = async (text: string) => {
@@ -758,11 +880,15 @@ export const processDocument = async (
     }
   }
 
-  // K 波：优先 MinerU 重解析（PDF/Office/图片）；失败回落本地解析
+  // K 波：优先 MinerU 重解析（PDF/Office/图片）；失败回落本地或严格拒收
   try {
-    const { parseWithMineru, heavyParseToDocuments, shouldAttemptHeavyParse } = await import(
-      "./heavy_parse_client"
-    );
+    const {
+      parseWithMineru,
+      heavyParseToDocuments,
+      shouldAttemptHeavyParse,
+      shouldRejectOnHeavyFailure,
+      HeavyParseStrictError,
+    } = await import("./heavy_parse_client");
     if (shouldAttemptHeavyParse(fileName)) {
       const heavy = await parseWithMineru({ buffer, fileName });
       if (heavy.ok) {
@@ -780,9 +906,36 @@ export const processDocument = async (
           parser_provider: heavy.provider,
         });
       }
+      if (shouldRejectOnHeavyFailure({ fileName })) {
+        throw new HeavyParseStrictError(
+          `MinerU 重解析失败，已拒绝入库（严格模式）：${fileName} — ${heavy.reason}`
+        );
+      }
       console.warn(`[HeavyParse] fallback local for ${fileName}: ${heavy.reason}`);
+      opts = {
+        ...opts,
+        parser: opts?.parser || `local_fallback`,
+        parser_provider: opts?.parser_provider || `fallback:${heavy.reason}`,
+        parser_fallback: "local",
+      };
+    } else if (shouldRejectOnHeavyFailure({ fileName })) {
+      // 严格模式但未配置 URL / 未开 heavy → 仍应拒收 HEAVY 扩展，避免静默空解析
+      const env = getRagAgentEnv();
+      if (env.heavyParseStrict && env.enableHeavyParse && !String(env.mineruApiUrl || "").trim()) {
+        const { HeavyParseStrictError: Err } = await import("./heavy_parse_client");
+        throw new Err(`MinerU 未配置 MINERU_API_URL，严格模式拒绝入库：${fileName}`);
+      }
     }
   } catch (heavyErr: any) {
+    if (heavyErr?.code === "heavy_parse_strict_failed" || heavyErr?.name === "HeavyParseStrictError") {
+      throw heavyErr;
+    }
+    const { shouldRejectOnHeavyFailure, HeavyParseStrictError } = await import("./heavy_parse_client");
+    if (shouldRejectOnHeavyFailure({ fileName })) {
+      throw new HeavyParseStrictError(
+        `MinerU 重解析异常，已拒绝入库（严格模式）：${fileName} — ${heavyErr?.message || heavyErr}`
+      );
+    }
     console.warn(`[HeavyParse] error, fallback local for ${fileName}:`, heavyErr?.message || heavyErr);
   }
 
@@ -1002,6 +1155,14 @@ export async function upsertParsedDocuments(
       content_hash: contentHash,
       parser: opts?.parser || String(doc.metadata?.parser || "local_text"),
       parser_provider: opts?.parser_provider || doc.metadata?.parser_provider,
+      ...(opts?.parser_fallback
+        ? {
+            parser_fallback: opts.parser_fallback,
+            content_trust: doc.metadata?.content_trust || "untrusted",
+            content_trust_source:
+              doc.metadata?.content_trust_source || "heavy_parse_fallback_local",
+          }
+        : {}),
     },
   }));
 
@@ -1022,6 +1183,7 @@ export async function upsertParsedDocuments(
 
   await addDocumentsInBatches(store, docsWithMetadata);
   effectiveLimits.totalChunks += docsWithMetadata.length;
+  syncBm25AfterUpsert(docsWithMetadata);
 
   let summary = "";
   try {

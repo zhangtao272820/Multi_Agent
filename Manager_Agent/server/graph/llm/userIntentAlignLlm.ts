@@ -16,7 +16,7 @@ import {
   type StepDispatchDraft
 } from '../core/proPuStack'
 import type { TaskClause } from '../core/routing/clauses'
-import { formatAdminCrawlerDisambiguationPrompt, isLlmFirstRouteEnabled } from '../orchestrate/unifiedRouting'
+import { formatAdminCrawlerDisambiguationPromptCompact, isLlmFirstRouteEnabled } from '../orchestrate/unifiedRouting'
 import {
   formatSourceCommitmentPromptRule,
   shouldSkipAdminApiCrawlerRematerialize,
@@ -235,19 +235,15 @@ export async function alignOrchestratorBundleToUserIntent(input: {
         [
           'system',
           [
-            '你是「用户末轮对齐审查器」。只读【用户末轮】原文，审查编排 cap/clauses 是否 grounded。',
-            '【唯一权威】用户末轮；相似主题 ≠ 同一任务；历史/Probe/PU/经验不得扩写末轮未 grounding 的 db/admin/人名。',
+            '你是「用户末轮对齐审查器」。只读【用户末轮】与【待审查编排】做 delta 修正，勿重写整课路由规则。',
+            '【唯一权威】用户末轮；历史/Probe/PU/经验不得扩写末轮未 grounding 的 db/admin/人名。',
             formatSourceCommitmentPromptRule(),
-            formatAdminCrawlerDisambiguationPrompt(),
-            '【服从编排清晰度切片】若【待审查编排】webFetchKind≠none 或 sourceCommitment=clear 且 committedPlanes 含 crawler：禁止把 crawler 改绑 admin，禁止 needsWeb=false；主题即使是天气/出行/政策，清晰公网意图跟 crawler。',
-            '仅当清晰度未锁公网时：未点公网的天气预报/气温 → admin（get_weather），不得 needsWeb；未点公网的地铁/公交/从A到B → 单一 admin（高德）。',
-            '用户已标明知识库/数据库形态的内容禁止再为同义片段加 crawler；crawler 仅当末轮明确要网上/网页/官网/公告正文，或清晰度切片已锁公网。',
-            '【数据面按任务形态】structured_query（库表行/聚合能答：档案/记录/统计/条数/分布等）→ 须含 db 且 isDbAnchored=true，不要求口令「数据库」；document_retrieval（文档/手册/报告原文能答）→ rag_only；须对照弱参考中的库存：库表盖不住且文档库存能盖 → rag_only，禁止仅因 Probe 命中业务表改 db；听起来像「个人情况/怎么样」≠默认 db；勿因末轮未出现「数据库」二字而删掉库表库存能覆盖的合法 db。',
-            '仅当 db/人名等仅来自历史/PU 渗入、与末轮任务形态无关时，才从 allowedAgents/clauses 删除。',
-            '末轮任务形态所需数据面缺失时可补入；禁止凭 probe 或上下文自主加无关 agent。',
-            '非闲聊任务禁止输出空 allowedAgents；至少保留一个与末轮任务形态匹配的可执行 agent。',
-            'pipeline 步（clean/code/visualize/report）仅当用户要对比/出图/报告或多源汇总时保留。',
-            'turnKind=output_followup 或 clarifyKind=output_disambiguation：禁止 needsClarify，cap 不得超出 anchor.lastExecutedAgents。',
+            formatAdminCrawlerDisambiguationPromptCompact(),
+            '【服从编排清晰度切片】若 webFetchKind≠none 或 clear+crawler：禁止 crawler→admin，禁止 needsWeb=false。',
+            '仅当清晰度未锁公网：未点公网的天气/出行 → admin；已标明知识库/数据库形态禁止同义加 crawler。',
+            'structured_query→须含 db；document_retrieval→rag；对照弱参考库存；听起来像「个人情况」≠默认 db。',
+            '仅当 db/人名等仅来自历史渗入、与末轮无关时才删除；非闲聊禁止空 allowedAgents。',
+            'turnKind=output_followup 或 clarifyKind=output_disambiguation：禁止 needsClarify，cap 不得超出 anchor。',
             '只输出 JSON，无 markdown。'
           ].join('\n')
         ],

@@ -79,7 +79,12 @@ import {
   parseCrawlerPayload,
 } from '../../../utils/crawler/managerCrawlerTaskPayload'
 import { buildCrawlerSourcesTaggedBlock, resolveCrawlerTableMarkdown, extractCrawlerItemsFromText } from '../../../utils/crawler/crawlerItemsParse'
-import { pickRicherNarrativeWithAuxBlocks, extractAuxBlocksStructural } from '#agent-shared/auxBlocks'
+import {
+  pickRicherNarrativeWithAuxBlocks,
+  extractAuxBlocksStructural,
+  tableDataBlockHasValues
+} from '#agent-shared/auxBlocks'
+import { mergeConversationalDbSynthWithDataBlock } from '../../core/output/dbExpertDataBlock'
 import { polishFinalPayload } from '../../core/output/replyPolish'
 import { isReportDeferredToSynth } from '#agent-shared/reportSynthDefer'
 import { stripSynthPromptLeakage } from '#agent-shared/synthOutputSanitize'
@@ -338,6 +343,7 @@ export function buildFinalizeNodeRun(deps: CreateFinalNodesDeps) {
             probeRagHits: runOutcome.probeRagHits
           })
           recordToolMemoryEvent({
+            tenantId: String(state.tenantId || state.meta?.tenantId || opts.tenantId || ''),
             agent: 'manager',
             toolName: agentName,
             contextKey: scenarioKey,
@@ -411,6 +417,7 @@ export function buildFinalizeNodeRun(deps: CreateFinalNodesDeps) {
           {
             runId: opts.runId,
             sessionId: opts.sessionId,
+            tenantId: String(state.tenantId || state.meta?.tenantId || opts.tenantId || ''),
             question,
             planAgents,
             subArtifacts: captured.subArtifacts,
@@ -432,6 +439,7 @@ export function buildFinalizeNodeRun(deps: CreateFinalNodesDeps) {
         })
         if (planAgents.length > 1 && successScore >= 0.72 && !Boolean(state.meta?.needsClarify)) {
           void upsertProcessMemory({
+            tenantId: String(state.tenantId || state.meta?.tenantId || opts.tenantId || ''),
             scenarioKey,
             question,
             toolChain: planAgents,
@@ -942,6 +950,19 @@ export function buildFinalizeNodeRun(deps: CreateFinalNodesDeps) {
     const directVisualize =
       plannedViz || hasVizEvidence ? String(state?.results?.visualize || '').trim() : ''
     body = ensureVisualizeBlocksInFinal(body, directVisualize, (state?.results || {}) as Record<string, string>)
+    // 定稿闸门：DB 有结果时必须用 evidence 回填有数表，禁止空 TABLE_DATA 终稿
+    const dbSource = String(state?.results?.db || '').trim()
+    const evidence = Array.isArray(state.evidence) ? state.evidence : []
+    if (dbSource || evidence.some((e: any) => String(e?.kind || '') === 'db' || String(e?.agent || '') === 'db')) {
+      if (!tableDataBlockHasValues(body)) {
+        body = mergeConversationalDbSynthWithDataBlock({
+          synthBody: body,
+          sourceText: dbSource,
+          evidence,
+          includeDataBlock: true
+        })
+      }
+    }
     const cur = String(body || '')
     if (!extractCrawlerTableMarkdown(cur)) {
       const block = buildCrawlerSourcesTaggedBlock(state?.results?.crawler)
@@ -980,8 +1001,26 @@ export function buildFinalizeNodeRun(deps: CreateFinalNodesDeps) {
       })
     }
     // 执行摘要仅走 run_report 事件 / composeFinal 审计文本；勿并入用户面 final，避免气泡泄漏与流式预览错位
-    return polishFinalPayload(
+    let polished = polishFinalPayload(
       stripLatexMath(normalizeFinalUserText(sanitizeVisionIfNeeded(String(body || '').trim(), state)))
     )
+    // 定稿不得劣于流式：若 polish/审计剥掉有数表，从 synthStreamBody 夺回
+    polished = pickRicherNarrativeWithAuxBlocks(stream, polished)
+    if (
+      (dbSource ||
+        evidence.some(
+          (e: any) => String(e?.kind || '') === 'db' || String(e?.agent || '') === 'db'
+        )) &&
+      !tableDataBlockHasValues(polished)
+    ) {
+      polished = mergeConversationalDbSynthWithDataBlock({
+        synthBody: polished,
+        sourceText: dbSource || stream,
+        evidence,
+        includeDataBlock: true
+      })
+      polished = polishFinalPayload(polished)
+    }
+    return polished
   }
 }

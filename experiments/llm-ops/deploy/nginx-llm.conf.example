@@ -1,0 +1,38 @@
+# EXAMPLE — prefer keeping vLLM on localhost and only proxy from private network.
+# Do NOT expose raw LLM ports on 0.0.0.0/0 without auth + TLS + allowlist.
+
+upstream vllm_backend {
+    server 127.0.0.1:8000;
+    keepalive 32;
+}
+
+server {
+    listen 8443 ssl http2;
+    server_name llm-internal.example.com;
+
+    # ssl_certificate     /etc/nginx/certs/fullchain.pem;
+    # ssl_certificate_key /etc/nginx/certs/privkey.pem;
+
+    # Optional: allow only Agent / bastion CIDRs
+    # allow 10.0.0.0/8;
+    # deny all;
+
+    client_max_body_size 8m;
+
+    location /v1/ {
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header Authorization $http_authorization;
+        proxy_set_header Connection "";
+        proxy_read_timeout 300s;
+        proxy_send_timeout 300s;
+
+        # crude protection; real prod uses gateway / WAF / API key rotation
+        limit_req zone=llm_limit burst=20 nodelay;
+
+        proxy_pass http://vllm_backend;
+    }
+}
+
+# In http {} context:
+# limit_req_zone $binary_remote_addr zone=llm_limit:10m rate=5r/s;

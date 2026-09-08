@@ -1,19 +1,20 @@
 /* 共享对话排版 — Harness 风可读密度、结构化信号、清晰 composer */
 
 :root {
-  --ch-max: min(780px, 100%);
+  /* DeepSeek Harness：窄栏可读，勿拉到扁宽墙 */
+  --ch-max: min(760px, 100%);
   --ch-font-body: 15px;
   --ch-lh: 1.7;
   --ch-font-ui: 13px;
   --ch-font-meta: 12px;
-  --ch-gap-turn: 1.4rem;
+  --ch-gap-turn: 1.5rem;
   --ch-gap-block: 0.8rem;
   --ch-user-bg: color-mix(in srgb, var(--agent-accent, var(--brand-accent)) 92%, #0f172a);
   --ch-user-fg: #f8fafc;
   --ch-assistant-fg: var(--brand-text, #121826);
-  --ch-muted: var(--brand-text-muted, #5a6578);
-  --ch-border: var(--brand-border, #b8c4d6);
-  --ch-surface: var(--brand-bg-elevated, #ffffff);
+  --ch-border: var(--harness-border, var(--brand-border, rgba(15, 23, 42, 0.08)));
+  --ch-surface: var(--harness-surface, var(--brand-bg-elevated, #ffffff));
+  --ch-muted: var(--harness-muted, var(--brand-text-muted, #64748b));
   --ch-code-bg: #0f172a;
   --ch-code-fg: #e2e8f0;
   --agent-accent: var(--brand-accent);
@@ -105,52 +106,65 @@
   margin-inline: auto;
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
-  padding: 0.65rem 0.75rem;
-  border: 1px solid var(--ch-border);
+  gap: 0.45rem;
+  padding: 10px 12px 8px;
+  border: 1px solid var(--harness-border, var(--ch-border));
   border-radius: 16px;
-  background: var(--ch-surface);
-  box-shadow: var(--brand-shadow);
+  background: var(--harness-surface, var(--ch-surface));
+  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.06);
 }
 
 .ch-composer__toolbar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
+  margin-top: 2px;
+  padding-top: 6px;
+  border-top: 1px solid var(--harness-border, var(--ch-border));
 }
 
 .ch-composer textarea,
 .ch-composer .ch-input {
   width: 100%;
   resize: vertical;
-  min-height: 56px;
-  padding: 0.75rem 0.85rem;
-  border: 1px solid var(--ch-border);
-  border-radius: var(--brand-radius-sm, 8px);
-  background: color-mix(in srgb, var(--brand-bg) 35%, var(--ch-surface));
+  min-height: 64px;
+  padding: 0.35rem 0.25rem;
+  border: none;
+  border-radius: 0;
+  background: transparent;
   color: var(--ch-assistant-fg);
   font: inherit;
+  font-family: var(--brand-font-sans);
   font-size: var(--ch-font-body);
-  line-height: 1.5;
+  line-height: 1.55;
   outline: none;
-  transition: border-color 0.15s var(--brand-ease, ease), box-shadow 0.15s var(--brand-ease, ease);
+  box-shadow: none;
+  transition: none;
 }
 
 .ch-composer textarea:focus,
 .ch-composer .ch-input:focus {
-  border-color: color-mix(in srgb, var(--agent-accent, var(--brand-accent)) 60%, var(--ch-border));
-  box-shadow: 0 0 0 3px var(--brand-accent-soft);
+  border: none;
+  box-shadow: none;
+}
+
+.ch-composer__toolbar .brand-send-fab,
+.ch-composer__toolbar .ch-send-fab {
+  margin-left: auto;
 }
 
 .ch-metrics {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
   gap: 10px 14px;
-  padding: 6px 2px;
+  padding: 4px 2px 0;
   font-family: var(--brand-font-mono);
   font-size: 11px;
-  color: var(--ch-muted);
+  color: var(--harness-muted, var(--ch-muted));
 }
 
 .ch-metrics strong {

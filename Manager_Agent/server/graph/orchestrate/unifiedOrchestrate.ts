@@ -23,6 +23,12 @@ import { formatPuStackOrchestratorHint, formatPuStackDraftBindingForOrchestrator
 import { buildOrchestratorBundleFromPuStack } from './puStackOrchestratorAuthority'
 import { resolveManagerInteractionMode, isProUnderstandEnabled } from '../../utils/platform/managerInteractionMode'
 import { formatAttachmentHintForOrchestrator, shouldRunPuStackLlmInOrchestrate } from './unifiedRouting'
+import {
+  fetchRouteImageCaption,
+  mergeCaptionIntoAttachment,
+  type RouteCaptionResult
+} from './routeImageCaption'
+import type { MediaAttachment } from '../../utils/media/mediaAttachment'
 
 export type UnifiedOrchestrateInput = {
   state: Record<string, unknown>
@@ -38,6 +44,9 @@ export type UnifiedOrchestrateInput = {
   llmInvoke: LlmInvokeFn
   mergeMeta: (state: unknown, patch: Record<string, unknown>) => Record<string, unknown>
   onThinking: (line: string) => void
+  multimodalAgentHttpUrl?: string
+  signal?: AbortSignal
+  traceId?: string
 }
 
 export type UnifiedOrchestrateResult = {
@@ -46,6 +55,9 @@ export type UnifiedOrchestrateResult = {
   pipelineResult: OrchestratorPipelineResult | null
   orchestratorMetaBase: Record<string, unknown>
   orchestratorState: Record<string, unknown>
+  /** 编排前看图摘要（可能写回 mediaAttachment） */
+  mediaAttachment?: MediaAttachment | null
+  routeCaption?: RouteCaptionResult | null
 }
 
 async function readPuStackHint(input: UnifiedOrchestrateInput): Promise<{
@@ -85,7 +97,25 @@ export async function resolveUnifiedOrchestration(
   const workbenchMode = resolveManagerInteractionMode(input.state.meta)
   const { puMetaPatch, puStackHint } = await readPuStackHint(input)
 
-  const attachment = (input.state as { mediaAttachment?: { filePath?: string; mediaType?: string } }).mediaAttachment
+  let attachment = (input.state as { mediaAttachment?: MediaAttachment | null }).mediaAttachment || null
+  let routeCaption: RouteCaptionResult | null = null
+  if (attachment?.filePath && attachment.mediaType === 'image' && input.multimodalAgentHttpUrl) {
+    input.onThinking('看图摘要：轻量 VL 预读画面…')
+    routeCaption = await fetchRouteImageCaption({
+      multimodalAgentHttpUrl: input.multimodalAgentHttpUrl,
+      attachment,
+      userQuery: input.lastUser,
+      traceId: input.traceId,
+      signal: input.signal
+    })
+    attachment = mergeCaptionIntoAttachment(attachment, routeCaption)
+    if (routeCaption.caption) {
+      input.onThinking(`看图摘要：${routeCaption.caption.slice(0, 72)}`)
+    } else if (routeCaption.captionSource === 'timeout' || routeCaption.captionSource === 'error') {
+      input.onThinking('看图摘要超时/失败，继续仅路径 hint 编排')
+    }
+  }
+
   let compositeMedia: string[] | null = null
   if (attachment?.filePath) {
     compositeMedia = await resolveCompositeMediaAgents(
@@ -96,6 +126,21 @@ export async function resolveUnifiedOrchestration(
     ).catch(() => null)
   }
 
+  const captionMeta =
+    routeCaption && (routeCaption.caption || routeCaption.captionSource !== 'skip')
+      ? {
+          routeCaptionMs: routeCaption.captionMs,
+          routeCaptionSource: routeCaption.captionSource,
+          routeCaptionChars: routeCaption.caption ? routeCaption.caption.length : 0,
+          ...(routeCaption.caption
+            ? {
+                routeImageCaption: routeCaption.caption,
+                ...(routeCaption.ocrSnippet ? { routeImageOcr: routeCaption.ocrSnippet } : {})
+              }
+            : {})
+        }
+      : {}
+
   const orchestratorMetaBase = input.mergeMeta(input.state, {
     unifiedOrchestrator: true,
     intentClassifyMode: 'orchestrator',
@@ -103,10 +148,15 @@ export async function resolveUnifiedOrchestration(
     workbenchMode,
     llmFirstRoute: true,
     ...puMetaPatch,
-    ...(compositeMedia?.length ? { compositeMediaAgents: compositeMedia } : {})
+    ...(compositeMedia?.length ? { compositeMediaAgents: compositeMedia } : {}),
+    ...captionMeta
   }) as Record<string, unknown>
 
-  const orchestratorState = { ...input.state, meta: orchestratorMetaBase }
+  const orchestratorState = {
+    ...input.state,
+    ...(attachment ? { mediaAttachment: attachment } : {}),
+    meta: orchestratorMetaBase
+  }
   const modeHint = orchestratorPromptModeBlock(workbenchMode)
   const attachmentHint = formatAttachmentHintForOrchestrator(attachment, compositeMedia)
   const puHint = formatPuStackOrchestratorHint(orchestratorMetaBase) || puStackHint
@@ -153,7 +203,9 @@ export async function resolveUnifiedOrchestration(
     orchestratorSource,
     pipelineResult,
     orchestratorMetaBase,
-    orchestratorState
+    orchestratorState,
+    mediaAttachment: attachment,
+    routeCaption
   }
 }
 

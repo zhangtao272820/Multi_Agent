@@ -109,7 +109,7 @@ async function main() {
   }
 
   console.log('')
-  const tools = await queryToolMemoryTop({ limit: 6 })
+  const tools = await queryToolMemoryTop({ tenantId: 'default', limit: 6 })
   record('tool_memory_query', true, `rows=${tools.length}`)
   for (const t of tools) {
     console.log(`    · ${t.agent}/${t.toolName}: ${(t.successRate * 100).toFixed(0)}% (${t.successes}/${t.trials})`)

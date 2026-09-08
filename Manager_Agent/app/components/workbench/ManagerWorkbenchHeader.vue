@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { ThoughtViewMode, WorkbenchMode } from '~/composables/managerChatTypes'
+import type { WorkbenchMode } from '~/composables/managerChatTypes'
 
 const props = defineProps<{
   connected: boolean
@@ -9,16 +9,6 @@ const props = defineProps<{
   routeCapLive: { intent: string; agents: string[]; capLabel?: string } | null
   planStepsTodo: Array<{ status: string }>
   planStepsDoneCount: number
-  currentPhase: string
-  collabStatusItems: Array<{
-    agent: string
-    short: string
-    label: string
-    status: string
-    preview?: string
-  }>
-  stepProgressLine: string
-  activeTraceId: string
   conversationCompactLive: {
     compacted: boolean
     fullChars?: number
@@ -27,12 +17,10 @@ const props = defineProps<{
     turns?: number
   } | null
   workbenchMode: WorkbenchMode
-  thoughtViewMode: ThoughtViewMode
   historyPanelOpen: boolean
   sidebarOpen: boolean
   toolsBadgeCount: number
   planAgentLabel: (agent: string) => string
-  collabStatusShort: (status: string) => string
 }>()
 
 const isProfessional = computed(() => props.workbenchMode === 'professional')
@@ -48,122 +36,71 @@ const compactBadgeTitle = computed(() => {
 })
 
 const emit = defineEmits<{
-  setThoughtViewMode: [mode: ThoughtViewMode]
   toggleHistory: []
   toggleSidebar: []
-  openTraceDrawer: []
 }>()
 </script>
 
 <template>
-  <header class="spring-topbar cosmic-bridge-header" :class="isProfessional ? 'is-pro-header' : 'is-chat-header'">
-    <!-- 主行：品牌 + 会话操作 + 身份 -->
-    <div class="spring-topbar-primary">
-      <div class="spring-topbar-main">
-        <div class="spring-brand-row">
-          <img class="spring-brand-logo" src="/brand/logos/manager.svg" alt="" width="36" height="36" />
-          <div class="spring-brand-text">
-            <h1 class="spring-title">{{ isProfessional ? '天机 · 总管' : '天机 · 对话' }}</h1>
-            <p v-if="isProfessional" class="spring-brand-sub">专业工作台 · PU-Stack 分步执行</p>
+  <header
+    class="spring-topbar cosmic-bridge-header harness-slim-header"
+    :class="isProfessional ? 'is-pro-header' : 'is-chat-header'"
+  >
+    <div class="spring-topbar-primary harness-topbar-primary">
+      <div class="spring-topbar-main harness-topbar-left">
+        <template v-if="!isProfessional">
+          <div class="spring-brand-row">
+            <img class="spring-brand-logo" src="/brand/logos/manager.svg" alt="" width="28" height="28" />
+            <div class="spring-brand-text">
+              <h1 class="spring-title">天机 · 对话</h1>
+            </div>
           </div>
+        </template>
+        <div v-else class="harness-live-inline" aria-label="执行状态">
+          <span class="harness-live-dot" :class="{ on: !!currentRunId }" aria-hidden="true" />
+          <span class="harness-live-label">{{ livePhaseText }}</span>
+          <span v-if="routeCapLive?.agents?.length && currentRunId" class="harness-live-meta" :title="routeCapLive.capLabel">
+            {{ routeCapLive.agents.map((a) => planAgentLabel(a)).join(' · ') }}
+          </span>
+          <span v-if="planStepsTodo.length && currentRunId" class="harness-live-meta">
+            {{ planStepsDoneCount }}/{{ planStepsTodo.length }} 步
+          </span>
+          <span
+            v-if="conversationCompactLive?.compacted"
+            class="harness-live-meta"
+            :title="compactBadgeTitle"
+          >已压缩</span>
         </div>
       </div>
-      <div class="spring-topbar-actions">
-        <div class="spring-seg spring-seg-actions" role="group" aria-label="会话与侧栏">
-          <button type="button" class="spring-seg-btn" :class="{ 'is-active': historyPanelOpen }" @click="emit('toggleHistory')">
+      <div class="spring-topbar-actions harness-topbar-actions">
+        <div class="harness-toolbar-cluster" role="group" aria-label="会话与侧栏">
+          <button
+            type="button"
+            class="harness-toolbar-btn spring-seg-btn"
+            :class="{ 'is-active': historyPanelOpen }"
+            @click="emit('toggleHistory')"
+          >
             历史
           </button>
           <button
             v-if="isProfessional"
             type="button"
-            class="spring-seg-btn"
+            class="harness-toolbar-btn spring-seg-btn"
             :class="{ 'is-active': sidebarOpen }"
             @click="emit('toggleSidebar')"
           >
-            工具
+            工作台
             <span v-if="toolsBadgeCount" class="spring-tools-badge">{{ toolsBadgeCount }}</span>
           </button>
         </div>
-        <ManagerUserMenu />
-        <img
-          class="spring-brand-avatar"
-          src="/brand/avatars/manager.svg"
-          alt=""
-          width="40"
-          height="40"
-          title="天机虚拟形象"
-        />
-        <span class="spring-conn" :class="{ on: connected }">
-          <span class="spring-conn-dot" />
-          {{ connected ? '已连接' : '未连接' }}
-        </span>
-      </div>
-    </div>
 
-    <!-- 专业次行：阶段 / 协作 / 视图（控件全保留，视觉次级） -->
-    <div v-if="isProfessional" class="spring-topbar-secondary" aria-label="专业工作台状态">
-      <div class="spring-topbar-secondary-left">
-        <div class="spring-phase conv-phase-rail" aria-label="执行阶段">
-          <div class="conv-phase-track">
-            <div class="conv-live-bar" :class="{ active: !!currentRunId }">
-              <span class="conv-live-dot" aria-hidden="true"></span>
-              <span class="conv-live-label">{{ livePhaseText }}</span>
-              <span v-if="routeCapLive?.agents?.length && currentRunId" class="conv-live-route" :title="routeCapLive.capLabel">
-                {{ routeCapLive.agents.map((a) => planAgentLabel(a)).join(' · ') }}
-              </span>
-              <span v-if="planStepsTodo.length && currentRunId" class="conv-live-plan">{{ planStepsDoneCount }}/{{ planStepsTodo.length }} 步</span>
-              <span
-                v-if="conversationCompactLive?.compacted"
-                class="conv-live-compact"
-                :title="compactBadgeTitle"
-              >已压缩</span>
-            </div>
-            <div class="conv-phase-badges" aria-hidden="false">
-              <div class="badge" :class="{ active: currentPhase === 'route' }">理解</div>
-              <div class="badge" :class="{ active: currentPhase === 'planner' || currentPhase === 'plan_preview' }">计划</div>
-              <div class="badge" :class="{ active: currentPhase?.startsWith('execute') }">执行</div>
-              <div class="badge" :class="{ active: currentPhase === 'synth' || currentPhase === 'synth_stream' || currentPhase === 'critic' }">回答</div>
-              <div class="badge" :class="{ active: currentPhase === 'finalize' }">完成</div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="spring-topbar-secondary-right">
-        <div class="spring-collab-compact" title="固定协作：清洗 / 可视化 / 报告">
-          <span
-            v-for="item in collabStatusItems"
-            :key="item.agent"
-            class="collab-mini"
-            :class="`is-${item.status}`"
-            :title="item.preview ? `${item.label}：${item.preview}` : item.label"
-          >
-            {{ item.short }}·{{ collabStatusShort(item.status) }}
+        <span class="harness-toolbar-divider" aria-hidden="true" />
+        <div class="harness-toolbar-meta">
+          <ManagerUserMenu />
+          <span class="spring-conn" :class="{ on: connected }" :title="connected ? 'WebSocket 已连接' : 'WebSocket 未连接'">
+            <span class="spring-conn-dot" aria-hidden="true" />
+            {{ connected ? '已连接' : '未连接' }}
           </span>
-        </div>
-        <div v-if="stepProgressLine" class="spring-step-progress" :title="stepProgressLine">
-          {{ stepProgressLine }}
-        </div>
-        <button
-          v-if="activeTraceId"
-          type="button"
-          class="spring-trace-id spring-trace-id-btn"
-          :title="`打开排障 Trace：${activeTraceId}`"
-          @click="emit('openTraceDrawer')"
-        >
-          trace {{ activeTraceId.slice(0, 8) }}
-        </button>
-        <div class="spring-seg spring-thought-view-toggle" role="group" aria-label="思考过程展示">
-          <button type="button" :class="{ 'is-active': thoughtViewMode === 'user' }" title="用户视图：自然语言描述进展" @click="emit('setThoughtViewMode', 'user')">
-            用户
-          </button>
-          <button
-            type="button"
-            :class="{ 'is-active': thoughtViewMode === 'developer' }"
-            title="开发视图：编排诊断、Agent 追踪与原始日志"
-            @click="emit('setThoughtViewMode', 'developer')"
-          >
-            开发
-          </button>
         </div>
       </div>
     </div>
@@ -175,7 +112,7 @@ const emit = defineEmits<{
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 10px;
+  gap: 8px;
   min-width: 0;
   margin: 0;
 }
@@ -184,32 +121,49 @@ const emit = defineEmits<{
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 2px;
+  gap: 0;
   min-width: 0;
   text-align: left;
 }
 
-.spring-brand-sub {
-  margin: 0;
-  font-size: 11px;
+.spring-brand-logo {
+  flex: 0 0 auto;
+  border-radius: 6px;
+}
+
+.harness-live-inline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--brand-text-muted, #475569);
+}
+
+.harness-live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #94a3b8;
+  flex: 0 0 auto;
+}
+
+.harness-live-dot.on {
+  background: var(--brand-accent, #2563eb);
+  box-shadow: 0 0 0 3px var(--brand-accent-soft, rgba(37, 99, 235, 0.14));
+}
+
+.harness-live-label {
+  color: var(--brand-ink, #0f172a);
   font-weight: 600;
-  letter-spacing: 0.02em;
-  color: #1e3a52;
+  white-space: nowrap;
+}
+
+.harness-live-meta {
+  color: var(--brand-text-muted, #475569);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.spring-brand-logo {
-  flex: 0 0 auto;
-  border-radius: 8px;
-  box-shadow: 0 0 12px rgba(47, 127, 209, 0.28);
-}
-
-.spring-brand-avatar {
-  flex: 0 0 auto;
-  border-radius: 10px;
-  border: 1px solid rgba(47, 127, 209, 0.35);
-  background: rgba(255, 255, 255, 0.65);
+  max-width: 220px;
 }
 </style>

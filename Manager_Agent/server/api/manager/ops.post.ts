@@ -342,7 +342,9 @@ export default defineEventHandler(async (event) => {
   }
 
   if (action === 'memory_fold') {
-    const report = await runMemoryFoldJob()
+    const report = await runMemoryFoldJob(process.env, {
+      tenantId: body?.tenantId ? String(body.tenantId) : undefined
+    })
     return { ok: true, memoryFold: report }
   }
 
@@ -358,7 +360,11 @@ export default defineEventHandler(async (event) => {
   }
 
   if (action === 'memory_lifecycle') {
-    const [fold, consolidate] = await Promise.all([runMemoryFoldJob(), runSemanticConsolidationJob()])
+    const foldTenant = body?.tenantId ? String(body.tenantId) : undefined
+    const [fold, consolidate] = await Promise.all([
+      runMemoryFoldJob(process.env, { tenantId: foldTenant }),
+      runSemanticConsolidationJob()
+    ])
     return {
       ok: true,
       memoryLifecycle: {
@@ -394,7 +400,10 @@ export default defineEventHandler(async (event) => {
   }
 
   if (action === 'tool_memory_stats') {
-    const rows = await queryToolMemoryTop({ limit: 20 })
+    const rows = await queryToolMemoryTop({
+      tenantId: body?.tenantId ? String(body.tenantId) : undefined,
+      limit: 20
+    })
     return { ok: true, toolMemory: rows }
   }
 

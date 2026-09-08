@@ -22,8 +22,9 @@ body,
 
 .manager-shell {
   min-height: 100vh;
-  background: var(--brand-bg, #eef1f6);
-  color: var(--brand-text, #1c2230);
+  background: transparent;
+  color: var(--brand-text, #0f172a);
+  font-family: var(--brand-font-sans);
   --brand-motif-opacity: 0;
 }
 

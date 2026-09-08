@@ -12,8 +12,8 @@
       'cosmic-agent-thinking': agentCosmicActive,
       'mode-professional': workbenchMode === 'professional',
       'mode-chat': workbenchMode === 'chat',
-      'thought-view-user': thoughtViewMode === 'user',
-      'thought-view-developer': thoughtViewMode === 'developer',
+      'thought-view-user': true,
+      'thought-view-developer': false,
       'posture-debug': collaborationPosture === 'debug',
       'posture-ask': collaborationPosture === 'ask',
       'posture-plan': collaborationPosture === 'plan'
@@ -27,24 +27,17 @@
         :route-cap-live="routeCapLive"
         :plan-steps-todo="planStepsTodo"
         :plan-steps-done-count="planStepsDoneCount"
-        :current-phase="currentPhase"
-        :collab-status-items="collabStatusItems"
-        :step-progress-line="stepProgressLine"
-        :active-trace-id="activeTraceId"
         :conversation-compact-live="conversationCompactLive"
         :workbench-mode="workbenchMode"
-        :thought-view-mode="thoughtViewMode"
         :history-panel-open="historyPanelOpen"
         :sidebar-open="sidebarOpen"
         :tools-badge-count="toolsBadgeCount"
         :plan-agent-label="planAgentLabel"
-        :collab-status-short="collabStatusShort"
-        @set-thought-view-mode="setThoughtViewMode"
         @toggle-history="historyPanelOpen = !historyPanelOpen"
         @toggle-sidebar="sidebarOpen = !sidebarOpen"
-        @open-trace-drawer="openTraceDrawer"
       />
 
+      <!-- 上线用户面：排障 Trace 抽屉保留代码但不在顶栏入口暴露 -->
       <ManagerTraceDrawer
         :open="traceDrawerOpen"
         :trace-id="activeTraceId || currentRunId"
@@ -153,7 +146,6 @@ useHead({ title: '天机 · Manager' })
 const {
   agentCosmicActive,
   workbenchMode,
-  thoughtViewMode,
   collaborationPosture,
   connected,
   currentRunId,
@@ -161,13 +153,9 @@ const {
   routeCapLive,
   planStepsTodo,
   planStepsDoneCount,
-  currentPhase,
-  collabStatusItems,
-  stepProgressLine,
   activeTraceId,
   conversationCompactLive,
   traceDrawerOpen,
-  openTraceDrawer,
   closeTraceDrawer,
   artifactDrawerOpen,
   artifactDrawerTurn,
@@ -199,9 +187,7 @@ const {
   sidebarOpen,
   toolsBadgeCount,
   planAgentLabel,
-  collabStatusShort,
   setWorkbenchMode,
-  setThoughtViewMode,
   newSession,
   pendingHumanConfirm,
   latestGuiScreenshot,

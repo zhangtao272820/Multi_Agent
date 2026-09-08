@@ -36,7 +36,12 @@
 | `shared-agent-contracts.mdc` | `shared/**/*` — 契约层同样 LLM-first |
 | `manager-routing-playbook.mdc` | Manager 路由 / smoke / eval — 改路由必读手册；优化阶段见 `Manager_Agent/doc/路由成熟化优化方案.md`；企业生产/企业档/P1·P2 见 `docs/企业化.md` |
 | `manager-cursor-reply-only.mdc` | Manager 只借鉴 Cursor **回复呈现**（含 provisional synth 真流）；禁做成改代码 / Composer |
+| `manager-user-facing-ui-only.mdc` | Manager 上线 UI 仅用户面；禁开发切换 / 开发腔思考；侧栏观测保留 |
+| `manager-db-no-schema-leak.mdc` | Manager 用户面禁表名/字段原名；禁「本次展示字段」清单 |
+| `manager-db-rows-protocol.mdc` | Vanna→总管查询表：真行必进终稿；禁空 TABLE_DATA / scrub 掏空 / 展示计划剥有值表 |
+| `vanna-present-all-useful.mdc` | Vanna 自助：有用列全回显 + 单行纵向 KV；禁硬裁 6 列 / 「本次展示字段」 |
 | `experience-useful-only.mdc` | Vanna/RAG/GUI/Admin/shared/Manager — 仅「有用」可召回 |
+| `tenant-long-memory-isolation.mdc` | shared 记忆 / migration — 写/召/清/fold 必须 `tenant_id` |
 | `feedback-hydrate-after-docker.mdc` | `*Agent*` 反馈 UI — Docker 暖机后 hydrate 须重试 |
 | `agent-auth-control-plane-decouple.mdc` | 登录/反馈/compose — 与控制端解耦；本地 validate；禁假登录 |
 

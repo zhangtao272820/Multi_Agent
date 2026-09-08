@@ -308,6 +308,7 @@ export async function callRagAgent(params: {
   traceId?: string
   sendThinking?: (text: string) => void
   sendDelta?: (delta: string) => void
+  sendThoughtDelta?: (text: string) => void
   signal?: AbortSignal
   onEvidence?: (evidence: RagEvidence) => void
   onAgentResult?: (agentResult: AgentResult) => void
@@ -416,6 +417,12 @@ export async function callRagAgent(params: {
                 answer += t
                 if (deferStream) tokenBuffer.push(t)
                 else streamDelta?.(t)
+              }
+            } else if (type === 'reasoning') {
+              const r = String(evt?.content || '').trim()
+              if (r) {
+                params.sendThoughtDelta?.(r)
+                params.sendThinking?.(`RAG 思考：${r.slice(0, 240)}`)
               }
             } else if (type === 'tool_output') {
               const name = String(evt?.name || '').toLowerCase()

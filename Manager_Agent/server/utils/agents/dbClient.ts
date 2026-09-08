@@ -91,15 +91,31 @@ function finalizeDbResult(
 
 function structuredFromVannaPayload(data: Record<string, unknown> | null | undefined): Record<string, unknown> {
   const out: Record<string, unknown> = {}
-  const rows = Array.isArray(data?.rows) ? data!.rows : []
+  const arStructured = (data?.agentResult as { structured?: Record<string, unknown> } | undefined)?.structured
+  const rowsTop = Array.isArray(data?.rows) ? data!.rows : []
+  const rowsAr = Array.isArray(arStructured?.rows) ? (arStructured!.rows as unknown[]) : []
+  const rows = rowsTop.length ? rowsTop : rowsAr
   const fieldDetails = Array.isArray(data?.field_details)
     ? data!.field_details
-    : Array.isArray((data?.agentResult as { structured?: { field_details?: unknown[] } } | undefined)?.structured
-        ?.field_details)
-      ? (data!.agentResult as { structured: { field_details: unknown[] } }).structured.field_details
-      : []
+    : Array.isArray(arStructured?.field_details)
+      ? (arStructured!.field_details as unknown[])
+      : Array.isArray(arStructured?.fieldDetails)
+        ? (arStructured!.fieldDetails as unknown[])
+        : []
+  const chart =
+    data?.chart != null
+      ? data.chart
+      : arStructured?.chart
+  const deliverables =
+    data?.deliverables && typeof data.deliverables === 'object'
+      ? data.deliverables
+      : arStructured?.deliverables && typeof arStructured.deliverables === 'object'
+        ? arStructured.deliverables
+        : undefined
   if (rows.length) out.rows = rows
   if (fieldDetails.length) out.field_details = fieldDetails
+  if (chart != null) out.chart = chart
+  if (deliverables && typeof deliverables === 'object') out.deliverables = deliverables
   return out
 }
 
@@ -113,6 +129,7 @@ export async function callDbAgent(params: {
   /** 与总管 session 对齐，支持 DB 多轮追问 */
   sessionId?: string
   sendThinking?: (text: string) => void
+  sendDelta?: (delta: string) => void
   httpOnly?: boolean
   signal?: AbortSignal
   /** 写库预览：传 managerTask.write_allowed（仍须 HITL 才执行） */
@@ -237,8 +254,11 @@ export async function callDbAgent(params: {
               if (s) params.sendThinking?.(`数据库 Agent：status=${s}`)
               if (s === 'end') {
                 sawEnd = true
-                cleanup()
-                resolve({ answer: lastMessage, meta: lastMeta })
+                // 优先等 meta（含 rows）；若 meta 已到则结束，否则留给后续 meta / close / timeout
+                if (lastMeta && Array.isArray(lastMeta.rows)) {
+                  cleanup()
+                  resolve({ answer: lastMessage, meta: lastMeta })
+                }
               }
               return
             }
@@ -247,16 +267,34 @@ export async function callDbAgent(params: {
               if (t) params.sendThinking?.(`数据库 Agent：${t}`)
               return
             }
+            if (event === 'delta') {
+              const d = String(data?.data || '')
+              if (d) {
+                params.sendDelta?.(d)
+                lastMessage += d
+              }
+              return
+            }
+            if (event === 'stream_start') {
+              lastMessage = ''
+              return
+            }
             if (event === 'meta') {
               if (data?.data && typeof data.data === 'object') {
                 lastMeta = data.data as Record<string, unknown>
               }
+              // meta 晚于 end / message：立刻收口，避免总管丢 rows
+              if (sawEnd || (lastMessage && Array.isArray(lastMeta?.rows))) {
+                cleanup()
+                resolve({ answer: lastMessage, meta: lastMeta })
+              }
               return
             }
             if (event === 'message') {
-              lastMessage = String(data?.data || '')
-              // DB WS 协议中 message 多为最终答案；若已有 meta 可立刻返回，否则仍等 end/close 以尽量带上 meta
-              if (lastMeta) {
+              const msg = String(data?.data || '')
+              if (msg) lastMessage = msg
+              // 必须等 meta（含 rows/field_details）再结束；避免仅有正文、丢结构化表
+              if (lastMeta && Array.isArray(lastMeta.rows)) {
                 cleanup()
                 resolve({ answer: lastMessage, meta: lastMeta })
               }
@@ -334,6 +372,10 @@ export async function callDbAgent(params: {
           ...(Array.isArray(meta?.rows) && meta.rows.length ? { rows: meta.rows } : {}),
           ...(Array.isArray(meta?.field_details) && meta.field_details.length
             ? { field_details: meta.field_details }
+            : {}),
+          ...(meta?.chart != null ? { chart: meta.chart } : {}),
+          ...(meta?.deliverables && typeof meta.deliverables === 'object'
+            ? { deliverables: meta.deliverables }
             : {})
         },
         needs_clarify: Boolean(meta?.needs_clarification),

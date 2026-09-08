@@ -224,7 +224,7 @@ export async function handleHumanConfirm(ctx: WsHandlerContext, payload: ParsedW
 
     const result = await withAgentTraceContext(
       { tenantId, userId: boundUserId || explicitUserId },
-      () => graph.invoke(invokeState, buildManagerGraphInvokeConfig({ runId, sessionId }))
+      () => graph.invoke(invokeState, buildManagerGraphInvokeConfig({ runId, sessionId, signal: ctrl.signal }))
     )
     const outMessages = (result as any)?.messages
     const last = Array.isArray(outMessages) ? outMessages[outMessages.length - 1] : null

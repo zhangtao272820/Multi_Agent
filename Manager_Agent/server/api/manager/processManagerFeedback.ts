@@ -4,6 +4,7 @@ import { normalizeFeedbackScore } from '../../graph/core/runtime/runtimePersiste
 import { patchLearningSignalWithFeedback, maybeTuneLearningWeights } from '../manager-ws/handlers/wsBarrel'
 import { resolveManagerPolicyDir } from '../../utils/session/managerPolicyDir'
 import { promoteExperienceFromPositiveFeedback } from '../../graph/core/unifiedLearning'
+import { requireTenantId } from '#agent-shared/tenantScope'
 
 export type ProcessManagerFeedbackInput = {
   sessionId: string
@@ -48,9 +49,9 @@ async function runFeedbackSideEffects(input: {
   const { confirmRunArtifacts, revokeRunArtifacts } = await import('#agent-shared/artifactFeedbackOrchestrator')
 
   if (fb === 1 && rid) {
-    await confirmRunArtifacts(rid, artifact).catch(() => ({ promoted: [] }))
+    await confirmRunArtifacts(rid, artifact, process.env, { tenantId }).catch(() => ({ promoted: [] }))
   } else if (fb === 0 && rid) {
-    await revokeRunArtifacts(rid, artifact).catch(() => ({ revoked: [] }))
+    await revokeRunArtifacts(rid, artifact, process.env, { tenantId }).catch(() => ({ revoked: [] }))
   }
 
   if (rid) {
@@ -87,7 +88,7 @@ export async function processManagerFeedback(
     typeof input.userMessageIndex === 'number' && Number.isFinite(input.userMessageIndex)
       ? Math.floor(input.userMessageIndex)
       : null
-  const tenantId = input.tenantId ? String(input.tenantId) : 'default'
+  const tenantId = requireTenantId(input.tenantId)
   const boundUserId = input.userId ? String(input.userId) : 'default'
 
   try {
@@ -110,7 +111,7 @@ export async function processManagerFeedback(
       artifact: input.artifact ?? null
     }
     const feedbackPath = path.join(dir, 'manager-memory.jsonl')
-    await fs.appendFile(feedbackPath, `${JSON.stringify({ ...entry, tenantId: tenantId || 'default' })}\n`, 'utf8')
+    await fs.appendFile(feedbackPath, `${JSON.stringify({ ...entry, tenantId })}\n`, 'utf8')
 
     const { upsertSessionFeedback, userMessageFeedbackKey } = await import('#agent-shared/sessionFeedbackStore')
     const { normalizeArtifact } = await import('#agent-shared/artifactFeedbackPolicy')

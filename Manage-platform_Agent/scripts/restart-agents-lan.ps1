@@ -3,12 +3,15 @@ param(
     [switch]$Build,
     # 叠加 .env.agents-enterprise + enterprise overlay；默认不加，LAN 行为不变
     [switch]$Enterprise,
+    # 公网弱机：127.0.0.1 绑端口 + 4C8G 内存顶
+    [switch]$Public,
     # 不启 monitoring profile（默认启，与标准版一致）
     [switch]$NoMonitor
 )
 
 # 禁止 down -v：本脚本只用 up --force-recreate，保留命名卷
 # 企业档：doc/enterprise-docker.md
+# 公网：docker-compose.agents-public.overlay.yml
 
 $ErrorActionPreference = "Stop"
 . "$PSScriptRoot\_agents-lan-common.ps1"
@@ -26,7 +29,6 @@ $validServices = @(
     "promtail",
     "langfuse",
     "litellm",
-    "db_agent",
     "vanna_db_agent",
     "vanna_db_web",
     "rag_agent",
@@ -38,7 +40,9 @@ $validServices = @(
     "lobster_agent",
     "tavern_agent",
     "music_agent",
-    "video_agent"
+    "video_agent",
+    "ai_agent",
+    "db_agent"
 )
 
 $monitoring = -not $NoMonitor
@@ -54,7 +58,7 @@ if (-not [string]::IsNullOrWhiteSpace($Service)) {
     Write-Host "Force-recreating all agent services (reloads env_file; volumes preserved)..." -ForegroundColor Cyan
 }
 
-Invoke-AgentsLanCompose -Action up -ForceRecreate -Build:$Build -Enterprise:$Enterprise -Monitoring:$monitoring -Services $services
+Invoke-AgentsLanCompose -Action up -ForceRecreate -Build:$Build -Enterprise:$Enterprise -Public:$Public -Monitoring:$monitoring -Services $services
 if ($LASTEXITCODE -ne 0) {
     throw "docker compose failed (exit $LASTEXITCODE)"
 }

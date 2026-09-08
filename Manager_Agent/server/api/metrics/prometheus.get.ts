@@ -330,19 +330,27 @@ export default defineEventHandler(async (event) => {
     out.push('# TYPE manager_mcp_registry_rows gauge')
     out.push(line('manager_mcp_registry_rows', memStats.mcpRegistryRows))
 
-    const tools = await queryToolMemoryTop({ limit: 12 }).catch(() => [])
+    const metricsTenant = String(process.env.MGR_METRICS_TENANT_ID || process.env.MGR_DEFAULT_TENANT_ID || 'default').trim()
+    const tools = await queryToolMemoryTop({ tenantId: metricsTenant, limit: 12 }).catch(() => [])
     for (const t of tools) {
       out.push('# HELP manager_tool_success_rate Per-tool success rate 0..1')
       out.push('# TYPE manager_tool_success_rate gauge')
       out.push(
         line('manager_tool_success_rate', t.successRate, {
           agent: t.agent,
-          tool: t.toolName
+          tool: t.toolName,
+          tenant: t.tenantId || metricsTenant
         })
       )
       out.push('# HELP manager_tool_trials Per-tool trial count')
       out.push('# TYPE manager_tool_trials gauge')
-      out.push(line('manager_tool_trials', t.trials, { agent: t.agent, tool: t.toolName }))
+      out.push(
+        line('manager_tool_trials', t.trials, {
+          agent: t.agent,
+          tool: t.toolName,
+          tenant: t.tenantId || metricsTenant
+        })
+      )
     }
   }
 

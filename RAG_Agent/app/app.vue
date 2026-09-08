@@ -466,8 +466,9 @@
               </div>
 
               <div
-                v-if="processSteps(msg).length || (msg.status && isTurnRunning(msg.turnId))"
+                v-if="msg.reasoningText || processSteps(msg).length || (msg.status && isTurnRunning(msg.turnId))"
                 class="rag-process-panel mb-2"
+                :class="{ 'is-running': isTurnRunning(msg.turnId) }"
               >
                 <button
                   type="button"
@@ -475,28 +476,45 @@
                   @click="toggleProcessPanel(msg.turnId)"
                 >
                   <span class="rag-process-live-dot" :class="{ 'animate-pulse': isTurnRunning(msg.turnId) }"></span>
-                  <span>{{ isTurnRunning(msg.turnId) ? '思考中' : '思考过程' }}</span>
+                  <span class="rag-think-label">{{ isTurnRunning(msg.turnId) ? 'think' : '已思考' }}</span>
                   <span v-if="processElapsedLabel(msg)" class="rag-process-elapsed">{{ processElapsedLabel(msg) }}</span>
-                  <span class="rag-process-count">{{ processSteps(msg).length }} 步</span>
+                  <span v-if="processSteps(msg).length" class="rag-process-count">{{ processSteps(msg).length }} 步</span>
                   <span class="rag-process-chevron">{{ isProcessExpanded(msg) ? '▾' : '▸' }}</span>
                 </button>
-                <div v-if="isProcessExpanded(msg)" class="rag-process-steps">
+                <div v-if="isProcessExpanded(msg)" class="rag-process-body">
                   <div
-                    v-for="(step, si) in processSteps(msg)"
-                    :key="si"
-                    :class="['rag-process-step', `kind-${step.kind}`]"
+                    v-if="msg.reasoningText || (isTurnRunning(msg.turnId) && !processSteps(msg).length)"
+                    class="rag-harness-think"
+                    :class="{ 'is-live': isTurnRunning(msg.turnId) && !msg.content?.trim() }"
                   >
-                    <span class="rag-process-dot"></span>
-                    <span class="rag-process-text">{{ step.text }}</span>
-                    <span v-if="stepDurationLabel(msg, si)" class="rag-process-step-ms">{{ stepDurationLabel(msg, si) }}</span>
+                    <span class="rag-harness-think-text">{{ msg.reasoningText || msg.status || '正在理解问题…' }}</span>
+                    <span
+                      v-if="isTurnRunning(msg.turnId) && !msg.content?.trim()"
+                      class="rag-harness-think-caret"
+                      aria-hidden="true"
+                    ></span>
                   </div>
-                  <div
-                    v-if="isTurnRunning(msg.turnId) && msg.status && !processSteps(msg).some(s => s.text === msg.status)"
-                    class="rag-process-step kind-status"
-                  >
-                    <span class="rag-process-dot animate-pulse"></span>
-                    <span class="rag-process-text">{{ msg.status }}</span>
-                  </div>
+                  <details v-if="processSteps(msg).length" class="rag-process-steps-fold" open>
+                    <summary>过程步骤</summary>
+                    <div class="rag-process-steps">
+                      <div
+                        v-for="(step, si) in processSteps(msg)"
+                        :key="si"
+                        :class="['rag-process-step', `kind-${step.kind}`]"
+                      >
+                        <span class="rag-process-dot"></span>
+                        <span class="rag-process-text">{{ step.text }}</span>
+                        <span v-if="stepDurationLabel(msg, si)" class="rag-process-step-ms">{{ stepDurationLabel(msg, si) }}</span>
+                      </div>
+                      <div
+                        v-if="isTurnRunning(msg.turnId) && msg.status && !processSteps(msg).some(s => s.text === msg.status)"
+                        class="rag-process-step kind-status"
+                      >
+                        <span class="rag-process-dot animate-pulse"></span>
+                        <span class="rag-process-text">{{ msg.status }}</span>
+                      </div>
+                    </div>
+                  </details>
                 </div>
               </div>
 
@@ -642,12 +660,31 @@
             />
             <button
               type="button"
-              class="brand-btn brand-btn--primary rag-send-cancel"
+              class="brand-send-fab rag-send-cancel"
               :class="{ 'is-cancel': isLoading }"
               :disabled="!isLoading && !userInput.trim()"
+              :title="isLoading ? '取消' : '发送'"
+              :aria-label="isLoading ? '取消' : '发送'"
               @click="onSendOrCancel"
             >
-              {{ isLoading ? '取消' : '发送' }}
+              <svg
+                v-if="!isLoading"
+                class="brand-send-fab__icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                aria-hidden="true"
+              >
+                <path
+                  d="M12 19V5M12 5l-6 6M12 5l6 6"
+                  stroke="currentColor"
+                  stroke-width="2.2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+              <svg v-else class="brand-send-fab__icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <rect x="6" y="6" width="12" height="12" rx="2" />
+              </svg>
             </button>
           </div>
         </div>
@@ -1181,6 +1218,7 @@ const makeAssistantShell = (turnId, question) => ({
   role: 'assistant',
   turnId,
   content: '',
+  reasoningText: '',
   intermediate_steps: [],
   processSteps: [],
   status: '正在思考…',
@@ -1251,7 +1289,9 @@ const isTurnRunning = (turnId) => isLoading.value && activeTurnId.value === turn
 
 const isProcessExpanded = (msg) => {
   const tid = msg?.turnId;
-  if (!tid || !processSteps(msg).length) return false;
+  if (!tid) return false;
+  const hasBody = Boolean(msg?.reasoningText) || processSteps(msg).length > 0 || isTurnRunning(tid);
+  if (!hasBody) return false;
   if (isTurnRunning(tid)) return true;
   return !collapsedProcessTurns.value.has(tid);
 };
@@ -2659,6 +2699,12 @@ const sendMessage = async (overrideText, opts = {}) => {
             assistantMsg.status = '';
             await nextTick();
             mountEchartsInMessage(messages.value.length - 1);
+          } else if (data.type === 'reasoning') {
+            const chunk = String(data.content || '');
+            if (chunk) {
+              assistantMsg.reasoningText = String(assistantMsg.reasoningText || '') + chunk;
+              assistantMsg.status = '';
+            }
           } else if (data.type === 'phase') {
             appendProcessStep(assistantMsg, {
               kind: 'phase',
@@ -3263,7 +3309,59 @@ onUnmounted(() => {
   border: 1px solid rgba(55, 100, 78, 0.22);
   background: rgba(255, 255, 255, 0.88);
   overflow: hidden;
+  max-width: var(--ch-max, 760px);
 }
+.rag-process-panel.is-running {
+  border-color: rgba(47, 122, 100, 0.4);
+}
+.rag-think-label {
+  font-style: italic;
+  font-weight: 550;
+  color: #5a7388;
+  letter-spacing: 0.01em;
+}
+.rag-process-body {
+  border-top: 1px solid rgba(55, 100, 78, 0.14);
+  padding: 0.45rem 0.7rem 0.55rem;
+  background: rgba(248, 252, 249, 0.72);
+}
+.rag-harness-think {
+  margin: 0 0 0.45rem;
+  padding: 0.1rem 0 0.1rem 0.75rem;
+  border-left: 2px solid rgba(148, 163, 184, 0.55);
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.rag-harness-think.is-live {
+  border-left-color: rgba(47, 122, 100, 0.5);
+}
+.rag-harness-think-caret {
+  display: inline-block;
+  width: 0.4em;
+  height: 1em;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  background: rgba(100, 116, 139, 0.55);
+  animation: rag-think-blink 1s steps(1) infinite;
+}
+@keyframes rag-think-blink {
+  50% { opacity: 0; }
+}
+.rag-process-steps-fold {
+  margin: 0;
+}
+.rag-process-steps-fold > summary {
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  color: #2f4a3c;
+  padding: 0.2rem 0;
+  list-style: none;
+}
+.rag-process-steps-fold > summary::-webkit-details-marker { display: none; }
 .rag-process-live-dot {
   display: inline-block;
   width: 0.375rem;
@@ -3303,13 +3401,13 @@ onUnmounted(() => {
   font-size: 10px;
 }
 .rag-process-steps {
-  border-top: 1px solid rgba(55, 100, 78, 0.14);
-  padding: 0.35rem 0.55rem 0.5rem;
-  max-height: 16rem;
+  border-top: none;
+  padding: 0.2rem 0 0.15rem;
+  max-height: 12rem;
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: rgba(61, 139, 116, 0.35) transparent;
-  background: rgba(248, 252, 249, 0.72);
+  background: transparent;
 }
 .rag-process-step {
   display: flex;

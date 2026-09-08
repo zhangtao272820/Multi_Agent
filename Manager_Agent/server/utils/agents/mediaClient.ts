@@ -20,6 +20,58 @@ function wsCancelOnAbort(ws: WebSocket) {
   }
 }
 
+/** 编排前轻量 caption（≤80 字）；不走 unified 长 VL */
+export async function callMultimodalCaption(params: {
+  multimodalAgentHttpUrl: string
+  timeoutMs: number
+  filePath: string
+  query?: string
+  traceId?: string
+  signal?: AbortSignal
+}): Promise<{ caption: string; ocrSnippet?: string; latencyMs?: number; raw?: unknown }> {
+  const base = String(params.multimodalAgentHttpUrl || '').replace(/\/+$/, '')
+  if (!base) throw new Error('multimodalAgentHttpUrl missing')
+  const filePath = String(params.filePath || '').trim()
+  if (!filePath) throw new Error('filePath missing')
+
+  const url = `${base}/api/multimodal/caption`
+  const res = await withTimeout(
+    fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...buildAgentTraceHeaders(params.traceId)
+      },
+      body: JSON.stringify(
+        withTraceBody(
+          {
+            file_path: filePath,
+            query: String(params.query || '').slice(0, 200),
+          },
+          params.traceId
+        )
+      ),
+      signal: params.signal
+    }),
+    params.timeoutMs,
+    'multimodalCaption',
+    params.signal
+  )
+  const data = (await res.json().catch(() => ({}))) as Record<string, unknown>
+  if (!res.ok) {
+    throw new Error(String(data?.error || data?.detail || res.statusText))
+  }
+  const caption = String(data.caption || data.description || '').trim()
+  const ocrSnippet = String(data.ocr_snippet || data.ocrSnippet || '').trim() || undefined
+  const latencyMs = Number(data.latency_ms ?? data.latencyMs)
+  return {
+    caption,
+    ...(ocrSnippet ? { ocrSnippet } : {}),
+    ...(Number.isFinite(latencyMs) ? { latencyMs: Math.floor(latencyMs) } : {}),
+    raw: data
+  }
+}
+
 export async function callMultimodalAgent(params: {
   multimodalAgentHttpUrl: string
   timeoutMs: number

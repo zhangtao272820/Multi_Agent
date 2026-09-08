@@ -92,7 +92,9 @@ export default defineNitroPlugin(() => {
       }
       if (isMemoryFoldEnabled() && Date.now() - lastFoldAt >= 86_400_000) {
         lastFoldAt = Date.now()
-        await runMemoryFoldJob().catch(() => undefined)
+        for (const tid of tenants.slice(0, 32)) {
+          await runMemoryFoldJob(process.env, { tenantId: tid }).catch(() => undefined)
+        }
       }
       if (isPgDailyBackupEnabled() && Date.now() - lastBackupAt >= 86_400_000) {
         lastBackupAt = Date.now()

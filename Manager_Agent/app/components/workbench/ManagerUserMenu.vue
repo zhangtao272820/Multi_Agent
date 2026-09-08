@@ -125,31 +125,31 @@ onBeforeUnmount(() => {
 .mgr-user-menu-trigger {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  max-width: 140px;
-  padding: 4px 10px 4px 4px;
-  border-radius: 999px;
-  border: 1px solid rgba(100, 150, 200, 0.42);
-  background: rgba(255, 255, 255, 0.72);
-  color: #1e4060;
+  gap: 8px;
+  max-width: 148px;
+  min-height: 32px;
+  padding: 4px 10px 4px 5px;
+  border-radius: var(--brand-radius-sm, 8px);
+  border: 1px solid var(--brand-border, rgba(15, 23, 42, 0.14));
+  background: var(--brand-bg-elevated, #fff);
+  color: var(--brand-ink, #0f172a);
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.8) inset;
+  box-shadow: none;
+  transition: background 0.15s var(--brand-ease, ease), border-color 0.15s var(--brand-ease, ease);
 }
 .mgr-user-menu-trigger:hover {
-  border-color: rgba(47, 127, 209, 0.5);
-  background: rgba(230, 242, 255, 0.92);
+  border-color: var(--brand-accent-border, rgba(37, 99, 235, 0.42));
+  background: var(--brand-bg-hover, #e8ecf2);
 }
 .mgr-user-menu-avatar {
   width: 22px;
   height: 22px;
-  border-radius: 50%;
+  border-radius: 6px;
   display: grid;
   place-items: center;
-  background: linear-gradient(135deg, #2f7fd1, #1c5a9e);
+  background: var(--brand-accent, #2563eb);
   color: #fff;
   font-size: 11px;
   font-weight: 700;

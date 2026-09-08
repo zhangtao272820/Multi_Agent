@@ -21,6 +21,7 @@ export type MgrRunArtifactRow = {
   federationPayload: Record<string, unknown>
   status: ArtifactStatus
   feedbackScore?: number | null
+  tenantId?: string | null
 }
 
 export async function upsertMgrRunArtifact(
@@ -33,10 +34,11 @@ export async function upsertMgrRunArtifact(
   if (!isAgentPgConfigured(env)) return false
   const runId = String(input.runId || '').slice(0, 80)
   if (!runId) return false
+  const tenantId = String(input.tenantId || 'default').trim().slice(0, 64) || 'default'
   const res = await agentPgQuery(
     `INSERT INTO mgr_run_artifacts
-       (run_id, session_id, question, tool_chain, sub_artifacts, federation_payload, status, feedback_score, updated_at)
-     VALUES ($1, $2, $3, $4::jsonb, $5::jsonb, $6::jsonb, $7, $8, NOW())
+       (run_id, session_id, question, tool_chain, sub_artifacts, federation_payload, status, feedback_score, tenant_id, updated_at)
+     VALUES ($1, $2, $3, $4::jsonb, $5::jsonb, $6::jsonb, $7, $8, $9, NOW())
      ON CONFLICT (run_id) DO UPDATE SET
        session_id = COALESCE(EXCLUDED.session_id, mgr_run_artifacts.session_id),
        question = COALESCE(EXCLUDED.question, mgr_run_artifacts.question),
@@ -45,6 +47,7 @@ export async function upsertMgrRunArtifact(
        federation_payload = CASE WHEN EXCLUDED.federation_payload = '{}'::jsonb THEN mgr_run_artifacts.federation_payload ELSE EXCLUDED.federation_payload END,
        status = EXCLUDED.status,
        feedback_score = COALESCE(EXCLUDED.feedback_score, mgr_run_artifacts.feedback_score),
+       tenant_id = COALESCE(NULLIF(EXCLUDED.tenant_id, ''), mgr_run_artifacts.tenant_id),
        updated_at = NOW()`,
     [
       runId,
@@ -54,7 +57,8 @@ export async function upsertMgrRunArtifact(
       JSON.stringify(input.subArtifacts ?? {}),
       JSON.stringify(input.federationPayload ?? {}),
       input.status ?? 'shadow',
-      input.feedbackScore ?? null
+      input.feedbackScore ?? null,
+      tenantId
     ],
     env
   )

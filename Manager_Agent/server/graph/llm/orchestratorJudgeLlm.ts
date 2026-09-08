@@ -7,7 +7,7 @@ import { z } from 'zod'
 import { safeJsonParse } from '../core/shared/llmJson'
 import type { LlmInvokeFn } from './taskConstraintsLlm'
 import type { OrchestratorDecision } from '../orchestrate/orchestratorInvariants'
-import { formatAgentBoundaryPrompt, formatAdminCrawlerDisambiguationPrompt } from '../orchestrate/unifiedRouting'
+import { formatAgentBoundaryPromptCompact } from '../orchestrate/unifiedRouting'
 import { routingDecisionLlmTier } from '../core/shared/modelTier'
 import { resolveManagerEnvBool } from '../../utils/platform/managerEnvModes'
 
@@ -84,21 +84,15 @@ export async function judgeOrchestratorDecision(input: {
           'system',
           [
             '你是总管 Agent 的「编排审查员」（Semantic Router + Plan-and-Execute Reflexion）。',
-            formatAgentBoundaryPrompt(),
+            formatAgentBoundaryPromptCompact(),
             '【权威】仅【用户末轮】决定路由；Probe/经验不得扩大 Agent。',
-            formatAdminCrawlerDisambiguationPrompt(),
-            '审查项：',
+            '审查项（delta）：',
             '1) 单源简单取数 → db_only/rag_only，禁无故加 clean/code/visualize/crawler；',
-            '1b) 单源 DB 且要占比/计算/汇总 → cap 须含 code；',
-            '2) 复合（多数据面±附件±办事±出图）→ 每面子句独立、cap 覆盖、queryFocus 不整段复制；',
-            '3) 语义清晰要结构化库 → db；要私域文档原文 → rag；不要求字面「数据库/知识库」；',
-            '3d) sourceCommitment=ambiguous → needsClarify；清晰但库存无覆盖 → clarify，禁静默改道；',
-            '4) db≠rag；clear 锁定后禁止因 Probe/库存翻面；',
-            '5) **通道固定**：未点公网的天气→admin(get_weather)；出行/地铁多久→admin(get_travel_route)；日程/邮件同理；webFetchKind≠none/清晰联网爬取→保留 crawler，禁改绑 admin；',
-            '5b) 已锁 db/rag 子句 → 禁止镜像加 crawler；无独立公网子句却 needsWeb → reject；',
-            '5c) 蓝图 queryFocus 须为该步片段；',
-            '6) 打开站点点选登录填表 → gui；静态公网正文 → crawler；有附件 → multimodal 可并列；',
-            'accept=true 仅当与末轮语义一致且无遗漏/无过度流水线。',
+            '1b) 单源 DB 且要占比/计算 → cap 须含 code；',
+            '2) 复合 → 每面子句独立、cap 覆盖；',
+            '3) sourceCommitment=ambiguous → needsClarify；clear 锁面后禁因 Probe 翻面；',
+            '4) 通道：未点公网天气/出行→admin；webFetchKind≠none→保留 crawler；站内点击→gui；',
+            'accept=true 仅当与末轮一致且无遗漏/无过度流水线。',
             '只输出 JSON，无 markdown。'
           ].join('\n')
         ],

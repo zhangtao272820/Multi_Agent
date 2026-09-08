@@ -6,6 +6,7 @@ import {
   assertManagerSessionAccess,
   resolveManagerHttpUser
 } from '../../utils/platform/managerRequestUser'
+import { requireTenantId, ScopeRequiredError } from '#agent-shared/tenantScope'
 
 const BodySchema = z.object({
   sessionId: z.string().min(1).max(120).regex(/^[A-Za-z0-9_-]+$/),
@@ -28,7 +29,19 @@ export default defineEventHandler(async (event) => {
   const body = BodySchema.parse(await readBody(event))
   const auth = resolveManagerHttpUser(event, body.userId)
   const userId = auth.userId
-  const tenantId = body.tenantId || auth.tenantId || 'default'
+  let tenantId: string
+  try {
+    // 权威租户来自鉴权；body 仅在鉴权无租户且非 fail-closed 时作补充
+    tenantId = requireTenantId(auth.tenantId || body.tenantId)
+  } catch (e) {
+    if (e instanceof ScopeRequiredError) {
+      throw createError({ statusCode: 401, statusMessage: 'tenant_required' })
+    }
+    throw e
+  }
+  if (body.tenantId && auth.tenantId && body.tenantId !== auth.tenantId) {
+    throw createError({ statusCode: 403, statusMessage: 'forbidden: tenant_id mismatch' })
+  }
   await assertManagerSessionAccess({ sessionId: body.sessionId, userId })
 
   const kind = body.kind ?? 'score'

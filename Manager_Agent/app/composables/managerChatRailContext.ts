@@ -65,6 +65,19 @@ export type ManagerChatRailContext = {
   onFileSelected: (e: Event) => void
   onAttachmentFile: (file: File) => void | Promise<void>
   chatComposerRef: Ref<{ resetFileInput: () => void } | null>
+  runObservabilityLive: Ref<{
+    runId?: string
+    phaseTimeline?: Array<{ phase: string; ms: number; agent?: string }>
+    tokenSummary?: {
+      totalTokens?: number
+      promptTokens?: number
+      completionTokens?: number
+      tokenAccounting?: string
+    } | null
+    wallClockMs?: number
+  } | null>
+  formatObsMs: (ms: number) => string
+  formatTokenCount: (n: number) => string
 }
 
 export const MANAGER_CHAT_RAIL_KEY: InjectionKey<ManagerChatRailContext> = Symbol('managerChatRail')

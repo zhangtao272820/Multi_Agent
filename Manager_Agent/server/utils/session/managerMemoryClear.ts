@@ -42,6 +42,8 @@ export async function clearManagerExperience(tenantId?: string): Promise<{ remov
     await agentPgQuery(`DELETE FROM mgr_memory_embeddings WHERE entry_type = 'experience' AND tenant_id = $1`, [
       tid
     ]).catch(() => undefined)
+    await agentPgQuery(`DELETE FROM mgr_process_memory WHERE tenant_id = $1`, [tid]).catch(() => undefined)
+    await agentPgQuery(`DELETE FROM mgr_tool_memory WHERE tenant_id = $1`, [tid]).catch(() => undefined)
   }
 
   const memJsonl = path.join(dir, 'manager-memory.jsonl')
@@ -145,6 +147,9 @@ export async function clearManagerMemory(
       [tid]
     ).catch(() => undefined)
     await agentPgQuery(`DELETE FROM mgr_memory_embeddings WHERE tenant_id = $1`, [tid]).catch(() => undefined)
+    await agentPgQuery(`DELETE FROM mgr_process_memory WHERE tenant_id = $1`, [tid]).catch(() => undefined)
+    await agentPgQuery(`DELETE FROM mgr_tool_memory WHERE tenant_id = $1`, [tid]).catch(() => undefined)
+    await agentPgQuery(`DELETE FROM mgr_user_profiles WHERE tenant_id = $1`, [tid]).catch(() => undefined)
   }
   return { scope, ...exp, ...summaries, evolution: evo }
 }

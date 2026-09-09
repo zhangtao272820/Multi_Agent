@@ -23,7 +23,7 @@
 | `complex-task-planning.mdc` | 跨 Agent / 语义重构先 Plan 再写 |
 | `cursor-governance.mdc` | 遵守并及时提取 rules/skills |
 | `experience-useful-only.mdc` | 全专家经验只认「有用」；RAG 向量亦仅有用索引；撤回重生无用不回灌 |
-| `feedback-hydrate-after-docker.mdc` | Docker 重建后有用/无用须退避重试回灌，禁依赖重登 |
+| `feedback-hydrate-after-docker.mdc` | 有用/无用 F5/Docker 须回灌；禁 purge 误删 `*_session_feedback:`、禁依赖重登 |
 | `agent-auth-control-plane-decouple.mdc` | Agent 登录/反馈与控制端解耦；禁任意 401 清 JWT；Compose 等 backend healthy |
 
 企业档 Docker（LAN 默认不变，显式 `-Enterprise`）：[`Manage-platform_Agent/doc/enterprise-docker.md`](Manage-platform_Agent/doc/enterprise-docker.md) · 验收 `.\Manage-platform_Agent\scripts\verify-enterprise-docker.ps1` · 详版 [`docs/企业化.md`](docs/企业化.md)。
@@ -33,8 +33,9 @@
 | 文件 | Globs / 范围 |
 |------|----------------|
 | `agent-llm-first.mdc` | `**/*Agent/**/*` — 禁正则做意图/抽参；LLM + Zod |
+| `docker-agent-skills-md.mdc` | `.dockerignore` / `*Agent/skills/**` — `**/*.md` 须放行 skills，禁掏空 skill.md |
 | `shared-agent-contracts.mdc` | `shared/**/*` — 契约层同样 LLM-first |
-| `manager-routing-playbook.mdc` | Manager 路由 / smoke / eval — 改路由必读手册；优化阶段见 `Manager_Agent/doc/路由成熟化优化方案.md`；企业生产/企业档/P1·P2 见 `docs/企业化.md` |
+| `manager-routing-playbook.mdc` | Manager 路由 / smoke / eval — 改路由必读手册；优化见 `Manager_Agent/doc/路由成熟化优化方案.md`；执行成熟 Phase A–F / 控 token 见 `Manager_Agent/doc/成熟Agent升级方案.md`；企业化见 `docs/企业化.md` |
 | `manager-cursor-reply-only.mdc` | Manager 只借鉴 Cursor **回复呈现**（含 provisional synth 真流）；禁做成改代码 / Composer |
 | `manager-user-facing-ui-only.mdc` | Manager 上线 UI 仅用户面；禁开发切换 / 开发腔思考；侧栏观测保留 |
 | `manager-db-no-schema-leak.mdc` | Manager 用户面禁表名/字段原名；禁「本次展示字段」清单 |
@@ -42,7 +43,8 @@
 | `vanna-present-all-useful.mdc` | Vanna 自助：有用列全回显 + 单行纵向 KV；禁硬裁 6 列 / 「本次展示字段」 |
 | `experience-useful-only.mdc` | Vanna/RAG/GUI/Admin/shared/Manager — 仅「有用」可召回 |
 | `tenant-long-memory-isolation.mdc` | shared 记忆 / migration — 写/召/清/fold 必须 `tenant_id` |
-| `feedback-hydrate-after-docker.mdc` | `*Agent*` 反馈 UI — Docker 暖机后 hydrate 须重试 |
+| `admin-user-data-isolation.mdc` | Admin 办公数据 — 联系人/文件/记忆等必 `(tenant_id,user_id)` |
+| `feedback-hydrate-after-docker.mdc` | `*Agent*` 反馈 UI — 禁 purge 误删反馈缓存；暖机/F5 hydrate 须重试 |
 | `agent-auth-control-plane-decouple.mdc` | 登录/反馈/compose — 与控制端解耦；本地 validate；禁假登录 |
 
 DB/Code 写闸：Vanna `skills/write_gate.md`（T2 pending）；CodePy 改码事前 HITL + 沙箱终端；总管 `db_write`→T2、`MANAGER_CODE_EDIT_HITL` 默认开。

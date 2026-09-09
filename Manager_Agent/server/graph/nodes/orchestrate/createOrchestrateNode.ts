@@ -33,6 +33,7 @@ import { buildRouteAuthorityChain } from '../../orchestrate/routeAuthorityChain'
 import { recordAgentMorphologySnapshot } from '../../core/runtime/recordAgentMorphology'
 import { buildTurnScopePayload } from '#agent-shared/turnScope'
 import { resolveOrchestrationThickness, resolveIntentForOrchestrationThickness } from '../../core/routing/orchestrationThickness'
+import { resolveExecutionTopology } from '../../core/plan/executionTopology'
 import {
   formatSessionAnchorCoalesceHint
 } from '../../core/routing/routeSkipCascade'
@@ -120,6 +121,21 @@ function finishOrchestrateTurn(input: {
     intent: decision.intent,
     allowedAgents: decision.allowedAgents,
   })
+  const rawRec = (decision.raw && typeof decision.raw === 'object' ? decision.raw : {}) as Record<
+    string,
+    unknown
+  >
+  const executionTopology = resolveExecutionTopology({
+    executionTopology: rawRec.executionTopology ?? decision.metaPatch?.executionTopology,
+    isMulti: Boolean(decision.isMulti),
+    allowedAgents: decision.allowedAgents.map(String),
+    orchestrationThickness: thickness,
+    planSteps: Array.isArray(decision.planBlueprint?.steps) ? decision.planBlueprint.steps : undefined
+  })
+  const complexity =
+    String(rawRec.complexity || decision.metaPatch?.complexity || 'low')
+      .trim()
+      .toLowerCase() || 'low'
   const priorSkips =
     decision.metaPatch?.routeSkips && typeof decision.metaPatch.routeSkips === 'object'
       ? (decision.metaPatch.routeSkips as Record<string, boolean>)
@@ -165,6 +181,8 @@ function finishOrchestrateTurn(input: {
       sessionIntentAnchor: nextAnchor,
       useLegacyRoute: false,
       orchestrationThickness: thickness,
+      executionTopology,
+      complexity,
       lowCostMode: thickness === 'single_source' || thickness === 'memory_capture' ? true : state.meta?.lowCostMode,
       plannerBypassed: thickness === 'single_source' ? true : undefined,
       routeSkips,
@@ -175,6 +193,8 @@ function finishOrchestrateTurn(input: {
           ...decision.metaPatch,
           allowedAgents: decision.allowedAgents,
           orchestrationThickness: thickness,
+          executionTopology,
+          complexity,
           orchestratorSource,
           routeSkips,
           ...(routeLlmCalls != null ? { routeLlmCalls } : {})

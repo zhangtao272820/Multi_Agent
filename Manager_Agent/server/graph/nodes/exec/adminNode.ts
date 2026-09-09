@@ -79,6 +79,7 @@ export function buildAdminNode(deps: CreateExecutionNodesDeps) {
         runId: opts.runId,
         sessionId: opts.sessionId,
         userId: opts.userId,
+        tenantId: opts.tenantId,
         timeoutMs: opts.timeoutMs,
         signal: opts.signal,
         aiAdminAgentWsUrl: opts.aiAdminAgentWsUrl,

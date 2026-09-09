@@ -5,7 +5,14 @@ import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { createRagChatOpenAI } from "./rag_chat_openai";
 import { getRagAgentEnv, ragFastJudgeModelName } from "./rag_agent_env";
 import type { EvidenceItem } from "./retrieval_shared";
-import { scoreTextOverlap, scoreDocByQueryTerms, tokenizeForKeywordSearch } from "./retrieval_shared";
+import {
+  scoreTextOverlap,
+  scoreDocByQueryTerms,
+  tokenizeForKeywordSearch,
+  prioritizeEvidenceBySubQueries,
+} from "./retrieval_shared";
+
+export { prioritizeEvidenceBySubQueries } from "./retrieval_shared";
 import { filterTextsRelevantToQuery } from "./preference_context_gate";
 import {
   buildEvidenceOnlyFallback,
@@ -177,51 +184,6 @@ export function prioritizeEvidenceForGeneration(
   return out.length ? out : list.slice(0, max);
 }
 
-/** 复合问句：每个子问句至少保留 1 条证据，避免 dominant source 挤掉另一主题 */
-export function prioritizeEvidenceBySubQueries(
-  subQueries: string[],
-  items: EvidenceItem[],
-  max = 6,
-): EvidenceItem[] {
-  const list = (items || []).filter((e) => String(e.content ?? "").trim().length >= 4);
-  if (!list.length) return [];
-  const parts = subQueries.map((q) => String(q || "").trim()).filter((q) => q.length >= 4);
-  if (parts.length < 2) {
-    return list.slice(0, max);
-  }
-  const perSub = Math.max(1, Math.floor(max / parts.length));
-  const picked: EvidenceItem[] = [];
-  const seen = new Set<string>();
-  for (const sq of parts) {
-    const terms = tokenizeForKeywordSearch(sq);
-    const ranked = list
-      .map((item) => ({
-        item,
-        score: scoreDocByQueryTerms(String(item.content ?? ""), terms),
-      }))
-      .sort((a, b) => b.score - a.score);
-    let added = 0;
-    for (const { item, score } of ranked) {
-      if (score <= 0 && added > 0) continue;
-      const key = `${item.source}:${String(item.content ?? "").slice(0, 48)}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      picked.push(item);
-      added += 1;
-      if (added >= perSub) break;
-    }
-  }
-  if (!picked.length) return list.slice(0, max);
-  for (const item of list) {
-    if (picked.length >= max) break;
-    const key = `${item.source}:${String(item.content ?? "").slice(0, 48)}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    picked.push(item);
-  }
-  return picked.slice(0, max);
-}
-
 /** 生成前：模型筛掉与问句明显无关的证据块（多文档库防串台） */
 export async function focusEvidenceForGeneration(
   query: string,
@@ -260,8 +222,9 @@ const EXTRACT_SYSTEM = [
   "1) 用户问法与文档字段/文件名表述不同时，只要证据语义相关就必须作答（抽象问法 ↔ 具体字段名视为同一主题）；",
   "2) 只写证据中可核对的事实（数字、日期、实体），不要编造；",
   "3) 禁止写「未找到/暂无/无法确定」——调用方已确认存在相关证据；",
-  "4) 最后一行单独写：参考：<文档文件名>（多个用顿号）；",
-  "5) 不要提检索过程、路由或 Skill。",
+  "4) 多子问题时逐子问题作答；证据已有某子题条款时禁止对该子题写「文档未提到」；",
+  "5) 最后一行单独写：参考：<文档文件名>（多个用顿号）；只列实际用到的来源；",
+  "6) 不要提检索过程、路由或 Skill。",
 ].join("\n");
 
 /** 主生成误判「无结果」时，flash 从证据直出（通用兜底） */

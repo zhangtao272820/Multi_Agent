@@ -105,6 +105,7 @@ export async function callRagProbe(params: {
   query: string
   k?: number
   userId?: string
+  tenantId?: string
   traceId?: string
   signal?: AbortSignal
 }): Promise<RagProbeResponse | null> {
@@ -112,6 +113,7 @@ export async function callRagProbe(params: {
   const q = String(params.query || '').trim()
   if (!base || !q) return null
   const uid = String(params.userId || '').trim()
+  const tid = String(params.tenantId || '').trim()
   const kRaw = Number(params.k ?? 8)
   const k = Number.isFinite(kRaw) && kRaw > 0 ? Math.max(1, Math.min(12, Math.floor(kRaw))) : 8
   try {
@@ -120,8 +122,12 @@ export async function callRagProbe(params: {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...buildAgentTraceHeaders(params.traceId),
-          ...(uid ? { 'x-user-id': uid } : {})
+          ...buildAgentTraceHeaders(params.traceId, {
+            ...(uid ? { userId: uid } : {}),
+            ...(tid ? { tenantId: tid } : {})
+          }),
+          ...(uid ? { 'x-user-id': uid } : {}),
+          ...(tid ? { 'x-tenant-id': tid } : {})
         },
         body: JSON.stringify(
           withTraceBody(
@@ -316,12 +322,18 @@ export async function callRagAgent(params: {
   skipCache?: boolean
   /** probe 已命中时缓冲 token，避免「暂未找到」假阴性闪现在 UI */
   deferStreamDelta?: boolean
+  /**
+   * 编排态 multi/hub 可选侧车（单源勿传）。
+   * 含 coverage_critical 时 RAG 弱证据有界再检。
+   */
+  managerRagTaskJson?: string
 }): Promise<AgentCallResult> {
   const uid = String(params.userId || '').trim()
   const leanQ = String(params.retrievalQuery || params.message || '').trim()
   const chatMessage = String(params.message || params.retrievalQuery || '').trim()
   const streamDelta =
     isManagerStreamDeltaEnabled() && typeof params.sendDelta === 'function' ? params.sendDelta : undefined
+  const sidecar = String(params.managerRagTaskJson || '').trim()
 
   const url = `${params.ragAgentHttpUrl.replace(/\/+$/, '')}/api/chat`
   const chatHistory = Array.isArray(params.history) ? params.history : []
@@ -351,7 +363,8 @@ export async function callRagAgent(params: {
         headers: {
           'Content-Type': 'application/json',
           ...buildAgentTraceHeaders(params.traceId),
-          ...(uid ? { 'x-user-id': uid } : {})
+          ...(uid ? { 'x-user-id': uid } : {}),
+          ...(sidecar ? { 'x-manager-orchestrated': '1' } : {})
         },
         body: JSON.stringify(
           withTraceBody(
@@ -359,7 +372,8 @@ export async function callRagAgent(params: {
               message: chatMessage,
               history: chatHistory,
               conversationId: params.conversationId || undefined,
-              ...(uid ? { userId: uid } : {})
+              ...(uid ? { userId: uid } : {}),
+              ...(sidecar ? { manager_rag_task_json: sidecar } : {})
             },
             params.traceId
           )

@@ -194,6 +194,22 @@ async function main() {
   )
   assert(normalized === undefined || normalized.length === 0, 'legacy infer off → empty tool_plan')
 
+  const { buildAdminExecMessage, buildAdminEffectiveQuery } = await import(
+    pathToFileURL(join(__dirname, '../../../server/graph/core/stepIsolation/exec.ts')).href
+  )
+  const leanMsg = buildAdminExecMessage('坐地铁从天津西站到天津站大概多久', {
+    autoConfirm: true,
+    readOnlyOrchestration: true
+  })
+  assert(leanMsg.includes('天津西站'), `lean message keeps travel query: ${leanMsg}`)
+  assert(!/仅处理下列个人助理能力/.test(leanMsg), 'buildAdminExecMessage must not inject preamble')
+  assert(!/【总管约束】/.test(leanMsg), 'buildAdminExecMessage must not inject guard')
+  assert(!/【只读编排】/.test(leanMsg), 'buildAdminExecMessage must not inject read-only line')
+  assert(!/（强制）不要等待人工确认/.test(leanMsg), 'buildAdminExecMessage must not inject auto-confirm line')
+  const leanEff = buildAdminEffectiveQuery('查天津今日天气预报', '查天津今日天气预报', '', true)
+  assert(leanEff.includes('天津'), `effQuery keeps weather: ${leanEff}`)
+  assert(!/仅处理下列个人助理能力/.test(leanEff), 'effQuery no preamble')
+
   console.log('smoke-admin-manager-protocol: OK')
 }
 

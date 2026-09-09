@@ -123,6 +123,7 @@ CREATE TABLE IF NOT EXISTS rag_session_turns (
   turn_index INTEGER NOT NULL,
   role VARCHAR(16) NOT NULL CHECK (role IN ('user', 'assistant')),
   content TEXT NOT NULL,
+  ui_meta JSONB,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE(session_id, turn_index)
 );
@@ -271,6 +272,7 @@ CREATE TABLE IF NOT EXISTS adm_session_turns (
   session_id VARCHAR(120) NOT NULL,
   role VARCHAR(16) NOT NULL CHECK (role IN ('user', 'assistant')),
   content TEXT NOT NULL,
+  ui_meta JSONB,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -451,6 +453,8 @@ ALTER TABLE mgr_session_turns ADD COLUMN IF NOT EXISTS run_id VARCHAR(80);
 ALTER TABLE mgr_session_turns ADD COLUMN IF NOT EXISTS ui_meta JSONB;
 ALTER TABLE mgr_session_turns_archive ADD COLUMN IF NOT EXISTS run_id VARCHAR(80);
 ALTER TABLE mgr_session_turns_archive ADD COLUMN IF NOT EXISTS ui_meta JSONB;
+ALTER TABLE rag_session_turns ADD COLUMN IF NOT EXISTS ui_meta JSONB;
+ALTER TABLE adm_session_turns ADD COLUMN IF NOT EXISTS ui_meta JSONB;
 CREATE INDEX IF NOT EXISTS idx_mgr_session_turns_run_id
   ON mgr_session_turns(run_id)
   WHERE run_id IS NOT NULL;

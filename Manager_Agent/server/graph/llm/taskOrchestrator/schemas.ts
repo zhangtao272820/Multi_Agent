@@ -171,6 +171,8 @@ export const TaskOrchestratorSchema = z.object({
   suggestedPosture: z.enum(['ask', 'plan', 'agent', 'debug']).default('agent'),
   upgradeReason: z.string().max(200).default(''),
   upgradeConfidence: z.number().min(0).max(1).default(0.65),
+  /** solo=单专才；parallel=取数 fan-out；hub=有依赖 DAG（默认） */
+  executionTopology: z.enum(['solo', 'parallel', 'hub']).optional(),
   /** Phase4 cascade：显式 false 且 MANAGER_ROUTE_CASCADE=1 时可跳过 align/plane */
   selfCheck: z
     .object({
@@ -238,6 +240,7 @@ const COMPACT_ORCHESTRATOR_SCHEMA = z.object({
   suggestedPosture: z.enum(['ask', 'plan', 'agent', 'debug']).default('agent'),
   upgradeReason: z.string().max(200).default(''),
   upgradeConfidence: z.number().min(0).max(1).default(0.62),
+  executionTopology: z.enum(['solo', 'parallel', 'hub']).optional(),
   selfCheck: z
     .object({
       needsSecondPass: z.boolean().optional(),

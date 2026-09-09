@@ -133,7 +133,7 @@ function statusChip(status: string): string {
   if (status === 'running') return '执行中'
   if (status === 'success') return '完成'
   if (status === 'failed') return '失败'
-  if (status === 'replan') return '修订中'
+  if (status === 'replan') return '调整中'
   return '等待'
 }
 </script>
@@ -232,7 +232,7 @@ function statusChip(status: string): string {
   flex-direction: column;
   gap: 0.55rem;
   width: 100%;
-  max-width: var(--chat-agent-max, 760px);
+  max-width: 100%;
   margin: 0 0 0.85rem;
 }
 

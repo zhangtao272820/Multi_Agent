@@ -1,6 +1,5 @@
 /** 步骤 query 结构化净化与 LLM 裁剪。SSOT：skills/step_sanitize/skill.md */
 import { HumanMessage, SystemMessage } from '@langchain/core/messages'
-import { adminStepQueryPreamble } from '#agent-shared/adminCapabilities'
 import { safeJsonParse } from '../shared'
 import { appendSerpContextToQuery } from '../../../utils/search/managerWebSearch'
 import { stripAdminManagerGuards } from '../../../utils/route/managerSubAgentHelpers'
@@ -98,7 +97,7 @@ const STEP_SANITIZE_STRATEGIES: Partial<Record<Step['agent'], StepSanitizeStrate
   admin: {
     noiseTerms: [],
     llmWhenLongerThan: 200,
-    /** 计划内只存 lean 子句；preamble 仅在 buildAdminExecMessage 出站注入 */
+    /** 计划内与 WS 出站均只存 lean 子句；能力边界走 manager_task 侧车，禁止 preamble */
     transform: (q) => extractAdminSubtaskText(q)
   },
   rag: {
@@ -428,12 +427,11 @@ export function inferStepDependsOn(
 }
 
 /**
- * 出站包装：lean 子任务 + 能力 preamble（仅 WS/exec 使用；禁止写入 plan step.query）。
+ * 出站 lean 子任务（仅 WS/exec 使用；禁止写入 plan step.query）。
+ * 能力边界 / 总管约束走 client_context.manager_task 与 auto_confirm_risky，不塞进 message。
  */
 export function buildAdminStepQuery(fullText: string, _sourceAgents: string[] = []): string {
-  const adminTask = extractAdminSubtaskText(fullText)
-  if (!adminTask) return adminStepQueryPreamble()
-  return [adminStepQueryPreamble(), adminTask].join('\n')
+  return extractAdminSubtaskText(fullText) || String(fullText || '').trim()
 }
 
 /** 策略表结构化净化（同步、确定性） */

@@ -1,6 +1,7 @@
 import { isHeavySynthTask } from '#agent-shared/synthShapePolicy'
 import { resolveManagerEnvBool } from '../../../utils/platform/managerEnvModes'
 import { isLlmFirstRouteEnabled } from '../../orchestrate/unifiedRouting'
+import { shouldEscalateRouteDecisionToMax } from '../routing/routeDecisionEscalate'
 
 export type LlmInvokeTier = 'light' | 'standard' | 'max'
 
@@ -35,10 +36,14 @@ export function isSimpleIntent(intent: unknown): boolean {
   return i.length > 0 && i !== 'multi' && SINGLE_INTENTS.has(i)
 }
 
-/** 路由/编排/Planner 决策用 plus 还是 max（env：MANAGER_ROUTE_DECISION_TIER=plus|max） */
-export function resolveRouteDecisionModelKind(env: NodeJS.ProcessEnv = process.env): RouteDecisionModelKind {
+/** 环境强制 max；否则由 state 结构信号决定是否升档（见 shouldEscalateRouteDecisionToMax） */
+export function resolveRouteDecisionModelKind(
+  env: NodeJS.ProcessEnv = process.env,
+  state?: unknown
+): RouteDecisionModelKind {
   const raw = String(env.MANAGER_ROUTE_DECISION_TIER ?? 'plus').trim().toLowerCase()
   if (raw === 'max' || raw.startsWith('qwen-max')) return 'max'
+  if (state !== undefined && shouldEscalateRouteDecisionToMax(state, env)) return 'max'
   return 'plus'
 }
 
@@ -59,14 +64,14 @@ export function isRoutingDecisionContext(state?: unknown, stage?: LlmStage): boo
 
 /**
  * 编排 / 路由 / Planner 决策 LLM 档位 SSOT。
- * LLM-First（convergence）：强制 standard（plus）或 max，禁止 light。
+ * 默认 standard→CAP_ROUTE；仅 ambiguous/high/secondPass 升 max→CAP_REASON（集中模型，不养独立 max）。
  */
 export function routingDecisionLlmTier(state?: unknown, env: NodeJS.ProcessEnv = process.env): LlmInvokeTier {
   if (!isRoutingDecisionContext(state, 'route') && !isRoutingDecisionContext(state, 'plan')) {
     if (resolveManagerEnvBool('MANAGER_ORCHESTRATOR_STANDARD_MODEL', env)) return 'standard'
     return 'light'
   }
-  return resolveRouteDecisionModelKind(env) === 'max' ? 'max' : 'standard'
+  return resolveRouteDecisionModelKind(env, state) === 'max' ? 'max' : 'standard'
 }
 
 /** runtime 入口：统一解析有效 tier（显式 light 在决策上下文中会被抬升） */

@@ -2,6 +2,7 @@
 import AmapReplyCards from '~/components/AmapReplyCards.vue'
 import CosmicMidiPlayer from '~/components/CosmicMidiPlayer.vue'
 import ManagerSpecialistCards from '~/components/chat/ManagerSpecialistCards.vue'
+import ManagerTaskBoardPanel from '~/components/chat/ManagerTaskBoardPanel.vue'
 import type { TurnGroup } from '~/composables/managerChatTypes'
 import { MANAGER_CHAT_THREAD_KEY } from '~/composables/managerChatThreadContext'
 import { FEEDBACK_PENDING_ACK } from '~/composables/useManagerSession'
@@ -45,6 +46,9 @@ const {
   turnHitlInfo,
   pendingPlanPreview,
   workbenchMode,
+  planAgentLabel,
+  taskBoardLive,
+  turnTaskBoardForDisplay,
   agentPipelineStatusLabel,
   turnRoutePlanCard,
   previewText,
@@ -134,9 +138,12 @@ const {
   feedbackKeyForTurn,
   isFeedbackPendingForTurn,
   sendFeedback,
+  retryFeedback,
   routeFeedbackSubmitted,
   sendRouteWrongFeedback,
   turnFeedbackAckText,
+  turnFeedbackFailed,
+  FEEDBACK_FAIL_ACK,
   visibleTurnErrors,
   errorItemKey,
   dismissError,
@@ -395,12 +402,22 @@ watch(streamingSynthText, async () => {
             </div>
           </details>
 
+          <ManagerTaskBoardPanel
+            v-if="turnTaskBoardForDisplay(t)?.items?.length"
+            class="mgr-task-board-in-thread"
+            compact
+            :items="turnTaskBoardForDisplay(t)!.items"
+            :topology="turnTaskBoardForDisplay(t)!.topology"
+            :plan-agent-label="planAgentLabel"
+          />
+
           <ManagerSpecialistCards
             v-if="turnRouteCap(t)?.agents?.length || turnAgentPipelineSteps(t).length"
             :turn="t"
             :running="isTurnRunning(t)"
             :steps="turnAgentPipelineSteps(t)"
             :route-agents="turnRouteCap(t)?.agents"
+            :board-items="turnTaskBoardForDisplay(t)?.items"
             :status-label="agentPipelineStatusLabel"
           />
           </div>
@@ -954,6 +971,17 @@ watch(streamingSynthText, async () => {
 
           <div v-if="shouldShowTurnFeedback(t)" class="turn-feedback-bar chat-agent-stack">
             <template v-if="!turnFeedbackSubmitted(t)">
+              <div v-if="turnFeedbackFailed(t)" class="turn-feedback-fail">
+                <span>{{ turnFeedbackAckText(t) || FEEDBACK_FAIL_ACK }}</span>
+                <button
+                  type="button"
+                  class="message-action-btn message-action-btn-fb"
+                  :disabled="isFeedbackPendingForTurn(t)"
+                  @click.stop="retryFeedback(t)"
+                >
+                  重试
+                </button>
+              </div>
               <span class="turn-feedback-label">这轮回复有帮助吗？</span>
               <div class="turn-feedback-actions">
                 <span v-if="isFeedbackPendingForTurn(t)" class="turn-feedback-pending">{{ FEEDBACK_PENDING_ACK }}</span>

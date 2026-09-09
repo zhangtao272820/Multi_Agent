@@ -37,8 +37,9 @@ AGENTS_LAN_ENV = PLATFORM_DIR / ".env.agents-lan"
 # sync-capability-models 会把下列键写入 .env.agents-lan（供 clawhive_backend 等平台服务 env_file 加载）
 # Docker compose 不在 services.environment 覆盖模型名；各 Agent 模型见各 Agent/.env
 AGENTS_LAN_DOCKER_MODEL_KEYS: dict[str, str] = {
-    "MANAGER_MODEL_ROUTE": "reason",
-    "MANAGER_MODEL_ROUTE_MAX": "reason_max",
+    # 总管编排高频走 T0；升档 ROUTE_MAX = CAP_REASON（与 CAP_REASON_MAX 同值，不单独养 max）
+    "MANAGER_MODEL_ROUTE": "route",
+    "MANAGER_MODEL_ROUTE_MAX": "reason",
     "MANAGER_MODEL_PLAN": "route",
     "MANAGER_MODEL_SYNTH": "reason",
     "MANAGER_MODEL_CRITIC": "route",

@@ -18,7 +18,15 @@ def _normalize_question_key(question: str) -> str:
 
 
 def _tenant_id() -> str:
-    return (os.getenv("AGENT_TENANT_ID") or os.getenv("TENANT_ID") or "default").strip() or "default"
+    try:
+        from app.core.tenant_scope import get_request_scope, normalize_tenant_id
+
+        scope = get_request_scope()
+        if scope:
+            return scope[0]
+        return normalize_tenant_id(None)
+    except Exception:
+        return (os.getenv("AGENT_TENANT_ID") or os.getenv("TENANT_ID") or "default").strip() or "default"
 
 
 def _standalone_exclude_federated() -> bool:

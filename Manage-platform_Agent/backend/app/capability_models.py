@@ -13,19 +13,17 @@ from .db_models import AgentConfigRecord, PlatformCapabilityRecord
 # ── 能力层定义（与 ../docs/企业级能力层模型方案.md 一致）──
 
 CAPABILITY_LAYERS: list[dict[str, str]] = [
-    {"id": "route", "label": "T0 路由/轻推理", "env": "CAP_ROUTE", "description": "路由、NLU、condense、JSON 解析"},
-    {"id": "reason", "label": "T1 标准推理", "env": "CAP_REASON", "description": "编排/路由决策、最终综合、RAG 作答"},
-    {"id": "reason_max", "label": "T1+ 深度推理", "env": "CAP_REASON_MAX", "description": "编排/路由单层决策（可选 max，更准略慢）"},
+    {"id": "route", "label": "T0 路由/轻推理", "env": "CAP_ROUTE", "description": "编排/路由/Plan/NLU/condense（高频）"},
+    {"id": "reason", "label": "T1 标准推理", "env": "CAP_REASON", "description": "Synth、RAG 作答、ambiguous 二次升级"},
+    {"id": "reason_max", "label": "T1 升级别名", "env": "CAP_REASON_MAX", "description": "必须与 CAP_REASON 同模型"},
     {"id": "coder", "label": "T2 代码/SQL", "env": "CAP_CODER", "description": "SQL 生成、Code Agent"},
-    {"id": "vision", "label": "T3 视觉", "env": "CAP_VISION", "description": "识图、视频帧、通用截图理解"},
-    {"id": "gui", "label": "T3-GUI 界面交互", "env": "CAP_GUI", "description": "GUI 专用（gui-plus；截图/坐标动作，勿当文本规划）"},
+    {"id": "vision", "label": "T3 多模态视觉", "env": "CAP_VISION", "description": "集群唯一 VL；Multimodal/OCR 同模型"},
+    {"id": "gui", "label": "T3-GUI 界面交互", "env": "CAP_GUI", "description": "GUI 专用（gui-plus）"},
     {"id": "asr", "label": "T4 语音", "env": "CAP_ASR", "description": "语音转写"},
     {"id": "rerank", "label": "T5 重排", "env": "CAP_RERANK", "description": "RAG rerank（专用 API）"},
-    {"id": "embedding", "label": "E0 向量", "env": "CAP_EMBEDDING", "description": "通用 Embedding（经验库/记忆）"},
-    {"id": "embedding_rag", "label": "E0-RAG 向量", "env": "CAP_EMBEDDING_RAG", "description": "RAG 文档检索 Embedding"},
-    {"id": "ocr", "label": "OCR", "env": "CAP_OCR", "description": "RAG 扫描件 OCR"},
-    {"id": "vision_music", "label": "T3 音乐视觉", "env": "CAP_VISION_MUSIC", "description": "Music Agent VL"},
-    {"id": "omni", "label": "T6 多模态", "env": "CAP_OMNI", "description": "Music/Video Omni"},
+    {"id": "embedding", "label": "E0 向量", "env": "CAP_EMBEDDING", "description": "通用 Embedding"},
+    {"id": "embedding_rag", "label": "E0-RAG 向量", "env": "CAP_EMBEDDING_RAG", "description": "RAG 文档向量（维度锁定）"},
+    {"id": "ocr", "label": "OCR（=vision）", "env": "CAP_OCR", "description": "别名 CAP_VISION"},
 ]
 
 # SSOT 全局开关：同步为各 Agent 环境变量（非模型名）
@@ -34,22 +32,21 @@ GLOBAL_CAPABILITY_ENV_SYNC: dict[str, str] = {
 }
 
 DEFAULT_CAPABILITY_MODELS: dict[str, str] = {
-    "route": "qwen-plus-2025-07-28",
-    "reason": "qwen-plus-2025-07-28",
-    "reason_max": "qwen-max",
-    "coder": "qwen3-coder-flash",
+    "route": "qwen3.5-flash-2026-02-23",
+    "reason": "qwen3.5-plus-2026-04-20",
+    "reason_max": "qwen3.5-plus-2026-04-20",
+    "coder": "qwen3-coder-plus-2025-07-22",
     "vision": "qwen-vl-plus",
     "gui": "gui-plus-2026-02-26",
     "asr": "qwen3-asr-flash-2025-09-08",
     "rerank": "gte-rerank-v2",
     "embedding": "text-embedding-v1",
     "embedding_rag": "text-embedding-v3",
-    "ocr": "qwen-vl-ocr",
-    "vision_music": "qwen3-vl-plus",
-    "omni": "qwen3.5-omni-plus",
+    "ocr": "qwen-vl-plus",
 }
 
 # agent_name → agent_configs 三槽映射（planner/executor/embedding）
+# Music/Video 已踢出集群，不在此维护
 AGENT_PROFILE_FROM_CAPABILITY: dict[str, dict[str, str]] = {
     "Manager_Agent": {"planner": "route", "executor": "reason", "embedding": ""},
     "DB_Agent": {"planner": "route", "executor": "coder", "embedding": "embedding"},
@@ -60,9 +57,7 @@ AGENT_PROFILE_FROM_CAPABILITY: dict[str, dict[str, str]] = {
     "Extractor_Agent": {"planner": "route", "executor": "route", "embedding": "embedding"},
     "ExtractorPy_Agent": {"planner": "route", "executor": "route", "embedding": ""},
     "AI_admin_Agent": {"planner": "route", "executor": "route", "embedding": ""},
-    "Multimodal_Agent": {"planner": "route", "executor": "route", "embedding": ""},
-    "Music_Agent": {"planner": "route", "executor": "route", "embedding": ""},
-    "Video_Agent": {"planner": "route", "executor": "route", "embedding": ""},
+    "Multimodal_Agent": {"planner": "vision", "executor": "vision", "embedding": ""},
     "AI_Agent": {"planner": "route", "executor": "reason", "embedding": ""},
     "Lobster_Agent": {"planner": "route", "executor": "route", "embedding": ""},
     "Tavern_Agent": {"planner": "route", "executor": "route", "embedding": ""},
@@ -72,8 +67,10 @@ AGENT_PROFILE_FROM_CAPABILITY: dict[str, dict[str, str]] = {
 AGENT_CAPABILITY_ENV_BINDINGS: dict[str, dict[str, str]] = {
     "Manager_Agent": {
         "OPENAI_MODEL": "route",
-        "MANAGER_MODEL_ROUTE": "reason",
-        "MANAGER_MODEL_ROUTE_MAX": "reason_max",
+        # 编排/路由高频 → T0（CAP_ROUTE）；禁无差别绑 CAP_REASON（观测栏 T1 虚高根因）
+        "MANAGER_MODEL_ROUTE": "route",
+        # 二次升档用 CAP_REASON（与 CAP_REASON_MAX 同模型，集中管理）
+        "MANAGER_MODEL_ROUTE_MAX": "reason",
         # PLAN 对齐 sync-capability-models.AGENTS_LAN_DOCKER_MODEL_KEYS（route=T0 轻量规划）
         "MANAGER_MODEL_PLAN": "route",
         "MANAGER_MODEL_SYNTH": "reason",
@@ -128,19 +125,12 @@ AGENT_CAPABILITY_ENV_BINDINGS: dict[str, dict[str, str]] = {
         "MODEL_NAME": "route",
     },
     "Multimodal_Agent": {
+        # 多模态集群唯一 VL：文本辅助也走 CAP_VISION，不再拆 helper/text 多模型
         "QWEN_VL_MODEL": "vision",
-        "QWEN_HELPER_MODEL": "route",
+        "QWEN_HELPER_MODEL": "vision",
+        "QWEN_TEXT_MODEL": "vision",
+        "OPENAI_MODEL": "vision",
         "QWEN_ASR_MODEL": "asr",
-        "QWEN_TEXT_MODEL": "route",
-        "OPENAI_MODEL": "route",
-    },
-    "Music_Agent": {
-        "OPENAI_MODEL": "route",
-        "QWEN3_VL_MODEL": "vision_music",
-        "QWEN_OMNI_MODEL": "omni",
-    },
-    "Video_Agent": {
-        "OPENAI_MODEL": "route",
     },
     "AI_Agent": {
         "LLM_MODEL": "reason",

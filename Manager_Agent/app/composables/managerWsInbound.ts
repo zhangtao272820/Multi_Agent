@@ -5,7 +5,12 @@ import {
   type RoutePlanCardData,
   type StepResultItem
 } from './managerChatTypes'
-import { FEEDBACK_PENDING_ACK } from './useManagerSession'
+import { FEEDBACK_PENDING_ACK, FEEDBACK_FAIL_ACK } from './useManagerSession'
+import {
+  parseMaturitySliPayload,
+  parseTaskBoardPayload,
+  patchTaskBoardItemStatus
+} from './managerMaturityUi'
 
 function resolveFeedbackEventKey(
   payload: Record<string, unknown>,
@@ -71,6 +76,15 @@ export type ManagerWsInboundCtx = {
   currentPhase: Ref<string>
   routeCapLive: Ref<{ intent: string; agents: string[]; capLabel?: string; dag?: string } | null>
   planStepsTodo: Ref<Array<{ id: string; agent: string; query: string; order: number; status: string }>>
+  taskBoardLive: Ref<{ items: import('./managerMaturityUi').TaskBoardItemUi[]; topology: string } | null>
+  maturitySliLive: Ref<import('./managerMaturityUi').MaturitySliUi | null>
+  /** 将任务板快照 upsert 进本轮 process，供历史轮回显 */
+  upsertTaskBoardSnapshot: (opts: {
+    turn: number
+    runId?: string
+    from?: string
+    board: { items: import('./managerMaturityUi').TaskBoardItemUi[]; topology: string }
+  }) => void
   pendingPlanPreview: Ref<unknown>
   planPreviewSending: Ref<boolean>
   stepProgressMap: Ref<Record<string, unknown>>
@@ -117,6 +131,7 @@ export type ManagerWsInboundCtx = {
   resolveIncomingRunTurn: (runId: string) => number
   attachRunToTurnLogs: (turn: number, runId: string) => void
   applyTurnFeedback: (key: string, fb: 0 | 1, ack?: string, userIndex?: number | null) => void
+  markFeedbackSubmitFailed: (key: string, score: 0 | 1, userIndex?: number | null) => void
   loadEvolutionDashboard: () => void | Promise<void>
   persistSessionFeedback: () => void
   hydrateLogsFromServerHistory: (
@@ -130,6 +145,9 @@ export type ManagerWsInboundCtx = {
   sanitizeWithdrawnTurns: () => void
   reconcileTurnFeedbackKeys: () => void
   hydrateSessionFeedbackFromServer: () => void | Promise<void | 'ok' | 'empty' | 'auth' | 'error'>
+  /** 与 bootstrap / switchSession 共用 stopWatch 的反馈回灌 */
+  hydrateFeedbackWithRetry: (opts?: { expectFeedback?: boolean }) => void | Promise<void>
+  hasLocalFeedbackScores?: () => boolean
   touchCurrentSessionHistory: (opts?: { bump?: boolean }) => void
   clearActiveRun: (runId: string) => void
   resetStepProgress: () => void
@@ -227,11 +245,21 @@ export function handleManagerWsInboundMessage(evt: MessageEvent, ctx: ManagerWsI
         const payload = (data.data || {}) as Record<string, unknown>
         const fbKey = resolveFeedbackEventKey(payload, runId, pendingKey)
         const errDetail = String(payload.error || '').trim()
-        if (fbKey) {
+        const pendingScore =
+          (pendingKey &&
+            (ctx.feedbackByRunId.value[pendingKey] === 0 || ctx.feedbackByRunId.value[pendingKey] === 1
+              ? ctx.feedbackByRunId.value[pendingKey]
+              : null)) ||
+          null
+        const uidx =
+          typeof payload.userMessageIndex === 'number' ? Math.floor(Number(payload.userMessageIndex)) : null
+        if (fbKey && (pendingScore === 0 || pendingScore === 1)) {
+          ctx.markFeedbackSubmitFailed(fbKey, pendingScore, uidx)
+        } else if (fbKey) {
           const scores = { ...ctx.feedbackByRunId.value }
           const acks = { ...ctx.feedbackAckByRunId.value }
           delete scores[fbKey]
-          delete acks[fbKey]
+          acks[fbKey] = FEEDBACK_FAIL_ACK
           ctx.feedbackByRunId.value = scores
           ctx.feedbackAckByRunId.value = acks
           ctx.persistSessionFeedback()
@@ -272,18 +300,9 @@ export function handleManagerWsInboundMessage(evt: MessageEvent, ctx: ManagerWsI
         }
         ctx.sanitizeWithdrawnTurns()
         ctx.reconcileTurnFeedbackKeys()
-        void (async () => {
-          const {
-            FEEDBACK_HYDRATE_COLD_OPTS,
-            FEEDBACK_HYDRATE_WARM_OPTS,
-            retryFeedbackHydrate
-          } = await import('#agent-shared/feedbackHydrateRetry')
-          const expectFeedback = ctx.getUserMessageIndexCounter() > 0
-          await retryFeedbackHydrate(async () => {
-            const r = await ctx.hydrateSessionFeedbackFromServer()
-            return r === 'ok' || r === 'empty' || r === 'auth' || r === 'error' ? r : 'ok'
-          }, expectFeedback ? FEEDBACK_HYDRATE_WARM_OPTS : FEEDBACK_HYDRATE_COLD_OPTS)
-        })()
+        const expectFeedback =
+          ctx.getUserMessageIndexCounter() > 0 || Boolean(ctx.hasLocalFeedbackScores?.())
+        void ctx.hydrateFeedbackWithRetry({ expectFeedback })
         ctx.touchCurrentSessionHistory({ bump: false })
       }
       if (st === 'turn_withdrawn') {
@@ -365,6 +384,19 @@ export function handleManagerWsInboundMessage(evt: MessageEvent, ctx: ManagerWsI
           { planOutline: { dag, steps } }
         )
       }
+      return
+    }
+    if (event === 'task_board') {
+      const parsed = parseTaskBoardPayload(data?.data)
+      if (parsed) {
+        ctx.taskBoardLive.value = parsed
+        ctx.upsertTaskBoardSnapshot({ turn, runId, from: data.from, board: parsed })
+      }
+      return
+    }
+    if (event === 'maturity_sli') {
+      const parsed = parseMaturitySliPayload(data?.data)
+      if (parsed) ctx.maturitySliLive.value = parsed
       return
     }
     if (event === 'route_plan_card') {
@@ -524,10 +556,25 @@ export function handleManagerWsInboundMessage(evt: MessageEvent, ctx: ManagerWsI
         }
       }
       ctx.updatePlanStepFromStatus(payload)
+      if (ctx.taskBoardLive.value?.items?.length) {
+        const nextBoard = {
+          ...ctx.taskBoardLive.value,
+          items: patchTaskBoardItemStatus(ctx.taskBoardLive.value.items, {
+            stepId,
+            agent,
+            status,
+            error: typeof payload.error === 'string' ? payload.error : undefined,
+            query: typeof payload.query === 'string' ? payload.query : undefined
+          })
+        }
+        ctx.taskBoardLive.value = nextBoard
+        ctx.upsertTaskBoardSnapshot({ turn, runId, from: data.from, board: nextBoard })
+      }
       if (status === 'pending') ctx.setCollabStatus(agent, 'pending')
       else if (status === 'running') ctx.setCollabStatus(agent, 'running')
       else if (status === 'success') ctx.setCollabStatus(agent, 'success')
       else if (status === 'failed') ctx.setCollabStatus(agent, 'failed')
+      else if (status === 'replan') ctx.setCollabStatus(agent, 'running')
       return
     }
     if (event === 'step_result') {

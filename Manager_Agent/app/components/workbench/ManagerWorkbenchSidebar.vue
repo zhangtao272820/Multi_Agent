@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { computed, inject, ref, watch } from 'vue'
 import { collaborationPostureLabel } from '~/composables/managerChatTypes'
+import { stepBoardStatusLabelZh } from '~/composables/managerMaturityUi'
 import { MANAGER_WORKBENCH_SIDEBAR_KEY } from '~/composables/managerWorkbenchSidebarContext'
 import ManagerAgentCapabilityMap from '~/components/chat/ManagerAgentCapabilityMap.vue'
+import ManagerTaskBoardPanel from '~/components/chat/ManagerTaskBoardPanel.vue'
+import ManagerMaturitySliCard from '~/components/workbench/ManagerMaturitySliCard.vue'
 
 const ctx = inject(MANAGER_WORKBENCH_SIDEBAR_KEY)
 if (!ctx) throw new Error('ManagerWorkbenchSidebar: missing context')
@@ -12,6 +15,8 @@ const {
   collaborationPosture,
   planStepsTodo,
   planStepsDoneCount,
+  taskBoardLive,
+  maturitySliLive,
   routeCapLive,
   agentDisplayLabel,
   taskConstraintsLive,
@@ -107,11 +112,7 @@ function healthFor(agent: string) {
 }
 
 function stepStatusLabel(status: string) {
-  if (status === 'running') return '进行中'
-  if (status === 'success') return '完成'
-  if (status === 'failed') return '失败'
-  if (status === 'skipped') return '跳过'
-  return '等待'
+  return stepBoardStatusLabelZh(status)
 }
 </script>
 
@@ -205,7 +206,14 @@ function stepStatusLabel(status: string) {
           </ul>
         </section>
 
-        <section v-if="planStepsTodo.length" class="spring-side-section">
+        <section v-if="taskBoardLive?.items?.length" class="spring-side-section">
+          <ManagerTaskBoardPanel
+            :items="taskBoardLive.items"
+            :topology="taskBoardLive.topology"
+            :plan-agent-label="planAgentLabel"
+          />
+        </section>
+        <section v-else-if="planStepsTodo.length" class="spring-side-section">
           <div class="spring-side-title">步骤进度（{{ planStepsDoneCount }}/{{ planStepsTodo.length }}）</div>
           <ul class="spring-run-token-list">
             <li v-for="step in planStepsTodo" :key="step.id" class="sidebar-agent-row">
@@ -221,6 +229,13 @@ function stepStatusLabel(status: string) {
             </li>
           </ul>
         </section>
+
+        <ManagerMaturitySliCard
+          class="spring-side-section"
+          :sli="maturitySliLive"
+          :total-tokens="runObservabilityLive?.tokenSummary?.totalTokens"
+          :format-token-count="formatTokenCount"
+        />
 
         <section
           v-if="runObservabilityLive?.phaseTimeline?.length || runObservabilityLive?.tokenSummary?.totalTokens"

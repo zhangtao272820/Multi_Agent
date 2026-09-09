@@ -59,9 +59,12 @@
 .spring-root.cursor-workbench .turn-storyline {
   display: flex;
   flex-direction: column;
+  align-items: stretch;
   gap: 0.55rem;
   width: 100%;
-  max-width: var(--chat-agent-max, 760px);
+  max-width: 100%;
+  align-self: stretch;
+  box-sizing: border-box;
 }
 
 /* ── 运行态状态胶囊 ── */
@@ -127,7 +130,17 @@
   }
 }
 
-/* ── 思考块精修 ── */
+/* ── 思考块精修：与主轨同宽，阶段行拉满，禁中间缩条 ── */
+.spring-root.cursor-workbench .cursor-thought-panel.harness-think-only,
+.spring-root.cursor-workbench .turn-storyline > .cursor-thought-panel {
+  width: 100% !important;
+  max-width: 100% !important;
+  align-self: stretch !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  box-sizing: border-box !important;
+}
+
 .spring-root.cursor-workbench .cursor-thought-panel.harness-think-only {
   border: var(--harness-hairline) !important;
   border-radius: 12px !important;
@@ -137,19 +150,43 @@
 }
 
 .spring-root.cursor-workbench .cursor-thought-panel.harness-think-only > .process-panel-summary {
-  padding: 0.55rem 0.75rem !important;
+  padding: 0.55rem 0.85rem !important;
   background: transparent !important;
+}
+
+.spring-root.cursor-workbench .cursor-thought-panel.harness-think-only .process-panel-body,
+.spring-root.cursor-workbench .cursor-thought-panel.harness-think-only .process-panel-scroll {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  padding: 0.55rem 0.85rem 0.85rem !important;
+  margin: 0 !important;
+  border-left: none !important;
+}
+
+.spring-root.cursor-workbench .turn-storyline .harness-think,
+.spring-root.cursor-workbench .turn-storyline .harness-think-stages,
+.spring-root.cursor-workbench .turn-storyline .harness-think-stage,
+.spring-root.cursor-workbench .turn-storyline .harness-created-plan {
+  width: 100% !important;
+  max-width: 100% !important;
+  align-self: stretch !important;
+  box-sizing: border-box !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
 }
 
 .spring-root.cursor-workbench .harness-think-stream {
   color: #64748b !important;
   font-size: 13px !important;
   line-height: 1.65 !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
 }
 
 .spring-root.cursor-workbench .harness-created-plan {
   margin-top: 0.65rem;
-  padding: 0.55rem 0.7rem;
+  padding: 0.65rem 0.85rem;
   border-radius: 10px;
   background: rgba(248, 250, 252, 0.9);
   border: 0.5px solid rgba(15, 23, 42, 0.08);
@@ -671,3 +708,207 @@
     grid-template-columns: 1fr 1fr !important;
   }
 }
+
+/* ── 成熟执行：任务板 + SLI ── */
+.mgr-task-board {
+  border-radius: 12px;
+  border: var(--harness-hairline, 0.5px solid rgba(15, 23, 42, 0.1));
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: var(--harness-elevate-soft, 0 1px 2px rgba(15, 23, 42, 0.04));
+  padding: 0.55rem 0.65rem 0.45rem;
+}
+
+.mgr-task-board-in-thread {
+  margin: 0.45rem 0 0.55rem;
+}
+
+.mgr-task-board-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 0.4rem;
+}
+
+.mgr-task-board-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.mgr-task-board-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #64748b;
+}
+
+.mgr-task-board-topo {
+  font-size: 10px;
+  color: #2563eb;
+  background: rgba(37, 99, 235, 0.08);
+  border-radius: 999px;
+  padding: 0.1rem 0.45rem;
+  white-space: nowrap;
+}
+
+.mgr-task-board-count {
+  font-size: 11px;
+  color: #94a3b8;
+  font-variant-numeric: tabular-nums;
+}
+
+.mgr-task-board-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.mgr-task-board-item {
+  display: flex;
+  gap: 0.45rem;
+  align-items: flex-start;
+  padding: 0.35rem 0.4rem;
+  border-radius: 10px;
+  border: 0.5px solid rgba(15, 23, 42, 0.08);
+  background: #fff;
+}
+
+.mgr-task-board-item.is-running {
+  border-color: rgba(37, 99, 235, 0.35);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.08);
+}
+
+.mgr-task-board-item.is-success {
+  border-color: rgba(22, 163, 74, 0.28);
+}
+
+.mgr-task-board-item.is-failed,
+.mgr-task-board-item.is-replan {
+  border-color: rgba(217, 119, 6, 0.35);
+  background: rgba(255, 251, 235, 0.65);
+}
+
+.mgr-task-board-item.is-optional {
+  opacity: 0.78;
+}
+
+.mgr-task-board-idx {
+  width: 1.15rem;
+  height: 1.15rem;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+}
+
+.mgr-task-board-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.mgr-task-board-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.mgr-task-board-agent {
+  font-size: 12px;
+  font-weight: 650;
+  color: #0f172a;
+}
+
+.mgr-task-board-status {
+  font-size: 11px;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.mgr-task-board-item.is-running .mgr-task-board-status {
+  color: #2563eb;
+}
+
+.mgr-task-board-item.is-success .mgr-task-board-status {
+  color: #15803d;
+}
+
+.mgr-task-board-item.is-replan .mgr-task-board-status,
+.mgr-task-board-item.is-failed .mgr-task-board-status {
+  color: #b45309;
+}
+
+.mgr-task-board-query {
+  margin: 0.15rem 0 0;
+  font-size: 11px;
+  color: #64748b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mgr-task-board-tip {
+  margin: 0.2rem 0 0;
+  font-size: 11px;
+  color: #92400e;
+  line-height: 1.35;
+}
+
+.mgr-task-board.is-compact .mgr-task-board-item {
+  padding: 0.28rem 0.35rem;
+}
+
+.mgr-maturity-sli-grid {
+  margin-bottom: 0.45rem;
+}
+
+.mgr-maturity-budget {
+  margin-top: 0.35rem;
+  padding: 0.45rem 0.5rem;
+  border-radius: 10px;
+  background: rgba(248, 250, 252, 0.95);
+  border: 0.5px solid rgba(15, 23, 42, 0.08);
+}
+
+.mgr-maturity-budget-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #64748b;
+  margin-bottom: 0.25rem;
+}
+
+.mgr-maturity-budget-track {
+  height: 6px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  overflow: hidden;
+}
+
+.mgr-maturity-budget-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #60a5fa, #2563eb);
+  transition: width 0.25s ease;
+}
+
+.mgr-maturity-budget-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 0.75rem;
+  margin-top: 0.35rem;
+  font-size: 10px;
+  color: #94a3b8;
+}
+

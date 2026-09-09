@@ -68,24 +68,21 @@ export function buildAdminConfirmPauseFinal(
 }
 
 /**
- * 执行阶段 admin 入参唯一拼装口：净化子任务 + 可选上游上下文 + 总管约束 + 自动确认。
+ * 执行阶段 admin 入参唯一拼装口：lean 子任务 + 可选上游事实。
+ * 只读 / 自动确认走 manager_task.read_only 与 WS auto_confirm_risky，不写入 message。
  */
 export function buildAdminExecMessage(stepQuery: string, opts?: BuildAdminExecMessageOpts): string {
-  const core = buildAdminStepQuery(
-    String(stepQuery || '').trim() || String(opts?.fallbackTask || '').trim()
-  )
+  const seed = String(stepQuery || '').trim() || String(opts?.fallbackTask || '').trim()
+  const core = buildAdminStepQuery(seed) || seed
   const parts: string[] = [core]
   const ctx = String(opts?.upstreamContext || '').trim()
   if (ctx && adminStepNeedsUpstreamData(core)) {
     parts.push('', '已知信息（来自上游步骤，仅供事实参考）：', ctx)
   }
-  parts.push('', ADMIN_EXEC_GUARD)
-  if (opts?.readOnlyOrchestration) parts.push('', ADMIN_READ_ONLY_ORCH_LINE)
-  if (opts?.autoConfirm) parts.push('', ADMIN_AUTO_CONFIRM_LINE)
   return parts.join('\n')
 }
 
-/** multi 执行：为 admin 步骤生成 effQuery（含 guard，不含重复拼接） */
+/** multi 执行：为 admin 步骤生成 lean effQuery（不含 preamble / 总管约束行） */
 export function buildAdminEffectiveQuery(
   stepQuery: string,
   userTask: string,

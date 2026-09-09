@@ -402,20 +402,47 @@ def audit(limit: int = 50) -> dict[str, Any]:
     return {"items": read_audit(limit=min(200, max(1, limit)))}
 
 
+def _org_scope_from_request(request: Request) -> tuple[str, str]:
+    """JWT 组织租户 + 用户（与业务库域 tenant/p2604 分字段）。"""
+    try:
+        auth = auth_from_request(request)
+    except ClawhiveAuthError:
+        return "default", ""
+    user = auth.get("user") if isinstance(auth.get("user"), dict) else {}
+    org = str(user.get("tenant_id") or request.headers.get("x-tenant-id") or "default").strip() or "default"
+    uid = str(user.get("user_id") or request.headers.get("x-user-id") or "").strip()
+    return org, uid
+
+
 @app.get("/api/sessions")
-def sessions(limit: int = 40) -> dict[str, Any]:
-    return {"items": list_sessions(limit=min(80, max(1, limit)))}
+def sessions(request: Request, limit: int = 40) -> dict[str, Any]:
+    org, uid = _org_scope_from_request(request)
+    return {
+        "items": list_sessions(
+            limit=min(80, max(1, limit)),
+            org_tenant_id=org,
+            user_id=uid or None,
+        )
+    }
 
 
 @app.post("/api/sessions")
-def create_session(body: SessionBody) -> dict[str, Any]:
+def create_session(request: Request, body: SessionBody) -> dict[str, Any]:
     _tenant_or_404(body.tenant)
-    return new_session(tenant=body.tenant, scene=body.scene, title=body.title)
+    org, uid = _org_scope_from_request(request)
+    return new_session(
+        tenant=body.tenant,
+        scene=body.scene,
+        title=body.title,
+        org_tenant_id=org,
+        user_id=uid,
+    )
 
 
 @app.get("/api/sessions/{session_id}")
-def get_session(session_id: str) -> dict[str, Any]:
-    doc = load_session(session_id)
+def get_session(request: Request, session_id: str) -> dict[str, Any]:
+    org, uid = _org_scope_from_request(request)
+    doc = load_session(session_id, org_tenant_id=org, user_id=uid or None)
     if not doc:
         raise HTTPException(404, "session not found")
     return doc
@@ -986,6 +1013,72 @@ async def chat_ws(ws: WebSocket) -> None:
         _ = trace_id
 
 
+def _build_persisted_steps(trace_meta: dict[str, Any], answer_ev: dict[str, Any]) -> list[dict[str, Any]]:
+    """把本轮管道状态固化为前端 agent-process 步骤，刷新后仍可回显。"""
+    checkpoint = bool(answer_ev.get("checkpoint"))
+    sql = str(answer_ev.get("sql") or trace_meta.get("sql") or "")
+    tables = list(trace_meta.get("tables") or [])
+    executed = bool(trace_meta.get("executed") or answer_ev.get("executed")) or (
+        not checkpoint and (int(trace_meta.get("row_count") or 0) > 0 or bool(sql))
+    )
+    source = str(trace_meta.get("source") or "")
+    intent = str(trace_meta.get("intent") or "")
+    reason = str(trace_meta.get("reason") or "")
+    guard_ok = trace_meta.get("guard_ok")
+    repair = bool(trace_meta.get("repair"))
+    error = str(trace_meta.get("error") or "")
+    row_count = int(trace_meta.get("row_count") or 0) or len(answer_ev.get("rows") or [])
+
+    steps: list[dict[str, Any]] = [
+        {"id": "retrieve", "label": "检索目录", "status": "pending", "detail": ""},
+        {"id": "understand", "label": "理解意图", "status": "pending", "detail": ""},
+        {"id": "sql", "label": "生成 SQL", "status": "pending", "detail": ""},
+        {"id": "guard", "label": "安全闸门", "status": "pending", "detail": ""},
+    ]
+    if checkpoint:
+        steps.append({"id": "checkpoint", "label": "确认执行", "status": "pending", "detail": "核对 SQL 后再查库"})
+    else:
+        steps.append({"id": "execute", "label": "执行查询", "status": "pending", "detail": ""})
+        steps.append({"id": "answer", "label": "整理回复", "status": "pending", "detail": ""})
+
+    by_id = {str(s["id"]): s for s in steps}
+
+    def set_step(sid: str, status: str, detail: str = "") -> None:
+        s = by_id.get(sid)
+        if not s:
+            return
+        s["status"] = status
+        if detail:
+            s["detail"] = detail
+
+    if tables or sql:
+        set_step("retrieve", "success", f"命中 {len(tables)} 张表" if tables else "已检索")
+    if intent or reason:
+        set_step("understand", "success", " · ".join([x for x in (intent, reason) if x]))
+    elif sql:
+        set_step("understand", "success", "已就绪")
+    if sql:
+        src_label = (
+            "黄金匹配 · 0 次生 SQL"
+            if source == "golden"
+            else ("模型生成" if source == "llm" else (source or "—"))
+        )
+        set_step("sql", "success", src_label + (" · 曾修复" if repair else ""))
+        if guard_ok is False:
+            set_step("guard", "failed", error or "未通过")
+        else:
+            set_step("guard", "success", "只读闸门通过")
+    if checkpoint:
+        set_step("checkpoint", "await", "等待你确认后再执行")
+    else:
+        if error and not executed:
+            set_step("execute", "failed", error)
+        elif executed or row_count or sql:
+            set_step("execute", "success", f"{row_count} 行")
+        set_step("answer", "success", "已修复后回复" if repair else "已完成")
+    return steps
+
+
 def _run(
     body: AskBody,
     *,
@@ -1048,6 +1141,7 @@ def _run(
         experience_block = experience_prompt_block(xp)
     setattr(body, "_experience_hits", experience_hits)
     answer_ev: dict[str, Any] | None = None
+    reasoning_parts: list[str] = []
     trace_meta: dict[str, Any] = {
         "tables": [],
         "source": "",
@@ -1058,6 +1152,7 @@ def _run(
         "repair": False,
         "row_count": 0,
         "error": "",
+        "sql": "",
     }
     write_mode = bool(mgr.write_allowed) or (
         pending is not None and str((pending or {}).get("kind") or "") == "write"
@@ -1146,18 +1241,33 @@ def _run(
             trace_meta["reason"] = str(ev.get("reason") or "")
             if ev.get("tables"):
                 trace_meta["tables"] = list(ev.get("tables") or [])
+        elif kind == "route":
+            if ev.get("intent"):
+                trace_meta["intent"] = str(ev.get("intent") or "")
+            if ev.get("reason"):
+                trace_meta["reason"] = str(ev.get("reason") or "")
         elif kind == "sql":
             trace_meta["source"] = str(ev.get("source") or "")
+            if ev.get("sql"):
+                trace_meta["sql"] = str(ev.get("sql") or "")
         elif kind == "guard":
             trace_meta["guard_ok"] = bool(ev.get("ok"))
             if ev.get("tables"):
                 trace_meta["tables"] = list(ev.get("tables") or [])
+            if ev.get("sql"):
+                trace_meta["sql"] = str(ev.get("sql") or "")
         elif kind == "repair":
             trace_meta["repair"] = True
+            if ev.get("sql"):
+                trace_meta["sql"] = str(ev.get("sql") or "")
         elif kind == "execute":
             trace_meta["executed"] = bool(ev.get("ok"))
             trace_meta["row_count"] = int(ev.get("row_count") or 0)
             trace_meta["error"] = str(ev.get("error") or "")
+        elif kind == "reasoning":
+            chunk = str(ev.get("text") or "")
+            if chunk:
+                reasoning_parts.append(chunk)
         if kind == "checkpoint" and session_id:
             pid = str(ev.get("pending_id") or "")
             draft = load_pending(pid) if pid else None
@@ -1169,7 +1279,7 @@ def _run(
         yield ev
     if session_id and answer_ev:
         meta = {
-            "sql": answer_ev.get("sql") or "",
+            "sql": answer_ev.get("sql") or trace_meta.get("sql") or "",
             "checkpoint": bool(answer_ev.get("checkpoint")),
             "pending_id": answer_ev.get("pending_id") or "",
             "row_count": len(answer_ev.get("rows") or []) or int(trace_meta.get("row_count") or 0),
@@ -1188,6 +1298,8 @@ def _run(
             "chart": answer_ev.get("chart"),
             "deliverables": answer_ev.get("deliverables") or {},
             "needs_clarify": bool(answer_ev.get("needs_clarify")),
+            "steps": _build_persisted_steps(trace_meta, answer_ev),
+            "reasoning": "".join(reasoning_parts)[:12000],
         }
         text = str(answer_ev.get("text") or "")
         if pending:

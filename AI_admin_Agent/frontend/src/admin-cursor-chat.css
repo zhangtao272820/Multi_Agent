@@ -236,6 +236,17 @@
   line-height: 1.45;
 }
 
+.admin-feedback-fail {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin: 0 0 0.4rem;
+  font-size: 0.68rem;
+  color: #fdba74;
+  line-height: 1.45;
+}
+
 .admin-input-hint {
   font-size: 0.65rem;
   color: rgba(255, 255, 255, 0.45);
@@ -757,6 +768,16 @@
 
 .admin-turn-feedback__btn--down:hover:not(:disabled) {
   background: rgba(239, 68, 68, 0.16);
+}
+
+.admin-turn-feedback__btn--retry {
+  border-color: rgba(251, 146, 60, 0.4);
+  background: rgba(154, 52, 18, 0.2);
+  color: #fdba74;
+}
+
+.admin-turn-feedback__btn--retry:hover:not(:disabled) {
+  background: rgba(154, 52, 18, 0.32);
 }
 
 .admin-answer-main {

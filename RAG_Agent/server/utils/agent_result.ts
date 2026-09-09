@@ -64,6 +64,10 @@ export function buildRagAgentResult(params: {
     experienceHits?: number;
     banditArm?: string;
   };
+  /** Phase E：缺口 / 轮次供总管 Acceptance */
+  gaps?: string[];
+  roundsUsed?: number;
+  selfCheckOk?: boolean;
 }): AgentResult {
   const sources: AgentSource[] = [];
   const citations: Array<Record<string, string>> = [];
@@ -98,6 +102,19 @@ export function buildRagAgentResult(params: {
   const answerFromEvidence = summarizeRagEvidenceAnswer(params.evidence);
   // 契约：answer 必须是可见答案；query 只进 structured，禁止把问句当 answer
   const answer = answerFromParam || answerFromEvidence || (failed ? query : "");
+  const gaps = (params.gaps || [])
+    .map((g) => String(g || "").trim())
+    .filter(Boolean)
+    .slice(0, 8);
+  if (!sources.length && !gaps.includes("empty_result") && error_code === "empty_result") {
+    gaps.push("empty_result");
+  }
+  const selfCheck =
+    params.selfCheckOk !== undefined
+      ? { ok: Boolean(params.selfCheckOk) }
+      : !sources.length
+        ? { ok: false }
+        : undefined;
   return {
     ok: !failed,
     agent: "rag",
@@ -117,6 +134,11 @@ export function buildRagAgentResult(params: {
       ...(params.retrievalLanes?.length
         ? { retrieval_lanes: params.retrievalLanes }
         : {}),
+      ...(gaps.length ? { gaps } : {}),
+      ...(typeof params.roundsUsed === "number" && params.roundsUsed >= 0
+        ? { rounds_used: Math.floor(params.roundsUsed) }
+        : {}),
+      ...(selfCheck ? { self_check: selfCheck } : {}),
       ...(params.evolutionApplied
         ? {
             evolutionApplied: {

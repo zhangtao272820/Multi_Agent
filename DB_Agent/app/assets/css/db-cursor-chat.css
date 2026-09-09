@@ -139,6 +139,24 @@
   line-height: 1.45;
 }
 
+.db-feedback-fail {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  width: 100%;
+  margin: 0 0 0.35rem;
+  font-size: 0.68rem;
+  color: #fdba74;
+  line-height: 1.45;
+}
+
+.fb.fb-retry {
+  border-color: rgba(251, 146, 60, 0.4);
+  background: rgba(154, 52, 18, 0.18);
+  color: #fdba74;
+}
+
 .db-input-hint {
   font-size: 0.65rem;
   color: rgba(170, 178, 213, 0.75);

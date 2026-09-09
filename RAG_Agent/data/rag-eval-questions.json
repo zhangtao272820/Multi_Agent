@@ -356,5 +356,27 @@
     "expect_sources": ["养老机构服务规范"],
     "expect_evidence_keywords": ["感染"],
     "tags": ["context_relevance", "policy"]
+  },
+  {
+    "id": "refuse_stock_ticker_live",
+    "question": "今天上证指数收盘点位是多少？",
+    "expect_refuse": true,
+    "tags": ["refuse", "out_of_corpus"],
+    "notes": "W6：实时行情不在知识库，应拒答/澄清"
+  },
+  {
+    "id": "article_list_detail_keywords",
+    "question": "第十条提供哪些服务？",
+    "expect_sources": ["养老机构服务规范"],
+    "expect_evidence_keywords": ["翻身", "尿不湿"],
+    "tags": ["context_relevance", "policy", "structure", "faithfulness"],
+    "notes": "W6：条款明细不得只命中标题；证据须含服务明细关键词（语料有则绿）"
+  },
+  {
+    "id": "refuse_open_web_celebrity",
+    "question": "某位当红明星昨晚演唱会嘉宾名单是谁？",
+    "expect_refuse": true,
+    "tags": ["refuse", "out_of_corpus"],
+    "notes": "W6：开放域娱乐资讯不在私域库"
   }
 ]

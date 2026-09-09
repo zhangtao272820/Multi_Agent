@@ -62,8 +62,10 @@ assert(
 
 const bootstrap = readSource('Manager_Agent/app/composables/useManagerChatPage.ts')
 assert(bootstrap.includes('waitForClawhiveAuthReady'), 'bootstrap waits for auth ready')
+assert(bootstrap.includes('clawhiveAuthReady'), 'bootstrap watches clawhiveAuthReady for re-hydrate')
+assert(bootstrap.includes('historyHydrateFailed'), 'bootstrap tracks history hydrate failure for WARM')
 assert(
-  /await hydrateSessionFromServer\(sid\)[\s\S]{0,280}reconcileTurnFeedbackKeys\(\)[\s\S]{0,280}hydrateFeedbackWithRetry/.test(
+  /await hydrateSessionFromServer\(sid\)[\s\S]{0,320}reconcileTurnFeedbackKeys\(\)[\s\S]{0,400}hydrateFeedbackWithRetry/.test(
     bootstrap
   ),
   'bootstrap sequences session→reconcile→feedback like switchSession'
@@ -71,10 +73,12 @@ assert(
 
 const hydrate = readSource('Manager_Agent/app/composables/useManagerSession.ts')
 assert(hydrate.includes("return 'auth'"), 'feedback hydrate surfaces auth failure (not silent catch)')
-assert(hydrate.includes('retryFeedbackHydrate'), 'switchSession retries feedback hydrate after docker warm')
+assert(hydrate.includes('retryFeedbackHydrateThenWatch') || hydrate.includes('retryFeedbackHydrate'), 'switchSession retries feedback hydrate after docker warm')
+assert(hydrate.includes("hist === 'error'"), 'history error forces warm feedback path')
 
 const chatPage = readSource('Manager_Agent/app/composables/useManagerChatPage.ts')
 assert(chatPage.includes('hydrateFeedbackWithRetry'), 'bootstrap uses hydrateFeedbackWithRetry')
 assert(chatPage.includes('visibilitychange'), 'bootstrap rehydrates feedback on visibility after docker recreate')
+assert(chatPage.includes('hasLocalFeedbackScores'), 'visibility/bootstrap warm when local feedback cache exists')
 
 console.log('smoke-feedback-policy-dir: ok')

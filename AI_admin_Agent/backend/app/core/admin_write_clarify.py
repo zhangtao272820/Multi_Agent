@@ -133,6 +133,29 @@ def strip_admin_manager_guards(raw: str) -> str:
     return "" if _is_admin_preamble_line(s) else s
 
 
+def resolve_manager_persist_user_message(
+    raw_message: str,
+    client_context: dict | None = None,
+) -> str:
+    """
+    总管编排落库 / HumanMessage 用文案：优先 manager_task.action_text，
+    否则剥 WS preamble；直连用户消息原样返回。
+    """
+    raw = str(raw_message or "").strip()
+    ctx = client_context if isinstance(client_context, dict) else {}
+    task = ctx.get("manager_task") if isinstance(ctx.get("manager_task"), dict) else {}
+    orchestrated = bool(ctx.get("manager_orchestrated") or task)
+    if not orchestrated:
+        return raw
+    action = str(task.get("action_text") or "").strip()
+    if action and not _looks_like_manager_preamble(action):
+        return action
+    peeled = strip_admin_manager_guards(raw)
+    if peeled:
+        return peeled
+    return action or raw
+
+
 def _clean_slot_value(value: Any) -> str:
     text = str(value or "").strip()
     if not text:

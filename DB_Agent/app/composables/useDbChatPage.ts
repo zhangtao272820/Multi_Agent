@@ -22,8 +22,14 @@ import { purgeAllForbiddenClientSessionKeys } from "#agent-shared/agentSessionCl
 import {
   FEEDBACK_HYDRATE_COLD_OPTS,
   FEEDBACK_HYDRATE_WARM_OPTS,
-  retryFeedbackHydrate,
+  retryFeedbackHydrateThenWatch,
 } from "#agent-shared/feedbackHydrateRetry";
+import {
+  FEEDBACK_FAIL_ACK,
+  clearStaleFeedbackPendingAcks,
+  isFeedbackFailAck,
+  stripFeedbackFailAcks,
+} from "#agent-shared/feedbackSubmitUi";
 
 export function useDbChatPage() {
 const SESSION_KEY = "db_agent_session_id";
@@ -106,6 +112,7 @@ const sessionHistoryItems = ref<SessionHistoryItem[]>([]);
 const sessionSwitching = ref(false);
 const feedbackByUserIndex = ref<Record<number, number>>({});
 const feedbackAckByUserIndex = ref<Record<number, string>>({});
+const feedbackRetryScoreByUserIndex = ref<Record<number, number>>({});
 const feedbackSendingUserIndex = ref<number | null>(null);
 const collapsedProcessTurns = ref(new Set<number>());
 const editingTurnId = ref<number | null>(null);
@@ -222,10 +229,18 @@ async function sendFeedback(m: Message, score: number) {
     );
     void loadIntel();
   } catch {
-    applyTurnFeedback(uidx, score, "反馈提交失败，请重试");
+    markFeedbackSubmitFailed(uidx, score);
   } finally {
     feedbackSendingUserIndex.value = null;
   }
+}
+
+function retryFeedback(m: Message) {
+  const uidx = feedbackUserIndexForMessage(m);
+  if (uidx == null) return;
+  const score = feedbackRetryScoreByUserIndex.value[uidx];
+  if (score !== 1 && score !== -1) return;
+  void sendFeedback(m, score);
 }
 
 function attachMetaToLastAssistant(meta: RunMeta | null | undefined, question?: string) {
@@ -427,7 +442,10 @@ const persistSessionFeedback = () => {
   try {
     window.sessionStorage.setItem(
       sessionFeedbackStorageKey(),
-      JSON.stringify({ scores: feedbackByUserIndex.value, acks: feedbackAckByUserIndex.value })
+      JSON.stringify({
+        scores: feedbackByUserIndex.value,
+        acks: stripFeedbackFailAcks(feedbackByUserIndex.value, feedbackAckByUserIndex.value),
+      })
     );
   } catch {}
 };
@@ -446,15 +464,20 @@ const restoreSessionFeedback = () => {
       return;
     }
     const parsed = JSON.parse(raw);
-    feedbackByUserIndex.value =
+    const scores =
       parsed?.scores && typeof parsed.scores === "object" ? { ...parsed.scores } : {};
-    feedbackAckByUserIndex.value =
+    const acks =
       parsed?.acks && typeof parsed.acks === "object" ? { ...parsed.acks } : {};
+    clearStaleFeedbackPendingAcks(scores, acks);
+    feedbackByUserIndex.value = scores;
+    feedbackAckByUserIndex.value = acks;
   } catch {
     feedbackByUserIndex.value = {};
     feedbackAckByUserIndex.value = {};
   }
 };
+
+let stopFeedbackHydrateWatch: (() => void) | null = null;
 
 async function hydrateSessionFeedbackFromServer(): Promise<'ok' | 'empty' | 'auth' | 'error'> {
   const sid = conversationId.value;
@@ -502,10 +525,12 @@ async function hydrateSessionFeedbackFromServer(): Promise<'ok' | 'empty' | 'aut
 
 async function hydrateFeedbackWithRetry(opts?: { expectFeedback?: boolean }) {
   const expectFeedback = Boolean(opts?.expectFeedback);
-  await retryFeedbackHydrate(
+  stopFeedbackHydrateWatch?.();
+  const { stopWatch } = await retryFeedbackHydrateThenWatch(
     () => hydrateSessionFeedbackFromServer(),
     expectFeedback ? FEEDBACK_HYDRATE_WARM_OPTS : FEEDBACK_HYDRATE_COLD_OPTS,
   );
+  stopFeedbackHydrateWatch = stopWatch;
 }
 
 const applyFeedbackToMessages = () => {
@@ -522,7 +547,8 @@ const turnFeedbackSubmitted = (m: Message) => {
   const uidx = feedbackUserIndexForMessage(m);
   if (uidx == null) return false;
   const score = feedbackByUserIndex.value[uidx];
-  return score === 1 || score === -1;
+  if (score !== 1 && score !== -1) return false;
+  return !isFeedbackFailAck(feedbackAckByUserIndex.value[uidx]);
 };
 
 const turnFeedbackAckText = (m: Message) => {
@@ -535,10 +561,21 @@ const turnFeedbackAckText = (m: Message) => {
   return "";
 };
 
+const turnFeedbackFailed = (m: Message) => {
+  const uidx = feedbackUserIndexForMessage(m);
+  if (uidx == null || turnFeedbackSubmitted(m)) return false;
+  return isFeedbackFailAck(feedbackAckByUserIndex.value[uidx]);
+};
+
 const applyTurnFeedback = (userIndex: number, score: number, ack?: string) => {
   feedbackByUserIndex.value = { ...feedbackByUserIndex.value, [userIndex]: score };
   if (ack !== undefined) {
     feedbackAckByUserIndex.value = { ...feedbackAckByUserIndex.value, [userIndex]: ack };
+  }
+  if (!isFeedbackFailAck(ack)) {
+    const retries = { ...feedbackRetryScoreByUserIndex.value };
+    delete retries[userIndex];
+    feedbackRetryScoreByUserIndex.value = retries;
   }
   for (const msg of messages.value) {
     if (msg.role !== "assistant") continue;
@@ -547,13 +584,30 @@ const applyTurnFeedback = (userIndex: number, score: number, ack?: string) => {
   persistSessionFeedback();
 };
 
+const markFeedbackSubmitFailed = (userIndex: number, score: number) => {
+  const scores = { ...feedbackByUserIndex.value };
+  delete scores[userIndex];
+  feedbackByUserIndex.value = scores;
+  feedbackAckByUserIndex.value = { ...feedbackAckByUserIndex.value, [userIndex]: FEEDBACK_FAIL_ACK };
+  feedbackRetryScoreByUserIndex.value = { ...feedbackRetryScoreByUserIndex.value, [userIndex]: score };
+  for (const msg of messages.value) {
+    if (msg.role === "assistant" && feedbackUserIndexForMessage(msg) === userIndex) {
+      msg.feedbackSent = false;
+    }
+  }
+  persistSessionFeedback();
+};
+
 const clearFeedbackForUserIndex = (userIndex: number) => {
   const scores = { ...feedbackByUserIndex.value };
   const acks = { ...feedbackAckByUserIndex.value };
+  const retries = { ...feedbackRetryScoreByUserIndex.value };
   delete scores[userIndex];
   delete acks[userIndex];
+  delete retries[userIndex];
   feedbackByUserIndex.value = scores;
   feedbackAckByUserIndex.value = acks;
+  feedbackRetryScoreByUserIndex.value = retries;
   persistSessionFeedback();
   for (const msg of messages.value) {
     if (msg.role === "assistant" && feedbackUserIndexForMessage(msg) === userIndex) {
@@ -1278,6 +1332,8 @@ async function send(opts?: { regenerateTurnId?: number; userText?: string }) {
   });
 
   onUnmounted(() => {
+    stopFeedbackHydrateWatch?.();
+    stopFeedbackHydrateWatch = null;
     stopWatchLogin?.();
     stopWatchLogin = null;
     if (onVisibilityOrOnline && typeof window !== "undefined") {
@@ -1342,6 +1398,9 @@ async function send(opts?: { regenerateTurnId?: number; userText?: string }) {
     regenerateTurn,
     turnFeedbackSubmitted,
     turnFeedbackAckText,
+    turnFeedbackFailed,
+    FEEDBACK_FAIL_ACK,
+    retryFeedback,
     feedbackSendingUserIndex,
     feedbackUserIndexForMessage,
     input,

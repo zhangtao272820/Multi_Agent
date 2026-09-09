@@ -17,12 +17,16 @@ description: >
 
 ### 步骤2：执行后端处理
 文档通过前端上传后，由后端执行：
-1. **重解析优先（K）**：PDF / DOCX / PPTX / 图片在配置 `MINERU_API_URL` 时走 MinerU 侧车（版面/表格/扫描 OCR）；失败回落本地解析。
+1. **重解析优先（K）**：PDF / DOCX / PPTX / 图片在配置 `MINERU_API_URL` 时走 MinerU 侧车（版面/表格/扫描 OCR）；`RAG_HEAVY_PARSE_STRICT` 开启时失败拒收（422），否则回落本地解析并标记 `parser_fallback`。
 2. **本地格式解析**：PDF(`pdf-parse`)、DOC/DOCX、XLS/XLSX、PPTX、HTML、TXT/MD/CSV/JSON、图片 Vision OCR；ZIP 自动解压白名单成员。
-3. **幂等入库（H1）**：同名文档先按 `source` 清除旧向量再写入；正文 `content_hash` 未变则跳过重嵌入。写入 `ingest_at` / `source_version` / `parser`。
-4. **父子分块（H2）**：结构切分后子块携带 `parent_id` / `parent_text`，检索时再扩展。
-5. **自动摘要**：上传完成后，LLM 会自动为文档生成核心摘要。
-6. **向量化存储**：将解析后的文本存入向量数据库。
+3. **幂等入库（H1）**：同名文档先按 `source` 清除旧向量再写入；正文 `content_hash` 未变则 **默认跳过重嵌入**。写入 `ingest_at` / `source_version` / `parser`。
+4. **强制重切（W2）**：切分逻辑修复后，同内容重传不会自动重建。须：
+   - Upload 表单 `force_reembed=1`（或 `forceReembed`），或
+   - 运维保留原文目录后执行 `npm run reindex -- --dir <原文目录>`。
+   - 无 `--dir` 的 `npm run reindex` 仅为 from-store **best-effort**（复杂版式可能挂错）；生产可用 `RAG_REINDEX_REQUIRE_DIR=1` 强制要求原文。
+5. **父子分块（H2）**：结构切分后子块携带 `parent_id` / `parent_text`，检索时再扩展。
+6. **自动摘要**：上传完成后，LLM 会自动为文档生成核心摘要。
+7. **向量化存储**：将解析后的文本存入向量数据库，并同步 **倒排 BM25** 索引。
 
 ### 步骤3：更新列表与摘要展示
 成功处理后，系统将自动更新侧边栏的列表，并展示新文档的摘要。

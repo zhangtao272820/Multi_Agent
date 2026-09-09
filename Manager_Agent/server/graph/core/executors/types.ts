@@ -7,6 +7,7 @@ export type AgentExecutorOpts = {
   threadId?: string
   sessionId?: string
   userId?: string
+  tenantId?: string
   timeoutMs: number
   signal?: AbortSignal
   dbAgentWsUrl: string

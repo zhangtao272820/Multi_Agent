@@ -51,6 +51,9 @@ def build_admin_agent_result(
     clarify_questions: list[str] | None = None,
     error_code: str | None = None,
     structured: dict[str, Any] | None = None,
+    gaps: list[str] | None = None,
+    rounds_used: int | None = None,
+    self_check_ok: bool | None = None,
 ) -> dict[str, Any]:
     text = str(answer or "").strip()
     pending_actions = []
@@ -87,6 +90,13 @@ def build_admin_agent_result(
         base_structured.update(structured)
     if needs_human_confirm:
         base_structured["needs_human_confirm"] = True
+    gap_list = [str(g).strip() for g in (gaps or []) if str(g).strip()][:8]
+    if gap_list:
+        base_structured["gaps"] = gap_list
+    if rounds_used is not None and isinstance(rounds_used, int) and rounds_used >= 0:
+        base_structured["rounds_used"] = rounds_used
+    if self_check_ok is not None:
+        base_structured["self_check"] = {"ok": bool(self_check_ok)}
     return {
         "ok": ok,
         "agent": "admin",

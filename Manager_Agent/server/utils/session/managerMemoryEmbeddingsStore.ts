@@ -23,11 +23,12 @@ export async function upsertManagerMemoryEmbedding(row: MemoryEmbeddingRow, env:
   await agentPgQuery(
     `INSERT INTO mgr_memory_embeddings (memory_key, user_key, entry_type, embedding, metadata, ts, tenant_id)
      VALUES ($1, $2, $3, $4, $5, COALESCE($6::timestamptz, NOW()), $7)
-     ON CONFLICT (memory_key) DO UPDATE SET
+     ON CONFLICT (tenant_id, memory_key) DO UPDATE SET
        embedding = EXCLUDED.embedding,
        metadata = EXCLUDED.metadata,
        ts = EXCLUDED.ts,
-       tenant_id = EXCLUDED.tenant_id`,
+       user_key = EXCLUDED.user_key,
+       entry_type = EXCLUDED.entry_type`,
     [
       row.memoryKey,
       row.userKey || '__global__',

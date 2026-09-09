@@ -62,9 +62,10 @@ const FULL_SCHEMA_GLOSSARY = [
   'planShortcut[none|db_only|rag_only|admin_only|...],requiresAgentPipeline,allowChatWebDirect,',
   'intent,allowedAgents,routedQuery,needsWebSearch,needsClarify,clarifyKind,clarifyQuestions,',
   'planBlueprint{rationale,steps[{agent,queryFocus,taskForm}]},',
-  'confidence,rationale,complexity,needsPlanPreview,suggestedPosture,upgradeReason,upgradeConfidence',
+  'confidence,rationale,complexity,needsPlanPreview,suggestedPosture,upgradeReason,upgradeConfidence,',
+  'executionTopology[solo|parallel|hub]',
   '例：{"sourceCommitment":"clear","committedPlanes":["admin"],"webFetchKind":"none","adminCapabilityHints":["weather"],',
-  '"allowedAgents":["admin"],"clauses":[{"id":"c1","text":"查天津天气","agents":["admin"]}],',
+  '"executionTopology":"solo","allowedAgents":["admin"],"clauses":[{"id":"c1","text":"查天津天气","agents":["admin"]}],',
   '"planShortcut":"admin_only","needsAdmin":true,"confidence":0.85}'
 ].join('')
 

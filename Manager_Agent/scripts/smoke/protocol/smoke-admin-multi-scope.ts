@@ -32,10 +32,28 @@ async function main() {
   const preamble = adminStepQueryPreamble()
   assert(preamble.includes('飞书'), 'preamble mentions feishu')
   assert(preamble.includes('联系人'), 'preamble mentions contacts')
-  assert(!preamble.includes('简报'), 'preamble excludes briefing')
+  // preamble 仍保留作剥离/兼容文案；出站 WS 不得再注入
 
   assert(MANAGER_ADMIN_TOOL_NAMES.has('add_event'), 'allowlist has add_event')
   assert(!MANAGER_ADMIN_TOOL_NAMES.has('web_search'), 'allowlist excludes web_search')
+
+  const { buildAdminExecMessage, buildAdminEffectiveQuery } = await import(
+    pathToFileURL(join(__dirname, '../../../server/graph/core/stepIsolation/exec.ts')).href
+  )
+  const leanTravel = buildAdminExecMessage('坐地铁从天津西站到天津站大概多久', { autoConfirm: true })
+  assert(leanTravel.includes('天津西站'), `lean travel keeps query: ${leanTravel}`)
+  assert(!/仅处理下列个人助理能力/.test(leanTravel), 'lean WS message must not include preamble')
+  assert(!/【总管约束】/.test(leanTravel), 'lean WS message must not include ADMIN_EXEC_GUARD')
+  assert(!/（强制）不要等待人工确认/.test(leanTravel), 'lean WS message must not include auto-confirm line')
+  const leanEff = buildAdminEffectiveQuery(
+    '帮我添加明天下午3点的会议提醒',
+    '知识库查补贴并帮我添加明天下午3点的会议提醒',
+    '',
+    true
+  )
+  assert(leanEff.includes('会议提醒'), `effQuery keeps admin clause: ${leanEff}`)
+  assert(!/仅处理下列个人助理能力/.test(leanEff), 'effQuery must not include preamble')
+  assert(!/【总管约束】/.test(leanEff), 'effQuery must not include guard')
 
   const upgraded = normalizeAdminToolPlan('帮我创建明天上午10点会议日程', [
     { name: 'add_reminder', args: { content: 'AI 助理提醒', remind_time_str: '明天上午10点' } }

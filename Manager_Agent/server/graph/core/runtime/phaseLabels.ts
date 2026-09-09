@@ -18,12 +18,14 @@ const AGENT_LABELS: Record<string, string> = {
 export function userPhaseLabel(phase: string): string {
   const p = String(phase || '').trim()
   if (!p) return '准备中…'
-  if (p === 'route') return '理解你的问题…'
-  if (p === 'planner') return '制定执行计划…'
+  if (p === 'route' || p === 'orchestrate' || p === 'turn_scope') return '理解你的问题…'
+  if (p === 'planner' || p === 'plan_lint') return '制定执行计划…'
   if (p === 'prefetch') return '预取背景资料…'
   if (p === 'plan_preview') return '等待你确认计划…'
-  if (p === 'synth') return '整理回答…'
-  if (p === 'critic') return '核对结果…'
+  if (p === 'multi' || p === 'scheduler') return '调度专才…'
+  if (p === 'local_replan') return '规划下一步…'
+  if (p === 'synth' || p === 'synth_stream') return '整理回答…'
+  if (p === 'evaluator' || p === 'critic' || p === 'optimizer' || p === 'verifier') return '核对结果…'
   if (p === 'finalize') return '完成'
   if (p === 'clarify') return '需要补充信息…'
   if (p.startsWith('execute:')) {

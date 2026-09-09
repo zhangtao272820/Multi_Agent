@@ -1,5 +1,6 @@
 """
 轻量用户偏好：跨请求沉淀常用城市、联系人等，注入 planning 阶段。
+Key: {tenant_id}:{user_id}（禁共享 "default" 桶）。
 """
 from __future__ import annotations
 
@@ -38,14 +39,30 @@ def _save_all(store: dict[str, dict[str, Any]]) -> None:
     _prefs_file().write_text(json.dumps(store, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-def _normalize_session_key(session_id: str | None) -> str:
+def _normalize_prefs_key(session_id: str | None = None) -> str:
+    """优先请求 scope (tenant:user)；session_id 仅作兼容回退。"""
+    try:
+        from app.core.tenant_scope import prefs_scope_key, get_request_scope
+
+        if get_request_scope():
+            return prefs_scope_key()
+    except Exception:
+        pass
     s = str(session_id or "").strip()[:64]
-    return s or GLOBAL_KEY
+    if s and s not in ("default", GLOBAL_KEY):
+        # 兼容旧调用：session 级 key，但不与跨用户共享
+        return f"session:{s}"
+    try:
+        from app.core.tenant_scope import prefs_scope_key
+
+        return prefs_scope_key()
+    except Exception:
+        return GLOBAL_KEY
 
 
 def get_user_preferences(session_id: str | None = None) -> dict[str, Any]:
     store = _load_all()
-    return dict(store.get(_normalize_session_key(session_id), {}))
+    return dict(store.get(_normalize_prefs_key(session_id), {}))
 
 
 def learn_weather_city(session_id: str | None, city: str) -> None:
@@ -54,7 +71,7 @@ def learn_weather_city(session_id: str | None, city: str) -> None:
     c = str(city or "").strip()
     if len(c) < 2:
         return
-    key = _normalize_session_key(session_id)
+    key = _normalize_prefs_key(session_id)
     store = _load_all()
     prev = store.get(key, {})
     store[key] = {
@@ -71,7 +88,7 @@ def learn_email_contact(session_id: str | None, name: str, email: str) -> None:
     n, e = str(name or "").strip(), str(email or "").strip()
     if not n or not e:
         return
-    key = _normalize_session_key(session_id)
+    key = _normalize_prefs_key(session_id)
     store = _load_all()
     prev = store.get(key, {})
     contacts: list[dict[str, str]] = list(prev.get("frequent_contacts") or [])
@@ -99,7 +116,7 @@ def format_preferences_block(session_id: str | None = None) -> str:
         shown = contacts[:5]
         parts = [f"{c.get('name', '')}<{c.get('email', '')}>" for c in shown if isinstance(c, dict)]
         if parts:
-            lines.append(f"- 常用联系人：{', '.join(parts)}")
+            lines.append("- 常用联系人：" + "、".join(parts))
     if not lines:
         return ""
-    return "用户偏好（自动沉淀）：\n" + "\n".join(lines)
+    return "【用户偏好】\n" + "\n".join(lines)

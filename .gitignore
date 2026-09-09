@@ -64,6 +64,9 @@ Thumbs.db
 # Local-only interview guide clone (do not push)
 ai-agent-interview-guide-main/
 
+# Local WIP backups (never commit)
+.local-backup/
+
 # Manage-platform local postgres/runtime (large WAL / data dirs)
 Manage-platform_Agent/.local/
 

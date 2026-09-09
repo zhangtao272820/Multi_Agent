@@ -356,29 +356,29 @@
     .thread-wrap {
       flex: 1;
       min-height: 0;
-      overflow: hidden;
+      overflow: auto;
       display: flex;
       justify-content: center;
+      scrollbar-gutter: stable;
     }
     .thread-inner {
       width: 100%;
       max-width: calc(var(--chat-max) + 48px);
       padding: 12px 28px 8px;
-      min-height: 0;
+      min-height: 100%;
       display: flex;
       flex-direction: column;
       box-sizing: border-box;
     }
     .thread {
-      flex: 1;
-      min-height: 0;
-      overflow: auto;
+      flex: 1 0 auto;
+      min-height: 100%;
+      overflow: visible;
       padding: 20px 8px 24px 4px;
       display: flex;
       flex-direction: column;
       gap: 22px;
       box-sizing: border-box;
-      scrollbar-gutter: stable;
     }
     .empty-welcome {
       flex: 1;
@@ -1146,7 +1146,7 @@
           <button type="button" class="header-btn" id="auditToggle">查询记录</button>
         </div>
       </header>
-      <div class="thread-wrap">
+      <div class="thread-wrap" id="threadWrap">
         <div class="thread-inner">
           <div class="thread" id="thread"></div>
         </div>
@@ -1181,6 +1181,11 @@
   </div>
   <script>
     const $ = (id) => document.getElementById(id);
+    const threadScrollEl = () => $("threadWrap") || $("thread");
+    const scrollThreadToBottom = () => {
+      const el = threadScrollEl();
+      if (el) el.scrollTop = el.scrollHeight;
+    };
     const SESSION_KEY = "vanna_session_id";
     const FEEDBACK_KEY = "vanna_session_feedback";
     const TOKEN_KEY = "clawhive_access_token";
@@ -1261,14 +1266,98 @@
       $("loginErr").textContent = "";
     }
 
+    /** mirrors shared/clawhiveAuthForceLogout.ts — 暖机 login_required 勿清本地 JWT */
+    function shouldForceLogoutOn401(opts) {
+      if ((opts && opts.status) !== 401) return false;
+      const body = opts && opts.body;
+      const detail = body && typeof body === "object"
+        ? String(body.login_required ?? body.detail ?? body.statusMessage ?? body.reason ?? "").trim()
+        : "";
+      const detailLower = detail.toLowerCase();
+      if (detailLower.includes("invalid_user_token")) return true;
+      const loginRequired = detail === "true" || detailLower.includes("login_required");
+      if (loginRequired) return !opts.hasLocalToken;
+      return false;
+    }
+
+    /** mirrors shared/feedbackHydrateRetry.ts */
+    function shouldRetryFeedbackHydrate(status, opts) {
+      if (status === "ok") return false;
+      if (status === "auth" || status === "error") return true;
+      if (status === "empty") return !(opts && opts.retryEmpty === false);
+      return false;
+    }
+    async function retryFeedbackHydrate(run, opts) {
+      opts = opts || {};
+      const attempts = Math.max(1, Math.floor(opts.attempts != null ? opts.attempts : 10));
+      const base = Math.max(50, Math.floor(opts.baseDelayMs != null ? opts.baseDelayMs : 500));
+      const maxDelay = Math.max(base, Math.floor(opts.maxDelayMs != null ? opts.maxDelayMs : 5000));
+      let last = "error";
+      for (let i = 0; i < attempts; i++) {
+        last = await run();
+        if (!shouldRetryFeedbackHydrate(last, { retryEmpty: opts.retryEmpty })) return last;
+        if (i + 1 >= attempts) break;
+        const delay = Math.min(maxDelay, Math.round(base * Math.pow(1.5, i)));
+        await new Promise((r) => setTimeout(r, delay));
+      }
+      return last;
+    }
+    function watchFeedbackHydrateUntilOk(run, opts) {
+      opts = opts || {};
+      const intervalMs = Math.max(2000, Math.floor(opts.intervalMs != null ? opts.intervalMs : 12000));
+      const maxMs = Math.max(intervalMs, Math.floor(opts.maxMs != null ? opts.maxMs : 180000));
+      const retryEmpty = opts.retryEmpty !== false;
+      let timer = null;
+      let startedAt = 0;
+      let inFlight = false;
+      let stopped = false;
+      const stop = () => {
+        stopped = true;
+        if (timer != null) { clearInterval(timer); timer = null; }
+      };
+      const tick = () => {
+        if (stopped || inFlight) return;
+        if (document.visibilityState === "hidden") return;
+        if (startedAt && Date.now() - startedAt >= maxMs) { stop(); return; }
+        inFlight = true;
+        Promise.resolve()
+          .then(() => run())
+          .then((status) => {
+            if (stopped) return;
+            if (!shouldRetryFeedbackHydrate(status, { retryEmpty })) stop();
+          })
+          .catch(() => {})
+          .finally(() => { inFlight = false; });
+      };
+      const kick = () => {
+        stopped = false;
+        if (!startedAt) startedAt = Date.now();
+        if (timer == null) timer = setInterval(tick, intervalMs);
+        tick();
+      };
+      return { stop, kick };
+    }
+    async function retryFeedbackHydrateThenWatch(run, opts) {
+      opts = opts || {};
+      const status = await retryFeedbackHydrate(run, opts);
+      if (!shouldRetryFeedbackHydrate(status, { retryEmpty: opts.retryEmpty })) {
+        return { status, stopWatch: function () {} };
+      }
+      const w = watchFeedbackHydrateUntilOk(run, opts);
+      w.kick();
+      return { status, stopWatch: w.stop };
+    }
+
+    let stopFeedbackWatch = function () {};
+
     async function api(url, opts = {}) {
       const headers = Object.assign({}, opts.headers || {});
       if (authToken) headers["Authorization"] = "Bearer " + authToken;
       const res = await fetch(url, Object.assign({}, opts, { headers }));
       if (res.status === 401) {
         const body = await res.clone().json().catch(() => ({}));
-        const detail = String(body.detail || "");
-        if (/login_required|invalid_user_token|jwt_/i.test(detail)) {
+        if (shouldForceLogoutOn401({ status: 401, body, hasLocalToken: !!authToken })) {
+          const detail = String(body.detail || "");
           setAuthToken("");
           showLogin(detail === "login_required" ? "请先登录" : "登录已失效，请重新登录");
           throw new Error(detail || "login_required");
@@ -1342,11 +1431,8 @@
       const onVisibilityOrOnline = () => {
         if (document.visibilityState === "hidden") return;
         if (!sessionId) return;
-        const hasLocal = Object.keys(feedbackByMsg || {}).length > 0;
-        if (hasLocal) return;
-        void hydrateFeedbackFromServer({ expectFeedback: true }).then(() => {
-          // 按钮态在下一次 loadThread / append 时生效；此处仅回写 map
-        });
+        // 服务端为 SSOT：勿因本地已有 score 跳过
+        void hydrateFeedbackWithRetry({ expectFeedback: true });
       };
       window.addEventListener("visibilitychange", onVisibilityOrOnline);
       window.addEventListener("online", onVisibilityOrOnline);
@@ -1447,9 +1533,9 @@
             break;
           }
         }
-        thread.scrollTop = thread.scrollHeight;
+        scrollThreadToBottom();
       }
-      void hydrateFeedbackFromServer({ expectFeedback: msgs.length > 0 });
+      void hydrateFeedbackWithRetry({ expectFeedback: msgs.length > 0 });
     }
 
     async function syncThreadAfterAsk() {
@@ -1462,7 +1548,7 @@
           msgs.forEach((m, i) => {
             if (m && m.id && rows[i]) rows[i].dataset.msgId = m.id;
           });
-          void hydrateFeedbackFromServer({ expectFeedback: true });
+          void hydrateFeedbackWithRetry({ expectFeedback: true });
           return true;
         }
       } catch {}
@@ -1786,6 +1872,7 @@
           checkpoint: !!m.checkpoint,
           executed: !!m.executed,
           running: !!m.running,
+          reasoning: m.reasoning || "",
         };
         const showCard = state.steps.length || state.sql || state.checkpoint || state.running;
         const rawText = text || "";
@@ -1820,7 +1907,7 @@
       }
       $("thread").appendChild(wrap);
       bindMsgActions(wrap, role, role === "assistant" ? (Array.isArray(m.suggestions) && m.suggestions.length ? stripFollowupTail(text || "") : (text || "")) : text, m, msgId);
-      $("thread").scrollTop = $("thread").scrollHeight;
+      scrollThreadToBottom();
       return wrap;
     }
 
@@ -1842,7 +1929,7 @@
       }
       // 过程卡按钮需重新绑定；不整段重写 body，避免闪白
       bindMsgActions(wrap, "assistant", "", { sql: state.sql }, "");
-      $("thread").scrollTop = $("thread").scrollHeight;
+      scrollThreadToBottom();
     }
 
     function removeCheckpointCards() {
@@ -1992,48 +2079,67 @@
       } catch {}
     }
 
-    async function hydrateFeedbackFromServer(opts) {
-      const expectFeedback = Boolean(opts && opts.expectFeedback);
-      if (!sessionId) return;
-      const maxAttempts = expectFeedback ? 6 : 3;
-      let delay = 400;
-      for (let i = 0; i < maxAttempts; i++) {
-        try {
-          const res = await api("/api/session-feedback?session_id=" + encodeURIComponent(sessionId));
-          if (res.status === 401 || res.status === 403) {
-            if (i + 1 >= maxAttempts) return;
-            await new Promise((r) => setTimeout(r, delay));
-            delay = Math.min(2500, Math.round(delay * 1.5));
-            continue;
-          }
-          if (!res.ok) {
-            if (i + 1 >= maxAttempts) return;
-            await new Promise((r) => setTimeout(r, delay));
-            delay = Math.min(2500, Math.round(delay * 1.5));
-            continue;
-          }
-          const data = await res.json().catch(() => ({}));
-          const items = Array.isArray(data.items) ? data.items : [];
-          if (!items.length) {
-            if (!expectFeedback || i + 1 >= maxAttempts) return;
-            await new Promise((r) => setTimeout(r, delay));
-            delay = Math.min(2500, Math.round(delay * 1.5));
-            continue;
-          }
-          for (const item of items) {
-            const key = String(item.messageId || item.feedbackKey || "").trim();
-            const score = Number(item.score);
-            if (!key || (score !== 1 && score !== -1)) continue;
-            feedbackByMsg[key] = score;
-          }
-          saveFeedbackMap();
-          return;
-        } catch {
-          if (i + 1 >= maxAttempts) return;
-          await new Promise((r) => setTimeout(r, delay));
-          delay = Math.min(2500, Math.round(delay * 1.5));
+    async function hydrateSessionFeedbackFromServer() {
+      if (!sessionId) return "empty";
+      try {
+        const res = await api("/api/session-feedback?session_id=" + encodeURIComponent(sessionId));
+        if (res.status === 401 || res.status === 403) return "auth";
+        if (!res.ok) return "error";
+        const data = await res.json().catch(() => ({}));
+        const items = Array.isArray(data.items) ? data.items : [];
+        if (!items.length) return "empty";
+        for (const item of items) {
+          const key = String(item.messageId || item.feedbackKey || "").trim();
+          const score = Number(item.score);
+          if (!key || (score !== 1 && score !== -1)) continue;
+          // 服务端为 SSOT：覆盖本地
+          feedbackByMsg[key] = score;
         }
+        saveFeedbackMap();
+        applyFeedbackAcksToDom();
+        return "ok";
+      } catch {
+        return "error";
       }
+    }
+
+    function applyFeedbackAcksToDom() {
+      document.querySelectorAll(".msg-row").forEach((row) => {
+        const msgId = String(row.dataset.msgId || "").trim();
+        if (!msgId) return;
+        const score = feedbackByMsg[msgId];
+        if (score !== 1 && score !== -1) return;
+        const fb = row.querySelector(".feedback-row");
+        if (!fb) return;
+        fb.innerHTML = `<p class="feedback-ack">${score === 1 ? "已标记为有用 · 感谢反馈（已同步）" : "已标记为无用 · 感谢反馈（已同步）"}</p>`;
+      });
+    }
+
+    async function hydrateFeedbackWithRetry(opts) {
+      const expectFeedback = Boolean(opts && opts.expectFeedback);
+      stopFeedbackWatch();
+      const warm = {
+        attempts: 10,
+        baseDelayMs: 500,
+        maxDelayMs: 5000,
+        retryEmpty: true,
+      };
+      const cold = {
+        attempts: 5,
+        baseDelayMs: 400,
+        maxDelayMs: 2500,
+        retryEmpty: false,
+      };
+      const { stopWatch } = await retryFeedbackHydrateThenWatch(
+        () => hydrateSessionFeedbackFromServer(),
+        expectFeedback ? warm : cold
+      );
+      stopFeedbackWatch = stopWatch;
+    }
+
+    /** @deprecated name kept for smoke; prefer hydrateFeedbackWithRetry */
+    async function hydrateFeedbackFromServer(opts) {
+      return hydrateFeedbackWithRetry(opts);
     }
 
     function buildFeedbackRow(msgId, meta) {
@@ -2052,27 +2158,32 @@
         btn.addEventListener("click", async () => {
           const score = Number(btn.getAttribute("data-fb"));
           el.querySelectorAll("button").forEach((b) => { b.disabled = true; });
-          const res = await api("/api/feedback", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              question: lastQuestion || "（未知问句）",
-              score,
-              tenant: $("tenant").value,
-              session_id: sessionId,
-              message_id: String(msgId || "").trim(),
-              sql: (meta && meta.sql) || lastSql || "",
-              tables: (meta && meta.tables) || [],
-            }),
-          });
-          const body = await res.json().catch(() => ({}));
-          if (res.ok && body.ok) {
-            feedbackByMsg[key] = score;
-            saveFeedbackMap();
-            el.innerHTML = `<p class="feedback-ack">${escapeHtml(body.ack || (score === 1 ? "已标记为有用" : "已标记为无用"))}</p>`;
-          } else {
+          try {
+            const res = await api("/api/feedback", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                question: lastQuestion || "（未知问句）",
+                score,
+                tenant: $("tenant").value,
+                session_id: sessionId,
+                message_id: String(msgId || "").trim(),
+                sql: (meta && meta.sql) || lastSql || "",
+                tables: (meta && meta.tables) || [],
+              }),
+            });
+            const body = await res.json().catch(() => ({}));
+            if (res.ok && body.ok) {
+              feedbackByMsg[key] = score;
+              saveFeedbackMap();
+              el.innerHTML = `<p class="feedback-ack">${escapeHtml(body.ack || (score === 1 ? "已标记为有用" : "已标记为无用"))}</p>`;
+            } else {
+              el.querySelectorAll("button").forEach((b) => { b.disabled = false; });
+              el.insertAdjacentHTML("beforeend", `<span style="color:#9a3412">反馈失败，请重试</span>`);
+            }
+          } catch {
             el.querySelectorAll("button").forEach((b) => { b.disabled = false; });
-            el.insertAdjacentHTML("beforeend", `<span style="color:#9a3412">反馈失败</span>`);
+            el.insertAdjacentHTML("beforeend", `<span style="color:#9a3412">反馈失败，请重试</span>`);
           }
         });
       });
@@ -2206,7 +2317,7 @@
               body.appendChild(bubble);
             }
             bubble.textContent = streamText;
-            $("thread").scrollTop = $("thread").scrollHeight;
+            scrollThreadToBottom();
           }
           setStep(steps, "answer", "running", "正在生成回复…");
           paintLive(liveCard, liveState);
@@ -2342,6 +2453,8 @@
             row_count: (ev.rows || []).length || (ev.cost && 0),
             cost: ev.cost,
             error_code: ev.error_code || "",
+            steps: steps.map((s) => ({ ...s })),
+            reasoning: reasoningText || "",
           };
           if (typeof ev.row_count === "number") meta.row_count = ev.row_count;
           else meta.row_count = (ev.rows || []).length;

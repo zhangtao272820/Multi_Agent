@@ -143,5 +143,20 @@ assert(resolveUser.includes('tenant_required'), 'resolveRequestUser returns tena
 
 const runner = readSource('scripts/run-agent-memory-migrations.ts')
 assert(runner.includes('020_agent_memory_tenant_harden.sql'), 'migration runner includes 020')
+assert(runner.includes('021_mgr_memory_embeddings_tenant_unique.sql'), 'migration runner includes 021')
+
+const mig021 = readSource('scripts/migrations/021_mgr_memory_embeddings_tenant_unique.sql')
+assert(mig021.includes('mgr_memory_embeddings_tenant_memory_key'), '021 unique (tenant_id, memory_key)')
+
+const sessStore = readSource('Manager_Agent/server/utils/session/managerSessionStore.ts')
+assert(sessStore.includes('INSERT INTO mgr_sessions (id, tenant_id, updated_at)'), 'session INSERT writes tenant_id')
+assert(sessStore.includes('export async function bindSessionTenant'), 'bindSessionTenant exported')
+
+const embStore = readSource('Manager_Agent/server/utils/session/managerMemoryEmbeddingsStore.ts')
+assert(embStore.includes('ON CONFLICT (tenant_id, memory_key)'), 'embeddings conflict includes tenant')
+
+const adminClient = readSource('Manager_Agent/server/utils/agents/adminClient.ts')
+assert(adminClient.includes('tenantId'), 'adminClient passes tenantId')
+assert(adminClient.includes('tenant_id'), 'adminClient body/header tenant_id')
 
 console.log('smoke-tenant-memory-isolation: ok')

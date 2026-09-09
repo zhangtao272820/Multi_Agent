@@ -1,9 +1,11 @@
 import {
-  canManagerRetryMore,
-  isManagerRetryBudgetExhausted,
   readManagerMaxRetryEnv,
   resolveManagerRetryLimits
 } from '../../core/runtime/retryBudget'
+import {
+  fixQueryForOptimizerReason,
+  resolveOptimizerDecision
+} from '../../core/runtime/optimizerDecision'
 import { criticRetryContradictsRunEvidence, hasSuccessfulGuiBrowseInRun } from '../../core/output/criticEvidence'
 import { detectAdminWriteTerminalFailure } from '../../core/runtime/adminWriteTerminal'
 import {
@@ -37,7 +39,6 @@ export function createOptimizerNode(deps: CreateOptimizerNodeDeps) {
     const canClarify = Boolean(state?.meta?.needsClarify)
     const retryLimits = resolveManagerRetryLimits(state)
     const retryCount = retryLimits.retryCount
-    const retryExhausted = isManagerRetryBudgetExhausted(retryLimits)
     const results = state?.results && typeof state.results === 'object' ? state.results : {}
     const intent = String(state?.intent || '').trim()
     const hasGuiResult = Boolean(String((results as any)?.gui || '').trim())
@@ -61,18 +62,6 @@ export function createOptimizerNode(deps: CreateOptimizerNodeDeps) {
       }
       return 'multi'
     })()
-    const fixQuery = (() => {
-      if (wantsVisualize && hasVisualizeOutput && !hasRenderableChartInFinal) {
-        return '请保留现有结论，并强制把可视化结果透传到最终回复：必须包含 <!--ECHARTS_OPTION-->...<!--/ECHARTS_OPTION-->，若有表格则追加 <!--TABLE_DATA-->...<!--/TABLE_DATA-->。'
-      }
-      if (timeoutErrorCount > 0) {
-        return '请在保留现有事实证据的前提下，用更短输出重试：仅保留核心结论、关键数字和可执行建议，去掉冗长解释。'
-      }
-      if (!hasEffectiveDataFoundation && !isWebOnlyIntent && !hasWebAgentEvidence) {
-        return '请先补齐数据基础（rag/db/crawler 任一可用）后再进行分析输出。'
-      }
-      return '请根据已有事实修正最终结论，移除未被证据支持的描述，并保持输出简洁。'
-    })()
 
     const pendingRepair =
       Boolean(String(state?.fixQuery || '').trim()) &&
@@ -93,72 +82,35 @@ export function createOptimizerNode(deps: CreateOptimizerNodeDeps) {
       forceRerunStepIds: Array.isArray(state?.meta?.forceRerunStepIds) ? state.meta.forceRerunStepIds : null
     })
 
-    let action: 'clarify' | 'fix' | 'verifier' | 'replan_multi' = 'verifier'
-    let reason = 'evidence_good'
-    if (guiSemanticBlock.blocked) {
-      action = 'verifier'
-      reason = 'gui_semantic_blocked'
-    } else if (adminTerminal.terminal) {
-      // 取消 / 协议垃圾 / 写失败：禁止 quality_repair 多轮复读 preamble
-      action = canClarify || evalRec === 'clarify' ? 'clarify' : 'verifier'
-      reason = 'admin_write_terminal_no_repair'
-    } else if (guiTerminal.terminal) {
-      // workflow 不存在等基建错误：禁止改道 multi/db；勿走空槽 clarify
-      action = 'verifier'
-      reason = 'gui_terminal_no_repair'
-    } else if (pendingRepair && criticRetryOverridden) {
-      action = 'verifier'
-      reason = guiBrowseOk ? 'gui_browse_evidence_stop_retry' : 'critic_retry_overridden_by_evidence'
-    } else if ((pendingRepair || synthOnlyRepair) && canManagerRetryMore(retryLimits)) {
-      action = 'fix'
-      reason = synthOnlyRepair ? 'synth_only_repair' : 'critic_repair_pending'
-    } else if (retryExhausted && (pendingRepair || synthOnlyRepair || hasFix)) {
-      action = 'verifier'
-      reason = 'retry_budget_exhausted_accept'
-    } else if (canClarify || evalRec === 'clarify') {
-      action = 'clarify'
-      reason = 'needs_clarify'
-    } else if (!visualizeIntegrityOk && canManagerRetryMore(retryLimits)) {
-      action = 'fix'
-      reason = 'visualize_output_lost'
-    } else if (
-      !hasEffectiveDataFoundation &&
-      !isWebOnlyIntent &&
-      !hasWebAgentEvidence &&
-      canManagerRetryMore(retryLimits)
-    ) {
-      action = 'replan_multi'
-      reason = 'missing_data_foundation'
-    } else if ((!hasAnswer || evalScore < 0.65 || timeoutErrorCount > 0 || hasFix) && canManagerRetryMore(retryLimits)) {
-      action = 'fix'
-      reason = timeoutErrorCount > 0 ? 'timeout_repair' : hasAnswer ? 'quality_repair' : 'missing_answer'
-    } else if (hasAnswer) {
-      action = 'verifier'
-      reason = 'result_present_stop_retry'
-    } else {
-      action = 'verifier'
-      reason = 'accept_and_verify'
-    }
+    const { action, reason } = resolveOptimizerDecision({
+      evalScore,
+      evalRec,
+      timeoutErrorCount,
+      hasEffectiveDataFoundation,
+      hasAnswer,
+      wantsVisualize,
+      hasVisualizeOutput,
+      hasRenderableChartInFinal,
+      visualizeIntegrityOk,
+      hasFix,
+      canClarify,
+      retryLimits,
+      isWebOnlyIntent,
+      hasWebAgentEvidence,
+      pendingRepair,
+      synthOnlyRepair,
+      criticRetryOverridden,
+      guiBrowseOk,
+      guiSemanticBlocked: guiSemanticBlock.blocked,
+      adminWriteTerminal: adminTerminal.terminal,
+      guiTerminal: guiTerminal.terminal,
+      sideEffectSynthOnly: sideEffectPref.synthOnly,
+      sideEffectFailedStepIds: sideEffectPref.failedStepIds,
+      fixIntentIsMulti: String(state?.fixIntent || '') === 'multi',
+      preferredFixIntentIsMulti: preferredFixIntent === 'multi'
+    })
 
-    // 副作用已成功：禁止无差别全量 multi；有失败步则定点 forceRerun，否则 synth-only
-    if (
-      (action === 'fix' || action === 'replan_multi') &&
-      (sideEffectPref.synthOnly || sideEffectPref.failedStepIds.length > 0)
-    ) {
-      const wantMulti =
-        String(state?.fixIntent || '') === 'multi' ||
-        preferredFixIntent === 'multi' ||
-        action === 'replan_multi'
-      if (wantMulti || reason === 'quality_repair' || reason === 'critic_repair_pending') {
-        if (sideEffectPref.synthOnly) {
-          action = 'fix'
-          reason = 'side_effect_done_synth_only'
-        } else if (sideEffectPref.failedStepIds.length > 0) {
-          action = 'fix'
-          reason = 'side_effect_done_failed_steps_only'
-        }
-      }
-    }
+    const fixQuery = fixQueryForOptimizerReason(reason)
 
     opts.sendEvent({
       event: 'thinking',
@@ -170,9 +122,7 @@ export function createOptimizerNode(deps: CreateOptimizerNodeDeps) {
       return {
         optimizer: { action: 'fix', reason, at: new Date().toISOString() },
         fixIntent: 'code',
-        fixQuery:
-          String(state?.fixQuery || '').trim() ||
-          '请在保留已成功写入结果的前提下修正最终综合，勿重做 admin 写操作。',
+        fixQuery: String(state?.fixQuery || '').trim() || fixQuery,
         retryCount: retryCount + 1,
         meta: { ...(state?.meta || {}), synthOnlyRepair: true }
       }
@@ -193,8 +143,7 @@ export function createOptimizerNode(deps: CreateOptimizerNodeDeps) {
       return {
         optimizer: { action, reason, at: new Date().toISOString() },
         fixIntent: 'multi',
-        fixQuery: '请按“先取数再处理”重规划：先执行 rag/db/crawler 的取数步骤，再执行 code/report/visualize。'
-        ,
+        fixQuery: fixQueryForOptimizerReason('replan_multi'),
         retryCount: retryCount + 1
       }
     }
@@ -206,7 +155,6 @@ export function createOptimizerNode(deps: CreateOptimizerNodeDeps) {
         retryCount: retryCount + 1
       }
     }
-    // If we're already carrying a fixIntent/fixQuery, we still count the "repair attempt" to avoid retry loops.
     if (action === 'fix') return { optimizer: { action, reason, at: new Date().toISOString() }, retryCount: retryCount + 1 }
     if (action === 'clarify') {
       return {
@@ -215,7 +163,6 @@ export function createOptimizerNode(deps: CreateOptimizerNodeDeps) {
         fixIntent: undefined
       }
     }
-    // verifier：审计/评估通过（或预算耗尽接受）→ 终态开流标记
     const passMeta: Record<string, unknown> = { finalSynthPass: true }
     if (adminTerminal.terminal) passMeta.adminWriteTerminal = true
     if (guiTerminal.terminal) {

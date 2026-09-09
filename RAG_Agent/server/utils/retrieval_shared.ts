@@ -215,12 +215,76 @@ export function evidenceCoversSubQueries(
   if (parts.length < 2 || !evidence.length) return parts.length < 2;
   let covered = 0;
   for (const sq of parts) {
-    const terms = tokenizeForKeywordSearch(sq);
+    const terms = distinctiveSubQueryTerms(sq, parts);
     const hit = evidence.some((e) => scoreDocByQueryTerms(String(e.content ?? ""), terms) > 0);
     if (hit) covered += 1;
   }
   const need = Math.max(1, Math.ceil(parts.length * minCoveredRatio));
   return covered >= need;
+}
+
+/**
+ * 子问句区分性词：去掉与其它子问句共享的泛化词（多少/什么等），
+ * 避免「岗位补贴」命中就假装「夜班津贴」也已覆盖。
+ */
+export function distinctiveSubQueryTerms(subQuery: string, allSubQueries: string[]): string[] {
+  const sq = String(subQuery || "").trim();
+  const parts = (allSubQueries || []).map((q) => String(q || "").trim()).filter((q) => q.length >= 4);
+  const own = tokenizeForKeywordSearch(sq);
+  if (!own.length) return [];
+  const shared = new Set<string>();
+  for (const other of parts) {
+    if (other === sq) continue;
+    for (const t of tokenizeForKeywordSearch(other)) shared.add(t);
+  }
+  const distinctive = own.filter((t) => t.length >= 2 && !shared.has(t));
+  if (distinctive.length >= 1) return distinctive;
+  return own.filter((t) => t.length >= 3);
+}
+
+/** 复合问句：每个子问句至少保留 1 条证据，避免 dominant source 挤掉另一主题 */
+export function prioritizeEvidenceBySubQueries(
+  subQueries: string[],
+  items: EvidenceItem[],
+  max = 6,
+): EvidenceItem[] {
+  const list = (items || []).filter((e) => String(e.content ?? "").trim().length >= 4);
+  if (!list.length) return [];
+  const parts = subQueries.map((q) => String(q || "").trim()).filter((q) => q.length >= 4);
+  if (parts.length < 2) {
+    return list.slice(0, max);
+  }
+  const perSub = Math.max(1, Math.floor(max / parts.length));
+  const picked: EvidenceItem[] = [];
+  const seen = new Set<string>();
+  for (const sq of parts) {
+    const terms = distinctiveSubQueryTerms(sq, parts);
+    const ranked = list
+      .map((item) => ({
+        item,
+        score: scoreDocByQueryTerms(String(item.content ?? ""), terms),
+      }))
+      .sort((a, b) => b.score - a.score);
+    let added = 0;
+    for (const { item, score } of ranked) {
+      if (score <= 0) continue;
+      const key = `${item.source}:${String(item.content ?? "").slice(0, 48)}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      picked.push(item);
+      added += 1;
+      if (added >= perSub) break;
+    }
+  }
+  if (!picked.length) return list.slice(0, max);
+  for (const item of list) {
+    if (picked.length >= max) break;
+    const key = `${item.source}:${String(item.content ?? "").slice(0, 48)}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    picked.push(item);
+  }
+  return picked.slice(0, max);
 }
 
 export const tokenizeForKeywordSearch = (text: string): string[] => {

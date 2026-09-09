@@ -94,6 +94,7 @@ from app.core.admin_chitchat_fastpath import (
 )
 from app.core.admin_stream_thoughts import emit_admin_thought
 from app.core.admin_turn_cancel import is_admin_turn_cancelled
+from app.core.admin_bounded_replan import admin_max_replan, should_replan_after_verify
 from app.core.time_utils import local_now_aware, utc_now_naive
 import datetime
 import json
@@ -131,6 +132,9 @@ class AgentState(TypedDict):
     mail_read_result: NotRequired[Dict[str, Any]]
     # 弹窗确认续跑：覆盖最近助手回复，不新增用户轮次
     pending_decide_mode: NotRequired[bool]
+    # Phase E1：verify→planning 有界计数
+    replan_count: NotRequired[int]
+    specialist_gaps: NotRequired[List[str]]
 
 
 def _persist_assistant_turn(state: AgentState | dict[str, Any], content: str) -> None:
@@ -138,10 +142,11 @@ def _persist_assistant_turn(state: AgentState | dict[str, Any], content: str) ->
     text = (content or "").strip()
     if not text:
         return
+    thoughts = [str(t).strip() for t in (state.get("thoughts") or []) if str(t or "").strip()]
     if bool(state.get("pending_decide_mode")):
-        replace_last_assistant_turn(sid, text)
+        replace_last_assistant_turn(sid, text, thoughts=thoughts)
     else:
-        append_turn(sid, "assistant", text)
+        append_turn(sid, "assistant", text, thoughts=thoughts)
 
 
 def _extract_json_object(raw_text: str) -> Dict[str, Any]:
@@ -2009,7 +2014,7 @@ def create_agent_graph():
         return out
 
     def verifying_node(state: AgentState):
-        """验证与生成结果节点"""
+        """验证与生成结果节点；失败时可有界回 planning（控 token）。"""
         state["thoughts"].append("正在汇总执行结果并生成最终回复...")
         user_message = state["messages"][0].content
         for msg in reversed(state.get("messages") or []):
@@ -2017,6 +2022,42 @@ def create_agent_graph():
                 user_message = str(getattr(msg, "content", "") or user_message)
                 break
         exec_results = state.get("verification_result", "无工具执行结果")
+        replan_count = int(state.get("replan_count") or 0)
+        max_replan = admin_max_replan()
+        cc = state.get("client_context") if isinstance(state.get("client_context"), dict) else {}
+        mt = cc.get("manager_task") if isinstance(cc, dict) else None
+        brief = mt.get("specialist_brief") if isinstance(mt, dict) else None
+        if isinstance(brief, dict):
+            budget = brief.get("budget") if isinstance(brief.get("budget"), dict) else {}
+            try:
+                rounds = int(budget.get("max_tool_rounds") or 0)
+            except (TypeError, ValueError):
+                rounds = 0
+            if rounds >= 1:
+                # max_tool_rounds 含首次执行；replan 次数 = rounds-1，且不超过全局帽
+                max_replan = min(max_replan, max(0, rounds - 1))
+        do_replan, replan_reason = should_replan_after_verify(
+            verification_result=str(exec_results or ""),
+            pending_actions=state.get("pending_actions") if isinstance(state.get("pending_actions"), list) else None,
+            pending_decide_mode=bool(state.get("pending_decide_mode")),
+            replan_count=replan_count,
+            max_replan=max_replan,
+        )
+        if do_replan:
+            gaps = [f"verify_replan:{replan_reason}"]
+            state["thoughts"].append(
+                f"有界 replan→planning（count={replan_count + 1}/{max_replan} reason={replan_reason}）"
+            )
+            emit_admin_thought(state, f"执行未达验收，有界重规划（{replan_reason}）")
+            return {
+                "next_node": "planning",
+                "replan_count": replan_count + 1,
+                "specialist_gaps": gaps,
+                "thoughts": state["thoughts"],
+                "verification_result": str(exec_results or ""),
+                # 保留失败轨迹，禁抹错
+                "plan": [],
+            }
 
         # 读信成功：专用回复（框定「邮件内容≠助理故障」+ 按需翻译）
         mail_detail = state.get("mail_read_result") if isinstance(state.get("mail_read_result"), dict) else None
@@ -2283,7 +2324,14 @@ def create_agent_graph():
             END: END,
         },
     )
-    workflow.add_edge("verifying", END)
+    workflow.add_conditional_edges(
+        "verifying",
+        _route_from_state,
+        {
+            "planning": "planning",
+            END: END,
+        },
+    )
 
     checkpointer = get_admin_langgraph_checkpointer()
     if checkpointer is not None:

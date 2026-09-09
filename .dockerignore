@@ -14,6 +14,9 @@
 **/*.md
 !LobsterPy_Agent/README.md
 !Manage-platform_Agent/docker/**
+# Nuxt Agent 运行时 skills（skill.md）必须进镜像；**/*.md 会掏空 skills 目录
+!**/*_Agent/skills/**
+!**/*Agent/skills/**
 # 本地 junction/软链：勿覆盖镜像内 COPY shared 得到的目录
 Extractor_Agent/agent-repo-shared
 Manager_Agent/agent-repo-shared

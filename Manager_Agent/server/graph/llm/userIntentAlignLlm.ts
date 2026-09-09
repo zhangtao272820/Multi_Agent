@@ -8,6 +8,7 @@ import type { LlmInvokeFn } from './taskConstraintsLlm'
 import type { TaskOrchestratorBundle } from './taskOrchestrator'
 import { bundleFromOrchestratorRaw, type TaskOrchestratorRaw } from './taskOrchestrator'
 import { routingDecisionLlmTier } from '../core/shared/modelTier'
+import { stateWithRouteEscalateHints } from '../core/routing/routeDecisionEscalate'
 import { resolveManagerEnvBool } from '../../utils/platform/managerEnvModes'
 import { buildBlueprintFromPuStackDispatch, buildTopologyBlueprintFromCap } from './planBlueprintLlm'
 import {
@@ -262,7 +263,16 @@ export async function alignOrchestratorBundleToUserIntent(input: {
             .join('\n\n')
         ]
       ],
-      { tier: routingDecisionLlmTier(input.state), quiet: true, thinkingLabel: '末轮对齐：审查 cap 是否 grounded' }
+      {
+        tier: routingDecisionLlmTier(
+          stateWithRouteEscalateHints(
+            input.state,
+            input.bundle?.raw as Record<string, unknown> | undefined
+          )
+        ),
+        quiet: true,
+        thinkingLabel: '末轮对齐：审查 cap 是否 grounded'
+      }
     )
 
     const parsed = AlignSchema.safeParse(safeJsonParse(String(r.text ?? '').trim()))

@@ -37,6 +37,7 @@ class SessionTurn(Base):
     session_id = Column(String, index=True)
     role = Column(String)  # user | assistant
     content = Column(Text)
+    thoughts = Column(Text, default="")  # JSON array of thought strings
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
 
@@ -49,6 +50,14 @@ class SessionTaskContext(Base):
 
 def _ensure_tables() -> None:
     Base.metadata.create_all(bind=engine, tables=[SessionTurn.__table__, SessionTaskContext.__table__])
+    # 旧库补 thoughts 列（SQLite）
+    try:
+        with engine.begin() as conn:
+            conn.exec_driver_sql(
+                "ALTER TABLE session_turns ADD COLUMN thoughts TEXT DEFAULT ''"
+            )
+    except Exception:
+        pass
 
 
 _ensure_tables()
@@ -66,28 +75,58 @@ def _mirror_sqlite() -> bool:
     return is_admin_dual_storage() or not is_admin_pg_primary()
 
 
-def append_turn(session_id: str, role: str, content: str, user_id: str | None = None) -> None:
+def _normalize_thoughts(thoughts: list[str] | None) -> list[str]:
+    out: list[str] = []
+    for t in thoughts or []:
+        s = str(t or "").strip()
+        if s and s not in out:
+            out.append(s)
+        if len(out) >= 80:
+            break
+    return out
+
+
+def append_turn(
+    session_id: str,
+    role: str,
+    content: str,
+    user_id: str | None = None,
+    thoughts: list[str] | None = None,
+) -> None:
     sid = _sid(session_id)
     text = (content or "").strip()
     if not text:
         return
+    thought_list = _normalize_thoughts(thoughts) if role == "assistant" else []
     if _use_pg_dialogue():
-        append_turn_pg(sid, role, text, user_id=user_id)
+        append_turn_pg(sid, role, text, user_id=user_id, thoughts=thought_list or None)
     if _mirror_sqlite():
         db = SessionLocal()
-        db.add(SessionTurn(session_id=sid, role=role, content=text))
+        db.add(
+            SessionTurn(
+                session_id=sid,
+                role=role,
+                content=text,
+                thoughts=json.dumps(thought_list, ensure_ascii=False) if thought_list else "",
+            )
+        )
         db.commit()
         db.close()
 
 
-def replace_last_assistant_turn(session_id: str, content: str) -> bool:
+def replace_last_assistant_turn(
+    session_id: str,
+    content: str,
+    thoughts: list[str] | None = None,
+) -> bool:
     """用新内容覆盖最近一条助手回复（弹窗确认续跑时保持同一对话轮次）。"""
     sid = _sid(session_id)
     text = (content or "").strip()
     if not text:
         return False
+    thought_list = _normalize_thoughts(thoughts)
     if _use_pg_dialogue():
-        return replace_last_assistant_turn_pg(sid, text)
+        return replace_last_assistant_turn_pg(sid, text, thoughts=thought_list or None)
     db = SessionLocal()
     try:
         row = (
@@ -97,9 +136,11 @@ def replace_last_assistant_turn(session_id: str, content: str) -> bool:
             .first()
         )
         if not row:
-            append_turn(sid, "assistant", text)
+            append_turn(sid, "assistant", text, thoughts=thought_list)
             return True
         row.content = text
+        if thought_list:
+            row.thoughts = json.dumps(thought_list, ensure_ascii=False)
         db.commit()
         return True
     finally:

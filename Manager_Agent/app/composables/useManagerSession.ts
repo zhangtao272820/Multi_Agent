@@ -7,8 +7,15 @@ import { purgeAllForbiddenClientSessionKeys } from '#agent-shared/agentSessionCl
 import {
   FEEDBACK_HYDRATE_COLD_OPTS,
   FEEDBACK_HYDRATE_WARM_OPTS,
-  retryFeedbackHydrate
+  retryFeedbackHydrateThenWatch
 } from '#agent-shared/feedbackHydrateRetry'
+import {
+  FEEDBACK_FAIL_ACK,
+  FEEDBACK_PENDING_ACK,
+  clearStaleFeedbackPendingAcks,
+  isFeedbackFailAck,
+  stripFeedbackFailAcks
+} from '#agent-shared/feedbackSubmitUi'
 import type { LogItem, SessionHistoryItem, TurnGroup, WorkbenchMode } from './managerChatTypes'
 
 const USER_ID_KEY = 'manager_user_id'
@@ -18,7 +25,7 @@ const SESSION_ID_BY_MODE_KEY = 'manager_session_id_by_mode'
 
 type SessionIdByMode = { chat?: string; professional?: string }
 
-export const FEEDBACK_PENDING_ACK = '提交中…'
+export { FEEDBACK_PENDING_ACK, FEEDBACK_FAIL_ACK } from '#agent-shared/feedbackSubmitUi'
 
 export type ManagerSessionHost = {
   logs: Ref<LogItem[]>
@@ -78,6 +85,7 @@ export function useManagerSession(host: ManagerSessionHost) {
   const sessionSwitching = ref(false)
   const feedbackByRunId = ref<Record<string, 0 | 1>>({})
   const feedbackAckByRunId = ref<Record<string, string>>({})
+  const feedbackRetryScoreByKey = ref<Record<string, 0 | 1>>({})
   /** 反馈 SSOT：按 userMessageIndex 存，不随 runId/turn 变化而丢失 */
   const feedbackByUserIndex = ref<Record<number, 0 | 1>>({})
   const feedbackAckByUserIndex = ref<Record<number, string>>({})
@@ -120,24 +128,36 @@ export function useManagerSession(host: ManagerSessionHost) {
     const uidx = feedbackUserIndexForTurn(t)
     if (uidx != null) {
       const score = feedbackByUserIndex.value[uidx]
+      const ack = feedbackAckByUserIndex.value[uidx]
       if (score === 0 || score === 1) {
         return {
           score,
-          ack: feedbackAckByUserIndex.value[uidx],
+          ack,
           key: umidxFeedbackKey(uidx),
           userIndex: uidx
         }
       }
+      if (isFeedbackFailAck(ack)) {
+        return { ack, key: umidxFeedbackKey(uidx), userIndex: uidx }
+      }
     }
     for (const key of collectTurnFeedbackAliasKeys(t)) {
       const score = feedbackByRunId.value[key]
+      const ack = feedbackAckByRunId.value[key]
       if (score === 0 || score === 1) {
-        return { score, ack: feedbackAckByRunId.value[key], key, userIndex: uidx ?? undefined }
+        return { score, ack, key, userIndex: uidx ?? undefined }
+      }
+      if (isFeedbackFailAck(ack)) {
+        return { ack, key, userIndex: uidx ?? undefined }
       }
     }
     return {
       key: uidx != null ? umidxFeedbackKey(uidx) : collectTurnFeedbackAliasKeys(t)[0] || `turn:${t.id}`,
-      userIndex: uidx ?? undefined
+      userIndex: uidx ?? undefined,
+      ack:
+        uidx != null
+          ? feedbackAckByUserIndex.value[uidx]
+          : undefined
     }
   }
 
@@ -569,8 +589,9 @@ export function useManagerSession(host: ManagerSessionHost) {
     await newSession({ skipPersistCurrent: true })
   }
 
-  async function hydrateSessionFromServer(sid: string) {
-    if (!sid) return
+  /** @returns ok | empty | error（失败勿静默当无轮次，否则反馈走 COLD 永不回灌） */
+  async function hydrateSessionFromServer(sid: string): Promise<'ok' | 'empty' | 'error'> {
+    if (!sid) return 'empty'
     try {
       const res = await $fetch<{
         messages?: Array<{
@@ -582,8 +603,37 @@ export function useManagerSession(host: ManagerSessionHost) {
       }>(`/api/manager/session?sessionId=${encodeURIComponent(sid)}`)
       if (Array.isArray(res?.messages) && res.messages.length) {
         hydrateLogsFromServerHistory(res.messages as Parameters<typeof hydrateLogsFromServerHistory>[0])
+        return 'ok'
       }
-    } catch {}
+      return 'empty'
+    } catch {
+      return 'error'
+    }
+  }
+
+  let stopFeedbackHydrateWatch: (() => void) | null = null
+
+  function stopActiveFeedbackHydrateWatch() {
+    stopFeedbackHydrateWatch?.()
+    stopFeedbackHydrateWatch = null
+  }
+
+  /** 与 bootstrap / visibility / WS resumed 共用 stopWatch，避免泄漏与竞态 */
+  async function hydrateFeedbackWithRetry(opts?: { expectFeedback?: boolean }) {
+    const expectFeedback = Boolean(opts?.expectFeedback)
+    stopActiveFeedbackHydrateWatch()
+    const { stopWatch } = await retryFeedbackHydrateThenWatch(
+      () => hydrateSessionFeedbackFromServer(),
+      expectFeedback ? FEEDBACK_HYDRATE_WARM_OPTS : FEEDBACK_HYDRATE_COLD_OPTS
+    )
+    stopFeedbackHydrateWatch = stopWatch
+  }
+
+  function hasLocalFeedbackScores(): boolean {
+    return (
+      Object.keys(feedbackByUserIndex.value).length > 0 ||
+      Object.keys(feedbackByRunId.value).length > 0
+    )
   }
 
   async function fetchServerSessionHistory() {
@@ -693,9 +743,9 @@ export function useManagerSession(host: ManagerSessionHost) {
         sessionFeedbackStorageKey(),
         JSON.stringify({
           scores: feedbackByRunId.value,
-          acks: feedbackAckByRunId.value,
+          acks: stripFeedbackFailAcks(feedbackByRunId.value, feedbackAckByRunId.value),
           byUserIndex: feedbackByUserIndex.value,
-          ackByUserIndex: feedbackAckByUserIndex.value,
+          ackByUserIndex: stripFeedbackFailAcks(feedbackByUserIndex.value, feedbackAckByUserIndex.value),
           routeWrong: routeFeedbackByUserIndex.value
         })
       )
@@ -708,17 +758,14 @@ export function useManagerSession(host: ManagerSessionHost) {
     byUser?: Record<number, 0 | 1>,
     ackByUser?: Record<number, string>
   ) {
-    for (const [key, ack] of Object.entries(acks)) {
-      if (ack !== FEEDBACK_PENDING_ACK) continue
-      delete scores[key]
-      delete acks[key]
-    }
+    clearStaleFeedbackPendingAcks(scores, acks)
     if (ackByUser) {
-      for (const [k, ack] of Object.entries(ackByUser)) {
-        if (ack !== FEEDBACK_PENDING_ACK) continue
-        const uidx = Number(k)
-        delete ackByUser[uidx]
-        if (byUser) delete byUser[uidx]
+      const pendingUidxs = Object.entries(ackByUser)
+        .filter(([, ack]) => ack === FEEDBACK_PENDING_ACK)
+        .map(([k]) => Number(k))
+        .filter((n) => Number.isFinite(n))
+      clearStaleFeedbackPendingAcks(byUser || ({} as Record<number, 0 | 1>), ackByUser)
+      for (const uidx of pendingUidxs) {
         const umKey = umidxFeedbackKey(uidx)
         delete scores[umKey]
         delete acks[umKey]
@@ -736,6 +783,7 @@ export function useManagerSession(host: ManagerSessionHost) {
         feedbackByUserIndex.value = {}
         feedbackAckByUserIndex.value = {}
         routeFeedbackByUserIndex.value = {}
+        feedbackRetryScoreByKey.value = {}
         feedbackSendingRunId.value = null
         return
       }
@@ -765,6 +813,7 @@ export function useManagerSession(host: ManagerSessionHost) {
       feedbackByUserIndex.value = {}
       feedbackAckByUserIndex.value = {}
       routeFeedbackByUserIndex.value = {}
+      feedbackRetryScoreByKey.value = {}
       feedbackSendingRunId.value = null
     }
   }
@@ -866,22 +915,26 @@ export function useManagerSession(host: ManagerSessionHost) {
     const byUser = { ...feedbackByUserIndex.value }
     const ackByUser = { ...feedbackAckByUserIndex.value }
     const routeWrong = { ...routeFeedbackByUserIndex.value }
+    const retries = { ...feedbackRetryScoreByKey.value }
     delete scores[key]
     delete acks[key]
     delete byUser[uidx]
     delete ackByUser[uidx]
     delete routeWrong[uidx]
+    delete retries[key]
     feedbackByRunId.value = scores
     feedbackAckByRunId.value = acks
     feedbackByUserIndex.value = byUser
     feedbackAckByUserIndex.value = ackByUser
     routeFeedbackByUserIndex.value = routeWrong
+    feedbackRetryScoreByKey.value = retries
     persistSessionFeedback()
   }
 
   function turnFeedbackSubmitted(t: TurnGroup): boolean {
     const state = resolveTurnFeedbackState(t)
     if (isFeedbackPendingForKey(state.key)) return false
+    if (isFeedbackFailAck(state.ack)) return false
     return state.score === 0 || state.score === 1
   }
 
@@ -894,6 +947,56 @@ export function useManagerSession(host: ManagerSessionHost) {
     return ''
   }
 
+  function turnFeedbackFailed(t: TurnGroup): boolean {
+    if (turnFeedbackSubmitted(t) || isFeedbackPendingForTurn(t)) return false
+    return isFeedbackFailAck(resolveTurnFeedbackState(t).ack)
+  }
+
+  /** 提交失败：清 score，保留失败文案与可重试分数，避免按钮被锁死 */
+  function markFeedbackSubmitFailed(key: string, score: 0 | 1, userIndex?: number | null) {
+    const scores = { ...feedbackByRunId.value }
+    const acks = { ...feedbackAckByRunId.value }
+    const byUser = { ...feedbackByUserIndex.value }
+    const ackByUser = { ...feedbackAckByUserIndex.value }
+    delete scores[key]
+    acks[key] = FEEDBACK_FAIL_ACK
+    const uidx =
+      userIndex != null && userIndex >= 0
+        ? userIndex
+        : parseFeedbackUserIndexFromItem({ feedbackKey: key })
+    if (uidx != null && uidx >= 0) {
+      delete byUser[uidx]
+      ackByUser[uidx] = FEEDBACK_FAIL_ACK
+      const umKey = umidxFeedbackKey(uidx)
+      delete scores[umKey]
+      acks[umKey] = FEEDBACK_FAIL_ACK
+    }
+    feedbackByRunId.value = scores
+    feedbackAckByRunId.value = acks
+    feedbackByUserIndex.value = byUser
+    feedbackAckByUserIndex.value = ackByUser
+    feedbackRetryScoreByKey.value = { ...feedbackRetryScoreByKey.value, [key]: score }
+    if (uidx != null && uidx >= 0) {
+      feedbackRetryScoreByKey.value = {
+        ...feedbackRetryScoreByKey.value,
+        [umidxFeedbackKey(uidx)]: score
+      }
+    }
+    persistSessionFeedback()
+  }
+
+  function feedbackRetryScoreForTurn(t: TurnGroup): 0 | 1 | null {
+    const key = feedbackKeyForTurn(t)
+    const fromKey = feedbackRetryScoreByKey.value[key]
+    if (fromKey === 0 || fromKey === 1) return fromKey
+    const uidx = feedbackUserIndexForTurn(t)
+    if (uidx != null) {
+      const fromUser = feedbackRetryScoreByKey.value[umidxFeedbackKey(uidx)]
+      if (fromUser === 0 || fromUser === 1) return fromUser
+    }
+    return null
+  }
+
   function clearFeedbackFromTurnId(fromTurnId: number) {
     if (!fromTurnId) return
     const scores = { ...feedbackByRunId.value }
@@ -901,6 +1004,7 @@ export function useManagerSession(host: ManagerSessionHost) {
     const byUser = { ...feedbackByUserIndex.value }
     const ackByUser = { ...feedbackAckByUserIndex.value }
     const routeWrong = { ...routeFeedbackByUserIndex.value }
+    const retries = { ...feedbackRetryScoreByKey.value }
     let changed = false
     for (const t of host.getTurnGroups()) {
       if (t.id < fromTurnId) continue
@@ -912,20 +1016,23 @@ export function useManagerSession(host: ManagerSessionHost) {
           acks[key] !== undefined ||
           byUser[uidx] !== undefined ||
           ackByUser[uidx] !== undefined ||
-          routeWrong[uidx]
+          routeWrong[uidx] ||
+          retries[key] !== undefined
         ) {
           delete scores[key]
           delete acks[key]
           delete byUser[uidx]
           delete ackByUser[uidx]
           delete routeWrong[uidx]
+          delete retries[key]
           changed = true
         }
       }
       for (const key of collectTurnFeedbackAliasKeys(t)) {
-        if (scores[key] !== undefined || acks[key] !== undefined) {
+        if (scores[key] !== undefined || acks[key] !== undefined || retries[key] !== undefined) {
           delete scores[key]
           delete acks[key]
+          delete retries[key]
           changed = true
         }
       }
@@ -936,6 +1043,7 @@ export function useManagerSession(host: ManagerSessionHost) {
       feedbackByUserIndex.value = byUser
       feedbackAckByUserIndex.value = ackByUser
       routeFeedbackByUserIndex.value = routeWrong
+      feedbackRetryScoreByKey.value = retries
       persistSessionFeedback()
     }
   }
@@ -944,6 +1052,16 @@ export function useManagerSession(host: ManagerSessionHost) {
     feedbackByRunId.value = { ...feedbackByRunId.value, [key]: score }
     if (ack !== undefined) {
       feedbackAckByRunId.value = { ...feedbackAckByRunId.value, [key]: ack }
+    }
+    if (ack !== undefined && !isFeedbackFailAck(ack)) {
+      const retries = { ...feedbackRetryScoreByKey.value }
+      delete retries[key]
+      const uidxClear =
+        userIndex != null && userIndex >= 0
+          ? userIndex
+          : parseFeedbackUserIndexFromItem({ feedbackKey: key })
+      if (uidxClear != null && uidxClear >= 0) delete retries[umidxFeedbackKey(uidxClear)]
+      feedbackRetryScoreByKey.value = retries
     }
     const uidx =
       userIndex != null && userIndex >= 0
@@ -1341,14 +1459,14 @@ export function useManagerSession(host: ManagerSessionHost) {
       sanitizeWithdrawnTurns()
 
       // 无本地 turn 则灌入历史；有本地则按服务端内容重映射 userMessageIndex
-      await hydrateSessionFromServer(id)
+      const hist = await hydrateSessionFromServer(id)
 
       reconcileTurnFeedbackKeys()
-      const expectFeedback = host.getUserMessageIndexCounter() > 0
-      await retryFeedbackHydrate(
-        () => hydrateSessionFeedbackFromServer(),
-        expectFeedback ? FEEDBACK_HYDRATE_WARM_OPTS : FEEDBACK_HYDRATE_COLD_OPTS
-      )
+      const expectFeedback =
+        hist === 'error' ||
+        host.getUserMessageIndexCounter() > 0 ||
+        hasLocalFeedbackScores()
+      await hydrateFeedbackWithRetry({ expectFeedback })
 
       stampCurrentSessionMode()
       touchCurrentSessionHistory({ bump: false })
@@ -1409,6 +1527,9 @@ export function useManagerSession(host: ManagerSessionHost) {
     rebuildTurnCountersFromLogs,
     fetchServerSessionHistory,
     hydrateSessionFromServer,
+    hydrateFeedbackWithRetry,
+    stopActiveFeedbackHydrateWatch,
+    hasLocalFeedbackScores,
     renameSessionHistory,
     deleteSessionHistory,
     pruneEmptySessionHistory,
@@ -1429,6 +1550,9 @@ export function useManagerSession(host: ManagerSessionHost) {
     isFeedbackPendingForTurn,
     turnFeedbackSubmitted,
     turnFeedbackAckText,
+    turnFeedbackFailed,
+    markFeedbackSubmitFailed,
+    feedbackRetryScoreForTurn,
     routeFeedbackSubmitted,
     shouldShowTurnFeedback,
     clearFeedbackForUserIndex,

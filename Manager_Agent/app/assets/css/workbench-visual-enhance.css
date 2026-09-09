@@ -51,6 +51,7 @@
 .spring-root.cursor-workbench .spring-turn > .turn-activity,
 .spring-root.cursor-workbench .spring-turn > .turn-agent-pipeline,
 .spring-root.cursor-workbench .spring-turn > .cursor-thought-panel,
+.spring-root.cursor-workbench .spring-turn > .turn-storyline,
 .spring-root.cursor-workbench .spring-turn > .reply-panel {
   width: 100% !important;
   max-width: 100% !important;
@@ -922,9 +923,9 @@
   --wb-accent: #a78bfa;
   --wb-accent-soft: rgba(167, 139, 250, 0.18);
   --wb-accent-glow: rgba(139, 92, 246, 0.25);
-  --chat-col-width: min(840px, calc(100vw - var(--mgr-sidebar-w, 240px) - var(--mgr-tools-w, 280px) - 48px));
-  --chat-user-max: min(640px, 88%);
-  --chat-agent-max: min(760px, 100%);
+  --chat-col-width: min(920px, calc(100vw - var(--mgr-sidebar-w, 240px) - var(--mgr-tools-w, 280px) - 48px));
+  --chat-user-max: min(720px, 88%);
+  --chat-agent-max: min(920px, 100%);
   --chat-turn-gap: 1.75rem;
 }
 
@@ -1131,9 +1132,9 @@
   --wb-accent: #38bdf8;
   --wb-accent-soft: rgba(56, 189, 248, 0.15);
   --wb-accent-glow: rgba(14, 165, 233, 0.28);
-  --chat-col-width: min(840px, calc(100vw - var(--mgr-sidebar-w, 240px) - var(--mgr-tools-w, 280px) - 48px));
-  --chat-user-max: min(640px, 88%);
-  --chat-agent-max: min(760px, 100%);
+  --chat-col-width: min(920px, calc(100vw - var(--mgr-sidebar-w, 240px) - var(--mgr-tools-w, 280px) - 48px));
+  --chat-user-max: min(720px, 88%);
+  --chat-agent-max: min(920px, 100%);
   --chat-turn-gap: 1.5rem;
 }
 

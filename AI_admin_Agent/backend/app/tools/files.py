@@ -5,6 +5,7 @@ import time
 from pathlib import Path
 
 from app.core.config import settings
+from app.core.tenant_scope import user_workspace_dir
 from app.tools.common import _tool_err, _tool_ok
 
 # 文本读上限（字符）；超出附加截断标记
@@ -12,7 +13,7 @@ READ_CHAR_LIMIT = 32_000
 
 
 def _workspace_root() -> Path:
-    root = Path(settings.WORKSPACE_DIR).resolve()
+    root = Path(user_workspace_dir(settings.WORKSPACE_DIR)).resolve()
     root.mkdir(parents=True, exist_ok=True)
     return root
 

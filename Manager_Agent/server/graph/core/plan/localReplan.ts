@@ -102,6 +102,8 @@ export function classifyStepObservationFailure(input: {
   agent?: string
   emptyEvidence?: boolean
   protocolMalformed?: boolean
+  /** 结构字段已证明有数据时，短正文不判 empty_output */
+  hasStructuredEvidence?: boolean
 }): ObservationFailureKind {
   const status = String(input.status || '').toLowerCase()
   const err = String(input.error || '').trim()
@@ -118,7 +120,7 @@ export function classifyStepObservationFailure(input: {
     return 'error'
   }
   if (input.emptyEvidence) return 'empty_evidence'
-  if (!out || out.length < 12) return 'empty_output'
+  if ((!out || out.length < 12) && !input.hasStructuredEvidence) return 'empty_output'
   if (
     out.includes('<RAG_NEEDS_CLARIFY>') ||
     out.includes('【需要补充信息】') ||
@@ -253,7 +255,7 @@ export async function llmLocalReplanRemaining(opts: {
             .join('\n\n')
         ]
       ],
-      { thinkingLabel: '局部修订计划' }
+      { tier: 'light', thinkingLabel: '局部修订计划' }
     )
 
     const parsed = LocalReplanSchema.safeParse(safeJsonParse(String(r.text || '').trim()))

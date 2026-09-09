@@ -9,6 +9,11 @@ export type ManagerWorkbenchSidebarContext = {
   collaborationPosture: Ref<CollaborationPosture>
   planStepsTodo: Ref<PlanStepTodo[]>
   planStepsDoneCount: ComputedRef<number>
+  taskBoardLive: Ref<{
+    items: import('./managerMaturityUi').TaskBoardItemUi[]
+    topology: string
+  } | null>
+  maturitySliLive: Ref<import('./managerMaturityUi').MaturitySliUi | null>
   routeCapLive: Ref<{ intent: string; agents: string[]; capLabel: string; dag?: string } | null>
   agentDisplayLabel: (agent: string, professional?: boolean) => string
   taskConstraintsLive: Ref<{

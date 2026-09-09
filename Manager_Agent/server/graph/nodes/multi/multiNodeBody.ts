@@ -5,14 +5,18 @@ import { structuralAnswerVerdict } from '../../core/agent/agentAnswerJudge'
 import { buildInternalCollabContext } from '../../core/output/downstreamContext'
 import { globalFactsForInternalPayload, hasCodeInResults, buildCodeFirstBundle } from '#agent-shared/codeFirstAuthority'
 import {
-  getManagerMaxParallel,
   isCodeStepCompletedInRun,
   isParallelIndependentEnabled,
   listBlockingDependencies,
   listDependentsToSkipAfterFailure,
-  getUpstreamFailureSkipReason,
-  suggestMaxParallelForPlan
+  getUpstreamFailureSkipReason
 } from '../../core/plan/planParallel'
+import {
+  coerceExecutionTopology,
+  resolveExecutionTopology,
+  resolveMaxParallelForTopology
+} from '../../core/plan/executionTopology'
+import { buildTaskBoardFromSteps } from '../../core/plan/taskBoard'
 import { validateAndPreparePlan } from '../../core/plan/planValidate'
 import { runTaskFetcherLoop, describeParallelReadyBatch } from '../../core/task/taskFetcher'
 import { hydrateCompletedById } from '../../core/runtime/stepReuse'
@@ -59,6 +63,7 @@ import { buildSpecialistHandoffFromStep } from '../../../utils/agents/specialist
 import {
   buildSoftHandoffFromStep,
   formatDependencySoftHandoffs,
+  formatSoftHandoffsForContinuation,
   mergeSoftHandoffsIntoMeta
 } from '../../core/routing/softHandoff'
 import { buildStepStatus, estimateMultiEtaMs } from '../../core/runtime/stepStatus'
@@ -71,9 +76,13 @@ import {
   shouldConsiderLocalReplan,
   shouldForcePlanRollback,
   filterStepsExcludingCircuitAgents,
-  resolveCircuitBlockedReplan,
-  classifyStepObservationFailure
+  resolveCircuitBlockedReplan
 } from '../../core/plan/localReplan'
+import { deriveStepObservationSignals } from '../../core/plan/stepObservation'
+import { acceptStepResult } from '../../core/plan/stepAcceptance'
+import { buildMaturitySliSnapshot } from '../../core/runtime/maturitySli'
+import { stabilizePromptPrefix } from '../../core/runtime/contextKvHygiene'
+import { isManagerRaceEnabled } from '#agent-shared/specialistBrief'
 import { llmPhaseContinue, maxRunPhases } from '../../core/plan/phaseContinue'
 import {
   buildPlanPreviewPayload,
@@ -1171,20 +1180,52 @@ export async function runMultiNodeBody(state: any, deps: any) {
       }
 
       const policyParallel = Number(policy.multi.maxParallel || 3)
-      let baseParallel = Math.max(1, Math.min(getManagerMaxParallel(), schedulerMaxParallel > 0 ? schedulerMaxParallel : policyParallel))
-      if (isParallelIndependentEnabled()) {
-        baseParallel = Math.max(baseParallel, suggestMaxParallelForPlan(steps))
-      }
-      baseParallel = Math.min(getManagerMaxParallel(), baseParallel)
-      const maxParallel = executionMode === 'serial' ? 1 : baseParallel
+      const topology = resolveExecutionTopology({
+        executionTopology:
+          coerceExecutionTopology(state?.meta?.executionTopology) || state?.meta?.executionTopology,
+        isMulti: String(state?.intent || '') === 'multi' || steps.length > 1,
+        allowedAgents: steps.map((s) => String(s.agent || '')),
+        orchestrationThickness: String(state?.meta?.orchestrationThickness || ''),
+        planSteps: steps
+      })
+      const maxParallel = resolveMaxParallelForTopology({
+        topology,
+        steps,
+        executionMode,
+        schedulerMaxParallel,
+        policyMaxParallel: policyParallel
+      })
+      opts.sendEvent({
+        event: 'thinking',
+        data: `执行拓扑=${topology}，maxParallel=${maxParallel}`,
+        from: 'manager'
+      })
+      const taskBoard0 = buildTaskBoardFromSteps(steps)
+      opts.sendEvent({
+        event: 'task_board',
+        data: { items: taskBoard0, topology },
+        from: 'manager'
+      })
 
       const totalSteps = steps.length
       let completedSteps = 0
+      const boardDoneById: Record<string, { status?: string; reason?: string }> = {}
       emitPlanStepsEvent(opts, steps)
+      const emitTaskBoardLive = () => {
+        const items = buildTaskBoardFromSteps(steps, boardDoneById).map((it) => {
+          const reason = boardDoneById[it.id]?.reason
+          return reason ? { ...it, reason } : it
+        })
+        opts.sendEvent({
+          event: 'task_board',
+          data: { items, topology },
+          from: 'manager'
+        })
+      }
       const emitStepStatus = (
         stepId: string,
         agent: string,
-        status: 'pending' | 'running' | 'success' | 'failed' | 'skipped',
+        status: 'pending' | 'running' | 'success' | 'failed' | 'skipped' | 'replan',
         extra?: { query?: string; error?: string }
       ) => {
         const stepWeight = 100 / Math.max(1, totalSteps)
@@ -1206,6 +1247,11 @@ export async function runMultiNodeBody(state: any, deps: any) {
           data: buildStepStatus({ stepId, agent, status, pct, eta_ms, ...extra }, opts.runId),
           from: 'manager'
         })
+        boardDoneById[stepId] = {
+          status: status === 'success' ? 'ok' : status === 'failed' ? 'failed' : status,
+          ...(extra?.error ? { reason: String(extra.error).slice(0, 120) } : {})
+        }
+        emitTaskBoardLive()
       }
       for (const s of steps) {
         const stepId = String(s.id)
@@ -1444,14 +1490,49 @@ export async function runMultiNodeBody(state: any, deps: any) {
               const id = String(x.id || '').trim()
               return id && id !== stepId && !byId[id]
             })
-            const wouldReplan = shouldConsiderLocalReplan({
+            const stepAgentResult = (
+              record?.meta as { agentResult?: import('../../../utils/agents/types').AgentResult } | undefined
+            )?.agentResult
+            const stepObsHandoff =
+              (record as { handoff?: import('../../../utils/agents/types').SpecialistHandoff } | undefined)
+                ?.handoff ||
+              buildSpecialistHandoffFromStep({
+                agent: failedAgent,
+                stepId,
+                ok: status === 'ok',
+                output,
+                error,
+                agentResult: stepAgentResult
+              })
+            const stepObs = deriveStepObservationSignals({
+              agent: failedAgent,
               status,
               output,
               error,
-              agent: failedAgent,
-              expertHardDown: Boolean(failedAgent && isExpertHardDown(failedAgent)),
-              circuitOpen: Boolean(failedAgent && runtimeCircuitOpenAgents.has(failedAgent))
+              agentResult: stepAgentResult,
+              handoff: stepObsHandoff
             })
+            const stepAcceptance = acceptStepResult({
+              agent: failedAgent,
+              status,
+              output,
+              error,
+              agentResult: stepAgentResult,
+              optional: optionalAgents.has(failedAgent)
+            })
+            const wouldReplan =
+              shouldConsiderLocalReplan({
+                status,
+                output,
+                error,
+                agent: failedAgent,
+                expertHardDown: Boolean(failedAgent && isExpertHardDown(failedAgent)),
+                circuitOpen: Boolean(failedAgent && runtimeCircuitOpenAgents.has(failedAgent)),
+                emptyEvidence: stepObs.emptyEvidence,
+                protocolMalformed: stepObs.protocolMalformed,
+                observationKind: stepObs.observationKind
+              }) ||
+              (!stepAcceptance.accepted && stepAcceptance.boardStatus === 'replan')
             if (pendingAfterPrune.length > 0 && wouldReplan) {
               const circuitBlocked =
                 isCircuitSkipCoreEnabled() && !optionalAgents.has(failedAgent)
@@ -1809,6 +1890,7 @@ export async function runMultiNodeBody(state: any, deps: any) {
                   }
                 })
               )
+              opts.sendEvent({ event: 'phase', data: 'local_replan', from: 'manager' })
               const replan = await llmLocalReplanRemaining({
                 llmInvoke,
                 state,
@@ -1818,12 +1900,9 @@ export async function runMultiNodeBody(state: any, deps: any) {
                   status,
                   output: clipObsSummary(String(output || '')),
                   error: error ? clipObsSummary(String(error)) : error,
-                  observationKind: classifyStepObservationFailure({
-                    status,
-                    output: String(output || ''),
-                    error: error ? String(error) : undefined,
-                    agent: String(s.agent || failedAgent || '')
-                  })
+                  emptyEvidence: stepObs.emptyEvidence,
+                  protocolMalformed: stepObs.protocolMalformed,
+                  observationKind: stepObs.observationKind
                 },
                 pendingSteps,
                 completedSummaries,
@@ -1877,7 +1956,7 @@ export async function runMultiNodeBody(state: any, deps: any) {
                 ]
                 emitPlanStepsEvent(opts, nextPlan)
                 for (const rs of filteredRemaining) {
-                  emitStepStatus(String(rs.id), String(rs.agent), 'pending', { query: rs.query })
+                  emitStepStatus(String(rs.id), String(rs.agent), 'replan', { query: rs.query })
                 }
                 return {
                   append: append.length ? append : undefined,
@@ -1898,9 +1977,24 @@ export async function runMultiNodeBody(state: any, deps: any) {
             })
             await runStep(s)
             const res = byId[stepId]
-            const status = res?.status === 'error' ? 'failed' : res?.status === 'skipped' ? 'skipped' : 'success'
+            const stepAr = (
+              res?.meta as { agentResult?: import('../../../utils/agents/types').AgentResult } | undefined
+            )?.agentResult
+            const acceptance = acceptStepResult({
+              agent: String(s.agent || ''),
+              status: String(res?.status || ''),
+              output: String(res?.output || ''),
+              error: String(res?.error || ''),
+              agentResult: stepAr,
+              optional: Boolean((s as { optional?: boolean }).optional)
+            })
+            let status: 'success' | 'failed' | 'skipped' | 'replan' =
+              res?.status === 'error' ? 'failed' : res?.status === 'skipped' ? 'skipped' : 'success'
+            if (status === 'success' && !acceptance.accepted) {
+              status = acceptance.boardStatus === 'failed' ? 'failed' : 'replan'
+            }
             if (status === 'success' || status === 'failed' || status === 'skipped') completedSteps += 1
-            emitStepStatus(stepId, String(s.agent), status, { error: res?.error })
+            emitStepStatus(stepId, String(s.agent), status, { error: res?.error || acceptance.reason })
           }
       }
 
@@ -2142,6 +2236,39 @@ export async function runMultiNodeBody(state: any, deps: any) {
         )
       )
 
+      const specialistRoundsUsed = Object.values(byId)
+        .map((rec) => {
+          const ar = (rec.meta as { agentResult?: { structured?: { rounds_used?: unknown } } } | undefined)
+            ?.agentResult
+          const n = Number(ar?.structured?.rounds_used)
+          return Number.isFinite(n) && n >= 0 ? n : undefined
+        })
+        .filter((n): n is number => n != null)
+
+      const maturitySli = buildMaturitySliSnapshot({
+        stepStatuses: lastStepRecords.map((r) => ({ status: String(r.status || '') })),
+        briefAttachedCount: Number((state.meta as { briefAttachedCount?: number } | undefined)?.briefAttachedCount) || 0,
+        specialistRoundsUsed,
+        localReplanCount,
+        raceEnabled: isManagerRaceEnabled()
+      })
+
+      const replanAuditWithSli = {
+        ...replanAudit,
+        maturitySli,
+        // 稳住续轮摘要前缀，避免时钟打头废 KV
+        softHandoffDigest: stabilizePromptPrefix(
+          formatSoftHandoffsForContinuation(softHandoffs, 3).slice(0, 800)
+        )
+      }
+
+      opts.sendEvent({
+        event: 'maturity_sli',
+        data: maturitySli,
+        from: 'manager'
+      })
+      emitTaskBoardLive()
+
       return {
         results: out,
         evidence: evidences.filter(Boolean),
@@ -2152,12 +2279,12 @@ export async function runMultiNodeBody(state: any, deps: any) {
               uncertainty: 'high',
               voteSummary,
               softHandoffs,
-              ...replanAudit
+              ...replanAuditWithSli
             })
           : mergeMeta(state, {
               ...(voteSummary ? { voteSummary } : {}),
               softHandoffs,
-              ...replanAudit
+              ...replanAuditWithSli
             }),
         taskPlan: combinedNeedsClarify
           ? mergeTaskPlan(state.taskPlan ?? null, { needsClarification: true, clarificationQuestions: finalClarifyQuestions }, state.intent, steps)

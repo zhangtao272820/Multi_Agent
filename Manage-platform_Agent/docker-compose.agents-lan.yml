@@ -310,7 +310,8 @@ services:
       CLAWHIVE_CONFIG_SYNC: ${CLAWHIVE_CONFIG_SYNC:-0}
       # LLM 模型/API：由 env_file（RAG_Agent/.env + .env.agents-lan）注入
       RAG_VECTOR_BACKEND: pgvector
-      RAG_PG_CONNECTION_STRING: ${RAG_PG_CONNECTION_STRING:-postgresql://postgres:postgres@rag_pgvector:5432/rag_vector}
+      # 容器内必须用服务名；勿用 ${RAG_PG_CONNECTION_STRING} 以免宿主机 localhost 插值污染
+      RAG_PG_CONNECTION_STRING: postgresql://postgres:postgres@rag_pgvector:5432/rag_vector
       RAG_PG_TABLE_NAME: ${RAG_PG_TABLE_NAME:-rag_documents}
       RAG_MIGRATE_LEGACY_MEMORY_ON_BOOT: ${RAG_MIGRATE_LEGACY_MEMORY_ON_BOOT:-1}
       RAG_ENABLE_BM25: ${RAG_ENABLE_BM25:-1}

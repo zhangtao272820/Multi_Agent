@@ -204,6 +204,17 @@ export type ManagerRagTaskPayload = {
   query_intent?: string;
   /** true 时 RAG 编排模式走 standard 深度检索 */
   force_deep_retrieval?: boolean;
+  /** Phase E：覆盖度关键 → 弱证据强制有界 agentic（仍受 maxRounds） */
+  coverage_critical?: boolean;
+  /** Phase D Outcome Brief（可选） */
+  specialist_brief?: {
+    version?: string;
+    goal?: string;
+    acceptance?: string[];
+    budget?: { max_tool_rounds?: number; timeout_ms?: number };
+    constraints?: { coverage_critical?: boolean; read_only?: boolean };
+    field_guide_digest?: string;
+  };
   /** manager_bullets = 要点列表+来源；conversational = 对话体 */
   output_style?: "manager_bullets" | "conversational";
   exclude_hints?: string[];
@@ -325,8 +336,9 @@ export function resolveLeanSubAgentQuery(candidates: string[], lastUserFallback 
 export function splitCompoundQueries(text: string): string[] {
   const s = String(text || "").trim();
   if (s.length < 10) return [];
+  // 含中英文问号：把「补贴多少？夜班怎么算？」切成原子子问句
   const rawParts = s
-    .split(/[，,；;、。．\n]+|[与及和且]\s*/g)
+    .split(/[？?]+|[，,；;、。．\n]+|[与及和且]\s*/g)
     .map((p) => p.trim())
     .filter((p) => p.length >= 4 && p.length <= 140);
   if (rawParts.length < 2) return [];

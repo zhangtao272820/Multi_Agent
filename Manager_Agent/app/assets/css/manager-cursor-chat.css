@@ -1,7 +1,7 @@
 /* 总管 Agent · Cursor 对话可读性 · 霜白冬雪 Token */
 
 .spring-root.cosmic-theme.cursor-workbench {
-  --chat-col-width: min(840px, calc(100vw - var(--mgr-sidebar-w, 240px) - var(--mgr-tools-w, 280px) - 48px));
+  --chat-col-width: min(920px, calc(100vw - var(--mgr-sidebar-w, 240px) - var(--mgr-tools-w, 280px) - 48px));
   --chat-font-body: 15.5px;
   --chat-font-body-lh: 1.75;
   --chat-font-secondary: 14px;
@@ -612,7 +612,7 @@
 
 @media (min-width: 1400px) {
   .spring-root.cosmic-theme.cursor-workbench {
-    --chat-col-width: min(840px, calc(100vw - var(--mgr-sidebar-w, 240px) - var(--mgr-tools-w, 280px) - 48px));
+    --chat-col-width: min(920px, calc(100vw - var(--mgr-sidebar-w, 240px) - var(--mgr-tools-w, 280px) - 48px));
   }
 }
 
@@ -1453,7 +1453,7 @@
 @media (min-width: 1600px) {
   .spring-root.cursor-workbench.cosmic-theme {
     --chat-rail-max: min(
-      840px,
+      920px,
       calc(100vw - var(--mgr-sidebar-w, 240px) - var(--mgr-tools-w, 280px) - 2 * var(--chat-rail-pad-x, 18px) - 20px)
     );
     --chat-col-width: var(--chat-rail-max);
@@ -1565,13 +1565,18 @@
 }
 
 .spring-root.cursor-workbench .harness-think {
-  gap: 1rem !important;
+  gap: 0.85rem !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  align-items: stretch !important;
 }
 
 .spring-root.cursor-workbench .harness-think-stages {
-  gap: 0.35rem !important;
-  padding: 0.15rem 0 0.25rem !important;
+  gap: 0.4rem !important;
+  padding: 0.1rem 0 0.15rem !important;
   position: relative;
+  width: 100% !important;
+  align-items: stretch !important;
 }
 
 .spring-root.cursor-workbench .harness-think-stages::before {
@@ -1592,9 +1597,14 @@
 }
 
 .spring-root.cursor-workbench .harness-think-stage {
-  padding: 0.55rem 0.75rem 0.55rem 0.35rem !important;
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  padding: 0.5rem 0.85rem 0.5rem 0.55rem !important;
   margin-left: 0 !important;
-  border-radius: 12px !important;
+  margin-right: 0 !important;
+  border-radius: 10px !important;
   background: rgba(255, 255, 255, 0.55);
   border: 1px solid transparent;
 }
@@ -1617,6 +1627,7 @@
   gap: 0.7rem !important;
   position: relative;
   z-index: 1;
+  width: 100% !important;
 }
 
 .spring-root.cursor-workbench .harness-think-stage-dot {
@@ -1637,6 +1648,9 @@
 }
 
 .spring-root.cursor-workbench .harness-created-plan {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
   margin-top: 0.35rem !important;
   padding: 0.85rem 1rem 0.9rem !important;
   border-radius: 14px !important;

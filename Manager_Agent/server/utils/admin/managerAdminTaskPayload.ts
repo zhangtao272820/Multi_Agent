@@ -17,6 +17,7 @@ import {
   postureForcesReadOnly,
   resolveCollaborationPosture
 } from '../platform/collaborationPosture'
+import type { SpecialistBrief } from '#agent-shared/specialistBrief'
 
 export type { TurnScopePayload }
 
@@ -37,6 +38,8 @@ export type ManagerAdminTaskPayload = {
   /** 复合 admin 多子句（对齐 RAG sub_queries） */
   sub_queries?: string[]
   turn_scope?: TurnScopePayload
+  /** Phase D：编排态 Outcome Brief（单源不传） */
+  specialist_brief?: SpecialistBrief
 }
 
 /** 总管可编排范围内的只读工具（与 MANAGER_ADMIN_TOOL_NAMES 对齐） */
@@ -112,6 +115,8 @@ export function buildManagerAdminTaskPayload(input: {
   /** 编排 LLM 已产出且过 Zod 的 tool_plan（优先于 legacy infer） */
   orchestratedToolPlan?: Array<{ name: string; args: Record<string, unknown> }>
   orchestratedIntentHint?: string
+  /** Phase D Outcome Brief（仅编排 multi/hub） */
+  specialistBrief?: SpecialistBrief | null
 }): ManagerAdminTaskPayload {
   const scoped =
     String(input.scopedText || '').trim() ||
@@ -154,6 +159,8 @@ export function buildManagerAdminTaskPayload(input: {
     postureForcesReadOnly(posture) ||
     (tool_plan?.length === 1 && READ_ONLY_ADMIN_TOOLS.has(String(tool_plan[0]?.name || '')))
 
+  const brief = input.specialistBrief || undefined
+
   return {
     source: 'manager',
     action_text: action,
@@ -162,6 +169,7 @@ export function buildManagerAdminTaskPayload(input: {
     ...(tool_plan?.length ? { tool_plan } : {}),
     ...(sub_queries.length >= 2 ? { sub_queries } : {}),
     ...(readOnly ? { read_only: true } : {}),
-    ...(turnScope ? { turn_scope: turnScope } : {})
+    ...(turnScope ? { turn_scope: turnScope } : {}),
+    ...(brief ? { specialist_brief: brief } : {})
   }
 }

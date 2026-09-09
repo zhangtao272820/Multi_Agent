@@ -87,11 +87,16 @@ export function buildContextFromEvidenceItems(items: EvidenceItem[]): string {
   return clampText(lines.join("\n").trim(), env.maxContextChars);
 }
 
-export function buildRetrieveFirstToolOutput(result: DocumentRetrievalResult): string {
+export function buildRetrieveFirstToolOutput(
+  result: DocumentRetrievalResult,
+  evidenceOverride?: EvidenceItem[],
+): string {
+  const evidence =
+    evidenceOverride && evidenceOverride.length > 0 ? evidenceOverride : result.evidence;
   const meta = {
     agenticRounds: result.agenticRounds ?? 0,
     rerankMode: result.rerankMode,
-    evidenceCount: result.evidence.length,
+    evidenceCount: evidence.length,
     needsClarify: result.needsClarify,
     experienceHits: result.experienceHits ?? 0,
     abVariant: result.abVariant,
@@ -99,10 +104,13 @@ export function buildRetrieveFirstToolOutput(result: DocumentRetrievalResult): s
     retrievalLanes: result.retrievalLanes ?? ["hybrid"],
     needs_graph: Boolean(result.plan?.needs_graph),
     ms: result.ms,
+    evidenceFocused: Boolean(evidenceOverride && evidenceOverride.length > 0),
   };
   let out = String(result.output ?? "").trim();
-  if (!/\[evidence_json\]/.test(out) && result.evidence.length) {
-    out = `${out}\n\n[evidence_json]\n${JSON.stringify({ evidence: result.evidence }, null, 2)}`;
+  // 去掉旧 evidence_json，改用与生成一致的聚焦证据（避免 UI 展示脏池）
+  out = out.replace(/\n?\[evidence_json\][\s\S]*?(?=\n\[retrieval_meta\]|$)/g, "").trim();
+  if (evidence.length) {
+    out = `${out}\n\n[evidence_json]\n${JSON.stringify({ evidence }, null, 2)}`;
   }
   return `${out}\n[retrieval_meta]\n${JSON.stringify(meta)}`;
 }
@@ -440,11 +448,10 @@ export async function runRetrieveFirstChatStream(
 
   if (!retrieval) return null;
 
-  const toolOutput = buildRetrieveFirstToolOutput(retrieval);
-
   if (!retrieval.evidence.length) {
+    const emptyTool = buildRetrieveFirstToolOutput(retrieval);
     const clarify =
-      parseClarifyMessageFromTool(toolOutput) ||
+      parseClarifyMessageFromTool(emptyTool) ||
       "知识库中暂未找到与问题直接相关的文档内容，请补充文档、指定文件名或调整问法。";
     onEvent({
       type: "phase",
@@ -457,7 +464,7 @@ export async function runRetrieveFirstChatStream(
     return {
       answer: clarify,
       evidence: [],
-      toolOutput,
+      toolOutput: emptyTool,
       retrievalNeedsClarify: true,
       usage: null,
       effectiveQuery: retrieval.effectiveQuery,
@@ -468,6 +475,7 @@ export async function runRetrieveFirstChatStream(
     };
   }
 
+  // 复合问句必须走子问句槽位；不得因 skipEvidenceFocus 退化到 source-dominant 塌缩
   const skipEvidenceFocus =
     !isMultiPartFinal &&
     (env.retrieveFirstSkipEvidenceSelect || modeUsesTurboRetrieval(usedMode));
@@ -477,20 +485,48 @@ export async function runRetrieveFirstChatStream(
     effectiveQuery: string,
     opts?: { forceMultiSource?: boolean },
   ) => {
+    if (isMultiPartFinal && subQueriesFinal.length >= 2) {
+      const slotted = prioritizeEvidenceBySubQueries(
+        subQueriesFinal,
+        ev,
+        env.maxContextSnippets,
+      );
+      if (opts?.forceMultiSource) {
+        const multi = prioritizeEvidenceForGeneration(
+          input.sanitizedMessage,
+          effectiveQuery || input.sanitizedMessage,
+          ev,
+          env.maxContextSnippets,
+          docs,
+          { forceMultiSource: true },
+        );
+        // 子问槽位优先，再补多源轮询，避免近义 docx 挤掉验收 md
+        const seen = new Set(
+          slotted.map((e) => `${e.source}:${String(e.content ?? "").slice(0, 48)}`),
+        );
+        const merged = [...slotted];
+        for (const item of multi) {
+          if (merged.length >= env.maxContextSnippets) break;
+          const key = `${item.source}:${String(item.content ?? "").slice(0, 48)}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          merged.push(item);
+        }
+        return merged;
+      }
+      return slotted;
+    }
     if (skipEvidenceFocus) {
-      return isMultiPartFinal
-        ? prioritizeEvidenceBySubQueries(subQueriesFinal, ev, env.maxContextSnippets)
-        : prioritizeEvidenceForGeneration(
-            input.sanitizedMessage,
-            effectiveQuery || input.sanitizedMessage,
-            ev,
-            env.maxContextSnippets,
-            docs,
-            opts,
-          );
+      return prioritizeEvidenceForGeneration(
+        input.sanitizedMessage,
+        effectiveQuery || input.sanitizedMessage,
+        ev,
+        env.maxContextSnippets,
+        docs,
+        opts,
+      );
     }
     if (opts?.forceMultiSource) {
-      // LLM 精选易再塌缩到近义高分文档；假阴性再检强制 round-robin
       return prioritizeEvidenceForGeneration(
         input.sanitizedMessage,
         effectiveQuery || input.sanitizedMessage,
@@ -520,7 +556,6 @@ export async function runRetrieveFirstChatStream(
       .map((d) => String(d.name || "").trim())
       .filter((n) => n && !matchesUsed(n));
     if (alternates.length) return alternates;
-    // 首轮已覆盖全部来源时，仍强制扫「非唯一主导源」
     if (usedNames.size === 1) {
       const sole = [...usedNames][0];
       return docs
@@ -534,6 +569,8 @@ export async function runRetrieveFirstChatStream(
     retrieval.evidence,
     retrieval.effectiveQuery || input.sanitizedMessage,
   );
+  // 引用与生成共用聚焦证据（根因：UI 曾展示聚焦前脏池）
+  let toolOutput = buildRetrieveFirstToolOutput(retrieval, focusedEvidence);
   let contextText = buildContextFromEvidenceItems(focusedEvidence);
   if (!contextText.trim()) {
     const clarify = "检索到片段但无法组装上下文，请换一种问法或指定文档名称。";
@@ -651,11 +688,12 @@ export async function runRetrieveFirstChatStream(
       );
       contextText = buildContextFromEvidenceItems(focusedEvidence);
       if (contextText.trim()) {
+        toolOutput = buildRetrieveFirstToolOutput(retrieval, focusedEvidence);
         emitGeneratePhase(focusedEvidence);
         onEvent({
           type: "tool_output",
           name: "document_query",
-          output: buildRetrieveFirstToolOutput(retrieval),
+          output: toolOutput,
         });
         const retryQuestion = buildGenerateQuestionForRag({
           rawQuestion: input.sanitizedMessage,
@@ -706,7 +744,7 @@ export async function runRetrieveFirstChatStream(
   return {
     answer,
     evidence,
-    toolOutput: buildRetrieveFirstToolOutput(retrieval),
+    toolOutput: buildRetrieveFirstToolOutput(retrieval, focusedEvidence),
     retrievalNeedsClarify: false,
     usage,
     effectiveQuery: retrieval.effectiveQuery,

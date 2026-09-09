@@ -162,16 +162,23 @@ async function readSessionFromPg(sessionId: string): Promise<ManagerSession | nu
   return { messages: mapPgTurnRows(archived.rows) }
 }
 
-async function writeSessionToPg(sessionId: string, messages: SessionMessage[]): Promise<boolean> {
+async function writeSessionToPg(
+  sessionId: string,
+  messages: SessionMessage[],
+  tenantId?: string
+): Promise<boolean> {
   const sid = String(sessionId || '').trim()
   if (!sid) return false
   const capped = messages.slice(-SESSION_MAX_TURNS)
+  const tid = String(tenantId || '').trim() || null
 
   const upsertSession = await agentPgQuery(
-    `INSERT INTO mgr_sessions (id, updated_at)
-     VALUES ($1, NOW())
-     ON CONFLICT (id) DO UPDATE SET updated_at = NOW()`,
-    [sid]
+    `INSERT INTO mgr_sessions (id, tenant_id, updated_at)
+     VALUES ($1, $2, NOW())
+     ON CONFLICT (id) DO UPDATE SET
+       tenant_id = COALESCE(EXCLUDED.tenant_id, mgr_sessions.tenant_id),
+       updated_at = NOW()`,
+    [sid, tid]
   )
   if (!upsertSession) return false
 
@@ -203,14 +210,18 @@ export async function readManagerSession(sessionId: string): Promise<ManagerSess
 }
 
 /** 写入会话：按 backend 写 file / postgres / dual；PG 失败时强制落盘 */
-export async function writeManagerSession(sessionId: string, session: ManagerSession): Promise<void> {
+export async function writeManagerSession(
+  sessionId: string,
+  session: ManagerSession,
+  opts?: { tenantId?: string }
+): Promise<void> {
   const backend = resolveManagerStorageBackend()
   const messages = session.messages.slice(-SESSION_MAX_TURNS)
 
   let pgOk = false
   if (shouldWritePostgres(backend)) {
     try {
-      pgOk = await writeSessionToPg(sessionId, messages)
+      pgOk = await writeSessionToPg(sessionId, messages, opts?.tenantId)
     } catch {
       pgOk = false
     }
@@ -285,4 +296,20 @@ export async function getManagerMemoryStatus(): Promise<{
   const value = { backend, pgConfigured, pgReachable }
   memoryStatusCache = { at: now, value }
   return value
+}
+
+
+/** 绑定会话组织租户（鉴权派生）；INSERT 路径同步写 tenant_id */
+export async function bindSessionTenant(sessionId: string, tenantId: string): Promise<void> {
+  const sid = String(sessionId || '').trim()
+  const tid = String(tenantId || '').trim()
+  if (!sid || !tid) return
+  await agentPgQuery(
+    `INSERT INTO mgr_sessions (id, tenant_id, updated_at)
+     VALUES ($1, $2, NOW())
+     ON CONFLICT (id) DO UPDATE SET
+       tenant_id = EXCLUDED.tenant_id,
+       updated_at = NOW()`,
+    [sid, tid]
+  ).catch(() => undefined)
 }

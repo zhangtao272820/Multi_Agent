@@ -86,18 +86,20 @@ async function readSessionFromPg(sessionId: string): Promise<DbSession | null> {
   }
 }
 
-async function writeSessionToPg(sessionId: string, messages: DbSessionMessage[], userId?: string) {
+async function writeSessionToPg(sessionId: string, messages: DbSessionMessage[], userId?: string, tenantId?: string) {
   const sid = String(sessionId || '').trim()
   if (!sid) return false
   const capped = messages.slice(-SESSION_MAX_TURNS)
   const uid = String(userId || '').trim() || null
+  const tid = String(tenantId || '').trim() || null
   const upsert = await agentPgQuery(
-    `INSERT INTO db_sessions (id, user_id, updated_at)
-     VALUES ($1, $2, NOW())
+    `INSERT INTO db_sessions (id, user_id, tenant_id, updated_at)
+     VALUES ($1, $2, $3, NOW())
      ON CONFLICT (id) DO UPDATE SET
        user_id = COALESCE(EXCLUDED.user_id, db_sessions.user_id),
+       tenant_id = COALESCE(EXCLUDED.tenant_id, db_sessions.tenant_id),
        updated_at = NOW()`,
-    [sid, uid]
+    [sid, uid, tid]
   )
   if (!upsert) return false
   const del = await agentPgQuery(`DELETE FROM db_session_turns WHERE session_id = $1`, [sid])
@@ -126,13 +128,13 @@ export async function readDbSession(sessionId: string): Promise<DbSession> {
 export async function writeDbSession(
   sessionId: string,
   session: DbSession,
-  opts?: { userId?: string; title?: string; customTitle?: boolean }
+  opts?: { userId?: string; tenantId?: string; title?: string; customTitle?: boolean }
 ): Promise<void> {
   const backend = resolveDbStorageBackend()
   const messages = session.messages.slice(-SESSION_MAX_TURNS)
   if (shouldWritePostgres(backend)) {
     try {
-      await writeSessionToPg(sessionId, messages, opts?.userId)
+      await writeSessionToPg(sessionId, messages, opts?.userId, opts?.tenantId)
       if (opts?.title || opts?.customTitle) {
         await agentPgQuery(
           `UPDATE db_sessions SET
@@ -159,13 +161,19 @@ export async function deleteDbSession(sessionId: string): Promise<void> {
   await fs.unlink(sessionFile(sid)).catch(() => undefined)
 }
 
-export async function listDbSessionsForUser(userId: string): Promise<string[]> {
+export async function listDbSessionsForUser(userId: string, tenantId?: string): Promise<string[]> {
   const uid = String(userId || '').trim()
   if (!uid) return []
-  const res = await agentPgQuery<{ id: string }>(
-    `SELECT id FROM db_sessions WHERE user_id = $1 ORDER BY updated_at DESC LIMIT 80`,
-    [uid]
-  ).catch(() => null)
+  const tid = String(tenantId || '').trim() || null
+  const res = tid
+    ? await agentPgQuery<{ id: string }>(
+        `SELECT id FROM db_sessions WHERE user_id = $1 AND (tenant_id = $2 OR tenant_id IS NULL OR tenant_id = '') ORDER BY updated_at DESC LIMIT 80`,
+        [uid, tid]
+      ).catch(() => null)
+    : await agentPgQuery<{ id: string }>(
+        `SELECT id FROM db_sessions WHERE user_id = $1 ORDER BY updated_at DESC LIMIT 80`,
+        [uid]
+      ).catch(() => null)
   return res?.rows.map((r) => r.id) ?? []
 }
 

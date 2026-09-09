@@ -105,17 +105,22 @@ assert(
   'user explicit wins'
 )
 
-// softHandoff
+// softHandoff：父上下文只吃摘要，禁超长 raw
+const longPad = 'RAWPAD'.repeat(400)
 const sh = buildSoftHandoffFromStep({
   agent: 'db',
   stepId: 's1',
   ok: true,
-  output: '共 42 人',
+  output: `共 42 人。${longPad}`,
   taskForm: 'db_count'
 })
 assert(sh.summary.includes('42'), 'soft handoff summary')
+assert(sh.summary.length < longPad.length, 'soft handoff clips raw')
+assert(sh.summary.length <= 700, 'soft handoff within budget')
 const block = formatSoftHandoffsForContinuation([sh])
 assert(block.includes('[HANDOFF:db]'), 'continuation soft handoff block')
+assert(block.length < longPad.length, 'continuation block shorter than raw')
+assert(!block.includes(longPad), 'continuation excludes full raw pad')
 const merged = mergeSoftHandoffsIntoMeta({}, sh)
 assert(merged.length === 1 && merged[0].stepId === 's1', 'merge softHandoffs')
 

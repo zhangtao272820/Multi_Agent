@@ -507,6 +507,11 @@ def test_budget_and_ui() -> None:
         assert_true("新对话" in html and "历史会话" in html and "查询记录" in html, "agent session ui")
         assert_true("msg-action-btn" in html and "撤回" in html and "重新生成" in html, "message actions ui")
         assert_true("agent-process" in html and ("已思考" in html or "思考过程" in html), "collapsible agent process")
+        assert_true('id="threadWrap"' in html, "thread wrap scroll root")
+        assert_true("scrollThreadToBottom" in html, "blank-area scroll helper")
+        main_py = (ROOT / "app" / "main.py").read_text(encoding="utf-8")
+        assert_true("_build_persisted_steps" in main_py, "persist agent process steps")
+        assert_true('"steps": _build_persisted_steps' in main_py or "steps\": _build_persisted_steps" in main_py, "steps saved into session meta")
         assert_true("收入黄金" in html, "promote golden button")
         assert_true("字段说明" in html and "有用" in html and "无用" in html, "field details and feedback ui")
         too_long = client.post(

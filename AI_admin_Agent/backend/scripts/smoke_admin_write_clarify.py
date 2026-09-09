@@ -90,6 +90,27 @@ def main() -> None:
     assert_true("项目周会" in peeled and "明天上午10点" in peeled, f"strip preamble: {peeled}")
     assert_true("仅处理下列" not in peeled, f"strip must drop preamble: {peeled}")
 
+    from app.core.admin_write_clarify import resolve_manager_persist_user_message
+
+    persist = resolve_manager_persist_user_message(
+        preamble_wrapped,
+        {
+            "manager_orchestrated": True,
+            "manager_task": {"source": "manager", "action_text": action},
+        },
+    )
+    assert_true(persist == action, f"persist prefers action_text: {persist}")
+    persist_peeled = resolve_manager_persist_user_message(
+        preamble_wrapped,
+        {"manager_orchestrated": True, "manager_task": {"source": "manager"}},
+    )
+    assert_true(
+        "项目周会" in persist_peeled and "仅处理下列" not in persist_peeled,
+        f"persist strips fat message: {persist_peeled}",
+    )
+    direct = resolve_manager_persist_user_message("今天天气怎么样", {})
+    assert_true(direct == "今天天气怎么样", f"direct user unchanged: {direct}")
+
     pre_plan, pre_und = backfill_manager_write_plan_from_action(
         [{"name": "add_event", "args": {"title": "", "start_time_str": ""}}],
         {"slots": {}, "resolved_time": None},

@@ -1,5 +1,16 @@
 import { useMemo, useState, useRef, useEffect, useCallback, type ReactNode } from 'react';
 import { brandAvatarUrl, brandLogoUrl } from '@brand/react/assetMap.js';
+import {
+  FEEDBACK_FAIL_ACK,
+  clearStaleFeedbackPendingAcks,
+  isFeedbackFailAck,
+  stripFeedbackFailAcks,
+} from '#agent-shared/feedbackSubmitUi';
+import {
+  FEEDBACK_HYDRATE_COLD_OPTS,
+  FEEDBACK_HYDRATE_WARM_OPTS,
+  retryFeedbackHydrateThenWatch,
+} from '#agent-shared/feedbackHydrateRetry';
 import './App.css';
 import './admin-cursor-chat.css';
 import './admin-theme.css';
@@ -388,6 +399,9 @@ function App() {
   const [sessionSwitching, setSessionSwitching] = useState(false);
   const [feedbackByUserIndex, setFeedbackByUserIndex] = useState<Record<number, number>>({});
   const [feedbackAckByUserIndex, setFeedbackAckByUserIndex] = useState<Record<number, string>>({});
+  const [feedbackRetryScoreByUserIndex, setFeedbackRetryScoreByUserIndex] = useState<
+    Record<number, number>
+  >({});
   const [feedbackSendingUserIndex, setFeedbackSendingUserIndex] = useState<number | null>(null);
   const [expandedProcessTurns, setExpandedProcessTurns] = useState<Set<number>>(() => new Set());
   const [editingTurnId, setEditingTurnId] = useState<number | null>(null);
@@ -685,11 +699,14 @@ function App() {
             userMessageIndex: userIdx++,
           });
         } else if ((role === 'agent' || role === 'assistant') && turn > 0) {
+          const thoughts = Array.isArray(m?.thoughts)
+            ? m.thoughts.map((t: unknown) => String(t || '').trim()).filter(Boolean)
+            : [];
           out.push({
             id: `a-${turn}`,
             role: 'agent',
             content,
-            thoughts: [],
+            thoughts,
             turnId: turn,
           });
         }
@@ -745,8 +762,13 @@ function App() {
         return;
       }
       const parsed = JSON.parse(raw);
-      setFeedbackByUserIndex(parsed?.scores && typeof parsed.scores === 'object' ? { ...parsed.scores } : {});
-      setFeedbackAckByUserIndex(parsed?.acks && typeof parsed.acks === 'object' ? { ...parsed.acks } : {});
+      const scores =
+        parsed?.scores && typeof parsed.scores === 'object' ? { ...parsed.scores } : {};
+      const acks =
+        parsed?.acks && typeof parsed.acks === 'object' ? { ...parsed.acks } : {};
+      clearStaleFeedbackPendingAcks(scores, acks);
+      setFeedbackByUserIndex(scores);
+      setFeedbackAckByUserIndex(acks);
     } catch {
       setFeedbackByUserIndex({});
       setFeedbackAckByUserIndex({});
@@ -777,7 +799,7 @@ function App() {
       try {
         sessionStorage.setItem(
           `admin_session_feedback:${cid}`,
-          JSON.stringify({ scores, acks }),
+          JSON.stringify({ scores, acks: stripFeedbackFailAcks(scores, acks) }),
         );
       } catch {
         /* ignore */
@@ -788,6 +810,11 @@ function App() {
 
   const clearFeedbackForUserIndex = useCallback(
     (userIndex: number, cid?: string) => {
+      setFeedbackRetryScoreByUserIndex((prev) => {
+        const next = { ...prev };
+        delete next[userIndex];
+        return next;
+      });
       setFeedbackAckByUserIndex((prevAcks) => {
         setFeedbackByUserIndex((prevScores) => {
           const scores = { ...prevScores };
@@ -856,10 +883,35 @@ function App() {
 
   const applyTurnFeedback = useCallback(
     (userIndex: number, score: number, ack: string, cid: string) => {
+      if (!isFeedbackFailAck(ack)) {
+        setFeedbackRetryScoreByUserIndex((prev) => {
+          if (prev[userIndex] == null) return prev;
+          const next = { ...prev };
+          delete next[userIndex];
+          return next;
+        });
+      }
       setFeedbackByUserIndex((prev) => {
         const scores = { ...prev, [userIndex]: score };
         setFeedbackAckByUserIndex((prevAcks) => {
           const acks = { ...prevAcks, [userIndex]: ack };
+          persistSessionFeedback(cid, scores, acks);
+          return acks;
+        });
+        return scores;
+      });
+    },
+    [persistSessionFeedback],
+  );
+
+  const markFeedbackSubmitFailed = useCallback(
+    (userIndex: number, score: number, cid: string) => {
+      setFeedbackRetryScoreByUserIndex((prev) => ({ ...prev, [userIndex]: score }));
+      setFeedbackByUserIndex((prev) => {
+        const scores = { ...prev };
+        delete scores[userIndex];
+        setFeedbackAckByUserIndex((prevAcks) => {
+          const acks = { ...prevAcks, [userIndex]: FEEDBACK_FAIL_ACK };
           persistSessionFeedback(cid, scores, acks);
           return acks;
         });
@@ -874,9 +926,10 @@ function App() {
       const uidx = feedbackUserIndexForMessage(msg);
       if (uidx == null) return false;
       const score = feedbackByUserIndex[uidx];
-      return score === 1 || score === -1;
+      if (score !== 1 && score !== -1) return false;
+      return !isFeedbackFailAck(feedbackAckByUserIndex[uidx]);
     },
-    [feedbackByUserIndex, feedbackUserIndexForMessage],
+    [feedbackByUserIndex, feedbackAckByUserIndex, feedbackUserIndexForMessage],
   );
 
   const turnFeedbackAckText = useCallback(
@@ -890,6 +943,15 @@ function App() {
       return '';
     },
     [feedbackAckByUserIndex, feedbackByUserIndex, feedbackUserIndexForMessage],
+  );
+
+  const turnFeedbackFailed = useCallback(
+    (msg: Message) => {
+      const uidx = feedbackUserIndexForMessage(msg);
+      if (uidx == null || turnFeedbackSubmitted(msg)) return false;
+      return isFeedbackFailAck(feedbackAckByUserIndex[uidx]);
+    },
+    [feedbackAckByUserIndex, feedbackUserIndexForMessage, turnFeedbackSubmitted],
   );
 
   const isTurnRunning = useCallback(
@@ -1337,19 +1399,18 @@ function App() {
     [persistSessionFeedback],
   );
 
+  const stopFeedbackHydrateWatchRef = useRef<(() => void) | null>(null);
+
   const hydrateFeedbackWithRetry = useCallback(
     async (cid: string, opts?: { expectFeedback?: boolean }) => {
       const expectFeedback = Boolean(opts?.expectFeedback);
-      const attempts = expectFeedback ? 8 : 5;
-      let delay = 400;
-      for (let i = 0; i < attempts; i++) {
-        const status = await hydrateSessionFeedbackFromServer(cid);
-        if (status === 'ok') return;
-        if (status === 'empty' && !expectFeedback) return;
-        if (i + 1 >= attempts) return;
-        await new Promise((r) => setTimeout(r, delay));
-        delay = Math.min(2500, Math.round(delay * 1.5));
-      }
+      stopFeedbackHydrateWatchRef.current?.();
+      stopFeedbackHydrateWatchRef.current = null;
+      const { stopWatch } = await retryFeedbackHydrateThenWatch(
+        () => hydrateSessionFeedbackFromServer(cid),
+        expectFeedback ? FEEDBACK_HYDRATE_WARM_OPTS : FEEDBACK_HYDRATE_COLD_OPTS,
+      );
+      stopFeedbackHydrateWatchRef.current = stopWatch;
     },
     [hydrateSessionFeedbackFromServer],
   );
@@ -1364,7 +1425,7 @@ function App() {
       setFeedbackSendingUserIndex(uidx);
       applyTurnFeedback(uidx, score, '提交中…', cid);
       try {
-        await fetch(`${API_BASE_URL}/feedback`, {
+        const res = await fetch(`${API_BASE_URL}/feedback`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -1375,6 +1436,7 @@ function App() {
             user_message_index: uidx,
           }),
         });
+        if (!res.ok) throw new Error(`feedback_http_${res.status}`);
         applyTurnFeedback(
           uidx,
           score,
@@ -1382,12 +1444,23 @@ function App() {
           cid,
         );
       } catch {
-        applyTurnFeedback(uidx, score, '反馈提交失败，请重试', cid);
+        markFeedbackSubmitFailed(uidx, score, cid);
       } finally {
         setFeedbackSendingUserIndex(null);
       }
     },
-    [applyTurnFeedback, feedbackUserIndexForMessage, turnFeedbackSubmitted],
+    [applyTurnFeedback, feedbackUserIndexForMessage, markFeedbackSubmitFailed, turnFeedbackSubmitted],
+  );
+
+  const retryFeedback = useCallback(
+    (msg: Message) => {
+      const uidx = feedbackUserIndexForMessage(msg);
+      if (uidx == null) return;
+      const score = feedbackRetryScoreByUserIndex[uidx];
+      if (score !== 1 && score !== -1) return;
+      void sendFeedback(msg, score);
+    },
+    [feedbackRetryScoreByUserIndex, feedbackUserIndexForMessage, sendFeedback],
   );
 
   useEffect(() => {
@@ -1411,6 +1484,8 @@ function App() {
     window.addEventListener('online', onVisibilityOrOnline);
     window.addEventListener('pageshow', onVisibilityOrOnline);
     return () => {
+      stopFeedbackHydrateWatchRef.current?.();
+      stopFeedbackHydrateWatchRef.current = null;
       window.removeEventListener('visibilitychange', onVisibilityOrOnline);
       window.removeEventListener('online', onVisibilityOrOnline);
       window.removeEventListener('pageshow', onVisibilityOrOnline);
@@ -2995,29 +3070,50 @@ function App() {
                             {msg.turnId && msg.turnId > 0 && msg.content?.trim() && !isTurnRunning(msg.turnId) && (
                               <div className="admin-turn-feedback">
                                 {!turnFeedbackSubmitted(msg) ? (
-                                  <div className="admin-turn-feedback__btns">
-                                    <button
-                                      type="button"
-                                      className="admin-turn-feedback__btn admin-turn-feedback__btn--up"
-                                      disabled={feedbackSendingUserIndex === feedbackUserIndexForMessage(msg)}
-                                      onClick={() => sendFeedback(msg, 1)}
-                                    >
-                                      有帮助
-                                    </button>
-                                    <button
-                                      type="button"
-                                      className="admin-turn-feedback__btn admin-turn-feedback__btn--down"
-                                      disabled={feedbackSendingUserIndex === feedbackUserIndexForMessage(msg)}
-                                      onClick={() => sendFeedback(msg, -1)}
-                                    >
-                                      不准确
-                                    </button>
-                </div>
+                                  <>
+                                    {turnFeedbackFailed(msg) ? (
+                                      <div className="admin-feedback-fail">
+                                        <span>{turnFeedbackAckText(msg) || FEEDBACK_FAIL_ACK}</span>
+                                        <button
+                                          type="button"
+                                          className="admin-turn-feedback__btn admin-turn-feedback__btn--retry"
+                                          disabled={
+                                            feedbackSendingUserIndex === feedbackUserIndexForMessage(msg)
+                                          }
+                                          onClick={() => retryFeedback(msg)}
+                                        >
+                                          重试
+                                        </button>
+                                      </div>
+                                    ) : null}
+                                    <div className="admin-turn-feedback__btns">
+                                      <button
+                                        type="button"
+                                        className="admin-turn-feedback__btn admin-turn-feedback__btn--up"
+                                        disabled={
+                                          feedbackSendingUserIndex === feedbackUserIndexForMessage(msg)
+                                        }
+                                        onClick={() => sendFeedback(msg, 1)}
+                                      >
+                                        有帮助
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="admin-turn-feedback__btn admin-turn-feedback__btn--down"
+                                        disabled={
+                                          feedbackSendingUserIndex === feedbackUserIndexForMessage(msg)
+                                        }
+                                        onClick={() => sendFeedback(msg, -1)}
+                                      >
+                                        不准确
+                                      </button>
+                                    </div>
+                                  </>
                                 ) : (
                                   <p className="admin-feedback-ack">{turnFeedbackAckText(msg)}</p>
                                 )}
-                </div>
-              )}
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>

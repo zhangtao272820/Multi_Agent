@@ -20,6 +20,11 @@ import {
   resolveRiskExecutionPolicy
 } from '../policy/riskExecutionPolicy'
 import { mintHitlConfirmToken } from '#agent-shared/agentServiceAuth'
+import {
+  buildSpecialistBrief,
+  shouldAttachSpecialistBrief,
+  specialistBriefMaxToolRounds
+} from '#agent-shared/specialistBrief'
 import { resolveManagerAgentSessionId } from '../runtime/sessionBridge'
 import {
   adminResponseSignalsPendingConfirm,
@@ -76,7 +81,7 @@ function buildManagerAdminWsMessage(
     fallbackTask?: string
   }
 ): string {
-  // 总管编排须带 ADMIN_EXEC_GUARD；仅发裸子句会导致 Admin 收不到会议标题/时间等槽位
+  // lean 子句出站；槽位权威在 manager_task.action_text / source_user_task
   return buildAdminExecMessage(String(scopedAction || '').trim(), opts)
 }
 
@@ -185,7 +190,28 @@ export async function executeAdminStep(
       actionText: scopedAction || stripAdminManagerGuards(input.effQuery) || input.effQuery,
       meta: input.state.meta,
       scopedText: scopedAction || stripAdminManagerGuards(input.effQuery) || undefined,
-      sourceUserTask: String(lastU || '').trim() || undefined
+      sourceUserTask: String(lastU || '').trim() || undefined,
+      specialistBrief: shouldAttachSpecialistBrief({
+        managerOrchestrated: true,
+        executionTopology: String(
+          (input.state.meta as { executionTopology?: string } | undefined)?.executionTopology || ''
+        ),
+        stepCount: Array.isArray((input.state.meta as { planSteps?: unknown } | undefined)?.planSteps)
+          ? ((input.state.meta as { planSteps: unknown[] }).planSteps || []).length
+          : Array.isArray((input.state as { plan?: { steps?: unknown[] } }).plan?.steps)
+            ? ((input.state as { plan: { steps: unknown[] } }).plan.steps || []).length
+            : 1
+      })
+        ? buildSpecialistBrief({
+            goal: String(scopedAction || input.effQuery || '').trim().slice(0, 400),
+            acceptance: ['工具链完成或产出可核对结果', '写操作须 HITL，禁跳闸'],
+            budget: { max_tool_rounds: specialistBriefMaxToolRounds() },
+            constraints: {
+              read_only: isAdminReadOnlyOrchestrationStep(scopedAction || input.effQuery),
+              no_hitl_bypass: true
+            }
+          })
+        : null
     })
     const autoDecision = resolveAdminAutoConfirmDecision(input.state, scopedAction || input.effQuery)
     const adminMessage =
@@ -212,6 +238,7 @@ export async function executeAdminStep(
       sessionId: resolveManagerAgentSessionId(opts),
       traceId: opts.runId,
       userId: String(opts.userId || '').trim() || undefined,
+      tenantId: String(opts.tenantId || '').trim() || undefined,
       autoConfirmRisky: autoDecision.autoConfirm,
       autoConfirmReason: autoDecision.reason,
       clientContext: resolveAdminClientContext(
@@ -341,6 +368,7 @@ export async function executeAdminStep(
             sessionId: resolveManagerAgentSessionId(opts),
             traceId: opts.runId,
             userId: String(opts.userId || '').trim() || undefined,
+            tenantId: String(opts.tenantId || '').trim() || undefined,
             clientContext: decideClientContext,
             sendThinking: input.sendThinking,
             signal: opts.signal

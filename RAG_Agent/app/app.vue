@@ -621,6 +621,17 @@
                 class="rag-feedback-row"
               >
                 <template v-if="!turnFeedbackSubmitted(msg)">
+                  <div v-if="turnFeedbackFailed(msg)" class="rag-feedback-fail">
+                    <span>{{ turnFeedbackAckText(msg) || FEEDBACK_FAIL_ACK }}</span>
+                    <button
+                      type="button"
+                      class="rag-feedback-btn rag-feedback-btn--retry"
+                      :disabled="feedbackSendingUserIndex === feedbackUserIndexForMessage(msg)"
+                      @click="retryFeedback(msg, index)"
+                    >
+                      重试
+                    </button>
+                  </div>
                   <div class="flex gap-2">
                     <button
                       type="button"
@@ -743,8 +754,14 @@ import { purgeAllForbiddenClientSessionKeys } from '#agent-shared/agentSessionCl
 import {
   FEEDBACK_HYDRATE_COLD_OPTS,
   FEEDBACK_HYDRATE_WARM_OPTS,
-  retryFeedbackHydrate,
+  retryFeedbackHydrateThenWatch,
 } from '#agent-shared/feedbackHydrateRetry';
+import {
+  FEEDBACK_FAIL_ACK,
+  clearStaleFeedbackPendingAcks,
+  isFeedbackFailAck,
+  stripFeedbackFailAcks,
+} from '#agent-shared/feedbackSubmitUi';
 
 const RAG_SESSION_KEY = 'rag_session_id';
 
@@ -810,6 +827,7 @@ const sessionSwitching = ref(false);
 const ragUserId = ref('');
 const feedbackByUserIndex = ref({});
 const feedbackAckByUserIndex = ref({});
+const feedbackRetryScoreByUserIndex = ref({});
 const feedbackSendingUserIndex = ref(null);
 const appModal = ref({
   open: false,
@@ -1033,7 +1051,10 @@ const persistSessionFeedback = () => {
   try {
     window.sessionStorage.setItem(
       sessionFeedbackStorageKey(),
-      JSON.stringify({ scores: feedbackByUserIndex.value, acks: feedbackAckByUserIndex.value })
+      JSON.stringify({
+        scores: feedbackByUserIndex.value,
+        acks: stripFeedbackFailAcks(feedbackByUserIndex.value, feedbackAckByUserIndex.value),
+      })
     );
   } catch {}
 };
@@ -1052,8 +1073,13 @@ const restoreSessionFeedback = () => {
       return;
     }
     const parsed = JSON.parse(raw);
-    feedbackByUserIndex.value = parsed?.scores && typeof parsed.scores === 'object' ? { ...parsed.scores } : {};
-    feedbackAckByUserIndex.value = parsed?.acks && typeof parsed.acks === 'object' ? { ...parsed.acks } : {};
+    const scores =
+      parsed?.scores && typeof parsed.scores === 'object' ? { ...parsed.scores } : {};
+    const acks =
+      parsed?.acks && typeof parsed.acks === 'object' ? { ...parsed.acks } : {};
+    clearStaleFeedbackPendingAcks(scores, acks);
+    feedbackByUserIndex.value = scores;
+    feedbackAckByUserIndex.value = acks;
   } catch {
     feedbackByUserIndex.value = {};
     feedbackAckByUserIndex.value = {};
@@ -1090,12 +1116,16 @@ const hydrateSessionFeedbackFromServer = async () => {
   }
 };
 
+let stopFeedbackHydrateWatch = () => {};
+
 const hydrateFeedbackWithRetry = async (opts = {}) => {
   const expectFeedback = Boolean(opts.expectFeedback);
-  await retryFeedbackHydrate(
+  stopFeedbackHydrateWatch();
+  const { stopWatch } = await retryFeedbackHydrateThenWatch(
     () => hydrateSessionFeedbackFromServer(),
     expectFeedback ? FEEDBACK_HYDRATE_WARM_OPTS : FEEDBACK_HYDRATE_COLD_OPTS,
   );
+  stopFeedbackHydrateWatch = stopWatch;
 };
 
 const applyFeedbackToMessages = () => {
@@ -1112,7 +1142,9 @@ const turnFeedbackSubmitted = (msg) => {
   const uidx = feedbackUserIndexForMessage(msg);
   if (uidx == null) return false;
   const score = feedbackByUserIndex.value[uidx];
-  return score === 1 || score === -1;
+  if (score !== 1 && score !== -1) return false;
+  // 失败 ack 不得锁死按钮
+  return !isFeedbackFailAck(feedbackAckByUserIndex.value[uidx]);
 };
 
 const turnFeedbackAckText = (msg) => {
@@ -1125,10 +1157,21 @@ const turnFeedbackAckText = (msg) => {
   return '';
 };
 
+const turnFeedbackFailed = (msg) => {
+  const uidx = feedbackUserIndexForMessage(msg);
+  if (uidx == null || turnFeedbackSubmitted(msg)) return false;
+  return isFeedbackFailAck(feedbackAckByUserIndex.value[uidx]);
+};
+
 const applyTurnFeedback = (userIndex, score, ack) => {
   feedbackByUserIndex.value = { ...feedbackByUserIndex.value, [userIndex]: score };
   if (ack !== undefined) {
     feedbackAckByUserIndex.value = { ...feedbackAckByUserIndex.value, [userIndex]: ack };
+  }
+  if (!isFeedbackFailAck(ack)) {
+    const retries = { ...feedbackRetryScoreByUserIndex.value };
+    delete retries[userIndex];
+    feedbackRetryScoreByUserIndex.value = retries;
   }
   for (const msg of messages.value) {
     if (msg.role === 'assistant' && feedbackUserIndexForMessage(msg) === userIndex) {
@@ -1138,13 +1181,31 @@ const applyTurnFeedback = (userIndex, score, ack) => {
   persistSessionFeedback();
 };
 
+/** 提交失败：清掉 score（避免当成已提交），保留失败文案与可重试分数 */
+const markFeedbackSubmitFailed = (userIndex, score) => {
+  const scores = { ...feedbackByUserIndex.value };
+  delete scores[userIndex];
+  feedbackByUserIndex.value = scores;
+  feedbackAckByUserIndex.value = { ...feedbackAckByUserIndex.value, [userIndex]: FEEDBACK_FAIL_ACK };
+  feedbackRetryScoreByUserIndex.value = { ...feedbackRetryScoreByUserIndex.value, [userIndex]: score };
+  for (const msg of messages.value) {
+    if (msg.role === 'assistant' && feedbackUserIndexForMessage(msg) === userIndex) {
+      msg.feedbackSent = false;
+    }
+  }
+  persistSessionFeedback();
+};
+
 const clearFeedbackForUserIndex = (userIndex) => {
   const scores = { ...feedbackByUserIndex.value };
   const acks = { ...feedbackAckByUserIndex.value };
+  const retries = { ...feedbackRetryScoreByUserIndex.value };
   delete scores[userIndex];
   delete acks[userIndex];
+  delete retries[userIndex];
   feedbackByUserIndex.value = scores;
   feedbackAckByUserIndex.value = acks;
+  feedbackRetryScoreByUserIndex.value = retries;
   persistSessionFeedback();
   for (const msg of messages.value) {
     if (msg.role === 'assistant' && feedbackUserIndexForMessage(msg) === userIndex) {
@@ -1558,7 +1619,8 @@ const loadSessionFromServer = async (id) => {
           content,
           turnId,
           intermediate_steps: [],
-          processSteps: [],
+          processSteps: Array.isArray(m.processSteps) ? m.processSteps : [],
+          reasoningText: String(m.reasoningText || ''),
           status: '',
           evidenceBySource: {},
           retrievalMeta: null,
@@ -2188,10 +2250,18 @@ const sendFeedback = async (msg, index, score) => {
     await refreshIntel();
   } catch (e) {
     console.warn('feedback failed:', e);
-    applyTurnFeedback(uidx, score, '反馈提交失败，请重试');
+    markFeedbackSubmitFailed(uidx, score);
   } finally {
     feedbackSendingUserIndex.value = null;
   }
+};
+
+const retryFeedback = (msg, index) => {
+  const uidx = feedbackUserIndexForMessage(msg);
+  if (uidx == null) return;
+  const score = feedbackRetryScoreByUserIndex.value[uidx];
+  if (score !== 1 && score !== -1) return;
+  void sendFeedback(msg, index, score);
 };
 
 const parseEvidenceSnippetsFromToolOutput = (toolOutput) => {
@@ -2823,6 +2893,24 @@ const sendMessage = async (overrideText, opts = {}) => {
     if (!String(assistantMsg.content || '').trim()) {
       assistantMsg.content = '未能生成有效回答，请换一种问法或指定左侧文档名称后重试。';
     }
+    // 思考过程随会话落盘，刷新后可回显
+    {
+      const sid = String(conversationId.value || '').trim();
+      const steps = processSteps(assistantMsg);
+      const reasoning = String(assistantMsg.reasoningText || '').trim();
+      if (sid && (steps.length || reasoning)) {
+        void fetch('/api/rag/session-thinking', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sessionId: sid,
+            userId: ensureRagUserId(),
+            processSteps: steps,
+            reasoningText: reasoning,
+          }),
+        }).catch(() => undefined);
+      }
+    }
     touchCurrentSessionHistory({ bump: true });
     void fetchServerSessionHistory();
     await scrollToBottom();
@@ -2885,6 +2973,7 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  stopFeedbackHydrateWatch();
   const fn = window.__ragFeedbackVisibility;
   if (fn) {
     window.removeEventListener('visibilitychange', fn);
@@ -2957,6 +3046,24 @@ onUnmounted(() => {
   margin-top: 0.4rem;
   padding-top: 0.4rem;
   border-top: 1px solid rgba(55, 100, 78, 0.16);
+}
+.rag-feedback-fail {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin: 0 0 0.4rem;
+  font-size: 0.68rem;
+  color: #9a3412;
+  line-height: 1.45;
+}
+.rag-feedback-btn--retry {
+  border: 1px solid rgba(154, 52, 18, 0.35);
+  background: rgba(154, 52, 18, 0.08);
+  color: #9a3412;
+}
+.rag-feedback-btn--retry:hover:not(:disabled) {
+  background: rgba(154, 52, 18, 0.16);
 }
 .rag-feedback-btn {
   font-size: 11px;

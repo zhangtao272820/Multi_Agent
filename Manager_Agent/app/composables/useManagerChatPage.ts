@@ -1,9 +1,4 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue'
-import {
-  FEEDBACK_HYDRATE_COLD_OPTS,
-  FEEDBACK_HYDRATE_WARM_OPTS,
-  retryFeedbackHydrate
-} from '#agent-shared/feedbackHydrateRetry'
 import { resolveClientMediaUrl } from '#agent-shared/mediaUrls'
 import { normalizeModelReplyHtml } from '#agent-shared/replyHtmlNormalize'
 import { extractAuxBlocksStructural, pickRicherNarrativeWithAuxBlocks } from '#agent-shared/auxBlocks'
@@ -64,7 +59,7 @@ import {
 } from '~/composables/managerChatTypes'
 import { buildManagerWsUrl as buildManagerWsUrlRaw, withManagerWsAuth as withManagerWsAuthRaw } from '~/composables/managerWsAuth'
 import { handleManagerWsInboundMessage, type ManagerWsInboundCtx } from '~/composables/managerWsInbound'
-import { useManagerSession, FEEDBACK_PENDING_ACK, type ManagerSessionHost } from '~/composables/useManagerSession'
+import { useManagerSession, FEEDBACK_PENDING_ACK, FEEDBACK_FAIL_ACK, type ManagerSessionHost } from '~/composables/useManagerSession'
 import { MANAGER_CHAT_THREAD_KEY } from '~/composables/managerChatThreadContext'
 import { MANAGER_WORKBENCH_SIDEBAR_KEY } from '~/composables/managerWorkbenchSidebarContext'
 import { MANAGER_CHAT_RAIL_KEY } from '~/composables/managerChatRailContext'
@@ -74,6 +69,7 @@ import {
   errorCodeBadgeLabel,
   normalizeClientErrorCode
 } from '~/utils/expertDegradeUi'
+import { stepBoardStatusLabelZh } from '~/composables/managerMaturityUi'
 
 export function useManagerChatPage() {
   const runtimeConfig = useRuntimeConfig()
@@ -312,6 +308,9 @@ export function useManagerChatPage() {
     rebuildTurnCountersFromLogs,
     fetchServerSessionHistory,
     hydrateSessionFromServer,
+    hydrateFeedbackWithRetry,
+    stopActiveFeedbackHydrateWatch,
+    hasLocalFeedbackScores,
     renameSessionHistory,
     deleteSessionHistory,
     pruneEmptySessionHistory,
@@ -330,6 +329,9 @@ export function useManagerChatPage() {
     isFeedbackPendingForTurn,
     turnFeedbackSubmitted,
     turnFeedbackAckText,
+    turnFeedbackFailed,
+    markFeedbackSubmitFailed,
+    feedbackRetryScoreForTurn,
     routeFeedbackSubmitted,
     shouldShowTurnFeedback,
     clearFeedbackForUserIndex,
@@ -560,13 +562,16 @@ export function useManagerChatPage() {
     if (isSynthPhaseActive() || (isTurnLive(t) && streamingSynthText.value)) {
       kind = 'synth'
       label = '生成中'
+    } else if (phase === 'local_replan' || steps.some((s) => s.status === 'replan')) {
+      kind = 'think'
+      label = '规划下一步'
     } else if (hasSpecialists && (specialistBusy || phase.startsWith('execute:') || phase === 'multi')) {
       kind = 'dispatch'
       label = '调度专才'
     } else if (phase === 'planner' || phase === 'plan_preview') {
       kind = 'think'
       label = '制定计划'
-    } else if (phase === 'route' || phase === 'prefetch' || !phase) {
+    } else if (phase === 'route' || phase === 'orchestrate' || phase === 'prefetch' || !phase) {
       kind = 'think'
       label = '思考中'
     } else if (hasSpecialists) {
@@ -580,6 +585,11 @@ export function useManagerChatPage() {
   }
 
   const planStepsTodo = ref<PlanStepTodo[]>([])
+  const taskBoardLive = ref<{
+    items: import('./managerMaturityUi').TaskBoardItemUi[]
+    topology: string
+  } | null>(null)
+  const maturitySliLive = ref<import('./managerMaturityUi').MaturitySliUi | null>(null)
   const routeCapLive = ref<{ intent: string; agents: string[]; capLabel: string; dag?: string } | null>(null)
   const pendingPlanPreview = ref<{
     runId: string
@@ -638,10 +648,12 @@ export function useManagerChatPage() {
   function userPhaseLabel(phase: string): string {
     const p = String(phase || '').trim()
     if (!p) return '准备就绪'
-    if (p === 'route') return '理解你的问题…'
-    if (p === 'planner') return '制定执行计划…'
+    if (p === 'route' || p === 'orchestrate' || p === 'turn_scope') return '理解你的问题…'
+    if (p === 'planner' || p === 'plan_lint') return '制定执行计划…'
     if (p === 'prefetch') return '预取背景资料…'
     if (p === 'plan_preview') return '等待你确认计划…'
+    if (p === 'multi' || p === 'scheduler') return '调度专才…'
+    if (p === 'local_replan') return '规划下一步…'
     if (p === 'synth' || p === 'synth_stream') return '整理回答…'
     if (p === 'critic') return '核对结果…'
     if (p === 'evaluator') return '质量评估…'
@@ -720,6 +732,8 @@ export function useManagerChatPage() {
   
   function resetPlanSteps() {
     planStepsTodo.value = []
+    taskBoardLive.value = null
+    maturitySliLive.value = null
     routeCapLive.value = null
     pendingPlanPreview.value = null
     planPreviewSending.value = false
@@ -1271,6 +1285,56 @@ export function useManagerChatPage() {
     }
     return null
   }
+
+  function turnTaskBoard(turn?: TurnGroup): {
+    items: import('./managerMaturityUi').TaskBoardItemUi[]
+    topology: string
+  } | null {
+    if (!turn) return null
+    for (let i = turn.process.length - 1; i >= 0; i--) {
+      const tb = turn.process[i]?.taskBoard
+      if (tb?.items?.length) {
+        return {
+          items: tb.items as import('./managerMaturityUi').TaskBoardItemUi[],
+          topology: String(tb.topology || '')
+        }
+      }
+    }
+    return null
+  }
+
+  /** 进行中优先 live；历史轮用 process 快照 */
+  function turnTaskBoardForDisplay(turn?: TurnGroup) {
+    if (!turn) return null
+    if (isTurnLive(turn) && taskBoardLive.value?.items?.length) return taskBoardLive.value
+    return turnTaskBoard(turn)
+  }
+
+  function upsertTaskBoardSnapshot(opts: {
+    turn: number
+    runId?: string
+    from?: string
+    board: { items: import('./managerMaturityUi').TaskBoardItemUi[]; topology: string }
+  }) {
+    const turn = opts.turn
+    if (!turn || !opts.board.items.length) return
+    const runId = String(opts.runId || '').trim()
+    const label = opts.board.topology || `${opts.board.items.length} 步`
+    for (let i = logs.value.length - 1; i >= 0; i--) {
+      const it = logs.value[i]
+      if (!it || it.turn !== turn) continue
+      if (runId && it.runId && String(it.runId) !== runId) continue
+      if (String(it.kind || '').toLowerCase() === 'task_board') {
+        it.taskBoard = opts.board
+        it.text = formatLogText('task_board', label)
+        it.ts = new Date().toLocaleTimeString()
+        if (opts.from) it.from = opts.from
+        persistChatLogs()
+        return
+      }
+    }
+    add('task_board', label, opts.from, turn, runId || undefined, { taskBoard: opts.board })
+  }
   
   function turnUsedAgents(turn?: TurnGroup): string[] {
     if (!turn) return []
@@ -1459,11 +1523,8 @@ export function useManagerChatPage() {
     return turnAgentPipelineSteps(t).filter((s) => s.status === 'success').length
   }
   
-  function agentPipelineStatusLabel(status: AgentPipelineStep['status']): string {
-    if (status === 'running') return '进行中'
-    if (status === 'success') return '完成'
-    if (status === 'failed') return '失败'
-    return '等待'
+  function agentPipelineStatusLabel(status: AgentPipelineStep['status'] | string): string {
+    return stepBoardStatusLabelZh(String(status))
   }
   
   function downloadMarkdown(filename: string, content: string) {
@@ -4984,7 +5045,7 @@ export function useManagerChatPage() {
   
   function isDevProcessKind(kind: string): boolean {
     const k = String(kind || '').toLowerCase()
-    return ['route_cap', 'route_plan_card', 'plan_outline', 'delta', 'gui_screenshot', 'gui_live_view', 'db_explain', 'search_sources', 'run_report'].includes(k)
+    return ['route_cap', 'route_plan_card', 'plan_outline', 'task_board', 'delta', 'gui_screenshot', 'gui_live_view', 'db_explain', 'search_sources', 'run_report'].includes(k)
   }
   
   function isUserVisibleProcessKind(kind: string): boolean {
@@ -5446,6 +5507,7 @@ export function useManagerChatPage() {
     if (k === 'route_cap') return '路由'
     if (k === 'route_plan_card') return '编排'
     if (k === 'plan_outline') return '计划'
+    if (k === 'task_board') return '任务板'
     if (k === 'phase') return '阶段'
     if (k === 'status') return '状态'
     if (k === 'delta') return '流式'
@@ -5676,6 +5738,7 @@ export function useManagerChatPage() {
       | 'routeCap'
       | 'routePlanCard'
       | 'planOutline'
+      | 'taskBoard'
       | 'collaborationPosture'
       | 'suggestedPosture'
       | 'postureBlocked'
@@ -5761,6 +5824,9 @@ export function useManagerChatPage() {
     currentPhase,
     routeCapLive,
     planStepsTodo,
+    taskBoardLive,
+    maturitySliLive,
+    upsertTaskBoardSnapshot,
     pendingPlanPreview,
     planPreviewSending,
     stepProgressMap,
@@ -5782,12 +5848,15 @@ export function useManagerChatPage() {
     resolveIncomingRunTurn,
     attachRunToTurnLogs,
     applyTurnFeedback,
+    markFeedbackSubmitFailed,
     loadEvolutionDashboard,
     persistSessionFeedback,
     hydrateLogsFromServerHistory,
     sanitizeWithdrawnTurns,
     reconcileTurnFeedbackKeys,
     hydrateSessionFeedbackFromServer,
+    hydrateFeedbackWithRetry,
+    hasLocalFeedbackScores,
     touchCurrentSessionHistory,
     clearActiveRun,
     resetStepProgress,
@@ -6363,9 +6432,15 @@ export function useManagerChatPage() {
     }
 
     window.clearTimeout(optimisticTimer)
-    finalizeLocal(score === 1 ? '已标记为有用 · 感谢反馈' : '已标记为无用 · 感谢反馈')
+    markFeedbackSubmitFailed(key, score as 0 | 1, uidx)
+    feedbackSendingRunId.value = null
   }
-  
+
+  function retryFeedback(turn: TurnGroup) {
+    const score = feedbackRetryScoreForTurn(turn)
+    if (score !== 0 && score !== 1) return
+    void sendFeedback(turn, score)
+  } 
   function onClearExperience() {
     if (!ws || !connected.value) return
     ensureSessionId()
@@ -6481,6 +6556,8 @@ export function useManagerChatPage() {
     pendingPlanPreview,
     workbenchMode,
     planAgentLabel,
+    taskBoardLive,
+    turnTaskBoardForDisplay,
     agentPipelineStatusLabel,
     turnRoutePlanCard,
     previewText,
@@ -6570,9 +6647,12 @@ export function useManagerChatPage() {
     feedbackKeyForTurn,
     isFeedbackPendingForTurn,
     sendFeedback,
+    retryFeedback,
     routeFeedbackSubmitted,
     sendRouteWrongFeedback,
     turnFeedbackAckText,
+    turnFeedbackFailed,
+    FEEDBACK_FAIL_ACK,
     visibleTurnErrors,
     errorItemKey,
     dismissError,
@@ -6584,6 +6664,8 @@ export function useManagerChatPage() {
     collaborationPosture,
     planStepsTodo,
     planStepsDoneCount,
+    taskBoardLive,
+    maturitySliLive,
     routeCapLive,
     agentDisplayLabel: (agent: string, professional = true) => formatAgentDisplayLabel(agent, professional),
     taskConstraintsLive,
@@ -6749,6 +6831,8 @@ export function useManagerChatPage() {
 
     const authNeeded = Boolean((runtimeConfig.public as any)?.managerUserAuth)
     const canTalkToServer = () => !authNeeded || Boolean(String(clawhiveToken.value || '').trim())
+    /** 历史 GET 失败时强制 WARM，避免误 COLD + visibility 因无 turns 跳过 */
+    let historyHydrateFailed = false
 
     async function waitForClawhiveAuthReady(timeoutMs = 2500) {
       if (!authNeeded) return
@@ -6760,15 +6844,6 @@ export function useManagerChatPage() {
       if (!String(clawhiveToken.value || '').trim()) loadClawhiveAuth()
     }
 
-    async function hydrateFeedbackWithRetry(opts?: { expectFeedback?: boolean }) {
-      const expectFeedback = Boolean(opts?.expectFeedback)
-      // Docker 重建后 PG/鉴权常短暂失败：auth/error 必重试；有历史轮次时 empty 也重试（暖机假空）
-      await retryFeedbackHydrate(
-        () => hydrateSessionFeedbackFromServer(),
-        expectFeedback ? FEEDBACK_HYDRATE_WARM_OPTS : FEEDBACK_HYDRATE_COLD_OPTS
-      )
-    }
-
     async function bootstrapServerSession() {
       await waitForClawhiveAuthReady()
       if (!canTalkToServer()) return
@@ -6778,13 +6853,16 @@ export function useManagerChatPage() {
       }
       void fetchServerSessionHistory()
       const sid = sessionId.value
-      // 与 switchSession 一致：先灌历史与 umidx，再回显有用/无用，避免首屏竞态丢反馈
+      // 与 switchSession 一致：先灌历史与 umidx，再回显有用/无用（共用 session 侧 stopWatch）
       if (sid) {
-        await hydrateSessionFromServer(sid)
+        const hist = await hydrateSessionFromServer(sid)
+        historyHydrateFailed = hist === 'error'
         reconcileTurnFeedbackKeys()
         const expectFeedback =
+          hist === 'error' ||
           userMessageIndexCounter > 0 ||
-          turnGroups.value.some((t) => t.results.length > 0 || t.errors.length > 0)
+          turnGroups.value.some((t) => t.results.length > 0 || t.errors.length > 0) ||
+          hasLocalFeedbackScores()
         await hydrateFeedbackWithRetry({ expectFeedback })
       }
       connect()
@@ -6808,7 +6886,14 @@ export function useManagerChatPage() {
         void bootstrapServerSession()
       }
     })
-    // Docker 重建后页签仍开着：token 不变不会触发上面的 watch；可见性恢复时补灌反馈
+    // token 不变时 ready 晚到也会漏灌：authReady false→true 再跑一次 bootstrap
+    const stopWatchAuthReady = watch(clawhiveAuthReady, (ready, prev) => {
+      if (authNeeded && ready && !prev && String(clawhiveToken.value || '').trim()) {
+        ensureUserId()
+        void bootstrapServerSession()
+      }
+    })
+    // Docker 重建 / F5：token 不变时靠 visibility + 历史失败标记补灌，勿只依赖重登
     const onVisibilityOrOnline = () => {
       if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
       if (!canTalkToServer()) return
@@ -6817,8 +6902,8 @@ export function useManagerChatPage() {
       const hasTurns =
         userMessageIndexCounter > 0 ||
         turnGroups.value.some((t) => t.results.length > 0 || t.errors.length > 0)
-      // 服务端为 SSOT：勿因本地已有 score 跳过；Docker 重建后须强制补灌
-      if (!hasTurns) return
+      // 服务端为 SSOT：勿因本地已有 score 跳过；历史失败或本地有分也须 warm 补灌
+      if (!hasTurns && !historyHydrateFailed && !hasLocalFeedbackScores()) return
       void hydrateFeedbackWithRetry({ expectFeedback: true })
     }
     window.addEventListener('visibilitychange', onVisibilityOrOnline)
@@ -6832,8 +6917,14 @@ export function useManagerChatPage() {
     window.addEventListener('resize', onResize)
     ;(window as any).__mgrToolsKey = onKey
     ;(window as any).__mgrResizeKey = onResize
-    ;(window as any).__mgrStopWatchLogin = stopWatchLogin
+    ;(window as any).__mgrStopWatchLogin = () => {
+      stopWatchLogin()
+      stopWatchAuthReady()
+    }
     ;(window as any).__mgrFeedbackVisibility = onVisibilityOrOnline
+    ;(window as any).__mgrStopFeedbackHydrateWatch = () => {
+      stopActiveFeedbackHydrateWatch()
+    }
     requestBrowserLocation()
     import('echarts').then((m) => {
       echartsModule.value = m
@@ -6875,6 +6966,7 @@ export function useManagerChatPage() {
       __mgrResizeKey?: () => void
       __mgrStopWatchLogin?: () => void
       __mgrFeedbackVisibility?: () => void
+      __mgrStopFeedbackHydrateWatch?: () => void
     }
     if (wTools.__mgrToolsKey) {
       window.removeEventListener('keydown', wTools.__mgrToolsKey)
@@ -6887,6 +6979,10 @@ export function useManagerChatPage() {
     if (typeof wTools.__mgrStopWatchLogin === 'function') {
       wTools.__mgrStopWatchLogin()
       delete wTools.__mgrStopWatchLogin
+    }
+    if (typeof wTools.__mgrStopFeedbackHydrateWatch === 'function') {
+      wTools.__mgrStopFeedbackHydrateWatch()
+      delete wTools.__mgrStopFeedbackHydrateWatch
     }
     if (wTools.__mgrFeedbackVisibility) {
       window.removeEventListener('visibilitychange', wTools.__mgrFeedbackVisibility)

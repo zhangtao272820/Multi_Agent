@@ -12,6 +12,7 @@ from app.core.time_utils import utc_now_naive, utc_naive_to_local_iso
 from langchain_core.messages import HumanMessage
 from app.graph.state import agent_graph
 from app.core.session_dialogue import append_turn, get_last_user_message, truncate_session_from_user_index, ensure_session_dialogue_budget, ensure_session_dialogue_budget, replace_last_assistant_turn
+from app.core.admin_write_clarify import resolve_manager_persist_user_message
 from app.core.agent_result import build_admin_agent_result
 from app.core.prompt_evolution import list_prompt_patches
 from app.core.tool_experience_store import get_admin_tool_experience_recall
@@ -171,6 +172,42 @@ def _assert_same_user(request_user: str, path_or_body_user: str) -> str:
     if not a or not b or a != b:
         raise HTTPException(status_code=403, detail="forbidden: user_id mismatch")
     return a
+
+
+def _activate_request_scope(
+    request: Request | None = None,
+    *,
+    claimed_user: str | None = None,
+    claimed_tenant: str | None = None,
+    headers: dict | None = None,
+):
+    """鉴权派生 tenant+user 并写入 contextvars；返回 (tid, uid, token)。"""
+    from app.core.browser_auth import auth_from_request, auth_from_websocket, ClawhiveAuthError
+    from app.core.tenant_scope import resolve_tenant_user_from_auth, set_request_scope
+
+    hdrs = headers or (dict(request.headers) if request is not None else {})
+    lower = {str(k).lower(): str(v) for k, v in hdrs.items()}
+    try:
+        if request is not None:
+            auth = auth_from_request(request)
+        else:
+            auth = {"mode": "open"}
+    except ClawhiveAuthError as exc:
+        raise HTTPException(status_code=401, detail=exc.code) from exc
+    try:
+        tid, uid = resolve_tenant_user_from_auth(
+            auth,
+            header_tenant=lower.get("x-tenant-id"),
+            header_user=lower.get("x-user-id"),
+            claimed_tenant=claimed_tenant,
+            claimed_user=claimed_user,
+        )
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    token = set_request_scope(tid, uid)
+    return tid, uid, token
 
 
 class FeedbackRequest(BaseModel):
@@ -359,30 +396,47 @@ async def amap_map_image(
 
 # API endpoints per architecture
 @app.get("/api/tasks")
-async def get_tasks(db: Session = Depends(get_db)):
-    tasks = db.query(Task).order_by(Task.created_at.desc()).all()
-    now = utc_now_naive()
-    out = []
-    for t in tasks:
-        expired = bool(t.due_at and t.due_at < now)
-        completed = bool(t.completed or expired)
-        out.append(
-            {
-                "id": t.id,
-                "title": t.title,
-                "description": t.description or "",
-                "completed": completed,
-                "due_at": utc_naive_to_local_iso(t.due_at) if t.due_at else None,
-                "created_at": utc_naive_to_local_iso(t.created_at) if t.created_at else None,
-                "status": "completed" if completed else "pending",
-            }
+async def get_tasks(request: Request, db: Session = Depends(get_db)):
+    from app.core.tenant_scope import reset_request_scope
+
+    _tid, _uid, scope_tok = _activate_request_scope(request)
+    try:
+        tasks = (
+            db.query(Task)
+            .filter(Task.tenant_id == _tid, Task.user_id == _uid)
+            .order_by(Task.created_at.desc())
+            .all()
         )
-    return {"tasks": out}
+        now = utc_now_naive()
+        out = []
+        for t in tasks:
+            expired = bool(t.due_at and t.due_at < now)
+            completed = bool(t.completed or expired)
+            out.append(
+                {
+                    "id": t.id,
+                    "title": t.title,
+                    "description": t.description or "",
+                    "completed": completed,
+                    "due_at": utc_naive_to_local_iso(t.due_at) if t.due_at else None,
+                    "created_at": utc_naive_to_local_iso(t.created_at) if t.created_at else None,
+                    "status": "completed" if completed else "pending",
+                }
+            )
+        return {"tasks": out}
+    finally:
+        reset_request_scope(scope_tok)
 
 
 @app.get("/api/tasks/{task_id}")
-async def get_task_detail(task_id: int, db: Session = Depends(get_db)):
-    task = db.query(Task).filter(Task.id == task_id).first()
+async def get_task_detail(task_id: int, request: Request, db: Session = Depends(get_db)):
+    from app.core.tenant_scope import reset_request_scope
+
+    _tid, _uid, scope_tok = _activate_request_scope(request)
+    try:
+        task = db.query(Task).filter(Task.id == task_id, Task.tenant_id == _tid, Task.user_id == _uid).first()
+    finally:
+        reset_request_scope(scope_tok)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
     now = utc_now_naive()
@@ -401,17 +455,27 @@ async def get_task_detail(task_id: int, db: Session = Depends(get_db)):
     }
 
 @app.delete("/api/tasks/{task_id}")
-async def delete_task_api(task_id: int, db: Session = Depends(get_db)):
-    task = db.query(Task).filter(Task.id == task_id).first()
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
-    db.delete(task)
-    db.commit()
-    return {"status": "ok"}
+async def delete_task_api(task_id: int, request: Request, db: Session = Depends(get_db)):
+    from app.core.tenant_scope import reset_request_scope
+    _tid, _uid, scope_tok = _activate_request_scope(request)
+    try:
+        task = db.query(Task).filter(Task.id == task_id, Task.tenant_id == _tid, Task.user_id == _uid).first()
+        if not task:
+            raise HTTPException(status_code=404, detail="Task not found")
+        db.delete(task)
+        db.commit()
+        return {"status": "ok"}
+    finally:
+        reset_request_scope(scope_tok)
 
 @app.get("/api/calendar")
-async def get_calendar(db: Session = Depends(get_db)):
-    events = db.query(Event).all()
+async def get_calendar(request: Request, db: Session = Depends(get_db)):
+    from app.core.tenant_scope import reset_request_scope
+    _tid, _uid, scope_tok = _activate_request_scope(request)
+    try:
+        events = db.query(Event).filter(Event.tenant_id == _tid, Event.user_id == _uid).all()
+    finally:
+        reset_request_scope(scope_tok)
     now = utc_now_naive()
     return {
         "events": [
@@ -432,8 +496,13 @@ async def get_calendar(db: Session = Depends(get_db)):
 
 
 @app.get("/api/calendar/{event_id}")
-async def get_event_detail(event_id: int, db: Session = Depends(get_db)):
-    event = db.query(Event).filter(Event.id == event_id).first()
+async def get_event_detail(event_id: int, request: Request, db: Session = Depends(get_db)):
+    from app.core.tenant_scope import reset_request_scope
+    _tid, _uid, scope_tok = _activate_request_scope(request)
+    try:
+        event = db.query(Event).filter(Event.id == event_id, Event.tenant_id == _tid, Event.user_id == _uid).first()
+    finally:
+        reset_request_scope(scope_tok)
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
     now = utc_now_naive()
@@ -452,8 +521,13 @@ async def get_event_detail(event_id: int, db: Session = Depends(get_db)):
 
 
 @app.get("/api/notes")
-async def get_notes(db: Session = Depends(get_db)):
-    notes = db.query(Note).order_by(Note.created_at.desc()).all()
+async def get_notes(request: Request, db: Session = Depends(get_db)):
+    from app.core.tenant_scope import reset_request_scope
+    _tid, _uid, scope_tok = _activate_request_scope(request)
+    try:
+        notes = db.query(Note).filter(Note.tenant_id == _tid, Note.user_id == _uid).order_by(Note.created_at.desc()).all()
+    finally:
+        reset_request_scope(scope_tok)
     return {
         "notes": [
             {
@@ -492,9 +566,14 @@ async def delete_note_api(note_id: int, db: Session = Depends(get_db)):
     return {"status": "ok"}
 
 @app.get("/api/contacts")
-async def get_contacts():
-    result = list_contacts()
-    return {"contacts": _tool_text(result), "items": _tool_items(result)}
+async def get_contacts(request: Request):
+    from app.core.tenant_scope import reset_request_scope
+    _tid, _uid, scope_tok = _activate_request_scope(request)
+    try:
+        result = list_contacts()
+        return {"contacts": _tool_text(result), "items": _tool_items(result)}
+    finally:
+        reset_request_scope(scope_tok)
 
 
 @app.get("/api/search")
@@ -995,19 +1074,30 @@ async def get_session(request: Request, session_id: str):
         _ensure_tables()
         db = SessionLocal()
         try:
-            rows = [
-                {"role": r.role, "content": r.content}
-                for r in db.query(SessionTurn)
+            rows = []
+            for r in (
+                db.query(SessionTurn)
                 .filter(SessionTurn.session_id == sid)
                 .order_by(SessionTurn.id.asc())
                 .all()
-            ]
+            ):
+                thoughts_raw = getattr(r, "thoughts", "") or ""
+                thoughts: list[str] = []
+                if thoughts_raw:
+                    try:
+                        parsed = json.loads(thoughts_raw)
+                        if isinstance(parsed, list):
+                            thoughts = [str(t).strip() for t in parsed if str(t or "").strip()]
+                    except Exception:
+                        thoughts = []
+                rows.append({"role": r.role, "content": r.content, "thoughts": thoughts})
         finally:
             db.close()
     messages = [
         {
             "role": "agent" if str(r.get("role") or "") == "assistant" else "user",
             "content": str(r.get("content") or ""),
+            "thoughts": list(r.get("thoughts") or []) if isinstance(r.get("thoughts"), list) else [],
         }
         for r in rows
         if str(r.get("content") or "").strip()
@@ -1121,9 +1211,11 @@ async def delete_event_api(event_id: int, db: Session = Depends(get_db)):
     return {"status": "ok"}
 
 @app.get("/api/files")
-async def get_files():
+async def get_files(request: Request):
+    from app.core.tenant_scope import reset_request_scope, user_workspace_dir
+    _tid, _uid, scope_tok = _activate_request_scope(request)
     try:
-        root = settings.WORKSPACE_DIR
+        root = user_workspace_dir(settings.WORKSPACE_DIR, _tid, _uid)
         os.makedirs(root, exist_ok=True)
         rel_paths: list[str] = []
         for dirpath, dirnames, filenames in os.walk(root):
@@ -1138,14 +1230,22 @@ async def get_files():
         return {"files": rel_paths, "workspace": root}
     except Exception as e:
         return {"files": [], "error": str(e)}
+    finally:
+        reset_request_scope(scope_tok)
 
 
-def _resolve_workspace_file(rel_path: str) -> str:
+def _resolve_workspace_file(rel_path: str, tenant_id: str | None = None, user_id: str | None = None) -> str:
+    from app.core.tenant_scope import user_workspace_dir, require_request_scope
+
     rel = str(rel_path or "").replace("\\", "/").strip().lstrip("/")
     if not rel or ".." in rel.split("/"):
         raise HTTPException(status_code=400, detail="Invalid file path")
-    abs_path = os.path.normpath(os.path.join(settings.WORKSPACE_DIR, rel))
-    workspace = os.path.normpath(settings.WORKSPACE_DIR)
+    if tenant_id and user_id:
+        root = user_workspace_dir(settings.WORKSPACE_DIR, tenant_id, user_id)
+    else:
+        root = user_workspace_dir(settings.WORKSPACE_DIR, *require_request_scope())
+    abs_path = os.path.normpath(os.path.join(root, rel))
+    workspace = os.path.normpath(root)
     if not abs_path.startswith(workspace):
         raise HTTPException(status_code=400, detail="Path outside workspace")
     if not os.path.isfile(abs_path):
@@ -1154,28 +1254,34 @@ def _resolve_workspace_file(rel_path: str) -> str:
 
 
 @app.get("/api/files/content")
-async def get_file_content(path: str, max_chars: int = 20000):
-    abs_path = _resolve_workspace_file(path)
+async def get_file_content(request: Request, path: str, max_chars: int = 20000):
+    from app.core.tenant_scope import reset_request_scope
+
+    _tid, _uid, scope_tok = _activate_request_scope(request)
     try:
-        with open(abs_path, "r", encoding="utf-8", errors="replace") as fh:
-            content = fh.read(max(1000, min(int(max_chars or 20000), 50000)))
-        truncated = os.path.getsize(abs_path) > len(content.encode("utf-8", errors="ignore"))
-        return {
-            "path": path,
-            "content": content,
-            "truncated": truncated,
-            "size": os.path.getsize(abs_path),
-        }
-    except UnicodeDecodeError:
-        return {
-            "path": path,
-            "content": "",
-            "binary": True,
-            "size": os.path.getsize(abs_path),
-            "message": "二进制文件，无法在浏览器中预览文本。",
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        abs_path = _resolve_workspace_file(path, _tid, _uid)
+        try:
+            with open(abs_path, "r", encoding="utf-8", errors="replace") as fh:
+                content = fh.read(max(1000, min(int(max_chars or 20000), 50000)))
+            truncated = os.path.getsize(abs_path) > len(content.encode("utf-8", errors="ignore"))
+            return {
+                "path": path,
+                "content": content,
+                "truncated": truncated,
+                "size": os.path.getsize(abs_path),
+            }
+        except UnicodeDecodeError:
+            return {
+                "path": path,
+                "content": "",
+                "binary": True,
+                "size": os.path.getsize(abs_path),
+                "message": "二进制文件，无法在浏览器中预览文本。",
+            }
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e)) from e
+    finally:
+        reset_request_scope(scope_tok)
 
 @app.get("/api/agent/status")
 async def get_agent_status():
@@ -1229,6 +1335,31 @@ async def websocket_endpoint(websocket: WebSocket):
                 or websocket.headers.get("x-user-id")
                 or ""
             ).strip() or None
+            tenant_id = str(
+                message_data.get("tenant_id")
+                or client_context.get("tenant_id")
+                or websocket.headers.get("x-tenant-id")
+                or ""
+            ).strip() or None
+            from app.core.browser_auth import auth_from_websocket, ClawhiveAuthError
+            from app.core.tenant_scope import resolve_tenant_user_from_auth, set_request_scope, reset_request_scope
+            try:
+                _ws_auth = auth_from_websocket(websocket)
+                _tid, _uid = resolve_tenant_user_from_auth(
+                    _ws_auth,
+                    header_tenant=websocket.headers.get("x-tenant-id"),
+                    header_user=websocket.headers.get("x-user-id"),
+                    claimed_tenant=tenant_id,
+                    claimed_user=user_id,
+                )
+                user_id = _uid
+                tenant_id = _tid
+            except (ClawhiveAuthError, PermissionError, ValueError):
+                from app.core.tenant_scope import normalize_tenant_id
+                tenant_id = normalize_tenant_id(tenant_id)
+                if not user_id:
+                    user_id = "__unscoped__"
+            _scope_tok = set_request_scope(tenant_id, user_id)
             auto_confirm_risky = bool(message_data.get("auto_confirm_risky", False))
             trace_id = str(
                 message_data.get("trace_id")
@@ -1245,6 +1376,8 @@ async def websocket_endpoint(websocket: WebSocket):
                 and os.getenv("ADMIN_MANAGER_AUTO_CONFIRM", "1").strip() not in ("0", "false", "no")
             ):
                 auto_confirm_risky = True
+            # 总管编排：落库/计 token/入图用 lean 子句，避免 preamble 穿透对话记录
+            user_message = resolve_manager_persist_user_message(user_message, client_context)
             estimated_tokens = qwen_llm.get_token_count(user_message)
 
             if estimated_tokens > settings.MAX_TOKENS_PER_REQUEST:
@@ -1557,6 +1690,8 @@ async def websocket_endpoint(websocket: WebSocket):
                 response_text,
                 trace_id=trace_id,
                 latency_ms=latency_ms,
+                gaps=list(final_result.get("specialist_gaps") or []) if isinstance(final_result, dict) else None,
+                rounds_used=int(final_result.get("replan_count") or 0) + 1 if isinstance(final_result, dict) else None,
                 structured={
                     "tokens_used": _calc_total_tokens(
                         final_result,
@@ -1622,6 +1757,10 @@ async def websocket_endpoint(websocket: WebSocket):
             token_controller.update_usage(session_id, response_data["tokens_used"])
 
             await manager.send_personal_message(json.dumps(response_data), websocket)
+            try:
+                reset_request_scope(_scope_tok)
+            except Exception:
+                pass
     except WebSocketDisconnect:
         manager.disconnect(websocket)
     except Exception as e:
@@ -1633,16 +1772,24 @@ async def websocket_endpoint(websocket: WebSocket):
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat_endpoint(request: ChatRequest, _: None = Depends(verify_internal_token)):
     started = time.time()
+    _chat_scope = None
     try:
         estimated_tokens = qwen_llm.get_token_count(request.message)
         if not token_controller.check_limit(request.session_id, estimated_tokens):
             raise HTTPException(status_code=429, detail="Token quota exceeded for this session.")
 
         # Initial state for LangGraph
+        from app.core.tenant_scope import set_request_scope, reset_request_scope, normalize_tenant_id
+        _chat_tid = normalize_tenant_id(
+            (request.client_context or {}).get("tenant_id") if isinstance(request.client_context, dict) else None
+        )
+        _chat_uid = str(request.user_id or "").strip() or "__unscoped__"
+        _chat_scope = set_request_scope(_chat_tid, _chat_uid)
         initial_state = {
             "messages": [HumanMessage(content=request.message)],
             "session_id": request.session_id,
             "user_id": str(request.user_id or "").strip() or None,
+            "tenant_id": _chat_tid,
             "trace_id": str(request.trace_id or "").strip() or None,
             "auto_confirm_risky": bool(request.auto_confirm_risky),
             "next_node": "routing",
@@ -1690,6 +1837,9 @@ async def chat_endpoint(request: ChatRequest, _: None = Depends(verify_internal_
             response_text,
             trace_id=trace_id,
             latency_ms=latency_ms,
+            gaps=list(result.get("specialist_gaps") or []) if isinstance(result, dict) else None,
+            rounds_used=int(result.get("replan_count") or 0) + 1 if isinstance(result, dict) else None,
+            self_check_ok=None,
             structured={
                 "tokens_used": tokens_used,
                 "evolutionApplied": _snapshot_admin_evolution_applied(request.message),
@@ -1716,6 +1866,14 @@ async def chat_endpoint(request: ChatRequest, _: None = Depends(verify_internal_
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if _chat_scope is not None:
+            try:
+                from app.core.tenant_scope import reset_request_scope
+
+                reset_request_scope(_chat_scope)
+            except Exception:
+                pass
 
 if os.path.isdir(FRONTEND_DIST_DIR):
     assets_dir = os.path.join(FRONTEND_DIST_DIR, "assets")

@@ -26,6 +26,7 @@ export function resolveRagHttpUser(
 export async function assertRagSessionAccess(input: {
   sessionId: string
   userId: string
+  tenantId?: string
   bindIfUnbound?: boolean
 }): Promise<void> {
   const { unbound } = await assertSessionOwnedByUser({
@@ -35,7 +36,14 @@ export async function assertRagSessionAccess(input: {
     resolveOwner: (sid) => getRagSessionUserId(sid),
     createError: nitroCreateError
   })
+  if (input.tenantId) {
+    const { getRagSessionTenantId } = await import('./ragSessionStore')
+    const ownerTid = await getRagSessionTenantId(input.sessionId)
+    if (ownerTid && ownerTid !== input.tenantId) {
+      nitroCreateError({ statusCode: 403, statusMessage: 'forbidden: tenant mismatch' })
+    }
+  }
   if (unbound && input.bindIfUnbound !== false) {
-    await bindRagSessionUser(input.sessionId, input.userId)
+    await bindRagSessionUser(input.sessionId, input.userId, input.tenantId)
   }
 }

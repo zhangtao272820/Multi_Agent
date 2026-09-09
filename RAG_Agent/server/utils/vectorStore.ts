@@ -6,7 +6,7 @@ import { createRagChatOpenAI } from "./rag_chat_openai";
 import fs from "fs";
 import path from "path";
 import { Pool } from "pg";
-import { splitDocumentsStructured } from "./chunk_text";
+import { splitDocumentsStructured, reconstructSourceTextFromChunks } from "./chunk_text";
 import { getRagAgentEnv } from "./rag_agent_env";
 import { type Bm25Hit } from "./bm25_lexical";
 import { Bm25InvertedIndex } from "./bm25_inverted_index";
@@ -20,13 +20,47 @@ import {
   resolveSourceVersion,
   shouldSkipReembed,
 } from "./ingest_meta";
+import { getRagRequestTenantId, safeRagTenantSegment } from "./ragTenantContext";
+import {
+  annSoftWarnings,
+  decideAlterEmbeddingDims,
+  parseAnnInspectFromRows,
+  sqlAlterEmbeddingDims,
+  sqlCreateHnswIndex,
+  sqlCreateSourceMetadataIndex,
+  sqlEmbeddingColumnFormatType,
+  sqlListTableIndexes,
+  sqlProbeEmbeddingDims,
+  sqlSetHnswEfSearch,
+  type PgvectorAnnInspect,
+  type PgvectorAnnParams,
+} from "./pgvector_ann";
 
 const DATA_DIR = path.join(process.cwd(), ".data");
+const LEGACY_VECTOR_STORE_PATH = path.join(process.cwd(), "data/vector_store.json");
+const LEGACY_DOCS_METADATA_PATH = path.join(process.cwd(), "data/docs_metadata.json");
+
+function tenantDataDir(tenantId?: string): string {
+  const seg = safeRagTenantSegment(tenantId ?? getRagRequestTenantId());
+  return path.join(DATA_DIR, "tenants", seg);
+}
+
+function vectorStorePath(tenantId?: string): string {
+  return path.join(tenantDataDir(tenantId), "vector_store.json");
+}
+
+function docsMetadataPath(tenantId?: string): string {
+  return path.join(tenantDataDir(tenantId), "docs_metadata.json");
+}
+
+function bm25IndexPath(tenantId?: string): string {
+  return path.join(tenantDataDir(tenantId), "bm25_index.json");
+}
+
+/** global legacy paths (migrate once into default tenant) */
 const VECTOR_STORE_PATH = path.join(DATA_DIR, "vector_store.json");
 const DOCS_METADATA_PATH = path.join(DATA_DIR, "docs_metadata.json");
 const BM25_INDEX_PATH = path.join(DATA_DIR, "bm25_index.json");
-const LEGACY_VECTOR_STORE_PATH = path.join(process.cwd(), "data/vector_store.json");
-const LEGACY_DOCS_METADATA_PATH = path.join(process.cwd(), "data/docs_metadata.json");
 
 const bm25Index = new Bm25InvertedIndex();
 let bm25Ready = false;
@@ -46,6 +80,9 @@ const addDocumentsInBatches = async (store: AnyVectorStore, docs: any[]) => {
 let vectorStore: AnyVectorStore | null = null;
 let vectorBackend: "memory" | "pgvector" = "memory";
 let pgPool: Pool | null = null;
+let activeVectorTenant: string | null = null;
+
+const tenantVectorStores = new Map<string, { store: AnyVectorStore; backend: "memory" | "pgvector"; pool: Pool | null }>();
 
 export type UploadedDocMeta = {
   name: string;
@@ -84,6 +121,8 @@ export type ProcessDocumentOptions = {
   parser_provider?: string;
   /** 非严格模式：MinerU 失败回落本地 */
   parser_fallback?: string;
+  /** H6 reindex：即使 content_hash 未变也强制 purge 重切分重嵌入（修切块 bug） */
+  forceReembed?: boolean;
 };
 
 const getDefaultLimits = (): ProcessLimits => ({
@@ -124,18 +163,21 @@ const ensureDataDir = () => {
 
 const migrateLegacyDataFiles = () => {
   ensureDataDir();
-  if (!fs.existsSync(DOCS_METADATA_PATH) && fs.existsSync(LEGACY_DOCS_METADATA_PATH)) {
+  const metaPath = docsMetadataPath();
+  const vecPath = vectorStorePath();
+  fs.mkdirSync(path.dirname(metaPath), { recursive: true });
+  if (!fs.existsSync(metaPath) && fs.existsSync(LEGACY_DOCS_METADATA_PATH)) {
     try {
-      fs.copyFileSync(LEGACY_DOCS_METADATA_PATH, DOCS_METADATA_PATH);
-      console.log("[Disk] Migrated legacy docs_metadata.json -> .data/");
+      fs.copyFileSync(LEGACY_DOCS_METADATA_PATH, metaPath);
+      console.log("[Disk] Migrated legacy docs_metadata.json -> tenant data/");
     } catch (e) {
       console.warn("[Disk] Legacy docs metadata migration failed:", e);
     }
   }
-  if (!fs.existsSync(VECTOR_STORE_PATH) && fs.existsSync(LEGACY_VECTOR_STORE_PATH)) {
+  if (!fs.existsSync(vecPath) && fs.existsSync(LEGACY_VECTOR_STORE_PATH)) {
     try {
-      fs.copyFileSync(LEGACY_VECTOR_STORE_PATH, VECTOR_STORE_PATH);
-      console.log("[Disk] Migrated legacy vector_store.json -> .data/");
+      fs.copyFileSync(LEGACY_VECTOR_STORE_PATH, vecPath);
+      console.log("[Disk] Migrated legacy vector_store.json -> tenant data/");
     } catch (e) {
       console.warn("[Disk] Legacy vector store migration failed:", e);
     }
@@ -144,39 +186,76 @@ const migrateLegacyDataFiles = () => {
 
 const loadDocsMetadataFromDisk = () => {
   migrateLegacyDataFiles();
-  if (!fs.existsSync(DOCS_METADATA_PATH)) return;
+  if (!fs.existsSync(docsMetadataPath())) return;
   try {
-    uploadedDocuments = JSON.parse(fs.readFileSync(DOCS_METADATA_PATH, "utf-8"));
+    uploadedDocuments = JSON.parse(fs.readFileSync(docsMetadataPath(), "utf-8"));
   } catch (e) {
     console.warn("[Disk] Failed to load docs metadata, reset to empty:", e);
     uploadedDocuments = [];
   }
 };
 
-const syncMetadataFromPgIfEmpty = async (pool: Pool, tableName: string, metadataColumnName: string) => {
-  if (uploadedDocuments.length > 0) return;
+/** 从 PG distinct source 重建元数据（空库或与 PG 源数量不一致时） */
+const syncMetadataFromPgSources = async (
+  pool: Pool,
+  tableName: string,
+  metadataColumnName: string,
+  opts?: { force?: boolean }
+) => {
   try {
     const res = await pool.query(
-      `SELECT DISTINCT "${metadataColumnName}"->>'source' AS src FROM "${tableName}" WHERE "${metadataColumnName}"->>'source' IS NOT NULL`
+      `SELECT DISTINCT "${metadataColumnName}"->>'source' AS src,
+              COUNT(*)::int AS c
+       FROM "${tableName}"
+       WHERE "${metadataColumnName}"->>'source' IS NOT NULL
+       GROUP BY 1`
     );
-    const names = (res.rows ?? [])
-      .map((r: { src?: string }) => String(r?.src ?? "").trim())
-      .filter(Boolean);
-    if (!names.length) return;
-    uploadedDocuments = names.map((name) => ({
-      name,
-      type: name.includes(".") ? String(name.split(".").pop() || "unknown") : "unknown",
-    }));
+    const rows = (res.rows ?? [])
+      .map((r: { src?: string; c?: number }) => ({
+        name: String(r?.src ?? "").trim(),
+        chunk_count: Number(r?.c ?? 0) || undefined,
+      }))
+      .filter((r) => r.name);
+    if (!rows.length) return false;
+    const pgCount = rows.length;
+    const metaCount = uploadedDocuments.length;
+    const pgNames = new Set(rows.map((r) => r.name));
+    const metaNames = new Set(uploadedDocuments.map((d) => d.name));
+    const sameNameSet =
+      pgNames.size === metaNames.size && [...pgNames].every((n) => metaNames.has(n));
+    if (!opts?.force && metaCount > 0 && sameNameSet) return false;
+    const byName = new Map(uploadedDocuments.map((d) => [d.name, d]));
+    uploadedDocuments = rows.map((r) => {
+      const prev = byName.get(r.name);
+      return {
+        name: r.name,
+        type: prev?.type || (r.name.includes(".") ? String(r.name.split(".").pop() || "unknown") : "unknown"),
+        content_hash: prev?.content_hash,
+        ingest_at: prev?.ingest_at,
+        source_version: prev?.source_version,
+        chunk_count: r.chunk_count ?? prev?.chunk_count,
+        summary: prev?.summary,
+      };
+    });
     saveDocsMetadataToDisk();
-    console.log(`[PGVector] Rebuilt docs metadata from ${names.length} distinct sources.`);
+    console.log(
+      `[PGVector] Rebuilt docs metadata from PG sources: meta ${metaCount} → ${uploadedDocuments.length}.`
+    );
+    return true;
   } catch (e) {
-    console.warn("[PGVector] syncMetadataFromPgIfEmpty skipped:", e);
+    console.warn("[PGVector] syncMetadataFromPgSources skipped:", e);
+    return false;
   }
+};
+
+const syncMetadataFromPgIfEmpty = async (pool: Pool, tableName: string, metadataColumnName: string) => {
+  if (uploadedDocuments.length > 0) return;
+  await syncMetadataFromPgSources(pool, tableName, metadataColumnName, { force: true });
 };
 
 const saveDocsMetadataToDisk = () => {
   ensureDataDir();
-  fs.writeFileSync(DOCS_METADATA_PATH, JSON.stringify(uploadedDocuments));
+  fs.writeFileSync(docsMetadataPath(), JSON.stringify(uploadedDocuments));
 };
 
 /**
@@ -191,7 +270,7 @@ const saveToDisk = async () => {
     // MemoryVectorStore 的简单持久化方案
     const memoryStore = vectorStore as MemoryVectorStore;
     const data = JSON.stringify(memoryStore.memoryVectors);
-    fs.writeFileSync(VECTOR_STORE_PATH, data);
+    fs.writeFileSync(vectorStorePath(), data);
   }
   console.log(`[Disk] Saved metadata for ${uploadedDocuments.length} docs (backend=${vectorBackend}).`);
 };
@@ -206,8 +285,8 @@ const loadMemoryFromDisk = async (embeddings: OpenAIEmbeddings) => {
   const store = new MemoryVectorStore(embeddings);
   
   // 加载向量数据
-  if (fs.existsSync(VECTOR_STORE_PATH)) {
-    const vectors = JSON.parse(fs.readFileSync(VECTOR_STORE_PATH, "utf-8"));
+  if (fs.existsSync(vectorStorePath())) {
+    const vectors = JSON.parse(fs.readFileSync(vectorStorePath(), "utf-8"));
     store.memoryVectors = vectors;
     console.log(`[Disk] Loaded ${vectors.length} vectors from disk.`);
   }
@@ -220,7 +299,13 @@ const getPgRuntimeConfig = () => {
   if (!connectionString) {
     throw new Error("RAG_PG_CONNECTION_STRING is required when RAG_VECTOR_BACKEND=pgvector");
   }
-  const tableName = sanitizeIdentifier(process.env.RAG_PG_TABLE_NAME ?? "rag_documents", "rag_documents");
+  const baseTable = sanitizeIdentifier(process.env.RAG_PG_TABLE_NAME ?? "rag_documents", "rag_documents");
+  const tenantSeg = safeRagTenantSegment(getRagRequestTenantId());
+  // default 租户沿用历史表名，避免切分后读空库；非 default 才加后缀物理隔离
+  const tableName =
+    !tenantSeg || tenantSeg === "default"
+      ? baseTable
+      : sanitizeIdentifier(`${baseTable}_${tenantSeg}`, baseTable);
   const idColumnName = sanitizeIdentifier(process.env.RAG_PG_ID_COLUMN ?? "id", "id");
   const vectorColumnName = sanitizeIdentifier(process.env.RAG_PG_VECTOR_COLUMN ?? "embedding", "embedding");
   const contentColumnName = sanitizeIdentifier(process.env.RAG_PG_CONTENT_COLUMN ?? "content", "content");
@@ -264,12 +349,12 @@ const migrateLegacyMemoryFileToPgIfNeeded = async (
 ) => {
   const enableMigration = envBool(process.env.RAG_MIGRATE_LEGACY_MEMORY_ON_BOOT, true);
   if (!enableMigration) return;
-  if (!fs.existsSync(VECTOR_STORE_PATH)) return;
+  if (!fs.existsSync(vectorStorePath())) return;
   const currentRows = await getPgTableCount(pool, tableName);
   if (currentRows > 0) return;
 
   try {
-    const vectors = JSON.parse(fs.readFileSync(VECTOR_STORE_PATH, "utf-8"));
+    const vectors = JSON.parse(fs.readFileSync(vectorStorePath(), "utf-8"));
     if (!Array.isArray(vectors) || vectors.length === 0) return;
     const { Document } = await import("@langchain/core/documents");
     const docs = vectors
@@ -288,12 +373,133 @@ const migrateLegacyMemoryFileToPgIfNeeded = async (
   }
 };
 
+async function inspectPgvectorAnn(
+  pool: Pool,
+  tableName: string,
+  vectorColumn: string
+): Promise<PgvectorAnnInspect> {
+  const idxRes = await pool.query(sqlListTableIndexes(tableName));
+  let formatType: string | null = null;
+  try {
+    const ft = await pool.query(sqlEmbeddingColumnFormatType(tableName, vectorColumn));
+    formatType = ft.rows?.[0]?.format_type != null ? String(ft.rows[0].format_type) : null;
+  } catch {
+    formatType = null;
+  }
+  return parseAnnInspectFromRows({
+    indexRows: (idxRes.rows ?? []) as Array<{ indexname?: string; indexdef?: string }>,
+    formatType,
+  });
+}
+
+/** 定维 + HNSW + metadata source 索引；维不一致时不删数据，仅 soft 跳过。 */
+async function ensurePgvectorAnnIndexes(
+  pool: Pool,
+  cfg: {
+    tableName: string;
+    vectorColumnName: string;
+    metadataColumnName: string;
+  }
+): Promise<PgvectorAnnInspect> {
+  const env = getRagAgentEnv();
+  const ann: PgvectorAnnParams = {
+    tableName: cfg.tableName,
+    vectorColumn: cfg.vectorColumnName,
+    metadataColumn: cfg.metadataColumnName,
+    dimensions: env.pgEmbeddingDims,
+    m: env.pgHnswM,
+    efConstruction: env.pgHnswEfConstruction,
+    efSearch: env.pgHnswEfSearch,
+  };
+
+  try {
+    await pool.query(sqlCreateSourceMetadataIndex(ann));
+  } catch (e) {
+    console.warn("[PGVector] source metadata index skipped:", e);
+  }
+
+  if (!env.pgEnsureHnsw) {
+    const skipped = await inspectPgvectorAnn(pool, cfg.tableName, cfg.vectorColumnName);
+    console.log(
+      `[PGVector] ANN ensure skipped (RAG_PG_ENSURE_HNSW=off) table="${cfg.tableName}" hnsw=${skipped.hasHnsw}`
+    );
+    return skipped;
+  }
+
+  const rowCount = await getPgTableCount(pool, cfg.tableName);
+  let probedRowDims: number | null = null;
+  if (rowCount > 0) {
+    try {
+      const probe = await pool.query(sqlProbeEmbeddingDims(cfg.tableName, cfg.vectorColumnName));
+      const d = Number(probe.rows?.[0]?.dims);
+      probedRowDims = Number.isFinite(d) ? d : null;
+    } catch {
+      probedRowDims = null;
+    }
+  }
+
+  let inspect = await inspectPgvectorAnn(pool, cfg.tableName, cfg.vectorColumnName);
+  const decision = decideAlterEmbeddingDims({
+    targetDims: env.pgEmbeddingDims,
+    columnDims: inspect.dims,
+    probedRowDims,
+    rowCount,
+  });
+
+  if (decision.reason === "embedding_dim_mismatch") {
+    console.warn(
+      `[PGVector] embedding dim mismatch on "${cfg.tableName}": probed=${probedRowDims} target=${env.pgEmbeddingDims}; skip HNSW (no data wipe).`
+    );
+    return inspect;
+  }
+
+  if (decision.alter) {
+    try {
+      await pool.query(sqlAlterEmbeddingDims(ann));
+      console.log(
+        `[PGVector] Fixed embedding dims=${env.pgEmbeddingDims} on "${cfg.tableName}" (${decision.reason}).`
+      );
+      inspect = await inspectPgvectorAnn(pool, cfg.tableName, cfg.vectorColumnName);
+    } catch (e) {
+      console.warn(`[PGVector] ALTER embedding dims skipped (${decision.reason}):`, e);
+      return inspectPgvectorAnn(pool, cfg.tableName, cfg.vectorColumnName);
+    }
+  }
+
+  if (inspect.dims === env.pgEmbeddingDims || (inspect.dims == null && rowCount === 0 && decision.alter)) {
+    try {
+      // 空表刚 ALTER 后应已定维；再确认一次
+      inspect = await inspectPgvectorAnn(pool, cfg.tableName, cfg.vectorColumnName);
+      if (inspect.dims === env.pgEmbeddingDims) {
+        await pool.query(sqlCreateHnswIndex(ann));
+      } else if (rowCount === 0) {
+        await pool.query(sqlAlterEmbeddingDims(ann));
+        await pool.query(sqlCreateHnswIndex(ann));
+      }
+    } catch (e) {
+      console.warn("[PGVector] HNSW index ensure skipped:", e);
+    }
+  }
+
+  inspect = await inspectPgvectorAnn(pool, cfg.tableName, cfg.vectorColumnName);
+  console.log(
+    `[PGVector] ANN ready table="${cfg.tableName}" hnsw=${inspect.hasHnsw} dims=${inspect.dims ?? "?"} ef_search=${env.pgHnswEfSearch}`
+  );
+  return inspect;
+}
+
 const loadPgVectorStore = async (embeddings: OpenAIEmbeddings) => {
   loadDocsMetadataFromDisk();
   const cfg = getPgRuntimeConfig();
+  const env = getRagAgentEnv();
   const pool = new Pool({
     connectionString: cfg.connectionString,
     max: cfg.poolMax,
+  });
+  pool.on("connect", (client) => {
+    void client.query(sqlSetHnswEfSearch(env.pgHnswEfSearch)).catch((e) => {
+      console.warn("[PGVector] SET hnsw.ef_search failed:", e);
+    });
   });
   pgPool = pool;
   // pgvector 镜像通常已预装 extension；确保扩展存在，便于首次启动
@@ -311,6 +517,8 @@ const loadPgVectorStore = async (embeddings: OpenAIEmbeddings) => {
       contentColumnName: cfg.contentColumnName,
       metadataColumnName: cfg.metadataColumnName,
     },
+    distanceStrategy: "cosine",
+    dimensions: env.pgEmbeddingDims,
   });
   const trigramIndexName = sanitizeIdentifier(
     `${cfg.tableName}_${cfg.contentColumnName}_trgm_idx`,
@@ -319,6 +527,11 @@ const loadPgVectorStore = async (embeddings: OpenAIEmbeddings) => {
   await pool.query(
     `CREATE INDEX IF NOT EXISTS "${trigramIndexName}" ON "${cfg.tableName}" USING GIN ("${cfg.contentColumnName}" gin_trgm_ops)`
   );
+  await ensurePgvectorAnnIndexes(pool, {
+    tableName: cfg.tableName,
+    vectorColumnName: cfg.vectorColumnName,
+    metadataColumnName: cfg.metadataColumnName,
+  });
   await migrateLegacyMemoryFileToPgIfNeeded(store, pool, cfg.tableName);
   await syncMetadataFromPgIfEmpty(pool, cfg.tableName, cfg.metadataColumnName);
   const rows = await getPgTableCount(pool, cfg.tableName);
@@ -351,9 +564,9 @@ const collectBm25DocsFromMemory = (): { pageContent: string; metadata: Record<st
     }
   }
   if (docs.length) return docs;
-  if (!fs.existsSync(VECTOR_STORE_PATH)) return [];
+  if (!fs.existsSync(vectorStorePath())) return [];
   try {
-    const vectors = JSON.parse(fs.readFileSync(VECTOR_STORE_PATH, "utf-8"));
+    const vectors = JSON.parse(fs.readFileSync(vectorStorePath(), "utf-8"));
     if (!Array.isArray(vectors)) return [];
     for (const vec of vectors) {
       const content = String(vec?.content ?? vec?.pageContent ?? "").trim();
@@ -401,16 +614,16 @@ const collectBm25DocsFromPg = async (): Promise<
 const persistBm25Index = () => {
   try {
     ensureDataDir();
-    fs.writeFileSync(BM25_INDEX_PATH, JSON.stringify(bm25Index.toJSON()));
+    fs.writeFileSync(bm25IndexPath(), JSON.stringify(bm25Index.toJSON()));
   } catch (e) {
     console.warn("[BM25] persist skipped:", e);
   }
 };
 
 const tryLoadBm25FromDisk = (): boolean => {
-  if (!fs.existsSync(BM25_INDEX_PATH)) return false;
+  if (!fs.existsSync(bm25IndexPath())) return false;
   try {
-    const raw = JSON.parse(fs.readFileSync(BM25_INDEX_PATH, "utf-8"));
+    const raw = JSON.parse(fs.readFileSync(bm25IndexPath(), "utf-8"));
     const n = bm25Index.loadFromJSON(raw);
     return n > 0;
   } catch (e) {
@@ -535,20 +748,40 @@ export const deleteDocument = async (fileName: string) => {
 };
 
 export const getVectorStore = async () => {
-  if (!vectorStore) {
-    const embeddings = getRagEmbeddings();
-    vectorBackend = normalizeBackend(process.env.RAG_VECTOR_BACKEND ?? "memory");
-    vectorStore =
-      vectorBackend === "pgvector"
-        ? await loadPgVectorStore(embeddings)
-        : await loadMemoryFromDisk(embeddings);
-    console.log(`[VectorStore] backend=${vectorBackend}`);
-    // 冷启动：优先磁盘倒排，否则从向量后端重建（含 pgvector）
-    void rebuildBm25Index({ preferDisk: true }).catch((e) =>
-      console.warn("[BM25] boot rebuild failed:", e)
-    );
+  const tid = safeRagTenantSegment(getRagRequestTenantId());
+  const cached = tenantVectorStores.get(tid);
+  if (cached) {
+    vectorStore = cached.store;
+    vectorBackend = cached.backend;
+    pgPool = cached.pool;
+    activeVectorTenant = tid;
+    return cached.store;
   }
-  return vectorStore;
+
+  const embeddings = getRagEmbeddings();
+  vectorBackend = normalizeBackend(process.env.RAG_VECTOR_BACKEND ?? "memory");
+  // ensure tenant dir + migrate legacy global store into default tenant once
+  const vPath = vectorStorePath(tid);
+  fs.mkdirSync(path.dirname(vPath), { recursive: true });
+  if (tid === "default" && !fs.existsSync(vPath) && fs.existsSync(vectorStorePath())) {
+    try {
+      fs.copyFileSync(vectorStorePath(), vPath);
+    } catch {
+      /* ignore */
+    }
+  }
+  const store =
+    vectorBackend === "pgvector"
+      ? await loadPgVectorStore(embeddings)
+      : await loadMemoryFromDisk(embeddings);
+  vectorStore = store;
+  activeVectorTenant = tid;
+  tenantVectorStores.set(tid, { store, backend: vectorBackend, pool: pgPool });
+  console.log(`[VectorStore] backend=${vectorBackend} tenant=${tid}`);
+  void rebuildBm25Index({ preferDisk: true }).catch((e) =>
+    console.warn("[BM25] boot rebuild failed:", e)
+  );
+  return store;
 };
 
 export const getVectorBackend = async (): Promise<"memory" | "pgvector"> => {
@@ -572,6 +805,10 @@ export type VectorStoreHealthAudit = {
   missingIngestAtRatio: number | null;
   /** 元数据缺 content_hash 的文档占比 0～1 */
   missingContentHashRatio: number | null;
+  /** pgvector ANN：是否存在 HNSW（memory 为 null） */
+  hnswIndexPresent: boolean | null;
+  /** embedding 列定维；无约束或非 pg 为 null */
+  embeddingDims: number | null;
 };
 
 /** pgvector / memory 与 docs_metadata 对账；ready 探针可调用 */
@@ -582,9 +819,13 @@ export async function auditVectorStoreHealth(opts?: { reconcile?: boolean }): Pr
   let vectorRowCount: number | null = null;
   let pgDistinctSources: number | null = null;
   let memoryVectorCount: number | null = null;
+  let hnswIndexPresent: boolean | null = null;
+  let embeddingDims: number | null = null;
+  const softWarnings: string[] = [];
 
   if (vectorBackend === "pgvector" && pgPool) {
     const cfg = getPgRuntimeConfig();
+    const targetDims = getRagAgentEnv().pgEmbeddingDims;
     vectorRowCount = await getPgTableCount(pgPool, cfg.tableName);
     try {
       const res = await pgPool.query(
@@ -594,9 +835,29 @@ export async function auditVectorStoreHealth(opts?: { reconcile?: boolean }): Pr
     } catch {
       warnings.push("pg_distinct_source_query_failed");
     }
-    if (opts?.reconcile !== false && uploadedDocuments.length === 0 && (pgDistinctSources ?? 0) > 0) {
-      await syncMetadataFromPgIfEmpty(pgPool, cfg.tableName, cfg.metadataColumnName);
-      reconciled = uploadedDocuments.length > 0;
+    try {
+      const inspect = await inspectPgvectorAnn(pgPool, cfg.tableName, cfg.vectorColumnName);
+      hnswIndexPresent = inspect.hasHnsw;
+      embeddingDims = inspect.dims;
+      softWarnings.push(...annSoftWarnings(inspect, targetDims));
+    } catch {
+      hnswIndexPresent = false;
+      softWarnings.push("missing_hnsw_index");
+    }
+    if (opts?.reconcile !== false) {
+      if (uploadedDocuments.length === 0 && (pgDistinctSources ?? 0) > 0) {
+        await syncMetadataFromPgSources(pgPool, cfg.tableName, cfg.metadataColumnName, { force: true });
+        reconciled = uploadedDocuments.length > 0;
+        pgDistinctSources = uploadedDocuments.length;
+      } else if (
+        (pgDistinctSources ?? 0) > 0 &&
+        uploadedDocuments.length > 0 &&
+        uploadedDocuments.length !== pgDistinctSources
+      ) {
+        await syncMetadataFromPgSources(pgPool, cfg.tableName, cfg.metadataColumnName, { force: true });
+        reconciled = true;
+        pgDistinctSources = uploadedDocuments.length;
+      }
     }
     if (uploadedDocuments.length > 0 && vectorRowCount === 0) {
       warnings.push("metadata_has_docs_but_pg_empty");
@@ -615,7 +876,7 @@ export async function auditVectorStoreHealth(opts?: { reconcile?: boolean }): Pr
     if (uploadedDocuments.length > 0 && memoryVectorCount === 0) {
       warnings.push("metadata_has_docs_but_memory_empty");
     }
-    if (fs.existsSync(VECTOR_STORE_PATH) && memoryVectorCount === 0 && uploadedDocuments.length === 0) {
+    if (fs.existsSync(vectorStorePath()) && memoryVectorCount === 0 && uploadedDocuments.length === 0) {
       warnings.push("legacy_vector_file_present_but_empty_memory");
     }
   }
@@ -625,7 +886,6 @@ export async function auditVectorStoreHealth(opts?: { reconcile?: boolean }): Pr
     metaN > 0 ? uploadedDocuments.filter((d) => !String(d.ingest_at || "").trim()).length / metaN : null;
   const missingHash =
     metaN > 0 ? uploadedDocuments.filter((d) => !String(d.content_hash || "").trim()).length / metaN : null;
-  const softWarnings: string[] = [];
   if ((missingIngestAt ?? 0) > 0.25) softWarnings.push("many_docs_missing_ingest_at");
   if ((missingHash ?? 0) > 0.25) softWarnings.push("many_docs_missing_content_hash");
 
@@ -638,11 +898,13 @@ export async function auditVectorStoreHealth(opts?: { reconcile?: boolean }): Pr
     consistent: warnings.length === 0,
     reconciled,
     warnings,
-    softWarnings,
+    softWarnings: [...new Set(softWarnings)],
     missingIngestAtRatio: missingIngestAt,
     missingContentHashRatio: missingHash,
+    hnswIndexPresent,
+    embeddingDims,
   };
-};
+}
 
 export const searchKeywordCandidates = async (params: {
   terms: string[];
@@ -656,9 +918,9 @@ export const searchKeywordCandidates = async (params: {
   const sourceFilters = Array.from(new Set((params.sources ?? []).map((s) => String(s || "").trim()).filter(Boolean)));
 
   const searchFromMemoryFile = (): KeywordCandidate[] => {
-    if (!fs.existsSync(VECTOR_STORE_PATH)) return [];
+    if (!fs.existsSync(vectorStorePath())) return [];
     try {
-      const vectors = JSON.parse(fs.readFileSync(VECTOR_STORE_PATH, "utf-8"));
+      const vectors = JSON.parse(fs.readFileSync(vectorStorePath(), "utf-8"));
       if (!Array.isArray(vectors)) return [];
       const out: KeywordCandidate[] = [];
       for (const vec of vectors) {
@@ -1094,6 +1356,7 @@ export async function upsertParsedDocuments(
   const store = await getVectorStore();
   const effectiveLimits = limits ?? getDefaultLimits();
   if (!docs.length) return 0;
+  const docTenantId = getRagRequestTenantId();
 
   const fullText = docs.map((d) => String(d.pageContent ?? "")).join("\n");
   const contentHash = hashCorpusText(fullText);
@@ -1104,7 +1367,7 @@ export async function upsertParsedDocuments(
   const { ingest_at, processedAt } = buildIngestTimestamps();
 
   const existingMeta = uploadedDocuments.find((d) => d.name === fileName);
-  if (shouldSkipReembed(existingMeta?.content_hash, contentHash)) {
+  if (!opts?.forceReembed && shouldSkipReembed(existingMeta?.content_hash, contentHash)) {
     const existingCount =
       existingMeta.chunk_count && existingMeta.chunk_count > 0
         ? existingMeta.chunk_count
@@ -1147,6 +1410,7 @@ export async function upsertParsedDocuments(
       ...doc.metadata,
       source: fileName,
       fileType,
+      tenant_id: docTenantId,
       chunkSize: env.chunkSize,
       chunkOverlap: env.chunkOverlap,
       processedAt,
@@ -1272,8 +1536,11 @@ export const reindexAllFromStore = async (): Promise<{ sources: number; chunks: 
     const memoryStore = vectorStore as MemoryVectorStore;
     for (const v of memoryStore.memoryVectors ?? []) {
       const meta = v.metadata ?? {};
+      // 优先 content：破碎 parent_text（与 content 同短）挂错明细时不可靠
+      const content = String((v as any).content ?? (v as any).pageContent ?? "").trim();
       const parent = String(meta.parent_text ?? "").trim();
-      const text = parent || String((v as any).content ?? (v as any).pageContent ?? "").trim();
+      const text =
+        parent && parent.length > content.length + 20 && parent !== content ? parent : content || parent;
       push(String(meta.source ?? ""), text, String(meta.fileType ?? "") || undefined);
     }
   } else if (pgPool) {
@@ -1283,8 +1550,10 @@ export const reindexAllFromStore = async (): Promise<{ sources: number; chunks: 
     );
     for (const row of res.rows ?? []) {
       const meta = row.metadata ?? {};
+      const content = String(row.content ?? "").trim();
       const parent = String(meta.parent_text ?? "").trim();
-      const text = parent || String(row.content ?? "").trim();
+      const text =
+        parent && parent.length > content.length + 20 && parent !== content ? parent : content || parent;
       push(String(meta.source ?? ""), text, String(meta.fileType ?? "") || undefined);
     }
   }
@@ -1293,21 +1562,12 @@ export const reindexAllFromStore = async (): Promise<{ sources: number; chunks: 
   const snapshot = [...bySource.entries()];
   let totalChunks = 0;
   for (const [source, { texts, fileType }] of snapshot) {
-    const sorted = [...texts].sort((a, b) => b.length - a.length);
-    const kept: string[] = [];
-    for (const t of sorted) {
-      if (kept.some((u) => u.includes(t))) continue;
-      // 去掉被本段包含的更短段
-      for (let i = kept.length - 1; i >= 0; i--) {
-        if (t.includes(kept[i]!)) kept.splice(i, 1);
-      }
-      kept.push(t);
-    }
-    const merged = kept.join("\n\n");
+    const merged = reconstructSourceTextFromChunks(texts);
     const existing = uploadedDocuments.find((d) => d.name === source);
     const n = await upsertTextDocument(source, merged, {
       fileType: existing?.type || fileType || "txt",
       source_version: existing?.source_version,
+      forceReembed: true,
     });
     totalChunks += n;
   }

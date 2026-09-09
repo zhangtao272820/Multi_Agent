@@ -60,6 +60,15 @@ function resolveOrchestratedMode(task: ManagerRagTaskPayload) {
 const subs = splitCompoundQueries("月收入和月支出分别是多少，行走时长是多少");
 assert(subs.length >= 2, `compound split failed: ${JSON.stringify(subs)}`);
 
+const qmark = splitCompoundQueries(
+  "护理员岗位补贴是每人每月多少？夜班津贴怎么算、有没有月上限？",
+);
+assert(qmark.length >= 2, `question-mark compound must split: ${JSON.stringify(qmark)}`);
+assert(
+  qmark.some((p) => p.includes("夜班")),
+  `night-shift must be its own subquery: ${JSON.stringify(qmark)}`,
+);
+
 const mgrSubs = splitCompoundQueries("神能满足度压力测试和行走时长分别是多少");
 assert(mgrSubs.length >= 2, `manager compound subs failed: ${JSON.stringify(mgrSubs)}`);
 

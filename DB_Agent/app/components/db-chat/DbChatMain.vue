@@ -30,6 +30,9 @@ const {
   regenerateTurn,
   turnFeedbackSubmitted,
   turnFeedbackAckText,
+  turnFeedbackFailed,
+  FEEDBACK_FAIL_ACK,
+  retryFeedback,
   feedbackSendingUserIndex,
   feedbackUserIndexForMessage,
   applyClarificationChip,
@@ -192,6 +195,15 @@ const {
           </template>
           <div v-if="m.turnId && m.turnId > 0 && m.content?.trim()" class="feedback-row">
             <template v-if="!turnFeedbackSubmitted(m)">
+              <div v-if="turnFeedbackFailed(m)" class="db-feedback-fail">
+                <span>{{ turnFeedbackAckText(m) || FEEDBACK_FAIL_ACK }}</span>
+                <button
+                  type="button"
+                  class="fb fb-retry"
+                  :disabled="feedbackSendingUserIndex === feedbackUserIndexForMessage(m)"
+                  @click="retryFeedback(m)"
+                >重试</button>
+              </div>
               <button
                 type="button"
                 class="fb"

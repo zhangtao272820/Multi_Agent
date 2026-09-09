@@ -38,6 +38,7 @@ type AdminWsCallParams = {
   sessionId?: string
   traceId?: string
   userId?: string
+  tenantId?: string
   clientContext?: Record<string, unknown>
   sendThinking?: (text: string) => void
   sendDelta?: (delta: string) => void
@@ -49,9 +50,13 @@ type AdminWsCallParams = {
 async function callAiAdminWs(params: AdminWsCallParams): Promise<AgentCallResult> {
   const orchestrated = Boolean(params.clientContext?.manager_orchestrated || params.clientContext?.manager_task)
   const uid = String(params.userId || '').trim()
+  const tid = String(params.tenantId || '').trim()
   const ws = new WebSocket(params.aiAdminAgentWsUrl, {
     headers: {
-      ...buildAgentTraceHeaders(params.traceId, uid ? { userId: uid } : undefined),
+      ...buildAgentTraceHeaders(params.traceId, {
+        ...(uid ? { userId: uid } : {}),
+        ...(tid ? { tenantId: tid } : {})
+      }),
       ...(orchestrated ? { [MANAGER_ORCHESTRATED_HEADER]: '1' } : {})
     }
   })
@@ -172,6 +177,8 @@ export async function callAiAdminAgent(params: {
   traceId?: string
   /** 登录用户 id：按用户解析邮箱绑定凭据 */
   userId?: string
+  /** 组织租户：办公数据与记忆隔离 */
+  tenantId?: string
   /** 为 true 时个人助手将直接执行高风险工具（待办/日程/提醒等），不再进入待确认队列 */
   autoConfirmRisky?: boolean
   /** N5：auto_confirm 原因码，写入 client_context 便于审计 */
@@ -185,12 +192,14 @@ export async function callAiAdminAgent(params: {
 }): Promise<AgentCallResult> {
   params.sendThinking?.('个人助手 Agent：正在处理请求…')
   const uid = String(params.userId || '').trim()
+  const tid = String(params.tenantId || '').trim()
   return callAiAdminWs({
     aiAdminAgentWsUrl: params.aiAdminAgentWsUrl,
     timeoutMs: params.timeoutMs,
     sessionId: params.sessionId,
     traceId: params.traceId,
     userId: uid || undefined,
+    tenantId: tid || undefined,
     clientContext: params.clientContext,
     sendThinking: params.sendThinking,
     sendDelta: params.sendDelta,
@@ -202,10 +211,12 @@ export async function callAiAdminAgent(params: {
       auto_confirm_risky: Boolean(params.autoConfirmRisky),
       ...(params.traceId ? { trace_id: params.traceId } : {}),
       ...(uid ? { user_id: uid } : {}),
+      ...(tid ? { tenant_id: tid } : {}),
       client_context: {
         ...(params.clientContext && typeof params.clientContext === 'object' ? params.clientContext : {}),
         ...(params.traceId ? { manager_orchestrated: true } : {}),
         ...(uid ? { user_id: uid } : {}),
+        ...(tid ? { tenant_id: tid } : {}),
         ...(params.autoConfirmRisky
           ? {
               auto_confirm_audit: {
@@ -230,18 +241,21 @@ export async function callAiAdminPendingDecide(params: {
   sessionId?: string
   traceId?: string
   userId?: string
+  tenantId?: string
   clientContext?: Record<string, unknown>
   sendThinking?: (text: string) => void
   signal?: AbortSignal
 }): Promise<AgentCallResult> {
   params.sendThinking?.(`个人助手 Agent：正在${params.decision}待办操作…`)
   const uid = String(params.userId || '').trim()
+  const tid = String(params.tenantId || '').trim()
   return callAiAdminWs({
     aiAdminAgentWsUrl: params.aiAdminAgentWsUrl,
     timeoutMs: params.timeoutMs,
     sessionId: params.sessionId,
     traceId: params.traceId,
     userId: uid || undefined,
+    tenantId: tid || undefined,
     clientContext: params.clientContext,
     sendThinking: params.sendThinking,
     signal: params.signal,
@@ -253,10 +267,12 @@ export async function callAiAdminPendingDecide(params: {
       session_id: params.sessionId || 'manager-default',
       ...(params.traceId ? { trace_id: params.traceId } : {}),
       ...(uid ? { user_id: uid } : {}),
+      ...(tid ? { tenant_id: tid } : {}),
       client_context: {
         ...(params.clientContext && typeof params.clientContext === 'object' ? params.clientContext : {}),
         manager_orchestrated: true,
-        ...(uid ? { user_id: uid } : {})
+        ...(uid ? { user_id: uid } : {}),
+        ...(tid ? { tenant_id: tid } : {})
       }
     })
   })

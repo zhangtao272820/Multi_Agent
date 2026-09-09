@@ -3,11 +3,14 @@ from __future__ import annotations
 from app.db.database import Note, SessionLocal
 from app.tools.common import _tool_err, _tool_ok
 from app.core.time_utils import utc_naive_to_local_naive
+from app.core.tenant_scope import require_request_scope
+
 
 def add_note(title: str, content: str) -> str:
     clean_title = (title or "").strip() or "未命名笔记"
     db = SessionLocal()
-    note = Note(title=clean_title, content=content or "")
+    tid, uid = require_request_scope()
+    note = Note(title=clean_title, content=content or "", tenant_id=tid, user_id=uid)
     db.add(note)
     db.commit()
     db.refresh(note)
@@ -20,7 +23,13 @@ def add_note(title: str, content: str) -> str:
 
 def list_notes() -> str:
     db = SessionLocal()
-    notes = db.query(Note).order_by(Note.created_at.desc()).all()
+    tid, uid = require_request_scope()
+    notes = (
+        db.query(Note)
+        .filter(Note.tenant_id == tid, Note.user_id == uid)
+        .order_by(Note.created_at.desc())
+        .all()
+    )
     db.close()
     if not notes:
         return _tool_ok("当前没有笔记。", data={"items": [], "count": 0}, code="empty")
@@ -44,7 +53,12 @@ def list_notes() -> str:
 
 def delete_note(note_id: int) -> str:
     db = SessionLocal()
-    note = db.query(Note).filter(Note.id == note_id).first()
+    tid, uid = require_request_scope()
+    note = (
+        db.query(Note)
+        .filter(Note.id == note_id, Note.tenant_id == tid, Note.user_id == uid)
+        .first()
+    )
     if not note:
         db.close()
         return _tool_err(
@@ -60,4 +74,3 @@ def delete_note(note_id: int) -> str:
         f"已删除笔记: {title}",
         data={"note_id": note_id, "title": title},
     )
-

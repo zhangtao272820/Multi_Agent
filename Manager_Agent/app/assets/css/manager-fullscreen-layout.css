@@ -2,14 +2,14 @@
    霜白冬雪 Token 为默认；壳层间距见 manager-winter-shell.css。 */
 
 .spring-root.cosmic-theme.cursor-workbench {
-  /* DeepSeek harness：居中可读栏 680–840，禁止 agent 气泡拉满整栏 */
+  /* 主轨宽度：思考过程 / 回复与中间栏同轴，略收窄便于阅读 */
   --mgr-sidebar-w: 240px;
   --mgr-tools-w: 280px;
   --mgr-shell-pad: 10px;
   --mgr-shell-gap: 10px;
-  --chat-col-width: min(840px, calc(100vw - var(--mgr-sidebar-w) - var(--mgr-tools-w) - 48px));
-  --chat-agent-max: min(760px, 100%);
-  --chat-user-max: min(640px, 88%);
+  --chat-col-width: min(920px, calc(100vw - var(--mgr-sidebar-w) - var(--mgr-tools-w) - 48px));
+  --chat-agent-max: min(920px, 100%);
+  --chat-user-max: min(720px, 88%);
   --chat-max-width: var(--chat-col-width);
   --mgr-glass: rgba(248, 252, 255, 0.48);
   --mgr-glass-strong: rgba(255, 255, 255, 0.62);
@@ -407,7 +407,7 @@
   display: none !important;
 }
 
-/* 总管回复 · 左侧气泡（宽度随内容，不撑满整列） */
+/* 总管回复 · 与主轨同宽 */
 .spring-root.cursor-workbench .chat-messenger .reply-panel.chat-agent-row {
   justify-content: flex-start !important;
   width: 100% !important;
@@ -415,8 +415,8 @@
 
 .spring-root.cursor-workbench .reply-panel .reply-panel-inner.cosmic-bubble-reply,
 .spring-root.cursor-workbench .reply-panel .reply-panel-inner {
-  max-width: var(--chat-agent-max) !important;
-  width: auto !important;
+  max-width: 100% !important;
+  width: 100% !important;
   min-width: min(240px, 100%) !important;
   border-radius: 14px 14px 14px 4px !important;
   border: 1px solid var(--mgr-border) !important;

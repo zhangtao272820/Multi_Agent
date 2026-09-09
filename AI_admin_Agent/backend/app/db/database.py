@@ -17,6 +17,10 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
 
+LEGACY_USER_ID = "__legacy__"
+DEFAULT_TENANT_ID = "default"
+
+
 class Task(Base):
     __tablename__ = "tasks"
     id = Column(Integer, primary_key=True, index=True)
@@ -25,6 +29,9 @@ class Task(Base):
     completed = Column(Boolean, default=False)
     due_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    tenant_id = Column(String, index=True, default=DEFAULT_TENANT_ID)
+    user_id = Column(String, index=True, default=LEGACY_USER_ID)
+
 
 class Event(Base):
     __tablename__ = "events"
@@ -34,12 +41,18 @@ class Event(Base):
     end_time = Column(DateTime, nullable=True)
     description = Column(String, nullable=True)
     completed = Column(Boolean, default=False)
+    tenant_id = Column(String, index=True, default=DEFAULT_TENANT_ID)
+    user_id = Column(String, index=True, default=LEGACY_USER_ID)
+
 
 class Memory(Base):
     __tablename__ = "memories"
     id = Column(Integer, primary_key=True, index=True)
     content = Column(String)
     preference_type = Column(String)
+    tenant_id = Column(String, index=True, default=DEFAULT_TENANT_ID)
+    user_id = Column(String, index=True, default=LEGACY_USER_ID)
+
 
 class Contact(Base):
     __tablename__ = "contacts"
@@ -47,6 +60,9 @@ class Contact(Base):
     name = Column(String, index=True)
     email = Column(String, index=True)
     description = Column(String, nullable=True)
+    tenant_id = Column(String, index=True, default=DEFAULT_TENANT_ID)
+    user_id = Column(String, index=True, default=LEGACY_USER_ID)
+
 
 class PendingAction(Base):
     __tablename__ = "pending_actions"
@@ -57,12 +73,15 @@ class PendingAction(Base):
     status = Column(String, default="pending")  # pending/confirmed/cancelled/executed/failed
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     decided_at = Column(DateTime, nullable=True)
+    tenant_id = Column(String, index=True, default=DEFAULT_TENANT_ID)
+    user_id = Column(String, index=True, default=LEGACY_USER_ID)
 
     def get_args(self) -> dict:
         try:
             return json.loads(self.tool_args_json or "{}")
         except Exception:
             return {}
+
 
 class AuditLog(Base):
     __tablename__ = "audit_logs"
@@ -73,6 +92,9 @@ class AuditLog(Base):
     result_text = Column(Text)
     status = Column(String, default="ok")  # ok/blocked/pending/error
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    tenant_id = Column(String, index=True, default=DEFAULT_TENANT_ID)
+    user_id = Column(String, index=True, default=LEGACY_USER_ID)
+
 
 class Note(Base):
     __tablename__ = "notes"
@@ -80,6 +102,8 @@ class Note(Base):
     title = Column(String, index=True)
     content = Column(Text)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    tenant_id = Column(String, index=True, default=DEFAULT_TENANT_ID)
+    user_id = Column(String, index=True, default=LEGACY_USER_ID)
 
 
 class MailboxBinding(Base):
@@ -98,6 +122,40 @@ class MailboxBinding(Base):
     verified_at = Column(DateTime, nullable=True)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    tenant_id = Column(String, index=True, default=DEFAULT_TENANT_ID)
+
+
+def _ensure_owner_columns(conn, table: str) -> None:
+    try:
+        cols = [row[1] for row in conn.exec_driver_sql(f"PRAGMA table_info({table});").fetchall()]
+    except Exception:
+        return
+    if "tenant_id" not in cols:
+        try:
+            conn.exec_driver_sql(
+                f"ALTER TABLE {table} ADD COLUMN tenant_id VARCHAR DEFAULT '{DEFAULT_TENANT_ID}';"
+            )
+        except Exception:
+            pass
+    if "user_id" not in cols:
+        try:
+            conn.exec_driver_sql(
+                f"ALTER TABLE {table} ADD COLUMN user_id VARCHAR DEFAULT '{LEGACY_USER_ID}';"
+            )
+        except Exception:
+            pass
+    # 存量：空值打标为 legacy，新用户默认看不到
+    try:
+        conn.exec_driver_sql(
+            f"UPDATE {table} SET tenant_id = '{DEFAULT_TENANT_ID}' "
+            f"WHERE tenant_id IS NULL OR trim(tenant_id) = '';"
+        )
+        conn.exec_driver_sql(
+            f"UPDATE {table} SET user_id = '{LEGACY_USER_ID}' "
+            f"WHERE user_id IS NULL OR trim(user_id) = '';"
+        )
+    except Exception:
+        pass
 
 
 def _ensure_sqlite_schema() -> None:
@@ -119,6 +177,23 @@ def _ensure_sqlite_schema() -> None:
             cols = [row[1] for row in conn.exec_driver_sql("PRAGMA table_info(events);").fetchall()]
             if "completed" not in cols:
                 conn.exec_driver_sql("ALTER TABLE events ADD COLUMN completed BOOLEAN DEFAULT 0;")
+        except Exception:
+            pass
+
+        for table in (
+            "tasks",
+            "events",
+            "memories",
+            "contacts",
+            "notes",
+            "pending_actions",
+            "audit_logs",
+            "mailbox_bindings",
+        ):
+            _ensure_owner_columns(conn, table)
+
+        try:
+            conn.commit()
         except Exception:
             pass
 

@@ -9,6 +9,7 @@ import type { LlmInvokeFn } from './taskConstraintsLlm'
 import type { TaskOrchestratorBundle, TaskOrchestratorRaw } from './taskOrchestrator'
 import { bundleFromOrchestratorRaw } from './taskOrchestrator'
 import { routingDecisionLlmTier } from '../core/shared/modelTier'
+import { stateWithRouteEscalateHints } from '../core/routing/routeDecisionEscalate'
 import { resolveManagerEnvBool } from '../../utils/platform/managerEnvModes'
 import { isLlmFirstRouteEnabled } from '../orchestrate/unifiedRouting'
 import {
@@ -217,7 +218,15 @@ export async function rejudgePlaneCoverageByInventory(input: {
           ].join('\n\n')
         ]
       ],
-      { tier: routingDecisionLlmTier(input.state), quiet: true }
+      {
+        tier: routingDecisionLlmTier(
+          stateWithRouteEscalateHints(
+            input.state,
+            input.bundle?.raw as Record<string, unknown> | undefined
+          )
+        ),
+        quiet: true
+      }
     )
 
     const parsed = CoverageSchema.safeParse(safeJsonParse(String(r.text ?? '').trim()))

@@ -51,6 +51,14 @@ export type ManagerChatThreadContext = {
   } | null>
   workbenchMode: Ref<WorkbenchMode>
   planAgentLabel: (agent: string) => string
+  taskBoardLive: Ref<{
+    items: import('./managerMaturityUi').TaskBoardItemUi[]
+    topology: string
+  } | null>
+  turnTaskBoardForDisplay: (t: TurnGroup) => {
+    items: import('./managerMaturityUi').TaskBoardItemUi[]
+    topology: string
+  } | null
   agentPipelineStatusLabel: (status: string) => string
   turnRoutePlanCard: (t: TurnGroup) => import('./managerChatTypes').RoutePlanCardData | null
   previewText: (text: string, max?: number) => string
@@ -166,9 +174,12 @@ export type ManagerChatThreadContext = {
   feedbackKeyForTurn: (t: TurnGroup) => string
   isFeedbackPendingForTurn: (t: TurnGroup) => boolean
   sendFeedback: (turn: TurnGroup, score: 0 | 1) => void | Promise<void>
+  retryFeedback: (turn: TurnGroup) => void
   routeFeedbackSubmitted: (t: TurnGroup) => boolean
   sendRouteWrongFeedback: (turn: TurnGroup) => void
   turnFeedbackAckText: (t: TurnGroup) => string
+  turnFeedbackFailed: (t: TurnGroup) => boolean
+  FEEDBACK_FAIL_ACK: string
   visibleTurnErrors: (t: TurnGroup) => LogItem[]
   errorItemKey: (e: LogItem, idx: number) => string
   dismissError: (item: LogItem) => void

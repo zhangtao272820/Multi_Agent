@@ -10,6 +10,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@brand': path.resolve(__dirname, '../../shared/brand'),
+      '#agent-shared': path.resolve(__dirname, '../../shared'),
       // shared/brand JSX lives outside frontend root; pin React for Vite 8/Rolldown
       react: path.resolve(__dirname, 'node_modules/react'),
       'react/jsx-runtime': path.resolve(__dirname, 'node_modules/react/jsx-runtime'),

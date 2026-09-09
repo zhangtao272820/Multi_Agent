@@ -55,6 +55,23 @@ export const CLIENT_TAB_SESSION_POINTER_KEYS = new Set([
 ])
 
 /**
+ * 有用/无用 tab 内缓存前缀（sessionStorage only）。
+ * SSOT 仍在 PG；此处仅防 F5 后 purge 的 /session/ catch-all 误删，导致须重登才回灌。
+ * 出现在 localStorage 仍视为违规并清除。
+ */
+export const CLIENT_SESSION_FEEDBACK_PREFIXES = [
+  'manager_session_feedback:',
+  'rag_session_feedback:',
+  'db_session_feedback:',
+  'admin_session_feedback:'
+] as const
+
+export function isClientSessionFeedbackCacheKey(key: string): boolean {
+  const k = String(key || '')
+  return CLIENT_SESSION_FEEDBACK_PREFIXES.some((p) => k.startsWith(p))
+}
+
+/**
  * 必须清除的历史/消息类键模式（不迁数据，直接删）。
  * 匹配 localStorage / sessionStorage 键名。
  */
@@ -91,6 +108,10 @@ export function isClientStorageKeyForbidden(
   if (CLIENT_TAB_SESSION_POINTER_KEYS.has(k)) {
     return kind === 'local'
   }
+  // 反馈缓存：仅 sessionStorage 保留；localStorage 一律清
+  if (isClientSessionFeedbackCacheKey(k)) {
+    return kind === 'local'
+  }
   if (isClientStorageKeyAllowed(k) && !CLIENT_STORAGE_FORBIDDEN_PATTERNS.some((re) => re.test(k))) {
     return false
   }
@@ -114,10 +135,13 @@ export function purgeForbiddenClientSessionStorage(
       if (k) keys.push(k)
     }
     for (const k of keys) {
+      // sessionStorage 反馈缓存永不被 catch-all /session/ 误删
+      if (kind === 'session' && isClientSessionFeedbackCacheKey(k)) continue
       const forbidden =
         isClientStorageKeyForbidden(k, { storageKind: kind }) ||
         (!isClientStorageKeyAllowed(k) &&
           !CLIENT_TAB_SESSION_POINTER_KEYS.has(k) &&
+          !isClientSessionFeedbackCacheKey(k) &&
           /session|history|chat_logs|messages/i.test(k))
       if (forbidden) {
         storage.removeItem(k)

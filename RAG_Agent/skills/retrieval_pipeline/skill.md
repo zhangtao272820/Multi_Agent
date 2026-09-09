@@ -18,7 +18,7 @@ owner: rag_agent
 2. **Condense**（可选）：多轮指代消解 → 自包含检索问句
 3. **Expansion**（可选）：仅当门控 `use_multi_query` 且非 probe/锚点
 4. **Doc Routing**：`selectCandidateSources` 选定文档范围
-5. **Hybrid Recall**：向量 + keyword + BM25 融合；复合问句可走 sub-query 并行 lane
+5. **Hybrid Recall**：向量（pgvector **HNSW**，见 `pgvector_ann`）+ keyword + **倒排 BM25**（`bm25_inverted_index`，含 pgvector 冷启动重建）RRF 融合；复合问句可走 sub-query 并行 lane
 5b. **HyDE**（可选，L1）：假想文档 embedding 召回并入语义通道（默认关；假想文不作证据）
 5c. **Policy Graph**（可选，M）：制度本体 1～2 跳 → RRF（`rrfGraphWeight` 默认 1.15）
 6. **Pre-Rerank**：lexical / cross-encoder / local rerank（Bandit 可选跳过 LLM rerank）
@@ -29,7 +29,8 @@ owner: rag_agent
 11. **Agentic Retry**（可选，H4）：零命中 / 弱证据 / `ambiguous_low_confidence` 时改写 query 重试
 
 弱证据 / 零命中 / 分差过低且分数偏低 → clarify，不编造。  
-生成侧另有 **Citation Guard（H5）**：答案中的数字/条款须能在证据原文中核对。
+生成侧另有 **Citation Guard（H5）**：答案中的数字/条款须能在证据原文中核对。  
+评测（N）：`rag_eval_metrics` precision@k / context overlap / refuse；见 `npm run gate:rag-eval`。
 
 ## J 波 Agentic 工具环（chat 复杂问句）
 

@@ -54,10 +54,26 @@ async function main() {
   assert(storeSrc.includes("listSessionIdsFromFiles"), "file scan list helper");
   assert(storeSrc.includes("userId?: string"), "file payload carries userId");
   assert(/shouldWriteFile\(backend\) \|\| !pgOk/.test(storeSrc), "force file on PG failure");
+  assert(storeSrc.includes("patchLastAssistantThinking"), "thinking patch helper");
+  assert(storeSrc.includes("processSteps"), "processSteps on session messages");
+  assert(storeSrc.includes("ui_meta"), "ui_meta column for thinking");
+  // tenant_id NOT NULL：写路径禁止 INSERT 显式 NULL（会绕过 DEFAULT 'default'）
+  assert(
+    /const tid = String\(tenantId \|\| ""\)\.trim\(\) \|\| "default";[\s\S]*INSERT INTO rag_sessions/.test(storeSrc),
+    "write/bind paths default tenant_id to default"
+  );
+  assert((storeSrc.match(/trim\(\) \|\| "default"/g) || []).length >= 2, "writeSessionToPg + bindRagSessionUser both default tenant");
 
-  // 契约：UI 空会话不乐观入历史
+  const dockerignore = await fs.readFile(path.join(ragRoot, "..", ".dockerignore"), "utf8");
+  assert(dockerignore.includes("!**/*_Agent/skills/**") || dockerignore.includes("!**/*Agent/skills/**"),
+    "root dockerignore must allow Agent skills md");
+
+  // 契约：UI 空会话不乐观入历史 + 思考过程回写/回显
   const appSrc = await fs.readFile(path.join(ragRoot, "app", "app.vue"), "utf8");
   assert(appSrc.includes("空会话不进侧栏"), "empty session flicker guard");
+  assert(appSrc.includes("/api/rag/session-thinking"), "UI posts thinking after turn");
+  assert(appSrc.includes("reasoningText: String(m.reasoningText"), "load restores reasoningText");
+  assert(appSrc.includes("processSteps: Array.isArray(m.processSteps)"), "load restores processSteps");
   const newSessionBlock = appSrc.match(/const newSession = async[\s\S]*?^};/m)?.[0] || "";
   assert(newSessionBlock.length > 0, "newSession function present");
   assert(!newSessionBlock.includes("fetchServerSessionHistory"), "newSession must not refetch empty history");

@@ -117,6 +117,14 @@ export const RAG_AGENT_DEFAULTS = {
   subQueryKeywordLimitPerLane: 24,
   /** DashScope text-embedding 单次 batch 上限为 10 */
   embeddingBatchSize: 10,
+  /** pgvector：text-embedding-v3 默认维；建 HNSW 前定维 */
+  pgEmbeddingDims: 1024,
+  /** 启动时 ensure HNSW（可关排障） */
+  pgEnsureHnsw: true,
+  pgHnswM: 16,
+  pgHnswEfConstruction: 64,
+  /** 查询侧召回/延迟折中 */
+  pgHnswEfSearch: 40,
   /** P2：证据不足时改写 query 再检（默认 1 轮，平衡速度与召回） */
   enableAgenticRetrieval: true,
   agenticMaxRounds: 1,
@@ -345,6 +353,11 @@ export function getRagAgentEnv(opts?: { docCount?: number }): RagAgentEnv {
       Math.floor(envNum(process.env.RAG_SUB_QUERY_KEYWORD_LIMIT, d.subQueryKeywordLimitPerLane))
     ),
     embeddingBatchSize: Math.max(1, Math.min(10, Math.floor(envNum(process.env.RAG_EMBEDDING_BATCH_SIZE, d.embeddingBatchSize)))),
+    pgEmbeddingDims: Math.max(64, Math.floor(envNum(process.env.RAG_PG_EMBEDDING_DIMS, d.pgEmbeddingDims))),
+    pgEnsureHnsw: envBool(process.env.RAG_PG_ENSURE_HNSW, d.pgEnsureHnsw),
+    pgHnswM: Math.max(2, Math.floor(envNum(process.env.RAG_PG_HNSW_M, d.pgHnswM))),
+    pgHnswEfConstruction: Math.max(4, Math.floor(envNum(process.env.RAG_PG_HNSW_EF_CONSTRUCTION, d.pgHnswEfConstruction))),
+    pgHnswEfSearch: Math.max(1, Math.floor(envNum(process.env.RAG_PG_EF_SEARCH, d.pgHnswEfSearch))),
     enableAgenticRetrieval: envBool(process.env.RAG_ENABLE_AGENTIC_RETRIEVAL, d.enableAgenticRetrieval),
     agenticMaxRounds: Math.max(0, Math.min(3, Math.floor(envNum(process.env.RAG_AGENTIC_MAX_ROUNDS, d.agenticMaxRounds)))),
     enableAgenticToolLoop: envBool(process.env.RAG_ENABLE_AGENTIC_TOOL_LOOP, d.enableAgenticToolLoop),

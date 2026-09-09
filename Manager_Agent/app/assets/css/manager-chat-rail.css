@@ -4,11 +4,11 @@
    ═══════════════════════════════════════════════════════════════ */
 
 .spring-root.cursor-workbench.cosmic-theme {
-  /* DeepSeek Harness：居中窄栏 760–840，禁止拉满中间栏 */
+  /* 主轨宽度：计划/对话/输入同轴，略收窄便于阅读 */
   --chat-rail-pad-x: 18px;
   --chat-rail-gap: 10px;
   --chat-rail-max: min(
-    840px,
+    920px,
     calc(100vw - var(--mgr-sidebar-w, 248px) - var(--mgr-tools-w, 300px) - 2 * var(--chat-rail-pad-x, 18px) - 16px)
   );
   --chat-col-width: var(--chat-rail-max);
@@ -16,7 +16,7 @@
 
 .spring-root.cursor-workbench.cosmic-theme.mode-professional {
   --chat-rail-max: min(
-    840px,
+    920px,
     calc(100vw - var(--mgr-sidebar-w, 248px) - var(--mgr-tools-w, 300px) - 2 * var(--chat-rail-pad-x, 18px) - 16px)
   );
 }
@@ -249,6 +249,7 @@
 .spring-root.cursor-workbench .spring-turn > .chat-agent-stack,
 .spring-root.cursor-workbench .spring-turn > .turn-agent-pipeline,
 .spring-root.cursor-workbench .spring-turn > .cursor-thought-panel,
+.spring-root.cursor-workbench .spring-turn > .turn-storyline,
 .spring-root.cursor-workbench .spring-turn > .reply-panel,
 .spring-root.cursor-workbench .spring-turn > .conv-streaming-reply {
   width: 100% !important;

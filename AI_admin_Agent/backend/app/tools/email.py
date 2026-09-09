@@ -16,6 +16,7 @@ from typing import Any, Dict, List, Optional
 
 from app.core.mailbox_binding import folder_name, resolve_mail_credentials
 from app.core.mail_metrics import mail_metric_inc
+from app.core.tenant_scope import require_request_scope
 from app.db.database import Contact, SessionLocal
 from app.tools.common import (
     CONTACT_NOT_FOUND,
@@ -138,8 +139,13 @@ def _parse_addr_list(raw: str) -> list[str]:
 def _recipient_allowed(to: str) -> tuple[bool, str, Optional[Contact]]:
     """通讯录命中或显式合法邮箱均可（发信仍走 RISKY HITL）。"""
     db = SessionLocal()
+    tid, uid = require_request_scope()
     try:
-        contact = db.query(Contact).filter(Contact.email == to).first()
+        contact = db.query(Contact).filter(
+            Contact.tenant_id == tid,
+            Contact.user_id == uid,
+            Contact.email == to,
+        ).first()
     finally:
         db.close()
     if contact:

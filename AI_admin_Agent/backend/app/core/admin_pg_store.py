@@ -42,26 +42,88 @@ def _connect():
     return psycopg.connect(url.replace("postgresql+psycopg2:", "postgresql:"), row_factory=dict_row)
 
 
-def append_turn_pg(session_id: str, role: str, content: str, user_id: str | None = None) -> None:
+_ui_meta_ready = False
+
+
+def _ensure_ui_meta_column(conn) -> None:
+    global _ui_meta_ready
+    if _ui_meta_ready:
+        return
+    try:
+        conn.execute("ALTER TABLE adm_session_turns ADD COLUMN IF NOT EXISTS ui_meta JSONB")
+        conn.commit()
+        _ui_meta_ready = True
+    except Exception:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+
+
+def _thoughts_meta(thoughts: list[str] | None) -> str | None:
+    cleaned = [str(t or "").strip() for t in (thoughts or []) if str(t or "").strip()]
+    if not cleaned:
+        return None
+    return json.dumps({"thoughts": cleaned[:80]}, ensure_ascii=False)
+
+
+def _parse_thoughts(row: dict[str, Any] | None) -> list[str]:
+    if not row:
+        return []
+    meta = row.get("ui_meta")
+    if isinstance(meta, str):
+        try:
+            meta = json.loads(meta)
+        except Exception:
+            meta = None
+    if isinstance(meta, dict):
+        raw = meta.get("thoughts")
+        if isinstance(raw, list):
+            return [str(t).strip() for t in raw if str(t or "").strip()][:80]
+    return []
+
+
+def append_turn_pg(
+    session_id: str,
+    role: str,
+    content: str,
+    user_id: str | None = None,
+    thoughts: list[str] | None = None,
+    tenant_id: str | None = None,
+) -> None:
     sid = (session_id or "default").strip() or "default"
     text = (content or "").strip()
     if not text:
         return
     uid = (user_id or "").strip() or None
+    tid = (tenant_id or "").strip() or None
+    if not tid:
+        try:
+            from app.core.tenant_scope import get_request_scope
+
+            scope = get_request_scope()
+            if scope:
+                tid = scope[0]
+                uid = uid or scope[1]
+        except Exception:
+            pass
+    meta_json = _thoughts_meta(thoughts) if role == "assistant" else None
     with _connect() as conn:
+        _ensure_ui_meta_column(conn)
         conn.execute(
-            "INSERT INTO adm_session_turns (session_id, role, content) VALUES (%s, %s, %s)",
-            (sid, role, text),
+            "INSERT INTO adm_session_turns (session_id, role, content, ui_meta) VALUES (%s, %s, %s, %s::jsonb)",
+            (sid, role, text, meta_json),
         )
         conn.execute(
             """
-            INSERT INTO adm_sessions (id, user_id, updated_at)
-            VALUES (%s, %s, NOW())
+            INSERT INTO adm_sessions (id, user_id, tenant_id, updated_at)
+            VALUES (%s, %s, %s, NOW())
             ON CONFLICT (id) DO UPDATE SET
               user_id = COALESCE(EXCLUDED.user_id, adm_sessions.user_id),
+              tenant_id = COALESCE(EXCLUDED.tenant_id, adm_sessions.tenant_id),
               updated_at = NOW()
             """,
-            (sid, uid),
+            (sid, uid, tid),
         )
         conn.commit()
 
@@ -72,50 +134,93 @@ def touch_adm_session_pg(
     user_id: str | None = None,
     title: str | None = None,
     custom_title: bool | None = None,
+    tenant_id: str | None = None,
 ) -> None:
     sid = (session_id or "default").strip() or "default"
     if not sid:
         return
     uid = (user_id or "").strip() or None
+    tid = (tenant_id or "").strip() or None
+    if not tid:
+        try:
+            from app.core.tenant_scope import get_request_scope
+
+            scope = get_request_scope()
+            if scope:
+                tid = scope[0]
+                uid = uid or scope[1]
+        except Exception:
+            pass
     with _connect() as conn:
         conn.execute(
             """
-            INSERT INTO adm_sessions (id, user_id, title, custom_title, updated_at)
-            VALUES (%s, %s, %s, COALESCE(%s, false), NOW())
+            INSERT INTO adm_sessions (id, user_id, tenant_id, title, custom_title, updated_at)
+            VALUES (%s, %s, %s, %s, COALESCE(%s, false), NOW())
             ON CONFLICT (id) DO UPDATE SET
               user_id = COALESCE(EXCLUDED.user_id, adm_sessions.user_id),
+              tenant_id = COALESCE(EXCLUDED.tenant_id, adm_sessions.tenant_id),
               title = COALESCE(EXCLUDED.title, adm_sessions.title),
               custom_title = COALESCE(%s, adm_sessions.custom_title),
               updated_at = NOW()
             """,
-            (sid, uid, title, custom_title, custom_title),
+            (sid, uid, tid, title, custom_title, custom_title),
         )
         conn.commit()
 
 
-def list_adm_sessions_pg(user_id: str) -> list[dict[str, Any]]:
+def list_adm_sessions_pg(user_id: str, tenant_id: str | None = None) -> list[dict[str, Any]]:
     uid = (user_id or "").strip()
     if not uid:
         return []
+    tid = (tenant_id or "").strip() or None
+    if not tid:
+        try:
+            from app.core.tenant_scope import get_request_scope
+
+            scope = get_request_scope()
+            if scope:
+                tid = scope[0]
+        except Exception:
+            pass
     with _connect() as conn:
-        rows = list(
-            conn.execute(
-                """
-                SELECT s.id, s.title, s.custom_title, s.updated_at,
-                       (SELECT COUNT(*)::int FROM adm_session_turns t WHERE t.session_id = s.id) AS message_count,
-                       (SELECT COUNT(*)::int FROM adm_session_turns t
-                         WHERE t.session_id = s.id AND t.role = 'user') AS user_message_count,
-                       (SELECT content FROM adm_session_turns t
-                         WHERE t.session_id = s.id AND t.role = 'user'
-                         ORDER BY t.id ASC LIMIT 1) AS first_user
-                FROM adm_sessions s
-                WHERE s.user_id = %s
-                ORDER BY s.updated_at DESC
-                LIMIT 80
-                """,
-                (uid,),
-            ).fetchall()
-        )
+        if tid:
+            rows = list(
+                conn.execute(
+                    """
+                    SELECT s.id, s.title, s.custom_title, s.updated_at,
+                           (SELECT COUNT(*)::int FROM adm_session_turns t WHERE t.session_id = s.id) AS message_count,
+                           (SELECT COUNT(*)::int FROM adm_session_turns t
+                             WHERE t.session_id = s.id AND t.role = 'user') AS user_message_count,
+                           (SELECT content FROM adm_session_turns t
+                             WHERE t.session_id = s.id AND t.role = 'user'
+                             ORDER BY t.id ASC LIMIT 1) AS first_user
+                    FROM adm_sessions s
+                    WHERE s.user_id = %s AND (s.tenant_id = %s OR s.tenant_id IS NULL OR s.tenant_id = '')
+                    ORDER BY s.updated_at DESC
+                    LIMIT 80
+                    """,
+                    (uid, tid),
+                ).fetchall()
+            )
+        else:
+            rows = list(
+                conn.execute(
+                    """
+                    SELECT s.id, s.title, s.custom_title, s.updated_at,
+                           (SELECT COUNT(*)::int FROM adm_session_turns t WHERE t.session_id = s.id) AS message_count,
+                           (SELECT COUNT(*)::int FROM adm_session_turns t
+                             WHERE t.session_id = s.id AND t.role = 'user') AS user_message_count,
+                           (SELECT content FROM adm_session_turns t
+                             WHERE t.session_id = s.id AND t.role = 'user'
+                             ORDER BY t.id ASC LIMIT 1) AS first_user
+                    FROM adm_sessions s
+                    WHERE s.user_id = %s
+                    ORDER BY s.updated_at DESC
+                    LIMIT 80
+                    """,
+                    (uid,),
+                ).fetchall()
+            )
     out: list[dict[str, Any]] = []
     for row in rows:
         msg_count = int(row.get("message_count") or 0)
@@ -197,13 +302,20 @@ def count_turns_pg(session_id: str) -> int:
 
 def load_turns_pg(session_id: str, limit: int | None = None, offset: int = 0) -> list[dict[str, Any]]:
     sid = (session_id or "default").strip() or "default"
-    sql = "SELECT id, session_id, role, content, created_at FROM adm_session_turns WHERE session_id = %s ORDER BY id ASC"
-    params: list[Any] = [sid]
-    if limit is not None:
-        sql += " LIMIT %s OFFSET %s"
-        params.extend([limit, offset])
     with _connect() as conn:
-        return list(conn.execute(sql, params).fetchall())
+        _ensure_ui_meta_column(conn)
+        sql = "SELECT id, session_id, role, content, ui_meta, created_at FROM adm_session_turns WHERE session_id = %s ORDER BY id ASC"
+        params: list[Any] = [sid]
+        if limit is not None:
+            sql += " LIMIT %s OFFSET %s"
+            params.extend([limit, offset])
+        rows = list(conn.execute(sql, params).fetchall())
+    out: list[dict[str, Any]] = []
+    for r in rows:
+        item = dict(r)
+        item["thoughts"] = _parse_thoughts(item)
+        out.append(item)
+    return out
 
 
 def load_task_context_pg(session_id: str) -> dict[str, Any]:
@@ -245,12 +357,18 @@ def load_recent_turns_pg(session_id: str, limit: int) -> list[dict[str, Any]]:
     return list(reversed(rows))
 
 
-def replace_last_assistant_turn_pg(session_id: str, content: str) -> bool:
+def replace_last_assistant_turn_pg(
+    session_id: str,
+    content: str,
+    thoughts: list[str] | None = None,
+) -> bool:
     sid = (session_id or "default").strip() or "default"
     text = (content or "").strip()
     if not text:
         return False
+    meta_json = _thoughts_meta(thoughts)
     with _connect() as conn:
+        _ensure_ui_meta_column(conn)
         row = conn.execute(
             """
             SELECT id FROM adm_session_turns
@@ -261,14 +379,20 @@ def replace_last_assistant_turn_pg(session_id: str, content: str) -> bool:
         ).fetchone()
         if not row:
             conn.execute(
-                "INSERT INTO adm_session_turns (session_id, role, content) VALUES (%s, %s, %s)",
-                (sid, "assistant", text),
+                "INSERT INTO adm_session_turns (session_id, role, content, ui_meta) VALUES (%s, %s, %s, %s::jsonb)",
+                (sid, "assistant", text, meta_json),
             )
         else:
-            conn.execute(
-                "UPDATE adm_session_turns SET content = %s WHERE id = %s",
-                (text, row["id"]),
-            )
+            if meta_json is not None:
+                conn.execute(
+                    "UPDATE adm_session_turns SET content = %s, ui_meta = %s::jsonb WHERE id = %s",
+                    (text, meta_json, row["id"]),
+                )
+            else:
+                conn.execute(
+                    "UPDATE adm_session_turns SET content = %s WHERE id = %s",
+                    (text, row["id"]),
+                )
         conn.commit()
     return True
 

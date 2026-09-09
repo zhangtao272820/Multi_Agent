@@ -378,7 +378,7 @@ export const MANAGER_ADMIN_ROUTE_TERMS: readonly string[] = [
 /** 路由/步骤切分用词表：总管侧用编排子集（去重） */
 export const ADMIN_ROUTE_TERMS: readonly string[] = [...new Set(MANAGER_ADMIN_ROUTE_TERMS)]
 
-/** admin 步骤 query 前缀：告知个人助手可用能力边界（总管编排范围） */
+/** 能力边界文案（兼容旧会话剥离 / smoke）；出站 WS message 不再注入，走 manager_task 侧车 */
 export function adminStepQueryPreamble(): string {
   return [
     '仅处理下列个人助理能力（勿混入知识库检索/搜索/问数/玩法/画图/报告/浏览器自动化）：',

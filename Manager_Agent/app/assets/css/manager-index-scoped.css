@@ -495,6 +495,7 @@
 .turn-feedback-pending{font-size:12px;color:#94a3b8;font-weight:500}
 .turn-feedback-ack{margin:0;font-size:12px;color:#94a3b8;line-height:1.45;width:100%}
 .turn-feedback-ack-done{color:#86efac;font-size:12px;padding:4px 0}
+.turn-feedback-fail{display:flex;align-items:center;gap:8px;flex-wrap:wrap;width:100%;margin:0 0 6px;font-size:12px;color:#fdba74;line-height:1.45}
 .chart-wrap{margin:12px 0 0;border-radius:12px;overflow-x:auto;overflow-y:visible;border:1px solid rgba(100,116,139,.16);background:rgba(2,6,23,.35);max-width:100%;min-width:0;box-shadow:none}
 .echarts-container{width:100%;min-width:0;max-width:100%;height:clamp(200px,28vw,320px);min-height:0}
 .kind-assistant .spring-log-bubble,.kind-final .spring-log-bubble{background:

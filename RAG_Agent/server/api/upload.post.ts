@@ -48,16 +48,23 @@ export default defineEventHandler(async (event) => {
   const sourceVersion = versionField?.data
     ? Buffer.from(versionField.data).toString("utf8").trim()
     : undefined;
+  const forceField = formData.find(
+    (f) => f.name === "force_reembed" || f.name === "forceReembed" || f.name === "force"
+  );
+  const forceRaw = forceField?.data ? Buffer.from(forceField.data).toString("utf8").trim() : "";
+  const forceReembed = /^(1|true|yes|on)$/i.test(forceRaw);
 
   try {
     const chunkCount = await processDocument(buffer, fileName, undefined, {
       ...(sourceVersion ? { source_version: sourceVersion } : {}),
+      ...(forceReembed ? { forceReembed: true } : {}),
     });
     return {
       message: "Document processed successfully",
       chunks: chunkCount,
       fileName: fileName,
       ...(sourceVersion ? { source_version: sourceVersion } : {}),
+      ...(forceReembed ? { force_reembed: true } : {}),
     };
   } catch (error: any) {
     console.error(`[Upload Error] File: ${fileName}, Error:`, error.message);

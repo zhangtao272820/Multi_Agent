@@ -119,7 +119,9 @@ export async function agentPgQuery<T = Record<string, unknown>>(
   if (!pool) return null
   try {
     return (await pool.query(text, params)) as PgQueryResult<T>
-  } catch {
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    console.error('[agentPgQuery] failed', { message: msg.slice(0, 240), sql: text.slice(0, 120) })
     return null
   }
 }

@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 from app.core.time_utils import to_utc_naive, utc_naive_to_local_naive, utc_now_naive
+from app.core.tenant_scope import require_request_scope
 from app.db.database import SessionLocal, Task
 from app.tools.common import _tool_err, _tool_ok
 from app.tools.time_parse import _resolve_stored_event_time
 
 def add_task(title: str, description: str = "") -> str:
     db = SessionLocal()
-    task = Task(title=title, description=description)
+    tid, uid = require_request_scope()
+    task = Task(title=title, description=description, tenant_id=tid, user_id=uid)
     db.add(task)
     db.commit()
     db.refresh(task)
@@ -36,7 +38,8 @@ def add_task_with_due(
             code="time_parse_failed",
         )
     db = SessionLocal()
-    task = Task(title=title, description=description, due_at=due_at)
+    tid, uid = require_request_scope()
+    task = Task(title=title, description=description, due_at=due_at, tenant_id=tid, user_id=uid)
     db.add(task)
     db.commit()
     db.refresh(task)
@@ -64,7 +67,8 @@ def modify_task(
 ) -> str:
     """更新待办标题/详细说明/截止时间（人能改的字段 AI 也能改）。"""
     db = SessionLocal()
-    task = db.query(Task).filter(Task.id == task_id).first()
+    tid, uid = require_request_scope()
+    task = db.query(Task).filter(Task.id == task_id, Task.tenant_id == tid, Task.user_id == uid).first()
     if not task:
         db.close()
         return _tool_err(
@@ -105,7 +109,8 @@ def modify_task(
 
 def list_tasks() -> str:
     db = SessionLocal()
-    tasks = db.query(Task).order_by(Task.created_at.desc()).all()
+    tid, uid = require_request_scope()
+    tasks = db.query(Task).filter(Task.tenant_id == tid, Task.user_id == uid).order_by(Task.created_at.desc()).all()
     db.close()
     if not tasks:
         return _tool_ok(
@@ -167,7 +172,8 @@ def list_tasks() -> str:
 
 def complete_task(task_id: int) -> str:
     db = SessionLocal()
-    task = db.query(Task).filter(Task.id == task_id).first()
+    tid, uid = require_request_scope()
+    task = db.query(Task).filter(Task.id == task_id, Task.tenant_id == tid, Task.user_id == uid).first()
     if not task:
         db.close()
         return _tool_err(
@@ -186,7 +192,8 @@ def complete_task(task_id: int) -> str:
 
 def delete_task(task_id: int) -> str:
     db = SessionLocal()
-    task = db.query(Task).filter(Task.id == task_id).first()
+    tid, uid = require_request_scope()
+    task = db.query(Task).filter(Task.id == task_id, Task.tenant_id == tid, Task.user_id == uid).first()
     if not task:
         db.close()
         return _tool_err(

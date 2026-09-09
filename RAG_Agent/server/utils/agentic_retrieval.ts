@@ -84,21 +84,4 @@ export async function rewriteQueryForAgenticRetrieval(params: {
   return { query: query.slice(0, 300), reason: "llm_rewrite" };
 }
 
-export function shouldAttemptAgenticRetry(params: {
-  enabled: boolean;
-  attempt: number;
-  maxRounds: number;
-  clarifyReason?: string;
-  turboRetrieval?: boolean;
-}): boolean {
-  if (!params.enabled) return false;
-  if (params.attempt >= params.maxRounds) return false;
-  if (params.turboRetrieval && params.clarifyReason !== "zero_hits") return false;
-  return (
-    params.clarifyReason === "zero_hits" ||
-    params.clarifyReason === "weak_evidence" ||
-    params.clarifyReason === "ambiguous_low_confidence" ||
-    params.clarifyReason === "evidence_filtered_off_topic" ||
-    params.clarifyReason === "false_negative_miss"
-  );
-}
+export { shouldAttemptAgenticRetry } from "./rag_agentic_retry_gate";

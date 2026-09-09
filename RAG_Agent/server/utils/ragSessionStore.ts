@@ -9,7 +9,21 @@ import {
   shouldWritePostgres,
 } from "#agent-shared/storageBackend";
 
-export type RagSessionMessage = { role: "user" | "assistant"; content: string };
+export type RagProcessStep = {
+  kind?: string;
+  phase?: string;
+  text?: string;
+  name?: string;
+  ms?: number;
+  at?: number;
+};
+
+export type RagSessionMessage = {
+  role: "user" | "assistant";
+  content: string;
+  processSteps?: RagProcessStep[];
+  reasoningText?: string;
+};
 export type RagSession = { messages: RagSessionMessage[] };
 
 type RagSessionFilePayload = {
@@ -19,6 +33,7 @@ type RagSessionFilePayload = {
 };
 
 const SESSION_MAX_TURNS = AMP_TTL.sessionTurnsMax;
+let ragUiMetaColumnReady = false;
 
 function sessionsDir(): string {
   return path.join(process.cwd(), ".data", "rag-sessions");
@@ -28,6 +43,48 @@ function sessionFile(sessionId: string): string {
   return path.join(sessionsDir(), `${sessionId}.json`);
 }
 
+function normalizeProcessSteps(raw: unknown): RagProcessStep[] | undefined {
+  if (!Array.isArray(raw) || !raw.length) return undefined;
+  const steps = raw
+    .map((s) => {
+      if (!s || typeof s !== "object") return null;
+      const o = s as Record<string, unknown>;
+      const text = String(o.text ?? "").trim();
+      if (!text) return null;
+      return {
+        kind: o.kind != null ? String(o.kind) : undefined,
+        phase: o.phase != null ? String(o.phase) : undefined,
+        text,
+        name: o.name != null ? String(o.name) : undefined,
+        ms: typeof o.ms === "number" && Number.isFinite(o.ms) ? o.ms : undefined,
+        at: typeof o.at === "number" && Number.isFinite(o.at) ? o.at : undefined,
+      } as RagProcessStep;
+    })
+    .filter(Boolean) as RagProcessStep[];
+  return steps.length ? steps.slice(0, 80) : undefined;
+}
+
+function thinkingFromUiMeta(meta: unknown): Pick<RagSessionMessage, "processSteps" | "reasoningText"> {
+  if (!meta || typeof meta !== "object") return {};
+  const o = meta as Record<string, unknown>;
+  const processSteps = normalizeProcessSteps(o.processSteps);
+  const reasoningText = String(o.reasoningText ?? "").trim();
+  return {
+    ...(processSteps ? { processSteps } : {}),
+    ...(reasoningText ? { reasoningText } : {}),
+  };
+}
+
+function uiMetaFromMessage(m: RagSessionMessage): Record<string, unknown> | null {
+  const processSteps = normalizeProcessSteps(m.processSteps);
+  const reasoningText = String(m.reasoningText || "").trim();
+  if (!processSteps?.length && !reasoningText) return null;
+  return {
+    ...(processSteps ? { processSteps } : {}),
+    ...(reasoningText ? { reasoningText } : {}),
+  };
+}
+
 function normalizeMessages(raw: unknown): RagSessionMessage[] {
   const arr = Array.isArray((raw as { messages?: unknown })?.messages)
     ? (raw as { messages: unknown[] }).messages
@@ -35,12 +92,31 @@ function normalizeMessages(raw: unknown): RagSessionMessage[] {
       ? raw
       : [];
   return arr
-    .map((m: { role?: string; content?: string }) => ({
-      role: m?.role === "assistant" ? ("assistant" as const) : ("user" as const),
-      content: String(m?.content ?? "").trim(),
-    }))
-    .filter((m) => m.content)
-    .slice(-SESSION_MAX_TURNS);
+    .map((m: { role?: string; content?: string; processSteps?: unknown; reasoningText?: string; ui_meta?: unknown }) => {
+      const content = String(m?.content ?? "").trim();
+      if (!content) return null;
+      const fromFields = {
+        processSteps: normalizeProcessSteps(m?.processSteps),
+        reasoningText: String(m?.reasoningText ?? "").trim() || undefined,
+      };
+      const fromMeta = thinkingFromUiMeta(m?.ui_meta);
+      const processSteps = fromFields.processSteps || fromMeta.processSteps;
+      const reasoningText = fromFields.reasoningText || fromMeta.reasoningText;
+      return {
+        role: m?.role === "assistant" ? ("assistant" as const) : ("user" as const),
+        content,
+        ...(processSteps ? { processSteps } : {}),
+        ...(reasoningText ? { reasoningText } : {}),
+      } as RagSessionMessage;
+    })
+    .filter(Boolean)
+    .slice(-SESSION_MAX_TURNS) as RagSessionMessage[];
+}
+
+async function ensureRagUiMetaColumn(): Promise<void> {
+  if (ragUiMetaColumnReady) return;
+  const res = await agentPgQuery(`ALTER TABLE rag_session_turns ADD COLUMN IF NOT EXISTS ui_meta JSONB`);
+  if (res) ragUiMetaColumnReady = true;
 }
 
 export function resolveRagStorageBackend(env: NodeJS.ProcessEnv = process.env) {
@@ -101,8 +177,9 @@ async function writeSessionToFile(
 async function readSessionFromPg(sessionId: string): Promise<RagSession | null> {
   const sid = String(sessionId || "").trim();
   if (!sid) return null;
-  const res = await agentPgQuery<{ role: string; content: string }>(
-    `SELECT role, content FROM rag_session_turns
+  await ensureRagUiMetaColumn();
+  const res = await agentPgQuery<{ role: string; content: string; ui_meta?: unknown }>(
+    `SELECT role, content, ui_meta FROM rag_session_turns
      WHERE session_id = $1
      ORDER BY turn_index ASC
      LIMIT $2`,
@@ -110,31 +187,42 @@ async function readSessionFromPg(sessionId: string): Promise<RagSession | null> 
   );
   if (!res) return null;
   const messages = res.rows
-    .map((r) => ({
-      role: r.role === "assistant" ? ("assistant" as const) : ("user" as const),
-      content: String(r.content ?? "").trim(),
-    }))
-    .filter((m) => m.content);
+    .map((r) => {
+      const content = String(r.content ?? "").trim();
+      if (!content) return null;
+      const thinking = thinkingFromUiMeta(r.ui_meta);
+      return {
+        role: r.role === "assistant" ? ("assistant" as const) : ("user" as const),
+        content,
+        ...thinking,
+      } as RagSessionMessage;
+    })
+    .filter(Boolean) as RagSessionMessage[];
   return { messages };
 }
 
 async function writeSessionToPg(
   sessionId: string,
   messages: RagSessionMessage[],
-  userId?: string
+  userId?: string,
+  tenantId?: string
 ): Promise<boolean> {
   const sid = String(sessionId || "").trim();
   if (!sid) return false;
   const capped = messages.slice(-SESSION_MAX_TURNS);
   const uid = String(userId || "").trim() || null;
+  // rag_sessions.tenant_id 为 NOT NULL DEFAULT 'default'；显式传 NULL 会绕过默认值并写失败
+  const tid = String(tenantId || "").trim() || "default";
+  await ensureRagUiMetaColumn();
 
   const upsertSession = await agentPgQuery(
-    `INSERT INTO rag_sessions (id, user_id, updated_at)
-     VALUES ($1, $2, NOW())
+    `INSERT INTO rag_sessions (id, user_id, tenant_id, updated_at)
+     VALUES ($1, $2, $3, NOW())
      ON CONFLICT (id) DO UPDATE SET
        user_id = COALESCE(EXCLUDED.user_id, rag_sessions.user_id),
+       tenant_id = COALESCE(NULLIF(EXCLUDED.tenant_id, ''), rag_sessions.tenant_id, 'default'),
        updated_at = NOW()`,
-    [sid, uid]
+    [sid, uid, tid]
   );
   if (!upsertSession) return false;
 
@@ -143,10 +231,11 @@ async function writeSessionToPg(
 
   for (let i = 0; i < capped.length; i++) {
     const m = capped[i]!;
+    const meta = uiMetaFromMessage(m);
     const ins = await agentPgQuery(
-      `INSERT INTO rag_session_turns (session_id, turn_index, role, content)
-       VALUES ($1, $2, $3, $4)`,
-      [sid, i, m.role, m.content]
+      `INSERT INTO rag_session_turns (session_id, turn_index, role, content, ui_meta)
+       VALUES ($1, $2, $3, $4, $5::jsonb)`,
+      [sid, i, m.role, m.content, meta ? JSON.stringify(meta) : null]
     );
     if (!ins) return false;
   }
@@ -200,7 +289,7 @@ export async function readRagSession(sessionId: string): Promise<RagSession> {
 export async function writeRagSession(
   sessionId: string,
   session: RagSession,
-  opts?: { userId?: string }
+  opts?: { userId?: string; tenantId?: string }
 ): Promise<void> {
   const backend = resolveRagStorageBackend();
   const messages = session.messages.slice(-SESSION_MAX_TURNS);
@@ -208,7 +297,7 @@ export async function writeRagSession(
 
   if (shouldWritePostgres(backend)) {
     try {
-      pgOk = await writeSessionToPg(sessionId, messages, opts?.userId);
+      pgOk = await writeSessionToPg(sessionId, messages, opts?.userId, opts?.tenantId);
       if (!pgOk) {
         console.error("[ragSessionStore] postgres write returned false", { sessionId });
       }
@@ -238,6 +327,37 @@ export async function appendRagSessionTurns(
   if (!sid || !turns.length) return;
   const existing = await readRagSession(sid);
   await writeRagSession(sid, { messages: [...existing.messages, ...turns] }, opts);
+}
+
+/** 回写最近一条助手消息的思考过程（独立端 SSE 结束后由前端补齐） */
+export async function patchLastAssistantThinking(
+  sessionId: string,
+  thinking: { processSteps?: RagProcessStep[]; reasoningText?: string },
+  opts?: { userId?: string }
+): Promise<boolean> {
+  const sid = String(sessionId || "").trim();
+  if (!sid) return false;
+  const existing = await readRagSession(sid);
+  const msgs = [...existing.messages];
+  let idx = -1;
+  for (let i = msgs.length - 1; i >= 0; i--) {
+    if (msgs[i]?.role === "assistant") {
+      idx = i;
+      break;
+    }
+  }
+  if (idx < 0) return false;
+  const prev = msgs[idx]!;
+  const processSteps = normalizeProcessSteps(thinking.processSteps);
+  const reasoningText = String(thinking.reasoningText || "").trim();
+  msgs[idx] = {
+    role: "assistant",
+    content: prev.content,
+    ...(processSteps ? { processSteps } : {}),
+    ...(reasoningText ? { reasoningText } : {}),
+  };
+  await writeRagSession(sid, { messages: msgs }, opts);
+  return true;
 }
 
 /** 从第 fromUserIndex 条用户消息起截断（含该条及之后所有轮次） */
@@ -331,9 +451,13 @@ export async function deleteRagSession(sessionId: string): Promise<{ pg: boolean
   return { pg: false };
 }
 
-export async function listRagSessionsForUser(userId: string): Promise<string[]> {
+export async function listRagSessionsForUser(
+  userId: string,
+  tenantId?: string
+): Promise<string[]> {
   const uid = String(userId || "").trim();
   if (!uid) return [];
+  const tid = String(tenantId || "").trim() || null;
   const backend = resolveRagStorageBackend();
   const seen = new Set<string>();
   const ordered: string[] = [];
@@ -346,10 +470,15 @@ export async function listRagSessionsForUser(userId: string): Promise<string[]> 
   };
 
   if (isPostgresStorageEnabled(backend)) {
-    const res = await agentPgQuery<{ id: string }>(
-      `SELECT id FROM rag_sessions WHERE user_id = $1 ORDER BY updated_at DESC LIMIT 80`,
-      [uid]
-    );
+    const res = tid
+      ? await agentPgQuery<{ id: string }>(
+          `SELECT id FROM rag_sessions WHERE user_id = $1 AND (tenant_id = $2 OR tenant_id IS NULL OR tenant_id = '') ORDER BY updated_at DESC LIMIT 80`,
+          [uid, tid]
+        )
+      : await agentPgQuery<{ id: string }>(
+          `SELECT id FROM rag_sessions WHERE user_id = $1 ORDER BY updated_at DESC LIMIT 80`,
+          [uid]
+        );
     if (res) {
       for (const row of res.rows) pushId(row.id);
     }
@@ -375,16 +504,34 @@ export async function getRagSessionUserId(sessionId: string): Promise<string | n
   return uid || null;
 }
 
-export async function bindRagSessionUser(sessionId: string, userId: string): Promise<void> {
+export async function getRagSessionTenantId(sessionId: string): Promise<string | null> {
+  const sid = String(sessionId || "").trim();
+  if (!sid) return null;
+  const res = await agentPgQuery<{ tenant_id: string | null }>(
+    `SELECT tenant_id FROM rag_sessions WHERE id = $1`,
+    [sid]
+  ).catch(() => null);
+  const tid = String(res?.rows?.[0]?.tenant_id || "").trim();
+  return tid || null;
+}
+
+export async function bindRagSessionUser(
+  sessionId: string,
+  userId: string,
+  tenantId?: string
+): Promise<void> {
   const sid = String(sessionId || "").trim();
   const uid = String(userId || "").trim();
+  // rag_sessions.tenant_id NOT NULL：禁止显式 NULL
+  const tid = String(tenantId || "").trim() || "default";
   if (!sid || !uid) return;
   await agentPgQuery(
-    `INSERT INTO rag_sessions (id, user_id, updated_at)
-     VALUES ($1, $2, NOW())
+    `INSERT INTO rag_sessions (id, user_id, tenant_id, updated_at)
+     VALUES ($1, $2, $3, NOW())
      ON CONFLICT (id) DO UPDATE SET
        user_id = COALESCE(rag_sessions.user_id, EXCLUDED.user_id),
+       tenant_id = COALESCE(NULLIF(rag_sessions.tenant_id, ''), EXCLUDED.tenant_id, 'default'),
        updated_at = NOW()`,
-    [sid, uid]
+    [sid, uid, tid]
   ).catch(() => undefined);
 }

@@ -9,6 +9,7 @@ from app.core.time_utils import (
     utc_naive_to_local_naive,
     utc_now_naive,
 )
+from app.core.tenant_scope import require_request_scope
 from app.db.database import Event, SessionLocal
 from app.tools.common import _tool_err, _tool_ok
 from app.tools.time_parse import _resolve_stored_event_time
@@ -43,7 +44,8 @@ def add_event(
             )
 
     db = SessionLocal()
-    event = Event(title=title, start_time=start_time, end_time=end_time, description=description or "")
+    tid, uid = require_request_scope()
+    event = Event(title=title, start_time=start_time, end_time=end_time, description=description or "", tenant_id=tid, user_id=uid)
     db.add(event)
     db.commit()
     db.refresh(event)
@@ -92,7 +94,8 @@ def add_event(
 
 def list_events() -> str:
     db = SessionLocal()
-    events = db.query(Event).order_by(Event.start_time).all()
+    tid, uid = require_request_scope()
+    events = db.query(Event).filter(Event.tenant_id == tid, Event.user_id == uid).order_by(Event.start_time).all()
     db.close()
     if not events:
         return _tool_ok("当前没有日程安排。", data={"items": [], "count": 0}, code="empty")
@@ -121,7 +124,8 @@ def modify_event(
     end_time_local: str | None = None,
 ) -> str:
     db = SessionLocal()
-    event = db.query(Event).filter(Event.id == event_id).first()
+    tid, uid = require_request_scope()
+    event = db.query(Event).filter(Event.id == event_id, Event.tenant_id == tid, Event.user_id == uid).first()
     if not event:
         db.close()
         return _tool_err(
@@ -183,7 +187,8 @@ def modify_event(
 
 def delete_event(event_id: int) -> str:
     db = SessionLocal()
-    event = db.query(Event).filter(Event.id == event_id).first()
+    tid, uid = require_request_scope()
+    event = db.query(Event).filter(Event.id == event_id, Event.tenant_id == tid, Event.user_id == uid).first()
     if not event:
         db.close()
         return _tool_err(
@@ -206,7 +211,8 @@ def delete_event(event_id: int) -> str:
 def preview_meeting_reminders_purge(limit: int = 20) -> dict:
     """待确认文案用：预览将删除的日程与独立提醒（不写库）。"""
     db = SessionLocal()
-    events = db.query(Event).order_by(Event.start_time).all()
+    tid, uid = require_request_scope()
+    events = db.query(Event).filter(Event.tenant_id == tid, Event.user_id == uid).order_by(Event.start_time).all()
     db.close()
     event_items = []
     for e in events[: max(1, int(limit or 20))]:
@@ -243,7 +249,8 @@ def preview_meeting_reminders_purge(limit: int = 20) -> dict:
 def delete_all_meeting_reminders() -> str:
     """删除全部日程并取消全部定时提醒（会议提醒批量清理）。"""
     db = SessionLocal()
-    events = db.query(Event).order_by(Event.start_time).all()
+    tid, uid = require_request_scope()
+    events = db.query(Event).filter(Event.tenant_id == tid, Event.user_id == uid).order_by(Event.start_time).all()
     deleted_events = []
     for e in events:
         deleted_events.append({"id": e.id, "title": e.title or "日程"})
@@ -298,7 +305,8 @@ def delete_all_meeting_reminders() -> str:
 
 def complete_event(event_id: int) -> str:
     db = SessionLocal()
-    event = db.query(Event).filter(Event.id == event_id).first()
+    tid, uid = require_request_scope()
+    event = db.query(Event).filter(Event.id == event_id, Event.tenant_id == tid, Event.user_id == uid).first()
     if not event:
         db.close()
         return _tool_err(
@@ -329,7 +337,10 @@ def import_calendar_ics(file_path: str, skip_duplicates: bool = True) -> dict:
     if ".." in rel.split("/"):
         return _tool_err("文件路径不允许包含 ..", code="invalid_path")
 
-    abs_path = os.path.join(settings.WORKSPACE_DIR, rel)
+    from app.core.tenant_scope import user_workspace_dir
+
+    tid, uid = require_request_scope()
+    abs_path = os.path.join(user_workspace_dir(settings.WORKSPACE_DIR, tid, uid), rel)
     if not os.path.isfile(abs_path):
         return _tool_err(f"文件不存在: {rel}", code="file_not_found")
 
@@ -345,7 +356,7 @@ def import_calendar_ics(file_path: str, skip_duplicates: bool = True) -> dict:
     db = SessionLocal()
     existing_keys: set[str] = set()
     if skip_duplicates:
-        for ev in db.query(Event).all():
+        for ev in db.query(Event).filter(Event.tenant_id == tid, Event.user_id == uid).all():
             local = utc_naive_to_local_naive(ev.start_time)
             existing_keys.add(dedupe_key(ev.title, local))
 
@@ -369,6 +380,8 @@ def import_calendar_ics(file_path: str, skip_duplicates: bool = True) -> dict:
                 title=title,
                 start_time=start_utc,
                 description=str(row.get("description") or ""),
+                tenant_id=tid,
+                user_id=uid,
             )
             db.add(event)
             db.commit()
@@ -434,7 +447,8 @@ def export_calendar_ics(file_path: str = "exports/calendar.ics") -> dict:
     os.makedirs(os.path.dirname(abs_path), exist_ok=True)
 
     db = SessionLocal()
-    events = db.query(Event).order_by(Event.start_time).all()
+    tid, uid = require_request_scope()
+    events = db.query(Event).filter(Event.tenant_id == tid, Event.user_id == uid).order_by(Event.start_time).all()
     db.close()
     payload = [
         {

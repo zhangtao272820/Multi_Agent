@@ -43,17 +43,35 @@ async function main() {
     console.log(`reindex-from-dir OK: sources=${r.sources} chunks=${r.chunks}`);
     return;
   }
+
+  // W2：无原文目录时 from-store 仅为 best-effort；生产切分修复后须 --dir 或 force_reembed
+  console.warn("");
+  console.warn("========================================================================");
+  console.warn("WARNING: reindex WITHOUT --dir uses from-store reconstruct (BEST-EFFORT).");
+  console.warn("  Complex PDF/DOCX layouts may remount wrong chunks after splitter changes.");
+  console.warn("  Prefer:  npm run reindex -- --dir <originals>");
+  console.warn("  Or:      POST /api/upload with force_reembed=1 for changed files");
+  console.warn("  Hard fail: set RAG_REINDEX_REQUIRE_DIR=1");
+  console.warn("========================================================================");
+  console.warn("");
+  if (/^(1|true|yes|on)$/i.test(String(process.env.RAG_REINDEX_REQUIRE_DIR || "").trim())) {
+    console.error("RAG_REINDEX_REQUIRE_DIR=1: refusing from-store reindex without --dir");
+    process.exit(1);
+  }
+
   const { reindexAllFromStore, auditVectorStoreHealth } = await import("../server/utils/vectorStore");
   const before = await auditVectorStoreHealth({ reconcile: false });
   console.log(
-    `[health:before] backend=${before.backend} docs=${before.metadataDocCount} vectors=${before.vectorRowCount} missing_ingest=${before.missingIngestAtRatio}`
+    `[health:before] backend=${before.backend} docs=${before.metadataDocCount} vectors=${before.vectorRowCount} missing_ingest=${before.missingIngestAtRatio} hnsw=${before.hnswIndexPresent}`
   );
   const r = await reindexAllFromStore();
   const after = await auditVectorStoreHealth({ reconcile: false });
   console.log(
-    `[health:after] docs=${after.metadataDocCount} vectors=${after.vectorRowCount} missing_ingest=${after.missingIngestAtRatio} warnings=${after.warnings.join(",") || "none"}`
+    `[health:after] docs=${after.metadataDocCount} vectors=${after.vectorRowCount} missing_ingest=${after.missingIngestAtRatio} hnsw=${after.hnswIndexPresent} warnings=${after.warnings.join(",") || "none"} soft=${after.softWarnings.join(",") || "none"}`
   );
   console.log(`reindex-from-store OK: sources=${r.sources} chunks=${r.chunks}`);
+  // 强制退出，避免 pg Pool 挂起
+  process.exit(0);
 }
 
 main().catch((e) => {

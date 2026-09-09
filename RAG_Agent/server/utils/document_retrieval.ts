@@ -21,7 +21,8 @@ import {
   shouldSkipLlmRerankAfterCrossEncoder,
 } from "./cross_encoder_rerank";
 import { getLearningHintsForQuestion } from "./rag_learning";
-import { rewriteQueryForAgenticRetrieval, shouldAttemptAgenticRetry } from "./agentic_retrieval";
+import { rewriteQueryForAgenticRetrieval } from "./agentic_retrieval";
+import { shouldAttemptAgenticRetry } from "./rag_agentic_retry_gate";
 import { indexRagExperience, ragVectorExperienceRequireUseful, recallRagExperience } from "./experience_vectors";
 import { getRagPromptPatchesForStage } from "./prompt_evolution";
 import {
@@ -1042,6 +1043,10 @@ export async function runDocumentRetrieval(input: {
             ? "ambiguous_low_confidence"
             : "weak_evidence",
         turboRetrieval,
+        coverageCritical:
+          Boolean(managerTask?.coverage_critical) ||
+          Boolean(managerTask?.force_deep_retrieval) ||
+          Boolean(managerTask?.specialist_brief?.constraints?.coverage_critical),
       })
     ) {
       const rewritten = await rewriteQueryForAgenticRetrieval({
@@ -1193,9 +1198,13 @@ export async function runDocumentRetrieval(input: {
     );
   }
 
-  // H2：子块 → 父块文本扩展并去重；多文档时按 source 覆盖再截断
+  // H2：子块 → 父块文本扩展并去重；
+  // 复合问句优先子主题覆盖，禁止无条件按「每个文件保底」挤掉正确 .md
   results = expandDocsToParent(results, env.enableParentExpand);
-  if (env.enableSourceCoverage && uploadedDocs.length >= 2) {
+  const multiPartPlan =
+    Array.isArray(ragPlan?.sub_queries) &&
+    ragPlan.sub_queries.filter((q) => String(q || "").trim().length >= 4).length >= 2;
+  if (env.enableSourceCoverage && uploadedDocs.length >= 2 && !multiPartPlan) {
     results = mergeSourceCoverage(
       results,
       (d) => resolveSourceLabel(d?.metadata ?? {}, routedSources),
@@ -1328,6 +1337,10 @@ export async function runDocumentRetrieval(input: {
         maxRounds: env.agenticMaxRounds,
         clarifyReason: "evidence_filtered_off_topic",
         turboRetrieval,
+        coverageCritical:
+          Boolean(managerTask?.coverage_critical) ||
+          Boolean(managerTask?.force_deep_retrieval) ||
+          Boolean(managerTask?.specialist_brief?.constraints?.coverage_critical),
       })
     ) {
       const rewritten = await rewriteQueryForAgenticRetrieval({

@@ -12,19 +12,21 @@
 
 | 能力 | 说明 |
 |------|------|
-| 多格式入库 | PDF / Word / Excel / PPTX / HTML / 图片 / TXT；**MinerU 重解析优先**（扫描 PDF/版面），失败回落本地解析 |
+| 多格式入库 | PDF / Word / Excel / PPTX / HTML / 图片 / ZIP；**MinerU 重解析优先**；生产 strict 失败拒收（本地默认可回落） |
 | 幂等与版本 | content hash / `source_version` / `ingest_at`（H1） |
 | 父子块 | Parent-Child 切分，检索 child、展开 parent 上下文（H2） |
-| Hybrid 检索 | 向量 + keyword + BM25，RRF 融合（默认开） |
+| Hybrid 检索 | 向量 + keyword + **倒排 BM25**，RRF 融合（默认开；pgvector 冷启动重建） |
+| 结构切分 | 条款/大纲/FAQ/表+文同块保留明细；短条款不二次切断（`smoke:structure-corpus`） |
 | 重排 | Cross-Encoder / LLM 梯子；MMR 去冗余（H3） |
 | Corrective | 弱证据触发 rewrite / clarify / 拒答（H4） |
 | **Agentic（J）** | 复杂问句：`kb_catalog` → `retrieve` / `retrieve_scoped` 有界多跳；简单问句仍走 pipeline |
 | Citation | 引用片段可核验门禁（H5） |
 | 离线重建 | reindex 脚本与流程（H6） |
-| 向量后端 | 内存向量（开发）或 `pgvector`（持久化） |
+| 向量后端 | 内存（开发）或 **pgvector**（持久化）；**HNSW + 定维 + ef_search**（见 [doc/向量数据库与ANN.md](doc/向量数据库与ANN.md)） |
 | **L 波（已落地）** | 门控 HyDE + Query 门控 + 企业制度 Graph 双车道（见升级文档） |
+| **上线补强（N）** | 倒排 BM25、MinerU strict/ready、eval precision@k / 拒答 / context overlap |
 
-企业化细节见 [doc/企业化升级方案.md](doc/企业化升级方案.md)；L 波见 [doc/L波-普通RAG与GraphRAG升级方案.md](doc/L波-普通RAG与GraphRAG升级方案.md)。守门 `npm run smoke:enterprise-h` / `npm run smoke:agentic-jk` / `npm run smoke:l-wave` / `npm run smoke:bm25-index` / `npm run smoke:heavy-parse-strict` / `npm run smoke:eval-metrics` / `npm run gate:rag-eval`。
+企业化细节见 [doc/企业化升级方案.md](doc/企业化升级方案.md)；向量 ANN 见 [doc/向量数据库与ANN.md](doc/向量数据库与ANN.md)；离线/检索补强见 [doc/离线处理与检索补强升级方案.md](doc/离线处理与检索补强升级方案.md)；上线硬化见 [doc/W波-上线硬化.md](doc/W波-上线硬化.md)；L 波见 [doc/L波-普通RAG与GraphRAG升级方案.md](doc/L波-普通RAG与GraphRAG升级方案.md)。守门 `npm run smoke:go-live`（含 structure-corpus / force-reembed / bm25-index / binary-ingest / tenant-isolation / pgvector-ann / enterprise-h / heavy-parse-strict / gate:rag-eval；**不含** MinerU 真连通）或单项 `smoke:enterprise-h` / `smoke:agentic-jk` / `smoke:l-wave` / `smoke:bm25-index` / `smoke:binary-ingest` / `smoke:tenant-isolation` / `smoke:pgvector-ann` / `smoke:structure-corpus` / `smoke:force-reembed` / `smoke:heavy-parse-strict` / `smoke:eval-metrics` / `gate:rag-eval`。MinerU 运维：`npm run smoke:go-live:ops`。
 
 ## 技术栈
 
@@ -87,6 +89,7 @@ npm run dev
 - **明确不做**：完整 RAGAS 流水线、Neo4j 强依赖、多租户物理隔离、无限 Agent 探索、Elasticsearch 级独立搜索集群
 - **L 波已落地**：门控 HyDE、Query 门控、制度 GraphRAG（勿面试说「完全没做图」或「默认全开 HyDE」）
 - **N 已落地**：倒排 BM25（含 pgvector）、MinerU 生产 strict、eval precision@k/拒答题
+- **W 已落地**：go-live 绑 BM25/binary/tenant；reindex 无原文警告；MinerU health 走 ops；md/txt 结构契约 + 二进制本地解析契约；逻辑租户隔离 smoke（非物理隔离）
 
 ## 环境变量（J/K / L / N 波）
 
@@ -110,6 +113,11 @@ RAG_AGENTIC_TOOL_MAX_ROUNDS=4
 
 # N：倒排 BM25 冷启动分页（pgvector）
 # RAG_BM25_REBUILD_PAGE=500
+
+# 向量 ANN（pgvector；见 doc/向量数据库与ANN.md）
+# RAG_PG_EMBEDDING_DIMS=1024
+# RAG_PG_ENSURE_HNSW=1
+# RAG_PG_EF_SEARCH=40
 ```
 
 ## Docker / 平台编排
@@ -126,9 +134,13 @@ RAG_AGENTIC_TOOL_MAX_ROUNDS=4
 - **上传后搜不到**：检查解析、分块与向量维度
 - **答偏**：查 `doc_scope_judge.ts` 与检索路径
 - **无来源**：检查 citation 门禁与 prompt 约束
+- **语义检索变慢**：确认 HNSW（`npm run smoke:pgvector-ann` 契约；生产看 `hnswIndexPresent` / 启动日志 ANN ready）
 
 ## 相关文档
 
 - [企业化升级方案](doc/企业化升级方案.md)
+- [向量数据库与 ANN](doc/向量数据库与ANN.md)
+- [离线处理与检索补强升级方案](doc/离线处理与检索补强升级方案.md)
+- [W 波上线硬化](doc/W波-上线硬化.md)
 - Skills：`skills/*/skill.md`
 - 矩阵总表：[docs/Agent矩阵升级总路线图.md](../docs/Agent矩阵升级总路线图.md)

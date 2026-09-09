@@ -150,6 +150,20 @@ export type LogItem = {
   routeCap?: { intent: string; agents: string[]; capLabel?: string; needsWebSearch?: boolean }
   routePlanCard?: RoutePlanCardData
   planOutline?: { dag?: string; steps: PlanStepTodo[] }
+  /** 成熟执行任务板快照（本轮可 upsert，供历史轮回显） */
+  taskBoard?: {
+    items: Array<{
+      id: string
+      agent: string
+      query: string
+      status: string
+      optional?: boolean
+      async?: boolean
+      dependsOn?: string[]
+      reason?: string
+    }>
+    topology: string
+  }
   /** 本轮发送时的协作姿态（Ask/Plan/Agent/Debug） */
   collaborationPosture?: CollaborationPosture
   /** 编排建议切到的姿态（来自 plan_preview.suggestedPosture） */
@@ -233,6 +247,8 @@ export const IN_FLIGHT_RUN_WS_EVENTS = new Set([
   'stream_commit',
   'step_status',
   'plan_steps',
+  'task_board',
+  'maturity_sli',
   'plan_preview',
   'route_cap',
   'route_plan_card',

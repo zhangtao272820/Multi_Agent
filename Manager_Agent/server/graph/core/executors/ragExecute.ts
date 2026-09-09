@@ -17,6 +17,7 @@ import { countRagEvidenceUnits, mergeRagClarifyQuestions, isChatRevisionMeta } f
 import type { AgentExecutorDeps, AgentExecutorOpts, AgentStepOutcome } from './types'
 import { callRagMcpRetrieve } from '../../../utils/mcp/managerMcpHost'
 import { groundFollowupQuery, shouldGroundFollowupQuery } from '#agent-shared/followupQueryGrounding'
+import { shouldAttachSpecialistBrief, specialistBriefMaxToolRounds } from '#agent-shared/specialistBrief'
 import { sessionIntentAnchorFromMeta } from '../memory/multiTurnIntent'
 
 function isRagHardFailureBlob(x: unknown): x is { hardFailure: true; error_code?: string; agentResult?: AgentResult } {
@@ -416,6 +417,27 @@ export async function executeRagStep(
     agent: 'rag',
     stepId: String((input.state.meta as { currentStepId?: string } | null)?.currentStepId || '').trim() || undefined
   })
+  const attachBrief = shouldAttachSpecialistBrief({
+    managerOrchestrated: !singleRag,
+    executionTopology: String(
+      (input.state.meta as { executionTopology?: string } | undefined)?.executionTopology || ''
+    ),
+    stepCount: isTrueMultiTask(input.state.meta) ? 2 : 1
+  })
+  const managerRagTaskJson = attachBrief
+    ? JSON.stringify({
+        source: 'manager',
+        lean_query: String(leanRagQuery || '').trim(),
+        coverage_critical: true,
+        force_deep_retrieval: true,
+        specialist_brief: {
+          version: '1',
+          goal: String(leanRagQuery || input.question || '').trim().slice(0, 400),
+          budget: { max_tool_rounds: specialistBriefMaxToolRounds() },
+          constraints: { coverage_critical: true }
+        }
+      })
+    : undefined
   const callRag = (message: string, timeoutMs: number, extra?: { skipCache?: boolean }) =>
     deps.callRagAgent({
       ragAgentHttpUrl: opts.ragAgentHttpUrl,
@@ -428,6 +450,7 @@ export async function executeRagStep(
       traceId: opts.runId,
       skipCache: extra?.skipCache ?? revisionSkipCache,
       deferStreamDelta: false,
+      ...(managerRagTaskJson ? { managerRagTaskJson } : {}),
       sendThinking: input.sendThinking,
       sendDelta: (d: string) => {
         input.sendDelta?.(d)

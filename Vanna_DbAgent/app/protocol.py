@@ -259,6 +259,9 @@ def build_db_agent_result(
     impact_estimate: dict[str, Any] | None = None,
     chart: Any = None,
     deliverables: dict[str, Any] | None = None,
+    gaps: list[str] | None = None,
+    rounds_used: int | None = None,
+    self_check_ok: bool | None = None,
 ) -> dict[str, Any]:
     if needs_clarify:
         code = error_code or "needs_clarify"
@@ -277,7 +280,21 @@ def build_db_agent_result(
     structured: dict[str, Any] = {
         "empty": empty,
         "reason": reason or ("empty_result" if empty else "ok"),
+        "empty_result": empty,
+        "row_count": len(rows or []),
     }
+    gap_list = [str(g).strip() for g in (gaps or []) if str(g).strip()][:8]
+    if empty and "empty_result" not in gap_list:
+        gap_list.append("empty_result")
+    if gap_list:
+        structured["gaps"] = gap_list
+    if rounds_used is not None and isinstance(rounds_used, int) and rounds_used >= 0:
+        structured["rounds_used"] = rounds_used
+    check_ok = self_check_ok
+    if check_ok is None and empty:
+        check_ok = False
+    if check_ok is not None:
+        structured["self_check"] = {"ok": bool(check_ok)}
     if path:
         structured["path"] = path
     if code:

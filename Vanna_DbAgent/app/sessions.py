@@ -23,12 +23,21 @@ def _path(session_id: str) -> Path:
     return _root() / f"{sid}.json"
 
 
-def new_session(*, tenant: str = "p2604", scene: str = "assistant", title: str = "") -> dict[str, Any]:
+def new_session(
+    *,
+    tenant: str = "p2604",
+    scene: str = "assistant",
+    title: str = "",
+    org_tenant_id: str = "default",
+    user_id: str = "",
+) -> dict[str, Any]:
     sid = str(uuid.uuid4())
     now = datetime.now(timezone.utc).isoformat()
     doc = {
         "id": sid,
-        "tenant": tenant,
+        "tenant": tenant,  # 业务库域（p2604…），与 JWT org_tenant_id 分字段
+        "org_tenant_id": str(org_tenant_id or "default").strip() or "default",
+        "user_id": str(user_id or "").strip(),
         "scene": scene,
         "title": title or "新对话",
         "created_at": now,
@@ -39,25 +48,58 @@ def new_session(*, tenant: str = "p2604", scene: str = "assistant", title: str =
     return doc
 
 
-def load_session(session_id: str) -> dict[str, Any] | None:
+def load_session(
+    session_id: str,
+    *,
+    org_tenant_id: str | None = None,
+    user_id: str | None = None,
+) -> dict[str, Any] | None:
     path = _path(session_id)
     if not path.is_file():
         return None
-    return json.loads(path.read_text(encoding="utf-8"))
+    doc = json.loads(path.read_text(encoding="utf-8"))
+    want_org = str(org_tenant_id or "").strip()
+    want_uid = str(user_id or "").strip()
+    if want_org:
+        got_org = str(doc.get("org_tenant_id") or "default").strip() or "default"
+        if got_org != want_org:
+            return None
+    if want_uid:
+        got_uid = str(doc.get("user_id") or "").strip()
+        if got_uid and got_uid != want_uid:
+            return None
+    return doc
 
 
-def list_sessions(limit: int = 40) -> list[dict[str, Any]]:
+def list_sessions(
+    limit: int = 40,
+    *,
+    org_tenant_id: str | None = None,
+    user_id: str | None = None,
+) -> list[dict[str, Any]]:
+    want_org = str(org_tenant_id or "").strip()
+    want_uid = str(user_id or "").strip()
     items: list[dict[str, Any]] = []
     for path in sorted(_root().glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True):
         try:
             raw = json.loads(path.read_text(encoding="utf-8"))
         except json.JSONDecodeError:
             continue
+        if want_org:
+            got_org = str(raw.get("org_tenant_id") or "default").strip() or "default"
+            if got_org != want_org:
+                continue
+        if want_uid:
+            got_uid = str(raw.get("user_id") or "").strip()
+            if got_uid and got_uid != want_uid:
+                continue
         items.append(
             {
                 "id": raw.get("id") or path.stem,
                 "title": raw.get("title") or "对话",
                 "tenant": raw.get("tenant"),
+                "org_tenant_id": raw.get("org_tenant_id"),
+                "user_id": raw.get("user_id"),
                 "scene": raw.get("scene"),
                 "updated_at": raw.get("updated_at"),
                 "turns": len(raw.get("messages") or []),

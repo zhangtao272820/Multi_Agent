@@ -4,6 +4,7 @@
 import {
   formatAcceptanceRateZh,
   humanizeAcceptanceReason,
+  humanizedBoardTipsByAgent,
   parseMaturitySliPayload,
   parseTaskBoardPayload,
   patchTaskBoardItemStatus,
@@ -37,6 +38,9 @@ assert(formatAcceptanceRateZh(0.856) === '86%', 'rate')
   })
   assert(patched[0]!.status === 'replan', 'patch replan')
   assert(patched[0]!.reason === 'empty_evidence', 'keep reason')
+  const tips = humanizedBoardTipsByAgent(patched)
+  assert(tips.db?.includes('有效结果'), 'board tip human')
+  assert(!JSON.stringify(tips).includes('empty_evidence'), 'tip no raw')
 }
 
 {

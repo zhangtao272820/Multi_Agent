@@ -15,15 +15,15 @@
   --mgr-glass-strong: rgba(255, 255, 255, 0.62);
   --mgr-border: rgba(90, 140, 190, 0.38);
   --mgr-border-soft: rgba(255, 255, 255, 0.55);
-  --chat-turn-gap: 1.25rem;
-  --chat-card-gap: 0.625rem;
-  /* Cursor 式字号阶梯 */
-  --chat-font-body: 15px;
-  --chat-font-body-lh: 1.72;
-  --chat-font-secondary: 13px;
-  --chat-font-ui: 13px;
-  --chat-font-meta: 12px;
-  --chat-font-mono: 13px;
+  --chat-turn-gap: 0.9rem;
+  --chat-card-gap: 0.45rem;
+  /* Cursor 式字号阶梯 · 略收以露出更多历史 */
+  --chat-font-body: 14px;
+  --chat-font-body-lh: 1.58;
+  --chat-font-secondary: 12.5px;
+  --chat-font-ui: 12.5px;
+  --chat-font-meta: 11px;
+  --chat-font-mono: 12.5px;
   --chat-text-primary: #1a2f44;
   --chat-text-secondary: #3a536c;
   --chat-text-muted: #5a738c;
@@ -373,7 +373,7 @@
 .spring-root.cursor-workbench .cosmic-bubble-user {
   max-width: var(--chat-user-max) !important;
   width: fit-content !important;
-  padding: 12px 16px !important;
+  padding: 9px 12px !important;
   border-radius: 16px 16px 4px 16px !important;
   background: rgba(37, 99, 235, 0.36) !important;
   border: 1px solid rgba(96, 165, 250, 0.35) !important;
@@ -427,7 +427,7 @@
 }
 
 .spring-root.cursor-workbench .reply-panel-header {
-  padding: 8px 12px 0 !important;
+  padding: 6px 10px 0 !important;
   border-bottom: none !important;
   gap: 8px !important;
 }
@@ -456,11 +456,11 @@
 }
 
 .spring-root.cursor-workbench .reply-panel-body {
-  padding: 8px 16px 14px !important;
+  padding: 6px 12px 10px !important;
 }
 
 .spring-root.cursor-workbench .reply-panel-footer {
-  padding: 0 12px 10px !important;
+  padding: 0 10px 8px !important;
 }
 
 /* 图表 / 表格：半透明，不挡背景 */
@@ -830,8 +830,8 @@
 }
 
 .spring-root.cursor-workbench .conv-stream-head {
-  padding: 8px 16px 0 !important;
-  margin-bottom: 6px !important;
+  padding: 6px 12px 0 !important;
+  margin-bottom: 4px !important;
 }
 
 .spring-root.cursor-workbench .conv-stream-title {
@@ -841,7 +841,7 @@
 }
 
 .spring-root.cursor-workbench .conv-stream-body {
-  padding: 0 16px 12px !important;
+  padding: 0 12px 8px !important;
   font-size: var(--chat-font-body) !important;
   line-height: var(--chat-font-body-lh) !important;
   color: var(--chat-text-primary) !important;
@@ -1009,8 +1009,8 @@
   flex-shrink: 0 !important;
   width: var(--chat-col-width) !important;
   max-width: calc(100% - 24px) !important;
-  margin: 0 auto 10px !important;
-  padding: 8px 10px 10px !important;
+  margin: 0 auto 8px !important;
+  padding: 6px 8px 8px !important;
   border-radius: 12px !important;
   border: 1px solid var(--mgr-border) !important;
   background: var(--mgr-glass-strong) !important;
@@ -1034,8 +1034,8 @@
 }
 
 .spring-root.cursor-workbench .spring-input-field.spring-input-area {
-  min-height: 48px !important;
-  max-height: 160px !important;
+  min-height: 36px !important;
+  max-height: 140px !important;
   font-size: var(--chat-font-body) !important;
   line-height: var(--chat-font-body-lh) !important;
   border-radius: 10px !important;

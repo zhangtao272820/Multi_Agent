@@ -16,6 +16,7 @@ import {
   type RagQueryPlan,
 } from "./query_plan";
 import type { RagMergedUnderstandResult } from "./rag_merged_understand";
+import { reconcileExplicitMissingDocuments } from "./retrieval_shared";
 
 export const RagUnifiedUnderstandSchema = z.object({
   mode: z.enum(["current_only", "continuation", "topic_shift", "chitchat"]).optional(),
@@ -116,19 +117,21 @@ export function unifiedToTurnScope(
 export function unifiedToIntent(
   parsed: RagUnifiedUnderstand,
   docCount: number,
+  uploadedDocs: { name: string }[] = [],
 ): RagIntentJudgment {
   const route = parsed.route_action as RouteAction;
   const isChitchat = parsed.is_chitchat === true || route === "direct_answer" || parsed.turn_kind === "chitchat";
   const completeness = parsed.is_completeness_query === true;
-  const specified = cleanStrings(parsed.specified_documents, 6);
-  const missing = cleanStrings(parsed.missing_documents, 6);
+  const rawSpecified = cleanStrings(parsed.specified_documents, 6);
+  const rawMissing = cleanStrings(parsed.missing_documents, 6);
+  const reconciled = reconcileExplicitMissingDocuments(rawSpecified, rawMissing, uploadedDocs);
   const intent: RagIntentJudgment = {
-    specified_documents: specified,
-    missing_documents: missing,
+    specified_documents: reconciled.specified_documents,
+    missing_documents: reconciled.missing_documents,
     is_chitchat: isChitchat,
     route_action: isChitchat && route === "document_query" ? "direct_answer" : route,
     is_completeness_query: completeness,
-    has_explicit_doc_anchor: parsed.has_explicit_doc_anchor === true,
+    has_explicit_doc_anchor: parsed.has_explicit_doc_anchor === true || reconciled.specified_documents.length > 0,
     needs_condense: parsed.needs_condense === true,
     retrieve_first_ok: parsed.retrieve_first_ok !== false,
     retrieval_mode: completeness ? "agentic" : "pipeline",
@@ -209,12 +212,17 @@ export function unifiedToQueryPlan(
 
 export function assembleRagUnifiedBundle(
   parsed: RagUnifiedUnderstand,
-  opts: { lastUser: string; hasHistory: boolean; docCount: number },
+  opts: {
+    lastUser: string;
+    hasHistory: boolean;
+    docCount: number;
+    uploadedDocs?: { name: string }[];
+  },
 ): RagUnifiedUnderstandBundle {
   const lastUser = String(opts.lastUser || "").trim();
   const leanQuery = String(parsed.lean_query || "").trim() || lastUser;
   const turnScope = unifiedToTurnScope(parsed, opts.hasHistory);
-  const intent = unifiedToIntent(parsed, opts.docCount);
+  const intent = unifiedToIntent(parsed, opts.docCount, opts.uploadedDocs ?? []);
   const merged = unifiedToMerged(parsed, lastUser, leanQuery);
   const plan = unifiedToQueryPlan(parsed, lastUser, leanQuery);
   return { parsed, turnScope, intent, merged, plan, leanQuery };
@@ -243,6 +251,9 @@ const UNIFIED_SYSTEM = [
   "- retrieval_mode 仅 completeness 时用 agentic，其余 pipeline。",
   "- lean_query：可独立向量检索的中文完整问句；消除指代，勿编造目录外专有名词。",
   "- 复合问题才拆 sub_queries（1～4 条）；单主题则 sub_queries 可为空或一条。",
+  "- specified_documents：仅当用户**明确点名**文件名/手册名时填入；按主题提问（补贴、门禁卡、配比等）必须为 []。",
+  "- missing_documents：仅当 specified 非空且目录中无合理对应时填入；未点名文件时必须为 []。",
+  "  禁止把「主题相关但未点名」或「口语概括的制度名」写成 missing_documents。",
 ].join("\n");
 
 export async function judgeRagUnifiedUnderstand(input: {
@@ -284,6 +295,7 @@ export async function judgeRagUnifiedUnderstand(input: {
       lastUser: question,
       hasHistory,
       docCount: input.uploadedDocs.length,
+      uploadedDocs: input.uploadedDocs,
     });
   } catch (e) {
     console.warn("[RagUnifiedUnderstand] failed:", e);

@@ -95,9 +95,14 @@ export default defineEventHandler(async (event) => {
   out.push('# HELP manager_agent_sli_inflight Active manager runs (G2 backpressure)')
   out.push('# TYPE manager_agent_sli_inflight gauge')
   out.push(line('manager_agent_sli_inflight', bp.inflightRuns))
-  out.push('# HELP manager_agent_sli_queue_depth Run queue depth alias (G2)')
+  out.push('# HELP manager_agent_sli_queue_depth Admission queue depth (waiting, not inflight)')
   out.push('# TYPE manager_agent_sli_queue_depth gauge')
   out.push(line('manager_agent_sli_queue_depth', bp.queueDepth))
+  for (const [tenant, n] of Object.entries(bp.inflightByTenant || {})) {
+    out.push('# HELP manager_agent_tenant_inflight Per-tenant inflight runs')
+    out.push('# TYPE manager_agent_tenant_inflight gauge')
+    out.push(line('manager_agent_tenant_inflight', n, { tenant }))
+  }
   for (const [agent, n] of Object.entries(bp.inflightByExpert)) {
     out.push('# HELP manager_agent_expert_inflight Expert inflight calls (G2)')
     out.push('# TYPE manager_agent_expert_inflight gauge')

@@ -122,9 +122,11 @@ def enrich_send_email_args(
     *,
     user_message: str = "",
     understanding: dict[str, Any] | None = None,
+    upstream_handoff: dict[str, Any] | str | None = None,
 ) -> dict[str, Any]:
     """
     发信前：联系人解析 + 意图→成稿。纯函数外壳；LLM 仅在需要成稿时调用。
+    upstream_handoff：总管上游 softHandoff / 识图结构化交接，优先静默预填正文。
     """
     out = dict(tool_args or {})
     slots = {}
@@ -146,14 +148,37 @@ def enrich_send_email_args(
 
     content = str(out.get("content") or out.get("body") or "").strip()
     subject = str(out.get("subject") or "").strip()
+    need_body = needs_outbound_body_compose(content, user_message)
+    need_subject = not subject
+
+    if need_body and upstream_handoff:
+        try:
+            from app.core.mail_compose import compose_prefills_from_upstream_handoff
+
+            pre = compose_prefills_from_upstream_handoff(
+                upstream_handoff,
+                to=str(out.get("to") or to or ""),
+                subject=subject,
+            )
+            if str(pre.get("content") or "").strip():
+                out["content"] = str(pre["content"]).strip()
+                content = out["content"]
+                need_body = needs_outbound_body_compose(content, user_message)
+            if need_subject and str(pre.get("subject") or "").strip():
+                out["subject"] = str(pre["subject"]).strip()
+                subject = out["subject"]
+                need_subject = False
+            if not str(out.get("to") or "").strip() and str(pre.get("to") or "").strip():
+                out["to"] = str(pre["to"]).strip()
+        except Exception:
+            pass
+
     intent = (
         content
         or str(slots.get("email_content") or "").strip()
         or str(user_message or "").strip()
     )
     tone = str(slots.get("email_tone") or "").strip()
-    need_body = needs_outbound_body_compose(content, user_message)
-    need_subject = not subject
     if need_body or need_subject:
         drafted = compose_outbound_email_fields(
             intent=intent,

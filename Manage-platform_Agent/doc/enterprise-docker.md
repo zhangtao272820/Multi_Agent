@@ -16,6 +16,8 @@ Lobster/GUI：仅 `--profile extended`；核心栈默认 `MANAGER_DISABLED_AGENT
 
 改 env 后必须 `up -d --force-recreate`。**禁止** `docker compose down -v`。
 
+多租户并发 / 排队（准入、RAG 异步入库、Admin/GUI 槽）：见 [`docs/多租户并发排队.md`](../../docs/多租户并发排队.md)。企业档默认打开 `MANAGER_*_INFLIGHT` / `RAG_*` / `ADMIN_*` / `GUI_*`；LAN 默认 0=不限。
+
 ## 启用
 
 ```powershell

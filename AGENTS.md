@@ -36,6 +36,7 @@
 | `docker-agent-skills-md.mdc` | `.dockerignore` / `*Agent/skills/**` — `**/*.md` 须放行 skills，禁掏空 skill.md |
 | `shared-agent-contracts.mdc` | `shared/**/*` — 契约层同样 LLM-first |
 | `manager-routing-playbook.mdc` | Manager 路由 / smoke / eval — 改路由必读手册；优化见 `Manager_Agent/doc/路由成熟化优化方案.md`；执行成熟 Phase A–F / 控 token 见 `Manager_Agent/doc/成熟Agent升级方案.md`；企业化见 `docs/企业化.md` |
+| `manager-orchestrator-enum-coerce.mdc` | 编排 taskIntent/topology 等 — LLM 发明枚举须 coerce，禁整包 exhausted |
 | `manager-cursor-reply-only.mdc` | Manager 只借鉴 Cursor **回复呈现**（含 provisional synth 真流）；禁做成改代码 / Composer |
 | `manager-user-facing-ui-only.mdc` | Manager 上线 UI 仅用户面；禁开发切换 / 开发腔思考；侧栏观测保留 |
 | `manager-db-no-schema-leak.mdc` | Manager 用户面禁表名/字段原名；禁「本次展示字段」清单 |
@@ -46,10 +47,11 @@
 | `admin-user-data-isolation.mdc` | Admin 办公数据 — 联系人/文件/记忆等必 `(tenant_id,user_id)` |
 | `feedback-hydrate-after-docker.mdc` | `*Agent*` 反馈 UI — 禁 purge 误删反馈缓存；暖机/F5 hydrate 须重试 |
 | `agent-auth-control-plane-decouple.mdc` | 登录/反馈/compose — 与控制端解耦；本地 validate；禁假登录 |
+| `rag-ingest-format-hardening.mdc` | RAG 入库 — 按格式权威解析 + 质检闸；OLE 名 docx 用 word-extractor；禁 MinerU 啃 Office 主路径 |
 
 DB/Code 写闸：Vanna `skills/write_gate.md`（T2 pending）；CodePy 改码事前 HITL + 沙箱终端；总管 `db_write`→T2、`MANAGER_CODE_EDIT_HITL` 默认开。
 
-动手类（Admin / GUI / Vanna / Code）：[`docs/动手Agent.md`](docs/动手Agent.md)。自进化：[`docs/自进化.md`](docs/自进化.md)。docs 索引：[`docs/README.md`](docs/README.md)。
+动手类（Admin / GUI / Vanna / Code）：[`docs/动手Agent.md`](docs/动手Agent.md)。自进化：[`docs/自进化.md`](docs/自进化.md)。多租户并发排队：[`docs/多租户并发排队.md`](docs/多租户并发排队.md)（`shared/jobQueueKeys.ts` / `tenantFairQueue.ts`）。docs 索引：[`docs/README.md`](docs/README.md)。
 
 ## 4. 项目 Skills（入库，可共享）
 

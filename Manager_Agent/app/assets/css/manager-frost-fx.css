@@ -1,0 +1,525 @@
+/* ═══════════════════════════════════════════════════════════════
+   总管 · 霜化点缀终裁（加载最末）
+   压过 brand comfort-hide / surfaces / theme 实底；排版不变，只加冰感
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── 1. 解禁节气底 + 飘雪（brand 全局 hide 的反向） ── */
+.manager-shell .mgr-season-bg,
+.manager-shell .brand-motif,
+.spring-root.cursor-workbench > .mgr-season-bg,
+.spring-root.cursor-workbench > .brand-motif,
+.brand-shell.manager-shell .mgr-season-bg,
+.brand-shell.manager-shell .brand-motif {
+  display: block !important;
+}
+
+.manager-shell,
+.manager-shell[data-agent="manager"],
+.brand-shell.manager-shell,
+.spring-root.cursor-workbench {
+  --brand-motif-opacity: 0.58;
+}
+
+.spring-root.cursor-workbench > .mgr-season-bg {
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 0 !important;
+  pointer-events: none !important;
+  filter: saturate(1.08) contrast(1.04) !important;
+}
+
+.spring-root.cursor-workbench > .mgr-season-bg::after {
+  content: "" !important;
+  display: block !important;
+  /* 上透雪峰、下压湖面深色：避免主列底部「深灰斜切」假象 */
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(255, 255, 255, 0.42), transparent 55%),
+    linear-gradient(
+      180deg,
+      rgba(210, 230, 248, 0.14) 0%,
+      rgba(236, 246, 255, 0.08) 28%,
+      rgba(232, 242, 252, 0.22) 62%,
+      rgba(248, 252, 255, 0.55) 82%,
+      rgba(245, 250, 255, 0.72) 100%
+    ) !important;
+  backdrop-filter: none !important;
+}
+
+.spring-root.cursor-workbench > .brand-motif {
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 1 !important;
+  opacity: var(--brand-motif-opacity, 0.58) !important;
+  pointer-events: none !important;
+  overflow: hidden !important;
+}
+
+.spring-root.cursor-workbench > .spring-container {
+  position: relative !important;
+  z-index: 2 !important;
+}
+
+.manager-shell .brand-motif-snow__flake,
+.spring-root.cursor-workbench .brand-motif-snow__flake {
+  color: rgba(255, 255, 255, 0.96) !important;
+  text-shadow:
+    0 0 4px rgba(255, 255, 255, 1),
+    0 0 12px rgba(160, 205, 245, 0.75),
+    0 1px 3px rgba(40, 80, 130, 0.28) !important;
+  opacity: calc(var(--flake-op, 0.72) * 1.15) !important;
+  font-size: calc(var(--flake-size, 14px) * 1.2) !important;
+}
+
+/* ── 2. 冰缘闪光 keyframes ── */
+@keyframes mgr-ice-rim-shimmer {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 220% 50%;
+  }
+}
+
+@keyframes mgr-frost-flake-drift {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 0.4;
+  }
+  50% {
+    transform: translateY(4px) rotate(18deg);
+    opacity: 0.9;
+  }
+}
+
+@keyframes mgr-ice-btn-sheen {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 200% 50%;
+  }
+}
+
+@keyframes mgr-frost-breathe {
+  0%,
+  100% {
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.85) inset,
+      0 0 0 1px rgba(90, 150, 200, 0.22),
+      0 12px 32px rgba(25, 55, 95, 0.1);
+  }
+  50% {
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.95) inset,
+      0 0 0 1px rgba(110, 175, 230, 0.38),
+      0 14px 36px rgba(25, 55, 95, 0.14),
+      0 0 28px rgba(140, 195, 235, 0.18);
+  }
+}
+
+/* 共用：冰缘伪元素（勿挂输入坞 ::after，会盖掉雪花且 mask 失败时整块涂灰） */
+.mgr-ice-rim::after,
+.spring-root.cursor-workbench .spring-topbar::after,
+.spring-root.cursor-workbench .spring-history-sidebar::after,
+.spring-root.cursor-workbench .spring-sidebar::after,
+.spring-root.cursor-workbench .reply-panel-inner.cosmic-bubble-reply::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  pointer-events: none;
+  z-index: 4;
+  background: linear-gradient(
+    125deg,
+    rgba(255, 255, 255, 0.85),
+    rgba(130, 190, 235, 0.45),
+    rgba(255, 255, 255, 0.15),
+    rgba(90, 160, 220, 0.55),
+    rgba(255, 255, 255, 0.75)
+  );
+  background-size: 240% 240%;
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: mgr-ice-rim-shimmer 14s linear infinite;
+  opacity: 0.78;
+}
+
+/* ── 3. 壳层：霜玻璃（透雪景，勿纯白实底） ── */
+.spring-root.cursor-workbench .spring-topbar,
+.spring-root.cursor-workbench .spring-history-sidebar,
+.spring-root.cursor-workbench .history-panel,
+.spring-root.cursor-workbench .spring-sidebar,
+.spring-root.cursor-workbench .cursor-tools-pane,
+.spring-root.cursor-workbench .spring-sidebar.cosmic-bridge-sidebar {
+  position: relative !important;
+  isolation: isolate;
+  background:
+    radial-gradient(circle at 8% 10%, rgba(255, 255, 255, 0.55) 0 1px, transparent 2px),
+    radial-gradient(circle at 92% 18%, rgba(180, 215, 245, 0.4) 0 0.9px, transparent 1.8px),
+    linear-gradient(
+      165deg,
+      rgba(248, 252, 255, 0.72) 0%,
+      rgba(225, 238, 250, 0.55) 48%,
+      rgba(240, 248, 255, 0.68) 100%
+    ) !important;
+  border: 1px solid rgba(100, 160, 210, 0.42) !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.88) inset,
+    0 0 0 1px rgba(90, 150, 200, 0.18),
+    0 14px 36px rgba(20, 50, 90, 0.12) !important;
+  backdrop-filter: blur(16px) saturate(1.2) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(1.2) !important;
+}
+
+.spring-root.cursor-workbench .spring-history-sidebar,
+.spring-root.cursor-workbench .history-panel,
+.spring-root.cursor-workbench .spring-sidebar,
+.spring-root.cursor-workbench .cursor-tools-pane {
+  overflow: hidden !important;
+}
+
+.spring-root.cursor-workbench .spring-topbar {
+  overflow: visible !important;
+}
+
+.spring-root.cursor-workbench .spring-history-sidebar,
+.spring-root.cursor-workbench .history-panel {
+  border-right: 1px solid rgba(100, 160, 210, 0.36) !important;
+}
+
+.spring-root.cursor-workbench .cursor-tools-pane,
+.spring-root.cursor-workbench .spring-sidebar.cosmic-bridge-sidebar {
+  border-left: 1px solid rgba(100, 160, 210, 0.36) !important;
+}
+
+/* 主列：轻霜玻璃遮住底图深色湖面，仍透出上方雪峰 */
+.spring-root.cursor-workbench .spring-chat-column,
+.spring-root.cursor-workbench .cursor-chat-main {
+  background:
+    linear-gradient(
+      180deg,
+      rgba(247, 251, 255, 0.28) 0%,
+      rgba(247, 251, 255, 0.42) 45%,
+      rgba(248, 252, 255, 0.62) 100%
+    ) !important;
+  border: 1px solid rgba(122, 168, 212, 0.32) !important;
+  box-shadow: none !important;
+  backdrop-filter: blur(10px) saturate(1.08) !important;
+  -webkit-backdrop-filter: blur(10px) saturate(1.08) !important;
+}
+
+/* 顶栏角标雪花 */
+.spring-root.cursor-workbench .spring-topbar::before {
+  content: "❄" !important;
+  display: block !important;
+  position: absolute;
+  top: 10px;
+  right: 18px;
+  z-index: 5;
+  font-size: 13px;
+  line-height: 1;
+  color: rgba(47, 127, 209, 0.45);
+  text-shadow:
+    0 0 8px rgba(255, 255, 255, 0.95),
+    0 0 14px rgba(140, 195, 235, 0.55);
+  animation: mgr-frost-flake-drift 6s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.spring-root.cursor-workbench .spring-history-sidebar::before,
+.spring-root.cursor-workbench .spring-sidebar::before {
+  content: "✧" !important;
+  display: block !important;
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 5;
+  font-size: 11px;
+  color: rgba(90, 160, 210, 0.4);
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.9);
+  animation: mgr-frost-flake-drift 7.2s ease-in-out infinite 0.8s;
+  pointer-events: none;
+}
+
+/* ── 4. 回复卡：霜玻璃 + 冰缘 + 角雪花 ── */
+.spring-root.cursor-workbench .reply-panel,
+.spring-root.cursor-workbench .chat-thread .reply-panel {
+  position: relative;
+}
+
+.spring-root.cursor-workbench .reply-panel-inner.cosmic-bubble-reply,
+.spring-root.cursor-workbench .chat-thread .reply-panel .reply-panel-inner.cosmic-bubble-reply,
+.spring-root.cursor-workbench.cosmic-theme .chat-thread .reply-panel .reply-panel-inner.cosmic-bubble-reply,
+.spring-root.mode-professional.cursor-workbench .reply-panel .reply-panel-inner {
+  position: relative !important;
+  isolation: isolate;
+  overflow: hidden !important;
+  background: var(--mgr-frost-card-bg) !important;
+  border: 1px solid rgba(70, 135, 190, 0.48) !important;
+  border-left: 3px solid rgba(47, 127, 209, 0.62) !important;
+  border-radius: 14px !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.92) inset,
+    0 0 0 1px rgba(90, 150, 200, 0.2),
+    0 16px 40px rgba(25, 55, 95, 0.12) !important;
+  backdrop-filter: blur(14px) saturate(1.2) !important;
+  -webkit-backdrop-filter: blur(14px) saturate(1.2) !important;
+  padding: 14px 16px 12px !important;
+  animation: mgr-frost-breathe 8s ease-in-out infinite;
+}
+
+.spring-root.cursor-workbench .reply-frost-flake {
+  position: absolute;
+  z-index: 5;
+  pointer-events: none;
+  line-height: 1;
+  color: rgba(47, 127, 209, 0.42);
+  text-shadow:
+    0 0 10px rgba(255, 255, 255, 0.95),
+    0 0 16px rgba(140, 195, 235, 0.5);
+  animation: mgr-frost-flake-drift 5.8s ease-in-out infinite;
+}
+
+.spring-root.cursor-workbench .reply-frost-flake-a {
+  top: 10px;
+  right: 14px;
+  font-size: 14px;
+}
+
+.spring-root.cursor-workbench .reply-frost-flake-b {
+  top: 28px;
+  right: 36px;
+  font-size: 9px;
+  opacity: 0.55;
+  animation-delay: 1.1s;
+  animation-duration: 7s;
+}
+
+.spring-root.cursor-workbench .reply-frost-flake-c {
+  bottom: 14px;
+  left: 12px;
+  font-size: 10px;
+  color: rgba(90, 160, 210, 0.38);
+  animation-delay: 0.5s;
+}
+
+/* 专业模式也露雪花头像 */
+.spring-root.mode-professional.cursor-workbench .reply-panel-avatar {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: 9px !important;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.95), rgba(190, 220, 245, 0.75)) !important;
+  border: 1px solid rgba(90, 150, 205, 0.45) !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 4px 12px rgba(40, 90, 140, 0.12) !important;
+}
+
+.spring-root.cursor-workbench .reply-panel-avatar-mark {
+  font-size: 14px !important;
+  line-height: 1 !important;
+  color: rgba(47, 127, 209, 0.85) !important;
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.9);
+}
+
+.spring-root.cursor-workbench .cosmic-bubble-user,
+.spring-root.cursor-workbench .chat-thread .cosmic-bubble-user {
+  background:
+    var(--mgr-frost-sparkle, none),
+    linear-gradient(145deg, rgba(50, 120, 195, 0.38), rgba(170, 210, 245, 0.55)) !important;
+  border: 1px solid rgba(55, 120, 175, 0.5) !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.75) inset,
+    0 10px 26px rgba(25, 70, 120, 0.16) !important;
+  backdrop-filter: blur(12px) saturate(1.25) !important;
+  -webkit-backdrop-filter: blur(12px) saturate(1.25) !important;
+}
+
+/* ── 5. 输入坞：实底霜玻璃（禁全透，避免湖面深色穿底） ── */
+.spring-root.cursor-workbench .spring-input.cosmic-input-dock,
+.spring-root.cursor-workbench.cosmic-theme .spring-input.cosmic-input-dock,
+.spring-root.mode-professional.cursor-workbench .spring-input.cosmic-input-dock {
+  position: relative !important;
+  isolation: isolate;
+  overflow: visible !important;
+  background:
+    radial-gradient(circle at 12% 18%, rgba(255, 255, 255, 0.95) 0 1px, transparent 2px),
+    linear-gradient(
+      165deg,
+      rgba(252, 254, 255, 0.94) 0%,
+      rgba(230, 242, 252, 0.9) 48%,
+      rgba(245, 250, 255, 0.94) 100%
+    ) !important;
+  border: 1px solid rgba(100, 165, 220, 0.55) !important;
+  border-radius: 16px !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.95) inset,
+    0 0 0 1px rgba(90, 150, 200, 0.2),
+    0 14px 40px rgba(20, 50, 90, 0.16) !important;
+  backdrop-filter: blur(18px) saturate(1.2) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(1.2) !important;
+}
+
+/* 输入坞角标雪花：用 ::after，与 winter-shell 一致；勿再用 inset mask 冰缘 */
+.spring-root.cursor-workbench .spring-input.cosmic-input-dock::before {
+  display: none !important;
+  content: none !important;
+}
+
+.spring-root.cursor-workbench .spring-input.cosmic-input-dock::after,
+.spring-root.cursor-workbench.cosmic-theme .spring-input.cosmic-input-dock::after {
+  content: "❄" !important;
+  display: block !important;
+  position: absolute !important;
+  top: -8px !important;
+  right: 18px !important;
+  inset: auto !important;
+  z-index: 5 !important;
+  width: auto !important;
+  height: auto !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  font-size: 14px !important;
+  line-height: 1 !important;
+  color: rgba(47, 127, 209, 0.5) !important;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.9) !important;
+  background: none !important;
+  -webkit-mask: none !important;
+  mask: none !important;
+  opacity: 1 !important;
+  animation: mgr-frost-flake-drift 6.5s ease-in-out infinite 0.4s !important;
+  pointer-events: none !important;
+}
+
+/* ── 6. 按钮 / 分段：冰晶 hover ── */
+.spring-root.cursor-workbench .spring-btn:not(.alt),
+.spring-root.cursor-workbench .spring-btn-send-cancel,
+.spring-root.cursor-workbench .plan-mode-primary,
+.spring-root.cursor-workbench .brand-send-fab,
+.spring-root.cursor-workbench .ch-send-fab {
+  background: linear-gradient(
+    120deg,
+    #2a74c4 0%,
+    #4a9ae0 35%,
+    #2f7fd1 55%,
+    #5eb0ef 100%
+  ) !important;
+  background-size: 200% 100% !important;
+  border: 1px solid rgba(180, 220, 255, 0.45) !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.45) inset,
+    0 4px 14px rgba(30, 90, 160, 0.28) !important;
+  animation: mgr-ice-btn-sheen 7s linear infinite;
+}
+
+.spring-root.cursor-workbench .spring-btn.alt:hover:not(:disabled),
+.spring-root.cursor-workbench .spring-attach-btn:hover:not(:disabled),
+.spring-root.cursor-workbench .spring-history-action-btn:hover:not(:disabled),
+.spring-root.cursor-workbench .composer-icon-btn:hover:not(:disabled) {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(220, 238, 255, 0.9)) !important;
+  border-color: rgba(70, 150, 220, 0.62) !important;
+  box-shadow:
+    0 0 0 1px rgba(120, 185, 235, 0.35),
+    0 0 18px rgba(140, 195, 240, 0.35) !important;
+  color: #0e4a86 !important;
+}
+
+.spring-root.cursor-workbench .spring-seg button.is-active,
+.spring-root.cursor-workbench .spring-seg-btn.is-active,
+.spring-root.cursor-workbench .spring-history-mode-btn.is-active {
+  background:
+    linear-gradient(180deg, rgba(230, 244, 255, 0.95), rgba(200, 226, 250, 0.85)) !important;
+  color: #0e4a86 !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 0 0 1px rgba(90, 150, 210, 0.35) !important;
+}
+
+/* ── 7. 空态 / 示例 / 活动条 ── */
+.spring-root.cursor-workbench .spring-examples,
+.spring-root.cursor-workbench .cosmic-chat-empty,
+.spring-root.cursor-workbench .turn-activity,
+.spring-root.cursor-workbench .cursor-thought-panel.process-panel,
+.spring-root.cursor-workbench .harness-status-pill {
+  background:
+    radial-gradient(circle at 12% 16%, rgba(255, 255, 255, 0.7) 0 1px, transparent 2px),
+    linear-gradient(165deg, rgba(255, 255, 255, 0.82), rgba(225, 238, 250, 0.7)) !important;
+  border: 1px solid rgba(110, 165, 215, 0.4) !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.85) inset,
+    0 8px 24px rgba(25, 55, 95, 0.08) !important;
+  backdrop-filter: blur(12px) saturate(1.15) !important;
+  -webkit-backdrop-filter: blur(12px) saturate(1.15) !important;
+}
+
+.spring-root.cursor-workbench .turn-activity.is-running {
+  border-color: rgba(47, 127, 209, 0.55) !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 0 24px rgba(100, 175, 235, 0.28) !important;
+}
+
+/* 历史项 hover 霜亮 */
+.spring-root.cursor-workbench .spring-history-item:hover,
+.spring-root.cursor-workbench .history-item:hover {
+  background: rgba(255, 255, 255, 0.72) !important;
+  border-color: rgba(90, 150, 210, 0.35) !important;
+  box-shadow: 0 0 16px rgba(140, 195, 235, 0.2);
+}
+
+/* ── 8. 可读性兜底：霜底上深字 ── */
+.spring-root.cursor-workbench .reply-chat,
+.spring-root.cursor-workbench .md-body.reply-chat,
+.spring-root.cursor-workbench .reply-chat .md-p,
+.spring-root.cursor-workbench .spring-history-item,
+.spring-root.cursor-workbench .spring-title {
+  color: #0a1a28 !important;
+}
+
+.spring-root.cursor-workbench .chat-text-secondary,
+.spring-root.cursor-workbench .spring-brand-sub {
+  color: #2a4560 !important;
+}
+
+/* 长线程：气泡可关 blur 减 GPU（保留冰缘/雪花） */
+@media (min-width: 1px) {
+  .spring-root.cursor-workbench .chat-thread .reply-panel-inner.cosmic-bubble-reply,
+  .spring-root.cursor-workbench .chat-thread .cosmic-bubble-user {
+    backdrop-filter: blur(8px) saturate(1.1) !important;
+    -webkit-backdrop-filter: blur(8px) saturate(1.1) !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spring-root.cursor-workbench .spring-topbar::after,
+  .spring-root.cursor-workbench .spring-history-sidebar::after,
+  .spring-root.cursor-workbench .spring-sidebar::after,
+  .spring-root.cursor-workbench .reply-panel-inner.cosmic-bubble-reply::after,
+  .spring-root.cursor-workbench .spring-input.cosmic-input-dock::after,
+  .spring-root.cursor-workbench .spring-btn:not(.alt),
+  .spring-root.cursor-workbench .spring-btn-send-cancel,
+  .spring-root.cursor-workbench .plan-mode-primary,
+  .spring-root.cursor-workbench .reply-panel-inner.cosmic-bubble-reply,
+  .spring-root.cursor-workbench .reply-frost-flake,
+  .spring-root.cursor-workbench .spring-topbar::before,
+  .spring-root.cursor-workbench .spring-history-sidebar::before,
+  .spring-root.cursor-workbench .spring-sidebar::before,
+  .spring-root.cursor-workbench .spring-input.cosmic-input-dock::before,
+  .manager-shell .brand-motif-snow__flake {
+    animation: none !important;
+  }
+}

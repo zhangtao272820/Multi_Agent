@@ -1,5 +1,7 @@
 import type { ComputedRef, InjectionKey, Ref } from 'vue'
-import type { CollaborationPosture, PlanStepTodo } from './managerChatTypes'
+import type { CollaborationPosture, PlanStepTodo, TurnGroup } from './managerChatTypes'
+import type { TaskBoardItemUi } from './managerMaturityUi'
+import type { PipelineStepLike } from '~/utils/turnActivity'
 
 export type SidebarRunPhaseItem = { phase?: string; agent?: string; ms: number }
 export type TaskStatus = 'active' | 'paused' | 'done' | string
@@ -13,6 +15,13 @@ export type ManagerWorkbenchSidebarContext = {
     items: import('./managerMaturityUi').TaskBoardItemUi[]
     topology: string
   } | null>
+  /** 侧栏专才卡：当前进度轮 */
+  sidebarLiveTurn: ComputedRef<TurnGroup | null>
+  sidebarSpecialistSteps: ComputedRef<PipelineStepLike[]>
+  sidebarSpecialistRouteAgents: ComputedRef<string[]>
+  sidebarSpecialistBoardItems: ComputedRef<TaskBoardItemUi[]>
+  sidebarSpecialistRunning: ComputedRef<boolean>
+  agentPipelineStatusLabel: (status: string) => string
   maturitySliLive: Ref<import('./managerMaturityUi').MaturitySliUi | null>
   routeCapLive: Ref<{ intent: string; agents: string[]; capLabel: string; dag?: string } | null>
   agentDisplayLabel: (agent: string, professional?: boolean) => string

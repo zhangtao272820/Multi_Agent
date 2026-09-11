@@ -48,8 +48,11 @@ services:
       MGR_TENANT_FAIL_CLOSED: ${MGR_TENANT_FAIL_CLOSED:-1}
       MGR_TENANT_SCOPE: ${MGR_TENANT_SCOPE:-1}
       MANAGER_REQUEST_RATE_PER_MIN: ${MANAGER_REQUEST_RATE_PER_MIN:-60}
-      MANAGER_MAX_INFLIGHT_RUNS: ${MANAGER_MAX_INFLIGHT_RUNS:-3}
-      MANAGER_MAX_INFLIGHT_PER_EXPERT: ${MANAGER_MAX_INFLIGHT_PER_EXPERT:-1}
+      MANAGER_MAX_INFLIGHT_RUNS: ${MANAGER_MAX_INFLIGHT_RUNS:-8}
+      MANAGER_MAX_INFLIGHT_PER_TENANT: ${MANAGER_MAX_INFLIGHT_PER_TENANT:-2}
+      MANAGER_MAX_INFLIGHT_PER_EXPERT: ${MANAGER_MAX_INFLIGHT_PER_EXPERT:-2}
+      MANAGER_ADMISSION_QUEUE_MAX: ${MANAGER_ADMISSION_QUEUE_MAX:-100}
+      MANAGER_ADMISSION_WAIT_MS: ${MANAGER_ADMISSION_WAIT_MS:-120000}
       MANAGER_RUN_MAX_TOKENS: ${MANAGER_RUN_MAX_TOKENS:-80000}
       MANAGER_MAX_RETRY: ${MANAGER_MAX_RETRY:-1}
       MANAGER_EXPERT_TRANSPORT_RETRIES: ${MANAGER_EXPERT_TRANSPORT_RETRIES:-1}
@@ -74,6 +77,14 @@ services:
           memory: 512M
 
   rag_agent:
+    environment:
+      AGENT_SECURITY_PROFILE: ${AGENT_SECURITY_PROFILE:-enterprise}
+      RAG_ASYNC_INGEST: ${RAG_ASYNC_INGEST:-1}
+      RAG_CHAT_MAX_INFLIGHT: ${RAG_CHAT_MAX_INFLIGHT:-6}
+      RAG_CHAT_MAX_INFLIGHT_PER_TENANT: ${RAG_CHAT_MAX_INFLIGHT_PER_TENANT:-2}
+      RAG_INGEST_MAX_INFLIGHT: ${RAG_INGEST_MAX_INFLIGHT:-2}
+      RAG_INGEST_MAX_INFLIGHT_PER_TENANT: ${RAG_INGEST_MAX_INFLIGHT_PER_TENANT:-1}
+      RAG_MINERU_MAX_INFLIGHT: ${RAG_MINERU_MAX_INFLIGHT:-1}
     deploy:
       resources:
         limits:
@@ -81,6 +92,46 @@ services:
           memory: 1536M
         reservations:
           memory: 256M
+
+  rag_ingest_worker:
+    environment:
+      RAG_ASYNC_INGEST: ${RAG_ASYNC_INGEST:-1}
+      RAG_INGEST_MAX_INFLIGHT: ${RAG_INGEST_MAX_INFLIGHT:-2}
+      RAG_INGEST_MAX_INFLIGHT_PER_TENANT: ${RAG_INGEST_MAX_INFLIGHT_PER_TENANT:-1}
+      RAG_MINERU_MAX_INFLIGHT: ${RAG_MINERU_MAX_INFLIGHT:-1}
+    deploy:
+      resources:
+        limits:
+          cpus: "1.5"
+          memory: 1536M
+        reservations:
+          memory: 256M
+
+  ai_admin_agent:
+    environment:
+      ADMIN_MAX_INFLIGHT: ${ADMIN_MAX_INFLIGHT:-4}
+      ADMIN_MAX_INFLIGHT_PER_TENANT: ${ADMIN_MAX_INFLIGHT_PER_TENANT:-1}
+      REDIS_URL: ${REDIS_URL:-redis://clawhive_redis:6379/0}
+    deploy:
+      resources:
+        limits:
+          cpus: "1.5"
+          memory: 1536M
+        reservations:
+          memory: 256M
+
+  lobster_agent:
+    environment:
+      GUI_MAX_INFLIGHT: ${GUI_MAX_INFLIGHT:-2}
+      GUI_MAX_INFLIGHT_PER_TENANT: ${GUI_MAX_INFLIGHT_PER_TENANT:-1}
+      GUI_HITL_SOFT_HOLD_MS: ${GUI_HITL_SOFT_HOLD_MS:-900000}
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+        reservations:
+          memory: 512M
 
   vanna_db_agent:
     deploy:

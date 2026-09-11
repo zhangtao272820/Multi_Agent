@@ -45,6 +45,28 @@ assert(
   'deps → hub'
 )
 assert(resolveExecutionTopology({ executionTopology: 'solo', isMulti: true }) === 'solo', 'LLM force solo')
+assert(resolveExecutionTopology({ executionTopology: 'parallel_hub', isMulti: true }) === 'hub', 'alias parallel_hub→hub')
+assert(resolveExecutionTopology({ executionTopology: 'fanout', isMulti: true }) === 'parallel', 'alias fanout→parallel')
+
+{
+  const { coerceExecutionTopology } = await import('../../../server/graph/core/plan/executionTopology')
+  const { coerceTaskIntent, TaskOrchestratorSchema } = await import(
+    '../../../server/graph/llm/taskOrchestrator/schemas'
+  )
+  assert(coerceExecutionTopology('parallel_hub') === 'hub', 'coerce parallel_hub')
+  assert(coerceTaskIntent('hybrid_multi_source_analysis') === 'hybrid', 'coerce hybrid invent')
+  const parsed = TaskOrchestratorSchema.safeParse({
+    clauses: [{ text: '知识库与数据库对照并出图' }],
+    routedQuery: '知识库与数据库对照并出图',
+    taskIntent: 'hybrid_multi_source_analysis',
+    executionTopology: 'parallel_hub',
+    allowedAgents: ['rag', 'db', 'code'],
+    suggestedAgents: ['rag', 'db', 'code']
+  })
+  assert(parsed.success, `schema must accept near-miss enums: ${parsed.success ? '' : parsed.error.message}`)
+  assert(parsed.success && parsed.data.taskIntent === 'hybrid', 'parsed taskIntent hybrid')
+  assert(parsed.success && parsed.data.executionTopology === 'hub', 'parsed topology hub')
+}
 
 {
   const steps = [

@@ -4,6 +4,10 @@
  */
 import type { AgentResult, SpecialistHandoff } from './types'
 import { clipHandoffSummary, handoffSummaryMaxChars } from '../../graph/core/shared/promptBudget'
+import {
+  formatMultimodalStructuredDigest,
+  normalizeMultimodalStructured
+} from '#agent-shared/multimodalStructuredHandoff'
 
 const RAW_STORE_MAX = 12000
 
@@ -106,6 +110,14 @@ export function buildSpecialistHandoffFromStep(input: HandoffBuildInput): Specia
     if (ar?.handoff?.summary) summary = trimSummary(ar.handoff.summary)
     if (!summary) summary = trimSummary(rawFull)
     if (!summary) summary = `${agent} 已完成`
+    // multimodal：把 entities/metrics/OCR 确定性挂进摘要，供下游 dependsOn 消费
+    if (agent === 'multimodal') {
+      const mm = normalizeMultimodalStructured(ar?.structured)
+      const digest = formatMultimodalStructuredDigest(mm, 200)
+      if (digest && !summary.includes(digest.slice(0, Math.min(24, digest.length)))) {
+        summary = trimSummary(`${summary}｜${digest}`)
+      }
+    }
   }
   summary = clipHandoffSummary(summary)
 

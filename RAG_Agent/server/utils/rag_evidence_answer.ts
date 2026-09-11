@@ -7,9 +7,10 @@ import { getRagAgentEnv, ragFastJudgeModelName } from "./rag_agent_env";
 import type { EvidenceItem } from "./retrieval_shared";
 import {
   scoreTextOverlap,
-  scoreDocByQueryTerms,
-  tokenizeForKeywordSearch,
   prioritizeEvidenceBySubQueries,
+  distinctiveSubQueryTerms,
+  listUncoveredSubQueries,
+  areNearDuplicatePolicyDocNames,
 } from "./retrieval_shared";
 
 export { prioritizeEvidenceBySubQueries } from "./retrieval_shared";
@@ -44,12 +45,83 @@ const NEGATIVE_ANSWER_MARKERS = [
   "未包含",
   "没有写明",
   "未写明",
+  "文档未写",
+  "文档中没有",
+  "暂时没有",
+];
+
+/** 假未提及改写用（含「未规定」；不进全局 miss 检测，避免 §10 合法拒答误触发） */
+const ABSENT_CLAIM_MARKERS = [
+  ...NEGATIVE_ANSWER_MARKERS,
+  "未规定",
+  "没有规定",
 ];
 
 export function answerLooksLikeRetrievalMiss(answer: string): boolean {
   const a = String(answer ?? "").trim();
   if (!a || a.length < 8) return true;
   return NEGATIVE_ANSWER_MARKERS.some((m) => a.includes(m));
+}
+
+/**
+ * 证据已覆盖某子问时，删除对该子题的「未提及/未规定」假阴性句。
+ * 「规范未规定」仅当证据未覆盖该子问时才允许保留。
+ */
+export function rewriteContradictoryAbsentClaims(
+  answer: string,
+  evidence: EvidenceItem[],
+  subQueries: string[],
+): string {
+  const raw = String(answer ?? "").trim();
+  if (!raw || !evidence.length) return raw;
+  const parts = (subQueries || []).map((q) => String(q || "").trim()).filter((q) => q.length >= 4);
+  if (parts.length < 2) return raw;
+
+  const corpus = evidence.map((e) => String(e.content ?? "")).join("\n");
+  const sentences = raw.split(/(?<=[。！？!?\n])/).map((s) => s.trim()).filter(Boolean);
+  if (sentences.length < 1) return raw;
+
+  const kept: string[] = [];
+  for (const sent of sentences) {
+    const isNeg = ABSENT_CLAIM_MARKERS.some((m) => sent.includes(m));
+    if (!isNeg) {
+      kept.push(sent);
+      continue;
+    }
+    // 否定句若点到「已被证据覆盖」的子题主题 → 丢弃该句
+    let contradictsCovered = false;
+    for (const sq of parts) {
+      const terms = distinctiveSubQueryTerms(sq, parts);
+      const covered = terms.some((t) => t.length >= 2 && corpus.includes(t));
+      if (!covered) continue;
+      if (terms.some((t) => t.length >= 2 && sent.includes(t))) {
+        contradictsCovered = true;
+        break;
+      }
+    }
+    if (!contradictsCovered) kept.push(sent);
+  }
+
+  const joined = kept.join("").trim();
+  if (joined.length >= 8) return joined;
+  return raw;
+}
+
+/** 子问仍未覆盖时，不得用「规范未规定」冒充拒答；改为检索未覆盖提示 */
+export function appendUncoveredSubQueryHint(
+  answer: string,
+  evidence: EvidenceItem[],
+  subQueries: string[],
+): string {
+  const uncovered = listUncoveredSubQueries(evidence, subQueries);
+  if (!uncovered.length) return String(answer ?? "").trim();
+  const base = String(answer ?? "").trim();
+  const hint = `另有子问题检索未覆盖（${uncovered
+    .map((q) => q.slice(0, 24))
+    .join("；")}），请换问法或指定章节，勿将此视为「规范未规定」。`;
+  if (!base) return hint;
+  if (base.includes("检索未覆盖")) return base;
+  return `${base}\n\n${hint}`;
 }
 
 /** 有证据时剥离开头假「未找到」句，保留实质回答（确定性，非用户原话 regex 路由） */
@@ -140,9 +212,14 @@ export function prioritizeEvidenceForGeneration(
   const sourceRank = [...bySource.entries()].sort((a, b) => b[1].total - a[1].total);
   const dominant = sourceRank[0];
   const runner = sourceRank[1];
+  // 近义政策对（验收 md ↔ 规范 docx）：禁止分数略胜就塌成单源
+  const nearDupPolicyPair =
+    Boolean(dominant && runner) &&
+    areNearDuplicatePolicyDocNames(String(dominant![0]), String(runner![0]));
   // 仅当主导源显著领先时塌缩；假阴性再检可 forceMultiSource 禁止塌缩
   const dominantWins =
     !opts?.forceMultiSource &&
+    !nearDupPolicyPair &&
     Boolean(dominant) &&
     dominant![1].total > 0 &&
     (!runner || dominant![1].total >= runner[1].total * 1.35);
@@ -266,10 +343,16 @@ export async function finalizeRagAnswerWithEvidenceGuard(input: {
   effectiveQuery: string;
   evidence: EvidenceItem[];
   draftAnswer: string;
+  /** 复合问子句：用于禁假未提及 / 未覆盖提示 */
+  subQueries?: string[];
 }): Promise<string> {
   let answer = String(input.draftAnswer ?? "").trim();
   if (!input.evidence.length) return answer;
+  const subs = input.subQueries || [];
   answer = stripContradictoryMissWhenEvidencePresent(answer, input.evidence.length);
+  if (subs.length >= 2) {
+    answer = rewriteContradictoryAbsentClaims(answer, input.evidence, subs);
+  }
   if (answerLooksLikeRetrievalMiss(answer)) {
     try {
       const extracted = await extractAnswerFromEvidence({
@@ -286,7 +369,11 @@ export async function finalizeRagAnswerWithEvidenceGuard(input: {
   }
 
   const env = getRagAgentEnv();
-  if (!env.enableCitationGuard) return answer;
+  if (!env.enableCitationGuard) {
+    return subs.length >= 2
+      ? appendUncoveredSubQueryHint(answer, input.evidence, subs)
+      : answer;
+  }
 
   let grounded = checkAnswerGroundedInEvidence(answer, input.evidence);
   if (!grounded.ok && !answerLooksLikeRetrievalMiss(answer)) {
@@ -307,7 +394,12 @@ export async function finalizeRagAnswerWithEvidenceGuard(input: {
   if (!grounded.ok) {
     return buildEvidenceOnlyFallback(input.question || input.effectiveQuery, input.evidence, grounded.missing);
   }
-  return stripContradictoryMissWhenEvidencePresent(answer, input.evidence.length);
+  answer = stripContradictoryMissWhenEvidencePresent(answer, input.evidence.length);
+  if (subs.length >= 2) {
+    answer = rewriteContradictoryAbsentClaims(answer, input.evidence, subs);
+    answer = appendUncoveredSubQueryHint(answer, input.evidence, subs);
+  }
+  return answer;
 }
 
 export function buildGenerateQuestionForRag(input: {

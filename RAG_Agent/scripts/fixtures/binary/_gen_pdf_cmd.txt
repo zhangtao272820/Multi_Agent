@@ -1,0 +1,1 @@
+python "E:\\Agent\\RAG_Agent\\scripts\\fixtures\\binary\\_gen_acceptance_pdf.py" "E:\\Agent\\RAG_Agent\\scripts\\fixtures\\binary\\_acceptance_pdf_src.txt" "E:\\Agent\\RAG_Agent\\data\\testdata\\养老机构服务规范-验收用-v3.2.pdf"

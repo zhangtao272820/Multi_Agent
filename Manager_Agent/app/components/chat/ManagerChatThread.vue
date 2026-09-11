@@ -47,7 +47,6 @@ const {
   pendingPlanPreview,
   workbenchMode,
   planAgentLabel,
-  taskBoardLive,
   turnTaskBoardForDisplay,
   agentPipelineStatusLabel,
   turnRoutePlanCard,
@@ -323,7 +322,7 @@ watch(streamingSynthText, async () => {
               >{{ thoughtPanelPreview(t) }}</span>
             </summary>
             <div class="process-panel-body process-panel-scroll">
-              <div class="harness-think" aria-label="思考进展">
+              <div class="harness-think harness-think-agent" aria-label="思考进展">
                 <div
                   v-if="turnThoughtStages(t).length"
                   class="harness-think-stages"
@@ -337,14 +336,14 @@ watch(streamingSynthText, async () => {
                       'is-active': si === turnThoughtStages(t).length - 1 && isTurnRunning(t),
                       'is-done': si < turnThoughtStages(t).length - 1 || !isTurnRunning(t)
                     }"
-                    :open="si === turnThoughtStages(t).length - 1 && isTurnRunning(t)"
+                    :open="si === turnThoughtStages(t).length - 1"
                   >
                     <summary class="harness-think-stage-sum">
                       <span class="harness-think-stage-dot" aria-hidden="true"></span>
                       <span class="harness-think-stage-label">{{ stage.label }}</span>
                       <span v-if="stage.secs != null" class="harness-think-stage-secs">{{ stage.secs }}s</span>
                     </summary>
-                    <div class="harness-think-stage-body">{{ stage.text }}</div>
+                    <div v-if="stage.text" class="harness-think-stage-body">{{ stage.text }}</div>
                   </details>
                 </div>
                 <div
@@ -402,24 +401,27 @@ watch(streamingSynthText, async () => {
             </div>
           </details>
 
-          <ManagerTaskBoardPanel
-            v-if="turnTaskBoardForDisplay(t)?.items?.length"
-            class="mgr-task-board-in-thread"
-            compact
-            :items="turnTaskBoardForDisplay(t)!.items"
-            :topology="turnTaskBoardForDisplay(t)!.topology"
-            :plan-agent-label="planAgentLabel"
-          />
-
-          <ManagerSpecialistCards
-            v-if="turnRouteCap(t)?.agents?.length || turnAgentPipelineSteps(t).length"
-            :turn="t"
-            :running="isTurnRunning(t)"
-            :steps="turnAgentPipelineSteps(t)"
-            :route-agents="turnRouteCap(t)?.agents"
-            :board-items="turnTaskBoardForDisplay(t)?.items"
-            :status-label="agentPipelineStatusLabel"
-          />
+          <template v-for="board in [turnTaskBoardForDisplay(t)]" :key="`${t.id}-board`">
+            <ManagerTaskBoardPanel
+              v-if="board?.items?.length"
+              class="mgr-task-board-in-thread"
+              compact
+              :items="board.items"
+              :topology="board.topology"
+              :plan-agent-label="planAgentLabel"
+            />
+            <ManagerSpecialistCards
+              v-if="turnRouteCap(t)?.agents?.length || turnAgentPipelineSteps(t).length"
+              class="mgr-tool-rail-in-thread"
+              compact
+              :turn="t"
+              :running="isTurnRunning(t)"
+              :steps="turnAgentPipelineSteps(t)"
+              :route-agents="turnRouteCap(t)?.agents"
+              :board-items="board?.items"
+              :status-label="agentPipelineStatusLabel"
+            />
+          </template>
           </div>
 
           <div
@@ -432,9 +434,12 @@ watch(streamingSynthText, async () => {
             ]"
           >
             <div class="spring-log-bubble reply-panel-inner cosmic-bubble-reply">
+              <span class="reply-frost-flake reply-frost-flake-a" aria-hidden="true">❄</span>
+              <span class="reply-frost-flake reply-frost-flake-b" aria-hidden="true">❄</span>
+              <span class="reply-frost-flake reply-frost-flake-c" aria-hidden="true">✧</span>
               <header class="reply-panel-header">
                 <div class="reply-panel-avatar" aria-hidden="true">
-                  <span class="reply-panel-avatar-mark">答</span>
+                  <span class="reply-panel-avatar-mark">❄</span>
                 </div>
                 <div class="reply-panel-header-body">
                   <div class="reply-panel-header-top">
@@ -486,9 +491,12 @@ watch(streamingSynthText, async () => {
             ]"
           >
             <div class="spring-log-bubble reply-panel-inner cosmic-bubble cosmic-bubble-reply">
+              <span class="reply-frost-flake reply-frost-flake-a" aria-hidden="true">❄</span>
+              <span class="reply-frost-flake reply-frost-flake-b" aria-hidden="true">❄</span>
+              <span class="reply-frost-flake reply-frost-flake-c" aria-hidden="true">✧</span>
               <header class="reply-panel-header">
                 <div class="reply-panel-avatar" aria-hidden="true">
-                  <span class="reply-panel-avatar-mark">答</span>
+                  <span class="reply-panel-avatar-mark">❄</span>
                 </div>
                 <div class="reply-panel-header-body">
                   <div class="reply-panel-header-top">

@@ -49,10 +49,12 @@ export default defineNuxtConfig({
     '~/assets/css/manager-hitl-panels.css',
     /* 雪景高对比深字：最后加载，压过深色主题浅青残留 */
     '~/assets/css/manager-winter-balance.css',
-    /* 主题层：废节气身份，高对比 Harness 风编排台 */
+    /* 主题层：冷蓝编排台（冬景透底 + 高对比字色） */
     '~/assets/css/manager-theme.css',
     /* 精致浅色高级层：故事线 / 姿态 / 观测仪表 */
     '~/assets/css/manager-premium-harness.css',
+    /* 霜化点缀终裁：雪花 / 冰缘 / 玻璃（压过 brand hide + theme 实底） */
+    '~/assets/css/manager-frost-fx.css',
   ],
   compatibilityDate: '2025-07-15',
   devtools: { enabled: process.env.NODE_ENV !== 'production' },

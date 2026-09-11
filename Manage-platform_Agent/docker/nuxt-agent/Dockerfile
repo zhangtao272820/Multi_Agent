@@ -34,6 +34,12 @@ ENV NODE_ENV=production \
     NITRO_PORT=${DEFAULT_PORT}
 COPY --from=build /app/.output ./.output
 COPY --from=build /app/.runtime-bundle/ ./
+# SheetJS(xlsx)：nitro 构建偶发把 cpexcel 打成绝对路径 /app/node_modules/xlsx/...
+# 生产阶段仅有 .output，需把同名路径落盘，否则 Excel 上传 500。
+RUN mkdir -p /app/node_modules && \
+  if [ -d /app/.output/server/node_modules/xlsx ]; then \
+    cp -a /app/.output/server/node_modules/xlsx /app/node_modules/; \
+  fi
 EXPOSE ${DEFAULT_PORT}
 HEALTHCHECK --interval=15s --timeout=5s --start-period=45s --retries=6 \
   CMD node -e "const p=process.env.PORT||process.env.NITRO_PORT||13100;const ok=s=>process.exit(s<500?0:1);require('http').get('http://127.0.0.1:'+p+'/api/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>require('http').get('http://127.0.0.1:'+p,ok).on('error',()=>process.exit(1)))"

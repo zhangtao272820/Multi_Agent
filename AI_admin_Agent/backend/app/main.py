@@ -1627,49 +1627,72 @@ async def websocket_endpoint(websocket: WebSocket):
                     ),
                     websocket,
                 )
-                try:
-                    final_result = await asyncio.wait_for(
-                        asyncio.to_thread(
-                            run_agent_graph_stream,
-                            agent_graph,
-                            initial_state,
-                            stream_kwargs,
-                            on_thought=_push_thought,
-                            on_node=lambda n: print(f"DEBUG: node {n} emitted state delta"),
-                            cancel_token=turn_cancel,
-                        ),
-                        timeout=turn_timeout,
-                    )
-                except asyncio.TimeoutError:
-                    # 先置取消，堵住线程内后续孤儿写；再必回 error，避免总管空等
-                    cancel_admin_turn()
-                    err = f"处理超时（{turn_timeout:.0f}s 未完成）。请稍后重试，或简化任务后重发。"
-                    latency_ms = int((time.time() - started) * 1000)
-                    agent_result = build_admin_agent_result(
-                        err,
-                        trace_id=trace_id,
-                        latency_ms=latency_ms,
-                        error_code="timeout",
-                        structured={"timeout_sec": turn_timeout},
-                    )
-                    append_agent_trace_log(
-                        agent="admin",
-                        path="/api/chat/ws",
-                        trace_id=trace_id,
-                        ok=False,
-                        latency_ms=latency_ms,
-                    )
+                from app.core.admin_inflight import try_acquire_admin_slots, release_admin_slots, read_admin_max
+
+                _adm_ok, _adm_reason = try_acquire_admin_slots(
+                    pool="admin",
+                    tenant_id=str(tenant_id or "default"),
+                    max_global=read_admin_max("ADMIN_MAX_INFLIGHT", 0),
+                    max_per_tenant=read_admin_max("ADMIN_MAX_INFLIGHT_PER_TENANT", 0),
+                )
+                if not _adm_ok:
                     await manager.send_personal_message(
                         json.dumps(
                             {
                                 "type": "error",
-                                "error": err,
-                                "agentResult": agent_result,
+                                "error": _adm_reason or "Admin 繁忙，请稍后重试",
+                                "error_code": "overloaded",
                             }
                         ),
                         websocket,
                     )
                     continue
+                try:
+                    try:
+                        final_result = await asyncio.wait_for(
+                            asyncio.to_thread(
+                                run_agent_graph_stream,
+                                agent_graph,
+                                initial_state,
+                                stream_kwargs,
+                                on_thought=_push_thought,
+                                on_node=lambda n: print(f"DEBUG: node {n} emitted state delta"),
+                                cancel_token=turn_cancel,
+                            ),
+                            timeout=turn_timeout,
+                        )
+                    except asyncio.TimeoutError:
+                        # 先置取消，堵住线程内后续孤儿写；再必回 error，避免总管空等
+                        cancel_admin_turn()
+                        err = f"处理超时（{turn_timeout:.0f}s 未完成）。请稍后重试，或简化任务后重发。"
+                        latency_ms = int((time.time() - started) * 1000)
+                        agent_result = build_admin_agent_result(
+                            err,
+                            trace_id=trace_id,
+                            latency_ms=latency_ms,
+                            error_code="timeout",
+                            structured={"timeout_sec": turn_timeout},
+                        )
+                        append_agent_trace_log(
+                            agent="admin",
+                            path="/api/chat/ws",
+                            trace_id=trace_id,
+                            ok=False,
+                            latency_ms=latency_ms,
+                        )
+                        await manager.send_personal_message(
+                            json.dumps(
+                                {
+                                    "type": "error",
+                                    "error": err,
+                                    "agentResult": agent_result,
+                                }
+                            ),
+                            websocket,
+                        )
+                        continue
+                finally:
+                    release_admin_slots(pool="admin", tenant_id=str(tenant_id or "default"))
             finally:
                 set_admin_thought_callback(None)
                 clear_admin_turn_cancel()
@@ -1809,6 +1832,21 @@ async def chat_endpoint(request: ChatRequest, _: None = Depends(verify_internal_
         invoke_kwargs = {"config": graph_config} if graph_config else {}
         turn_timeout = admin_ws_turn_timeout_sec()
         turn_cancel = begin_admin_turn_cancel()
+        from app.core.admin_inflight import try_acquire_admin_slots, release_admin_slots, read_admin_max
+        from app.core.tenant_scope import require_request_scope
+
+        try:
+            _tid, _ = require_request_scope()
+        except Exception:
+            _tid = "default"
+        _ok, _reason = try_acquire_admin_slots(
+            pool="admin",
+            tenant_id=_tid,
+            max_global=read_admin_max("ADMIN_MAX_INFLIGHT", 0),
+            max_per_tenant=read_admin_max("ADMIN_MAX_INFLIGHT_PER_TENANT", 0),
+        )
+        if not _ok:
+            raise HTTPException(status_code=429, detail=_reason or "Admin busy")
         try:
             result = await asyncio.wait_for(
                 asyncio.to_thread(
@@ -1827,6 +1865,7 @@ async def chat_endpoint(request: ChatRequest, _: None = Depends(verify_internal_
                 detail=f"处理超时（{turn_timeout:.0f}s 未完成）。请稍后重试。",
             )
         finally:
+            release_admin_slots(pool="admin", tenant_id=_tid)
             clear_admin_turn_cancel()
         response_text = _graph_response_text(result)
         tokens_used = _calc_total_tokens(result, request.message, response_text)

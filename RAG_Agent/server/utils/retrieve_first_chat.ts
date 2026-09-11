@@ -8,12 +8,17 @@ import { buildGeneratePromptTemplate, wrapRagUntrustedContext } from "./rag_play
 import { getRagPromptPatchesForStage } from "./prompt_evolution";
 import { resolvePromptAbVariant } from "./prompt_ab_router";
 import type { EvidenceItem } from "./retrieval_shared";
-import { parseClarifyMessageFromTool } from "./retrieval_shared";
+import {
+  parseClarifyMessageFromTool,
+  evidenceCoversSubQueries,
+  mergeVersionConflictEvidence,
+} from "./retrieval_shared";
+import { backfillStaleVersionEvidence } from "./version_conflict_backfill";
+import { ensureMultiSourceEvidenceSlots } from "./multi_source_evidence";
 import { getUploadedDocuments } from "./vectorStore";
 import { getRagRequestIntent, type RagIntentJudgment } from "./doc_scope_judge";
 import { getRagMergedUnderstand, getRagPrefetchedUnderstand } from "./retrieval_context";
 import { heuristicRagQueryPlan, isMultiPartRagQuery, resolveCompoundSubQueries } from "./query_plan";
-import { evidenceCoversSubQueries } from "./retrieval_shared";
 import {
   buildModeEscalation,
   modeWorkflowLabel,
@@ -485,6 +490,7 @@ export async function runRetrieveFirstChatStream(
     effectiveQuery: string,
     opts?: { forceMultiSource?: boolean },
   ) => {
+    let focused: EvidenceItem[];
     if (isMultiPartFinal && subQueriesFinal.length >= 2) {
       const slotted = prioritizeEvidenceBySubQueries(
         subQueriesFinal,
@@ -512,12 +518,12 @@ export async function runRetrieveFirstChatStream(
           seen.add(key);
           merged.push(item);
         }
-        return merged;
+        focused = merged;
+      } else {
+        focused = slotted;
       }
-      return slotted;
-    }
-    if (skipEvidenceFocus) {
-      return prioritizeEvidenceForGeneration(
+    } else if (skipEvidenceFocus) {
+      focused = prioritizeEvidenceForGeneration(
         input.sanitizedMessage,
         effectiveQuery || input.sanitizedMessage,
         ev,
@@ -525,9 +531,8 @@ export async function runRetrieveFirstChatStream(
         docs,
         opts,
       );
-    }
-    if (opts?.forceMultiSource) {
-      return prioritizeEvidenceForGeneration(
+    } else if (opts?.forceMultiSource) {
+      focused = prioritizeEvidenceForGeneration(
         input.sanitizedMessage,
         effectiveQuery || input.sanitizedMessage,
         ev,
@@ -535,14 +540,27 @@ export async function runRetrieveFirstChatStream(
         docs,
         { forceMultiSource: true },
       );
+    } else {
+      focused = await focusEvidenceForGeneration(
+        input.sanitizedMessage,
+        effectiveQuery || input.sanitizedMessage,
+        ev,
+        env.maxContextSnippets,
+        docs,
+      );
     }
-    return focusEvidenceForGeneration(
-      input.sanitizedMessage,
-      effectiveQuery || input.sanitizedMessage,
+    const withSources = ensureMultiSourceEvidenceSlots(
+      focused,
       ev,
+      effectiveQuery || input.sanitizedMessage,
+      isMultiPartFinal ? subQueriesFinal : [],
       env.maxContextSnippets,
-      docs,
     );
+    const pool = await backfillStaleVersionEvidence({
+      focused: withSources,
+      pool: ev,
+    });
+    return mergeVersionConflictEvidence(withSources, pool, env.maxContextSnippets);
   };
 
   /** 首轮生成只用到的来源；假阴性再检时改扫其它文档 */
@@ -720,6 +738,7 @@ export async function runRetrieveFirstChatStream(
       effectiveQuery: retrieval.effectiveQuery || input.sanitizedMessage,
       evidence: focusedEvidence,
       draftAnswer: answer,
+      subQueries: isMultiPartFinal ? subQueriesFinal : undefined,
     });
   }
 

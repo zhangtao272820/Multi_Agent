@@ -84,7 +84,7 @@ watch(localLogEl, (el) => {
 
     <div
       v-if="pendingPlanPreview"
-      class="conv-plan-preview cursor-plan-card plan-mode-card"
+      class="conv-plan-preview cursor-plan-card plan-mode-card plan-frost-panel"
       :class="{
         'is-professional-plan': workbenchMode === 'professional',
         'is-tier-strict': pendingPlanPreview.approveTier === 'strict',
@@ -93,36 +93,44 @@ watch(localLogEl, (el) => {
       role="dialog"
       aria-label="计划确认"
     >
+      <span class="plan-frost-flake plan-frost-flake-a" aria-hidden="true">❄</span>
+      <span class="plan-frost-flake plan-frost-flake-b" aria-hidden="true">❄</span>
+      <span class="plan-frost-flake plan-frost-flake-c" aria-hidden="true">✧</span>
       <div class="conv-plan-preview-head">
-        <div class="plan-mode-title-row">
+        <div class="plan-mode-kicker">
           <span class="plan-mode-badge">Plan Mode</span>
+          <span class="plan-mode-kicker-hint">确认后执行</span>
+        </div>
+        <div class="plan-mode-title-row">
           <strong>{{ workbenchMode === 'professional' ? '诊断&执行计划' : '确认执行蓝图' }}</strong>
         </div>
-        <div class="plan-mode-meta-row">
-          <span
-            v-if="pendingPlanPreview.approveTier === 'strict'"
-            class="plan-mode-risk-chip is-high"
-            >高风险审核</span
-          >
-          <span v-else class="plan-mode-risk-chip is-normal">协作确认</span>
-          <span v-if="pendingPlanPreview.riskScore" class="plan-mode-risk-score"
-            >风险 {{ Math.round((pendingPlanPreview.riskScore || 0) * 100) }}%</span
-          >
-          <span class="conv-plan-preview-meta"
-            >{{ enabledPlanPreviewCount }}/{{ pendingPlanPreview.steps.length }} 步</span
-          >
-        </div>
-        <div class="plan-mode-progress" aria-hidden="true">
-          <div class="plan-mode-progress-track">
-            <div
-              class="plan-mode-progress-fill"
-              :style="{
-                width: `${Math.max(
-                  8,
-                  Math.round((enabledPlanPreviewCount / Math.max(1, pendingPlanPreview.steps.length)) * 100)
-                )}%`
-              }"
-            />
+        <div class="plan-mode-status-bar">
+          <div class="plan-mode-meta-row">
+            <span
+              v-if="pendingPlanPreview.approveTier === 'strict'"
+              class="plan-mode-risk-chip is-high"
+              >高风险审核</span
+            >
+            <span v-else class="plan-mode-risk-chip is-normal">协作确认</span>
+            <span v-if="pendingPlanPreview.riskScore" class="plan-mode-risk-score"
+              >风险 {{ Math.round((pendingPlanPreview.riskScore || 0) * 100) }}%</span
+            >
+            <span class="conv-plan-preview-meta"
+              >{{ enabledPlanPreviewCount }}/{{ pendingPlanPreview.steps.length }} 步</span
+            >
+          </div>
+          <div class="plan-mode-progress" aria-hidden="true">
+            <div class="plan-mode-progress-track">
+              <div
+                class="plan-mode-progress-fill"
+                :style="{
+                  width: `${Math.max(
+                    8,
+                    Math.round((enabledPlanPreviewCount / Math.max(1, pendingPlanPreview.steps.length)) * 100)
+                  )}%`
+                }"
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -176,7 +184,7 @@ watch(localLogEl, (el) => {
             />
           </label>
         </details>
-        <ol class="conv-plan-preview-list">
+        <ol class="conv-plan-preview-list plan-step-rail">
           <li
             v-for="(step, si) in pendingPlanPreview.steps"
             :key="step.id"
@@ -217,6 +225,7 @@ watch(localLogEl, (el) => {
           取消
         </button>
         <button type="button" class="spring-btn spring-btn-sm plan-mode-primary hitl-btn" :disabled="planPreviewSending || enabledPlanPreviewCount < 1" @click="respondPlanPreview('execute')">
+          <span class="plan-mode-play" aria-hidden="true" />
           {{ planPreviewSending ? '提交中…' : '确认并执行' }}
         </button>
       </div>

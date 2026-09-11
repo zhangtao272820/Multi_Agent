@@ -1,5 +1,9 @@
 import type { WsHandlerContext, ParsedWsMessage } from './types'
-import { tryAcquireRunSlot, releaseRunSlot } from '../../../graph/core/runtime/backpressure'
+import {
+  acquireRunSlotWithAdmission,
+  releaseRunSlotForTenant,
+  cancelAdmissionTicket
+} from '../../../graph/core/runtime/backpressure'
 import { tryAcquireRequestRate } from '../../../graph/core/runtime/requestRateLimit'
 import { crypto, RunIdSchema, createManagerGraph, buildManagerGraphInvokeConfig, buildManagerTurnInvokeState, composeFinalBundleFromGraphResult, buildHumanConfirmCheckpoint, pickRicherFinalText, saveHumanConfirmCheckpoint, isSynthRejectingMedia, resolveManagerLlmConfig, resolveAgentEndpointsWithPlatform, buildCompactedHistoryWithStats, buildSummarizeWithLlmFn, graphAgentEndpoints, buildRagHistoryForRun, sanitizeHistoryText, detectClarifyFollowUp, clarifyReplanMetaPatch, ingestTaskStackFromUserMessage, withAgentTraceContext, emitRunObservability, emitAdminHumanConfirmRequest, shouldPauseForPostGraphAdminConfirm, pauseAdminConfirmMessage, loadTaskStack, path, runs, runMeta, sessionMeta, sessions, readSession, writeSession, buildUserContent, stripAttachmentSuffix, resolveUserMessageAnchor, pruneAutoUserTasksOnEditResend, policyDataDir, emitImplicitLearning, allowRate, nowMs, isRunAbortError, useRuntimeConfig } from './wsBarrel'
 import { takeRunProcessUiMeta, clearRunProcess } from '../../../utils/session/runProcessAccumulator'
@@ -152,7 +156,8 @@ if (!allowRate(`${peerKey}:chat`, 8, 30_000)) {
     void writeSession(sessionId, session)
   }
    const prevRunId = sessionMeta.get(sessionId)?.activeRunId
-  if (prevRunId && runs.has(prevRunId)) {
+  if (prevRunId) {
+    cancelAdmissionTicket(prevRunId)
     const prevCtrl = runs.get(prevRunId)
     prevCtrl?.abort()
     void emitImplicitLearning(prevRunId, sessionId, 'new_chat_interrupt')
@@ -168,23 +173,61 @@ if (!allowRate(`${peerKey}:chat`, 8, 30_000)) {
     send('error', { error_code: 'rate_limited', message: runRate.reason }, 'manager')
     return
   }
-  const runSlot = tryAcquireRunSlot()
-  if (!runSlot.ok) {
-    send('error', { error_code: 'overloaded', message: runSlot.reason }, 'manager')
-    return
-  }
-   const runId = crypto.randomUUID()
+  const runId = crypto.randomUUID()
   if (!RunIdSchema.safeParse(runId).success) {
     send('error', 'runId 生成失败', 'manager')
     return
   }
-  const chatStartedAtMs = nowMs()
-  runMeta.set(runId, { startedAtMs: chatStartedAtMs, sessionId, tenantId })
   const ctrl = new AbortController()
   runs.set(runId, ctrl)
   sessionMeta.set(sessionId, { lastActiveMs: nowMs(), activeRunId: runId })
+  runMeta.set(runId, { startedAtMs: nowMs(), sessionId, tenantId })
+  const runSlot = await acquireRunSlotWithAdmission({
+    tenantId: String(tenantId || 'default'),
+    runId,
+    signal: ctrl.signal,
+    onQueued: (info) => {
+      send(
+        'status',
+        {
+          status: 'queued',
+          runId,
+          position: info.position,
+          queueDepth: info.queueDepth,
+          etaMs: info.etaMs
+        },
+        'manager',
+        runId
+      )
+    }
+  })
+  if (!runSlot.ok) {
+    runs.delete(runId)
+    runMeta.delete(runId)
+    const sMeta = sessionMeta.get(sessionId)
+    if (sMeta?.activeRunId === runId) {
+      sessionMeta.set(sessionId, { lastActiveMs: sMeta.lastActiveMs ?? nowMs(), activeRunId: undefined })
+    }
+    send(
+      'error',
+      { error_code: runSlot.error_code || 'overloaded', message: runSlot.reason },
+      'manager',
+      runId
+    )
+    return
+  }
+  const chatStartedAtMs = nowMs()
+  runMeta.set(runId, { startedAtMs: chatStartedAtMs, sessionId, tenantId })
+  if (runSlot.queued) {
+    send(
+      'status',
+      { status: 'admitted', runId, waitedMs: runSlot.waitedMs },
+      'manager',
+      runId
+    )
+  }
   send('thinking', '总管 Agent：开始处理…', 'manager', runId)
-   try {
+  try {
     const ingestPromise = effectiveText
       ? ingestTaskStackFromUserMessage(sessionId, effectiveText, send, runId, {
           openaiApiKey: llm.openaiApiKey,
@@ -378,7 +421,7 @@ if (!allowRate(`${peerKey}:chat`, 8, 30_000)) {
       send('error', String(e?.message || e || 'unknown error'), 'manager', runId)
     }
   } finally {
-    releaseRunSlot()
+    releaseRunSlotForTenant(String(tenantId || 'default'))
     runs.delete(runId)
     runMeta.delete(runId)
     const sMeta = sessionMeta.get(sessionId)

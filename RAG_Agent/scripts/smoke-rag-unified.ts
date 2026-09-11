@@ -72,6 +72,65 @@ assert(complete.intent.is_completeness_query === true, "completeness flag");
 assert(complete.intent.retrieval_mode === "agentic", "completeness → agentic");
 assert(complete.intent.retrieve_first_ok === false, "completeness not retrieve-first");
 
+// 回归：e9ff538 统一理解易误填 missing_documents；未点名文件时必须清空，否则会短路检索
+const falseMissing = assembleRagUnifiedBundle(
+  parseRagUnifiedUnderstandJson({
+    route_action: "document_query",
+    lean_query: "门禁卡谁发？发放的前置条件是什么",
+    specified_documents: [],
+    missing_documents: ["入职与请假制度手册", "门禁管理制度"],
+    confidence: 0.9,
+  })!,
+  {
+    lastUser: "门禁卡谁发？发放的前置条件是什么",
+    hasHistory: false,
+    docCount: 3,
+    uploadedDocs: [
+      { name: "graphrag-smoke-入职与请假制度.md" },
+      { name: "养老机构服务规范.docx" },
+      { name: "养老机构服务规范-验收用-v3.2.md" },
+    ],
+  },
+);
+assert(falseMissing.intent.missing_documents.length === 0, "topic query must clear false missing_documents");
+assert(falseMissing.intent.retrieve_first_ok === true, "topic query must stay retrieve-first");
+
+const fuzzyResolved = assembleRagUnifiedBundle(
+  parseRagUnifiedUnderstandJson({
+    route_action: "document_query",
+    lean_query: "入职与请假制度里门禁卡谁发",
+    specified_documents: ["入职与请假制度"],
+    missing_documents: ["入职与请假制度"],
+    confidence: 0.88,
+  })!,
+  {
+    lastUser: "入职与请假制度里门禁卡谁发",
+    hasHistory: false,
+    docCount: 1,
+    uploadedDocs: [{ name: "graphrag-smoke-入职与请假制度.md" }],
+  },
+);
+assert(fuzzyResolved.intent.missing_documents.length === 0, "fuzzy catalog match clears missing");
+assert(fuzzyResolved.intent.specified_documents[0]?.includes("graphrag-smoke"), "resolve to catalog name");
+
+const trulyMissing = assembleRagUnifiedBundle(
+  parseRagUnifiedUnderstandJson({
+    route_action: "document_query",
+    lean_query: "查一下《不存在的手册》第3章",
+    specified_documents: ["不存在的手册"],
+    missing_documents: ["不存在的手册"],
+    confidence: 0.9,
+  })!,
+  {
+    lastUser: "查一下《不存在的手册》第3章",
+    hasHistory: false,
+    docCount: 1,
+    uploadedDocs: [{ name: "养老机构服务规范.docx" }],
+  },
+);
+assert(trulyMissing.intent.missing_documents.includes("不存在的手册"), "true missing kept");
+assert(trulyMissing.intent.retrieve_first_ok === false, "true missing blocks retrieve-first");
+
 const noHist = classifyRagTurnScopeStructural("口腔护理频次是多少", []);
 assert(noHist.mode === "current_only", "empty history structural skip");
 

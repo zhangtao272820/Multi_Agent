@@ -132,14 +132,19 @@
 }
 
 .spring-root.cursor-workbench .process-panel-preview {
-  display: block;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   font-size: 12px !important;
   line-height: 1.45 !important;
   color: #64748b !important;
-  white-space: nowrap;
+  white-space: normal;
   overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
+  word-break: break-word;
   padding-left: 22px;
 }
 
@@ -1409,30 +1414,31 @@
   border-left-color: rgba(56, 189, 248, 0.25) !important;
 }
 
-/* 计划预览卡 · 专业强化（霜白可读） */
+/* 计划预览卡 · 专业强化（霜玻璃可读，勿压纯白） */
 .spring-root.mode-professional .conv-plan-preview.is-professional-plan {
-  border-radius: 16px !important;
+  border-radius: 18px !important;
   border-width: 1px !important;
-  padding: 16px 18px !important;
+  padding: 18px 20px !important;
 }
 
 .spring-root.mode-professional .conv-plan-preview.is-professional-plan .conv-plan-preview-head strong {
   color: #0a4a86;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 750;
 }
 
-.spring-root.mode-professional .conv-plan-preview.is-professional-plan .conv-plan-preview-head strong::before {
+.spring-root.mode-professional .conv-plan-preview.is-professional-plan .plan-mode-title-row strong::before {
   content: '◈ ';
   color: #2f7fd1;
 }
 
 .spring-root.mode-professional .conv-plan-preview-item {
-  grid-template-columns: 150px 1fr !important;
-  border-color: rgba(122, 168, 212, 0.4) !important;
-  background: rgba(255, 255, 255, 0.94) !important;
+  border-color: rgba(122, 168, 212, 0.38) !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.7), rgba(248, 252, 255, 0.52)),
+    rgba(255, 255, 255, 0.5) !important;
   color: #0a1a28 !important;
-  transition: border-color 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 
 .spring-root.mode-professional .conv-plan-preview-item:hover {

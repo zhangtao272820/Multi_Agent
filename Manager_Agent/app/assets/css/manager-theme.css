@@ -1,16 +1,8 @@
-/* 天机·总管 · 冷蓝编排台（生成氛围底图 + 高对比实色面板） */
-
-.mgr-season-bg,
-.brand-motif,
-.spring-root > .mgr-season-bg,
-.manager-shell .mgr-season-bg,
-.manager-shell .brand-motif {
-  display: none !important;
-}
+/* 天机·总管 · 冷蓝编排台（冬景底 + 霜玻璃面板；雪花由 BrandMotif 点缀） */
 
 .brand-shell.manager-shell,
 .manager-shell[data-agent="manager"] {
-  --brand-motif-opacity: 0;
+  --brand-motif-opacity: 0.52;
   --brand-accent: #1d4ed8;
   --brand-accent-hover: #1e40af;
   --brand-accent-soft: rgba(29, 78, 216, 0.14);
@@ -21,23 +13,35 @@
 .spring-root.cosmic-theme.cursor-workbench,
 .spring-root.cursor-workbench,
 .manager-shell .spring-root.cosmic-theme.cursor-workbench {
-  --mgr-glass: rgba(255, 255, 255, 0.88) !important;
-  --mgr-glass-strong: rgba(255, 255, 255, 0.94) !important;
-  --mgr-border: rgba(29, 78, 216, 0.14) !important;
-  --mgr-ice-border: rgba(29, 78, 216, 0.22) !important;
-  --mgr-frost-blur: blur(14px) !important;
-  --mgr-frost-card-bg: rgba(255, 255, 255, 0.9) !important;
-  --harness-bg: #f4f6f9;
-  --harness-surface: #ffffff;
-  --harness-muted: #475569;
-  --harness-border: rgba(15, 23, 42, 0.14);
+  --mgr-glass: rgba(248, 252, 255, 0.62) !important;
+  --mgr-glass-strong: rgba(255, 255, 255, 0.78) !important;
+  --mgr-border: rgba(90, 150, 205, 0.38) !important;
+  --mgr-ice-border: rgba(55, 120, 175, 0.48) !important;
+  --mgr-frost-blur: blur(18px) saturate(1.28) !important;
+  --mgr-frost-sparkle:
+    radial-gradient(circle at 12% 14%, rgba(255, 255, 255, 0.9) 0 1.2px, transparent 2.2px),
+    radial-gradient(circle at 86% 20%, rgba(170, 210, 245, 0.72) 0 1px, transparent 2px),
+    radial-gradient(circle at 28% 76%, rgba(255, 255, 255, 0.55) 0 1px, transparent 2px),
+    radial-gradient(circle at 70% 88%, rgba(150, 195, 235, 0.5) 0 1.3px, transparent 2.3px),
+    radial-gradient(circle at 52% 42%, rgba(255, 255, 255, 0.42) 0 0.8px, transparent 1.6px);
+  --mgr-frost-card-bg:
+    var(--mgr-frost-sparkle),
+    linear-gradient(
+      158deg,
+      rgba(255, 255, 255, 0.88) 0%,
+      rgba(230, 242, 255, 0.72) 42%,
+      rgba(242, 249, 255, 0.82) 100%
+    ) !important;
+  --harness-bg: transparent;
+  --harness-surface: rgba(255, 255, 255, 0.78);
+  --harness-muted: #3a536c;
+  --harness-border: rgba(90, 140, 190, 0.28);
   --harness-accent: #2563eb;
-  --harness-active-bg: #e8eef8;
+  --harness-active-bg: rgba(232, 242, 255, 0.85);
   font-family: var(--brand-font-sans) !important;
   color: #0f172a !important;
-  background:
-    linear-gradient(165deg, rgba(226, 236, 250, 0.55) 0%, rgba(240, 245, 252, 0.5) 45%, rgba(218, 230, 246, 0.58) 100%),
-    url("/brand/backgrounds/theme/manager-workbench.png") center / cover no-repeat fixed !important;
+  /* 透出 mgr-season-bg 雪景；氛围由 frost-fx 加强 */
+  background: transparent !important;
 }
 
 .spring-root.cursor-workbench::before {
@@ -726,7 +730,12 @@
 .spring-root.cursor-workbench .harness-think-stream-body {
   flex: 1;
   min-width: 0;
+  max-width: 100%;
   padding: 0 0.15rem 0.1rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  overflow-x: hidden;
 }
 
 .spring-root.cursor-workbench .harness-think-stream.is-live {
@@ -828,12 +837,17 @@
   font-size: 13px;
   line-height: 1.68;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .spring-root.cursor-workbench .harness-created-plan {
   position: relative;
   width: 100%;
   max-width: 100%;
+  align-self: stretch;
   box-sizing: border-box;
   margin-top: 0.15rem;
   padding: 0.7rem 0.85rem 0.75rem 0.95rem;
@@ -887,6 +901,9 @@
   align-items: center;
   gap: 0.35rem 0.25rem;
   margin-top: 0;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   font-size: 12.5px;
   color: #334155;
 }

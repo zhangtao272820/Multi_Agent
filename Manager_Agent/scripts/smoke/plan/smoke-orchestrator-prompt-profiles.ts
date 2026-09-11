@@ -55,6 +55,9 @@ assert(bothSys.includes(ORCH_PACK_MARKERS.rag_only), 'db+rag has rag_only marker
 assert(bothSys.includes(ORCH_PACK_MARKERS.db_only), 'db+rag has db_only marker')
 assert(!bothSys.includes(ORCH_PACK_MARKERS.multi_three), 'db+rag omits multi_three by default')
 assert(bothSys.includes('taskIntent') || bothSys.includes('document_retrieval'), 'base teaches taskIntent')
+assert(bothSys.includes('禁止自造') || bothSys.includes('hybrid_multi_source'), 'base bans inventing taskIntent')
+assert(bothSys.includes('executionTopology') && bothSys.includes('solo|parallel|hub'), 'base teaches topology enum')
+assert(bothSys.includes('parallel_hub') || bothSys.includes('组合词'), 'base bans inventing topology')
 assert(
   bothSys.includes('文档') || bothSys.includes('document_retrieval') || bothSys.includes('rag_catalog'),
   'rag_only pack covers abstract document_retrieval morphology (catalog-grounded, not golden wording)'

@@ -287,6 +287,194 @@ export function prioritizeEvidenceBySubQueries(
   return picked.slice(0, max);
 }
 
+/** 文内标记：附录 / 废止 / 旧版对照（非用户意图路由） */
+const STALE_VERSION_MARKERS = [
+  "已废止",
+  "已于",
+  "附录",
+  "历史版本",
+  "不得作为现行",
+  "仅供对照",
+  "v2.0",
+  "v2．0",
+];
+
+const TOPIC_STOP = new Set([
+  "每人",
+  "每月",
+  "不得",
+  "作为",
+  "现行",
+  "废止",
+  "附录",
+  "版本",
+  "标准",
+  "要求",
+  "应当",
+  "可以",
+  "以及",
+  "或者",
+  "根据",
+  "下列",
+  "以上",
+  "以下",
+  "之日",
+  "日起",
+]);
+
+export function isStaleVersionEvidence(content: string): boolean {
+  const c = String(content ?? "");
+  return STALE_VERSION_MARKERS.some((m) => c.includes(m));
+}
+
+export function topicAnchorsFromContent(content: string): string[] {
+  const terms = tokenizeForKeywordSearch(content)
+    .filter((t) => t.length >= 3 && !TOPIC_STOP.has(t) && !/^\d+$/.test(t));
+  // 优先较长词，减少「护理」过宽
+  return [...new Set(terms)].sort((a, b) => b.length - a.length).slice(0, 12);
+}
+
+/** 同源回填检索词：现行证据主题锚点 + 废止文内标记（非用户原话路由） */
+export function collectVersionBackfillTerms(focused: EvidenceItem[]): {
+  sources: string[];
+  terms: string[];
+} {
+  const sources = [
+    ...new Set(
+      (focused || [])
+        .filter((e) => !isStaleVersionEvidence(String(e.content ?? "")))
+        .map((e) => String(e.source || "").trim())
+        .filter(Boolean),
+    ),
+  ].slice(0, 6);
+  const anchors: string[] = [];
+  for (const e of focused || []) {
+    if (isStaleVersionEvidence(String(e.content ?? ""))) continue;
+    anchors.push(...topicAnchorsFromContent(String(e.content ?? "")));
+  }
+  const markerTerms = ["已废止", "附录", "v2.0", "仅供对照", "不得作为现行", "历史版本"];
+  const terms = [...new Set([...anchors.filter((t) => t.length >= 4).slice(0, 10), ...markerTerms])];
+  return { sources, terms };
+}
+
+export function sharesVersionTopic(a: string, b: string): boolean {
+  const anchors = topicAnchorsFromContent(a);
+  return anchors.some((t) => t.length >= 4 && b.includes(t));
+}
+
+/** 从关键词命中中筛出可与 focused 现行条款对照的废止块 */
+export function filterStaleVersionBackfillHits(
+  focused: EvidenceItem[],
+  hits: EvidenceItem[],
+): EvidenceItem[] {
+  const current = (focused || []).filter((e) => !isStaleVersionEvidence(String(e.content ?? "")));
+  if (!current.length) return [];
+  const out: EvidenceItem[] = [];
+  const seen = new Set<string>();
+  for (const hit of hits || []) {
+    const content = String(hit.content ?? "");
+    if (!isStaleVersionEvidence(content)) continue;
+    const ok = current.some(
+      (c) => sharesVersionTopic(c.content, content) || sharesVersionTopic(content, c.content),
+    );
+    if (!ok) continue;
+    const key = `${hit.source}:${content.slice(0, 48)}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(hit);
+  }
+  return out;
+}
+
+function evidenceKey(item: EvidenceItem): string {
+  return `${item.source}:${String(item.content ?? "").slice(0, 48)}`;
+}
+
+/**
+ * 版本对照槽：当候选池同时存在「现行条款」与「附录/废止对照」且共享主题锚点时，
+ * 强制为 focused 保留至少 1 条对照证据（确定性文内标记，非用户原话路由）。
+ */
+export function mergeVersionConflictEvidence(
+  focused: EvidenceItem[],
+  pool: EvidenceItem[],
+  max = 6,
+): EvidenceItem[] {
+  const cap = Math.max(2, max);
+  const list = (pool || []).filter((e) => String(e.content ?? "").trim().length >= 4);
+  const base = (focused || []).filter((e) => String(e.content ?? "").trim().length >= 4);
+  if (!list.length) return base.slice(0, cap);
+
+  const out: EvidenceItem[] = [...base];
+  const seen = new Set(out.map(evidenceKey));
+  const stalePool = list.filter((e) => isStaleVersionEvidence(e.content));
+  const currentPool = list.filter((e) => !isStaleVersionEvidence(e.content));
+  if (!stalePool.length || !currentPool.length) return out.slice(0, cap);
+
+  const alreadyHasStale = out.some((e) => isStaleVersionEvidence(e.content));
+  const alreadyHasCurrent = out.some((e) => !isStaleVersionEvidence(e.content));
+
+  const sharesTopic = (a: string, b: string): boolean => sharesVersionTopic(a, b);
+
+  const tryAdd = (item: EvidenceItem) => {
+    const key = evidenceKey(item);
+    if (seen.has(key)) return false;
+    if (out.length >= cap) {
+      // 腾出槽：丢掉末尾非对照、且非唯一现行的噪声
+      for (let i = out.length - 1; i >= 0; i -= 1) {
+        const row = out[i]!;
+        if (isStaleVersionEvidence(row.content)) continue;
+        if (out.filter((e) => !isStaleVersionEvidence(e.content)).length <= 1) continue;
+        seen.delete(evidenceKey(row));
+        out.splice(i, 1);
+        break;
+      }
+    }
+    if (out.length >= cap) return false;
+    seen.add(key);
+    out.push(item);
+    return true;
+  };
+
+  if (!alreadyHasStale) {
+    for (const cur of out.filter((e) => !isStaleVersionEvidence(e.content))) {
+      const hit = stalePool.find((s) => sharesTopic(cur.content, s.content));
+      if (hit && tryAdd(hit)) break;
+    }
+    if (!out.some((e) => isStaleVersionEvidence(e.content))) {
+      // focused 主题锚点不足时：用池内现行↔废止互匹配
+      for (const cur of currentPool) {
+        const hit = stalePool.find((s) => sharesTopic(cur.content, s.content) || sharesTopic(s.content, cur.content));
+        if (hit && tryAdd(hit)) break;
+      }
+    }
+  }
+
+  if (!alreadyHasCurrent && out.some((e) => isStaleVersionEvidence(e.content))) {
+    for (const st of out.filter((e) => isStaleVersionEvidence(e.content))) {
+      const hit = currentPool.find((c) => sharesTopic(st.content, c.content) || sharesTopic(c.content, st.content));
+      if (hit && tryAdd(hit)) break;
+    }
+  }
+
+  return out.slice(0, cap);
+}
+
+/** 返回证据尚未覆盖的子问句（区分性词无命中） */
+export function listUncoveredSubQueries(
+  evidence: EvidenceItem[],
+  subQueries: string[],
+): string[] {
+  const parts = subQueries.map((q) => String(q || "").trim()).filter((q) => q.length >= 4);
+  if (parts.length < 2) return [];
+  const uncovered: string[] = [];
+  for (const sq of parts) {
+    const terms = distinctiveSubQueryTerms(sq, parts);
+    const hit = evidence.some((e) => scoreDocByQueryTerms(String(e.content ?? ""), terms) > 0);
+    if (!hit) uncovered.push(sq);
+  }
+  return uncovered;
+}
+
 export const tokenizeForKeywordSearch = (text: string): string[] => {
   const normalized = text.toLowerCase();
   const asciiTerms = normalized.match(/[a-z0-9_]+/g) ?? [];
@@ -341,6 +529,69 @@ const normalizeDocNameToken = (text: string) =>
     .replace(/\.[a-z0-9]+$/i, "")
     .replace(/[\s_\-()（）【】\[\]{}《》"“”'‘’、，。,.;；:：!?？]/g, "")
     .trim();
+
+/** 导出供意图契约校正：文件名模糊对应（非用户意图正则） */
+export function normalizeRagDocNameToken(text: string): string {
+  return normalizeDocNameToken(text);
+}
+
+export function ragDocNameFuzzyMatch(candidate: string, catalogName: string): boolean {
+  const a = normalizeDocNameToken(candidate);
+  const b = normalizeDocNameToken(catalogName);
+  if (!a || !b) return false;
+  if (a === b) return true;
+  // 短 token 易误伤（如「制度」）；要求至少 4 字才做包含匹配
+  if (a.length >= 4 && b.includes(a)) return true;
+  if (b.length >= 4 && a.includes(b)) return true;
+  return false;
+}
+
+/**
+ * 近义政策文档对（如「…服务规范.docx」与「…服务规范-验收用-v3.2.md」）。
+ * 用于禁止小库 dominant 单源过滤 / 生成侧塌缩挤掉同源另一文件。
+ */
+export function areNearDuplicatePolicyDocNames(a: string, b: string): boolean {
+  const na = normalizeDocNameToken(a);
+  const nb = normalizeDocNameToken(b);
+  if (!na || !nb || na.length < 6 || nb.length < 6) return false;
+  if (na === nb) return true;
+  const stemA = na.slice(0, 8);
+  const stemB = nb.slice(0, 8);
+  return na.includes(stemB) || nb.includes(stemA);
+}
+
+/**
+ * 契约校正：missing_documents 只能来自「用户明确点名且目录无对应」的文件。
+ * 未点名时一律清空 —— 禁止 LLM 误填 missing 短路整条检索管线。
+ */
+export function reconcileExplicitMissingDocuments(
+  specified: string[],
+  _missingFromLlm: string[],
+  uploadedDocs: { name: string }[]
+): { specified_documents: string[]; missing_documents: string[] } {
+  const catalog = uploadedDocs.map((d) => String(d.name ?? "").trim()).filter(Boolean);
+  const specs = (Array.isArray(specified) ? specified : [])
+    .map((s) => String(s ?? "").trim())
+    .filter(Boolean)
+    .slice(0, 8);
+  if (!specs.length) {
+    return { specified_documents: [], missing_documents: [] };
+  }
+  const resolved: string[] = [];
+  const missing: string[] = [];
+  for (const name of specs) {
+    const hit = catalog.find((c) => ragDocNameFuzzyMatch(name, c));
+    if (hit) {
+      if (!resolved.includes(hit)) resolved.push(hit);
+    } else if (!missing.includes(name)) {
+      missing.push(name);
+    }
+  }
+  return {
+    specified_documents: resolved.length ? resolved : specs,
+    missing_documents: missing,
+  };
+}
 
 export const buildExplicitDocNotFoundMessage = (
   missing: string[],
@@ -536,8 +787,14 @@ export const selectCandidateSources = async (
   const secondScore = scored[1]?.score ?? 0;
   const smallCorpus = docs.length <= env.docRoutingTopN;
 
+  // 小库近义多文档：禁止「文件名略胜」就 dominant 单源过滤，否则验收 md 会挤掉同主题 docx
   const tryDominant = (minScore: number, ratio: number) => {
     if (!widenRouting && bestScore >= minScore && bestScore >= secondScore * ratio && scored[0]?.name) {
+      const top = scored[0]!.name;
+      const runner = scored[1]?.name;
+      if (runner && smallCorpus && areNearDuplicatePolicyDocNames(top, runner)) {
+        return null;
+      }
       return {
         selectedSources: new Set([scored[0].name]),
         debugScores: scored.map((row) => ({

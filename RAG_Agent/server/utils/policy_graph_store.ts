@@ -170,16 +170,28 @@ export function upsertPolicyGraphFragment(params: {
 }
 
 export function scoreTextOverlapLite(a: string, b: string): number {
-  const ta = String(a || "")
-    .toLowerCase()
-    .match(/[\u4e00-\u9fff]{2,}|[a-z0-9_]{2,}/g);
-  const tb = String(b || "")
-    .toLowerCase()
-    .match(/[\u4e00-\u9fff]{2,}|[a-z0-9_]{2,}/g);
-  if (!ta?.length || !tb?.length) return 0;
-  const setB = new Set(tb);
+  /** 长中文串整段作 token 会导致种子永不命中；拆成 bigram + 英文词 */
+  const tokenSet = (s: string): Set<string> => {
+    const out = new Set<string>();
+    const runs =
+      String(s || "")
+        .toLowerCase()
+        .match(/[\u4e00-\u9fff]{2,}|[a-z0-9_]{2,}/g) ?? [];
+    for (const t of runs) {
+      out.add(t);
+      if (/[\u4e00-\u9fff]/.test(t)) {
+        for (let i = 0; i <= t.length - 2; i += 1) {
+          out.add(t.slice(i, i + 2));
+        }
+      }
+    }
+    return out;
+  };
+  const ta = tokenSet(a);
+  const tb = tokenSet(b);
+  if (!ta.size || !tb.size) return 0;
   let hit = 0;
-  for (const t of ta) if (setB.has(t)) hit++;
+  for (const t of ta) if (tb.has(t)) hit += 1;
   return hit;
 }
 

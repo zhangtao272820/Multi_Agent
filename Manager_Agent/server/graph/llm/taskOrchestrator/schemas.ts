@@ -27,11 +27,58 @@ import { parseFirstBalancedJsonObject } from '../../core/shared/llmJson'
 import type { TurnRoutingScope } from '../../core/routing/turnScope'
 import type { BaseMessage } from '@langchain/core/messages'
 import { coerceTaskForm, coerceTimeRangeHint, TaskFormFieldSchema } from '../../core/routing/taskForms'
+import { coerceExecutionTopology } from '../../core/plan/executionTopology'
 import {
   ADMIN_CAPABILITY_HINTS,
   SOURCE_COMMITMENT_KINDS,
   WEB_FETCH_KINDS
 } from '../../orchestrate/sourceCommitment'
+
+export const TASK_INTENTS = [
+  'structured_query',
+  'document_retrieval',
+  'hybrid',
+  'action',
+  'chitchat',
+  'unknown'
+] as const
+
+export type TaskIntent = (typeof TASK_INTENTS)[number]
+
+const TASK_INTENT_SET = new Set<string>(TASK_INTENTS)
+
+/**
+ * 编排 LLM 常发明近邻枚举（如 hybrid_multi_source_analysis）。
+ * 仅做 schema 字面量归一，禁止据此改 cap。
+ */
+export function coerceTaskIntent(raw: unknown): TaskIntent {
+  const s = String(raw ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, '_')
+  if (!s) return 'unknown'
+  if (TASK_INTENT_SET.has(s)) return s as TaskIntent
+  if (s.includes('chitchat') || s.includes('smalltalk') || s.includes('greeting')) return 'chitchat'
+  if (s.includes('hybrid') || s.includes('multi_source') || s.includes('multi_plane') || s.includes('cross_source')) {
+    return 'hybrid'
+  }
+  if (s.includes('document') || s.includes('retrieval') || s.includes('knowledge') || s.startsWith('rag_')) {
+    return 'document_retrieval'
+  }
+  if (s.includes('structured') || s.includes('sql') || s.startsWith('db_') || s.includes('tabular')) {
+    return 'structured_query'
+  }
+  if (s.includes('action') || s.includes('ops') || s.includes('office') || s.includes('write')) return 'action'
+  // 中文/长句误填枚举：丢弃为 unknown，由 dataSources/agents 下游推断
+  return 'unknown'
+}
+
+const TaskIntentFieldSchema = z.preprocess((val) => coerceTaskIntent(val ?? 'unknown'), z.enum(TASK_INTENTS))
+
+const ExecutionTopologyFieldSchema = z.preprocess((val) => {
+  if (val == null || val === '') return undefined
+  return coerceExecutionTopology(val) ?? undefined
+}, z.enum(['solo', 'parallel', 'hub']).optional())
 
 const ROUTE_INTENTS = [
   'db',
@@ -122,9 +169,7 @@ export const TaskOrchestratorSchema = z.object({
   wantsReport: z.boolean().default(false),
   dataSources: z.array(z.enum(['rag', 'db', 'crawler'])).max(3).default([]),
   /** 任务形态：structured_query→db；document_retrieval→rag；hybrid→双源 */
-  taskIntent: z
-    .enum(['structured_query', 'document_retrieval', 'hybrid', 'action', 'chitchat', 'unknown'])
-    .default('unknown'),
+  taskIntent: TaskIntentFieldSchema.default('unknown'),
   /**
    * 意图清晰度（语义推断，非字面「查数据库」）：
    * clear=锁定 committedPlanes；ambiguous=须 clarify；none=可按 taskIntent+catalog 推断。
@@ -172,7 +217,7 @@ export const TaskOrchestratorSchema = z.object({
   upgradeReason: z.string().max(200).default(''),
   upgradeConfidence: z.number().min(0).max(1).default(0.65),
   /** solo=单专才；parallel=取数 fan-out；hub=有依赖 DAG（默认） */
-  executionTopology: z.enum(['solo', 'parallel', 'hub']).optional(),
+  executionTopology: ExecutionTopologyFieldSchema,
   /** Phase4 cascade：显式 false 且 MANAGER_ROUTE_CASCADE=1 时可跳过 align/plane */
   selfCheck: z
     .object({
@@ -240,7 +285,7 @@ const COMPACT_ORCHESTRATOR_SCHEMA = z.object({
   suggestedPosture: z.enum(['ask', 'plan', 'agent', 'debug']).default('agent'),
   upgradeReason: z.string().max(200).default(''),
   upgradeConfidence: z.number().min(0).max(1).default(0.62),
-  executionTopology: z.enum(['solo', 'parallel', 'hub']).optional(),
+  executionTopology: ExecutionTopologyFieldSchema,
   selfCheck: z
     .object({
       needsSecondPass: z.boolean().optional(),

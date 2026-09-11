@@ -9,6 +9,10 @@ import {
   agentToneClass,
   type AgentDisplayTone
 } from '~/composables/managerAgentDisplay'
+import {
+  humanizedBoardTipsByAgent,
+  type TaskBoardItemUi
+} from '~/composables/managerMaturityUi'
 import type { PipelineStepLike } from '~/utils/turnActivity'
 import { computed, ref, watch } from 'vue'
 
@@ -35,7 +39,11 @@ const props = defineProps<{
   running: boolean
   steps: PipelineStepLike[]
   routeAgents?: string[]
+  /** 任务板 items：失败/重规划人话 tip */
+  boardItems?: TaskBoardItemUi[]
   statusLabel: (status: string) => string
+  /** 侧栏紧凑：默认折叠详情、更密间距 */
+  compact?: boolean
 }>()
 
 type SpecialistCard = {
@@ -44,6 +52,7 @@ type SpecialistCard = {
   status: string
   summary?: string
   query?: string
+  tip?: string
   advanced: boolean
   toneClass: string
   glyph: string
@@ -56,8 +65,11 @@ function normalizeStatus(raw: string): string {
   return 'pending'
 }
 
+const boardTips = computed(() => humanizedBoardTipsByAgent(props.boardItems))
+
 const cards = computed((): SpecialistCard[] => {
   const byKey = new Map<string, SpecialistCard>()
+  const tips = boardTips.value
 
   const ensure = (agent: string, status = 'pending', summary?: string, query?: string) => {
     const d = getAgentDisplay(agent)
@@ -65,6 +77,7 @@ const cards = computed((): SpecialistCard[] => {
     if (!key || key === 'manager' || key === 'manager_llm' || key === 'synth' || key === 'route' || key === 'planner' || key === 'multi') {
       return
     }
+    const tip = tips[key] || tips[String(agent || '').toLowerCase()] || undefined
     const existing = byKey.get(key)
     const nextStatus = normalizeStatus(status)
     if (!existing) {
@@ -74,6 +87,7 @@ const cards = computed((): SpecialistCard[] => {
         status: nextStatus,
         summary: summary || undefined,
         query: query || undefined,
+        tip,
         advanced: ADVANCED_KEYS.has(key),
         toneClass: agentToneClass(key),
         glyph: TOOL_GLYPH[key] || '⬡'
@@ -86,11 +100,17 @@ const cards = computed((): SpecialistCard[] => {
     }
     if (summary) existing.summary = summary
     if (query) existing.query = query
+    if (tip) existing.tip = tip
   }
 
   for (const a of props.routeAgents || []) ensure(a, props.running ? 'pending' : 'success')
   for (const s of props.steps || []) {
     ensure(s.agent, s.status, s.summary, s.query)
+  }
+  for (const it of props.boardItems || []) {
+    if ((it.status === 'replan' || it.status === 'failed') && it.reason) {
+      ensure(it.agent, it.status)
+    }
   }
 
   return Array.from(byKey.values())
@@ -101,17 +121,40 @@ const show = computed(() => cards.value.length > 0)
 const openKeys = ref<Set<string>>(new Set())
 
 watch(
-  () => [props.turn.id, props.running, cards.value.map((c) => `${c.key}:${c.status}`).join('|')] as const,
+  () =>
+    [
+      props.turn.id,
+      props.running,
+      props.compact,
+      cards.value.map((c) => `${c.key}:${c.status}:${c.tip || ''}`).join('|')
+    ] as const,
   () => {
     const next = new Set<string>()
-    for (const c of cards.value) {
-      if (c.status === 'running' || (props.running && c.status === 'pending' && cards.value.length <= 3)) {
-        next.add(c.key)
+    if (!props.compact) {
+      for (const c of cards.value) {
+        if (
+          c.status === 'running' ||
+          c.status === 'replan' ||
+          c.status === 'failed' ||
+          (props.running && c.status === 'pending' && cards.value.length <= 3)
+        ) {
+          next.add(c.key)
+        }
       }
-    }
-    // 保留用户已展开的卡
-    for (const k of openKeys.value) {
-      if (cards.value.some((c) => c.key === k)) next.add(k)
+      // 保留用户已展开的卡
+      for (const k of openKeys.value) {
+        if (cards.value.some((c) => c.key === k)) next.add(k)
+      }
+    } else {
+      // 紧凑：仅展开运行中 / 失败 / 重规划
+      for (const c of cards.value) {
+        if (c.status === 'running' || c.status === 'replan' || c.status === 'failed') {
+          next.add(c.key)
+        }
+      }
+      for (const k of openKeys.value) {
+        if (cards.value.some((c) => c.key === k)) next.add(k)
+      }
     }
     openKeys.value = next
   },
@@ -139,7 +182,7 @@ function statusChip(status: string): string {
 </script>
 
 <template>
-  <div v-if="show" class="mgr-tool-rail" aria-label="专才执行">
+  <div v-if="show" class="mgr-tool-rail" :class="{ 'is-compact': compact }" aria-label="专才执行">
     <div class="mgr-tool-rail-head">
       <span class="mgr-tool-rail-title">专才执行</span>
       <span class="mgr-tool-rail-count">{{ cards.filter((c) => c.status === 'success').length }}/{{ cards.length }}</span>
@@ -202,13 +245,17 @@ function statusChip(status: string): string {
               <span v-if="c.advanced" class="mgr-tool-advanced">高级</span>
             </span>
             <span class="mgr-tool-call-one-line">{{
-              c.summary || c.query || (c.status === 'running' ? '处理中…' : c.display.verbLabel)
+              c.tip || c.summary || c.query || (c.status === 'running' ? '处理中…' : c.display.verbLabel)
             }}</span>
           </span>
           <span class="mgr-tool-call-chip" :class="`is-${c.status}`">{{ statusChip(c.status) }}</span>
         </button>
 
         <div v-if="isOpen(c.key)" class="mgr-tool-call-body">
+          <div v-if="c.tip" class="mgr-tool-block mgr-tool-block-tip">
+            <div class="mgr-tool-block-label">提示</div>
+            <p class="mgr-tool-tip">{{ c.tip }}</p>
+          </div>
           <div v-if="c.query" class="mgr-tool-block">
             <div class="mgr-tool-block-label">正在处理</div>
             <pre class="mgr-tool-block-pre">{{ c.query.slice(0, 200) }}</pre>
@@ -217,7 +264,7 @@ function statusChip(status: string): string {
             <div class="mgr-tool-block-label">进展</div>
             <pre class="mgr-tool-block-pre">{{ c.summary.slice(0, 240) }}</pre>
           </div>
-          <p v-if="!c.query && !c.summary && c.status === 'running'" class="mgr-tool-waiting">
+          <p v-if="!c.tip && !c.query && !c.summary && c.status === 'running'" class="mgr-tool-waiting">
             处理中…
           </p>
         </div>
@@ -556,5 +603,125 @@ function statusChip(status: string): string {
   font-size: 12px;
   color: #94a3b8;
   font-style: italic;
+}
+
+.mgr-tool-tip {
+  margin: 0;
+  padding: 0.4rem 0.55rem;
+  border-radius: 8px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: #9a3412;
+  background: rgba(255, 247, 237, 0.95);
+  border: 1px solid rgba(253, 186, 116, 0.45);
+}
+
+.mgr-tool-call.is-failed .mgr-tool-call-one-line,
+.mgr-tool-call.is-replan .mgr-tool-call-one-line {
+  color: #9a3412;
+}
+
+.mgr-tool-rail.is-compact {
+  margin: 0;
+  gap: 0.4rem;
+}
+
+.mgr-tool-rail.is-compact .mgr-tool-rail-flow {
+  padding: 0.1rem 0;
+  gap: 0.2rem 0.1rem;
+}
+
+.mgr-tool-rail.is-compact .mgr-tool-calls {
+  gap: 0.35rem;
+}
+
+.mgr-tool-rail.is-compact .mgr-tool-call-summary {
+  padding: 0.4rem 0.5rem;
+}
+
+.mgr-tool-rail.is-compact .mgr-tool-call-one-line {
+  font-size: 11px;
+}
+
+.mgr-tool-rail.is-compact .mgr-tool-call-body {
+  padding: 0.35rem 0.5rem 0.5rem 2rem;
+}
+
+/* 对话内：更密、可换行、宽屏双列 */
+.mgr-tool-rail.mgr-tool-rail-in-thread {
+  margin: 0 0 0.65rem;
+  padding: 0.55rem 0.65rem 0.6rem;
+  border-radius: 12px;
+  border: 1px solid rgba(122, 168, 212, 0.38);
+  background:
+    linear-gradient(165deg, rgba(255, 255, 255, 0.92), rgba(236, 246, 255, 0.78));
+  box-sizing: border-box;
+}
+
+.mgr-tool-rail.mgr-tool-rail-in-thread .mgr-tool-rail-head {
+  margin-bottom: 0.35rem;
+}
+
+.mgr-tool-rail.mgr-tool-rail-in-thread .mgr-tool-rail-title {
+  font-size: 12px;
+  color: #0a4a86;
+  letter-spacing: 0.02em;
+}
+
+.mgr-tool-rail.mgr-tool-rail-in-thread .mgr-tool-rail-flow {
+  padding: 0.25rem 0.15rem 0.45rem;
+  margin-bottom: 0.15rem;
+  border-bottom: 1px solid rgba(122, 168, 212, 0.22);
+}
+
+.mgr-tool-rail.mgr-tool-rail-in-thread .mgr-tool-calls {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.4rem;
+}
+
+@media (min-width: 720px) {
+  .mgr-tool-rail.mgr-tool-rail-in-thread .mgr-tool-calls {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .mgr-tool-rail.mgr-tool-rail-in-thread .mgr-tool-call.is-open,
+  .mgr-tool-rail.mgr-tool-rail-in-thread .mgr-tool-call.is-running {
+    grid-column: 1 / -1;
+  }
+}
+
+.mgr-tool-rail.mgr-tool-rail-in-thread .mgr-tool-call {
+  min-width: 0;
+  background: rgba(255, 255, 255, 0.88);
+  border-radius: 10px;
+}
+
+.mgr-tool-rail.mgr-tool-rail-in-thread .mgr-tool-call-summary {
+  padding: 0.45rem 0.55rem;
+  gap: 0.4rem;
+  align-items: flex-start;
+}
+
+.mgr-tool-rail.mgr-tool-rail-in-thread .mgr-tool-call-one-line {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.4;
+}
+
+.mgr-tool-rail.mgr-tool-rail-in-thread .mgr-tool-call-body {
+  padding: 0.4rem 0.55rem 0.55rem 2.1rem;
+}
+
+.mgr-tool-rail.mgr-tool-rail-in-thread .mgr-tool-block-pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  max-width: 100%;
 }
 </style>

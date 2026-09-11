@@ -4,7 +4,6 @@ import { collaborationPostureLabel } from '~/composables/managerChatTypes'
 import { stepBoardStatusLabelZh } from '~/composables/managerMaturityUi'
 import { MANAGER_WORKBENCH_SIDEBAR_KEY } from '~/composables/managerWorkbenchSidebarContext'
 import ManagerAgentCapabilityMap from '~/components/chat/ManagerAgentCapabilityMap.vue'
-import ManagerTaskBoardPanel from '~/components/chat/ManagerTaskBoardPanel.vue'
 import ManagerMaturitySliCard from '~/components/workbench/ManagerMaturitySliCard.vue'
 
 const ctx = inject(MANAGER_WORKBENCH_SIDEBAR_KEY)
@@ -207,11 +206,20 @@ function stepStatusLabel(status: string) {
         </section>
 
         <section v-if="taskBoardLive?.items?.length" class="spring-side-section">
-          <ManagerTaskBoardPanel
-            :items="taskBoardLive.items"
-            :topology="taskBoardLive.topology"
-            :plan-agent-label="planAgentLabel"
-          />
+          <div class="spring-side-title">处理进度（{{ taskBoardLive.items.filter((i) => i.status === 'success' || i.status === 'skipped').length }}/{{ taskBoardLive.items.length }}）</div>
+          <ul class="spring-run-token-list">
+            <li v-for="(it, idx) in taskBoardLive.items" :key="it.id" class="sidebar-agent-row">
+              <span
+                class="sidebar-agent-dot"
+                :style="{ background: obsAgentColor(it.agent) }"
+                aria-hidden="true"
+              />
+              <div class="spring-run-token-meta" style="flex: 1; min-width: 0">
+                <span class="spring-run-token-agent" :title="it.query">{{ idx + 1 }}. {{ planAgentLabel(it.agent) }}</span>
+                <span class="spring-run-token-n">{{ stepStatusLabel(it.status) }}</span>
+              </div>
+            </li>
+          </ul>
         </section>
         <section v-else-if="planStepsTodo.length" class="spring-side-section">
           <div class="spring-side-title">步骤进度（{{ planStepsDoneCount }}/{{ planStepsTodo.length }}）</div>

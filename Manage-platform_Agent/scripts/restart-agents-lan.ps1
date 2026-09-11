@@ -32,6 +32,7 @@ $validServices = @(
     "vanna_db_agent",
     "vanna_db_web",
     "rag_agent",
+    "rag_ingest_worker",
     "code_assistent_agent",
     "extractor_agent",
     "ai_admin_agent",

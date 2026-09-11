@@ -46,10 +46,24 @@ export function buildMultimodalNode(deps: CreateExecutionNodesDeps) {
           data: '多模态：复用路由看图摘要（跳过二次长 VL）',
           from: 'manager'
         })
+        const agentResult = {
+          ok: true,
+          agent: 'multimodal',
+          answer: safeAnswer,
+          structured: {
+            media_type: String(att?.mediaType || 'image'),
+            action: 'caption_reuse',
+            entities: [],
+            metrics: [],
+            ocr_text_digest: String(att?.ocrSnippet || '').trim().slice(0, 240),
+            confidence: 0.7
+          }
+        }
         const evidence = {
           kind: 'multimodal' as const,
           query,
-          action: 'caption_reuse'
+          action: 'caption_reuse',
+          agentResult
         }
         emitTrace({
           type: 'step_end',

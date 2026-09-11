@@ -31,13 +31,14 @@ function salvageGuiResultOnFailure(rec: RunRecord): Record<string, unknown> | nu
   return ensureLobsterGuiFinalPayload(base, String(base.task || rec.task || ''))
 }
 
-type RunStatus = 'idle' | 'queued' | 'running' | 'done' | 'error' | 'canceled'
+type RunStatus = 'idle' | 'queued' | 'running' | 'soft_hold' | 'done' | 'error' | 'canceled'
 
 type RunRecord = {
   runId: string
   task: string
   startUrl?: string
   status: RunStatus
+  tenantId?: string
   startedAt: number
   endedAt?: number
   ttlMs: number
@@ -48,6 +49,7 @@ type RunRecord = {
   error?: string
   traceId?: string
   traceZipPath?: string
+  softHoldUntil?: number
 }
 
 const runs = new Map<string, RunRecord>()
@@ -269,9 +271,52 @@ function ttlMsFromConfig(config: AgentConfig) {
 }
 
 function maxConcurrentFromConfig(config: AgentConfig) {
+  const envN = Number(process.env.GUI_MAX_INFLIGHT || '')
+  if (Number.isFinite(envN) && envN > 0) return Math.min(10, Math.floor(envN))
   const n = Number((config as any)?.lobster?.maxConcurrentRuns ?? 2)
   if (!Number.isFinite(n) || n <= 0) return 1
   return Math.min(10, Math.floor(n))
+}
+
+function softHoldMs(): number {
+  const n = Number(process.env.GUI_HITL_SOFT_HOLD_MS || '')
+  if (Number.isFinite(n) && n > 0) return Math.floor(n)
+  return 15 * 60 * 1000
+}
+
+function countActiveRuns(): number {
+  return Array.from(runs.values()).filter((r) => r.status === 'running').length
+}
+
+function countTenantActive(tenantId: string): number {
+  const t = String(tenantId || 'default').trim() || 'default'
+  return Array.from(runs.values()).filter(
+    (r) => r.status === 'running' && (String(r.tenantId || 'default').trim() || 'default') === t
+  ).length
+}
+
+function maxPerTenant(): number {
+  const n = Number(process.env.GUI_MAX_INFLIGHT_PER_TENANT || '')
+  if (!Number.isFinite(n) || n <= 0) return 0
+  return Math.floor(n)
+}
+
+/** 按租户公平：选等待最久且未超租户上限的队首 */
+function pickNextQueuedRunId(maxConcurrent: number): string | null {
+  const perTenant = maxPerTenant()
+  if (countActiveRuns() >= maxConcurrent) return null
+  type Cand = { id: string; tenantId: string; enqueuedAt: number }
+  const cands: Cand[] = []
+  for (const id of runQueue) {
+    const r = runs.get(id)
+    if (!r || r.status !== 'queued') continue
+    const tenantId = String(r.tenantId || 'default').trim() || 'default'
+    if (perTenant > 0 && countTenantActive(tenantId) >= perTenant) continue
+    cands.push({ id, tenantId, enqueuedAt: r.startedAt })
+  }
+  if (!cands.length) return null
+  cands.sort((a, b) => a.enqueuedAt - b.enqueuedAt || a.tenantId.localeCompare(b.tenantId))
+  return cands[0].id
 }
 
 function dailyJsonlPath(dir: string) {
@@ -498,12 +543,24 @@ async function runOnce(params: {
       waitConfirm: async (id: string, signal: AbortSignal) => {
         const c = getChannel(runId)
         if (signal.aborted) throw new Error('canceled')
+        // HITL soft-hold：释放并发槽，让其他租户跑；确认后续跑
+        const holdRec = runs.get(runId)
+        if (holdRec && holdRec.status === 'running') {
+          holdRec.status = 'soft_hold'
+          holdRec.softHoldUntil = Date.now() + softHoldMs()
+          void drainQueue().catch(() => {})
+        }
         return await new Promise<boolean>((resolve, reject) => {
           if (signal.aborted) return reject(new Error('canceled'))
           c.confirms.set(id, {
             resolve: (ok) => {
               if (ok) c.confirmCount++
               if (c.pendingConfirm?.id === id) c.pendingConfirm = null
+              const r = runs.get(runId)
+              if (r && r.status === 'soft_hold') {
+                r.status = 'running'
+                r.softHoldUntil = undefined
+              }
               resolve(ok)
             },
             ts: Date.now()
@@ -524,17 +581,25 @@ async function drainQueue() {
   draining = true
   try {
     while (true) {
-      const nextId = runQueue[0]
-      if (!nextId) break
-      const next = runs.get(nextId)
-      if (!next || next.status !== 'queued') {
-        runQueue.shift()
-        continue
+      // 清理过期 soft_hold
+      const now = Date.now()
+      for (const r of runs.values()) {
+        if (r.status === 'soft_hold' && r.softHoldUntil && r.softHoldUntil < now) {
+          r.status = 'error'
+          r.error = 'HITL soft-hold 超时'
+          r.endedAt = now
+          try {
+            r.controller.abort()
+          } catch {}
+        }
       }
-      const max = maxConcurrentFromConfig(((next as any).__config as AgentConfig) || ({} as any))
-      const runningCount = Array.from(runs.values()).filter((r) => r.status === 'running').length
-      if (runningCount >= max) break
-      runQueue.shift()
+      const sample = runQueue.map((id) => runs.get(id)).find((r) => r && r.status === 'queued')
+      const max = maxConcurrentFromConfig(((sample as any)?.__config as AgentConfig) || ({} as any))
+      const nextId = pickNextQueuedRunId(max)
+      if (!nextId) break
+      const idx = runQueue.indexOf(nextId)
+      if (idx >= 0) runQueue.splice(idx, 1)
+      else runQueue.shift()
       void startExecution(nextId).catch(() => {})
     }
   } finally {
@@ -730,6 +795,7 @@ export function startRun(params: {
   task: string
   startUrl?: string
   sessionId?: string
+  tenantId?: string
   storageProfile?: string
   engineHint?: string
   workflowId?: string
@@ -748,13 +814,17 @@ export function startRun(params: {
   const ttlMs = ttlMsFromConfig(params.config)
   const runsDir = runsDirFromConfig(params.config)
   const maxConcurrent = maxConcurrentFromConfig(params.config)
-  const runningCount = Array.from(runs.values()).filter((r) => r.status === 'running').length
-  const willQueue = runningCount >= maxConcurrent
+  const tenantId = String(params.tenantId || 'default').trim() || 'default'
+  const runningCount = countActiveRuns()
+  const tenantCap = maxPerTenant()
+  const tenantBlocked = tenantCap > 0 && countTenantActive(tenantId) >= tenantCap
+  const willQueue = runningCount >= maxConcurrent || tenantBlocked
   const rec: RunRecord = {
     runId,
     task: params.task,
     startUrl: params.startUrl,
     status: willQueue ? 'queued' : 'running',
+    tenantId,
     startedAt: Date.now(),
     ttlMs,
     controller,

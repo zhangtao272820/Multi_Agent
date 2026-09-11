@@ -648,14 +648,20 @@
 .spring-root.cursor-workbench .cursor-thought-panel .process-panel-preview {
   flex: 1 1 auto;
   min-width: 0;
-  margin-left: 6px;
+  max-width: 100%;
+  margin-left: 0;
+  margin-top: 4px;
   font-size: 12px !important;
   line-height: 1.45 !important;
   color: #4a6580 !important;
-  white-space: nowrap;
+  white-space: normal !important;
   overflow: hidden;
-  text-overflow: ellipsis;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font-family: var(--brand-font-sans, "Manrope", "Noto Sans SC", sans-serif);
 }
 
 .spring-root.cursor-workbench.cosmic-theme .process-panel .process-agent-trail {
@@ -1559,9 +1565,9 @@
   word-break: break-word !important;
 }
 
-/* ── 思考过程：更充实的高级卡片（展开态） ── */
+/* ── 思考过程：展开态由 agent 透明样式接管，勿强制撑高 ── */
 .spring-root.cursor-workbench .cursor-thought-panel.harness-think-only[open] .process-panel-body {
-  min-height: 7.5rem;
+  min-height: 0;
 }
 
 .spring-root.cursor-workbench .harness-think {
@@ -1600,6 +1606,8 @@
   display: block !important;
   width: 100% !important;
   max-width: 100% !important;
+  min-width: 0 !important;
+  align-self: stretch !important;
   box-sizing: border-box !important;
   padding: 0.5rem 0.85rem 0.5rem 0.55rem !important;
   margin-left: 0 !important;

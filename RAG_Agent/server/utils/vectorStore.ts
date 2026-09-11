@@ -68,12 +68,15 @@ let bm25RebuildLock: Promise<void> | null = null;
 
 type AnyVectorStore = MemoryVectorStore | PGVectorStore;
 
+import { sanitizeDocumentForPgJson } from "./pg_json_sanitize";
+
 /** 分批写入向量库，兼容 DashScope 等 embedding API 的 batch≤10 限制 */
 const addDocumentsInBatches = async (store: AnyVectorStore, docs: any[]) => {
   if (!docs.length) return;
   const batchSize = getRagAgentEnv().embeddingBatchSize;
   for (let i = 0; i < docs.length; i += batchSize) {
-    await store.addDocuments(docs.slice(i, i + batchSize));
+    const batch = docs.slice(i, i + batchSize).map((d) => sanitizeDocumentForPgJson(d));
+    await store.addDocuments(batch);
   }
 };
 
@@ -1257,20 +1260,51 @@ export const processDocument = async (
     } else if (fileType === "docx" || fileType === "doc") {
       const magic = buffer.slice(0, 4).toString('hex');
       const { Document } = await import("@langchain/core/documents");
-      
-      if (magic === "504b0304") {
-        // Modern .docx (ZIP structure)
-        const mammoth = await import("mammoth");
-        const result = await mammoth.extractRawText({ buffer: buffer });
-        docs = [new Document({ pageContent: result.value, metadata: { source: fileName, fileType } })];
-      } else if (magic === "d0cf11e0") {
-        // Legacy .doc (OLECF structure)
+      const { sanitizeTextForPgJson } = await import("./pg_json_sanitize");
+      const { resolveWordParseStrategy } = await import("./word_parse_strategy");
+      const ext = fileType.toLowerCase();
+      const strategy = resolveWordParseStrategy({ magicHex: magic, fileExt: ext });
+
+      if (strategy.kind === "ooxml_mammoth") {
+        // Modern .docx (ZIP / OOXML)
+        try {
+          const mammoth = await import("mammoth");
+          const result = await mammoth.extractRawText({ buffer: buffer });
+          docs = [
+            new Document({
+              pageContent: sanitizeTextForPgJson(result.value || ""),
+              metadata: { source: fileName, fileType },
+            }),
+          ];
+        } catch (zipErr: any) {
+          throw new Error(
+            `DOCX 解析失败（ZIP 损坏或非标准包）：${String(zipErr?.message || zipErr)}。请用 Word「另存为 .docx」后重传。`,
+          );
+        }
+      } else if (strategy.kind === "ole_word_extractor") {
+        // Legacy OLE .doc — WPS 常把 OLE 存成 .docx 扩展名；一律走 word-extractor
         const WordExtractor = (await import("word-extractor")).default;
         const extractor = new WordExtractor();
         const extracted = await extractor.extract(buffer);
-        docs = [new Document({ pageContent: extracted.getBody(), metadata: { source: fileName, fileType } })];
+        if (strategy.extMismatchOleAsDocx) {
+          console.warn(
+            `[Parse] ${fileName}: extension .docx but OLE/.doc magic; using word-extractor`,
+          );
+        }
+        docs = [
+          new Document({
+            pageContent: sanitizeTextForPgJson(extracted.getBody() || ""),
+            metadata: {
+              source: fileName,
+              fileType: strategy.extMismatchOleAsDocx ? "doc" : fileType,
+              ...(strategy.extMismatchOleAsDocx
+                ? { ext_mismatch: "ole_as_docx", parser_hint: "local_word_ole" }
+                : {}),
+            },
+          }),
+        ];
       } else {
-        throw new Error(`Unsupported Word format: Magic number ${magic} not recognized for ${fileName}`);
+        throw new Error(`Unsupported Word format: Magic number ${strategy.magic} not recognized for ${fileName}`);
       }
     } else if (["png", "jpg", "jpeg", "bmp", "tiff", "gif", "webp"].includes(fileType)) {
       // 1.2 OCR 识别 (针对扫描件/图片)
@@ -1310,7 +1344,17 @@ export const processDocument = async (
       const { Document } = await import("@langchain/core/documents");
       docs = [new Document({ pageContent: text, metadata: { source: fileName, fileType } })];
     } else {
-      // 默认作为文本处理
+      const { KNOWN_INGEST_EXTS, looksLikeBinaryOfficeOrPdf } = await import("./ingest_text_quality");
+      if (!KNOWN_INGEST_EXTS.has(fileType) && looksLikeBinaryOfficeOrPdf(buffer)) {
+        const err = new Error(
+          `不支持将二进制文件按纯文本入库（${fileName}）。请使用 PDF / DOCX / PPTX / XLSX / MD / TXT 等白名单格式。`,
+        );
+        (err as any).code = "unsupported_binary_as_text";
+        throw err;
+      }
+      if (!KNOWN_INGEST_EXTS.has(fileType)) {
+        console.warn(`[Parse] unknown ext=${fileType} treating as text: ${fileName}`);
+      }
       const text = buffer.toString('utf-8');
       const { Document } = await import("@langchain/core/documents");
       docs = [new Document({ pageContent: text, metadata: { source: fileName, fileType } })];
@@ -1359,6 +1403,15 @@ export async function upsertParsedDocuments(
   const docTenantId = getRagRequestTenantId();
 
   const fullText = docs.map((d) => String(d.pageContent ?? "")).join("\n");
+  const {
+    isIngestTextReliable,
+    IngestTextUnreliableError,
+  } = await import("./ingest_text_quality");
+  if (!isIngestTextReliable(fullText, fileName)) {
+    throw new IngestTextUnreliableError(
+      `解析结果疑似乱码或空正文，已拒绝入库：${fileName}。请确认文件未损坏，或另存为标准 PDF/DOCX/PPTX/MD 后重传。`,
+    );
+  }
   const contentHash = hashCorpusText(fullText);
   const sourceVersion = resolveSourceVersion({
     explicit: opts?.source_version,

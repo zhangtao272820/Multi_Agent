@@ -46,11 +46,11 @@
             type="file"
             ref="fileInput"
             class="hidden"
-            accept=".pdf,.txt,.doc,.docx,.md,.csv,.json,.zip,.png,.jpg,.jpeg,.bmp,.tiff,.gif,.webp"
+            accept=".pdf,.txt,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.md,.csv,.json,.html,.htm,.zip,.png,.jpg,.jpeg,.bmp,.tiff,.gif,.webp"
             @change="handleFileUpload"
           />
           <div class="rag-upload-hint rag-upload-hint--compact">
-            PDF · Word · TXT · MD · CSV · JSON · ZIP · 图片
+            PDF · Word · Excel · PPT · TXT · MD · CSV · JSON · ZIP · 图片
           </div>
           <div class="rag-sidebar__docs">
             <ul class="rag-doc-list">
@@ -85,7 +85,7 @@
                 <div v-else-if="doc.summary" class="brand-list-row__meta rag-doc-summary">{{ doc.summary }}</div>
               </li>
               <li v-if="documents.length === 0" class="brand-empty rag-doc-empty">
-                暂无文档。点击「上传」添加 PDF、Word、MD 等资料。
+                暂无文档。点击「上传」添加 PDF、Word、Excel、PPT 等资料。
               </li>
             </ul>
             <button
@@ -1091,6 +1091,8 @@ const hydrateSessionFeedbackFromServer = async () => {
   if (!sid) return 'empty';
   try {
     const res = await $fetch(`/api/rag/session-feedback?sessionId=${encodeURIComponent(sid)}`);
+    // 切换会话后丢弃过期回灌，避免写到新会话
+    if (conversationId.value !== sid) return 'empty';
     const items = Array.isArray(res?.items) ? res.items : [];
     if (!items.length) return 'empty';
     const scores = { ...feedbackByUserIndex.value };
@@ -1104,12 +1106,14 @@ const hydrateSessionFeedbackFromServer = async () => {
       acks[uidx] =
         score === 1 ? '已标记为有帮助 · 感谢反馈（已同步）' : '已标记为不准确 · 感谢反馈（已同步）';
     }
+    if (conversationId.value !== sid) return 'empty';
     feedbackByUserIndex.value = scores;
     feedbackAckByUserIndex.value = acks;
     persistSessionFeedback();
     applyFeedbackToMessages();
     return 'ok';
   } catch (e) {
+    if (conversationId.value !== sid) return 'empty';
     const status = Number(e?.statusCode || e?.status || e?.response?.status || 0);
     if (status === 401 || status === 403) return 'auth';
     return 'error';
@@ -1693,12 +1697,13 @@ const switchSession = async (id) => {
     setTabRagSessionId(id);
     restoreSessionFeedback();
     await loadSessionFromServer(id);
-    const expectFeedback = messages.value.some((m) => m.role === 'user');
-    await hydrateFeedbackWithRetry({ expectFeedback });
     touchCurrentSessionHistory({ bump: false });
   } finally {
+    // 先解除加载态：反馈回灌不得挡住会话正文（WARM+empty 曾可卡 ~25s）
     sessionSwitching.value = false;
   }
+  const expectFeedback = messages.value.some((m) => m.role === 'user');
+  void hydrateFeedbackWithRetry({ expectFeedback });
 };
 
 const renameSessionHistory = (item) => {
@@ -2939,10 +2944,10 @@ onMounted(() => {
     if (existingId) {
       conversationId.value = existingId;
       restoreSessionFeedback();
-      // 先历史再反馈，避免与 Docker 暖机竞态；失败则退避重试
+      // 先历史再反馈；反馈后台回灌，不挡首屏
       await loadSessionFromServer(existingId);
       const expectFeedback = messages.value.some((m) => m.role === 'user');
-      await hydrateFeedbackWithRetry({ expectFeedback });
+      void hydrateFeedbackWithRetry({ expectFeedback });
     } else {
       ensureConversationId();
       restoreSessionFeedback();

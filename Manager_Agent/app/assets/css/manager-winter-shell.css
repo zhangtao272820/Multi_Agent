@@ -548,6 +548,11 @@
   border-radius: 8px !important;
 }
 
+.spring-root.cosmic-theme.cursor-workbench .spring-side-specialists .mgr-tool-rail {
+  width: 100%;
+  max-width: 100%;
+}
+
 .spring-root.cosmic-theme.cursor-workbench .spring-history-row.active,
 .spring-root.cosmic-theme.cursor-workbench .spring-history-item:hover {
   background: rgba(255, 255, 255, 0.82) !important;

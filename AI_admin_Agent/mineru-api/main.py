@@ -111,6 +111,9 @@ def _read_bytes_lite(data: bytes, filename: str) -> str:
         return _read_pdf_lite(data)
     if lower.endswith((".html", ".htm")):
         return _strip_html(data.decode("utf-8", errors="ignore"))
+    # 禁止把 OOXML/ZIP 当 UTF-8 文本解码（会产出 PK 乱码并被当成 ok）
+    if lower.endswith((".docx", ".doc", ".pptx", ".ppt", ".xlsx", ".xls", ".zip")):
+        raise RuntimeError(f"lite_engine_refuses_binary_office:{lower.rsplit('.', 1)[-1]}")
     return data.decode("utf-8", errors="ignore")
 
 
@@ -182,18 +185,37 @@ def _parse_pdf_enhanced(data: bytes) -> str:
 
 
 def _parse_office_enhanced(data: bytes, filename: str) -> str:
-    """DOCX/PPTX：优先 zip 内 XML 文本；失败再 lite 解码。"""
+    """DOCX/PPTX：只抽正文文本节点；失败返回空串由上层回落。"""
     lower = filename.lower()
     try:
         import zipfile
         from xml.etree import ElementTree as ET
 
+        W_NS = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
+        A_NS = "{http://schemas.openxmlformats.org/drawingml/2006/main}"
+
         with zipfile.ZipFile(io.BytesIO(data)) as zf:
             texts: list[str] = []
             if lower.endswith(".docx"):
-                names = [n for n in zf.namelist() if n.startswith("word/") and n.endswith(".xml")]
+                # 仅 document + header/footer，避免 theme/styles 噪声；只取 w:t
+                prefer = [
+                    n
+                    for n in zf.namelist()
+                    if n == "word/document.xml"
+                    or n.startswith("word/header")
+                    or n.startswith("word/footer")
+                ]
+                names = prefer or [
+                    n for n in zf.namelist() if n.startswith("word/") and n.endswith(".xml")
+                ]
+                tag = f"{W_NS}t"
             elif lower.endswith(".pptx"):
-                names = [n for n in zf.namelist() if n.startswith("ppt/slides/slide") and n.endswith(".xml")]
+                names = [
+                    n
+                    for n in zf.namelist()
+                    if n.startswith("ppt/slides/slide") and n.endswith(".xml")
+                ]
+                tag = f"{A_NS}t"
             else:
                 return ""
             for name in sorted(names)[:80]:
@@ -202,11 +224,30 @@ def _parse_office_enhanced(data: bytes, filename: str) -> str:
                     root = ET.fromstring(raw)
                 except ET.ParseError:
                     continue
-                chunks = [el.text for el in root.iter() if el.text and el.text.strip()]
+                chunks = [
+                    (el.text or "").strip()
+                    for el in root.iter(tag)
+                    if el.text and el.text.strip()
+                ]
+                # 回退：无命名空间时的本地名 t
+                if not chunks:
+                    chunks = [
+                        (el.text or "").strip()
+                        for el in root.iter()
+                        if (el.tag.endswith("}t") or el.tag == "t")
+                        and el.text
+                        and str(el.text).strip()
+                    ]
                 body = "\n".join(chunks).strip()
                 if body:
                     texts.append(body)
-            return "\n\n".join(texts)
+            joined = "\n\n".join(texts).strip()
+            # 中文文件名却几乎无汉字 → 视为伪成功，交给上层换引擎/失败
+            if joined and any("\u4e00" <= ch <= "\u9fff" for ch in filename):
+                cjk = sum(1 for ch in joined if "\u4e00" <= ch <= "\u9fff")
+                if len(joined) >= 80 and cjk / max(1, len(joined)) < 0.02:
+                    return ""
+            return joined
     except Exception:
         return ""
 
@@ -219,6 +260,7 @@ def _read_bytes_enhanced(data: bytes, filename: str) -> str:
         office = _parse_office_enhanced(data, filename)
         if office.strip():
             return office
+        raise RuntimeError("office_xml_extract_empty_or_unreliable")
     if lower.endswith((".png", ".jpg", ".jpeg", ".bmp", ".tiff", ".webp")):
         return _ocr_pixmap_png(data)
     return _read_bytes_lite(data, filename)

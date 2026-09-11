@@ -44,7 +44,7 @@ const report = evaluateCapGoldenFile(obj.cases, FILE)
 assert(report.passed === report.total, `cap structural failures in ${FILE}`)
 
 const morphs = new Set(obj.cases.map((c) => String(c.morphology || '')))
-for (const required of ['continuation', 'admin', 'hybrid', 'ambiguous', 'tenant_boundary']) {
+for (const required of ['continuation', 'admin', 'hybrid', 'ambiguous', 'tenant_boundary', 'multimodal_collab']) {
   assert(morphs.has(required), `${FILE} missing morphology: ${required}`)
 }
 

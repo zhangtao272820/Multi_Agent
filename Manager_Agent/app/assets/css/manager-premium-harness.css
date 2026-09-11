@@ -181,6 +181,44 @@
   font-size: 13px !important;
   line-height: 1.65 !important;
   width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+  white-space: pre-wrap !important;
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
+}
+
+.spring-root.cursor-workbench .harness-think-stream .harness-think-stream-body {
+  white-space: pre-wrap !important;
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
+
+.spring-root.cursor-workbench .turn-storyline .harness-think-stages,
+.spring-root.cursor-workbench .harness-think-stages {
+  width: 100% !important;
+  max-width: 100% !important;
+  align-self: stretch !important;
+  align-items: stretch !important;
+  box-sizing: border-box !important;
+}
+
+.spring-root.cursor-workbench .turn-storyline .harness-think-stage,
+.spring-root.cursor-workbench .harness-think-stage {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  align-self: stretch !important;
+  box-sizing: border-box !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+.spring-root.cursor-workbench .harness-think-stage-sum {
+  width: 100% !important;
   box-sizing: border-box !important;
 }
 
@@ -190,6 +228,20 @@
   border-radius: 10px;
   background: rgba(248, 250, 252, 0.9);
   border: 0.5px solid rgba(15, 23, 42, 0.08);
+  width: 100% !important;
+  max-width: 100% !important;
+  align-self: stretch !important;
+  box-sizing: border-box !important;
+}
+
+.spring-root.cursor-workbench .harness-created-plan-agents {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+  gap: 0.35rem 0.3rem !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
 }
 
 .spring-root.cursor-workbench .harness-created-plan-title {
@@ -719,7 +771,35 @@
 }
 
 .mgr-task-board-in-thread {
-  margin: 0.45rem 0 0.55rem;
+  margin: 0.35rem 0 0.45rem;
+  padding: 0.5rem 0.6rem 0.45rem;
+  border: 1px solid rgba(122, 168, 212, 0.38);
+  background:
+    linear-gradient(165deg, rgba(255, 255, 255, 0.94), rgba(236, 246, 255, 0.8));
+}
+
+.mgr-task-board-in-thread .mgr-task-board-list {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.35rem;
+}
+
+@media (min-width: 720px) {
+  .mgr-task-board-in-thread .mgr-task-board-list {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.mgr-task-board-in-thread .mgr-task-board-item {
+  min-width: 0;
+  padding: 0.35rem 0.45rem;
+}
+
+.mgr-task-board-in-thread .mgr-task-board-agent,
+.mgr-task-board-in-thread .mgr-task-board-query,
+.mgr-task-board-in-thread .mgr-task-board-tip {
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .mgr-task-board-head {
@@ -911,4 +991,245 @@
   font-size: 10px;
   color: #94a3b8;
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   思考过程 · 普遍 Agent 风（透明底 + 纵向时间线，禁白卡片分栏）
+   ═══════════════════════════════════════════════════════════════ */
+.spring-root.cursor-workbench .cursor-thought-panel.harness-think-only,
+.spring-root.mode-professional.cursor-workbench .cursor-thought-panel.harness-think-only,
+.spring-root.cursor-workbench.cosmic-theme .cursor-thought-panel.harness-think-only.process-panel,
+.spring-root.cosmic-theme.cursor-workbench .cursor-thought-panel.harness-think-only.process-panel {
+  background: transparent !important;
+  border: none !important;
+  border-left: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  padding: 0 !important;
+  margin: 0.1rem 0 0.55rem !important;
+  overflow: visible !important;
+}
+
+.spring-root.cursor-workbench .cursor-thought-panel.harness-think-only > .process-panel-summary,
+.spring-root.mode-professional.cursor-workbench .cursor-thought-panel.harness-think-only > .process-panel-summary {
+  padding: 0.35rem 0.15rem !important;
+  border: none !important;
+  border-bottom: none !important;
+  background: transparent !important;
+  gap: 2px !important;
+}
+
+.spring-root.cursor-workbench .cursor-thought-panel.harness-think-only[open] > .process-panel-summary,
+.spring-root.mode-professional.cursor-workbench .cursor-thought-panel.harness-think-only[open] > .process-panel-summary {
+  border-bottom: none !important;
+  background: transparent !important;
+}
+
+.spring-root.cursor-workbench .cursor-thought-panel.harness-think-only .process-panel-label {
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: #64748b !important;
+  letter-spacing: 0.01em !important;
+}
+
+.spring-root.cursor-workbench .cursor-thought-panel.harness-think-only .process-panel-badge,
+.spring-root.cursor-workbench .cursor-thought-panel.harness-think-only .process-panel-badge-muted,
+.spring-root.cursor-workbench .cursor-thought-panel.harness-think-only .process-panel-badge-live {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  padding: 2px 8px !important;
+  border-radius: 999px !important;
+  border: none !important;
+  background: rgba(148, 163, 184, 0.16) !important;
+  color: #64748b !important;
+  box-shadow: none !important;
+}
+
+.spring-root.cursor-workbench .cursor-thought-panel.harness-think-only .process-panel-badge-live {
+  background: rgba(37, 99, 235, 0.12) !important;
+  color: #2563eb !important;
+}
+
+.spring-root.cursor-workbench .cursor-thought-panel.harness-think-only .process-panel-body,
+.spring-root.cursor-workbench .cursor-thought-panel.harness-think-only .process-panel-scroll,
+.spring-root.mode-professional.cursor-workbench .cursor-thought-panel.harness-think-only .process-panel-body,
+.spring-root.mode-professional.cursor-workbench .cursor-thought-panel.harness-think-only .process-panel-scroll {
+  padding: 0.15rem 0.1rem 0.35rem 0.35rem !important;
+  margin: 0 !important;
+  border: none !important;
+  background: transparent !important;
+  max-height: min(36vh, 380px) !important;
+  min-height: 0 !important;
+}
+
+.spring-root.cursor-workbench .harness-think.harness-think-agent {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 0.65rem !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+.spring-root.cursor-workbench .harness-think-agent .harness-think-stages {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  padding: 0.1rem 0 0.2rem 0.15rem !important;
+  position: relative;
+}
+
+.spring-root.cursor-workbench .harness-think-agent .harness-think-stages::before {
+  left: 5px !important;
+  top: 10px !important;
+  bottom: 10px !important;
+  width: 1.5px !important;
+  background: rgba(148, 163, 184, 0.35) !important;
+}
+
+.spring-root.cursor-workbench .harness-think-agent .harness-think-stage {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  padding: 0.28rem 0.2rem 0.28rem 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.spring-root.cursor-workbench .harness-think-agent .harness-think-stage.is-done,
+.spring-root.cursor-workbench .harness-think-agent .harness-think-stage.is-active {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.spring-root.cursor-workbench .harness-think-agent .harness-think-stage-sum {
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.55rem !important;
+  width: 100% !important;
+  padding: 0.1rem 0 !important;
+  font-size: 13px !important;
+  font-weight: 550 !important;
+  color: #475569 !important;
+  background: transparent !important;
+}
+
+.spring-root.cursor-workbench .harness-think-agent .harness-think-stage.is-done .harness-think-stage-label {
+  color: #64748b !important;
+}
+
+.spring-root.cursor-workbench .harness-think-agent .harness-think-stage.is-active .harness-think-stage-label {
+  color: #0f172a !important;
+  font-weight: 650 !important;
+}
+
+.spring-root.cursor-workbench .harness-think-agent .harness-think-stage-dot {
+  width: 8px !important;
+  height: 8px !important;
+  flex: 0 0 8px !important;
+  margin-left: 1px;
+  background: #94a3b8 !important;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.55) !important;
+}
+
+.spring-root.cursor-workbench .harness-think-agent .harness-think-stage.is-done .harness-think-stage-dot {
+  background: #64748b !important;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.45) !important;
+}
+
+.spring-root.cursor-workbench .harness-think-agent .harness-think-stage.is-active .harness-think-stage-dot {
+  background: #2563eb !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18) !important;
+}
+
+.spring-root.cursor-workbench .harness-think-agent .harness-think-stage-secs {
+  margin-left: auto;
+  padding: 0 !important;
+  border: none !important;
+  background: transparent !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  color: #94a3b8 !important;
+}
+
+.spring-root.cursor-workbench .harness-think-agent .harness-think-stage-body {
+  margin: 0.2rem 0 0.35rem 1.15rem !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: #64748b !important;
+  font-size: 12.5px !important;
+  line-height: 1.65 !important;
+  white-space: pre-wrap !important;
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
+  max-width: 100% !important;
+}
+
+.spring-root.cursor-workbench .harness-think-agent .harness-think-stream {
+  color: #64748b !important;
+  font-size: 12.5px !important;
+  line-height: 1.65 !important;
+}
+
+.spring-root.cursor-workbench .harness-think-agent .harness-created-plan {
+  margin-top: 0.35rem !important;
+  padding: 0.35rem 0 0.1rem !important;
+  border: none !important;
+  border-top: 1px solid rgba(148, 163, 184, 0.22) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+}
+
+.spring-root.cursor-workbench .harness-think-agent .harness-created-plan::before {
+  display: none !important;
+}
+
+.spring-root.cursor-workbench .harness-think-agent .harness-created-plan-title {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  color: #94a3b8 !important;
+  letter-spacing: 0.02em !important;
+}
+
+.spring-root.cursor-workbench .harness-think-agent .harness-created-plan-agents {
+  gap: 0.3rem 0.2rem !important;
+}
+
+.spring-root.cursor-workbench .harness-think-agent .harness-plan-chip {
+  padding: 0.15rem 0.5rem !important;
+  border-radius: 999px !important;
+  background: rgba(255, 255, 255, 0.35) !important;
+  border: 1px solid rgba(148, 163, 184, 0.28) !important;
+  color: #475569 !important;
+  font-size: 12px !important;
+  font-weight: 550 !important;
+  box-shadow: none !important;
+}
+
+.spring-root.cursor-workbench .harness-think-agent .harness-plan-arrow {
+  color: #cbd5e1 !important;
+}
+
+.spring-root.cursor-workbench.cosmic-theme .cursor-thought-panel.harness-think-only .process-panel-label::after {
+  content: none !important;
+}
+
+.spring-root.thought-view-user .cursor-thought-panel.thought-panel-user.harness-think-only {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
 

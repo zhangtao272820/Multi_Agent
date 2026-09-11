@@ -47,8 +47,15 @@ def _image_data_url(path: Path) -> str:
     return f"data:{mime};base64,{b64}"
 
 
-_VL_SYS = "输出JSON:description,confidence,emotions[],ocr_text。仅JSON。"
-_HELPER_SYS = "将视觉草稿整理为JSON:description,confidence,emotions[],ocr_text,summary。仅JSON，简练。"
+_VL_SYS = (
+    "输出JSON:description,confidence,emotions[],ocr_text,"
+    "entities[{name,kind}],metrics[{name,value,unit}]。"
+    "entities=可识别人名/机构/物品；metrics=画面可读数值指标（体检/账单等）。仅JSON。"
+)
+_HELPER_SYS = (
+    "将视觉草稿整理为JSON:description,confidence,emotions[],ocr_text,summary,"
+    "entities[{name,kind}],metrics[{name,value,unit}]。仅JSON，简练；保留可读数字。"
+)
 
 
 def _helper_refine(settings: Settings, draft: str, question: str) -> dict[str, Any]:

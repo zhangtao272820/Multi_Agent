@@ -46,23 +46,44 @@ function parseExtractJson(raw: string): z.infer<typeof ExtractSchema> | null {
   }
 }
 
-/** 无 LLM：从标题式行启发式建 Clause 节点（smoke / LLM 失败兜底） */
+/** 无 LLM：从标题式行启发式建 Clause/Org/Role/Process 节点（smoke / LLM 失败兜底） */
 export function heuristicExtractPolicyGraph(text: string, source: string): z.infer<typeof ExtractSchema> {
-  const lines = String(text || "")
-    .split(/\r?\n/)
+  const rawLines = String(text || "").split(/\r?\n/);
+  const lines = rawLines
     .map((l) => l.trim())
     .filter((l) => l.length >= 4)
-    // 跳过样例说明 / Markdown 引用行，避免把「设计意图」抽成 OrgUnit
     .filter((l) => !/^>/.test(l))
     .filter((l) => !/冒烟样例|设计意图|非生产制度|用途：|便于验证/.test(l));
   const nodes: z.infer<typeof ExtractSchema>["nodes"] = [];
   const edges: z.infer<typeof ExtractSchema>["edges"] = [];
   let i = 0;
-  for (const line of lines.slice(0, 40)) {
-    if (/^(第.+[条款章节]|\d+[.、]|【.+】)/.test(line) || line.length >= 12) {
-      const id = `Clause:auto_${i++}`;
-      nodes.push({ id, type: "Clause", name: line.slice(0, 40), text: line.slice(0, 500) });
+
+  // 条款/步骤：名称用标题，text 挂后续正文，便于字面 overlap 命中「劳动合同」「门禁卡」
+  for (let li = 0; li < Math.min(lines.length, 80); li += 1) {
+    const line = lines[li]!;
+    const isClauseHead =
+      /^(#{1,6}\s*)?第.+[条款章节]/.test(line) ||
+      /^【.+】/.test(line) ||
+      /【步骤[：:]/.test(line) ||
+      /【流程名称[：:]/.test(line);
+    if (!isClauseHead && !(line.length >= 12 && /^(第.+[条款章节]|\d+[.、])/.test(line))) {
+      continue;
     }
+    const follow: string[] = [line];
+    for (let j = li + 1; j < Math.min(li + 4, lines.length); j += 1) {
+      const nxt = lines[j]!;
+      if (/^(#{1,6}\s*)?第.+[条款章节]/.test(nxt) || /^##\s+/.test(nxt)) break;
+      follow.push(nxt);
+    }
+    const blob = follow.join("\n").slice(0, 500);
+    const id = `Clause:auto_${i++}`;
+    const bracket = line.match(/【([^】]+)】/);
+    nodes.push({
+      id,
+      type: "Clause",
+      name: (bracket?.[1] || line.replace(/^#+\s*/, "")).slice(0, 48),
+      text: blob,
+    });
   }
 
   const bracketOrg = lines.find((l) => /【[^】]*(部|办公室|中心|科室)】/.test(l));

@@ -15,6 +15,21 @@ import { recordRagQueryMetric } from "../utils/query_metrics";
 export default defineEventHandler(async (event) => {
   ensureInternalAgentAccess(event);
   await applyPlatformModelOverrides({});
+  const { withRagPoolSlot } = await import("../utils/ragPoolGate");
+  const tenantId = String(event.context.ragTenantId || "default").trim() || "default";
+  try {
+    return await withRagPoolSlot("rag_chat", tenantId, async () => {
+      return await handleRetrieve(event);
+    });
+  } catch (e: any) {
+    if (e?.code === "rag_pool_overloaded" || e?.statusCode === 429) {
+      throw createError({ statusCode: 429, statusMessage: String(e.message || "RAG busy") });
+    }
+    throw e;
+  }
+});
+
+async function handleRetrieve(event: any) {
   const orchestrated = isManagerOrchestratedRequest(event);
   setOrchestratedByManager(orchestrated);
   const started = Date.now();
@@ -199,4 +214,4 @@ export default defineEventHandler(async (event) => {
   } finally {
     clearRetrievalUserKey();
   }
-});
+}

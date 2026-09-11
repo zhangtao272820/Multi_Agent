@@ -212,10 +212,14 @@ export default defineWebSocketHandler({
     })
 
     const runStartedAt = Date.now()
+    const tenantId =
+      String((msg as any)?.payload?.tenantId || (msg as any)?.payload?.tenant_id || '').trim() ||
+      'default'
     const runId = startRun({
       task: runTask,
       startUrl,
       sessionId,
+      tenantId,
       storageProfile,
       engineHint,
       workflowId,

@@ -7,7 +7,11 @@ const MAP = [
   ["from '#agent-shared/llmJson'", "from '../shared/llmJson'"],
   ["import('#agent-shared/llmJson')", "import('../shared/llmJson')"],
   ["from '#agent-shared/modelTier'", "from '../shared/modelTier'"],
-  ["from '#agent-shared/llmSpeed'", "from '../shared/llmSpeed'"]
+  ["from '#agent-shared/llmSpeed'", "from '../shared/llmSpeed'"],
+  ["from '#agent-shared/promptBudget'", "from '../shared/promptBudget'"],
+  ["from '#agent-shared/policy'", "from '../shared/policy'"],
+  ["from '#agent-shared/payload'", "from '../shared/payload'"],
+  ["from '#agent-shared/media'", "from '../shared/media'"]
 ]
 
 let n = 0

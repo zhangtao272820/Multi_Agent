@@ -1,4 +1,4 @@
-import { readBody } from 'h3'
+import { readBody, getHeader } from 'h3'
 import { useRuntimeConfig } from '#imports'
 import { mergeLobsterRuntimeConfig } from '../../utils/platform_config'
 import { startRun } from '../../services/lobsterRuntime'
@@ -79,6 +79,7 @@ export default defineEventHandler(async (event) => {
     task,
     startUrl,
     sessionId,
+    tenantId: String(body?.tenantId || body?.tenant_id || getHeader(event, 'x-tenant-id') || 'default').trim() || 'default',
     storageProfile,
     engineHint,
     workflowId,

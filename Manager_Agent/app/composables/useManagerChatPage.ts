@@ -69,6 +69,10 @@ import {
   errorCodeBadgeLabel,
   normalizeClientErrorCode
 } from '~/utils/expertDegradeUi'
+import {
+  collectUserCreatedPlanAgents,
+  labelUserCreatedPlanAgents
+} from '~/utils/userCreatedPlanLabels'
 import { stepBoardStatusLabelZh } from '~/composables/managerMaturityUi'
 
 export function useManagerChatPage() {
@@ -4578,6 +4582,41 @@ export function useManagerChatPage() {
   
   const visibleTurnGroups = computed(() => turnGroups.value.filter((t) => !withdrawnTurns.value.has(t.id)))
 
+  /** 侧栏进度/专才：优先进行中轮，否则最近有板/流水线的一轮 */
+  const sidebarLiveTurn = computed((): TurnGroup | null => {
+    const groups = visibleTurnGroups.value
+    const live = groups.find((t) => isTurnRunning(t) || isTurnLive(t))
+    if (live) return live
+    for (let i = groups.length - 1; i >= 0; i--) {
+      const t = groups[i]
+      if (!t) continue
+      if (turnTaskBoardForDisplay(t)?.items?.length) return t
+      if (turnAgentPipelineSteps(t).length) return t
+      if (turnRouteCap(t)?.agents?.length) return t
+    }
+    return null
+  })
+
+  const sidebarSpecialistSteps = computed(() => {
+    const t = sidebarLiveTurn.value
+    return t ? turnAgentPipelineSteps(t) : []
+  })
+
+  const sidebarSpecialistRouteAgents = computed(() => {
+    const t = sidebarLiveTurn.value
+    return t ? turnRouteCap(t)?.agents || [] : []
+  })
+
+  const sidebarSpecialistBoardItems = computed(() => {
+    const t = sidebarLiveTurn.value
+    return t ? turnTaskBoardForDisplay(t)?.items || [] : []
+  })
+
+  const sidebarSpecialistRunning = computed(() => {
+    const t = sidebarLiveTurn.value
+    return t ? isTurnRunning(t) || isTurnLive(t) : false
+  })
+
   const artifactDrawerOpen = ref(false)
   const artifactDrawerTurnId = ref<number | null>(null)
   const artifactDrawerTab = ref<'chart' | 'table' | 'report'>('chart')
@@ -5061,6 +5100,7 @@ export function useManagerChatPage() {
     if (s.startsWith('{') && (s.includes('"event"') || s.includes('"type"'))) return true
     if (isPlanStepsJsonLog(s)) return true
     if (s.includes('工具健康')) return true
+    if (/资源感知|tool_health|Tool Health|deadline\s*=\s*\d+s/i.test(s)) return true
     if (/^▸\s*(manager|db|rag|crawler|code)\s*·/.test(s)) return true
     if (/治理建议|allowedAgents|blueprintDag|prioritize_|bandit|canary|HITL|error_code|agent_result|ops_token|trace_id/i.test(s)) {
       return true
@@ -5079,6 +5119,17 @@ export function useManagerChatPage() {
       if (/DB|数据库|\bdb\b/i.test(s)) return '正在准备数据库查询…'
       if (/RAG|知识/i.test(s)) return '正在准备知识库检索…'
       return '正在准备相关资料…'
+    }
+    // 总管内部资源 / 健康 / 预算日志：不进用户思考面
+    if (
+      /总管\s*Agent/i.test(s) ||
+      /\bresource\b/i.test(s) ||
+      /资源感知|tool_health|Tool Health|deadline\s*=/i.test(s) ||
+      /健康\s*=\s*\d+|降级\s*=\s*\d+/i.test(s) ||
+      /预算[：:]\s*未设置/i.test(s)
+    ) {
+      if (/开始处理|启动|就绪/i.test(s)) return '开始处理…'
+      return ''
     }
     if (/侦察完成|库表\/知识库\/服务可用性/i.test(s)) return '已了解可用资料…'
     if (/写库预览|须.*确认后执行|写操作.*确认/i.test(s)) return '涉及写入，需你确认后才会执行'
@@ -5141,21 +5192,15 @@ export function useManagerChatPage() {
     return raw
   }
 
-  /** 用户面执行计划：中文专才名，不展示 raw agent key / DAG */
+  /** 用户面执行计划：中文专才名；用 board/pipeline/routeAgents，禁止 dataSources 冒充计划 */
   function userCreatedPlanLabels(t: TurnGroup): string[] {
-    const card = turnRoutePlanCard(t)
-    const raw = card?.dataSources?.length
-      ? card.dataSources
-      : turnRouteCap(t)?.agents || []
-    const out: string[] = []
-    const seen = new Set<string>()
-    for (const a of raw) {
-      const label = planAgentLabel(String(a || ''))
-      if (!label || seen.has(label)) continue
-      seen.add(label)
-      out.push(label)
-    }
-    return out
+    const board = turnTaskBoardForDisplay(t)
+    const agents = collectUserCreatedPlanAgents({
+      boardAgents: board?.items?.map((it) => it.agent),
+      pipelineAgents: turnAgentPipelineSteps(t).map((s) => s.agent),
+      routeAgents: turnRouteCap(t)?.agents
+    })
+    return labelUserCreatedPlanAgents(agents, planAgentLabel)
   }
   
   function userThoughtNarrative(t: TurnGroup): UserThoughtLine[] {
@@ -6665,6 +6710,12 @@ export function useManagerChatPage() {
     planStepsTodo,
     planStepsDoneCount,
     taskBoardLive,
+    sidebarLiveTurn,
+    sidebarSpecialistSteps,
+    sidebarSpecialistRouteAgents,
+    sidebarSpecialistBoardItems,
+    sidebarSpecialistRunning,
+    agentPipelineStatusLabel,
     maturitySliLive,
     routeCapLive,
     agentDisplayLabel: (agent: string, professional = true) => formatAgentDisplayLabel(agent, professional),

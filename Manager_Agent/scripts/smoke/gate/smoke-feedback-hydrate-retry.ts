@@ -124,6 +124,36 @@ assert.equal(isFeedbackPendingAck(FEEDBACK_PENDING_ACK), true)
   stopWatch()
 }
 
+{
+  // 同步阶段不对 empty 长退避；warm 时交给 dirty watch
+  let n = 0
+  const { status, stopWatch } = await retryFeedbackHydrateThenWatch(
+    async () => {
+      n += 1
+      return (n < 3 ? 'empty' : 'ok') as FeedbackHydrateStatus
+    },
+    {
+      attempts: 8,
+      baseDelayMs: 10,
+      maxDelayMs: 50,
+      retryEmpty: true,
+      sleep: async () => {},
+      intervalMs: 20,
+      maxMs: 2000,
+      isVisible: () => true
+    }
+  )
+  assert.equal(status, 'empty', 'sync stops on first empty')
+  // kick() 会立刻再 tick 一次，故同步返回后 n 可能已是 2；不得出现 attempts=8 的空退避
+  assert.ok(n <= 2, `sync must not burn empty backoff retries (n=${n})`)
+  const deadline = Date.now() + 1500
+  while (n < 3 && Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, 25))
+  }
+  assert.ok(n >= 3, 'dirty watch continues empty→ok without blocking sync')
+  stopWatch()
+}
+
 const mgrPage = readSource('Manager_Agent/app/composables/useManagerChatPage.ts')
 assert.ok(mgrPage.includes('hydrateFeedbackWithRetry'), 'manager has hydrateFeedbackWithRetry')
 assert.ok(mgrPage.includes('visibilitychange'), 'manager rehydrates on visibility')
@@ -145,12 +175,20 @@ assert.ok(!mgrWs.includes('retryFeedbackHydrate\n'), 'WS resumed not bare retry-
 const rag = readSource('RAG_Agent/app/app.vue')
 assert.ok(rag.includes('retryFeedbackHydrateThenWatch'), 'rag uses retry+watch helper')
 assert.ok(rag.includes('hydrateFeedbackWithRetry'), 'rag has hydrateFeedbackWithRetry')
-assert.ok(/await loadSessionFromServer[\s\S]{0,200}hydrateFeedbackWithRetry/.test(rag), 'rag loads history before feedback')
+assert.ok(/await loadSessionFromServer[\s\S]{0,400}hydrateFeedbackWithRetry/.test(rag), 'rag loads history before feedback')
+assert.ok(
+  /sessionSwitching\.value = false[\s\S]{0,200}void hydrateFeedbackWithRetry/.test(rag),
+  'rag must not block sessionSwitching on feedback hydrate'
+)
 assert.ok(rag.includes('visibilitychange'), 'rag rehydrates on visibility')
 assert.ok(/t && t !== prev/.test(rag), 'rag rebootstrap on any token change')
 assert.ok(rag.includes('FEEDBACK_HYDRATE_WARM_OPTS'), 'rag uses warm opts')
 assert.ok(rag.includes('clearStaleFeedbackPendingAcks'), 'rag clears pending on restore')
 assert.ok(!/hasLocalFb/.test(rag), 'rag must not skip hydrate when local scores exist')
+
+const ragSessions = readSource('RAG_Agent/server/api/rag/sessions.get.ts')
+assert.ok(ragSessions.includes('listSidebarItemsFromPg'), 'rag sessions list uses batched PG sidebar query')
+assert.ok(!/for \(const sid of sessionIdSet\)[\s\S]{0,120}await readRagSession/.test(ragSessions), 'rag sessions must not N+1 readRagSession on primary path')
 
 const db = readSource('DB_Agent/app/composables/useDbChatPage.ts')
 assert.ok(db.includes('retryFeedbackHydrateThenWatch'), 'db uses retry+watch')

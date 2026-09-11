@@ -63,6 +63,20 @@ console.log('smoke-specialist-brief: start')
 }
 
 {
+  const digMm = buildFieldGuideDigest({
+    userGoal: '识图对照规范',
+    multimodalStructured: {
+      entities: [{ name: '张三', kind: 'person' }],
+      metrics: [{ name: '收缩压', value: '138', unit: 'mmHg' }],
+      ocr_text_digest: '收缩压138'
+    },
+    maxChars: 500
+  })
+  assert(digMm.includes('已决'), 'mm field guide facts header')
+  assert(digMm.includes('张三') || digMm.includes('收缩压'), 'mm field guide content')
+}
+
+{
   const parsed = parseSpecialistBrief({
     version: '1',
     goal: 'x',

@@ -5,11 +5,11 @@
 
 .spring-root.cursor-workbench.cosmic-theme {
   /* 主轨宽度：计划/对话/输入同轴，略收窄便于阅读 */
-  --chat-rail-pad-x: 18px;
-  --chat-rail-gap: 10px;
+  --chat-rail-pad-x: 14px;
+  --chat-rail-gap: 6px;
   --chat-rail-max: min(
     920px,
-    calc(100vw - var(--mgr-sidebar-w, 248px) - var(--mgr-tools-w, 300px) - 2 * var(--chat-rail-pad-x, 18px) - 16px)
+    calc(100vw - var(--mgr-sidebar-w, 248px) - var(--mgr-tools-w, 300px) - 2 * var(--chat-rail-pad-x, 14px) - 16px)
   );
   --chat-col-width: var(--chat-rail-max);
 }
@@ -80,11 +80,11 @@
   flex-shrink: 0;
 }
 
-/* 计划确认卡：薄确认条，默认不超过约 32vh，细节折叠 */
+/* 计划确认卡：薄确认条，默认不超过约 42vh，细节折叠 */
 .spring-root.cursor-workbench .chat-rail-stack > .conv-plan-preview {
   flex-shrink: 0 !important;
   min-height: 0 !important;
-  max-height: min(32vh, 320px) !important;
+  max-height: min(42vh, 420px) !important;
   display: flex !important;
   flex-direction: column !important;
   overflow: hidden !important;
@@ -99,7 +99,7 @@
 }
 
 .spring-root.cursor-workbench .chat-rail-stack.has-plan-preview > .conv-plan-preview {
-  max-height: min(32vh, 320px) !important;
+  max-height: min(42vh, 420px) !important;
 }
 
 .spring-root.cursor-workbench .chat-rail-stack.has-plan-preview > .cosmic-chat-stage {
@@ -109,10 +109,11 @@
 }
 
 .spring-root.cursor-workbench .conv-plan-details {
-  margin: 0 0 8px;
-  border-radius: 8px;
-  border: 1px solid rgba(148, 163, 184, 0.18);
-  background: rgba(255, 255, 255, 0.35);
+  margin: 0 0 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(255, 255, 255, 0.42);
+  backdrop-filter: blur(8px);
   overflow: hidden;
 }
 
@@ -122,7 +123,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 10px;
+  padding: 9px 12px;
   font-size: 12px;
   font-weight: 600;
   color: var(--chat-text-secondary, #334155);
@@ -177,10 +178,10 @@
 }
 
 .spring-root.cursor-workbench .conv-plan-preview-actions {
-  margin-top: 4px;
-  padding-top: 10px;
+  margin-top: 6px;
+  padding-top: 14px;
   border-top: 1px solid rgba(90, 140, 190, 0.28);
-  background: linear-gradient(180deg, rgba(248, 252, 255, 0.85), rgba(235, 245, 255, 0.95));
+  background: linear-gradient(180deg, rgba(248, 252, 255, 0.45), rgba(230, 242, 252, 0.78));
   pointer-events: auto;
 }
 
@@ -197,8 +198,10 @@
   overscroll-behavior: contain;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   padding-right: 2px;
+  position: relative;
+  z-index: 2;
   scrollbar-width: thin;
   scrollbar-color: rgba(47, 127, 209, 0.4) rgba(232, 242, 252, 0.6);
 }
@@ -278,7 +281,7 @@
   overscroll-behavior: auto;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
 .spring-root.cursor-workbench .conv-plan-preview-list::-webkit-scrollbar {
@@ -360,17 +363,17 @@
 }
 
 .spring-root.cursor-workbench .plan-step-index {
-  width: 22px;
-  height: 22px;
-  border-radius: 7px;
+  width: 26px;
+  height: 26px;
+  border-radius: 9px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   font-size: 11px;
   font-weight: 800;
   color: #0a4a86;
-  background: rgba(47, 127, 209, 0.14);
-  border: 1px solid rgba(47, 127, 209, 0.4);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.95), rgba(200, 228, 250, 0.85));
+  border: 1px solid rgba(47, 127, 209, 0.42);
 }
 
 .spring-root.cursor-workbench .conv-plan-preview-item {

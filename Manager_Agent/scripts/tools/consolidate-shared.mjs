@@ -55,9 +55,9 @@ let changed = 0
 for (const file of files) {
   let raw = fs.readFileSync(file, 'utf8')
   let next = raw
-  next = next.replace(/from (['"])(?:\.\.\/)+shared\/(?!llmJson|modelTier|llmSpeed)([^'"]+?)(?:\.ts)?\1/g, "from $1#agent-shared/$2$1")
+  next = next.replace(/from (['"])(?:\.\.\/)+shared\/(?!llmJson|modelTier|llmSpeed|promptBudget|policy|payload|media|index)([^'"]+?)(?:\.ts)?\1/g, "from $1#agent-shared/$2$1")
   next = next.replace(/from (['"])#shared\/([^'"]+)\1/g, "from $1#agent-shared/$2$1")
-  next = next.replace(/import\((['"])(?:\.\.\/)+shared\/(?!llmJson|modelTier|llmSpeed)([^'"]+?)(?:\.ts)?\1\)/g, "import($1#agent-shared/$2$1)")
+  next = next.replace(/import\((['"])(?:\.\.\/)+shared\/(?!llmJson|modelTier|llmSpeed|promptBudget|policy|payload|media|index)([^'"]+?)(?:\.ts)?\1\)/g, "import($1#agent-shared/$2$1)")
   if (next !== raw) {
     fs.writeFileSync(file, next, 'utf8')
     changed++

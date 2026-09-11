@@ -5,6 +5,7 @@ import type { BaseMessage } from "@langchain/core/messages";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { createRagChatOpenAI } from "./rag_chat_openai";
 import { ragFastJudgeModelName } from "./rag_agent_env";
+import { reconcileExplicitMissingDocuments } from "./retrieval_shared";
 
 export type RouteAction = "document_list" | "document_upload" | "document_query" | "direct_answer";
 
@@ -168,24 +169,41 @@ function createJudgeModel(maxTokens: number) {
 }
 
 /** 依据模型结构化输出校正快路径资格，避免 LLM 误把简单 document_query 判成不可快路径 */
-function normalizeRetrieveFirstOk(j: RagIntentJudgment, docCount: number): RagIntentJudgment {
-  if (docCount <= 0) return { ...j, retrieve_first_ok: false, retrieval_mode: j.retrieval_mode || "pipeline" };
-  if (j.is_chitchat || j.route_action !== "document_query") {
-    return { ...j, retrieve_first_ok: false, retrieval_mode: j.retrieval_mode || "pipeline" };
+function normalizeRetrieveFirstOk(
+  j: RagIntentJudgment,
+  docCount: number,
+  uploadedDocs: { name: string }[] = []
+): RagIntentJudgment {
+  const reconciled = reconcileExplicitMissingDocuments(
+    j.specified_documents,
+    j.missing_documents,
+    uploadedDocs
+  );
+  const base: RagIntentJudgment = {
+    ...j,
+    specified_documents: reconciled.specified_documents,
+    missing_documents: reconciled.missing_documents,
+    has_explicit_doc_anchor: j.has_explicit_doc_anchor || reconciled.specified_documents.length > 0,
+  };
+  if (docCount <= 0) {
+    return { ...base, retrieve_first_ok: false, retrieval_mode: base.retrieval_mode || "pipeline" };
   }
-  if (j.missing_documents.length > 0) {
-    return { ...j, retrieve_first_ok: false, retrieval_mode: j.retrieval_mode || "pipeline" };
+  if (base.is_chitchat || base.route_action !== "document_query") {
+    return { ...base, retrieve_first_ok: false, retrieval_mode: base.retrieval_mode || "pipeline" };
+  }
+  if (base.missing_documents.length > 0) {
+    return { ...base, retrieve_first_ok: false, retrieval_mode: base.retrieval_mode || "pipeline" };
   }
   // 穷尽列全才走 LangGraph agentic；其余固定 retrieve-first 管线
-  if (j.is_completeness_query) {
+  if (base.is_completeness_query) {
     return {
-      ...j,
+      ...base,
       retrieve_first_ok: false,
       retrieval_mode: "agentic",
     };
   }
   return {
-    ...j,
+    ...base,
     retrieve_first_ok: true,
     retrieval_mode: "pipeline",
   };
@@ -258,7 +276,11 @@ export async function judgeRagPreflight(input: RagPreflightInput): Promise<RagIn
       new SystemMessage(hasDialog ? INTENT_SYSTEM_BASE : INTENT_FAST_SYSTEM),
       new HumanMessage(`用户问题：${q}\n\n已上传文档：\n${docBlock}${dialogBlock}`),
     ]);
-    const parsed = normalizeRetrieveFirstOk(parseIntentJson(String(res.content ?? "")), docNames.length);
+    const parsed = normalizeRetrieveFirstOk(
+      parseIntentJson(String(res.content ?? "")),
+      docNames.length,
+      input.uploadedDocs
+    );
     intentCache.set(key, { at: Date.now(), value: parsed });
     return parsed;
   } catch (e) {

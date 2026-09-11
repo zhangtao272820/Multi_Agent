@@ -46,6 +46,10 @@ export default defineNuxtConfig({
       '#agent-shared': agentSharedDir(),
       '@brand': brandDir
     },
+    // SheetJS 依赖 dist/cpexcel.js；避免被 external 后只剩残缺绝对路径
+    externals: {
+      inline: ['xlsx']
+    },
     publicAssets: [
       {
         baseURL: 'brand',

@@ -140,6 +140,22 @@ for (const c of COLLAB) {
     if (['clean', 'code'].includes(a)) continue
     assert(bpAgents.has(a), `${c.id}: blueprint missing ${a}`)
   }
+  if (c.id === 'H3' || c.id === 'H6') {
+    const mm = bp!.steps.find((s) => String(s.agent) === 'multimodal')
+    const rag = bp!.steps.find((s) => String(s.agent) === 'rag')
+    assert(mm && rag, `${c.id}: multimodal+rag steps`)
+    const deps = Array.isArray((rag as { dependsOn?: string[] }).dependsOn)
+      ? (rag as { dependsOn: string[] }).dependsOn.map(String)
+      : []
+    const mmId = String((mm as { id?: string }).id || '')
+    // 若蓝图显式 dependsOn，须挂 multimodal；否则执行期 applyMultimodalHandoff 仍可注入
+    if (deps.length && mmId) {
+      assert(
+        deps.includes(mmId) || deps.some((d) => /multimodal|s_mm/i.test(d)),
+        `${c.id}: rag dependsOn multimodal when deps present`
+      )
+    }
+  }
   console.log(`collab route ok: ${c.id} → ${cap.join(' → ')}`)
 }
 

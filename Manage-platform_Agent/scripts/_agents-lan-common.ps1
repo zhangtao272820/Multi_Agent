@@ -23,6 +23,7 @@ $Script:ManagerStack = @(
     "vanna_db_agent",
     "vanna_db_web",
     "rag_agent",
+    "rag_ingest_worker",
     "code_assistent_agent",
     "extractor_agent",
     "ai_admin_agent",
@@ -44,11 +45,13 @@ $Script:CoreStack = @(
     "clawhive_backend",
     "clawhive_frontend",
     "rag_agent",
+    "rag_ingest_worker",
     "code_assistent_agent",
     "extractor_agent",
     "ai_admin_agent",
     "multimodal_agent",
-    "manager_agent"
+    "manager_agent",
+    "mineru_api"
 )
 
 # extended-profile-only business services (monitoring uses its own profile)

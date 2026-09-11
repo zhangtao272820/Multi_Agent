@@ -186,6 +186,24 @@ groups:
         annotations:
           summary: "Manager 并发 run 偏高（G2 背压观测）"
 
+      - alert: ManagerAdmissionQueueHigh
+        expr: manager_agent_sli_queue_depth >= 8
+        for: 5m
+        labels:
+          severity: warning
+          source: manager
+        annotations:
+          summary: "Manager 准入排队深度偏高（多租户等待）"
+
+      - alert: ManagerQueueVsInflightSkew
+        expr: manager_agent_sli_queue_depth > 0 and manager_agent_sli_inflight == 0
+        for: 10m
+        labels:
+          severity: warning
+          source: manager
+        annotations:
+          summary: "有排队但无 inflight，准入 drain 可能卡住"
+
       - alert: BudgetNearLimit
         expr: increase(manager_sli_expert_errors_total{error_code="budget_exceeded"}[1h]) > 3
         for: 5m

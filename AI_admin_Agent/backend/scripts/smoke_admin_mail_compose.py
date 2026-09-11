@@ -23,6 +23,7 @@ def main() -> None:
         build_mail_compose,
         compose_prefills_from_minutes_actions,
         compose_prefills_from_report_body,
+        compose_prefills_from_upstream_handoff,
         mail_compose_digest,
         resolve_recipient_to_email,
     )
@@ -104,6 +105,31 @@ def main() -> None:
     assert_true(minutes_prefill["to"] == "boss@ex.com", "minutes prefill to")
     assert_true("推进需求评审" in minutes_prefill["content"], "minutes prefill body")
     assert_true(minutes_prefill.get("editable") is True, "minutes compose editable")
+
+    up = compose_prefills_from_upstream_handoff(
+        {
+            "summary": "库表查询：在院人数 42",
+            "entities": [{"name": "张三", "kind": "person"}],
+            "metrics": [{"name": "在院人数", "value": "42"}],
+            "to": "zhangsan@ex.com",
+        },
+        subject="人数同步",
+    )
+    assert_true(up["to"] == "zhangsan@ex.com", "upstream handoff to")
+    assert_true("42" in up["content"] or "张三" in up["content"], "upstream handoff body")
+    assert_true(up.get("editable") is True, "upstream compose editable")
+
+    from app.core.outbound_email_compose import enrich_send_email_args
+
+    enriched = enrich_send_email_args(
+        {"to": "boss@ex.com", "content": ""},
+        user_message="把结果发给老板",
+        upstream_handoff={
+            "summary": "db 查询完成：人数 42",
+            "metrics": [{"name": "人数", "value": "42"}],
+        },
+    )
+    assert_true("42" in str(enriched.get("content") or ""), "enrich uses upstream handoff")
 
     email, reason = resolve_recipient_to_email("alice@ex.com", lambda _n: "nope")
     assert_true(email == "alice@ex.com" and reason == "email_literal", "literal email")

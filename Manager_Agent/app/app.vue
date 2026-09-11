@@ -25,7 +25,7 @@ body,
   background: transparent;
   color: var(--brand-text, #0f172a);
   font-family: var(--brand-font-sans);
-  --brand-motif-opacity: 0;
+  --brand-motif-opacity: 0.55;
 }
 
 .manager-shell.brand-shell::before {

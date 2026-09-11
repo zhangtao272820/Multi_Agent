@@ -267,6 +267,13 @@ export default defineEventHandler(async (event) => {
     });
   }
 
+  const { acquireRagPoolSlot } = await import("../utils/ragPoolGate");
+  const tenantId = String(event.context.ragTenantId || "default").trim() || "default";
+  const chatSlot = await acquireRagPoolSlot("rag_chat", tenantId);
+  if (!chatSlot.ok) {
+    throw createError({ statusCode: 429, statusMessage: chatSlot.reason });
+  }
+
   setResponseHeader(event, "Content-Type", "text/event-stream");
   setResponseHeader(event, "Cache-Control", "no-cache");
   setResponseHeader(event, "Connection", "keep-alive");
@@ -919,5 +926,7 @@ export default defineEventHandler(async (event) => {
     sendData({ type: "error", content: detail, error_code: code });
     sendData({ type: "agentResult", agentResult });
     event.node.res.end();
+  } finally {
+    await chatSlot.release();
   }
 });

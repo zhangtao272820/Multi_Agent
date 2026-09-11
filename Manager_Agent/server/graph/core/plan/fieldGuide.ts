@@ -4,6 +4,10 @@
 import { fieldGuideMaxChars } from '#agent-shared/specialistBrief'
 import type { TaskBoardItem } from './taskBoard'
 import { formatTaskBoardForParent } from './taskBoard'
+import {
+  multimodalFactsForFieldGuide,
+  type MultimodalStructuredHandoff
+} from '#agent-shared/multimodalStructuredHandoff'
 
 export type FieldGuideInput = {
   userGoal?: string
@@ -11,6 +15,8 @@ export type FieldGuideInput = {
   softHandoffDigest?: string
   globalFacts?: string[]
   failedNotes?: string[]
+  /** multimodal 结构化交接 → 已决事实槽 */
+  multimodalStructured?: MultimodalStructuredHandoff | null
   maxChars?: number
 }
 
@@ -30,10 +36,13 @@ export function buildFieldGuideDigest(input: FieldGuideInput, env: NodeJS.Proces
     if (boardText) parts.push(boardText)
   }
 
-  const facts = (Array.isArray(input.globalFacts) ? input.globalFacts : [])
-    .map((f) => String(f || '').trim())
-    .filter(Boolean)
-    .slice(0, 5)
+  const mmFacts = multimodalFactsForFieldGuide(input.multimodalStructured)
+  const facts = [
+    ...mmFacts,
+    ...(Array.isArray(input.globalFacts) ? input.globalFacts : [])
+      .map((f) => String(f || '').trim())
+      .filter(Boolean)
+  ].slice(0, 5)
   if (facts.length) {
     parts.push('已决:')
     for (const f of facts) parts.push(`- ${f.slice(0, 120)}`)

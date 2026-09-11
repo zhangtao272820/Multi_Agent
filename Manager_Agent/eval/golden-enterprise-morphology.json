@@ -1,5 +1,5 @@
 {
-  "description": "企业化形态 golden：续轮/admin/hybrid/ambiguous/租户边界（结构门禁，不调 LLM）",
+  "description": "企业化形态 golden：续轮/admin/hybrid/ambiguous/租户边界/多模态协作（结构门禁，不调 LLM）",
   "cases": [
     {
       "id": "MORPH_CONT_RAG",
@@ -64,6 +64,20 @@
       "user": "在本租户知识库里查探视制度原文",
       "expectCap": ["rag"],
       "expectTenantScope": true
+    },
+    {
+      "id": "MORPH_MM_RAG_COLLAB",
+      "morphology": "multimodal_collab",
+      "user": "识图提取体检报告关键指标，并对照知识库护理规范原文",
+      "expectCap": ["multimodal", "rag"],
+      "contextHint": { "hasAttachment": true, "mediaType": "image" }
+    },
+    {
+      "id": "MORPH_MM_DB_COLLAB",
+      "morphology": "multimodal_collab",
+      "user": "根据上传的体检单识图后，查库里同名老人最近血压记录",
+      "expectCap": ["multimodal", "db"],
+      "contextHint": { "hasAttachment": true, "mediaType": "image" }
     }
   ]
 }

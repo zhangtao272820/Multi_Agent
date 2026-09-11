@@ -138,7 +138,11 @@ export async function listSessionFeedback(
      ORDER BY updated_at ASC`,
     [a, sid]
   )
-  if (!res?.rows?.length) return []
+  // PG 查询失败 ≠ 无反馈：勿吞成 []，否则前端 WARM 把故障当 empty 空转重试
+  if (!res) {
+    throw new Error('session_feedback_store_unavailable')
+  }
+  if (!res.rows.length) return []
   return res.rows.map((r) => ({
     feedbackKey: String(r.feedback_key),
     turnId: r.turn_id ?? null,

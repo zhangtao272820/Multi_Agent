@@ -168,6 +168,76 @@ def compose_prefills_from_minutes_actions(
     )
 
 
+def compose_prefills_from_upstream_handoff(
+    handoff: dict[str, Any] | str | None,
+    *,
+    to: str = "",
+    subject: str = "",
+    from_address: str = "",
+) -> dict[str, Any]:
+    """
+    上游专家 softHandoff / Field Guide / 识图结构化交接 → Compose 预填（纯函数）。
+    不解析用户原话意图；只消费已结构化 facts / entities / metrics / summary。
+    """
+    entities: list[str] = []
+    metrics: list[str] = []
+    summary = ""
+    recipient = str(to or "").strip()
+
+    if isinstance(handoff, str):
+        summary = handoff.strip()
+    elif isinstance(handoff, dict):
+        summary = str(
+            handoff.get("summary")
+            or handoff.get("field_guide_digest")
+            or handoff.get("digest")
+            or ""
+        ).strip()
+        for e in handoff.get("entities") or []:
+            if isinstance(e, str) and e.strip():
+                entities.append(e.strip()[:64])
+            elif isinstance(e, dict):
+                name = str(e.get("name") or e.get("label") or "").strip()
+                if name:
+                    entities.append(name[:64])
+        for m in handoff.get("metrics") or []:
+            if not isinstance(m, dict):
+                continue
+            name = str(m.get("name") or m.get("label") or "").strip()
+            value = str(m.get("value") or "").strip()
+            unit = str(m.get("unit") or "").strip()
+            if name and value:
+                metrics.append(f"{name}={value}{unit}")
+        facts = handoff.get("facts") or handoff.get("global_facts") or []
+        if isinstance(facts, list):
+            for f in facts[:8]:
+                s = str(f or "").strip()
+                if s and s not in entities:
+                    entities.append(s[:80])
+        if not recipient:
+            recipient = str(
+                handoff.get("to")
+                or handoff.get("contact_email")
+                or handoff.get("recipient")
+                or ""
+            ).strip()
+
+    lines: list[str] = []
+    if summary:
+        lines.append(summary[:500])
+    if entities:
+        lines.append("关键实体：" + "、".join(entities[:8]))
+    if metrics:
+        lines.append("关键指标：" + "；".join(metrics[:8]))
+    body = "\n".join(lines).strip()
+    subj = str(subject or "").strip() or ("协作摘要" if body else "邮件")
+    return build_mail_compose(
+        "send_email",
+        {"to": recipient, "subject": subj, "content": body},
+        from_address=from_address,
+    )
+
+
 def assemble_batch_draft_composes(items: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
     """
     批量回复草稿装配（纯函数）。

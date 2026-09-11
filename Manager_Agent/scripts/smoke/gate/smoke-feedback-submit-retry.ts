@@ -11,7 +11,7 @@ import {
   clearStaleFeedbackPendingAcks,
   isFeedbackFailAck,
   stripFeedbackFailAcks
-} from '../../../../shared/feedbackSubmitUi'
+} from '#agent-shared/feedbackSubmitUi'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '../../../..')
 

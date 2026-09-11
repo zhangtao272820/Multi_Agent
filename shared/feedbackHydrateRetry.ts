@@ -158,16 +158,29 @@ export function watchFeedbackHydrateUntilOk(
 
 /**
  * 先跑有限退避重试；若仍 dirty 则启动 watch。返回最终 status 与 stopWatch。
+ *
+ * 同步阶段不对 empty 做长退避（多数会话本无反馈，空结果即权威）；
+ * Docker 暖机假空交给 dirty watch（12s×3min）。auth/error 仍同步重试。
  */
 export async function retryFeedbackHydrateThenWatch(
   run: () => Promise<FeedbackHydrateStatus>,
   opts: FeedbackHydrateRetryOptions & FeedbackHydrateWatchOptions = {}
 ): Promise<{ status: FeedbackHydrateStatus; stopWatch: () => void }> {
-  const status = await retryFeedbackHydrate(run, opts)
-  if (!isFeedbackHydrateDirty(status, { retryEmpty: opts.retryEmpty })) {
+  const wantEmptyWatch = opts.retryEmpty !== false
+  const status = await retryFeedbackHydrate(run, { ...opts, retryEmpty: false })
+  if (status === 'ok') {
     return { status, stopWatch: () => {} }
   }
-  const { stop, kick } = watchFeedbackHydrateUntilOk(run, opts)
+  const needWatch =
+    isFeedbackHydrateDirty(status, { retryEmpty: false }) ||
+    (status === 'empty' && wantEmptyWatch)
+  if (!needWatch) {
+    return { status, stopWatch: () => {} }
+  }
+  const { stop, kick } = watchFeedbackHydrateUntilOk(run, {
+    ...opts,
+    retryEmpty: wantEmptyWatch
+  })
   kick()
   return { status, stopWatch: stop }
 }

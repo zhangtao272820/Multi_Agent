@@ -1824,10 +1824,23 @@ def create_agent_graph():
                             if name == "send_email":
                                 from app.core.outbound_email_compose import enrich_send_email_args
 
+                                cc = state.get("client_context") if isinstance(state.get("client_context"), dict) else {}
+                                mt = cc.get("manager_task") if isinstance(cc, dict) else None
+                                brief = mt.get("specialist_brief") if isinstance(mt, dict) else None
+                                upstream = None
+                                if isinstance(brief, dict):
+                                    upstream = {
+                                        "summary": str(brief.get("field_guide_digest") or brief.get("goal") or ""),
+                                        "field_guide_digest": str(brief.get("field_guide_digest") or ""),
+                                        "facts": list(brief.get("acceptance") or [])[:6],
+                                    }
+                                if isinstance(mt, dict) and mt.get("upstream_handoff"):
+                                    upstream = mt.get("upstream_handoff")
                                 processed_args = enrich_send_email_args(
                                     processed_args,
                                     user_message=user_message,
                                     understanding=understanding if isinstance(understanding, dict) else None,
+                                    upstream_handoff=upstream,
                                 )
                                 state["thoughts"].append("已将发信意图整理为邮件成稿（待确认）")
 

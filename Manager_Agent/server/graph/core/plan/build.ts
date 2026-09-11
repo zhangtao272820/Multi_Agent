@@ -28,6 +28,10 @@ import { intentClassifyFromMeta } from '../../llm/intentClassifyLlm'
 import { userRequiresDbDataPlane } from '../../orchestrate/routeOrchestration'
 import { normalizeStepClauseIds } from '../routing/clausePlanBinding'
 import { type TaskConstraints } from './constants'
+import {
+  formatMultimodalStructuredDigest,
+  normalizeMultimodalStructured
+} from '#agent-shared/multimodalStructuredHandoff'
 
 export function getEffectivePlanSteps(state: { plan?: Step[]; taskPlan?: TaskPlan | null }) {
   const tpSteps = Array.isArray(state?.taskPlan?.steps) ? state.taskPlan!.steps : []
@@ -178,7 +182,18 @@ export function normalizePlanSteps(steps: Step[]) {
 
 export function buildStepContext(
   step: Step,
-  byId: Record<string, { id: string; agent: Step['agent']; query: string; output: string; status?: string; error?: string }>
+  byId: Record<
+    string,
+    {
+      id: string
+      agent: Step['agent']
+      query: string
+      output: string
+      status?: string
+      error?: string
+      meta?: unknown
+    }
+  >
 ) {
   const deps = Array.isArray((step as any).dependsOn) ? ((step as any).dependsOn as string[]) : []
   if (!deps.length) return ''
@@ -215,6 +230,16 @@ export function buildStepContext(
           .slice(0, 4)
       : []
 
+    const mmDigest =
+      String(e.agent) === 'multimodal'
+        ? formatMultimodalStructuredDigest(
+            normalizeMultimodalStructured(
+              (e.meta as { agentResult?: { structured?: unknown } } | undefined)?.agentResult?.structured
+            ),
+            160
+          )
+        : ''
+
     const rawPreview = String(extracted.answer || '').replace(/\s+/g, ' ').trim()
     let preview = rawPreview.length > perDepMax ? `${rawPreview.slice(0, perDepMax)}…` : rawPreview
     if (isActionExecAgent(step.agent) && preview && isUpstreamClarifyNoise(preview)) {
@@ -222,6 +247,7 @@ export function buildStepContext(
     }
 
     const compact = [
+      mmDigest ? `识图交接: ${mmDigest}` : '',
       factLines.length ? `facts(${factLines.length}): ${factLines.join('；')}` : '',
       missing.length ? `missing: ${missing.join('、')}` : '',
       preview ? `preview: ${preview}` : ''

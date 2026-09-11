@@ -35,9 +35,11 @@ import {
   ROUTE_INTENTS,
   EXEC_AGENTS,
   ClauseSchema,
-  assignClauseIds
+  assignClauseIds,
+  coerceTaskIntent
 } from './schemas'
 import { coerceTimeRangeHint } from '../../core/routing/taskForms'
+import { coerceExecutionTopology } from '../../core/plan/executionTopology'
 
 function filterExecAgents(raw: unknown): string[] {
   if (!Array.isArray(raw)) return []
@@ -636,6 +638,12 @@ export function normalizeOrchestratorPayload(raw: unknown, lastUser: string): un
   o.needsPlanPreview = coerceBool(o.needsPlanPreview, false)
   const sp = String(o.suggestedPosture ?? 'agent').trim().toLowerCase()
   o.suggestedPosture = ['ask', 'plan', 'agent', 'debug'].includes(sp) ? sp : 'agent'
+  o.taskIntent = coerceTaskIntent(o.taskIntent)
+  {
+    const topo = coerceExecutionTopology(o.executionTopology)
+    if (topo) o.executionTopology = topo
+    else delete o.executionTopology
+  }
   o.upgradeReason = coerceOptionalString(o.upgradeReason ?? o.reason, 200) ?? ''
   if (typeof o.upgradeConfidence !== 'number') {
     const uc = Number(o.upgradeConfidence)

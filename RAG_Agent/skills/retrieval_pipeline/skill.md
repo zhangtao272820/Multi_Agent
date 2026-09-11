@@ -30,7 +30,8 @@ owner: rag_agent
 
 弱证据 / 零命中 / 分差过低且分数偏低 → clarify，不编造。  
 生成侧另有 **Citation Guard（H5）**：答案中的数字/条款须能在证据原文中核对。  
-评测（N）：`rag_eval_metrics` precision@k / context overlap / refuse；见 `npm run gate:rag-eval`。
+评测（N）：`rag_eval_metrics` precision@k / context overlap / refuse；见 `npm run gate:rag-eval`。  
+验收闭环（X/Y）：复合子问全覆盖 + 附录新旧对照槽（`mergeVersionConflictEvidence`）+ 同源废止 keyword 回填（`backfillStaleVersionEvidence`）+ 近义多文件保槽（`ensureMultiSourceEvidenceSlots` / `areNearDuplicatePolicyDocNames`）+ 禁假未提及；见 `npm run smoke:acceptance-v32`。
 
 ## J 波 Agentic 工具环（chat 复杂问句）
 
@@ -52,6 +53,9 @@ owner: rag_agent
 你是「证据选择器」。请从给定候选片段中，选择最能回答用户问题的证据，并输出严格 JSON。
 { "evidence": [ { "content": "...", "source": "..." } ] }
 只输出 JSON。evidence 必须是原文摘录；列全/复合问句应尽量覆盖各子主题。
+若候选中同时有现行条款与附录/废止对照表且主题相同，须同时选出两侧摘录。
 禁止选用与问句主题明显无关的来源或条款。
 若候选片段能直接回答问句中的任一主题/字段，必须选出对应 evidence，不得返回空数组。
 仅当全部候选与问句主题完全无关时，才返回 evidence: []。
+复合问：每个子问至少保留 1 条证据；证据已覆盖的子题禁止在答案写「未提及/未规定」。
+「规范未规定」仅当原文明确未纳入；检索未覆盖须提示换问法，不得冒充未规定。

@@ -11,11 +11,28 @@ export type ExecutionTopology = 'solo' | 'parallel' | 'hub'
 
 const TOPOLOGIES = new Set<string>(['solo', 'parallel', 'hub'])
 
+/**
+ * LLM 枚举近邻归一（schema 修复，非用户原话路由）。
+ * 例：parallel_hub → hub；fanout → parallel。
+ */
 export function coerceExecutionTopology(raw: unknown): ExecutionTopology | null {
   const t = String(raw || '')
     .trim()
     .toLowerCase()
-  return TOPOLOGIES.has(t) ? (t as ExecutionTopology) : null
+    .replace(/[\s-]+/g, '_')
+  if (!t) return null
+  if (TOPOLOGIES.has(t)) return t as ExecutionTopology
+  // hub 优先于 parallel，使 parallel_hub / hub_parallel 落到有依赖的 DAG
+  if (t.includes('hub') || t.includes('dag') || t.includes('pipeline') || t.includes('serial')) {
+    return 'hub'
+  }
+  if (t.includes('solo') || t === 'single' || t.includes('single_agent') || t.includes('one_shot')) {
+    return 'solo'
+  }
+  if (t.includes('parallel') || t.includes('fanout') || t.includes('fan_out') || t.includes('concurrent')) {
+    return 'parallel'
+  }
+  return null
 }
 
 /**

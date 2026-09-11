@@ -348,6 +348,13 @@ services:
       EVO_AGENT_PROMPT_EXECUTION_ONLY: ${EVO_AGENT_PROMPT_EXECUTION_ONLY:-1}
       EVO_PROMOTE_REQUIRES_VERIFY: ${EVO_PROMOTE_REQUIRES_VERIFY:-1}
       RAG_MCP_SERVER: ${RAG_MCP_SERVER:-1}
+      REDIS_URL: ${REDIS_URL:-redis://clawhive_redis:6379/0}
+      RAG_ASYNC_INGEST: ${RAG_ASYNC_INGEST:-0}
+      RAG_CHAT_MAX_INFLIGHT: ${RAG_CHAT_MAX_INFLIGHT:-0}
+      RAG_CHAT_MAX_INFLIGHT_PER_TENANT: ${RAG_CHAT_MAX_INFLIGHT_PER_TENANT:-0}
+      RAG_INGEST_MAX_INFLIGHT: ${RAG_INGEST_MAX_INFLIGHT:-0}
+      RAG_INGEST_MAX_INFLIGHT_PER_TENANT: ${RAG_INGEST_MAX_INFLIGHT_PER_TENANT:-0}
+      RAG_MINERU_MAX_INFLIGHT: ${RAG_MINERU_MAX_INFLIGHT:-0}
     ports:
       - "${RAG_PORT:-13102}:${RAG_PORT:-13102}"
     depends_on:
@@ -357,6 +364,8 @@ services:
         condition: service_healthy
       clawhive_backend:
         condition: service_healthy
+      clawhive_redis:
+        condition: service_started
     healthcheck:
       test:
         [
@@ -367,6 +376,46 @@ services:
       timeout: 10s
       retries: 12
       start_period: 120s
+    restart: unless-stopped
+
+  # RAG 异步入库 worker（同镜像；LAN 默认 RAG_ASYNC_INGEST=0 时仍可启，空转等队列）
+  rag_ingest_worker:
+    image: clawhive/rag_agent:${CLAWHIVE_IMAGE_TAG:-prod}
+    container_name: rag_ingest_worker
+    env_file:
+      - path: ../RAG_Agent/.env
+        required: false
+      - path: .env.agents-lan
+        required: false
+      - path: .env.agents-enterprise
+        required: false
+    volumes:
+      - rag_agent_data:/app/.data
+    environment:
+      RAG_ROLE: worker
+      REDIS_URL: ${REDIS_URL:-redis://clawhive_redis:6379/0}
+      RAG_ASYNC_INGEST: ${RAG_ASYNC_INGEST:-0}
+      RAG_INGEST_MAX_INFLIGHT: ${RAG_INGEST_MAX_INFLIGHT:-2}
+      RAG_INGEST_MAX_INFLIGHT_PER_TENANT: ${RAG_INGEST_MAX_INFLIGHT_PER_TENANT:-1}
+      RAG_MINERU_MAX_INFLIGHT: ${RAG_MINERU_MAX_INFLIGHT:-1}
+      RAG_VECTOR_BACKEND: pgvector
+      RAG_PG_CONNECTION_STRING: postgresql://postgres:postgres@rag_pgvector:5432/rag_vector
+      RAG_PG_TABLE_NAME: ${RAG_PG_TABLE_NAME:-rag_documents}
+      MINERU_API_URL: ${MINERU_API_URL:-http://mineru_api:8080}
+      RAG_HEAVY_PARSE: ${RAG_HEAVY_PARSE:-1}
+      RAG_HEAVY_PARSE_STRICT: ${RAG_HEAVY_PARSE_STRICT:-1}
+      HOST: 0.0.0.0
+      NITRO_HOST: 0.0.0.0
+      PORT: 13112
+      NITRO_PORT: 13112
+      AGENT_DATABASE_URL: postgresql://${CLAWHIVE_PG_USER:-postgres}:${CLAWHIVE_PG_PASSWORD:-postgres}@clawhive_postgres:5432/${CLAWHIVE_PG_DB:-clawhive}
+    depends_on:
+      rag_agent:
+        condition: service_started
+      clawhive_redis:
+        condition: service_started
+      rag_pgvector:
+        condition: service_healthy
     restart: unless-stopped
 
   rag_pgvector:
@@ -663,6 +712,9 @@ services:
       WEB_SEARCH_ALLOW_DDG_FALLBACK: ${WEB_SEARCH_ALLOW_DDG_FALLBACK:-1}
       ADMIN_MCP_GATEWAY_URL: ${ADMIN_MCP_GATEWAY_URL:-http://admin_mcp_gateway:8790}
       MINERU_API_URL: ${MINERU_API_URL:-}
+      REDIS_URL: ${REDIS_URL:-redis://clawhive_redis:6379/0}
+      ADMIN_MAX_INFLIGHT: ${ADMIN_MAX_INFLIGHT:-0}
+      ADMIN_MAX_INFLIGHT_PER_TENANT: ${ADMIN_MAX_INFLIGHT_PER_TENANT:-0}
     command: uvicorn app.main:app --host 0.0.0.0 --port ${AI_ADMIN_PORT:-13105}
     ports:
       - "${AI_ADMIN_PORT:-13105}:${AI_ADMIN_PORT:-13105}"
@@ -681,6 +733,8 @@ services:
         condition: service_healthy
       clawhive_backend:
         condition: service_healthy
+      clawhive_redis:
+        condition: service_started
       searxng:
         condition: service_started
       vanna_db_agent:
@@ -885,6 +939,11 @@ services:
       MANAGER_AUTH_MODE: ${MANAGER_AUTH_MODE:-}
       MGR_TENANT_FAIL_CLOSED: ${MGR_TENANT_FAIL_CLOSED:-}
       MANAGER_REQUEST_RATE_PER_MIN: ${MANAGER_REQUEST_RATE_PER_MIN:-0}
+      MANAGER_MAX_INFLIGHT_RUNS: ${MANAGER_MAX_INFLIGHT_RUNS:-0}
+      MANAGER_MAX_INFLIGHT_PER_TENANT: ${MANAGER_MAX_INFLIGHT_PER_TENANT:-0}
+      MANAGER_MAX_INFLIGHT_PER_EXPERT: ${MANAGER_MAX_INFLIGHT_PER_EXPERT:-0}
+      MANAGER_ADMISSION_QUEUE_MAX: ${MANAGER_ADMISSION_QUEUE_MAX:-0}
+      MANAGER_ADMISSION_WAIT_MS: ${MANAGER_ADMISSION_WAIT_MS:-0}
       MANAGER_USER_AUTH: ${MANAGER_USER_AUTH:-1}
       NUXT_PUBLIC_MANAGER_USER_AUTH: ${MANAGER_USER_AUTH:-1}
       CLAWHIVE_PUBLIC_URL: ${CLAWHIVE_PUBLIC_URL:-http://127.0.0.1:18000}
@@ -1096,6 +1155,10 @@ services:
       LOBSTER_ANDROID_MCP_SERVERS: ${LOBSTER_ANDROID_MCP_SERVERS:-}
       LOBSTER_ADMIN_TOKEN: ${LOBSTER_ADMIN_TOKEN:-${CLAWHIVE_INTERNAL_TOKEN:-}}
       LOBSTER_WORKBENCH_PREFILL_TOKEN: ${LOBSTER_WORKBENCH_PREFILL_TOKEN:-1}
+      GUI_MAX_INFLIGHT: ${GUI_MAX_INFLIGHT:-0}
+      GUI_MAX_INFLIGHT_PER_TENANT: ${GUI_MAX_INFLIGHT_PER_TENANT:-0}
+      GUI_HITL_SOFT_HOLD_MS: ${GUI_HITL_SOFT_HOLD_MS:-900000}
+      REDIS_URL: ${REDIS_URL:-redis://clawhive_redis:6379/0}
       LOBSTER_VNC_PORT: ${LOBSTER_VNC_PORT:-6080}
       LOBSTER_EXECUTION_MODE: ${LOBSTER_EXECUTION_MODE:-auto}
       LOBSTER_MCP_ENABLED: ${LOBSTER_MCP_ENABLED:-1}

@@ -17,6 +17,7 @@
     "smoke:agent-result": "npx tsx scripts/smoke-agent-result-trust.ts",
     "smoke:lean": "npx tsx scripts/smoke-lean-browse-policy.ts",
     "smoke:workflow": "npx tsx scripts/smoke-workflow-macro.ts",
+    "smoke:form-fill-submit-hitl": "npx tsx scripts/smoke-form-fill-submit-hitl.ts",
     "smoke:complex": "npx tsx scripts/smoke-complex-recovery.ts",
     "smoke:playbook-evolution": "npx tsx scripts/smoke-playbook-evolution.ts",
     "postinstall": "nuxt prepare"

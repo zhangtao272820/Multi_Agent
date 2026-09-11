@@ -3,6 +3,7 @@
  * 严格模式（RAG_HEAVY_PARSE_STRICT）下失败则拒收。
  */
 import { getRagAgentEnv } from "./rag_agent_env";
+import { isIngestTextReliable } from "./ingest_text_quality";
 
 export type HeavyParseBlock = {
   type?: string;
@@ -34,10 +35,9 @@ export class HeavyParseStrictError extends Error {
   }
 }
 
+/** 需 MinerU 的版面/扫描类格式（本地解析弱）。Office 走本地成熟库，不进此集合。 */
 const HEAVY_EXTS = new Set([
   "pdf",
-  "docx",
-  "pptx",
   "png",
   "jpg",
   "jpeg",
@@ -46,26 +46,52 @@ const HEAVY_EXTS = new Set([
   "webp",
 ]);
 
+/**
+ * Word / PPTX 走本地权威解析（mammoth、word-extractor、extractPptxText）。
+ * MinerU enhanced 对部分 WPS OOXML 会「伪成功乱码」；严格模式还会挡住本地回落。
+ */
+const LOCAL_OFFICE_EXTS = new Set(["doc", "docx", "pptx"]);
+
 export function isHeavyParseExtension(fileName: string): boolean {
   const ext = fileName.split(".").pop()?.toLowerCase() || "";
   return HEAVY_EXTS.has(ext);
+}
+
+export function isLocalWordParseExtension(fileName: string): boolean {
+  const ext = fileName.split(".").pop()?.toLowerCase() || "";
+  return ext === "doc" || ext === "docx";
+}
+
+export function isLocalOfficeParseExtension(fileName: string): boolean {
+  const ext = fileName.split(".").pop()?.toLowerCase() || "";
+  return LOCAL_OFFICE_EXTS.has(ext);
 }
 
 export function shouldAttemptHeavyParse(fileName: string): boolean {
   const env = getRagAgentEnv();
   if (!env.enableHeavyParse) return false;
   if (!String(env.mineruApiUrl || "").trim()) return false;
+  if (isLocalOfficeParseExtension(fileName)) return false;
   return isHeavyParseExtension(fileName);
 }
 
 /**
  * 严格模式且扩展名需 MinerU 时，失败应拒收（不写空向量）。
  * 不要求 URL 已配置——未配置时同样拒收，避免静默回落。
+ * 本地 Office 永不因 MinerU 严格模式拒收（本就不走 MinerU）。
  */
 export function shouldRejectOnHeavyFailure(params: { fileName: string }): boolean {
   const env = getRagAgentEnv();
   if (!env.heavyParseStrict) return false;
+  if (isLocalOfficeParseExtension(params.fileName)) return false;
   return isHeavyParseExtension(params.fileName);
+}
+
+/**
+ * MinerU「伪成功」质检（与入库统一闸同实现）。
+ */
+export function isHeavyParseTextReliable(text: string, fileName?: string): boolean {
+  return isIngestTextReliable(text, fileName);
 }
 
 export function isHeavyParseTooShort(chars: number, minChars?: number): boolean {
@@ -123,6 +149,14 @@ export async function parseWithMineru(params: {
   buffer: Buffer;
   fileName: string;
 }): Promise<HeavyParseResult | HeavyParseSkip> {
+  const { withRagPoolSlot } = await import("./ragPoolGate");
+  return await withRagPoolSlot("rag_mineru", "default", async () => parseWithMineruInner(params));
+}
+
+async function parseWithMineruInner(params: {
+  buffer: Buffer;
+  fileName: string;
+}): Promise<HeavyParseResult | HeavyParseSkip> {
   const env = getRagAgentEnv();
   const base = String(env.mineruApiUrl || "").trim().replace(/\/+$/, "");
   if (!env.enableHeavyParse || !base) {
@@ -174,6 +208,9 @@ export async function parseWithMineru(params: {
         ok: false,
         reason: `too_short_${chars}_lt_${env.heavyParseMinChars}`,
       };
+    }
+    if (!isHeavyParseTextReliable(text, params.fileName)) {
+      return { ok: false, reason: "unreliable_mineru_text" };
     }
     return {
       ok: true,

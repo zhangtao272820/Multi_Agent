@@ -18,6 +18,12 @@ const goLiveEnv = {
 const STEPS = [
   { name: "structure-corpus", args: ["run", "smoke:structure-corpus"] },
   { name: "chunk-article-list", args: ["run", "smoke:chunk-article-list"] },
+  { name: "compound-evidence", args: ["run", "smoke:compound-evidence"] },
+  { name: "acceptance-v32", args: ["run", "smoke:acceptance-v32"] },
+  { name: "figure-seed-overlap", args: ["run", "smoke:figure-seed-overlap"] },
+  { name: "pg-json-sanitize", args: ["run", "smoke:pg-json-sanitize"] },
+  { name: "ingest-text-quality", args: ["run", "smoke:ingest-text-quality"] },
+  { name: "ingest-formats", args: ["run", "smoke:ingest-formats"] },
   { name: "force-reembed", args: ["run", "smoke:force-reembed"] },
   { name: "bm25-index", args: ["run", "smoke:bm25-index"] },
   { name: "binary-ingest", args: ["run", "smoke:binary-ingest"] },

@@ -19,10 +19,6 @@
       'posture-plan': collaborationPosture === 'plan'
     }"
   >
-    <div class="mgr-season-bg mgr-season-bg--xiaoxue" aria-hidden="true" />
-    <ClientOnly>
-      <BrandMotif motif="snow" :count="58" />
-    </ClientOnly>
     <div class="spring-container cosmic-command-deck">
       <ManagerWorkbenchHeader
         :connected="connected"

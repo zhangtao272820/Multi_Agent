@@ -1,15 +1,17 @@
-/* 舒适工作台：取消节气大图 / motif 粒子，干净底色优先可读 */
+/* 舒适工作台：取消节气大图 / motif 粒子 / 回复卡霜花，干净底色优先可读 */
 
 .mgr-season-bg,
 .brand-motif,
 .spring-root > .mgr-season-bg,
 .manager-shell .mgr-season-bg,
-.manager-shell .brand-motif {
+.manager-shell .brand-motif,
+.reply-frost-flake {
   display: none !important;
 }
 
 .spring-root.cosmic-theme.cursor-workbench,
-.spring-root.cursor-workbench {
+.spring-root.cursor-workbench,
+.manager-shell .spring-root.cosmic-theme.cursor-workbench {
   background:
     linear-gradient(
       180deg,

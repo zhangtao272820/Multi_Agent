@@ -40,7 +40,7 @@
   --harness-active-bg: rgba(232, 242, 255, 0.85);
   font-family: var(--brand-font-sans) !important;
   color: #0f172a !important;
-  /* 透出 mgr-season-bg 雪景；氛围由 frost-fx 加强 */
+  /* 底色由 manager-comfort 淡主题渐变提供（不再透节气大图） */
   background: transparent !important;
 }
 

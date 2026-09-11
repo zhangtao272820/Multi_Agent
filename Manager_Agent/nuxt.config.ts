@@ -53,8 +53,8 @@ export default defineNuxtConfig({
     '~/assets/css/manager-theme.css',
     /* 精致浅色高级层：故事线 / 姿态 / 观测仪表 */
     '~/assets/css/manager-premium-harness.css',
-    /* 霜化点缀终裁：雪花 / 冰缘 / 玻璃（压过 brand hide + theme 实底） */
-    '~/assets/css/manager-frost-fx.css',
+    /* 淡主题终裁：隐藏节气大图/飘雪，干净浅底优先可读（压过 frost 解禁） */
+    '~/assets/css/manager-comfort.css',
   ],
   compatibilityDate: '2025-07-15',
   devtools: { enabled: process.env.NODE_ENV !== 'production' },
